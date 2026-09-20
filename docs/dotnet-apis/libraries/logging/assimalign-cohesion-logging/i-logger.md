@@ -1,0 +1,42 @@
+# ILogger
+
+Writes structured log events to one or more sinks.
+
+[Assembly overview](index.md) · [Design](design.md) · [Examples](examples/index.md)
+
+Namespace: `Assimalign.Cohesion.Logging`.
+
+Assembly: `Assimalign.Cohesion.Logging`.
+
+## Remarks
+
+Writes structured log events to one or more sinks. Loggers are normally obtained from
+`ILoggerFactory.Create(category)`.
+
+## Members
+
+| Member | Description |
+| --- | --- |
+| `bool IsEnabled(LogLevel level)` | True when at least one sink would accept an entry at `level`. Callers MAY use this to short-circuit expensive payload construction. |
+| `void Log(ILoggerEntry entry)` | Writes the entry to every underlying sink. Per-sink failures are isolated. |
+| `IScopedLogger BeginScope(ILoggerEntry entry)` | Opens a scope. Entries written through the scope inherit `entry.Id` as their `ParentId`. |
+
+## Thread safety
+
+Implementations MUST be thread-safe. The composite logger returned from
+`LoggerFactory.Create` synchronizes fan-out through the underlying providers; each provider
+is expected to be safe for concurrent calls.
+
+## Exceptions
+
+- **Contract** — `ArgumentNullException` when `entry` is null.
+
+## Typed helpers
+
+Use `LoggerExtensions` for the common shapes (`LogTrace`, `LogDebug`, `LogInformation`,
+`LogWarning`, `LogError`, `LogCritical`, `Log(level, ...)`). The helpers short-circuit on
+`IsEnabled` automatically.
+
+## Sources
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging/docs/Assembly/Assimalign.Cohesion.Logging/ILogger/OVERVIEW.md`.

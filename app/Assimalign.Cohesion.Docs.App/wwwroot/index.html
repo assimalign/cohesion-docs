@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3f5fe" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#161826" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="Cohesion framework documentation, language references, and .NET APIs.">
+    <title>Cohesion Documentation</title>
+    <link rel="icon" href="cohesion-light.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="site.css">
+    <link rel="preload" id="webassembly">
+    <script type="importmap"></script>
+    <script type="module" src="main#[.{fingerprint}].js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="boot-screen" role="status">
+            <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="cohesion-dark.svg">
+                <img src="cohesion-light.svg" alt="" width="96" height="96">
+            </picture>
+            <strong>Cohesion Documentation</strong>
+            <p>Loading documentation…</p>
+        </div>
+    </div>
+    <noscript>This documentation application requires JavaScript and WebAssembly.</noscript>
+</body>
+</html>

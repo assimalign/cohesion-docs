@@ -1,0 +1,199 @@
+# Assimalign.Cohesion.Web.Testing design
+
+This page describes the boundaries and implementation shape of `Assimalign.Cohesion.Web.Testing`.
+
+> **Status:** Partial.
+
+## Design intent
+
+A code-first multi-service framework whose flagship resource is a web server cannot ship without
+socketless full-pipeline testing: it is how every consumer will integration-test their services, and
+how Cohesion itself tests h1/h2 pipeline semantics deterministically in CI across three operating
+systems. `WebApplicationTestFactory` is that surface — the Cohesion analogue of ASP.NET's
+`WebApplicationFactory` / `TestServer`, built instead from two seams the framework already ships:
+
+- **Server side** — the builder-time listener registration seam:
+  `builder.Server.UseServer(options => options.UseHttp1(listener))` accepts any
+  `IConnectionListener`, so the in-memory driver's `InMemoryConnectionListener`
+  (`Assimalign.Cohesion.Connections.InMemory`, #772) plugs in with no contract changes.
+- **Client side** — `SocketsHttpHandler.ConnectCallback`: the real .NET HTTP client dials the
+  in-memory listener's bound `InMemoryConnectionFactory` and speaks over the returned
+  duplex-pipe stream.
+- **Resource-program side** — `FromProgram<Program>()` installs a scoped ambient
+  `Hosting.Resources` `ResourceContext`, invokes the generated entry registration, waits for
+  the Web default control plane's readiness route, and owns graceful stop for that invocation.
+
+Nothing in the middle is faked. A test request crosses the real HTTP/1.1 or HTTP/2 wire format, the
+real `HttpConnectionListener` receive loop, the real `WebApplicationServer` per-connection dispatch
+(#762), and the application's real pipeline. What the factory removes is only the operating-system
+socket — and with it, port allocation, loopback flakiness, and cross-OS nondeterminism.
+
+## Why the real `SocketsHttpHandler`, not a synthetic message handler
+
+The alternative — a custom `HttpMessageHandler` that invokes the pipeline in process, the
+`TestServer` model — is cheaper per request but skips the transport entirely: no request
+serialization, no header wire casing, no keep-alive/pooling behaviour, no h2 framing or stream
+multiplexing, no connection lifecycle. Those layers are exactly where Cohesion's own bugs would live
+(the transport and server are first-party code here, unlike ASP.NET's battle-tested Kestrel), so the
+factory deliberately buys wire fidelity: the bytes a test exercises are the bytes production
+exercises. The trade-off accepted is a real client connection pool in each test — which the
+isolation model below turns into a feature.
+
+## Composition and drive model
+
+```text
+WebApplicationTestFactory
+ ├─ owns InMemoryConnectionListener + its bound InMemoryConnectionFactory
+ ├─ Builder  (WebApplication.CreateBuilder(); ctor registers UseServer → UseHttp1/UseHttp2(listener))
+ ├─ Application  (built lazily on first access; pipeline configured here)
+ └─ CreateClient()
+      └─ SocketsHttpHandler.ConnectCallback ──dials──► factory ──► ClientConnectionStream
+                                                                        (owns the Connection)
+```
+
+**Two-phase configuration, snapshot at start.** Services and features are configured on `Builder`
+before the application is built; the pipeline (`Use`, `UseRouting`, `Map`) is configured on
+`Application` after. When the factory starts it resolves the default `IWebApplicationServer` from
+the application's service provider, which materializes the pipeline snapshot — pipeline mutations
+after start are not observed. This mirrors the production composition order rather than inventing a
+test-only one.
+
+**Two explicit drive paths.** The existing constructor preserves mutable, socketless tests and
+starts the default server directly. `FromProgram<Program>()` instead invokes the real resource entry
+point; its `RunAsync()` flows through the `Hosting.Resources` `ResourceHost`, so every registered
+host service participates and the factory controls it only through the default control plane. The
+two modes do not share hidden hooks or process-wide mutable lists.
+
+**Start-on-first-client.** `CreateClient()` starts the factory when it has not been started yet
+(ASP.NET `WebApplicationFactory.CreateClient` parity). The blocking wait inside is safe by
+construction: the default server's `StartAsync` only schedules its accept loop and completes
+synchronously. `StartAsync` /`StopAsync` remain public for tests that assert lifecycle behaviour
+itself.
+
+## Client connection ownership
+
+`ConnectCallback` returns a `ClientConnectionStream` — the connection's duplex-pipe stream adapter
+plus one added responsibility: disposing the stream disposes the dialed `Connection`.
+`SocketsHttpHandler` disposes a pooled connection's stream when it evicts or tears down the
+connection; without the ownership hook the client end's pipes would never complete and the server
+end would stay parked in its receive loop until server shutdown. With it, client-side teardown
+propagates as end-of-stream to the server exactly as a closed socket would.
+
+## Protocol scope
+
+- **HTTP/1.1** (default) — `UseHttp1(listener)`; clients speak plain 1.1 with keep-alive and
+  pooling.
+- **HTTP/2, prior knowledge (h2c)** — `UseHttp2(listener)` server-side; clients pin
+  `DefaultRequestVersion = 2.0` with `HttpVersionPolicy.RequestVersionExact`, which makes
+  `SocketsHttpHandler` speak h2 from the first byte over the plaintext stream — no TLS, no
+  ALPN, no Upgrade dance. Streams multiplex over the single in-memory duplex pair; the test
+  suite pins that concurrent requests share one connection.
+- **HTTP/3 — out of scope.** h3 is QUIC-bound end to end: `UseHttp3` takes an
+  `IMultiplexedConnectionListener` (the driver's multiplexed variant could serve it), but
+  `SocketsHttpHandler` offers no client seam to substitute an in-memory multiplexed
+  transport — `ConnectCallback` is a stream seam, and the client's h3 stack rides real QUIC.
+  A meaningful h3 test surface therefore needs a QUIC-over-memory story (and likely a
+  Cohesion-native h3 test client), tracked alongside the HTTP/3 registration surface (#767).
+  Until then, h3 wire behaviour stays covered by the transport's own protocol tests.
+
+TLS-over-memory is likewise not modeled: the security library's `UseTls` layer can compose over an
+in-memory pair as over any transport, but certificate-trusting client plumbing adds ceremony the
+socketless factory exists to remove. Scheme-dependent behaviour is better tested at the unit level
+or over the loopback TLS integration tests that already exist in Web.Hosting.
+
+## Lifecycle contract
+
+| Phase | What happens |
+| --- | --- |
+| Construct | Listener + dial factory created; `Builder` prepared with the in-memory `UseServer` registration. Nothing runs. |
+| `Application` access | `Builder.Build()` (once, thread-safe). |
+| `StartAsync` / first `CreateClient` | Default server resolved (pipeline snapshot) and started; accept loop live. Idempotent. |
+| `StopAsync` | Server's graceful stop: stop accepting, drain in-flight connections, dispose the listener chain. `New` dials are refused (`ConnectionAbortedException` → client `HttpRequestException`). Idempotent; no-op before start. |
+| `DisposeAsync` | `StopAsync`, then application disposal, then defensive in-memory listener teardown (idempotent for the never-started factory). Safe to call twice. |
+
+`For` `Program`-backed factories, construction reserves an ambient loopback endpoint but starts nothing;
+`StartAsync` creates a `Hosting.Resources` `ResourceRuntime` scope, invokes the registered entry,
+and waits for `/readyz`; `StopAsync` posts `/cohesion/v1/stop` and joins the entry completion task;
+disposal then releases the captured host. The factory presents the invocation's bootstrap credential
+only on its internal graceful-stop request. Public clients are deliberately uncredentialed so user
+middleware never receives the privileged token; tests that call a namespaced control-plane route
+directly must add the credential to that individual request.
+
+Stop semantics — including cancellation-as-drain for in-flight exchanges — are owned and documented
+by Web.Hosting (`docs/DESIGN.md`, "Stop semantics"); the factory adds no policy of its own on top.
+
+## Parallel test isolation
+
+Each factory owns a private listener, dial factory, and application. Because the router builder is
+per-application state (#789 — `AddRouting` registers a per-application `IRouterFeature`, and
+`UseRouting` resolves that same feature), two factories in one process share no route tables,
+middleware, or connections. The test suite guards this end to end: two live factories with disjoint
+route maps serve their own routes and 404 each other's, sequentially and concurrently. This is what
+makes the factory safe under parallel xUnit execution — the intended usage, not an edge case.
+
+`Program`-backed factories extend this guarantee to full hosts: each entry runs on its own execution
+flow under an `AsyncLocal` resource frame, so endpoints, settings, references, mounts, environment,
+credentials, health contributions, and control-plane state remain local to that invocation.
+
+## AOT posture
+
+`IsAotCompatible=true` holds. Manual composition is delegate wiring with zero reflection.
+`Program`-backed composition uses the one reflection operation explicitly sanctioned by the
+developer-experience design: the compiler-rooted `Assembly.EntryPoint`. The generated
+`ResourceControlPlane.g.cs` registers that assembly with `Hosting.Resources` without naming the user
+entry type, so both top-level statements and an explicitly named `Main` remain valid. There is no
+assembly scan, dynamic load, runtime code generation, or reflection-based serialization.
+
+## Non-goals
+
+- **HTTP/3 / QUIC-over-memory** — see "Protocol scope" above; tracked with #767.
+- **TLS composition over the in-memory pair** — compose `Connections.Security` directly in a
+  dedicated test if ever needed; the factory stays plaintext.
+- **Assertion/fixture surface.** No response-assertion helpers, no xUnit fixtures — hosting
+  only, so the package stays framework-neutral.
+- **Client tracking.** The caller owns clients from `CreateClient` and disposes them;
+  factory disposal tears down the server side regardless, so a leaked client cannot leak a
+  server-side connection past the drain.
+
+## Relationships
+
+- **`Assimalign.Cohesion.Connections.InMemory`** — the transport this factory rides; its
+  `docs/DESIGN.md` records the pair wiring, teardown semantics, and dial/accept model.
+- **`Assimalign.Cohesion.Web.Hosting`** — the composition root and server whose lifecycle the
+  factory manages; its `docs/DESIGN.md` owns the dispatch and stop semantics the factory's
+  drain relies on. Web.Hosting's integration test suite consumes this package for its
+  middleware-ordering, per-connection-concurrency, and graceful-shutdown coverage.
+  This reference is the **sanctioned exception** to the Web-area dependency rule
+  (`resources/Web/README.md`): no other Web library may reference the hosting module, but the
+  test factory exists precisely to drive the concrete runtime
+  (`WebApplication`/`WebApplicationBuilder`), which cannot be done through abstractions alone.
+- **`Assimalign.Cohesion.Web.Routing`** — per-application router state (#789) is what makes
+  the parallel-isolation guarantee hold; the isolation regression tests live here.
+
+## Bootstrap identity (O35)
+
+Default program factories issue an ephemeral ES256 JWT with issuer `tests`, subject `inprocess`,
+and the program assembly name as audience. The ambient context carries the token and its public
+P-256 trust JWK. Internal stop requests send that JWT as Bearer; public clients remain
+uncredentialed. Custom managed contexts must supply a matching JWT and public trust key.
+
+## Declared dependencies
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Hosting` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Connections` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Connections.InMemory` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
+
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Assimalign.Cohesion.Web.Testing.csproj`.

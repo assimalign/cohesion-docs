@@ -1,0 +1,57 @@
+# Assimalign.Cohesion.EmailHub
+
+This project defines the public, contract-only builder and application lifecycle seam for the EmailHub area.
+
+> **Status:** Partial.
+
+## Reference pages
+
+- **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[`IEmailHubApplication`](i-email-hub-application.md)** — Documented public type.
+- **[`IEmailHubApplicationBuilder`](i-email-hub-application-builder.md)** — Documented public type.
+
+## Summary
+
+This project defines the public, contract-only builder and application lifecycle seam for the
+EmailHub area. The implementation and creation entry point live in
+`Assimalign.Cohesion.EmailHub.Hosting`.
+
+## Public surface
+
+- **`IEmailHubApplicationBuilder`** — owns area declarations and builds an `IEmailHubApplication`.
+- **`IEmailHubApplication`** — exposes `Context`, `StartAsync`, and `StopAsync`.
+
+The current application remains a filler with no area behavior or hosted services registered by
+default. Consumers can add explicit lifecycle services through the concrete Hosting builder;
+email-hub behavior is outside this slice.
+
+## Hosting-free application contract (O34)
+
+The root contracts are hosting-free (O34): `IEmailHubApplication` exposes `Context`, `StartAsync`,
+and `StopAsync`; `IEmailHubApplicationContext` exposes `ContentRootPath`.
+`IEmailHubApplicationBuilder` exposes `Build()`; it currently declares no area-specific verbs. The
+root and feature packages reference no `Assimalign.Cohesion.Hosting*` library; `COHRES004` enforces
+the boundary.
+
+`EmailHubApplication.CreateBuilder(args)` returns the public concrete `EmailHubApplicationBuilder`;
+its `Build()` returns the public `EmailHubApplication : Host<EmailHubApplicationContext>`. The
+public `EmailHubApplicationContext` implements `IEmailHubApplicationContext`, reading
+`ContentRootPath` from the host environment. The application explicitly forwards the root lifecycle
+contract to `IHost`, and consumers use the concrete application for `RunAsync` and `await using`.
+Runtime options and supporting services remain internal.
+
+Background-work registration (`AddService`) is available only on the concrete Hosting builder.
+
+## Project references
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
+
+[Parent: EmailHub](../index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/EmailHub/Assimalign.Cohesion.EmailHub/docs/OVERVIEW.md`.
+- **Source** — `cohesion/resources/EmailHub/Assimalign.Cohesion.EmailHub/src/Assimalign.Cohesion.EmailHub.csproj`.

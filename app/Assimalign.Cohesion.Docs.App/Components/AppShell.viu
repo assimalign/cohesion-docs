@@ -1,0 +1,156 @@
+<template>
+    <div :class="ShellClass">
+        <a class="skip-link" :href="MainAnchor">Skip to content</a>
+        <aside id="documentation-sidebar" class="documentation-sidebar">
+            <RouterLink to="/" class="brand-link">
+                <picture>
+                    <source media="(prefers-color-scheme: dark)" srcset="cohesion-dark.svg" />
+                    <img src="cohesion-light.svg" alt="" width="56" height="56" />
+                </picture>
+                <span><strong>cohesion</strong><small>Documentation</small></span>
+            </RouterLink>
+            <nav class="documentation-navigation" aria-label="Documentation pages">
+                <div v-for="row in GetRows()" :key="row.Key" class="navigation-row-container">
+                    <div v-if="row.IsVisible" :class="RowClass(row)" :data-depth="row.Depth" :style="RowStyle(row)">
+                        <button v-if="row.IsSection" type="button" class="section-toggle"
+                                :aria-expanded="ExpandedValue(row)" :aria-label="ToggleLabel(row)"
+                                @click="ToggleSection(row.Key)">
+                            <span :class="ChevronClass(row)" aria-hidden="true">›</span>
+                        </button>
+                        <span v-else class="navigation-spacer" aria-hidden="true"></span>
+                        <RouterLink v-if="HasRoute(row)" :to="row.RoutePath" class="navigation-link"
+                                    :aria-current="CurrentValue(row)" :title="row.Title">
+                            {{ row.Title }}
+                        </RouterLink>
+                        <span v-else class="navigation-label">{{ row.Title }}</span>
+                    </div>
+                </div>
+            </nav>
+            <p class="sidebar-note">Cohesion framework and API reference</p>
+        </aside>
+
+        <div class="documentation-workspace">
+            <header class="documentation-header">
+                <button type="button" class="sidebar-toggle" aria-controls="documentation-sidebar"
+                        :aria-expanded="SidebarExpanded" @click="ToggleSidebar()">
+                    {{ SidebarToggleLabel }}
+                </button>
+                <span class="header-label">Cohesion Documentation</span>
+                <span v-if="HasStatus" :class="StatusClass" :title="StatusText">{{ StatusLabel }}</span>
+                <a class="source-link" href="https://github.com/assimalign/cohesion"
+                   target="_blank" rel="noreferrer">GitHub ↗</a>
+            </header>
+
+            <main id="main-content" class="documentation-main" tabindex="-1">
+                <nav class="breadcrumbs" aria-label="Breadcrumb">
+                    <ol>
+                        <li v-for="crumb in GetBreadcrumbs()" :key="crumb.Key">
+                            <RouterLink v-if="IsBreadcrumbLink(crumb)" :to="crumb.RoutePath">{{ crumb.Title }}</RouterLink>
+                            <span v-else :aria-current="BreadcrumbCurrent(crumb)">{{ crumb.Title }}</span>
+                        </li>
+                    </ol>
+                </nav>
+                <RouterView :depth="1" />
+                <nav class="page-navigation" aria-label="Previous and next pages">
+                    <RouterLink v-for="page in GetPageLinks()" :key="page.RoutePath"
+                                :to="page.RoutePath" :class="PageLinkClass(page)">
+                        <small>{{ page.Direction }}</small>
+                        <strong>{{ page.Title }}</strong>
+                    </RouterLink>
+                </nav>
+            </main>
+        </div>
+    </div>
+</template>
+
+@script {
+    using System;
+    using System.Collections.Generic;
+    using System.Globalization;
+
+    using Assimalign.Cohesion.Viu.Markdown;
+    using Assimalign.Viu.Reactivity;
+
+    using CohesionDocs;
+
+    using ViuRouter = Assimalign.Viu.Router.Router;
+
+    private ViuRouter Router { get; set; } = null!;
+    private MarkdownContentCatalog Catalog { get; set; } = null!;
+    private NavigationTree Navigation { get; set; } = null!;
+    private readonly Reference<HashSet<string>> ExpandedSections =
+        Reactive.Reference(new HashSet<string>(StringComparer.Ordinal));
+    private readonly Reference<bool> SidebarOpen = Reactive.Reference(false);
+
+    // Keep the typed-method workaround from viu-docs for assimalign/viu#366: beta.12 consumers
+    // must not rely on mutable collection properties retaining their element type in v-for.
+    public IReadOnlyList<NavigationRow> GetRows() => Navigation.GetRows(ExpandedSections.Value, CurrentPath);
+    public IReadOnlyList<BreadcrumbRow> GetBreadcrumbs() => Navigation.GetBreadcrumbs(CurrentPath);
+    public IReadOnlyList<PageLink> GetPageLinks() => Navigation.GetPageLinks(CurrentPath);
+
+    public string CurrentPath => Router.CurrentRoute.Value.Path;
+    public string MainAnchor => CurrentPath + "#main-content";
+    public string StatusText => CurrentPage?.Status ?? string.Empty;
+    public bool HasStatus => StatusText.Length > 0;
+    public string StatusLabel => StatusText.StartsWith("Not yet implemented", StringComparison.Ordinal)
+        ? "Not yet implemented" : StatusText.StartsWith("Planned", StringComparison.Ordinal)
+        ? "Planned" : StatusText.StartsWith("Partial", StringComparison.Ordinal)
+        ? "Partial" : StatusText.StartsWith("Implemented", StringComparison.Ordinal)
+        ? "Implemented" : StatusText;
+    public string StatusClass => StatusLabel switch
+    {
+        "Implemented" => "status-pill status-implemented",
+        "Partial" => "status-pill status-partial",
+        "Not yet implemented" => "status-pill status-unimplemented",
+        "Planned" => "status-pill status-planned",
+        _ => "status-pill",
+    };
+    public string ShellClass => SidebarOpen.Value
+        ? "documentation-shell sidebar-open" : "documentation-shell";
+    public string SidebarExpanded => SidebarOpen.Value ? "true" : "false";
+    public string SidebarToggleLabel => SidebarOpen.Value ? "Close navigation" : "Browse docs";
+
+    private MarkdownPage? CurrentPage =>
+        Catalog.TryGetPageByRoute(CurrentPath, out MarkdownPage? page) ? page : null;
+
+    partial void OnSetup()
+    {
+        Router = (ViuRouter?)Context!.Services?.GetService(typeof(ViuRouter))
+            ?? throw new InvalidOperationException("The Viu router service is unavailable.");
+        Catalog = (MarkdownContentCatalog?)Context.Services?.GetService(typeof(MarkdownContentCatalog))
+            ?? throw new InvalidOperationException("The Markdown content catalog is unavailable.");
+        Navigation = new NavigationTree(Catalog);
+        ExpandedSections.Value = Navigation.ExpandAncestors(ExpandedSections.Value, CurrentPath);
+        WatchHandle routeWatch = Reactive.Watch(() => Router.CurrentRoute.Value.Path, (path, previous, cleanup) =>
+        {
+            ExpandedSections.Value = Navigation.ExpandAncestors(ExpandedSections.Value, path);
+            SidebarOpen.Value = false;
+        });
+        Context.Lifecycle.OnBeforeUnmount(routeWatch.Stop);
+    }
+
+    private void ToggleSection(string key)
+    {
+        HashSet<string> next = new(ExpandedSections.Value, StringComparer.Ordinal);
+        if (!next.Add(key))
+        {
+            next.Remove(key);
+        }
+        ExpandedSections.Value = next;
+    }
+
+    private void ToggleSidebar() => SidebarOpen.Value = !SidebarOpen.Value;
+    private bool HasRoute(NavigationRow row) => row.RoutePath.Length > 0;
+    private string RowClass(NavigationRow row) => "navigation-row"
+        + (row.IsSection ? " navigation-section" : string.Empty)
+        + (row.IsActive ? " navigation-active" : string.Empty);
+    private string RowStyle(NavigationRow row) => "--depth: " + row.Depth.ToString(CultureInfo.InvariantCulture);
+    private string ExpandedValue(NavigationRow row) => row.IsExpanded ? "true" : "false";
+    private string ToggleLabel(NavigationRow row) => (row.IsExpanded ? "Collapse " : "Expand ") + row.Title;
+    private string ChevronClass(NavigationRow row) => row.IsExpanded ? "chevron chevron-expanded" : "chevron";
+    private string? CurrentValue(NavigationRow row) => row.IsActive ? "page" : null;
+    private bool IsBreadcrumbLink(BreadcrumbRow crumb) => !crumb.IsCurrent && crumb.RoutePath.Length > 0;
+    private string? BreadcrumbCurrent(BreadcrumbRow crumb) => crumb.IsCurrent ? "page" : null;
+    private string PageLinkClass(PageLink page) => page.Direction == "Next"
+        ? "page-link page-link-next" : "page-link page-link-previous";
+}
