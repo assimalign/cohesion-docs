@@ -18,9 +18,12 @@ The base SDK exposes shared project defaults, resource metadata, settings genera
 
 Defaults apply only when empty, before Microsoft’s props. Later ordinary consumer assignments win;
 global command-line properties are honored. Resource executables do not multi-target. Override
-`LangVersion` together with `EnablePreviewFeatures`. For enabled Debug resources, the targets
+`LangVersion` together with `EnablePreviewFeatures`. For enabled resources, in every configuration, the targets
 supply `SelfContained=true`, the host `RuntimeIdentifier=$(NETCoreSdkRuntimeIdentifier)`, and
-`ValidateExecutableReferencesMatchSelfContained=false` only if each is unset.
+`ValidateExecutableReferencesMatchSelfContained=false` only if each is unset; every Cohesion SDK
+project also gets `DisableTransitiveFrameworkReferenceDownloads=true` unless it sets the property,
+because the SDKs reference every needed Cohesion framework explicitly. Project files therefore
+no longer carry any of these four properties.
 
 ## Consumer properties
 
@@ -30,9 +33,10 @@ be supplied before their props evaluation.
 
 | Name | Default or assignment | Effect | Where defined and condition |
 |---|---|---|---|
-| `SelfContained` | `true` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(SelfContained)' == '' and '$(Configuration)' == 'Debug' and '$(CohesionApplicationModel)' == 'enabled'` |
-| `RuntimeIdentifier` | `$(NETCoreSdkRuntimeIdentifier)` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and '$(CohesionApplicationModel)' == 'enabled'` |
-| `ValidateExecutableReferencesMatchSelfContained` | `false` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(ValidateExecutableReferencesMatchSelfContained)' == '' and '$(Configuration)' == 'Debug' and '$(CohesionApplicationModel)' == 'enabled'` |
+| `SelfContained` | `true` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(SelfContained)' == '' and '$(CohesionApplicationModel)' == 'enabled'` |
+| `RuntimeIdentifier` | `$(NETCoreSdkRuntimeIdentifier)` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(RuntimeIdentifier)' == '' and '$(CohesionApplicationModel)' == 'enabled'` |
+| `ValidateExecutableReferencesMatchSelfContained` | `false` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(ValidateExecutableReferencesMatchSelfContained)' == '' and '$(CohesionApplicationModel)' == 'enabled'` |
+| `DisableTransitiveFrameworkReferenceDownloads` | `true` | Assigned during `evaluation`; the SDKs reference every needed Cohesion framework explicitly, so transitive framework references never download their own runtime packs. | `Sdk/Sdk.targets`; when `'$(DisableTransitiveFrameworkReferenceDownloads)' == ''` |
 | `CohesionBuildResourceContainersDependsOn` | `$(CohesionBuildResourceContainersDependsOn)` | Extension chain used by CohesionPublishImage. | `Targets/Assimalign.Cohesion.Sdk.ApplicationModel.Build.targets`; unconditional |
 | `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by all registered framework targeting and runtime packs. | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`; when `'$(CohesionAppFrameworkVersion)' == ''` |
 | `CohesionAppSettingsNamespace` | `$(RootNamespace)` | Namespace of generated settings types. | `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets`; when `'$(CohesionAppSettingsNamespace)' == '' and '$(CohesionAppSettingsClass)' != ''` |

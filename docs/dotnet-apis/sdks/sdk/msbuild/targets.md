@@ -121,23 +121,19 @@ Generate the opted-in settings source only when its inputs are newer than its ou
 |---|---|---|
 | `CreateStronglyTypedSettingsTask` | `AppSettingsClass=$(CohesionAppSettingsClass)`; `AppSettingsNamespace=$(CohesionAppSettingsNamespace)`; `AppSettingsFiles=@(_AppSettings)`; `AppSettingsOutputPath=$(_StronglyTypedSettingsOutput)` | None |
 
-### `_CleanStronglyTypedAppSettings`
+### `_RegenerateStronglyTypedAppSettingsAfterClean`
 
-Delete generated settings source and fingerprint files, including files left after opt-out.
+Regenerate the settings source after CoreClean has deleted it with the other file writes, so IntelliSense keeps the settings type between a clean and the next build. The generation target adds the `Compile` item and the file writes itself; after opt-out the orphaned files leave with the next incremental clean.
 
 | Contract | Exact value |
 |---|---|
 | `BeforeTargets` | Not declared |
 | `AfterTargets` | `Clean` |
-| `DependsOnTargets` | Not declared |
-| `Condition` | Not declared |
+| `DependsOnTargets` | `_GeneratedStronglyTypedAppSettings` |
+| `Condition` | `'$(CohesionAppSettingsClass)' != ''` |
 | `Inputs` | Not declared |
 | `Outputs` | Not declared |
 | `Returns` | Not declared |
-
-| Task or operation | Parameters | `Outputs` |
-|---|---|---|
-| `Delete` | `Files=@(_StronglyTypedSettingsGeneratedArtifact)` | None |
 
 ## `Targets/Sdk.Image.targets`
 
@@ -333,13 +329,17 @@ Ask each resource project for `CohesionGetManifest` and collect its returned man
 ### `CohesionCreateResourceManifest`
 
 Validate resource metadata and write the JSON manifest, typed accessors, and control-plane
-registration; register all three outputs for cleanup.
+registration; add the two generated sources to `Compile` (they are build outputs, never
+evaluation-time items under obj) and register all three outputs as file writes. It runs before
+`BeforeCompile` so the compile dependency cache sees the sources, and in design-time builds so
+Visual Studio compiles them after a clean; `ResolveProjectReferences` is not a dependency, so the
+post-clean regeneration builds nothing.
 
 | Contract | Exact value |
 |---|---|
-| `BeforeTargets` | `PrepareResourceNames;CoreCompile` |
+| `BeforeTargets` | `PrepareResourceNames;BeforeCompile;CoreCompile` |
 | `AfterTargets` | Not declared |
-| `DependsOnTargets` | `CohesionValidateApplicationModel;ResolveProjectReferences;CohesionResolveResourceReferences` |
+| `DependsOnTargets` | `CohesionValidateApplicationModel;CohesionResolveResourceReferences` |
 | `Condition` | `'$(_CohesionResourceEnabled)' == 'true'` |
 | `Inputs` | `$(MSBuildProjectFullPath);$(MSBuildAllProjects);@(_CohesionReferencedManifest)` |
 | `Outputs` | `$(CohesionResourceManifestPath);$(CohesionResourceSourcePath);$(CohesionResourceControlPlaneSourcePath)` |
@@ -458,23 +458,56 @@ enabled composable resource.
 | `Outputs` | Not declared |
 | `Returns` | `@(_CohesionInProcessRuntimeAssetResult)` |
 
-### `CohesionCleanResourceManifest`
+### `CohesionAddResourceManifestItems`
 
-Remove resource source and manifest outputs plus staged package manifests.
+Add the embedded manifest item before target paths are assigned; the manifest and generated sources are build outputs, so nothing under the intermediate directory is an evaluation-time item.
 
 | Contract | Exact value |
 |---|---|
-| `BeforeTargets` | Not declared |
-| `AfterTargets` | `Clean` |
+| `BeforeTargets` | `AssignTargetPaths` |
+| `AfterTargets` | Not declared |
 | `DependsOnTargets` | Not declared |
-| `Condition` | Not declared |
+| `Condition` | `'$(_CohesionResourceEnabled)' == 'true'` |
 | `Inputs` | Not declared |
 | `Outputs` | Not declared |
 | `Returns` | Not declared |
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `Delete` | `Files=$(CohesionResourceManifestPath);$(CohesionResourceSourcePath);$(CohesionResourceControlPlaneSourcePath);$(CohesionPackResourceManifestPath);$(_CohesionPackImageManifestPath)` | None |
+| `EmbeddedResource` item | `Include=$(CohesionResourceManifestPath)`; `LogicalName=cohesion/resource.json`; `Visible=false` | None |
+
+### `CohesionRegenerateResourceManifestAfterClean`
+
+Regenerate the manifest and generated sources after CoreClean has deleted them with the other file writes, so an editor that watched them disappear sees them return in the same command.
+
+| Contract | Exact value |
+|---|---|
+| `BeforeTargets` | Not declared |
+| `AfterTargets` | `Clean` |
+| `DependsOnTargets` | `CohesionCreateResourceManifest` |
+| `Condition` | `'$(_CohesionResourceEnabled)' == 'true' and Exists('$(ProjectAssetsFile)')` (a project that was never restored is left alone) |
+| `Inputs` | Not declared |
+| `Outputs` | Not declared |
+| `Returns` | Not declared |
+
+### `CohesionCleanImageArtifacts`
+
+Remove the image manifest and archive, which image publication writes outside the file-write list.
+
+| Contract | Exact value |
+|---|---|
+| `BeforeTargets` | Not declared |
+| `AfterTargets` | `CoreClean` |
+| `DependsOnTargets` | Not declared |
+| `Condition` | `'$(_CohesionResourceEnabled)' == 'true'` |
+| `Inputs` | Not declared |
+| `Outputs` | Not declared |
+| `Returns` | Not declared |
+
+| Task or operation | Parameters | `Outputs` |
+|---|---|---|
+| `Delete` | `Files=$(CohesionImageManifestPath);$(CohesionContainerArchiveOutputPath)` | None |
+| `RemoveDir` | `Directories=$(IntermediateOutputPath)cohesion/images`; when it exists | None |
 
 
 ## Manifest package README contract

@@ -19,7 +19,8 @@ The Database SDK imports shared build behavior before selecting one allowlisted 
 11. The consumer project body sets resource and schema options.
 12. `Assimalign.Cohesion.Sdk.Database/Sdk/Sdk.targets` imports the base targets.
 13. `Assimalign.Cohesion.Sdk/Sdk/Sdk.targets` captures image publish inputs and supplies
-    self-contained host-runtime defaults for enabled Debug resources.
+    self-contained host-runtime defaults for enabled resources in every configuration, plus
+    `DisableTransitiveFrameworkReferenceDownloads=true` for every project.
 14. `Microsoft.NET.Sdk/Sdk/Sdk.targets` loads Microsoft build targets.
 15. `Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` registers pin validation.
 16. `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets` wires settings generation and cleanup.
