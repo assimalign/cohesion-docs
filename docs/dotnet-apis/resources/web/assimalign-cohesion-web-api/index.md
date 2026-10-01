@@ -33,6 +33,17 @@ Parameters bind from the request by convention or by explicit attribute:
 Unparseable or missing-required scalars produce a 400 problem+json (with an `errors` extension
 naming the parameter); an unsupported body Content-Type produces 415; a malformed body produces 400.
 
+## Endpoint Metadata and Groups
+
+Every `Map*` returns the mapped route's `IRouterRouteBuilder`, so per-endpoint policies attach where
+the endpoint is mapped. Groups hold typed endpoints too, and group metadata reaches every child
+whenever it is attached:
+
+See the [source-backed usage examples](examples/index.md).
+
+A group endpoint binds a parameter its own template does not name from the route value first (the
+group prefix supplies `tenant` above), then from the query string.
+
 ## Wiring
 
 - **Reference the generator** — `<CohesionAnalyzerReference Include="Assimalign.Cohesion.SourceGeneration.Web" />`

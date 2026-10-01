@@ -28,8 +28,10 @@ referencing this package's middleware.
 
 See the [source-backed usage examples](examples/index.md).
 
-`Register` `UseHttpLogging` **first** — ahead of authentication, CORS, and routing — so rejected
-exchanges are logged too.
+Register `UseHttpLogging` **first** — ahead of authentication, CORS, and routing — so rejected
+exchanges are logged too. Behind a proxy, `UseForwardedHeaders` goes directly after it: the entry
+records the effective (forwarded) client address, scheme, and host, and keeps the transport peer
+beside them under `network.peer.address`.
 
 ## Field selection and redaction
 
@@ -39,8 +41,13 @@ are opt-in** because they routinely carry secrets. `Header` redaction is **allow
 always log, values log only for allowlisted headers, and `Authorization`, `Proxy-Authorization`,
 `Cookie`, and `Set-Cookie` are never in the default allowlists.
 
-Per-endpoint overrides attach an `HttpLoggingMetadata` to the route's metadata bag (last-wins);
-`HttpLoggingFields.None` silences an endpoint entirely — the usual choice for health probes.
+Per-endpoint overrides attach an `HttpLoggingMetadata` to the route's metadata bag (last-wins),
+usually through the convention verb on a mapped route or a route group:
+`app.MapGroup("/probes").WithHttpLogging(HttpLoggingFields.None)`. `HttpLoggingFields.None` silences
+an endpoint entirely — the usual choice for health probes. The override is read from the endpoint
+`UseRouting` published when the pipeline unwinds, so it applies with `UseHttpLogging` registered
+first. It covers the exchanges the endpoint handles, not a CORS preflight that names it, which is
+logged with the configured fields.
 
 ## Dependencies
 
@@ -48,6 +55,7 @@ Per-endpoint overrides attach an `HttpLoggingMetadata` to the route's metadata b
 | --- | --- |
 | `Assimalign.Cohesion.Web` | the middleware/pipeline abstractions |
 | `Assimalign.Cohesion.Web.Routing` | reads the endpoint metadata bag for per-endpoint overrides |
+| `Assimalign.Cohesion.Http.Forwarded` | the effective scheme, host, and client address (`Effective*`), resolved by `UseForwardedHeaders` behind a trusted proxy |
 | `Assimalign.Cohesion.Logging` | the emission model (`ILogger`, `LoggerEntry`, `LoggerProvider`) |
 
 See [DESIGN.md](design.md) for the architecture and the decisions behind it.
@@ -58,6 +66,7 @@ See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)

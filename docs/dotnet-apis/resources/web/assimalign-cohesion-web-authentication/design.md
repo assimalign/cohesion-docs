@@ -13,8 +13,9 @@ is absent and reuses an existing feature when assigning a principal.
 `IAuthenticationSignInHandler` adds sign-in and sign-out. `AddAuthentication` composes against
 `IWebApplicationBuilder`; `UseAuthentication` composes the request pipeline.
 
-The README uses older feature names. This reference uses the current source names
-`IAuthenticationFeature` and the internal `AuthenticationFeature` implementation.
+The README and `docs/DESIGN.md` still use the older implementation name
+`HttpAuthenticationFeature`. This reference uses the current source names `IAuthenticationFeature`
+and the internal `AuthenticationFeature` implementation.
 
 ## Declared dependencies
 
@@ -49,5 +50,5 @@ The README uses older feature names. This reference uses the current source name
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationResultFeature.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/DefaultAuthenticationService.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/ApiEndpointMetadata.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/IApiEndpointMetadata.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Abstractions/IApiEndpointMetadata.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Assimalign.Cohesion.Web.Authentication.csproj`.

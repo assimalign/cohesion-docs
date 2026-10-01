@@ -19,7 +19,7 @@ tag-aware store built on Cohesion's owned cache foundation. It is the middleware
 - **Cache cacheable GET/HEAD responses** at the server, needing no client participation — the standard
   enterprise capability for high-traffic API and page workloads.
 - **Policy model at builder time**: a base policy applied to every request, named policies, and
-  per-endpoint overrides through a sealed metadata carrier resolved at the router's route-match seam.
+  per-endpoint overrides through a sealed metadata carrier read from the endpoint `UseRouting` publishes.
 - **Correct cache-or-bypass decisions** via the #755 typed `Cache-Control` primitives: bypass on
   `no-store`/`private`/`Set-Cookie`, on non-safe methods, and on non-`200` responses; never cache
   authenticated responses by default.
@@ -30,9 +30,11 @@ tag-aware store built on Cohesion's owned cache foundation. It is the middleware
 ## Dependencies
 
 - **`Assimalign.Cohesion.Web`** — the root pipeline-builder seam the `UseOutputCache` verb composes against.
-- **`Assimalign.Cohesion.Web.Routing`** — the router match (endpoint discovery) and the endpoint-metadata seam.
+- **`Assimalign.Cohesion.Web.Routing`** — the published route match (endpoint, route values) and the endpoint-metadata seam.
 - **`Assimalign.Cohesion.Http`** — the `IHttpContext` surface and the #755 `HttpCacheControl` / `HttpFreshness`
   primitives.
+- **`Assimalign.Cohesion.Http.Forwarded`** — the effective scheme and host the primary key is built from
+  (forwarded by a trusted proxy when `UseForwardedHeaders` runs first, otherwise the wire values).
 - **`Assimalign.Cohesion.Http.Streaming`** — the `IHttpResponseStreamingFeature.HasStarted` guard.
 - **`Assimalign.Cohesion.Caching` / `Assimalign.Cohesion.Caching.InMemory`** — the synchronous cache
   foundation the default in-memory store adapts.
@@ -44,8 +46,10 @@ It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isol
 
 See the [source-backed usage examples](examples/index.md).
 
-`Register` `UseOutputCache` **before** `UseResponseCompression`, any content-negotiated write, and
-`UseRouting` (see `DESIGN.md` for why the ordering is load-bearing).
+Register `UseOutputCache` **after** `UseRouting`, and **before** `UseResponseCompression` and any
+content-negotiated write (see `DESIGN.md` for why the ordering is load-bearing). Registered ahead of
+`UseRouting`, only the base policy applies: endpoint metadata cannot opt an endpoint in, and a
+response from an endpoint that carries it is never stored, so an opt-out still holds.
 
 ## Documentation
 
@@ -59,6 +63,7 @@ See the [source-backed usage examples](examples/index.md).
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Caching` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Caching.InMemory` | `CohesionProjectReference` |

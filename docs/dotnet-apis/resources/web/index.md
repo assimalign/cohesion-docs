@@ -66,10 +66,12 @@ The hosting family in this area contains `Assimalign.Cohesion.Web.Hosting`,
 
 ## Framework and SDK
 
-`Assimalign.Cohesion.Sdk.Web` delivers the `Assimalign.Cohesion.App.Web` family. Its reference-pack
-project declares `CohesionFrameworkName` and imports `frameworks/Assimalign.Cohesion.App.props`,
-the public and private assembly inventory. `CohesionFrameworkAssembly` entries appear in the
-reference and runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.Sdk.Web` delivers the `Assimalign.Cohesion.App.Web` family. Its producers,
+`Assimalign.Cohesion.Web.Refs` and `Assimalign.Cohesion.Web.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
+private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
+the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
+packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -102,6 +104,8 @@ reference and runtime packs; `CohesionFrameworkPrivateAssembly` entries appear o
 | `Assimalign.Cohesion.Web.Serialization` |
 | `Assimalign.Cohesion.Web.Sessions` |
 | `Assimalign.Cohesion.Web.StaticFiles` |
+| `Assimalign.Cohesion.Caching` |
+| `Assimalign.Cohesion.Caching.InMemory` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
@@ -111,6 +115,8 @@ reference and runtime packs; `CohesionFrameworkPrivateAssembly` entries appear o
 | `Assimalign.Cohesion.Http.Sessions` |
 | `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Http.ServerSentEvents` |
+| `Assimalign.Cohesion.Http.InterimResponses` |
+| `Assimalign.Cohesion.Http.DigestFields` |
 | `Assimalign.Cohesion.Connections.Quic` |
 | `Assimalign.Cohesion.Connections.Security` |
 | `Assimalign.Cohesion.Connections.Tcp` |
@@ -139,7 +145,7 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/Web/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.Web.Refs/src/Assimalign.Cohesion.App.Web.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Refs/src/Assimalign.Cohesion.Web.Refs.csproj` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.
 - **Architecture source** — `cohesion/docs/resources/Web/DESIGN.md`.
 - **Architecture overview** — `cohesion/docs/resources/Web/OVERVIEW.md`.

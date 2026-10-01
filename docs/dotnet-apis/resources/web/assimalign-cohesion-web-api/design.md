@@ -34,6 +34,22 @@ All `Map*` overloads compose on the router: they resolve the `IRouterFeature` an
 , so an application still calls `AddRouting()` (builder) and `UseRouting()` (pipeline) exactly as it
 does for the raw router surface.
 
+**Every `Map*` returns the mapped route's `IRouterRouteBuilder` (#1055).** Per-endpoint policies
+attach where the endpoint is mapped, for example `app.MapGet("/orders/{id:int}",
+handler).WithName("order").RequireRateLimiting("api")`. Metadata composes when the route table is
+built (Web.Routing DESIGN, "Endpoint convention builders"). Before #1055 the verbs returned the
+pipeline builder, and a typed endpoint could carry no metadata at all.
+
+**Fallback (#1056).** `app.MapFallback(middleware)` and `app.MapFallback(pattern, middleware)` map
+Web.Routing's fallback route (lowest precedence, `GET`/`HEAD`, never a file-name path, never a 405).
+For a single-page application use `MapFallbackToFile` in `Web.StaticFiles`.
+
+**Groups hold typed endpoints.** `app.MapGroup(prefix)` returns the router's `IRouterGroupBuilder`.
+`RouterGroupBuilderEndpointExtensions` gives it the same two families: the raw middleware overloads,
+and the `Delegate` placeholders the generator intercepts. `api.MapGet("orders/{id:int}", (int id) =>
+...)` therefore binds exactly like an application endpoint, and the group's prefix, metadata and
+policies compose onto it.
+
 ## The Source Generator
 
 `EndpointBindingGenerator` (an `IIncrementalGenerator` in `analyzers/`, netstandard2.0 — the
@@ -49,7 +65,8 @@ sanctioned non-AOT build component) intercepts each typed `Map*` call site with 
 Interceptors are emitted into `Assimalign.Cohesion.Web.Api.Generated`; consumers allow-list that
 namespace with `<InterceptorsNamespaces>`. The generator is delivered two ways: in-repo/test
 projects via `<CohesionAnalyzerReference Include="Assimalign.Cohesion.SourceGeneration.Web" />`,
-and to Sdk.Web consumers via the `CohesionFrameworkAnalyzer` entry in `App.props` (bundled under
+and to Sdk.Web consumers via the `CohesionFrameworkAnalyzer` entry in the `App.Web` member list,
+`resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props` (bundled under
 `analyzers/dotnet/cs/` in `App.Web.Ref`). See the generator's own `docs/DESIGN.md` for emission
 internals.
 
@@ -63,7 +80,11 @@ Each handler parameter is classified once, at compile time:
    `[FromBody]`, `[FromForm]` (each with an optional `Name`, except `[FromBody]`).
 3. **Convention** otherwise: a name matching a `{token}` in a literal route pattern → route;
    a scalar type (`string`, `IParsable<T>` primitives, enums, and their `Nullable<>` forms) → query;
-   a complex type → body.
+   a complex type → body. **Route-or-query** replaces query for a scalar the call site cannot place
+   (#1055). That happens in two cases: a route-group endpoint, whose group prefix is declared
+   elsewhere (`MapGroup("api/{tenant}")` + `api.MapGet("orders", (string tenant) => ...)`), and a
+   pattern that is not a string literal. The thunk reads the route value when the matched route
+   captured one, and the query string otherwise.
 
 Scalars convert inline with `IParsable<T>.TryParse(..., CultureInfo.InvariantCulture, ...)` (enums
 via `Enum.TryParse<T>`), so no runtime binder or reflection is needed. `Route` values arrive as

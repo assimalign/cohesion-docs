@@ -12,8 +12,9 @@ HTTPS policy for the Cohesion Web pipeline: the natural pair of HTTP-to-HTTPS re
 HTTPS policy for the Cohesion Web pipeline: the natural pair of HTTP-to-HTTPS redirection and HTTP
 Strict Transport Security (HSTS), delivered as one lean feature package. Both are table-stakes for
 an enterprise-facing web server, and both hinge on the same question — *is this connection secure?*
-— answered from the transport-derived typed scheme the Web TLS surface (#763) resolves onto every
-request.
+— answered from the effective typed scheme: the scheme a trusted proxy asserted when
+`UseForwardedHeaders` resolved one, otherwise the transport-derived scheme the Web TLS surface
+(#763) resolves onto every request.
 
 ## What it provides
 
@@ -41,9 +42,12 @@ See the [source-backed usage examples](examples/index.md).
 ## Dependencies
 
 - **`Assimalign.Cohesion.Web`** — the pipeline abstractions the verbs extend.
-- **`Assimalign.Cohesion.Http`** — `HttpScheme` (the transport-derived security
-  signal), `HttpHost`/`HttpHostMatcher` (excluded-host matching), `HttpHeaderKey`
-  (the RFC 6797 `Strict-Transport-Security` key), and the redirect status codes.
+- **`Assimalign.Cohesion.Http`** — `HttpScheme` (the typed security signal),
+  `HttpHost`/`HttpHostMatcher` (excluded-host matching), `HttpHeaderKey` (the
+  RFC 6797 `Strict-Transport-Security` key), and the redirect status codes.
+- **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveScheme`/`EffectiveHost`
+  reads, which fall back to the wire values when no forwarded-headers middleware
+  ran.
 
 No DI, configuration, or logging dependency — the verbs capture values at builder time and the
 middleware resolves nothing per request. Delivered to applications through the `App.Web` shared
@@ -56,6 +60,7 @@ security-detection, port-resolution, and HSTS emission-point decisions, and the 
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

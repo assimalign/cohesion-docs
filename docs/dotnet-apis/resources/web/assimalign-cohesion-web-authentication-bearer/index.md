@@ -16,7 +16,10 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
 ## What it provides
 
 - **`JwtBearerOptions`** — valid issuers / audiences, signing keys,
-  allowed algorithms, clock skew, and the name/role claim types.
+  allowed algorithms, clock skew, and the name/role claim types. Issuer and
+  audience validation are on by default: registering a scheme without at
+  least one issuer and one audience fails unless `ValidateIssuer` or
+  `ValidateAudience` is set to `false` explicitly.
 - **`JwtBearerDefaults`** — the default scheme name (`"Bearer"`).
 - **`IJwtSignatureVerifier`** — + `JwtSignatureVerifier.CreateHmac/CreateRsa/CreateEcdsa`
   — the compatibility seam: HMAC remains Web-local, while the RSA/ECDSA factories
@@ -38,8 +41,8 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
 
 See the [source-backed usage examples](examples/index.md).
 
-See [docs/DESIGN.md](design.md) for the validation order, the algorithm-confusion defense, and the
-JWT→`ClaimsPrincipal` mapping.
+See [docs/DESIGN.md](design.md) for the validation order, the fail-closed defaults, the
+algorithm-confusion defense, and the JWT→`ClaimsPrincipal` mapping.
 
 ## Project references
 

@@ -27,7 +27,24 @@ RFC semantics locally.
 
 ## Usage
 
+The parameterless verb serves the application's web root: `wwwroot` under the content root
+(`IWebApplicationContext.WebRootPath`, set by the hosting runtime). It never serves the content root
+itself or the working directory, and it passes every request through when the application has no web
+root:
+
 See the [source-backed usage examples](examples/index.md).
+
+Mount any other file system explicitly:
+
+See the [source-backed usage examples](examples/index.md).
+
+A single-page application serves its assets first and answers every client-side route with
+`index.html`. The fallback never answers a file-name path, so a missing asset stays a 404:
+
+See the [source-backed usage examples](examples/index.md).
+
+Static files can also be mounted in a path branch, which serves below the branch's prefix:
+`app.Map("/static", branch => branch.UseStaticFiles())`.
 
 ## What a served response carries
 
@@ -62,6 +79,7 @@ parity note.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |

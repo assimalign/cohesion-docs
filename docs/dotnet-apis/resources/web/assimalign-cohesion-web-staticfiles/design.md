@@ -25,6 +25,18 @@ that always ships together.
   library already models mounts (physical, in-memory, aggregate, isolated-storage) with a
   richer surface than ASP.NET's `IFileProvider`, and the mount boundary doubles as the
   security boundary: the middleware cannot express a lookup outside the mounted root.
+  Lookups are mount-relative: the middleware strips the request path's leading `/` before
+  calling the mount, because every provider merges a relative path against its own root while
+  a leading `/` is absolute in the provider's namespace (the drive root for the physical
+  provider).
+- **The parameterless verb serves the web root, never the content root (#1045).**
+  `UseStaticFiles()` mounts `IWebApplicationContext.WebRootPath` — `wwwroot` under the content
+  root by default, resolved by the hosting runtime — and passes every request through when the
+  application has no web root. Until 2026-09 it mounted `ContentRootPath`, which Web.Hosting
+  never set, so it fell back to the process working directory; `.json` is a served content type,
+  which exposed `appsettings*.json`. Its options are configured and validated once, when the
+  verb is called, exactly like the explicit `UseStaticFiles(IFileSystem, ...)` overloads (they
+  used to be rebuilt on every request).
 - **Middleware-first, no result types.** The 2026-07-10 direction withdrew `IResult`; this
   package writes status, headers, and body directly on `IHttpResponse`. The `#864` edge
   (serializer registry / `OnError`) was dropped from this item accordingly — errors here are
@@ -94,6 +106,27 @@ range (GET only; If-Range gate) ──▶ 416 | single 206 | full 200
 open stream → head (Content-*, ETag, Last-Modified, Accept-Ranges, Cache-Control, Vary) → body (GET)
 ```
 
+The request path the flow starts from is `context.GetEffectivePath()` (#1056). Inside a
+`Map("/static", branch)` branch that is the path below `/static`, so `branch.UseStaticFiles()`
+serves `/static/app.js` from `wwwroot/app.js`. The add-a-slash redirect still builds its `Location`
+from the full request path, so it stays correct inside a branch. Outside a branch the effective path
+is the request path.
+
+## Single-page-application fallback (`MapFallbackToFile`, #1056)
+
+`app.MapFallbackToFile("index.html")` maps the application's fallback route (Web.Routing's
+`MapFallback`: lowest precedence, `GET`/`HEAD`, never a file-name path, never a 405). Its handler
+serves the named file from the web root through the same middleware, entered at an internal
+`ServeAsync(context, path, next)` with the file's path instead of the request's. The fallback
+response therefore gets the full static-files treatment: content type, validators, conditional GET,
+ranges and precompressed siblings. That entry point exists because the request is never rewritten
+(the Web area's effective-value model). A file path that escapes the web root is rejected when the
+fallback is mapped, and a missing file answers 404.
+
+The package takes a `Web.Routing` reference for this (a feature-to-feature reference, allowed by the
+Web dependency rule). Register `UseStaticFiles()` ahead of `UseRouting()`, so an existing asset is
+served before routing, and the fallback answers only what remains.
+
 ## HTTP/1.1 percent-decode parity (transport-owned)
 
 The traversal gate runs over the **decoded** request path, and every transport now decodes it before
@@ -141,6 +174,7 @@ rather than silently serving wrong bytes (matching the h2 truncated-body abort p
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
