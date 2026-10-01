@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Endpoint Binding Tests](endpoint-binding-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Api` through its co-located test source.
+- **[Endpoint Convention Tests](endpoint-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Api` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

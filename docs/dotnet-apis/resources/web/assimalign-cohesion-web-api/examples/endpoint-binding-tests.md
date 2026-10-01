@@ -6,7 +6,7 @@ This example exercises `Assimalign.Cohesion.Web.Api` through its co-located test
 
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/tests/EndpointBindingTests.cs`. It retains the
-test class and assertions so the setup, operation, and expected outcome stay together. `Use` it in the
+test class and assertions so the setup, operation, and expected outcome stay together. Use it in the
 source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
@@ -23,6 +23,7 @@ source project’s test context, with its test dependencies and supporting test 
 - **Case 10** — Binding: malformed JSON body yields 400.
 - **Case 11** — Binding: form fields bind by attribute.
 - **Case 12** — Binding: CancellationToken and IHttpContext inject directly.
+- **Case 13** — Binding: single-context handler uses the middleware overload.
 
 ## Source example
 
@@ -52,7 +53,7 @@ namespace Assimalign.Cohesion.Web.Api.Tests;
 /// </summary>
 public class EndpointBindingTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     private static async Task WriteTextAsync(IHttpContext context, string text)
     {
@@ -63,7 +64,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: route value binds to a typed parameter")]
     public async Task Binding_RouteValue_ShouldBindTypedParameter()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -85,7 +86,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: typed route constraint carries a boxed value")]
     public async Task Binding_TypedRouteConstraint_ShouldBindBoxedValue()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -107,7 +108,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: query scalars bind by inference")]
     public async Task Binding_QueryScalars_ShouldBindByInference()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -129,7 +130,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: missing required query yields 400 problem")]
     public async Task Binding_MissingRequiredQuery_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -153,7 +154,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: unparseable query scalar yields 400 problem")]
     public async Task Binding_UnparseableQuery_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -175,7 +176,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: nullable query is optional")]
     public async Task Binding_NullableQuery_ShouldBeOptional()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -199,7 +200,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: header binds by explicit attribute")]
     public async Task Binding_Header_ShouldBindByAttribute()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -222,7 +223,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: JSON body binds through the serialization registry")]
     public async Task Binding_JsonBody_ShouldBindThroughRegistry()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
         factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
@@ -246,7 +247,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: unsupported body content type yields 415")]
     public async Task Binding_UnsupportedBodyContentType_ShouldReturnUnsupportedMediaType()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
         factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
@@ -269,7 +270,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: malformed JSON body yields 400")]
     public async Task Binding_MalformedJsonBody_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
         factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
@@ -292,7 +293,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: form fields bind by attribute")]
     public async Task Binding_FormFields_ShouldBindByAttribute()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -319,7 +320,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: CancellationToken and IHttpContext inject directly")]
     public async Task Binding_Injections_ShouldBindContextAndToken()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 
@@ -341,7 +342,7 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: single-context handler uses the middleware overload")]
     public async Task Binding_SingleContextHandler_ShouldUseMiddlewareOverload()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.AddRouting();
 

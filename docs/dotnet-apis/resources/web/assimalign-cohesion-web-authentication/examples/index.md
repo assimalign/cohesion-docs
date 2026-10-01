@@ -34,4 +34,4 @@ examples require their original test project’s dependencies and supporting obj
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationResultFeature.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/DefaultAuthenticationService.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/ApiEndpointMetadata.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/IApiEndpointMetadata.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Abstractions/IApiEndpointMetadata.cs`.

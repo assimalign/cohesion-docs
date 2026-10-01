@@ -7,7 +7,7 @@ This example exercises `Assimalign.Cohesion.Web.HttpsPolicy` through its co-loca
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.HttpsPolicy/tests/HttpsRedirectionTests.cs`. It
 retains the test class and assertions so the setup, operation, and expected outcome stay together.
-`Use` it in the source project’s test context, with its test dependencies and supporting test objects.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
@@ -23,6 +23,7 @@ retains the test class and assertions so the setup, operation, and expected outc
 - **Case 10** — `UseHttpsRedirection`: Should re-bracket an unbracketed IPv6 host and emit a custom port.
 - **Case 11** — `UseHttpsRedirection`: Should pass an already-secure request straight through.
 - **Case 12** — `UseHttpsRedirection`: Should reject a non-method-preserving status at builder time.
+- **Case 13** — `UseHttpsRedirection`: Should reject an out-of-range HTTPS port at builder time.
 
 ## Source example
 
