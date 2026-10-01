@@ -26,18 +26,18 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 | Assembly | Responsibility |
 |---|---|
-| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts. |
+| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, pipeline branching, and the shared pipeline terminal. |
 | [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition. |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
-| [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, matching, and link generation. |
-| [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Terminal endpoint mapping and source-generated typed-delegate binding. |
+| [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation. |
+| [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, and source-generated typed-delegate binding. |
 | [`Assimalign.Cohesion.Web.Serialization`](../dotnet-apis/resources/web/assimalign-cohesion-web-serialization/index.md) | Media-type-keyed request readers and response writers. |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](../dotnet-apis/resources/web/assimalign-cohesion-web-problemdetails/index.md) | Problem payload model and reflection-free JSON writer. |
 | [`Assimalign.Cohesion.Web.ErrorHandling`](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | Exception boundary, error-handler chain, and status-code pages. |
 | [`Assimalign.Cohesion.Web.Query`](../dotnet-apis/resources/web/assimalign-cohesion-web-query/index.md) | QUERY method content negotiation, conditionals, and redirect helpers. |
-| [`Assimalign.Cohesion.Web.HostFiltering`](../dotnet-apis/resources/web/assimalign-cohesion-web-hostfiltering/index.md) | Allowed-host enforcement against the transport-resolved host. |
+| [`Assimalign.Cohesion.Web.HostFiltering`](../dotnet-apis/resources/web/assimalign-cohesion-web-hostfiltering/index.md) | Allowed-host enforcement against the effective host (forwarded by a trusted proxy, else transport-resolved). |
 | [`Assimalign.Cohesion.Web.HttpsPolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-httpspolicy/index.md) | HTTPS redirection and secure-response transport policy headers. |
 | [`Assimalign.Cohesion.Web.RequestTimeouts`](../dotnet-apis/resources/web/assimalign-cohesion-web-requesttimeouts/index.md) | Global and endpoint timeout policies over request cancellation. |
 | [`Assimalign.Cohesion.Web.RateLimiting`](../dotnet-apis/resources/web/assimalign-cohesion-web-ratelimiting/index.md) | Global and endpoint limiters, partitioning, queues, and rejection handling. |
@@ -51,7 +51,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Cors`](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Project scaffold; cross-origin resource sharing middleware is not present. |
 | [`Assimalign.Cohesion.Web.Forms`](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Pipeline integration for HTTP form parsing. |
 | [`Assimalign.Cohesion.Web.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-health/index.md) | Health model, readiness/liveness selection, and HTTP endpoints. |
-| [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | File serving, default documents, ranges, validators, and precompressed assets. |
+| [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Web-root file serving, default documents, ranges, validators, precompressed assets, and the single-page-application fallback. |
 | [`Assimalign.Cohesion.Web.Compression`](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Response compression and guarded request decompression. |
 | [`Assimalign.Cohesion.Web.Caching`](../dotnet-apis/resources/web/assimalign-cohesion-web-caching/index.md) | Server-owned output cache with policy metadata, tags, and variation keys. |
 | [`Assimalign.Cohesion.Web.Diagnostics`](../dotnet-apis/resources/web/assimalign-cohesion-web-diagnostics/index.md) | Bounded request logging and access-log providers. |
@@ -124,6 +124,12 @@ application.Use(async (context, next) =>
 await application.RunAsync();
 ```
 
+`dotnet run` listens on `http://localhost:5000` (loopback only) until the application configures an
+endpoint. Set `Http:Endpoints` in `appsettings.json`, for example
+`{ "Http": { "Endpoints": { "Main": { "Host": "0.0.0.0", "Port": 8080 } } } }`, or pass
+`--Http:Endpoints:Main:Port=8080` on the command line. The Web SDK copies `appsettings*.json` and
+`wwwroot/**` to the build and publish output.
+
 Return to [Cohesion Documentation](../index.md).
 
 ## Sources
@@ -133,5 +139,5 @@ Return to [Cohesion Documentation](../index.md).
 - **Hosting** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Declarative plane** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ApplicationModel/docs/OVERVIEW.md`.
 - **Scaffolds** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/src/` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/src/`.
-- **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/Program.cs`.
+- **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/Program.cs` and `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/README.md`.
 - **Program scope** — `cohesion/docs/programs/HTTP_WEB_PROGRAM_PLAN.md` and `cohesion/docs/programs/SERVICE_STORY_REQUIREMENTS.md`.

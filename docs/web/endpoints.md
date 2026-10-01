@@ -6,14 +6,33 @@ Web endpoints bind request inputs and write responses through the middleware pip
 
 ## Endpoint mapping
 
-`Assimalign.Cohesion.Web.Api` supplies `Map`, `MapGet`, and other terminal-middleware mappings
-over [routing](routing.md). Typed delegate handlers use
+`Assimalign.Cohesion.Web.Api` supplies `Map`, `MapGet`, and the other endpoint mappings over
+[routing](routing.md), plus `MapGroup` and `MapFallback`. Typed delegate handlers use
 `Assimalign.Cohesion.SourceGeneration.Web` to generate parameter binding compatible with Native
 ahead-of-time compilation (NativeAOT).
+
+Every `Map*` returns the mapped route's `IRouterRouteBuilder`, so endpoint policies attach where
+the endpoint is mapped:
+
+```csharp
+app.MapGet("/orders/{id:int}", async (int id, IHttpContext context) =>
+{
+    context.Response.StatusCode = HttpStatusCode.Ok;
+    await context.Response.WriteContentAsync(new Order(id), context.RequestCancelled);
+})
+    .WithName("order")
+    .RequireRateLimiting("api");
+```
+
+Because a mapping returns the route builder, `Map*` calls no longer chain into one another
+(`app.MapGet(...).MapGet(...)`); write one statement per endpoint. Route groups take the same
+typed handlers: `app.MapGroup("/api").MapGet("orders", handler)` binds exactly like an
+application endpoint, and the group's prefix, metadata and policies apply to it.
 
 | Input | Selection | Behavior |
 |---|---|---|
 | Route value | Matching parameter name or `[FromRoute]` | Bind from the matched route token. |
+| Route or query value | A scalar the call site cannot place: on a group endpoint, or with a non-literal pattern | Bind from the route value when the matched route captured one, else from the query string. |
 | Query value | Scalar default or `[FromQuery]` | Parse the query-string value. |
 | Header | `[FromHeader]` | Explicit header binding. |
 | Request body | Complex default or `[FromBody]` | One body parameter, read through the serialization registry. |
