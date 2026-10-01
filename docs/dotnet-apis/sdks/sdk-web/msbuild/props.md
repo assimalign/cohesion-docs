@@ -28,6 +28,11 @@ here.
 | `CohesionEndpoint` | `Include=http`; `Scheme=http`; `ContainerPort=8080`; `Public=false` | No additional child metadata | `Targets/Sdk.Web.props` |
 | `CohesionProbe` | `Include=readiness`; `Endpoint=http`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Web.props` |
 | `CohesionProbe` | `Include=liveness`; `Endpoint=http`; `Http=/livez` | No additional child metadata | `Targets/Sdk.Web.props` |
+| `None` | `Update=wwwroot/**`; `CopyToOutputDirectory=PreserveNewest`; `CopyToPublishDirectory=PreserveNewest` | No additional child metadata | `Targets/Sdk.Web.props` |
+
+`wwwroot` is the web root `UseStaticFiles()` serves, resolved under the content root
+(`AppContext.BaseDirectory` for a plain application), so the `None` update ships it with the build
+and publish output. A consumer’s own `None Update` in the project body still wins.
 
 For item metadata defaults, including `Protocol=tcp`, see [base props](../../sdk/msbuild/props.md)
 . Setting a property later does not retroactively change a framework item already added during props

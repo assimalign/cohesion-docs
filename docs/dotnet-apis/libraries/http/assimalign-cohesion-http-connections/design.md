@@ -10,6 +10,13 @@ The package consumes `IConnection` and `IMultiplexedConnection` rather than owni
 transport stack. Protocol handling uses the core feature and interceptor seams, allowing optional
 concerns to attach without reverse references from the transport.
 
+A host drives each connection context in a loop and finalizes every exchange exactly once through
+`SendAsync`: HTTP/1.1 exchanges one at a time, HTTP/2 and HTTP/3 exchanges concurrently, bounded by
+stream admission. After an application fault, `HttpContextTransportExtensions.HasResponseStarted`
+tells the host whether a replacement response can still be sent or the exchange must be reset. All
+three versions enforce `MaxRequestBodySize` with `413`: HTTP/1.1 and HTTP/3 dispatch at the request
+head and read the body lazily, while HTTP/2 freezes the cap at dispatch and enforces it on receipt.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Connections`, `Assimalign.Cohesion.Http`. The

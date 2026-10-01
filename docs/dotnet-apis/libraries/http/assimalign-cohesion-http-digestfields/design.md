@@ -7,8 +7,8 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Http.DigestFi
 ## Design and boundaries
 
 Digest values use structured fields and support SHA-256 and SHA-512 computation. The verifier
-rejects malformed fields before dispatch; HTTP/2 body verification is lazy and reports mismatches on
-terminal reads. Recognized deprecated algorithms are not enabled for computation.
+rejects malformed fields before dispatch; HTTP/2 and HTTP/3 body verification is lazy and reports
+mismatches on terminal reads. Recognized deprecated algorithms are not enabled for computation.
 
 ## Dependency boundary
 

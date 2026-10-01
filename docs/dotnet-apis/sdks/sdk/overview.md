@@ -18,12 +18,23 @@ The base SDK exposes shared project defaults, resource metadata, settings genera
 
 Defaults apply only when empty, before Microsoft’s props. Later ordinary consumer assignments win;
 global command-line properties are honored. Resource executables do not multi-target. Override
-`LangVersion` together with `EnablePreviewFeatures`. For enabled resources, in every configuration, the targets
-supply `SelfContained=true`, the host `RuntimeIdentifier=$(NETCoreSdkRuntimeIdentifier)`, and
+`LangVersion` together with `EnablePreviewFeatures`. For enabled resources and plain resource-area
+executables alike, in every configuration, the targets supply `SelfContained=true`, the host
+`RuntimeIdentifier=$(NETCoreSdkRuntimeIdentifier)`, and
 `ValidateExecutableReferencesMatchSelfContained=false` only if each is unset; every Cohesion SDK
 project also gets `DisableTransitiveFrameworkReferenceDownloads=true` unless it sets the property,
 because the SDKs reference every needed Cohesion framework explicitly. Project files therefore
 no longer carry any of these four properties.
+
+A resource-area executable is a project with `OutputType=Exe` on a resource-area SDK, any
+`Assimalign.Cohesion.Sdk.<Area>` except Gateway. It builds self-contained even with the application
+model disabled: the Cohesion shared frameworks ship only as NuGet runtime packs and are never
+installed under the .NET root, so a framework-dependent build cannot start. Its `appsettings*.json`
+files, and `wwwroot/**` under `Assimalign.Cohesion.Sdk.Web`, are copied to the build and publish
+output, where the host reads them from its content root (`AppContext.BaseDirectory` for a plain
+application); a consumer’s own `None Update` in the project body still wins. A `None` item that
+duplicates one of the project’s `Content` items is removed, so publish does not reject duplicate
+output paths (`NETSDK1152`).
 
 ## Consumer properties
 
@@ -37,6 +48,9 @@ be supplied before their props evaluation.
 | `RuntimeIdentifier` | `$(NETCoreSdkRuntimeIdentifier)` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(RuntimeIdentifier)' == '' and '$(CohesionApplicationModel)' == 'enabled'` |
 | `ValidateExecutableReferencesMatchSelfContained` | `false` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(ValidateExecutableReferencesMatchSelfContained)' == '' and '$(CohesionApplicationModel)' == 'enabled'` |
 | `DisableTransitiveFrameworkReferenceDownloads` | `true` | Assigned during `evaluation`; the SDKs reference every needed Cohesion framework explicitly, so transitive framework references never download their own runtime packs. | `Sdk/Sdk.targets`; when `'$(DisableTransitiveFrameworkReferenceDownloads)' == ''` |
+| `SelfContained` | `true` | Assigned during `evaluation`; a resource-area executable, plain or enabled, cannot start framework-dependent because the Cohesion frameworks ship only as NuGet runtime packs. | `Sdk/Sdk.targets`; when `'$(SelfContained)' == '' and '$(_CohesionResourceSdk)' == 'true' and '$(OutputType)' == 'Exe'` |
+| `RuntimeIdentifier` | `$(NETCoreSdkRuntimeIdentifier)` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(RuntimeIdentifier)' == '' and '$(SelfContained)' == 'true' and '$(_CohesionResourceSdk)' == 'true' and '$(OutputType)' == 'Exe'` |
+| `ValidateExecutableReferencesMatchSelfContained` | `false` | Assigned during `evaluation`. | `Sdk/Sdk.targets`; when `'$(ValidateExecutableReferencesMatchSelfContained)' == '' and '$(_CohesionResourceSdk)' == 'true' and '$(OutputType)' == 'Exe'` |
 | `CohesionBuildResourceContainersDependsOn` | `$(CohesionBuildResourceContainersDependsOn)` | Extension chain used by CohesionPublishImage. | `Targets/Assimalign.Cohesion.Sdk.ApplicationModel.Build.targets`; unconditional |
 | `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by all registered framework targeting and runtime packs. | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`; when `'$(CohesionAppFrameworkVersion)' == ''` |
 | `CohesionAppSettingsNamespace` | `$(RootNamespace)` | Namespace of generated settings types. | `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets`; when `'$(CohesionAppSettingsNamespace)' == '' and '$(CohesionAppSettingsClass)' != ''` |

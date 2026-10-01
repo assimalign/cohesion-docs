@@ -19,7 +19,9 @@ Registers services and resolves instances through providers and scopes.
 Registration descriptors are separate from call-site execution and scope ownership.
 `ServiceProviderOptions.EnableDynamicCode=false` selects the interpreted resolver before a compiled
 engine is created. That option does not remove constructor reflection; explicit factories or
-instances are needed for reflection-free construction.
+instances are needed for reflection-free construction. When the runtime cannot generate code
+(NativeAOT), the call-site factory rejects an `IEnumerable<T>` over a value type, and an open
+generic closed over a value type, with `InvalidOperationException` when it builds the call site.
 
 ## Dependencies
 

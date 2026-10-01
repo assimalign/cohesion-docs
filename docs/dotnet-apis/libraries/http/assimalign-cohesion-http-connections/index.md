@@ -39,6 +39,7 @@ concerns to attach without reverse references from the transport.
 | `HttpConnectionListener` | `src/HttpConnectionListener.cs` |
 | `HttpConnectionListenerLimits` | `src/HttpConnectionListenerLimits.cs` |
 | `HttpConnectionListenerOptions` | `src/HttpConnectionListenerOptions.cs` |
+| `HttpContextTransportExtensions` | `src/Extensions/HttpContextTransportExtensions.cs` |
 | `HttpMinDataRate` | `src/HttpMinDataRate.cs` |
 | `HttpProtocol` | `src/HttpProtocol.cs` |
 | `IHttpConnection` | `src/Abstractions/IHttpConnection.cs` |
@@ -76,6 +77,8 @@ concerns to attach without reverse references from the transport.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/HttpConnectionListenerLimits.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/HttpConnectionListenerOptions.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Extensions/HttpContextTransportExtensions.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/HttpMinDataRate.cs`.
 

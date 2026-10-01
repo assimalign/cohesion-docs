@@ -51,6 +51,11 @@ by identity.
 | `CohesionEndpoint` | `Include=http`; `Scheme=http`; `ContainerPort=8080`; `Public=false` | No additional child metadata | `Targets/Sdk.Web.props` |
 | `CohesionProbe` | `Include=readiness`; `Endpoint=http`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Web.props` |
 | `CohesionProbe` | `Include=liveness`; `Endpoint=http`; `Http=/livez` | No additional child metadata | `Targets/Sdk.Web.props` |
+| `None` | `Update=wwwroot/**`; `CopyToOutputDirectory=PreserveNewest`; `CopyToPublishDirectory=PreserveNewest` | No additional child metadata | `Targets/Sdk.Web.props` |
+
+`wwwroot` is the web root `UseStaticFiles()` serves, resolved under the content root
+(`AppContext.BaseDirectory` for a plain application), so the `None` update ships it with the build
+and publish output. A consumer’s own `None Update` in the project body still wins.
 
 The `FrameworkReference` item for `Assimalign.Cohesion.App.Web` is added by `Sdk/Sdk.props` when
 `CohesionAutoIncludeAppFramework` is not `false`. The defaults below come from this area’s own

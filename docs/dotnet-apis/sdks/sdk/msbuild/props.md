@@ -17,6 +17,16 @@ properties are private implementation state.
 | `_CohesionSdk` | `true` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Common.props`; unconditional |
 | `_CohesionIntermediateOutputPath` | `$(IntermediateOutputPath)\Cohesion` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Common.props`; unconditional |
 
+For a resource-area executable, a resource-area SDK project with `OutputType=Exe`, it also copies
+`appsettings*.json` to the build and publish output: the host reads `appsettings.json` and
+`appsettings.{Environment}.json` from its content root, `AppContext.BaseDirectory` for a plain
+application. Microsoft’s props define the default `None` items before this import; a consumer’s
+own `None Update` in the project body still wins.
+
+| Item | Declaration | Metadata | Condition and source |
+|---|---|---|---|
+| `None` | `Update=appsettings*.json`; `CopyToOutputDirectory=PreserveNewest`; `CopyToPublishDirectory=PreserveNewest` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.Common.props`; when `'$(_CohesionResourceSdk)' == 'true' and '$(OutputType)' == 'Exe'` |
+
 ## `Targets/Assimalign.Cohesion.Sdk.Defaults.props`
 
 Sets executable/compiler defaults before `Microsoft.NET.Sdk` can default `OutputType` to Library.
