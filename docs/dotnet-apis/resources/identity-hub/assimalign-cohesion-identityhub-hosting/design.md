@@ -26,8 +26,9 @@ Device authorization and the built-in verification page are available only when 
 binds to loopback in Local. High-entropy device codes, human-readable user codes, a ten-minute
 lifetime, pending polling, one-shot consumption, and an ID token when `openid` was requested remain
 supported there. The page has no client-selected subject: every local approval signs in the fixed
-`development-user` identity, checks a supplied browser origin when present, and emits restrictive
-cache, framing, referrer, and content-security headers. Discovery omits the device endpoint and
+`development-user` identity, checks a supplied browser origin when present, and sets restrictive
+cache headers; its framing, referrer, and content-security headers are the ones every IdentityHub
+response carries (see below). Discovery omits the device endpoint and
 grant outside that Local mode. Production account login, consent, recovery, federation, and subject
 selection require a separately authenticated user-flow implementation.
 

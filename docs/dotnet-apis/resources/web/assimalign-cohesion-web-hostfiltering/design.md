@@ -113,8 +113,10 @@ reaches it only through the forwarded-headers trust model (`KnownProxies`/`Known
 on its wire host. The trust model decides *whose* host assertion is believed; this guard decides
 whether the believed host is one the application serves.
 
-**Ordering.** Register `UseForwardedHeaders` first and `UseHostFiltering` directly after it, and
-allowlist the **public** names clients use. Registered the other way round, the guard runs before
+**Ordering.** Register `UseHostFiltering` directly after `UseForwardedHeaders` (only
+`UseHttpLogging` and `UseSecurityHeaders`, which read no client identity, go ahead of both; the
+[middleware order](../../../../web/middleware-order.md) gives the full sequence), and allowlist the
+**public** names clients use. Registered the other way round, the guard runs before
 the feature exists and validates the wire host — a supported, deliberate configuration for
 deployments that want to bound the upstream authority instead, but then the forwarded host is not
 bounded by this guard. This composition differs from ASP.NET, whose forwarded-headers middleware

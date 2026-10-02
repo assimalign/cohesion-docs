@@ -46,7 +46,8 @@ docs), paid once.
 ## Family map
 
 Arrows mean "references". The package composes the token engine, the routing seam and the
-data-protection key ring; the token engine composes cookie storage and form parsing.
+data-protection key ring; the token engine composes cookie storage, form parsing and the effective
+request scheme that decides whether its cookie token is `Secure`.
 
 ```mermaid
 flowchart LR
@@ -59,6 +60,7 @@ flowchart LR
     Antiforgery --> Protection["Security.DataProtection"]
     Engine --> Cookies["Http.Cookies"]
     Engine --> Forms
+    Engine --> Forwarded["Http.Forwarded"]
 ```
 
 | Package | Role |
