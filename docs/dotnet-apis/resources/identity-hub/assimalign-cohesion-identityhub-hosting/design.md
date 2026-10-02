@@ -158,6 +158,7 @@ application and IHost route share it. Startup failures still roll back and propa
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.IdentityHub` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
