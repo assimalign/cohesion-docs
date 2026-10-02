@@ -4,14 +4,19 @@ Examples for `Assimalign.Cohesion.Web.CookiePolicy` are derived from source docu
 
 > **Status:** Partial.
 
-No self-contained usage example was found in this project’s overview, documented type pages, or
-co-located tests. The assembly and design pages describe the source contract without inventing a
-consumer API.
+The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
+examples require their original test project’s dependencies and supporting objects.
+
+- **[Cookie Policy Attribute Tests](cookie-policy-attribute-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Consent Tests](cookie-policy-consent-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Cookie Authentication Tests](cookie-policy-cookie-authentication-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Forwarded Tests](cookie-policy-forwarded-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Interception Tests](cookie-policy-interception-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Options Tests](cookie-policy-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Rfc6265bis Compliance Tests](cookie-policy-rfc6265bis-compliance-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/src/Assimalign.Cohesion.Web.CookiePolicy.csproj`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/src/CookiePolicyOptions.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/src/Extensions/CookiePolicyExtensions.cs`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/docs/OVERVIEW.md`.
