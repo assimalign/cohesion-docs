@@ -7,7 +7,7 @@ This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-lo
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.ErrorHandling/tests/ErrorHandlingPipelineTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
@@ -42,7 +42,7 @@ namespace Assimalign.Cohesion.Web.ErrorHandling.Tests;
 /// </summary>
 public class ErrorHandlingPipelineTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     private static void UseErrorBoundary(WebApplicationTestFactory factory)
     {
@@ -64,7 +64,7 @@ public class ErrorHandlingPipelineTests
     public async Task Pipeline_UnhandledFault_ShouldRenderProblemJsonDefault()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
@@ -95,7 +95,7 @@ public class ErrorHandlingPipelineTests
     public async Task Pipeline_RegisteredHandler_ShouldOwnFaultResponse()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
@@ -129,7 +129,7 @@ public class ErrorHandlingPipelineTests
     public async Task UseErrorHandling_UnhandledFault_ShouldRenderProblemJson500()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
@@ -156,7 +156,7 @@ public class ErrorHandlingPipelineTests
     public async Task UseErrorHandling_RegisteredHandler_ShouldOwnResponse()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
@@ -191,7 +191,7 @@ public class ErrorHandlingPipelineTests
         // Arrange — no routing/handler middleware, so the request reaches the Web.Hosting terminal,
         // which sets a bodyless 404; the status-code-pages verb upgrades it to problem+json. This is
         // the cross-package layering the hosting-isolation rule mandates.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();

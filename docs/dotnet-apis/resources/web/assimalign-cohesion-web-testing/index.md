@@ -38,6 +38,11 @@ Prior-knowledge HTTP/2 over the same in-memory pair:
 
 See the [source-backed usage examples](examples/index.md).
 
+Point the application at a content root on disk (its `wwwroot` becomes the web root that
+`UseStaticFiles()` serves; the default is the test assembly's base directory):
+
+See the [source-backed usage examples](examples/index.md).
+
 Drive the exact `Program` used in production:
 
 See the [source-backed usage examples](examples/index.md).

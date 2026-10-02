@@ -21,7 +21,8 @@ first access, and commits it after the pipeline unwinds. Concrete distributed ba
   `InMemoryHttpSessionStore`; a store overload accepts any `IHttpSessionStore` (a distributed adapter)
   so a multi-instance deployment gets sticky-session-free affinity with no other pipeline change.
 - **Session-id cookie establishment** through the hardened `Http.Cookies` model — `HttpOnly` (from
-  options), `SameSite=Lax`, `Secure` only over HTTPS (the transport-derived typed scheme), session-scoped
+  options), `SameSite=Lax`, `Secure` whenever the effective scheme is HTTPS (the transport-derived typed
+  scheme, or a trusted proxy's forwarded scheme when `UseForwardedHeaders` runs first), session-scoped
   (no `Max-Age`/`Expires`). Cookie name/path/HttpOnly come from `HttpSessionOptions`.
 - **Lazy lifecycle** — no store I/O and no cookie until the application first touches the session.
   `context.LoadSessionAsync()` materializes, establishes the cookie for a new id, and loads; the
@@ -37,6 +38,8 @@ first access, and commits it after the pipeline unwinds. Concrete distributed ba
 
 - **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions the verb and middleware build on.
 - **`Assimalign.Cohesion.Http`** — the HTTP context, feature collection, and transport-derived scheme.
+- **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveScheme` read behind the `Secure` decision, which
+  falls back to the transport-derived scheme when no forwarded-headers middleware ran.
 - **`Assimalign.Cohesion.Http.Sessions`** — the `IHttpSession` surface, the `IHttpSessionStore` seam, the
   in-memory store, and the frame serializer this middleware composes.
 - **`Assimalign.Cohesion.Http.Cookies`** — the hardened cookie model used to establish the session-id cookie.
@@ -60,6 +63,7 @@ See the [source-backed usage examples](examples/index.md).
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Sessions` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Cookies` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |

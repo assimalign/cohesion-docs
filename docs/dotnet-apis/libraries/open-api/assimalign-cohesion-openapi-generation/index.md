@@ -18,6 +18,12 @@ Generation consumes explicit input and target-version options. Metadata can come
 registries or attribute mapping, so document assembly does not require runtime reflection discovery.
 The resulting document remains a normal version-aware model.
 
+The source generator that emits `OpenApiMetadataRegistry` ships inside the Attributes package, so a
+project that references this package gets it through that dependency. The registry is internal to
+each assembly and combines that assembly's metadata with every annotated assembly it references, so
+one input describes an application whose endpoints span several libraries. A parameter, request
+body, response or schema whose metadata carries a complete `Schema` is placed as it is (#152).
+
 ## Dependencies
 
 | Reference | Build item |

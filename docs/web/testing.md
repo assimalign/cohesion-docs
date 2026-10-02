@@ -38,6 +38,17 @@ Console.WriteLine(payload);
 Perform builder-time feature registration through `factory.Builder` before obtaining and
 configuring `factory.Application`. Factory disposal owns application shutdown.
 
+To test static files, point the application at a content root on disk. Its `wwwroot` becomes the
+web root that `UseStaticFiles()` serves; the default content root is the test assembly's base
+directory:
+
+```csharp
+await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions
+{
+    ContentRootPath = FileSystemPath.Parse(contentRootDirectory),
+});
+```
+
 ## Real Program execution
 
 `WebApplicationTestFactory.FromProgram<Program>()` invokes an enabled resource executable under an

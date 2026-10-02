@@ -17,8 +17,9 @@ Exposes a per-request view of the maximum request body size.
 ## Scope
 
 The feature is attached on all three protocol parse paths and writes through to the transport's
-limit state. It becomes read-only when body reading starts. The documented wire-level enforcement
-remains HTTP/1.1-only; feature presence on HTTP/2 or HTTP/3 does not imply enforcement.
+limit state. It becomes read-only when body reading starts. All three protocols enforce the
+wire-level cap (`413`); HTTP/2 freezes it when the request is dispatched, so only head hooks can
+adjust it there.
 
 ## Dependencies
 

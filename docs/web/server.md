@@ -2,7 +2,7 @@
 
 The Web host composes listeners and drives each accepted connection through the application pipeline.
 
-> **Status:** Implemented. HTTP/3 requires a supported QUIC platform; configuration-based listener binding remains opt-in.
+> **Status:** Implemented. HTTP/3 requires a supported QUIC platform.
 
 ## Host and server ownership
 
@@ -18,6 +18,19 @@ The server owns accepted connections, exchanges, and contexts. It tracks in-flig
 shutdown. A protocol-aware two-phase drain that lets a keep-alive connection finish its current
 exchange while refusing the next remains outside the documented server iteration.
 
+Within a connection, HTTP/1.1 serves one exchange at a time, in order, because its transport
+realigns on the next request only after the previous one finished. HTTP/2 and HTTP/3 run one task
+per stream, so a slow request, a long poll, or a server-sent-events stream no longer holds up its
+siblings. A fault in one stream answers that stream with a 500, or resets it once its response
+started, and leaves the connection and the other streams running. The transport bounds the
+concurrency: HTTP/2 admits at most `SETTINGS_MAX_CONCURRENT_STREAMS` streams and HTTP/3 at most
+the QUIC stream credit, 100 each by default.
+
+The request-body cap is enforced with 413 on HTTP/1.1, HTTP/2 and HTTP/3. HTTP/2 honors flow
+control on buffered responses, HTTP/3 reads each request stream incrementally after its headers,
+both send no body for `HEAD`, and both reject a malformed `:path` on its own stream without
+closing the connection.
+
 ## Application configuration
 
 `WebApplication.CreateBuilder(args)` loads configuration in increasing precedence:
@@ -31,6 +44,10 @@ Enabled resources resolve files from `ResourceContext.ContentRootPath`; ordinary
 use `AppContext.BaseDirectory`. The variable prefix is removed, and double underscores become
 configuration path separators. In-process settings arrive through the ambient resource context
 without modifying process-wide environment variables.
+
+The web root, which `UseStaticFiles()` serves, is `wwwroot` under the content root unless
+`WebApplicationOptions.WebRootPath` names another directory. The content root itself is never
+served.
 
 `Local` selects `appsettings.Local.json`; `Development` selects `appsettings.Development.json`.
 They are distinct environments. The default remains `Production`.
@@ -60,7 +77,14 @@ trust anchors travel separately from this certificate mount.
 ## Configuration-bound endpoints
 
 `builder.Server.UseConfiguration(configuration)` explicitly binds the `Http` section's endpoints
-and server limits. It is not wired by default. The binder is explicit and reflection-free.
+and server limits. The binder is explicit and reflection-free.
+
+A plain entry-point application, `WebApplication.CreateBuilder(args)` with no generated control
+plane, that configures no listener of its own gets one when it is built: the endpoints under
+`Http:Endpoints`, bound as `UseConfiguration` binds them, or otherwise HTTP/1.1 on
+`127.0.0.1:5000`, loopback only. An explicit `Server.UseServer`/`UseConfiguration` call or another
+registered server turns that default off, and an orchestrated resource binds its ambient endpoint
+instead.
 
 Endpoint `Protocol` values include `Http1`, `Http2`, `Https`, `Http1s`, and `Http2s`.
 `Certificate` names a Secret mount for a secure endpoint. HTTP/3 registration uses its separate

@@ -82,6 +82,7 @@ area-owned service abstraction is introduced.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.VpnGateway` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |

@@ -5,31 +5,39 @@ This example exercises `Assimalign.Cohesion.Web.Authentication.Cookie` through i
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Cookie/tests/CookieAuthenticationHandlerTests.cs`
-. It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Cookie/tests/CookieAuthenticationHandlerTests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
 
 - **Case 1** — SignIn then Authenticate round-trips the principal.
 - **Case 2** — SignIn emits an HttpOnly cookie.
-- **Case 3** — Authenticate with no cookie yields `NoResult`.
-- **Case 4** — Authenticate with a tampered cookie fails.
-- **Case 5** — Authenticate with an expired ticket fails.
-- **Case 6** — Sliding expiration renews the cookie past the midpoint.
-- **Case 7** — Sliding expiration does not renew before the midpoint.
-- **Case 8** — Challenge on a browser endpoint redirects to the login path.
-- **Case 9** — Challenge on an API endpoint returns 401 without redirect.
-- **Case 10** — Forbid on an API endpoint returns 403 without redirect.
-- **Case 11** — Forbid on a browser endpoint redirects to access denied.
-- **Case 12** — SignOut deletes the cookie.
+- **Case 3** — SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it.
+- **Case 4** — Authenticate with no cookie yields `NoResult`.
+- **Case 5** — Authenticate with a tampered cookie fails.
+- **Case 6** — Authenticate with an expired ticket fails.
+- **Case 7** — Sliding expiration renews the cookie past the midpoint.
+- **Case 8** — Sliding expiration does not renew before the midpoint.
+- **Case 9** — Challenge on a browser endpoint redirects to the login path.
+- **Case 10** — Challenge on an API endpoint returns 401 without redirect.
+- **Case 11** — Forbid on an API endpoint returns 403 without redirect.
+- **Case 12** — Forbid on a browser endpoint redirects to access denied.
+- **Case 13** — SignOut deletes the cookie.
+- **Case 14** — A non-persistent sign-in emits a session cookie.
+- **Case 15** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
+- **Case 16** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
+- **Case 17** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
+- **Case 18** — SignIn from an untrusted peer asserting https keeps the template's Secure.
+- **Case 19** — SignIn without UseForwardedHeaders ignores a forwarded https header.
 
 ## Source example
 
 ```csharp
 using System;
 using System.IO;
+using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Shouldly;
@@ -37,16 +45,19 @@ using Xunit;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Security.DataProtection;
 using Assimalign.Cohesion.Web.Authentication.Cookie.Tests.TestObjects;
+using Assimalign.Cohesion.Web.ForwardedHeaders;
 
 namespace Assimalign.Cohesion.Web.Authentication.Cookie.Tests;
 
 public sealed class CookieAuthenticationHandlerTests : IDisposable
 {
-    private static readonly DateTimeOffset Now = new(2026, 7, 8, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _now = new(2026, 7, 8, 12, 0, 0, TimeSpan.Zero);
+    private static readonly IPEndPoint _trustedProxy = new(IPAddress.Parse("10.0.0.2"), 51000);
+    private static readonly IPEndPoint _untrustedPeer = new(IPAddress.Parse("198.51.100.7"), 51000);
 
     private readonly string _keysDirectory;
     private readonly IDataProtector _protector;
-    private readonly MutableTimeProvider _time = new(Now);
+    private readonly MutableTimeProvider _time = new(_now);
 
     public CookieAuthenticationHandlerTests()
     {
@@ -152,6 +163,22 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
         cookie.Options.HttpOnly.ShouldBeTrue();
         cookie.Options.Secure.ShouldBeTrue();
         cookie.Options.SameSite.ShouldBe(HttpCookieSameSiteMode.Lax);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it")]
+    public async Task SignIn_DefaultTemplate_ShouldEmitEssentialCookie()
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = TestHttpContext.Create();
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+
+        // Assert
+        options.Cookie.IsEssential.ShouldBeTrue();
+        GetEmittedCookie(context, options.CookieName).Options.IsEssential.ShouldBeTrue();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Authenticate with no cookie yields NoResult")]
@@ -380,6 +407,115 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
         HttpCookie cookie = GetEmittedCookie(context, options.CookieName);
         cookie.Options.Expires.ShouldBeNull();
         cookie.Options.MaxAge.ShouldBeNull();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn over a direct HTTPS request emits a Secure cookie without the template flag")]
+    public async Task SignIn_DirectHttpsRequest_EmitsSecureCookie()
+    {
+        // Arrange — the template leaves Secure unset (the default).
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = TestHttpContext.Create(scheme: HttpScheme.Https);
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+
+        // Assert
+        options.Cookie.Secure.ShouldBeFalse();
+        GetEmittedCookie(context, options.CookieName).Options.Secure.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn behind a trusted TLS-terminating proxy emits a Secure cookie")]
+    public async Task SignIn_TrustedProxyForwardsHttps_EmitsSecureCookie()
+    {
+        // Arrange — plaintext request from a trusted proxy address that asserts the client used https.
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = CreateProxiedContext(_trustedProxy);
+
+        // Act
+        await BuildForwardedHeaders().InvokeAsync(context, async _ =>
+        {
+            IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+            await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+        });
+
+        // Assert — the wire scheme stayed http; the effective scheme put the Secure floor in place.
+        context.Request.Scheme.ShouldBe(HttpScheme.Http);
+        GetEmittedCookie(context, options.CookieName).Options.Secure.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie")]
+    public async Task SignOut_TrustedProxyForwardsHttps_EmitsSecureDeletionCookie()
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = CreateProxiedContext(_trustedProxy);
+
+        // Act
+        await BuildForwardedHeaders().InvokeAsync(context, async _ =>
+        {
+            IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+            await handler.SignOutAsync(properties: null);
+        });
+
+        // Assert — the deletion cookie carries the same attributes as the issued one.
+        HttpCookie cookie = GetEmittedCookie(context, options.CookieName);
+        cookie.HasValue.ShouldBeFalse();
+        cookie.Options.Secure.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn from an untrusted peer asserting https keeps the template's Secure")]
+    public async Task SignIn_UntrustedPeerForwardsHttps_KeepsTemplateSecure()
+    {
+        // Arrange — the peer is outside KnownProxies, so the trust walk accepts no hop.
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = CreateProxiedContext(_untrustedPeer);
+
+        // Act
+        await BuildForwardedHeaders().InvokeAsync(context, async _ =>
+        {
+            IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+            await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+        });
+
+        // Assert
+        GetEmittedCookie(context, options.CookieName).Options.Secure.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn without UseForwardedHeaders ignores a forwarded https header")]
+    public async Task SignIn_ForwardedProtoWithoutForwardedHeaders_KeepsTemplateSecure()
+    {
+        // Arrange — no forwarded-headers middleware: the effective scheme is the wire scheme (http).
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = CreateProxiedContext(_trustedProxy);
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+
+        // Assert
+        GetEmittedCookie(context, options.CookieName).Options.Secure.ShouldBeFalse();
+    }
+
+    private static TestHttpContext CreateProxiedContext(IPEndPoint peer)
+    {
+        TestHttpContext context = TestHttpContext.Create(connectionInfo: new HttpConnectionInfo(remoteEndPoint: peer));
+        context.Request.Headers[HttpHeaderKey.XForwardedFor] = "203.0.113.9";
+        context.Request.Headers[HttpHeaderKey.XForwardedProto] = "https";
+
+        return context;
+    }
+
+    private static IWebApplicationMiddleware BuildForwardedHeaders()
+    {
+        TestPipelineBuilder builder = new();
+        builder.UseForwardedHeaders(options =>
+        {
+            options.Headers = ForwardedHeaderNames.XForwarded;
+            options.KnownProxies.Add(_trustedProxy.Address);
+        });
+
+        return builder.LastMiddleware.ShouldNotBeNull();
     }
 }
 ```

@@ -18,6 +18,13 @@ The provider delegates file operations to `System.IO` and reports capacity from 
 its root. Change notifications use `FileSystemWatcher`, so latency follows the platform. Rooting and
 provider ownership are explicit construction choices.
 
+Every path-taking member resolves its path to a full host path and refuses anything that is not the
+root or under it on a segment boundary, before touching the disk (#1180). `..` that climbs out, a
+sibling directory that merely shares the root's name as a prefix (`public2/` beside `public/`), and
+absolute paths elsewhere are all refused with `FileSystemException` and
+`FileSystemErrorCode.PathOutsideRoot`. Links inside the root are followed. See the
+[design](design.md#root-containment).
+
 ## Dependencies
 
 | Reference | Build item |

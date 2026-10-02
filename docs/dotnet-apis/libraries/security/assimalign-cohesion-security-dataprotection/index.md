@@ -18,6 +18,11 @@ AES-256-GCM protects versioned payloads and HKDF-SHA256 derives purpose-specific
 rotation keeps retired keys available during a grace window. `IKeyRepository` separates persistence
 from protection, allowing nodes to share a configured key directory.
 
+Consumers adapt `IDataProtector` to their own seams at builder time. `Web.Antiforgery`'s
+`AddAntiforgery(dataProtectionProvider)` derives a protector for the purpose chain
+`("Assimalign.Cohesion.Web.Antiforgery", "v1")` and adapts it to `IHttpAntiforgeryProtector`;
+`Http.Antiforgery` itself takes no dependency on this library.
+
 ## Dependencies
 
 The project file declares no explicit Cohesion project or external package references.

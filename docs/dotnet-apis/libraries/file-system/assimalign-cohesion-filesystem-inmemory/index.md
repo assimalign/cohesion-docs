@@ -18,6 +18,11 @@ The provider exposes the same file-system contracts as persistent stores, with a
 and synchronous change notifications. Its locking coordinates directory operations. Data lifetime is
 bounded by the in-process provider rather than durable storage.
 
+Every path-taking operation resolves its path lexically beneath the root and refuses anything that
+is not the root or under it on a segment boundary with `FileSystemException` and
+`FileSystemErrorCode.PathOutsideRoot` (#1180); a sibling-prefix path such as `/datax` under a root of
+`/data` no longer aliases an entry. See the [design](design.md#root-containment).
+
 ## Dependencies
 
 | Reference | Build item |

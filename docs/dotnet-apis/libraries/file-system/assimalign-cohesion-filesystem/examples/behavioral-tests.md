@@ -16,6 +16,7 @@ original project supplies it globally.
 ```csharp
 using System.IO;
 using System;
+using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.FileSystem;
 
@@ -148,6 +149,21 @@ public class FileSystemExceptionTests
         Assert.Contains("read-only", exception.Message);
     }
 
+    [Fact(DisplayName = "Cohesion Test [FileSystem] - ThrowPathOutsideRoot: should produce PathOutsideRoot naming only the caller's path")]
+    public void ThrowPathOutsideRoot_CallerPath_ShouldMapToPathOutsideRoot()
+    {
+        // Arrange
+        FileSystemPath path = "../secret.txt";
+
+        // Act
+        var exception = Should.Throw<FileSystemException>(() => FileSystemException.ThrowPathOutsideRoot(path));
+
+        // Assert
+        exception.Code.ShouldBe(FileSystemErrorCode.PathOutsideRoot);
+        exception.Message.ShouldContain("../secret.txt", Case.Sensitive);
+        exception.InnerException.ShouldBeNull();
+    }
+
     [Theory(DisplayName = "Cohesion Test [FileSystem] - FileSystemErrorCode: ordinal values are stable")]
     [InlineData(FileSystemErrorCode.Other, 0)]
     [InlineData(FileSystemErrorCode.NotFound, 1)]
@@ -157,6 +173,7 @@ public class FileSystemExceptionTests
     [InlineData(FileSystemErrorCode.AccessDenied, 5)]
     [InlineData(FileSystemErrorCode.PathInUse, 6)]
     [InlineData(FileSystemErrorCode.ReadOnly, 7)]
+    [InlineData(FileSystemErrorCode.PathOutsideRoot, 8)]
     public void ErrorCode_OrdinalStable(FileSystemErrorCode code, int ordinal)
     {
         Assert.Equal(ordinal, (int)code);
@@ -174,6 +191,13 @@ public class FileSystemExceptionTests
 - **Covered behavior** — ThrowPathNotFound: produces NotFound (generic).
 - **Covered behavior** — ThrowPathTooLong: produces PathTooLong + wraps PathTooLongException.
 - **Covered behavior** — ThrowAccessDenied: produces AccessDenied + wraps UnauthorizedAccessException.
+- **Covered behavior** — ThrowPathInUse: produces PathInUse.
+- **Covered behavior** — ThrowPathAlreadyExist: produces Conflict.
+- **Covered behavior** — ThrowNotEnoughSpace: produces NotEnoughSpace.
+- **Covered behavior** — ThrowReadOnly: produces ReadOnly with operation hint.
+- **Covered behavior** — ThrowReadOnly: empty operation falls back to generic message.
+- **Covered behavior** — ThrowPathOutsideRoot: should produce PathOutsideRoot naming only the caller's path.
+- **Covered behavior** — FileSystemErrorCode: ordinal values are stable.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.

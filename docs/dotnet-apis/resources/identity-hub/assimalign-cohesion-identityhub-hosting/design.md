@@ -26,8 +26,9 @@ Device authorization and the built-in verification page are available only when 
 binds to loopback in Local. High-entropy device codes, human-readable user codes, a ten-minute
 lifetime, pending polling, one-shot consumption, and an ID token when `openid` was requested remain
 supported there. The page has no client-selected subject: every local approval signs in the fixed
-`development-user` identity, checks a supplied browser origin when present, and emits restrictive
-cache, framing, referrer, and content-security headers. Discovery omits the device endpoint and
+`development-user` identity, checks a supplied browser origin when present, and sets restrictive
+cache headers; its framing, referrer, and content-security headers are the ones every IdentityHub
+response carries (see below). Discovery omits the device endpoint and
 grant outside that Local mode. Production account login, consent, recovery, federation, and subject
 selection require a separately authenticated user-flow implementation.
 
@@ -69,6 +70,14 @@ and `AddClient` command kinds.
 Hosting privately composes Cohesion Web/HTTP/connection libraries and the shared IdentityModel JWT
 implementation. Routes use direct dispatch and `Utf8JsonWriter`; there is no reflection-based
 routing, serializer metadata discovery, or dynamic activation.
+
+Security headers come from `Web.SecurityHeaders`, registered first in the private pipeline: every
+response, JSON and the Local device-approval page alike, carries
+`Content-Security-Policy: default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` and `X-Content-Type-Options: nosniff`. These
+are the values the approval page used to set by hand; the page now sets only its
+`Cache-Control: no-store` and `Pragma: no-cache`. `Web.SecurityHeaders` and the `Web.Routing` and
+`Http.Streaming` assemblies it closes over are private members of `App.IdentityHub`.
 
 ## Declarative commands (item 31c)
 
@@ -149,6 +158,7 @@ application and IHost route share it. Startup failures still roll back and propa
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.IdentityHub` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
@@ -164,6 +174,7 @@ application and IHost route share it. Startup failures still roll back and propa
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 

@@ -2,7 +2,7 @@
 
 Gateway combines shared resource generation with provider selection and boundary-aware application source generation.
 
-> **Status:** Partial. Seven typed mappings and a finite restore bootstrap are implemented; selective first-restore dependencies are incomplete.
+> **Status:** Partial. Seven typed mappings are implemented, and area packages are injected for the areas of the referenced resource projects; the restore-visible producer descriptor for manifest packages and clients is incomplete.
 
 ## Defaults and forced assignments
 
@@ -106,8 +106,8 @@ the gateway lock-file solve.
 ## `Outputs`
 
 `$(IntermediateOutputPath)cohesion/Gateway.g.cs` enters `Compile` and `FileWrites`. It exposes
-application identity, manifest constants, same-application `Add*` verbs, `AddAllResources`,
-boundary-crossing `Externals`, referenced `Applications`, and provider-driven `UseGateway`. Base
+application identity, manifest constants, one same-application `Add<Name>` verb per resource
+(there is no `AddAllResources`; the gateway names what it composes), boundary-crossing `Externals`, referenced `Applications`, and provider-driven `UseGateway`. Base
 targets independently generate the Composite manifest, accessors, and control-plane source.
 
 `CohesionPublishImages` writes `$(PublishDir)application.images.json` with `cohesion/images/v1`
@@ -121,15 +121,20 @@ composite. Archives are verified and relocated under `images/<ordinal>/`.
 |---|---|
 | `COHGW001` | Resolved area Hosting assembly in an out-of-process gateway; guard condition checks CohesionGatewayInProcess. |
 | `COHGW002` | InProcess selected for project resources without explicit in-process opt-in. |
+| `COHGW003` | A typed resource kind whose ApplicationModel the gateway does not reference; the verb uses the untyped `AddResource` path until the package or the area project is referenced. |
 | `COHSDK001` | Referenced resource project has application model disabled. |
 | `COHSDK002` | Inherited pin agreement and .NET SDK validation. |
 | Ordinary errors | Missing identity, invalid switches, malformed manifests/providers, duplicate generated identities, and invalid image sets. |
 | Ordinary warning | No resource manifest belongs to this application; runtime Build rejects an empty resource set. |
 
-The shipped dependency bootstrap includes the seven Web, Database, ConfigurationStore, SecretStore,
-IdentityHub, Rezolvr, and LogSpace ApplicationModel packages and the SecretStore, Database, and
-ConfigurationStore clients. Manifest-derived requirements are discovered after restore and cannot
-rewrite `project.assets.json`. A restore-visible producer dependency descriptor remains future
+The area set is derived at evaluation time from the referenced resource projects: each
+`CohesionResourceReference` project's `Sdk="Assimalign.Cohesion.Sdk.<Area>"` attribute (or the
+reference's `Area` metadata) names the area, and exactly those areas' ApplicationModel packages
+are injected, with `App.<Area>` frameworks for the same areas in process. The SecretStore,
+Database, and ConfigurationStore clients stay restore-visible for every gateway. A typed kind whose
+ApplicationModel the gateway does not reference is generated on the untyped path with `COHGW003`.
+Manifest-derived requirements for manifest packages are discovered after restore and cannot
+rewrite `project.assets.json`; a restore-visible producer dependency descriptor remains future
 work. Other kinds use generic `ResourceOptions` /`AddResource` mapping. Docker/Kubernetes providers
 belong to external platform packages; the SDK contains their package selection but does not supply
 their implementations.

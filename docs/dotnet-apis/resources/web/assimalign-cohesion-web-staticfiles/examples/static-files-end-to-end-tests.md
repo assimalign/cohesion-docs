@@ -7,7 +7,7 @@ This example exercises `Assimalign.Cohesion.Web.StaticFiles` through its co-loca
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/tests/StaticFilesEndToEndTests.cs`. It
 retains the test class and assertions so the setup, operation, and expected outcome stay together.
-`Use` it in the source project’s test context, with its test dependencies and supporting test objects.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
@@ -46,7 +46,7 @@ namespace Assimalign.Cohesion.Web.StaticFiles.Tests;
 /// </summary>
 public class StaticFilesEndToEndTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     private static WebApplicationTestFactory CreateFactory(InMemoryFileSystem site, Action<StaticFilesOptions>? configure = null)
     {
@@ -59,7 +59,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_Get_ShouldServeFileWithEntityHeaders()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("index.html", "<html>home</html>"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -81,7 +81,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_RevalidateWithETag_ShouldYield304()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("app.css", "body{}"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -104,7 +104,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_SingleByteRange_ShouldYield206()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("data.txt", "0123456789"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -125,7 +125,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_UnsatisfiableRange_ShouldYield416()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("data.txt", "0123456789"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -144,7 +144,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_Head_ShouldReturnHeadersWithoutBody()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("page.html", "content"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -174,7 +174,7 @@ public class StaticFilesEndToEndTests
         // middleware sees them, so the traversal gate catches them uniformly; the URI client-side keeps
         // them encoded, so the hostile form actually reaches the server (a literal "/../" would be
         // normalized away by HttpClient).
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(
             ("public.txt", "public"),
             ("secret.txt", "top-secret"));
@@ -201,7 +201,7 @@ public class StaticFilesEndToEndTests
         // legitimately percent-encoded on the wire ("%24" → "$") must decode in the h1 transport and
         // resolve the file whose name actually contains it. Before Http1MessageReader gained decode
         // parity, "%24" reached the middleware raw and this file was unreachable on HTTP/1.1.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("prices$.json", "{\"ok\":true}"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -222,7 +222,7 @@ public class StaticFilesEndToEndTests
     {
         // Arrange — SocketsHttpHandler does not auto-decompress unless configured, so the raw
         // sibling bytes and the Content-Encoding header are observable.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(
             ("app.js", "identity-js"),
             ("app.js.br", "brotli-bytes"));
@@ -247,7 +247,7 @@ public class StaticFilesEndToEndTests
     {
         // Arrange — HttpClient follows the 301 automatically, so the observable outcome is the
         // default document served from the slash form.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("docs/index.html", "docs home"));
         await using WebApplicationTestFactory factory = CreateFactory(site);
         using HttpClient client = factory.CreateClient();
@@ -265,7 +265,7 @@ public class StaticFilesEndToEndTests
     public async Task E2E_UnmatchedRequest_ShouldFlowDownstream()
     {
         // Arrange — a downstream marker middleware owns everything static files declines.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using InMemoryFileSystem site = StaticSite.Create(("app.css", "body{}"));
 
         await using var factory = new WebApplicationTestFactory();
