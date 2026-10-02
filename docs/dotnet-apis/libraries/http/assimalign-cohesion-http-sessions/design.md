@@ -10,6 +10,10 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Http.Sessions
 Typed string and integer helpers are extension members over that binary contract. An attached
 feature supplies the session without adding application state to the protocol core.
 
+`HttpSessionOptions.CookieIsEssential` defaults to `false` because a session usually holds state
+that needs consent; under a consent requirement the session cookie, and so the session, starts only
+after the user consents unless the application marks it essential.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Http`. The [overview](index.md#dependencies)

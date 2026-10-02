@@ -15,8 +15,18 @@ Adds typed request and response cookies to the HTTP feature model.
 ## Scope
 
 Cookies are opt-in features over the wire-level `Cookie` and `Set-Cookie` fields. Extension members
-retain property-style access while keeping cookie types out of the protocol root. Parsing and
-response flushing cooperate with the exchange lifecycle.
+retain property-style access while keeping cookie types out of the protocol root. The request side
+tokenizes the `Cookie` header the first time `request.Cookies` is read. The response collection
+writes every change through to `response.Headers[Set-Cookie]`, one value per cookie, and the
+transports serialize that header like any other field, so `Http.Connections` takes no dependency on
+this package; only the HTTP/1.1 upgrade writer in `Http.ProtocolUpgrade` reads
+`IHttpResponseCookieFeature` directly.
+
+To replace the response feature, remove the existing feature's slot first: the feature collection
+is keyed by `IHttpFeature.Name`, and `Get<T>()` returns the first match, so a second feature with a
+different name leaves the existing one in charge. A replacement must also keep `Set-Cookie` in sync,
+typically by queuing into the replaced feature's header-synchronized collection, as
+`Web.CookiePolicy` does.
 
 ## Dependencies
 
@@ -45,6 +55,8 @@ response flushing cooperate with the exchange lifecycle.
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Cookies/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Cookies/README.md`.
 
 - **Source** — `cohesion/libraries/Http/README.md`.
 

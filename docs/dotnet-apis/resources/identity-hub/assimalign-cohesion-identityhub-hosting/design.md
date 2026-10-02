@@ -70,6 +70,14 @@ Hosting privately composes Cohesion Web/HTTP/connection libraries and the shared
 implementation. Routes use direct dispatch and `Utf8JsonWriter`; there is no reflection-based
 routing, serializer metadata discovery, or dynamic activation.
 
+Security headers come from `Web.SecurityHeaders`, registered first in the private pipeline: every
+response, JSON and the Local device-approval page alike, carries
+`Content-Security-Policy: default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` and `X-Content-Type-Options: nosniff`. These
+are the values the approval page used to set by hand; the page now sets only its
+`Cache-Control: no-store` and `Pragma: no-cache`. `Web.SecurityHeaders` and the `Web.Routing` and
+`Http.Streaming` assemblies it closes over are private members of `App.IdentityHub`.
+
 ## Declarative commands (item 31c)
 
 | Wire kind | Descriptor verb | Ownership key |
@@ -164,6 +172,7 @@ application and IHost route share it. Startup failures still roll back and propa
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 

@@ -94,6 +94,7 @@ application and IHost route share it. Startup failures still roll back and propa
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` | `CohesionPrivateProjectReference` |
 
 [Parent: IdentityHub](../index.md)
 

@@ -54,10 +54,13 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting` |
 | `Assimalign.Cohesion.Web.Hosting.Resources` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Forms` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
+| `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Connections.Quic` |
 | `Assimalign.Cohesion.Connections.Security` |
