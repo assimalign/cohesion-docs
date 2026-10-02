@@ -14,6 +14,7 @@ framework.
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.Web`](assimalign-cohesion-web/index.md) | `Root` | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.Antiforgery`](assimalign-cohesion-web-antiforgery/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Api`](assimalign-cohesion-web-api/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](assimalign-cohesion-web-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.Authentication`](assimalign-cohesion-web-authentication/index.md) | Feature library | Public reference and runtime |
@@ -39,6 +40,7 @@ framework.
 | [`Assimalign.Cohesion.Web.RateLimiting`](assimalign-cohesion-web-ratelimiting/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.RequestTimeouts`](assimalign-cohesion-web-requesttimeouts/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Routing`](assimalign-cohesion-web-routing/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.SecurityHeaders`](assimalign-cohesion-web-securityheaders/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Serialization`](assimalign-cohesion-web-serialization/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Sessions`](assimalign-cohesion-web-sessions/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.StaticFiles`](assimalign-cohesion-web-staticfiles/index.md) | Feature library | Public reference and runtime |
@@ -77,6 +79,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 |---|
 | `Assimalign.Cohesion.App.Web` |
 | `Assimalign.Cohesion.Web` |
+| `Assimalign.Cohesion.Web.Antiforgery` |
 | `Assimalign.Cohesion.Web.Api` |
 | `Assimalign.Cohesion.Web.Authentication` |
 | `Assimalign.Cohesion.Web.Authentication.Bearer` |
@@ -101,12 +104,14 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.RateLimiting` |
 | `Assimalign.Cohesion.Web.RequestTimeouts` |
 | `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` |
 | `Assimalign.Cohesion.Web.Serialization` |
 | `Assimalign.Cohesion.Web.Sessions` |
 | `Assimalign.Cohesion.Web.StaticFiles` |
 | `Assimalign.Cohesion.Caching` |
 | `Assimalign.Cohesion.Caching.InMemory` |
 | `Assimalign.Cohesion.Http` |
+| `Assimalign.Cohesion.Http.Antiforgery` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.Forms` |
@@ -124,12 +129,6 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Security.DataProtection` |
-| `Assimalign.Cohesion.Http.ClientFactory` |
-| `Assimalign.Cohesion.IdentityModel.Protocols` |
-| `Assimalign.Cohesion.IdentityModel.Protocols.OpenIdConnect` |
-| `Assimalign.Cohesion.IdentityModel.Protocols.Saml` |
-| `Assimalign.Cohesion.IdentityModel.Token.Saml` |
-| `Assimalign.Cohesion.OpenApi` |
 
 `Application`-model and client packages are NuGet-only and are excluded from the area shared
 framework. The package table distinguishes assemblies present in the source tree from those included
