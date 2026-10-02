@@ -35,6 +35,7 @@ framework.
 | [`Assimalign.Cohesion.Web.Hosting.Health`](assimalign-cohesion-web-hosting-health/index.md) | Hosting integration | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](assimalign-cohesion-web-hosting-resources/index.md) | Hosting integration | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.HttpsPolicy`](assimalign-cohesion-web-httpspolicy/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.OpenApi`](assimalign-cohesion-web-openapi/index.md) | Feature library | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](assimalign-cohesion-web-problemdetails/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Query`](assimalign-cohesion-web-query/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.RateLimiting`](assimalign-cohesion-web-ratelimiting/index.md) | Feature library | Public reference and runtime |
@@ -45,6 +46,7 @@ framework.
 | [`Assimalign.Cohesion.Web.Sessions`](assimalign-cohesion-web-sessions/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.StaticFiles`](assimalign-cohesion-web-staticfiles/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Testing`](assimalign-cohesion-web-testing/index.md) | Testing | Not listed in this framework |
+| [`Assimalign.Cohesion.Web.Validation`](assimalign-cohesion-web-validation/index.md) | Feature library | Public reference and runtime |
 
 ## Architecture
 
@@ -108,6 +110,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.Serialization` |
 | `Assimalign.Cohesion.Web.Sessions` |
 | `Assimalign.Cohesion.Web.StaticFiles` |
+| `Assimalign.Cohesion.Web.Validation` |
 | `Assimalign.Cohesion.Caching` |
 | `Assimalign.Cohesion.Caching.InMemory` |
 | `Assimalign.Cohesion.Http` |
@@ -118,6 +121,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Http.Forwarded` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Http.Sessions` |
+| `Assimalign.Cohesion.ObjectValidation` |
 | `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Http.ServerSentEvents` |
 | `Assimalign.Cohesion.Http.InterimResponses` |
@@ -130,9 +134,9 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Security.DataProtection` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
+`Application`-model and client packages, and `Assimalign.Cohesion.Web.OpenApi`, are NuGet-only and
+are excluded from the area shared framework. The package table distinguishes assemblies present in
+the source tree from those included by the current framework inventory.
 
 ## Related documentation
 
