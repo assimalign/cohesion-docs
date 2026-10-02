@@ -80,6 +80,14 @@ replacement. Lookup is exact on the type the value is bound as: no base-type or 
 which would need runtime type inspection. A validator is shared by every request, so it must be safe
 to use concurrently.
 
+The `errors` map carries the failures the validator's ObjectValidation options report (see
+[which failures are reported](../../../libraries/object-validation/assimalign-cohesion-objectvalidation/design.md#which-failures-are-reported)).
+With the defaults, every failing member is reported, each with one failing rule's messages.
+`AddProfile` sets `ContinueThroughValidationChain`, which adds the messages of each member's other
+failing rules, and a validator built with `ValidationMode.Stop` reports only one failing member.
+Before ObjectValidation #1206, a default-options validator registered with `AddValidator` stopped at
+the first failing member, so a body with several invalid members was answered with one.
+
 ## The generated call
 
 When the consuming compilation resolves

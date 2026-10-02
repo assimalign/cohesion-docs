@@ -16,7 +16,10 @@ Runs fluent validation profiles and reports structured failures.
 
 Profiles separate rule declaration from execution. Member selectors are inspected through resolved
 metadata instead of compiling expressions, while conditional predicates are supplied as delegates.
-Options control failure aggregation and throwing without changing how profiles are authored.
+Options control failure aggregation and throwing without changing how profiles are authored. With
+the defaults, every failing member is reported, each with the errors of one of its rules:
+`ValidationMode.Stop` stops at one failing member, and `ContinueThroughValidationChain` runs every
+rule of a member. See [which failures are reported](design.md#which-failures-are-reported).
 
 An error raised inside a nested profile (`ChildRules`, `UseProfile`) carries a source composed under
 its parent member — `order => order.Shipping.City` rather than `a => a.City` — so errors on equally
