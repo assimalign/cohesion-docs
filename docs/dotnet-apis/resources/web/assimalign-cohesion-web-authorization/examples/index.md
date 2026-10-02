@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Authorization Challenge Tests](authorization-challenge-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
+- **[Authorization Effective Policy Tests](authorization-effective-policy-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 - **[Authorization End To End Tests](authorization-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 - **[Authorization Metadata Tests](authorization-metadata-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 - **[Authorization Options Tests](authorization-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
