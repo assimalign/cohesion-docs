@@ -36,7 +36,7 @@ application endpoint, and the group's prefix, metadata and policies apply to it.
 | Query value | Scalar default or `[FromQuery]` | Parse the query-string value. |
 | Header | `[FromHeader]` | Explicit header binding. |
 | Request body | Complex default or `[FromBody]` | One body parameter, read through the serialization registry. |
-| Form field | `[FromForm]` | Bind individual scalar fields. |
+| Form field | `[FromForm]` | Bind individual scalar fields; the endpoint requires antiforgery validation. |
 | `IHttpContext` | Parameter type | Inject the current exchange. |
 | `CancellationToken` | Parameter type | Supply `RequestCancelled`. |
 | `IHttpFeature` implementation | Parameter type | Resolve the typed context feature. |
@@ -44,6 +44,14 @@ application endpoint, and the group's prefix, metadata and policies apply to it.
 Missing required or invalid scalar inputs produce Hypertext Transfer Protocol (HTTP) 400 problem
 responses with an `errors` extension naming the parameter. Unsupported body media types produce
 415; malformed bodies produce 400.
+
+An endpoint with a `[FromForm]` parameter requires antiforgery when the application references
+`Assimalign.Cohesion.Web.Antiforgery`, which every `Sdk.Web` application does through the shared
+framework. Register `AddAntiforgery(...)` on the builder and `UseAntiforgery()` after
+`UseRouting()`, or opt the endpoint out with `.DisableAntiforgery()`; without the middleware the
+endpoint fails at dispatch instead of running unprotected. The generator attaches the requirement
+where the endpoint is mapped, so a group's `DisableAntiforgery()` does not reach it. See
+[Web.Antiforgery](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md).
 
 ## Generator setup
 
@@ -92,6 +100,7 @@ Return to [Web](index.md).
 ## Sources
 
 - **Mapping and binding** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/OVERVIEW.md`.
+- **Antiforgery on form-bound endpoints** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`.
 - **Serialization and withdrawn results** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Serialization/docs/DESIGN.md`.
 - **Problem payload** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ProblemDetails/docs/DESIGN.md`.
 - **Error-handling surface** — `cohesion/resources/Web/README.md`.

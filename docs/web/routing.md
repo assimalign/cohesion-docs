@@ -18,7 +18,8 @@ Endpoint mapping lives in `Assimalign.Cohesion.Web.Api`; see
 middleware; it does not run the endpoint. The end of the pipeline runs it. Middleware registered
 after `UseRouting` therefore runs for matched requests, before the endpoint, and reads the selected
 endpoint through `context.GetRouteMatch()` and `context.GetEndpointMetadata<T>()`. That is the
-position for endpoint policies such as rate limits, timeouts and output caching.
+position for endpoint policies: CORS, authorization, timeouts, rate limits, antiforgery and output
+caching, in that order ([Middleware order](middleware-order.md)).
 
 ## Matching and precedence
 
@@ -33,13 +34,16 @@ Hypertext Transfer Protocol (HTTP) method semantics:
 
 A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) to a path with no
 `OPTIONS` route publishes the endpoint for the requested method, flagged `IsPreflight`, so CORS
-middleware can read its metadata. That candidate never runs for the preflight.
+middleware can read its metadata. That candidate never runs for the preflight: `UseCors` answers
+the preflight with the candidate's policy, authorization and antiforgery skip a preflight, and rate
+limiting skips the candidate's endpoint policy.
 
 Endpoint metadata can require a middleware. When an endpoint declares a policy that only a
 specific middleware applies, such as a rate limit, and that middleware did not process the
 request, the end of the pipeline throws `InvalidOperationException` naming the endpoint and the
-middleware instead of running the endpoint without its policy. Only the declaration that applies
-counts: a route that disables a policy its group requires needs no middleware.
+middleware instead of running the endpoint without its policy. CORS, authorization, request
+timeouts, rate limiting and antiforgery metadata all work this way. Only the declaration that
+applies counts: a route that disables a policy its group requires needs no middleware.
 
 `RoutePattern` computes inbound precedence. Candidates sort from literal segments through
 constrained parameters, ordinary parameters, constrained catch-alls, and ordinary catch-alls.
@@ -80,10 +84,15 @@ api.MapGet("health", healthHandler).DisableRateLimiting();
 ```
 
 Metadata is composed when the route table is built, outer group first, so the order of these
-calls does not matter, and a route-level declaration overrides its group's. Routing ships
-`WithName` and `RequireHost`; feature packages ship their own verbs: `RequireRateLimiting` and
-`DisableRateLimiting`, `WithRequestTimeout` and `DisableRequestTimeout`, `CacheOutput` and
-`DisableOutputCache`, and `WithHttpLogging`.
+calls does not matter, and a route-level declaration overrides its group's. Authorization is the
+exception: every authorization item applies, and an `AllowAnonymous` clears only the requirements
+declared before it, so a route that requires authorization inside an anonymous group stays
+protected ([Web.Authorization](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md)).
+Routing ships `WithName` and `RequireHost`; feature packages ship their own verbs:
+`RequireCors` and `DisableCors`, `RequireAuthorization` and `AllowAnonymous`,
+`WithRequestTimeout` and `DisableRequestTimeout`, `RequireRateLimiting` and `DisableRateLimiting`,
+`RequireAntiforgery` and `DisableAntiforgery`, `CacheOutput` and `DisableOutputCache`,
+`WithSecurityHeaders` and `DisableSecurityHeaders`, and `WithHttpLogging`.
 
 ## Fallback routes
 
@@ -110,3 +119,5 @@ Return to [Web](index.md).
 - **Routing contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Endpoint integration** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/OVERVIEW.md`.
 - **Single-page fallback** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
+- **Policy order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
+- **Policy verbs and combination** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/DESIGN.md`.

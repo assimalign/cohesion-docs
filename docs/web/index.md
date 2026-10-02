@@ -2,7 +2,7 @@
 
 Web is Cohesion's HTTP application platform for hosting, routing, endpoints, and request middleware.
 
-> **Status:** Partial. The runtime and many feature families work; Authorization and Cors remain project scaffolds.
+> **Status:** Partial. The runtime and every feature family in the project map work; the package pages name their deferred surfaces.
 
 ## What it is
 
@@ -20,6 +20,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 - **[Routing](routing.md)** — Route matching, precedence, groups, metadata, and generated links.
 - **[Endpoints and responses](endpoints.md)** — Typed parameter binding, serialization, and errors.
 - **[Middleware](middleware.md)** — Feature families, composition order, and incomplete surfaces.
+- **[Middleware order](middleware-order.md)** — The registration order for every Web middleware and the reason for each position.
 - **[Testing](testing.md)** — In-memory protocol tests and real `Program.cs` execution.
 
 ## Project map
@@ -39,17 +40,19 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Query`](../dotnet-apis/resources/web/assimalign-cohesion-web-query/index.md) | QUERY method content negotiation, conditionals, and redirect helpers. |
 | [`Assimalign.Cohesion.Web.HostFiltering`](../dotnet-apis/resources/web/assimalign-cohesion-web-hostfiltering/index.md) | Allowed-host enforcement against the effective host (forwarded by a trusted proxy, else transport-resolved). |
 | [`Assimalign.Cohesion.Web.HttpsPolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-httpspolicy/index.md) | HTTPS redirection and secure-response transport policy headers. |
+| [`Assimalign.Cohesion.Web.SecurityHeaders`](../dotnet-apis/resources/web/assimalign-cohesion-web-securityheaders/index.md) | Browser security headers with safe defaults, an opt-in Content Security Policy with per-request nonces, Permissions-Policy, cross-origin isolation fields, and endpoint overrides. |
 | [`Assimalign.Cohesion.Web.RequestTimeouts`](../dotnet-apis/resources/web/assimalign-cohesion-web-requesttimeouts/index.md) | Global and endpoint timeout policies over request cancellation. |
 | [`Assimalign.Cohesion.Web.RateLimiting`](../dotnet-apis/resources/web/assimalign-cohesion-web-ratelimiting/index.md) | Global and endpoint limiters, partitioning, queues, and rejection handling. |
 | [`Assimalign.Cohesion.Web.Authentication`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication/index.md) | Named authentication schemes, principal feature, and handler dispatch. |
 | [`Assimalign.Cohesion.Web.Authentication.Cookie`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-cookie/index.md) | Protected cookie tickets and sign-in/out behavior. |
 | [`Assimalign.Cohesion.Web.Authentication.Bearer`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-bearer/index.md) | Bearer token validation and principal creation. |
-| [`Assimalign.Cohesion.Web.Authorization`](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | Project scaffold; authorization implementation is not present. |
+| [`Assimalign.Cohesion.Web.Authorization`](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | Endpoint policies over `ClaimsPrincipal`, `RequireAuthorization` and `AllowAnonymous`, default and fallback policies, and per-endpoint schemes. |
 | [`Assimalign.Cohesion.Web.ForwardedHeaders`](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/index.md) | Trusted-proxy processing and effective request identity. |
 | [`Assimalign.Cohesion.Web.Sessions`](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | Cookie-backed session identity over asynchronous session stores. |
-| [`Assimalign.Cohesion.Web.CookiePolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Request/response cookie policy enforcement. |
-| [`Assimalign.Cohesion.Web.Cors`](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Project scaffold; cross-origin resource sharing middleware is not present. |
+| [`Assimalign.Cohesion.Web.CookiePolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Consent, attribute floors, RFC 6265bis prefix rules, and the lifetime cap for every cookie the application appends. |
+| [`Assimalign.Cohesion.Web.Cors`](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Validated cross-origin resource sharing (CORS) policies, preflight answers, and per-endpoint policy selection. |
 | [`Assimalign.Cohesion.Web.Forms`](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Pipeline integration for HTTP form parsing. |
+| [`Assimalign.Cohesion.Web.Antiforgery`](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md) | Cross-site request forgery token validation for endpoints that require it, including every form-bound typed endpoint. |
 | [`Assimalign.Cohesion.Web.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-health/index.md) | Health model, readiness/liveness selection, and HTTP endpoints. |
 | [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Web-root file serving, default documents, ranges, validators, precompressed assets, and the single-page-application fallback. |
 | [`Assimalign.Cohesion.Web.Compression`](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Response compression and guarded request decompression. |
@@ -138,6 +141,6 @@ Return to [Cohesion Documentation](../index.md).
 - **Area integration** — `cohesion/docs/resources/Web/OVERVIEW.md` and `cohesion/docs/resources/Web/DESIGN.md`.
 - **Hosting** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Declarative plane** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ApplicationModel/docs/OVERVIEW.md`.
-- **Scaffolds** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/src/` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/src/`.
+- **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/Program.cs` and `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/README.md`.
 - **Program scope** — `cohesion/docs/programs/HTTP_WEB_PROGRAM_PLAN.md` and `cohesion/docs/programs/SERVICE_STORY_REQUIREMENTS.md`.

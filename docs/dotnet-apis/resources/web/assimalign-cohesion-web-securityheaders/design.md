@@ -251,7 +251,8 @@ The four forms map to `Disable` (`()`), `AllowAll` (`*`), `AllowSelf` (`(self ..
 
 `UseHttpLogging` → `UseSecurityHeaders` → `UseForwardedHeaders` → `UseHostFiltering` →
 `UseHttpsRedirection` → `UseHsts` → `UseErrorHandling` → `UseStaticFiles` → `UseRouting` → policy
-middleware → endpoint. The area's middleware order places every Web middleware.
+middleware → endpoint. The area's [middleware order](../../../../web/middleware-order.md) places
+every Web middleware.
 
 - **At the front**, so every response that passes through the pipeline gets the fields, the
   rejections of the middleware after it included. Only `UseHttpLogging`, which writes no response,

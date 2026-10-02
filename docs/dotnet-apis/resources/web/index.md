@@ -137,6 +137,7 @@ by the current framework inventory.
 ## Related documentation
 
 - **Product** — [Web](../../../web/index.md).
+- **Middleware order** — [the registration order for every Web middleware](../../../web/middleware-order.md).
 - **SDK** — [`Assimalign.Cohesion.Sdk.Web`](../../sdks/sdk-web/index.md).
 - **Parent** — [Resources](../index.md).
 

@@ -272,7 +272,8 @@ the `Set-Cookie` fields.
 ## Where it goes in the pipeline
 
 Register `UseCookiePolicy` early: after `UseForwardedHeaders` and `UseHostFiltering`, and before
-`UseRouting`, `UseSessions`, `UseAuthentication`, and anything else that writes cookies.
+`UseRouting`, `UseSessions`, `UseAuthentication`, and anything else that writes cookies. The area's
+[middleware order](../../../../web/middleware-order.md) gives its exact place.
 
 The design tolerates other placements, but early is still the recommendation:
 

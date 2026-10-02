@@ -252,7 +252,7 @@ provider the package keeps the engine's in-memory key and says plainly that it i
 ## Ordering
 
 `UseForwardedHeaders` → `UseRouting` → `UseRequestTimeouts` → `UseRateLimiting` → `UseAntiforgery` →
-endpoint. The area's middleware order places the rest.
+endpoint. The area's [middleware order](../../../../web/middleware-order.md) places the rest.
 
 - **After `UseRouting`** (required): the endpoint and its metadata are published when the middleware
   runs. Ahead of it, protected endpoints fail at dispatch.

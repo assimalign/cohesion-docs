@@ -329,6 +329,9 @@ for the preflight.
 UseForwardedHeaders → UseHostFiltering → … → UseRouting → UseCors → UseAuthorization / UseRateLimiting / UseRequestTimeouts / UseOutputCache / antiforgery → endpoint
 ```
 
+The area's [middleware order](../../../../web/middleware-order.md) places every Web middleware,
+including the ones after `UseCors`.
+
 - **After `UseRouting`**, so the endpoint and its `CorsMetadata` are known. Registered ahead of it,
   an endpoint that declares CORS fails at dispatch (see above).
 - **Ahead of every middleware that can reject a preflight.** A preflight carries no credentials, so
