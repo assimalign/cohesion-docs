@@ -409,9 +409,9 @@ that cannot name them.
   `Accept-Language`).
 - **Whole-object binding from form fields** — form binding is per-field scalar via `[FromForm]`,
   plus uploaded files.
-- **Stream and file return values** — a handler writes a file or a stream itself; the file and
-  stream response helpers of #1061 are delivered separately from its file binding, in
-  `Web.StaticFiles`.
+- **Stream and file return values** — a handler writes a file or a stream itself, through the
+  response helpers `Web.StaticFiles` ships (`SendFileAsync`, `WriteStreamAsync`, #1061), so
+  `Web.Api` takes no file-system dependency.
 - **Per-endpoint form limits** (`HttpFormOptions` as endpoint metadata) — the limits are the
   exchange's form feature's, set by installing one ahead of the endpoint.
 

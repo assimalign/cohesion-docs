@@ -106,8 +106,9 @@ internal sealed partial class AppJsonContext : JsonSerializerContext
 A type a typed endpoint reads or returns that no registered reader or writer covers fails the
 document request with an `InvalidOperationException` that names the endpoint (`GET /orders/{id}`)
 and the type and says to add it to the application's `JsonSerializerContext`. The exception reaches
-the pipeline's exception boundary, and the next request tries again, so a fixed composition clears
-without a restart.
+the pipeline's exception boundary, and the next request tries again: a failure that does not recur,
+such as a document transformer that throws once, does not leave the route failing until a restart.
+A composition error recurs on every attempt until the application is fixed.
 
 ## What the document describes
 

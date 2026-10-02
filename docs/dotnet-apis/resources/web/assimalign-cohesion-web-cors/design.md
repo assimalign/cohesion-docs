@@ -326,7 +326,8 @@ for the preflight.
 ## Ordering
 
 ```text
-UseForwardedHeaders → UseHostFiltering → … → UseRouting → UseCors → UseAuthorization / UseRateLimiting / UseRequestTimeouts / UseOutputCache / antiforgery → endpoint
+UseForwardedHeaders → UseHostFiltering → … → UseRouting → UseCors → UseAuthorization → UseRequestTimeouts → UseRateLimiting
+    → UseAntiforgery → UseOutputCache → endpoint
 ```
 
 The area's [middleware order](../../../../web/middleware-order.md) places every Web middleware,
@@ -384,7 +385,7 @@ warnings.
 ## Scope-creep candidates (recorded, not taken)
 
 - A response-start hook in the Web root, so the CORS headers survive an exception boundary
-  registered ahead of `UseCors` (the known limit above).
+  registered ahead of `UseCors` (the known limit above). Filed as #1156.
 - A public evaluation seam for applications that answer CORS on their own `OPTIONS` routes, which
   today write the headers by hand.
 
