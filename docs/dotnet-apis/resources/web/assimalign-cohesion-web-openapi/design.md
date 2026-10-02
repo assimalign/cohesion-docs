@@ -11,7 +11,8 @@ endpoints already carry, never from runtime reflection, so the same document is 
 NativeAOT. The package is the Web adapter the OpenApi family was built to receive (#152): it
 implements `IOpenApiEndpointSource` from `OpenApi.Integration` over the application's route table,
 lets the integration's description provider and `OpenApiDocumentGenerator` assemble the document,
-and serves it from a route.
+and serves it from a route. The [OpenAPI guide](../../../../web/openapi.md) shows it in an
+application.
 
 Three inputs feed it, all produced elsewhere at build or composition time:
 

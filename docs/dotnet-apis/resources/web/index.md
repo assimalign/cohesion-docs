@@ -142,6 +142,7 @@ the source tree from those included by the current framework inventory.
 
 - **Product** — [Web](../../../web/index.md).
 - **Middleware order** — [the registration order for every Web middleware](../../../web/middleware-order.md).
+- **OpenAPI** — [serving and describing an API with Web.OpenApi](../../../web/openapi.md).
 - **SDK** — [`Assimalign.Cohesion.Sdk.Web`](../../sdks/sdk-web/index.md).
 - **Parent** — [Resources](../index.md).
 

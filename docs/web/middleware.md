@@ -46,8 +46,8 @@ on the application.
 | `Web.CookiePolicy` | Consent gating for non-essential cookies, `Secure`/`HttpOnly`/`SameSite` floors, RFC 6265bis prefix rules, and the 400-day cap, applied as each cookie is appended. |
 | `Web.Sessions` | Lazy store-backed sessions, cookie identity, commit/slide, and identifier regeneration. |
 | `Web.Forms` | Form parsing through `Http.Forms` and `IHttpFormFeature`. |
-| `Web.Antiforgery` | Cross-site request forgery token validation for endpoints that require it, including form-bound typed endpoints, with a `400` problem response on failure. |
-| `Web.StaticFiles` | Web-root serving, conditional GET, single byte ranges, default documents, precompressed assets, and the single-page-application fallback (`MapFallbackToFile`). |
+| `Web.Antiforgery` | Cross-site request forgery token validation for endpoints that require it, including typed endpoints that bind form fields or files, with a `400` problem response on failure and `413` for a form over its size limits. |
+| `Web.StaticFiles` | Web-root serving, conditional GET, single byte ranges, default documents, precompressed assets, the single-page-application fallback (`MapFallbackToFile`), and the `SendFileAsync`/`WriteStreamAsync` response helpers for handlers. |
 | `Web.Compression` | Negotiated response compression and bounded request decompression. |
 | `Web.Caching` | Server-owned GET/HEAD output caching with policy metadata, variation, tags, and size accounting. |
 | `Web.RequestTimeouts` | Global/endpoint timeout policies, cancellation, and configurable 504 responses. |

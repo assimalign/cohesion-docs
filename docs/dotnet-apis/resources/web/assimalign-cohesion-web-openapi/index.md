@@ -79,7 +79,8 @@ Every type a typed endpoint reads or returns must be in the `JsonSerializerConte
 document request with an `InvalidOperationException` naming the endpoint.
 
 See `docs/DESIGN.md` for how each element of the document is derived, the packaging decision, the
-schema pipeline, and the security-requirement rules.
+schema pipeline, and the security-requirement rules. The [OpenAPI guide](../../../../web/openapi.md)
+walks through a complete application.
 
 ## Project references
 

@@ -88,11 +88,14 @@ calls does not matter, and a route-level declaration overrides its group's. Auth
 exception: every authorization item applies, and an `AllowAnonymous` clears only the requirements
 declared before it, so a route that requires authorization inside an anonymous group stays
 protected ([Web.Authorization](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md)).
+`WithTags` items combine as well: every tag applies, outer group first.
 Routing ships `WithName` and `RequireHost`; feature packages ship their own verbs:
 `RequireCors` and `DisableCors`, `RequireAuthorization` and `AllowAnonymous`,
 `WithRequestTimeout` and `DisableRequestTimeout`, `RequireRateLimiting` and `DisableRateLimiting`,
 `RequireAntiforgery` and `DisableAntiforgery`, `CacheOutput` and `DisableOutputCache`,
-`WithSecurityHeaders` and `DisableSecurityHeaders`, and `WithHttpLogging`.
+`WithSecurityHeaders` and `DisableSecurityHeaders`, `WithHttpLogging`, `RequireValidation` and
+`DisableValidation` (Web.Validation), and the description verbs `WithTags`, `WithSummary`,
+`WithDescription` and `ExcludeFromDescription` (Web.Api; see [OpenAPI](openapi.md)).
 
 ## Fallback routes
 
@@ -121,3 +124,4 @@ Return to [Web](index.md).
 - **Single-page fallback** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
 - **Policy order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Policy verbs and combination** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/DESIGN.md`.
+- **Description and validation verbs** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Validation/docs/DESIGN.md`.

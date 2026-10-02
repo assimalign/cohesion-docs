@@ -18,7 +18,8 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 - **[Server and TLS](server.md)** — Listener ownership, lifecycle, configuration, and certificates.
 - **[Routing](routing.md)** — Route matching, precedence, groups, metadata, and generated links.
-- **[Endpoints and responses](endpoints.md)** — Typed parameter binding, serialization, and errors.
+- **[Endpoints and responses](endpoints.md)** — Typed parameter binding, return values, validation, file uploads, and errors.
+- **[OpenAPI](openapi.md)** — Serving an OpenAPI document generated from endpoint metadata, and describing endpoints for it.
 - **[Middleware](middleware.md)** — Feature families, composition order, and incomplete surfaces.
 - **[Middleware order](middleware-order.md)** — The registration order for every Web middleware and the reason for each position.
 - **[Testing](testing.md)** — In-memory protocol tests and real `Program.cs` execution.
@@ -33,8 +34,10 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
 | [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation. |
-| [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, and source-generated typed-delegate binding. |
-| [`Assimalign.Cohesion.Web.Serialization`](../dotnet-apis/resources/web/assimalign-cohesion-web-serialization/index.md) | Media-type-keyed request readers and response writers. |
+| [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, source-generated typed-delegate binding (uploaded files included), returned values, `COHWEB` compile errors, and endpoint-description metadata with its description verbs. |
+| [`Assimalign.Cohesion.Web.Serialization`](../dotnet-apis/resources/web/assimalign-cohesion-web-serialization/index.md) | Media-type-keyed request readers and response writers, and the read-only JSON contract lookup describers use. |
+| [`Assimalign.Cohesion.Web.OpenApi`](../dotnet-apis/resources/web/assimalign-cohesion-web-openapi/index.md) | OpenAPI 3.0, 3.1 and 3.2 documents from endpoint metadata, served as JSON or YAML; a NuGet package outside the shared framework. |
+| [`Assimalign.Cohesion.Web.Validation`](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md) | Request-body validation for typed endpoints over ObjectValidation, answered with 400 and an `errors` map keyed by member path. |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](../dotnet-apis/resources/web/assimalign-cohesion-web-problemdetails/index.md) | Problem payload model and reflection-free JSON writer. |
 | [`Assimalign.Cohesion.Web.ErrorHandling`](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | Exception boundary, error-handler chain, and status-code pages. |
 | [`Assimalign.Cohesion.Web.Query`](../dotnet-apis/resources/web/assimalign-cohesion-web-query/index.md) | QUERY method content negotiation, conditionals, and redirect helpers. |
@@ -46,7 +49,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Authentication`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication/index.md) | Named authentication schemes, principal feature, and handler dispatch. |
 | [`Assimalign.Cohesion.Web.Authentication.Cookie`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-cookie/index.md) | Protected cookie tickets and sign-in/out behavior. |
 | [`Assimalign.Cohesion.Web.Authentication.Bearer`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-bearer/index.md) | Bearer token validation and principal creation. |
-| [`Assimalign.Cohesion.Web.Authorization`](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | Endpoint policies over `ClaimsPrincipal`, `RequireAuthorization` and `AllowAnonymous`, default and fallback policies, and per-endpoint schemes. |
+| [`Assimalign.Cohesion.Web.Authorization`](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | Endpoint policies over `ClaimsPrincipal`, `RequireAuthorization` and `AllowAnonymous`, default and fallback policies, per-endpoint schemes, and each endpoint's effective policy readable for describers. |
 | [`Assimalign.Cohesion.Web.ForwardedHeaders`](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/index.md) | Trusted-proxy processing and effective request identity. |
 | [`Assimalign.Cohesion.Web.Sessions`](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | Cookie-backed session identity over asynchronous session stores. |
 | [`Assimalign.Cohesion.Web.CookiePolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Consent, attribute floors, RFC 6265bis prefix rules, and the lifetime cap for every cookie the application appends. |
@@ -54,7 +57,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Forms`](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Pipeline integration for HTTP form parsing. |
 | [`Assimalign.Cohesion.Web.Antiforgery`](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md) | Cross-site request forgery token validation for endpoints that require it, including every form-bound typed endpoint. |
 | [`Assimalign.Cohesion.Web.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-health/index.md) | Health model, readiness/liveness selection, and HTTP endpoints. |
-| [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Web-root file serving, default documents, ranges, validators, precompressed assets, and the single-page-application fallback. |
+| [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Web-root file serving, default documents, ranges, validators, precompressed assets, the single-page-application fallback, and the `SendFileAsync`/`WriteStreamAsync` response helpers. |
 | [`Assimalign.Cohesion.Web.Compression`](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Response compression and guarded request decompression. |
 | [`Assimalign.Cohesion.Web.Caching`](../dotnet-apis/resources/web/assimalign-cohesion-web-caching/index.md) | Server-owned output cache with policy metadata, tags, and variation keys. |
 | [`Assimalign.Cohesion.Web.Diagnostics`](../dotnet-apis/resources/web/assimalign-cohesion-web-diagnostics/index.md) | Bounded request logging and access-log providers. |
@@ -93,6 +96,8 @@ or a platform gateway. Platform-specific ingress and certificate resolution rema
 `Assimalign.Cohesion.Sdk.Web` delivers `Assimalign.Cohesion.App.Web`.
 `Assimalign.Cohesion.Web.ApplicationModel` is NuGet-only and added when
 `CohesionApplicationModel=enabled`. Disabled executables remain plain Web applications.
+`Assimalign.Cohesion.Web.OpenApi` is NuGet-only too: an application that serves an OpenAPI document
+references it (see [OpenAPI](openapi.md)).
 
 The SDK also supplies the Web source generator for typed endpoint binding.
 See the [Web SDK reference](../dotnet-apis/sdks/sdk-web/index.md).
