@@ -13,6 +13,11 @@ is absent and reuses an existing feature when assigning a principal.
 `IAuthenticationSignInHandler` adds sign-in and sign-out. `AddAuthentication` composes against
 `IWebApplicationBuilder`; `UseAuthentication` composes the request pipeline.
 
+Authorization is not part of this package. Policy evaluation, role and claim requirements, and
+per-endpoint scheme selection live in
+[`Assimalign.Cohesion.Web.Authorization`](../assimalign-cohesion-web-authorization/index.md), which
+answers a failed policy through this package's `ChallengeAsync` and `ForbidAsync`.
+
 The README and `docs/DESIGN.md` still use the older implementation name
 `HttpAuthenticationFeature`. This reference uses the current source names `IAuthenticationFeature`
 and the internal `AuthenticationFeature` implementation.

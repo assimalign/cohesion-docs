@@ -14,22 +14,23 @@ test objects.
 
 - **Case 1** — SignIn then Authenticate round-trips the principal.
 - **Case 2** — SignIn emits an HttpOnly cookie.
-- **Case 3** — Authenticate with no cookie yields `NoResult`.
-- **Case 4** — Authenticate with a tampered cookie fails.
-- **Case 5** — Authenticate with an expired ticket fails.
-- **Case 6** — Sliding expiration renews the cookie past the midpoint.
-- **Case 7** — Sliding expiration does not renew before the midpoint.
-- **Case 8** — Challenge on a browser endpoint redirects to the login path.
-- **Case 9** — Challenge on an API endpoint returns 401 without redirect.
-- **Case 10** — Forbid on an API endpoint returns 403 without redirect.
-- **Case 11** — Forbid on a browser endpoint redirects to access denied.
-- **Case 12** — SignOut deletes the cookie.
-- **Case 13** — A non-persistent sign-in emits a session cookie.
-- **Case 14** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
-- **Case 15** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
-- **Case 16** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
-- **Case 17** — SignIn from an untrusted peer asserting https keeps the template's Secure.
-- **Case 18** — SignIn without UseForwardedHeaders ignores a forwarded https header.
+- **Case 3** — SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it.
+- **Case 4** — Authenticate with no cookie yields `NoResult`.
+- **Case 5** — Authenticate with a tampered cookie fails.
+- **Case 6** — Authenticate with an expired ticket fails.
+- **Case 7** — Sliding expiration renews the cookie past the midpoint.
+- **Case 8** — Sliding expiration does not renew before the midpoint.
+- **Case 9** — Challenge on a browser endpoint redirects to the login path.
+- **Case 10** — Challenge on an API endpoint returns 401 without redirect.
+- **Case 11** — Forbid on an API endpoint returns 403 without redirect.
+- **Case 12** — Forbid on a browser endpoint redirects to access denied.
+- **Case 13** — SignOut deletes the cookie.
+- **Case 14** — A non-persistent sign-in emits a session cookie.
+- **Case 15** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
+- **Case 16** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
+- **Case 17** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
+- **Case 18** — SignIn from an untrusted peer asserting https keeps the template's Secure.
+- **Case 19** — SignIn without UseForwardedHeaders ignores a forwarded https header.
 
 ## Source example
 
@@ -162,6 +163,22 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
         cookie.Options.HttpOnly.ShouldBeTrue();
         cookie.Options.Secure.ShouldBeTrue();
         cookie.Options.SameSite.ShouldBe(HttpCookieSameSiteMode.Lax);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it")]
+    public async Task SignIn_DefaultTemplate_ShouldEmitEssentialCookie()
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = TestHttpContext.Create();
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.SignInAsync(CreatePrincipal("alice"), properties: null);
+
+        // Assert
+        options.Cookie.IsEssential.ShouldBeTrue();
+        GetEmittedCookie(context, options.CookieName).Options.IsEssential.ShouldBeTrue();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Authenticate with no cookie yields NoResult")]
