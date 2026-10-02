@@ -18,6 +18,11 @@ Profiles separate rule declaration from execution. Member selectors are inspecte
 metadata instead of compiling expressions, while conditional predicates are supplied as delegates.
 Options control failure aggregation and throwing without changing how profiles are authored.
 
+An error raised inside a nested profile (`ChildRules`, `UseProfile`) carries a source composed under
+its parent member — `order => order.Shipping.City` rather than `a => a.City` — so errors on equally
+named members of different nested objects (`Shipping.City`, `Billing.City`) stay distinguishable. A
+source a rule set explicitly is kept as written. See the [design](design.md#error-sources).
+
 ## Dependencies
 
 The project file declares no explicit Cohesion project or external package references.

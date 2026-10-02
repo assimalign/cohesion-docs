@@ -146,7 +146,7 @@ policy lives in `Web.Serialization`'s internal options, and a profile that wants
 sources. Messages keep the order the rules ran: ObjectValidation records errors on a stack, so the
 map reverses them. A nested profile (`ChildRules`, `UseProfile`) reports under its parent member
 because ObjectValidation composes nested sources (`p => p.Address.City`; see the
-[ObjectValidation design](../../../libraries/object-validation/assimalign-cohesion-objectvalidation/design.md));
+[ObjectValidation design](../../../libraries/object-validation/assimalign-cohesion-objectvalidation/design.md#error-sources));
 under `RuleForEach` the key names the collection member without an element index.
 
 A validator built with `ThrowExceptionOnFailure` throws `ValidationFailureException`, which carries

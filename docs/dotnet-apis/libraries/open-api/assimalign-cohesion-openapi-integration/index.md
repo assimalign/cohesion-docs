@@ -18,6 +18,12 @@ Endpoint sources feed description providers without introducing a Web or ApiMana
 Import/export implementations compose serialization and version transforms. Retargeted exports
 report losses instead of silently claiming equivalent documents.
 
+The shipped Web adapter,
+[`Assimalign.Cohesion.Web.OpenApi`](../../../resources/web/assimalign-cohesion-web-openapi/index.md)
+(#152), implements `IOpenApiEndpointSource` over the Web route table rather than over the attribute
+registry, and passes complete model schemas through the metadata's optional `Schema` members; the
+provider still assembles the document.
+
 ## Dependencies
 
 | Reference | Build item |

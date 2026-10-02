@@ -22,6 +22,19 @@ Interface contracts allow different backing stores to expose files, directories,
 events. The factory composes providers by name. Shared provider contract tests define the portable
 behavior; provider-specific watch timing remains documented separately.
 
+A provider rooted somewhere confines every path-taking operation to that root (#1180). The path is
+resolved first — an empty path is the root, a relative path is taken from the root, and `.` and `..`
+segments are resolved — and must then equal the root or lie under it on a segment boundary, so
+`/srv/public2/x` does not lie under `/srv/public`. Anything else throws `FileSystemException` with
+`FileSystemErrorCode.PathOutsideRoot` before the backing store is touched; `Exists` throws too rather
+than answering `false`. The physical and in-memory providers enforce this, the isolated-storage
+provider does not yet, and the aggregate provider delegates to its mounts. See the
+[design](design.md#root-containment).
+
+`FileSystemPath.Merge` navigates; it does not confine. It joins a relative path onto a base and
+applies leading `..` segments, which may climb above the base but never above its root (drive,
+leading `/`, or UNC share), so no provider uses it to resolve incoming paths.
+
 ## Dependencies
 
 | Reference | Build item |
@@ -48,6 +61,7 @@ behavior; provider-specific watch timing remains documented separately.
 | `FileSystemEnumerationOptions` | `src/FileSystemEnumerationOptions.cs` |
 | `FileSystemEventType` | `src/FileSystemEventType.cs` |
 | `FileSystemExtensions` | `src/Extensions/FileSystemExtensions.cs` |
+| `FileSystemExceptionExtensions` | `src/Extensions/FileSystemExceptionExtensions.cs` |
 
 ## Sources
 
@@ -94,3 +108,7 @@ behavior; provider-specific watch timing remains documented separately.
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/FileSystemEventType.cs`.
 
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Extensions/FileSystemExtensions.cs`.
+
+- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Extensions/FileSystemExceptionExtensions.cs`.
+
+- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/docs/COMPATIBILITY.md`.

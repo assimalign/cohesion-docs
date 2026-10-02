@@ -18,11 +18,28 @@ Attributes describe operations and schemas, while flat metadata records form the
 The mapper reports invalid combinations. Compile-time discovery lives in the separate analyzer
 project, keeping discovery out of the runtime model.
 
+The package carries that analyzer, `Assimalign.Cohesion.OpenApi.SourceGeneration`, under
+`analyzers/dotnet/cs/`. It runs at build time and is not a package dependency: a project that
+references this package, directly or through `OpenApi.Generation` or `OpenApi.Integration`, gets an
+internal `OpenApiMetadataRegistry` that combines its own annotated code with every annotated
+assembly it references. A project inside the Cohesion repository references the package by project,
+which carries no analyzer, so it adds
+`<CohesionAnalyzerReference Include="Assimalign.Cohesion.OpenApi.SourceGeneration" />` itself.
+
+Two public types carry metadata between assemblies (#1169): `IOpenApiMetadataProvider`, the
+operations, schemas, tags and security schemes one assembly contributes, and
+`[assembly: OpenApiMetadataProvider(typeof(T))]`, which advertises a provider type to every
+compilation that references the assembly. The metadata records `OpenApiParameterMetadata`,
+`OpenApiRequestBodyMetadata`, `OpenApiResponseMetadata` and `OpenApiSchemaMetadata` also carry an
+optional `Schema`, a complete model schema that a runtime producer such as the Web OpenAPI adapter
+passes through instead of the flat fields.
+
 ## Dependencies
 
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.OpenApi`](../../open-api/assimalign-cohesion-openapi/index.md) | `CohesionProjectReference` |
+| `Assimalign.Cohesion.OpenApi.SourceGeneration` | `CohesionAnalyzerReference` |
 
 ## Principal public types
 
@@ -34,6 +51,8 @@ project, keeping discovery out of the runtime model.
 | `OpenApiExampleMetadata` | `src/Metadata/OpenApiExampleMetadata.cs` |
 | `OpenApiMetadataDiagnostic` | `src/OpenApiMetadataDiagnostic.cs` |
 | `OpenApiMetadataDiagnosticCodes` | `src/OpenApiMetadataDiagnosticCodes.cs` |
+| `IOpenApiMetadataProvider` | `src/Abstractions/IOpenApiMetadataProvider.cs` |
+| `OpenApiMetadataProviderAttribute` | `src/Attributes/OpenApiMetadataProviderAttribute.cs` |
 | `OpenApiMetadataSeverity` | `src/OpenApiMetadataDiagnostic.cs` |
 | `OpenApiOperationAttribute` | `src/Attributes/OpenApiOperationAttribute.cs` |
 | `OpenApiOperationMetadata` | `src/Metadata/OpenApiOperationMetadata.cs` |
@@ -70,6 +89,10 @@ project, keeping discovery out of the runtime model.
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src/OpenApiMetadataDiagnostic.cs`.
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src/OpenApiMetadataDiagnosticCodes.cs`.
+
+- **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src/Abstractions/IOpenApiMetadataProvider.cs`.
+
+- **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src/Attributes/OpenApiMetadataProviderAttribute.cs`.
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src/Attributes/OpenApiOperationAttribute.cs`.
 
