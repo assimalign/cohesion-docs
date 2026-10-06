@@ -448,7 +448,8 @@ The default server emits one span per request and the OpenTelemetry HTTP server 
 BCL's `System.Diagnostics.ActivitySource` and `System.Diagnostics.Metrics.Meter`. It only emits.
 Exporting stays with `Hosting.Telemetry` and the OpenTelemetry foundation (#317), whose OTLP
 exporter is logs-only and does not subscribe to either yet. Any `ActivityListener` or
-`MeterListener` subscribes by name: an exporter, `dotnet-counters`, or a test.
+`MeterListener` subscribes by name: an exporter, `dotnet-counters`, or a test. The
+[observability guide](../../../../web/observability.md) shows a subscription in an application.
 
 | Signal | Name | Emits |
 | --- | --- | --- |

@@ -42,7 +42,9 @@ The default server traces and measures every request (#1064). Subscribe by name:
 
 With no listener the server creates no activity and records nothing. Exporting these signals is not
 this module's job; see [Design](design.md#server-telemetry-1064), "Server telemetry", for the
-attributes, the outcomes and what is deliberately not emitted.
+attributes, the outcomes and what is deliberately not emitted. The
+[observability guide](../../../../web/observability.md) shows a subscription in an application, and
+the [server guide](../../../../web/server.md) covers TLS endpoints, shutdown, and diagnostics.
 
 ## Dependencies and hosting family
 

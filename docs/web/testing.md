@@ -36,7 +36,11 @@ Console.WriteLine(payload);
 ```
 
 Perform builder-time feature registration through `factory.Builder` before obtaining and
-configuring `factory.Application`. Factory disposal owns application shutdown.
+configuring `factory.Application`. Factory disposal owns application shutdown: it stops the server
+with a shutdown budget that has already run out, so requests still in flight are cancelled rather
+than waited for. A test whose requests must finish calls `StopAsync` first, which lets them finish
+within the token it is given and, with none, waits for them (see
+[Graceful shutdown](server.md#graceful-shutdown)).
 
 To test static files, point the application at a content root on disk. Its `wwwroot` becomes the
 web root that `UseStaticFiles()` serves; the default content root is the test assembly's base
@@ -78,4 +82,4 @@ Return to [Web](index.md).
 
 - **Factory scope and examples** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/OVERVIEW.md`.
 - **Lifecycle and isolation** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/DESIGN.md`.
-- **Program marker contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.
+- **Program marker contract and disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.

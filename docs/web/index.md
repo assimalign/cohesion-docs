@@ -16,7 +16,8 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 ## Guides
 
-- **[Server and TLS](server.md)** — Listener ownership, lifecycle, configuration, and certificates.
+- **[Server and TLS](server.md)** — Listeners, HTTPS with ALPN, client certificates, configuration keys, graceful shutdown, and diagnostics.
+- **[Observability](observability.md)** — Request spans, HTTP server metrics, the request id, and how to subscribe to them.
 - **[Routing](routing.md)** — Route matching, precedence, groups, metadata, and generated links.
 - **[Endpoints and responses](endpoints.md)** — Typed parameter binding, return values, validation, file uploads, and errors.
 - **[OpenAPI](openapi.md)** — Serving an OpenAPI document generated from endpoint metadata, and describing endpoints for it.
@@ -29,7 +30,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | Assembly | Responsibility |
 |---|---|
 | [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, pipeline branching, and the shared pipeline terminal. |
-| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition. |
+| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; the server's request spans, HTTP metrics, and request id. |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |

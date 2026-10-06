@@ -132,8 +132,11 @@ internal sealed class CustomerProfile : ValidationProfile<Customer>
 
 An invalid model is answered `400` `application/problem+json` with the `detail` "One or more
 validation errors occurred." and an `errors` map from member path to messages, the shape binding
-failures use: `Name`, and `Address.City` for the nested profile's rule. A binding failure is
-answered first. A body type with no registered validator, and a `null` body, are not validated;
+failures use: `Name`, and `Address.City` for the nested profile's rule. The map lists members in
+the order the profile declares them, and each member's messages in the order its rules are chained.
+A validator that throws, such as a nested profile's rule or a custom rule, is a fault rather than a
+verdict: the request reaches the exception boundary and the handler does not run. A binding failure
+is answered first. A body type with no registered validator, and a `null` body, are not validated;
 until `AddValidation` is called nothing is. `options.Enabled = false` turns validation off by
 default, and `RequireValidation()` / `DisableValidation()` turn it on or off for a route or a group,
 the most specific declaration winning. A handler that binds a value itself validates it with
