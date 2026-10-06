@@ -16,10 +16,10 @@ would drag the DI/configuration composition surface into every consumer — and 
 references **no** Web feature library. It references the root `Assimalign.Cohesion.Web`
 abstractions, its own hosting family under O35, and non-Web infrastructure. Applications still see
 the whole Web family because the `App.Web` shared framework (via `Sdk.Web`) delivers every Web
-assembly; builder verbs ship with their features (`AddAuthentication` moved to `Web.Authentication`
-, `AddCookie` /`AddJwtBearer` to their handler packages) and compose against the root
-`IWebApplicationBuilder` seam. The one sanctioned exception is `Web.Testing`, the harness that
-drives this concrete runtime.
+assembly; builder verbs ship with their features (`AddAuthentication` moved to
+`Web.Authentication`, `AddCookie`/`AddJwtBearer` to their handler packages) and compose against
+the root `IWebApplicationBuilder` seam. The one sanctioned exception is `Web.Testing`, the harness
+that drives this concrete runtime.
 
 This document focuses on the piece with the most load-bearing runtime behaviour:
 `WebApplicationServer`, the default `IWebApplicationServer`. Its dispatch model and stop semantics
@@ -53,10 +53,11 @@ Four properties fall out of that intent and shape the whole implementation:
 - **Application faults are contained.** Middleware is arbitrary user code. A
   throw from it is expected, not exceptional, and must cost exactly one
   exchange — never its siblings, never the accept loop, never the process.
-- **Shutdown is deterministic.** Stopping the server drains what is in flight and
-  releases every resource, without leaving an unobserved exception behind.
+- **Shutdown is deterministic.** Stopping the server lets what is in flight finish
+  within the stop's budget, cancels only what outlives it, and releases every
+  resource, without leaving an unobserved exception behind.
 
-## `Application` lifecycle composition
+## Application lifecycle composition
 
 `WebApplicationBuilder.Services` is the application's one composition registry. Every dependency the
 host runs with is a registration in it, and the root `IWebApplicationBuilder` verbs are
@@ -145,14 +146,14 @@ starts the first server registration, which is always the default server.
 never awaits a connection's service.
 
 **Why this is the whole point.** The previous implementation queued one `async void` thread-pool
-work item that accepted a connection and then `await foreach` -ed its entire receive sequence inline
+work item that accepted a connection and then `await foreach`-ed its entire receive sequence inline
 before accepting the next. A single idle HTTP/1.1 keep-alive client — parked in `ReceiveAsync`
 waiting for a request it never sends — blocked that loop indefinitely, so every other accepted
 connection sat unserved in the listener backlog. Per-connection dispatch removes the shared
 bottleneck: the idle client parks on *its* task while every other task runs.
 
 **Stored `Task`, never `async void`.** The accept loop and each connection task are stored/tracked
-`Task` s. An `async void` body escalates any escaped exception to a process-terminating unhandled
+`Task`s. An `async void` body escalates any escaped exception to a process-terminating unhandled
 exception via the thread pool; a `Task` makes the exception observable instead. The accept loop
 additionally swallows its own terminal faults so the stored task always completes cleanly.
 
@@ -221,7 +222,7 @@ longer delays the streams behind it.
 
 Wire-level failure isolation lives one layer down, in `Assimalign.Cohesion.Http.Connections` (see
 its `docs/DESIGN.md`, "Receive-loop failure isolation"). Truncated frames, malformed request lines,
-peer resets, HTTP/2 `RST_STREAM` /`GOAWAY`, and per-stream HTTP/3 faults are all classified and
+peer resets, HTTP/2 `RST_STREAM`/`GOAWAY`, and per-stream HTTP/3 faults are all classified and
 handled there: the receive enumerable simply stops yielding on a wire error and the surrounding
 `await using` disposes the connection.
 
@@ -232,11 +233,13 @@ The server therefore owns **only** the concerns above that layer:
 | Wire-protocol conformance, frame parsing, per-stream reset encoding | `Http.Connections` |
 | Wire-level failure isolation (bad frames, peer reset) | `Http.Connections` |
 | Stream admission (`SETTINGS_MAX_CONCURRENT_STREAMS`, QUIC stream credit) | `Http.Connections` |
+| Announcing a graceful close on the wire (`Connection: close`, `GOAWAY`, refused streams) | `Http.Connections` |
 | Application-exception isolation (middleware throws), per exchange | **this server** |
 | Per-connection and per-stream dispatch | **this server** |
 | Exchange + connection + context disposal | **this server** |
-| In-flight tracking + graceful drain, per connection and per stream | **this server** |
+| In-flight tracking + the lame-duck drain and its budget, per connection and per stream | **this server** |
 | Optional connection concurrency cap | **this server** |
+| Request spans, HTTP server metrics and the request id (#1064) | **this server** |
 
 The server never inspects a frame or a stream id. It sees `IHttpConnection` →
 `IHttpConnectionContext` → `IHttpContext` and reads exactly two protocol facts off an exchange:
@@ -287,8 +290,8 @@ how its pipeline ended:
   `500` or a reset.
 - **The connection-level catch remains** for what is left: a receive-side failure the
   transport surfaced and an HTTP/1.1 send failure. Either way the connection cannot
-  carry another request, so it is `Abort`-ed and the enclosing `await using` disposes
-  it. The accept loop is untouched and keeps serving.
+  carry another request, so it is logged (see "Diagnostics"), `Abort`-ed, and the
+  enclosing `await using` disposes it. The accept loop is untouched and keeps serving.
 
 **Behaviour change for HTTP/1.1 (#1049).** Before #1049 a pipeline fault aborted the whole
 connection, so an HTTP/1.1 client saw a dropped connection instead of a status. It now receives a
@@ -328,54 +331,103 @@ down deterministically. The HTTP/2 context is one: its disposal is the RFC 9113 
 (`GOAWAY`, a bounded wait for dispatched exchanges, then the frame pump stops and the output
 completes), which is why the server drains the connection's streams before it disposes the context.
 
-## Stop semantics
+## Stop semantics — the lame-duck drain (#146)
 
-`StopAsync` performs a graceful, idempotent shutdown:
+`StopAsync(cancellationToken)` is a lame-duck drain: the server accepts nothing new, lets the
+exchanges in flight finish within the caller's budget, and cancels only what outlives it. The token
+is the budget. `Host<TContext>.StopAsync` passes a token that fires when its `ShutdownTimeout`
+elapses, which an orchestrated resource derives from its stop grace
+(`ResourceHostOptions.DeriveShutdownTimeout`: grace − 5 s, floor 5 s), so a Web app drains for at
+most that long.
 
-1. **Signal shutdown.** `Cancel` the single shutdown `CancellationTokenSource`. This
-   both stops the accept loop and unblocks every in-flight connection — an idle
-   keep-alive parked in `ReceiveAsync` observes the cancellation and unwinds, so
-   the drain cannot hang on it.
-2. **Wait for the accept loop.** Await the accept-loop task first, so no new
-   connection task can be added after the in-flight set is snapshotted.
-3. **Drain in-flight connections and their streams.** `await Task.WhenAll` over the
-   tracked connection tasks. A connection task completes only after every stream it
-   dispatched has finished (see "Dispatch within a connection"), so the drain covers
-   every in-flight exchange on every connection. Each task is self-contained — it
-   swallows its own cancellation and faults and never rethrows — so the drain
-   completes without surfacing an unobserved `OperationCanceledException` or any
-   other escaped exception.
-4. **`Dispose` the listener**, then the shutdown token source and (if present) the
-   concurrency semaphore. Listener disposal runs from a `finally`, including when
-   the caller's drain token expires, so `StopAsync` never completes with the port
+The server holds two signals (`Internal/WebApplicationServerDrain`). Each live connection registers
+on both once its context is open, so a connection accepted just as the stop begins is handled the
+same way as the rest.
+
+| Signal | Fires | Carries |
+| --- | --- | --- |
+| `Draining` | when the stop begins | the accept loop, a bind still in progress, and every connection's graceful close |
+| `Aborted` | when the budget runs out | every connection's open and receive, every exchange's pipeline and send, and every connection's abort |
+
+The stop runs in order:
+
+1. **Begin the drain.** `Draining` fires: the accept loop stops, and every live connection begins
+   its graceful close through `IHttpConnectionContext.BeginGracefulClose`. Nothing is cancelled: an
+   exchange already running finishes, and its response is delivered, because its send runs under
+   `Aborted`, which has not fired. The transport implements the close per version
+   (Http.Connections DESIGN, "The host contract"):
+   - HTTP/1.1 (RFC 9112 §9.6): the response to the exchange in flight carries `Connection: close`
+     and the connection ends after it; an idle keep-alive connection ends at once.
+   - HTTP/2 (RFC 9113 §6.8): `GOAWAY(NO_ERROR)` carrying the last stream processed; new streams
+     are refused with `RST_STREAM(REFUSED_STREAM)`; the frame pump keeps feeding the open streams.
+   - HTTP/3 (RFC 9114 §5.2): no further request stream is accepted, and a `GOAWAY` names the first
+     one that was not.
+2. **Wait for the accept loop**, so no connection task is added after the in-flight set is
+   snapshotted.
+3. **Drain in-flight connections and their streams**, within the budget. A connection's receive
+   loop ends on its own once its transport has nothing left to yield, and a connection task
+   completes only after every stream it dispatched has finished (see "Dispatch within a
+   connection"), so the drain covers every in-flight exchange on every connection. Each task is
+   self-contained — it swallows its own cancellation and faults and never rethrows — so the drain
+   completes without surfacing an unobserved exception.
+4. **Abort, when the budget runs out first.** The server logs how much was still in flight (see
+   "Diagnostics"), then `Aborted` fires: every exchange still running observes `RequestCancelled`,
+   which every transport version links to the receive token, and every connection still open is
+   aborted with a `ConnectionAbortedException`. The stop then waits up to one second
+   (`_abortGracePeriod`, Kestrel's figure) for them to unwind. An exchange that ignores
+   cancellation keeps running after the stop completes.
+5. **Dispose the listener**, then the drain's token sources and (if present) the concurrency
+   semaphore. Listener disposal runs from a `finally`, so `StopAsync` never completes with the port
    still owned by this server.
 
-Cancelling before starting, or stopping twice, is safe and idempotent. The drain budget is owned by
-the caller's host lifecycle (`Host<TContext>.StopAsync` applies `ShutdownTimeout`); the server
-honors that token while awaiting its loops but still performs listener release.
+The stop completes normally when the budget runs out, as Kestrel's does: the server is stopped and
+its endpoint released; only the graceful part was cut short, which the caller knows from its own
+token and which the host already reports as `DrainAborted` (exit 130/143 for an orchestrated
+resource). Every later `StopAsync` call shares the first call's task. Cancelling before starting, or
+stopping twice, is safe.
 
-**Cancellation is drain, not force-kill of in-progress requests.** A single token governs both "stop
-accepting" and "unblock in-flight connections." Idle keep-alives unblock immediately; a request
-actively executing in the pipeline observes the same cancellation and unwinds. Letting an
-in-progress request run to completion before closing its connection (lame-duck draining) is a
-deliberate non-goal for this iteration — see below.
+The server's states through a stop:
 
-What "observes" means depends on the transport's `RequestCancelled` token, and it differs by
-version. HTTP/1.1 and HTTP/3 link it to the server's shutdown token, so a handler that honors
-`RequestCancelled` unwinds as soon as the stop begins. HTTP/2 links it only to the stream itself (a
-peer reset, or a request body cut off by teardown): `Http2ConnectionContext` passes no connection
-token when it creates an exchange, so a fully received HTTP/2 request keeps running until its
-handler returns or the host's shutdown budget expires. The server waits either way; it does not
-cancel exchanges on its own, which keeps the lame-duck decision (#146) open. Whatever an exchange
-produces after the stop began is not delivered: `SendAsync` observes the cancelled shutdown token,
-and the server falls back to a best-effort reset of the stream (an HTTP/1.1 connection simply
-closes) before the connection's graceful close.
+```mermaid
+flowchart TD
+    Serving["Serving: StartAsync bound the listener"] -->|"StopAsync began"| Draining["Draining"]
+    Draining -->|"every exchange finished"| Released["Released: the listener is disposed"]
+    Draining -->|"the budget ran out"| Aborting["Aborting"]
+    Aborting -->|"exchanges unwound, or one second passed"| Released
+```
+
+**Why two signals.** Before #146 one token did both jobs. It stopped the accept loop and cancelled
+every exchange in flight: through `RequestCancelled` on HTTP/1.1 and HTTP/3, and on every version
+through the send, which then failed. A request that would have finished a moment later was cut off,
+and whatever an exchange produced after the stop began was not delivered. Splitting the signal is
+what lets the budget be spent finishing work.
+
+Alternatives considered and rejected:
+
+- **Cancelling each exchange from the server when the budget runs out** (`IHttpContext.Cancel`
+  registered per exchange). It works over any transport, but it costs a registration per exchange
+  on a shared token for what the transport does once per connection. The transport's receive token
+  now cancels every exchange it yielded on all three versions; HTTP/2 used to leave a fully
+  received request running, and now aborts it when its frame pump is cancelled (Http.Connections
+  DESIGN, "HTTP/2 graceful close").
+- **Failing the stop with `OperationCanceledException` when the budget runs out**, as it did
+  before #146. Every later caller shares the stop task, so the cancellation of a test factory's or
+  an explicit stop would be replayed to the host's own stop, failing it after the server had in
+  fact stopped.
+- **Waiting for the cancelled exchanges without a bound.** An exchange that ignores
+  `RequestCancelled` would hold the stop, and the host's shutdown, open past the budget.
+- **Draining inside connection disposal.** The HTTP/2 teardown's own drain is bounded at five
+  seconds, so it cannot spend the host's budget, and the server disposes a connection only after
+  its streams are done anyway.
 
 ## Concurrency cap (`MaxConcurrentConnections`)
 
 Optional, configured builder-time via `WebApplicationServerBuilder.LimitConcurrentConnections(int)`
-and carried on `WebApplicationServerOptions.MaxConcurrentConnections`. `null` (the default) means
-**unlimited**.
+or from configuration (`Http:Limits:MaxConcurrentConnections`, see "Configuration-bound server
+limits and endpoints"), and carried on `WebApplicationServerOptions.MaxConcurrentConnections`.
+`null` (the default) means **unlimited**. A cap set in code takes precedence over a configured one:
+the configuration binding records its value while the default server's factory runs the listener
+configurations, and the factory uses it only when `LimitConcurrentConnections` set none.
 
 When set to a positive `N`, a `SemaphoreSlim(N, N)` gates the accept loop: a slot is acquired
 **before** accepting a connection and released when that connection's task finishes. Once `N`
@@ -387,8 +439,208 @@ A multiplexed connection's task finishes only after its streams drain, so a conn
 has stopped sending still holds its slot while any of its streams is running. The cap counts
 connections, not streams; the per-connection stream limit is the transport's.
 
-The gate is chosen for AOT-safety: a semaphore, stored `Task` s, and a `ConcurrentDictionary` — no
+The gate is chosen for AOT-safety: a semaphore, stored `Task`s, and a `ConcurrentDictionary` — no
 reflection, no dynamic code.
+
+## Server telemetry (#1064)
+
+The default server emits one span per request and the OpenTelemetry HTTP server metrics through the
+BCL's `System.Diagnostics.ActivitySource` and `System.Diagnostics.Metrics.Meter`. It only emits.
+Exporting stays with `Hosting.Telemetry` and the OpenTelemetry foundation (#317), whose OTLP
+exporter is logs-only and does not subscribe to either yet. Any `ActivityListener` or
+`MeterListener` subscribes by name: an exporter, `dotnet-counters`, or a test.
+
+| Signal | Name | Emits |
+| --- | --- | --- |
+| Traces | `ActivitySource` `Assimalign.Cohesion.Web.Hosting` | one `Server` span per request |
+| Metrics | `Meter` `Assimalign.Cohesion.Web.Hosting` | `http.server.request.duration` (histogram, `s`, the convention's bucket boundaries as advice) and `http.server.active_requests` (up-down counter, `{request}`) |
+
+**Why that name.** An event source is named for the assembly that raises it
+(`.claude/rules/event-source.md`), and the same rule names this source and this meter. Operators
+enable one name, the `Assimalign.Cohesion.` prefix still covers every Cohesion signal, and the name
+says which module emits. Rejected:
+
+- `Assimalign.Cohesion.Web`, the area root, the way ASP.NET Core names its source
+  `Microsoft.AspNetCore`. The root emits nothing, and the name would claim signals for every Web
+  package.
+- `Assimalign.Cohesion.Http.Connections`. The transport sees connections and frames, not the
+  pipeline, the route, or how the exchange was finalized.
+- Separate names for the source and the meter, as ASP.NET Core's `Microsoft.AspNetCore` and
+  `Microsoft.AspNetCore.Hosting` are. That is two names to learn for one emitter.
+
+### Placement: the span covers the whole exchange
+
+`ServeExchangeAsync` starts the exchange's telemetry (`Internal/WebExchangeTelemetry`) before the
+pipeline runs. It records how the exchange was finalized, and stops the telemetry in its `finally`.
+That happens after the response, the replacement `500` or the reset was sent and the completion
+callbacks ran, and before the exchange is disposed. So the span and `http.server.request.duration`
+include writing the response. The two report the same value, because the span's end time is set
+from the duration measurement. While the pipeline runs the span is `Activity.Current`, so a
+handler's own activities and its outgoing `HttpClient` calls become its children. The server file
+gains only those three calls; everything else lives in the two telemetry types.
+
+The flow of one exchange's telemetry:
+
+```mermaid
+flowchart TD
+    Start["Start: install the request-id feature"] --> Check{"A listener on the source or an instrument?"}
+    Check -->|"no"| Pipeline["Pipeline runs; UseRouting publishes RouteTemplate"]
+    Check -->|"yes"| Begin["+1 active request, start timestamp, span parented to traceparent"]
+    Begin --> Pipeline
+    Pipeline --> Finalize["Response, replacement 500, or reset; outcome recorded"]
+    Finalize --> Callbacks["Completion callbacks"]
+    Callbacks --> Stop["Stop: duration and -1 recorded; span tagged and ended"]
+    Stop --> Dispose["Exchange disposed"]
+```
+
+**The parent is the caller.** The server parses `traceparent` and `tracestate` with
+`ActivityContext.TryParse` (W3C Trace Context). A missing, repeated or malformed `traceparent`, or
+an all-zero id, gives no parent, and the request starts a new trace. Repeated `tracestate` fields
+are joined into one list. Before it starts the span, the server clears an ambient
+`Activity.Current`. The accept loop inherits whatever activity was current when `StartAsync` ran,
+and that activity is never a request's parent; without the clear, every request of a host started
+inside an activity would nest under it.
+
+**Attributes** follow the stable OpenTelemetry HTTP server conventions:
+
+| Attribute | Span | Duration | Active requests | Value |
+| --- | --- | --- | --- | --- |
+| `http.request.method` | yes | yes | yes | the method when known, else `_OTHER` |
+| `http.request.method_original` | when `_OTHER` | no | no | the method token |
+| `url.scheme` | yes | yes | yes | `http` or `https`, as the transport saw the request |
+| `url.path` | yes | no | no | the request path |
+| `server.address`, `server.port` | yes | no | no | the `Host` or `:authority` host, and its port when the value carries one |
+| `network.protocol.version` | yes | yes | no | `1.1`, `2` or `3` |
+| `http.route` | when routed | when routed | no | `IWebEndpointFeature.RouteTemplate` |
+| `http.response.status_code` | when sent | when sent | no | the status sent |
+| `error.type` | on failure | on failure | no | see the outcome table |
+
+The span is named `{method}` when it starts (`HTTP` for `_OTHER`) and `{method} {route}` once the
+route is known. The attributes known at the start are passed at creation, so samplers can read
+them. A failure sets the span status to `Error`; a `4xx` leaves it unset, as the server-span rule
+requires.
+
+**Known methods.** The default list is the convention's: RFC 9110's eight methods, `PATCH` and
+`QUERY`, which are exactly the methods `HttpMethod` canonicalizes. The convention requires a way to
+replace it, because a valid extension method would otherwise always report `_OTHER`.
+`OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` (comma-separated, case-sensitive, a full replacement) is
+read once per process, as the source and meter are process-wide. The HTTP stack upper-cases method
+tokens when it parses a request, so entries should be upper case. For the same reason the original
+casing of a known method is not available, and `http.request.method_original` is set only for
+`_OTHER`.
+
+**Outcomes and `error.type`.** The server reports how it finalized the exchange; the exception
+itself stays with the error boundary, which does not keep it, and with the hosting logs (#147).
+
+| How the exchange ended | `http.response.status_code` | `error.type` |
+| --- | --- | --- |
+| A response was sent with a status below 500 | the status | none |
+| A response was sent with a 5xx status, including the server's replacement `500` after a fault | the status | the status, for example `500` |
+| The exchange was cancelled (a peer reset or closed connection, the server stopping, `IHttpContext.Cancel`) and reset | only when a streamed response had started | `request_canceled` |
+| The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
+| The response could not be put on the wire (a body or lifecycle hook threw, the write was cut off) | none: the transport marks the head committed before it writes it, so whether it went out is unknown | `response_send_failed` |
+
+**How `http.route` reaches the span.** `Web.Hosting` may not reference `Web.Routing` (COHRES002),
+so the template travels through the root's `IWebEndpointFeature`, which already carries the
+selected endpoint to the pipeline terminal. Its default member `RouteTemplate` is `null`; routing's
+matched route returns its template with a leading `/` (Web.Routing DESIGN,
+"[The route template the server's telemetry reports](../assimalign-cohesion-web-routing/design.md#the-route-template-the-servers-telemetry-reports-1064)").
+The server reads it once, when it stops the exchange's telemetry, and only when a span or the
+duration is being recorded. Rejected:
+
+- **Routing tags `Activity.Current` through BCL types only.** It needs no root member. But the
+  duration metric must carry `http.route` when no span exists (a metrics-only listener), the
+  current activity may be a child a middleware started, and the span's naming would move into
+  routing.
+- **A root telemetry feature that the server installs and routing writes into.** That is a second
+  public type and a write path for one string the endpoint seam can already carry.
+
+**The request id is the trace id.** The per-exchange telemetry object is also the exchange's
+`IWebRequestIdFeature`, installed before the pipeline runs. Its `RequestId` is the span's trace id
+when there is a span. Without one, it is the trace id of a valid `traceparent`, which is the id a
+span would have had, or else a random trace id resolved on the first read and stable for the
+exchange.
+
+**No listener, no cost.** `Start` reads `ActivitySource.HasListeners()` and the two instruments'
+`Enabled`. With all three off it creates no activity, reads no request state, records nothing, and
+`Stop` returns at once. What is left on every exchange is the request id: one small object set on
+the exchange's features, whose id is computed only when something reads it.
+
+**A listener cannot cost the exchange.** Listener callbacks run inline, inside `Start` and `Stop`.
+Both contain an exception a callback throws, so the exchange loses its telemetry, never its
+response. This is the isolation boundary the server keeps around application code.
+
+**Deliberately not emitted.**
+
+- `url.query`, although the convention makes it conditionally required. Query strings carry
+  tokens and signatures that the server cannot recognize generically. An application can tag
+  `Activity.Current` itself.
+- Proxy-resolved host and scheme. The convention prefers `Forwarded`/`X-Forwarded-*` values for
+  `server.address` and `url.scheme`; the server reports what the transport saw. Those headers are
+  believable only after `Web.ForwardedHeaders`' trust evaluation, and reading its result
+  (`Http.Forwarded`) would add a reference that the seventeen area frameworks carrying this module
+  privately would each have to carry.
+- `client.address`, `network.peer.address` and `user_agent.original` (recommended). A client
+  address is personal data, and it depends on the same forwarded-headers question.
+- `server.address` and `server.port` on the metrics. They are opt-in there because they come from
+  request headers, which makes them a cardinality attack vector.
+- Requests the transport rejects before dispatch (400, 408, 413, 414 and 431 answered by
+  `Http.Connections`). They never reach the server, so they have no span or measurement, and the
+  transport does not report them yet either (Http.Connections DESIGN, "Diagnostics").
+- W3C `baggage`.
+
+**AOT.** `ActivitySource`, `Meter`, `TagList`, `ActivityContext.TryParse` and `FrozenSet`: no
+reflection and no runtime code. The Web AOT guard's smoke run subscribes with an `ActivityListener`
+and a `MeterListener` and checks a routed request's span and duration. In-process listeners need no
+`EventSourceSupport` in a NativeAOT application; tools that read meters out of process through
+EventPipe (`dotnet-counters`) do, as they do for event sources.
+
+## Diagnostics (#147)
+
+The default server writes its own diagnostics through the application's logging. The default
+server factory creates its logger, once, from the `ILoggerFactory` that
+`WebApplicationBuilder.Build` registers from `builder.Logging`, under the category
+`Assimalign.Cohesion.Web.Hosting.WebApplicationServer`, and hands it to the server through
+`WebApplicationServerOptions.Logger`. Composition stays builder-time; nothing resolves per request.
+The events, their levels, and their attribute names live in `Internal/WebApplicationServerLog`, and
+a logger that throws never changes what the server does. There is no `Microsoft.Extensions.*`
+dependency and no `EventSource`: these are discrete events an operator acts on, while counters and
+traces are the telemetry work (#1064).
+
+| Event | Level | When | Content |
+| --- | --- | --- | --- |
+| Bind failure | `Critical` | `StartAsync` cannot bind the listener; logged before `HostStartupException` propagates | the transport's exception; `http.server.listener.protocols` |
+| Accept-loop fault | `Critical` | accepting faults; the server keeps running but accepts nothing more | the exception |
+| Connection fault, a defect | `Error` | the connection-level isolation boundary caught a failure not attributable to the peer: an unexpected receive-side failure, an HTTP/1.1 response that could not be framed, a teardown failure | the exception; `connection.id`, `network.local.address`/`.port`, `network.peer.address`/`.port`, `network.protocol.version` |
+| Connection fault, the peer or the network | `Debug` | the same boundary, for an `IOException`, `SocketException`, or `ConnectionException`, or any fault after the server aborted its drain | as above |
+| Drain cut short | `Warning` | a stop's budget ran out with work in flight; logged before the abort | `http.server.drain.connections`, `.exchanges`, `.duration` |
+
+Why these levels:
+
+- **`Critical` for a bind or accept-loop failure.** After either, the server cannot serve: the host
+  fails to start (exit 70, or 64/69 for a classified cause), or the server runs on without
+  accepting anything. Kestrel logs its own startup failure at the same level.
+- **`Error` for a connection fault the server cannot blame on the peer.** It is a defect — in the
+  transport, an interceptor, or the application's response — that cost a connection. The server
+  isolated it and keeps serving, so it is not `Critical`.
+- **`Debug` for a connection the peer or the network ended.** That is routine on any reachable
+  endpoint and not actionable, and it is frequent enough to flood a log at a higher level. The
+  classification is by exception type, so an application stream that throws an `IOException` is
+  reported at `Debug` too. A fault after the drain was aborted is the server's own doing, and the
+  drain warning already reports it.
+- **`Warning` for a drain cut short.** The requests in flight got no response, which an operator
+  should see, but it is the outcome of a budget, not a defect; the host reports the same stop as
+  `DrainAborted` (exit 130/143 for an orchestrated resource).
+
+What is never logged is request or response content. A connection is identified by its id, its
+endpoints, and the version of the exchanges it carried (absent when it faulted before its first
+exchange); no header value, body, path, or query reaches an entry. An exception's message is the
+faulting component's own.
+
+Not logged here: an exception the application's pipeline throws. The server isolates it to its
+exchange (a `500`, or a reset), and reporting it belongs to the application's error handling
+(`Web.ErrorHandling`'s `OnException` hook) and to request telemetry, so the server does not add a
+second report of the same failure.
 
 ## AOT posture
 
@@ -410,12 +662,12 @@ native binary with `--smoke`, which serves on a free loopback port and checks ev
 real HTTP. The first run surfaced four DependencyInjection call-site diagnostics, resolved as
 described in that library's DESIGN ("NativeAOT compatibility checks").
 
-## `Application` feature seeding
+## Application feature seeding
 
 `IWebApplicationBuilder.AddFeature` registers `IHttpFeature` singletons (routing's per-application
 `IRouterFeature` is the canonical example), but a feature is only useful once it is present on each
 exchange's `IHttpContext.Features` collection. That bridging happens when the pipeline is built:
-`WebApplication` 's pipeline `Build()` resolves the registered features **once** and, when any
+`WebApplication`'s pipeline `Build()` resolves the registered features **once** and, when any
 exist, wraps the composed pipeline in a seeding middleware that stamps each feature onto every
 exchange before any user middleware runs.
 
@@ -427,7 +679,7 @@ Two deliberate properties:
   work is a plain array walk. Registration closes at `Build`, before any pipeline
   exists, so the snapshot always holds every feature; a feature factory runs once,
   the first time the application's features resolve.
-- **`Application`-registered features are per-application.** Each application seeds
+- **Application-registered features are per-application.** Each application seeds
   only its own DI-registered features, which is half of the process-wide isolation
   story (#789's per-application router state is the other half).
 
@@ -502,12 +754,37 @@ adds the case the doubles cannot reach: a stream that faults after streaming par
 reset, not completed. `WebHttp3HostingIntegrationTests` pins concurrency over a real QUIC connection
 where the platform supports it.
 
+Server telemetry (#1064) is pinned end to end by `WebServerTelemetryTests`, over the in-memory
+transport with a real client and an `ActivityListener` and `MeterListener` subscribed by name
+(`TestObjects/TelemetryRecorder`): one server span per request, parented to the caller's
+`traceparent` and current while the pipeline runs; the attributes and the span name, a routed
+request's `http.route` (through real `Web.Routing`, a test-only reference); every outcome in the
+`error.type` table; `_OTHER`; one span per HTTP/2 stream; an ambient activity at server start that
+must not parent requests; the duration and the active-request count; the request id with and
+without a span; and no activity at all without a listener. Listeners are process-wide, so the class
+runs in the non-parallel `TelemetryCollection`.
+
+The lame-duck drain (#146) is pinned by `WebApplicationServerDrainTests`. Against the doubles: the
+stop begins every connection's graceful close and the exchange in flight finishes and is sent under
+a token that was never cancelled; when the budget runs out, the exchange is cancelled and reset, its
+connection is aborted with a `ConnectionAbortedException`, and the stop still completes. End to
+end: an HTTP/1.1 request in flight when the stop begins completes in full with `Connection: close`;
+one that outlives the budget observes `RequestCancelled` and its client gets no response; and a raw
+prior-knowledge HTTP/2 client sees `GOAWAY(NO_ERROR)` naming its open stream as the last processed
+while that stream is still running, then the stream's full response. The per-version announcements
+are pinned in the transport's own suite (`HttpConnectionGracefulCloseTests`).
+
+The diagnostics (#147) are pinned by `WebApplicationServerDiagnosticsTests`, which records the
+entries through a real `LoggerFactoryBuilder`: a bind failure (`Critical`, with its cause), an
+accept-loop fault (`Critical`), a connection fault the server cannot blame on the peer (`Error`,
+whose attributes are exactly the connection id, both endpoints, and the protocol version), one the
+peer caused (`Debug`), and a drain cut short (`Warning`, two connections and three exchanges in
+flight across HTTP/1.1 and HTTP/2). End to end, a real exchange carrying a secret header and body
+whose response cannot be framed is logged without either, and an application built through
+`WebApplicationBuilder` reports a real port conflict through its own `builder.Logging`.
+
 ## Non-goals
 
-- **Lame-duck request draining.** Waiting for in-progress exchanges to finish
-  before cancelling on shutdown (versus cancelling them with the drain token) is
-  future work; it needs a two-phase signal ("finish the current exchange, accept
-  no new ones on this connection") that this iteration does not implement (#146).
 - **A server-side per-connection stream cap.** Stream admission is the transport's
   (`SETTINGS_MAX_CONCURRENT_STREAMS`, QUIC stream credit); a second, server-owned
   limit would silently disagree with the one advertised to the peer. The remaining
@@ -538,11 +815,11 @@ reworked under issue #762; this file currently captures only the design decision
 honors its generated `Hosting.Resources` `ResourceRuntime` registration. During an in-process
 resource invocation, the ambient invocation's logical member assembly takes precedence; no
 caller-stack reflection is required. When enabled, the builder binds the ambient `http` endpoint,
-aggregates `AddHealthCheck` registrations and DI-registered `Hosting.Health` `IHealthContributor` s,
+aggregates `AddHealthCheck` registrations and DI-registered `Hosting.Health` `IHealthContributor`s,
 observes ambient endpoints, and attaches the built host for graceful stop. A fixed terminal layer
 wraps the final resolved pipeline — including a pipeline supplied through
-`IWebApplicationBuilder.AddPipeline` — so it always runs before user dispatch. It serves `/healthz`
-, `/readyz`, and `/livez` plus their `/cohesion/v1/healthz`, `/cohesion/v1/readyz`, and
+`IWebApplicationBuilder.AddPipeline` — so it always runs before user dispatch. It serves
+`/healthz`, `/readyz`, and `/livez` plus their `/cohesion/v1/healthz`, `/cohesion/v1/readyz`, and
 `/cohesion/v1/livez` aliases, together with `/cohesion/v1/endpoints`, `/cohesion/v1/stop`, and
 `/cohesion/v1/commands`.
 
@@ -609,20 +886,26 @@ adds no reflection binder or `Microsoft.Extensions.*` dependency.
 ### What it is
 
 `WebApplicationServerBuilder.UseConfiguration(IConfiguration, sectionKey = "Http")` (an extension
-member in `WebHostingExtensions`) binds the server's listener **endpoints** and **server limits**
-from a Cohesion `IConfiguration` section at builder time, giving `appsettings` -style
+member in `WebHostingExtensions`) binds the server's listener **endpoints**, **server limits**, and
+**connection cap** from a Cohesion `IConfiguration` section, giving `appsettings`-style
 Kestrel-section parity:
 
 ```json
 "Http": {
   "Endpoints": {
-    "Primary": { "Protocol": "Http1", "Host": "localhost", "Port": 8080 }
+    "Public":   { "Protocol": "Https", "Host": "0.0.0.0", "Port": 443,
+                  "Certificate": { "Path": "certs/site.pem", "KeyPath": "certs/site.key" } },
+    "Quic":     { "Protocol": "Http3", "Host": "0.0.0.0", "Port": 443,
+                  "Certificate": { "Path": "certs/site.pfx", "Password": "…" } },
+    "Internal": { "Protocol": "Http1", "Host": "localhost", "Port": 8080 }
   },
   "Limits": {
+    "MaxConcurrentConnections": 1000,
     "MaxRequestLineSize": 8192,
     "MaxRequestBodySize": 30000000,
     "KeepAliveTimeout": "00:02:10",
-    "RequestHeadersTimeout": "00:00:30"
+    "RequestHeadersTimeout": "00:00:30",
+    "Http2": { "MaxStreamsPerConnection": 100, "MaxRequestHeaderListSize": 16384 }
   }
 }
 ```
@@ -631,13 +914,24 @@ The actual binding lives in the internal `HttpServerConfiguration.Bind`, invoked
 `UseServer((serviceProvider, options) => …)` callback so it runs when the `HttpConnectionListener`
 is composed. Limits are per HTTP version on the transport, so the single `Limits` section is parsed
 eagerly (an unparseable value fails loudly even with no endpoints) into an
-`Http1ConnectionListenerOptions.Http1Limits` template, and each endpoint the section registers
-copies the bound values into its own per-registration limits through the transport's `UseHttp1` /
-`UseHttp2` configure overloads — HTTP/1.1 endpoints receive every key; HTTP/2 endpoints receive the
-shared `HttpConnectionListenerLimits` keys (`MaxRequestBodySize`, `KeepAliveTimeout`,
-`RequestHeadersTimeout`), because the HTTP/1.1 wire-format keys have no HTTP/2 meaning. The HTTP/2
-abuse caps (`Http2ConnectionListenerOptions.Http2Limits`) are not yet config-bindable — a
-`Limits:Http2` section is a natural follow-up when a deployment needs it.
+`Http1ConnectionListenerOptions.Http1Limits` template and, for its `Http2` object, an
+`Http2ConnectionListenerOptions.Http2Limits` template. Each endpoint the section registers copies
+the bound values into its own per-registration limits through the registration verbs' configure
+overloads:
+
+| Endpoint protocol | Limits it receives |
+|---|---|
+| HTTP/1.1 (`Http1`, `Http1s`, and the HTTP/1.1 connections of `Https`) | every top-level key |
+| HTTP/2 (`Http2`, `Http2s`, and the HTTP/2 connections of `Https`) | the shared `HttpConnectionListenerLimits` keys (`MaxRequestBodySize`, `KeepAliveTimeout`, `RequestHeadersTimeout`) and the `Limits:Http2` keys (`MaxStreamsPerConnection`, `MaxRequestHeaderListSize`, `MaxResetStreamsPerWindow`, `MaxSettingsFramesPerWindow`, `MaxPingFramesPerWindow`, `FloodDetectionWindow`) |
+| HTTP/3 (`Http3`) | the shared keys |
+
+The HTTP/1.1 wire-format keys have no HTTP/2 or HTTP/3 meaning. HTTP/3's stream and flow-control
+bounds belong to the QUIC transport, and its one HTTP/3-specific limit
+(`Http3Limits.MaxRequestHeadersFrameSize`) is not bound yet.
+
+`Limits:MaxConcurrentConnections` is not an endpoint limit: it caps the default server (see
+"Concurrency cap (`MaxConcurrentConnections`)"). The binder hands it to the server builder, and a
+cap set through `LimitConcurrentConnections` takes precedence.
 
 ### Why explicit, hand-rolled binding
 
@@ -665,13 +959,63 @@ The binding is deliberately **not** reflection-based:
   **not** resolved at bind time — a hostname that is not one of those is an
   error, because binding-time DNS is an I/O surprise the composition root should
   not hide.
-- **Endpoint protocol.** `Http1` (default), `Http2`, `Https`/`Http1s`, or `Http2s`; anything else throws. TLS endpoints use `Certificate` to name a Secret mount.
+
+**Endpoint protocol.** Each value names the registration verb it binds to (see "TLS convenience
+surface" for the naming):
+
+| `Protocol` | Verb | Serves |
+|---|---|---|
+| `Http1` (default; also `Http/1.1`, `Http1.1`, `h1`) | `UseHttp1` | HTTP/1.1, cleartext |
+| `Http2` (also `Http/2`, `Http2.0`, `h2`) | `UseHttp2` | prior-knowledge HTTP/2, cleartext |
+| `Https` | `UseHttps` | HTTP/2 and HTTP/1.1 over TLS, chosen per connection through ALPN |
+| `Http1s` | `UseHttp1s` | HTTP/1.1 over TLS |
+| `Http2s` | `UseHttp2s` | HTTP/2 over TLS |
+| `Http3` (also `Http/3`, `Http3.0`, `h3`) | `UseHttp3` | HTTP/3 over QUIC |
+
+Anything else throws. `Https` meant HTTP/1.1 over TLS until #1063; it now offers `h2` as well, so an
+`https` origin answers browsers over HTTP/2 while `Http1s` keeps the HTTP/1.1-only endpoint. An
+`Http3` endpoint is refused with `PlatformNotSupportedException` on an operating system without
+`System.Net.Quic`; on one that has it but lacks a QUIC implementation, binding fails at start (see
+"Platform posture").
+
+**Alt-Svc.** Configuring an `Http3` endpoint turns on the RFC 7838 advertisement
+(`HttpConnectionListenerOptions.AltServiceAdvertisement.Enabled`): a client that reached a TCP
+endpoint can only discover h3 through it. The transport emits it only when a TCP endpoint exists to
+carry it, and derives the port from the bound QUIC listener. A later `UseServer` callback can still
+turn it off; the configuration has no key for it.
+
+**Endpoint certificate.** A TLS endpoint (`Https`, `Http1s`, `Http2s`, `Http3`) reads its
+certificate from `Certificate`:
+
+- **A scalar** names the Secret mount carrying a PEM bundle (see "HTTPS endpoint certificate
+  contract"); an absent `Certificate` uses the endpoint's registered mount, or `tls`.
+- **A section** names a file. `Path` is a PEM or PKCS#12 (PFX) file; `KeyPath` names a separate PEM
+  key file; `Password` decrypts an encrypted PEM key or a protected PFX. A file that opens with the
+  DER `SEQUENCE` tag (`0x30`) is PKCS#12, anything else is PEM, and a `KeyPath` implies PEM. A
+  relative path resolves against the content root. The leaf is the PEM file's first certificate
+  (or the PFX entry carrying a private key); the rest of the file is its chain.
+
+Either way the leaf must carry its private key and be inside its validity window, and a file that
+cannot be read or decoded fails with an `InvalidOperationException` naming the endpoint and the
+path. A PEM key is re-imported through PKCS#12, as the Secret-mount loader does, because Windows
+Schannel rejects an ephemeral key for server authentication. The host owns and disposes the loaded
+certificates. A `Password` in a checked-in `appsettings.json` is plaintext; supply it through
+`COHESION_CONFIG__…` or the command line.
+
+**Client certificates.** A TLS endpoint's `ClientCertificateMode` is `NoCertificate` (the default),
+`AllowCertificate`, or `RequireCertificate` — Kestrel's names — and maps to
+`TlsServerOptions.AllowClientCertificate()` / `RequireClientCertificate()` (see "Client
+certificates (mutual TLS)"). Configuration cannot carry a callback, so a presented certificate
+passes only when it chains to a root the machine trusts; a private CA needs the code form. A
+cleartext endpoint (`Http1`, `Http2`) that declares a mode other than `NoCertificate` is refused, as
+is an unknown mode.
 
 ### Scope boundary
 
-`UseConfiguration` binds HTTP and HTTPS endpoints and their protocol-specific server limits. HTTP/3
-registration and the connection-dispatch rewrite are separate concerns (the latter under #762).
-Data-rate limits are deferred with the transport's streaming-body rework.
+`UseConfiguration` binds HTTP, HTTPS, and HTTP/3 endpoints, their protocol-specific server limits,
+their client-certificate mode, and the connection cap. Not bound: the HTTP/3
+`MaxRequestHeadersFrameSize` and QPACK options, QUIC stream limits, and a client-certificate
+validation callback. Data-rate limits are deferred with the transport's streaming-body rework.
 
 ### Entry-point defaults (#1047)
 
@@ -689,16 +1033,18 @@ registered beside the default one (`AddServer`, `Server.UseServer<TServer>`, or 
 configuration is read when the default server is created at host start, so sources added after
 `CreateBuilder` still apply.
 
-Before 2026-09 the default server was silently inactive in that case, so `dotnet new cohesion-web &&
-dotnet run` started and listened on nothing. Explicit compositions keep that behavior on purpose:
-`CreateBuilder(options)`, a custom-only composition, and tests that build an application without a
-server are left exactly as composed. An orchestrated resource binds its ambient endpoint instead
+Before 2026-09 the default server was silently inactive in that case, so
+`dotnet new cohesion-web && dotnet run` started and listened on nothing. Explicit compositions keep
+that behavior on purpose: `CreateBuilder(options)`, a custom-only composition, and tests that build
+an application without a server are left exactly as composed. An orchestrated resource binds its ambient endpoint instead
 (below), and never the development endpoint.
 
 ### AOT posture
 
 No reflection, no codegen, no dynamic activation. The binder is straight-line `GetValue` /
-`TryParse` calls; endpoints are wired through the already-AOT-safe TCP convenience overloads.
+`TryParse` calls; endpoints are wired through the already-AOT-safe registration verbs, and
+certificate files load through the BCL's `X509Certificate2.CreateFromPemFile` /
+`X509CertificateLoader` APIs.
 
 ## Default request-parse interceptors
 
@@ -727,7 +1073,7 @@ dedicated opt-out knob.
 
 ### Non-goals
 
-No other interceptor ships by default. `Parse`-time features under design (digest fields, request
+No other interceptor ships by default. Parse-time features under design (digest fields, request
 decompression) register through the same seam when their packages land, but each is an explicit
 opt-in.
 
@@ -735,13 +1081,40 @@ opt-in.
 
 ### What it is
 
-`HttpConnectionListenerOptions.UseHttp1s(configure, tlsOptions)` and
-`UseHttp2s(configure, tlsOptions)` (extension members in `WebHostingExtensions`) are the secure
-siblings of the plaintext `UseHttp1` / `UseHttp2` callback sugar. Each takes the same
-`Action<TcpConnectionListenerOptions>` used to configure the endpoint plus a `TlsServerOptions`,
-and registers a listener that serves the protocol over TLS:
+`HttpConnectionListenerOptions.UseHttps(configure, tlsOptions)`,
+`UseHttp1s(configure, tlsOptions)`, and `UseHttp2s(configure, tlsOptions)` (extension members in
+`WebHostingExtensions`) are the secure siblings of the plaintext `UseHttp1` / `UseHttp2` callback
+sugar. Each takes the same `Action<TcpConnectionListenerOptions>` used to configure the endpoint
+plus a `TlsServerOptions`, and registers a listener that serves HTTP over TLS: for example,
+`options.UseHttps(tcp => tcp.EndPoint = new IPEndPoint(IPAddress.Loopback, 8443), tlsOptions)`
+inside `builder.Server.UseServer(options => ...)`, where `tlsOptions` carries the server
+certificate in `AuthenticationOptions.ServerCertificate`.
 
-See the [source-backed usage examples](examples/index.md).
+`UseHttps` is the registration an `https` origin normally wants: it offers `h2` and `http/1.1`
+through ALPN (RFC 7301) and serves each connection the protocol its handshake negotiated, HTTP/1.1
+when it negotiated none (#1063). The choice is made per connection in `Http.Connections`
+(`UseHttp1AndHttp2`, see its DESIGN, "Serving HTTP/1.1 and HTTP/2 on one TLS listener"); this
+module only composes the surface. `UseHttp1s` and `UseHttp2s` serve one protocol over TLS. Each
+verb also has an overload taking the protocol options (`UseHttps` takes one callback per protocol),
+which is how the configuration binder applies its limits.
+
+**Naming.** A verb names the protocol it serves and whether TLS is composed onto its listener, and
+the configuration's `Protocol` values are the verb names without `Use`:
+
+| Verb | `Protocol` | Serves |
+|---|---|---|
+| `UseHttp1` | `Http1` | HTTP/1.1, cleartext |
+| `UseHttp2` | `Http2` | prior-knowledge HTTP/2, cleartext |
+| `UseHttp1s` | `Http1s` | HTTP/1.1 over TLS |
+| `UseHttp2s` | `Http2s` | HTTP/2 over TLS |
+| `UseHttps` | `Https` | HTTP/2 and HTTP/1.1 over TLS, chosen per connection through ALPN |
+| `UseHttp3` | `Http3` | HTTP/3 over QUIC, whose TLS is inherent |
+
+The trailing `s` marks TLS on a single protocol. `Https` names the scheme, because what it serves
+is what a client expects of an `https` URI (RFC 9113 §3.2). `UseHttp3` has no `s` form because
+QUIC has no cleartext mode. The transport-level verb is `UseHttp1AndHttp2` because the transport
+does not run TLS and names what it serves; the hosting verb names the scheme the composition
+produces.
 
 ### Why here, and why compose-before-register
 
@@ -750,14 +1123,15 @@ TLS is a **pre-composed transport layer**, never an HTTP concern — the
 pre-composed layer, not an HTTP concern"), and its `HttpConnectionListenerOptions` deliberately
 carries no TLS or certificate options. The convenience honors that boundary by composing
 `TcpConnectionListener.Create(configure).UseTls(tlsOptions)` **before** handing the listener to
-`UseHttp1` / `UseHttp2`. Composition is deferred inside the same factory the plaintext sugar uses,
-so the TCP listener is not bound until the `HttpConnectionListener` materializes the registration.
+`UseHttp1` / `UseHttp2` / `UseHttp1AndHttp2`. Composition is deferred inside the same factory the
+plaintext sugar uses, so the TCP listener is not bound until the `HttpConnectionListener`
+materializes the registration.
 
 Because the security layer wraps the listener first, the layered listener reports
 `Capabilities.Security == ConnectionSecurity.Tls`. That capability is the single source of truth
 for the `https` scheme — the HTTP layer reads it once per accept loop; there is no registration-time
-`isSecure` parameter to thread through. A request served over a `UseHttp1s` / `UseHttp2s` listener
-therefore carries `HttpScheme.Https` end to end.
+`isSecure` parameter to thread through. A request served over a `UseHttps` / `UseHttp1s` /
+`UseHttp2s` listener therefore carries `HttpScheme.Https` end to end.
 
 This is also the layering reason the surface lives in Web.Hosting rather than in the transport:
 Web.Hosting is where the composition root is allowed to depend on both `Http.Connections` (the
@@ -768,12 +1142,18 @@ neither direction of that composition.
 
 The .NET / browser HTTP client selects the HTTP version over TLS via ALPN (RFC 7301), so a secured
 HTTP/2 listener is only reachable as HTTP/2 if it advertises the `h2` protocol id. To make the
-common case work without ceremony, `UseHttp2s` defaults `AuthenticationOptions.ApplicationProtocols`
-to `SslApplicationProtocol.Http2` (`h2`) and `UseHttp1s` defaults it to
-`SslApplicationProtocol.Http11` (`http/1.1`) **when the caller left the list unset** (null or
-empty). A caller who supplies an explicit protocol list — for example to offer both `h2` and
-`http/1.1` on one endpoint — has it preserved unmodified. The default is written onto the caller's
-`TlsServerOptions` (an intentional mutation) so a later read observes the negotiated protocol.
+common case work without ceremony, each verb defaults `AuthenticationOptions.ApplicationProtocols`
+**when the caller left the list unset** (null or empty): `UseHttps` to `h2` then `http/1.1` (the
+server's preference order, so a client offering both gets HTTP/2), `UseHttp2s` to `h2`, and
+`UseHttp1s` to `http/1.1`. A caller-supplied list is preserved unmodified. The default is written
+onto the caller's `TlsServerOptions` (an intentional mutation) so a later read observes the
+negotiated protocol.
+
+Only `UseHttps` reads what ALPN negotiated. `UseHttp1s` and `UseHttp2s` serve their one protocol on
+every connection, so a list that offers both `h2` and `http/1.1` to one of them breaks every client
+that negotiates the other protocol. Until #1063 this section suggested such a list as the way to
+share one endpoint between the protocols; nothing then read the negotiated value, so that never
+worked, and `UseHttps` replaces it.
 
 ### Certificates are the caller's concern
 
@@ -782,11 +1162,35 @@ The server certificate is supplied by the caller through
 sourcing, storage, and rotation are Security-area concerns and are explicit non-goals of the
 security library's TLS surface, so they are not re-modeled on this convenience.
 
+### Client certificates (mutual TLS)
+
+An endpoint asks for client certificates through the `TlsServerOptions` it is registered with,
+using `Connections.Security`'s `RequireClientCertificate(validate)` or
+`AllowClientCertificate(validate)`. For example, calling
+`.RequireClientCertificate((client, chain, errors) => thumbprints.Contains(client.Thumbprint))` on
+the options passed to `UseHttps` admits only the clients whose certificate the callback accepts;
+the [mutual TLS example](examples/web-mutual-tls-hosting-integration-tests.md) exercises each
+policy.
+
+The policy rides on the TLS options, so every TLS verb honors it with no overload of its own:
+`UseHttps`, `UseHttp1s`, `UseHttp2s`, and `UseHttp3(configure, tlsOptions)`, which hands the same
+authentication options to the QUIC listener. The certificate is requested during the handshake,
+never afterwards: HTTP/2 forbids post-handshake authentication and renegotiation (RFC 9113 §9.2.1,
+§9.2.3), so there is no deferred mode. A configured endpoint sets the policy with
+`ClientCertificateMode` (see "Configuration-bound server limits and endpoints"). A handler reads the
+result as `context.TlsConnection` — the client certificate, TLS protocol, cipher suite, and
+negotiated application protocol on HTTP/1.1, HTTP/2, and HTTP/3 alike (`Http.Connections` DESIGN,
+"The TLS session on every exchange").
+
+This module stops at exposing the certificate. Authenticating a request from it — mapping a
+certificate to a `ClaimsPrincipal` under an authentication scheme — is a handler for
+`Web.Authentication`, not yet written.
+
 ### Scope boundary
 
-`UseHttp1s` / `UseHttp2s` cover the stream protocols. HTTP/3 has its own always-on-TLS surface —
-QUIC's transport security is inherent and QUIC listeners bind asynchronously — documented in "HTTP/3
-(QUIC) registration surface" below (issue #767).
+`UseHttps` / `UseHttp1s` / `UseHttp2s` cover the stream protocols. HTTP/3 has its own always-on-TLS
+surface — QUIC's transport security is inherent and QUIC listeners bind asynchronously — documented
+in "HTTP/3 (QUIC) registration surface" below (issue #767).
 
 ### AOT posture
 
@@ -827,7 +1231,9 @@ Two overloads, one for each certificate-configuration ergonomic:
 Both default the ALPN application-protocol list to `h3` and the enabled TLS protocols to TLS 1.3
 when the caller leaves them unset (a caller-supplied list is preserved unmodified); the
 `TlsServerOptions` overload applies those defaults eagerly to the passed options so a later read
-observes them, matching `UseHttp2s`.
+observes them, matching `UseHttp2s`. A third overload,
+`UseHttp3(configure, tlsOptions, configureHttp)`, also takes the `Http3ConnectionListenerOptions`
+(limits, QPACK); the configuration binder uses it for an `Http3` endpoint.
 
 ### Async binding without sync-over-async
 
@@ -860,7 +1266,9 @@ listener. HTTP/3 `Alt-Svc` advertisement (issue #754) needs no extra wiring from
 the RFC 7838 `Alt-Svc` header, and the advertised port is taken from that listener's bound endpoint.
 An application opts in with `options.AdvertiseAltService(...)` alongside a stream listener; the
 server then injects `Alt-Svc: h3=":<port>"` on the h1/h2 responses so clients can discover and
-upgrade to h3.
+upgrade to h3. That includes both protocols of a `UseHttps` endpoint. The configuration binder opts
+in by itself when it binds an `Http3` endpoint (see "Configuration-bound server limits and
+endpoints").
 
 ### h3 response round-trip — verified end to end
 
@@ -888,10 +1296,13 @@ leaf/private-key/chain document; existing hand-authored IdentityHub and LogSpace
 same format. Empty mounts are absent; malformed or multi-key bundles fail. TLS options are composed
 in Hosting from the returned leaf and chain, with no hosting-isolation exemptions or dependency
 changes. Plain application composition is unchanged. Ambient binding tries http and then https by
-endpoint name, admitting both URI schemes. Manual Http:Endpoints configuration also accepts Protocol
-Https/Http1s/Http2s and Certificate as a mount name. Server.UseConfiguration stays opt-in for
-explicit compositions; a plain entry-point application with no listener of its own binds
-`Http:Endpoints` by default (see "Entry-point defaults").
+endpoint name, admitting both URI schemes. An ambient `https` endpoint is registered through
+`UseHttps`, so it offers `h2` and `http/1.1` and serves each connection the protocol it negotiated;
+until #1063 it served HTTP/1.1 only. Manual Http:Endpoints configuration also accepts Protocol
+Https/Http1s/Http2s/Http3, with Certificate either a mount name or a file section (`Path`,
+`KeyPath`, `Password`; see "Configuration-bound server limits and endpoints").
+Server.UseConfiguration stays opt-in for explicit compositions; a plain entry-point application
+with no listener of its own binds `Http:Endpoints` by default (see "Entry-point defaults").
 
 ## Optional telemetry (31b)
 
@@ -900,8 +1311,11 @@ With no gateway or telemetry endpoint, existing providers and hosted services ar
 enabled, the shared Hosting.Telemetry sibling adds OTLP/HTTP JSON logging and a service registered
 before producers; reverse `StopAsync` drains producers before a flush bounded by five seconds and the
 host shutdown token. Logging remains composed only in Hosting. See
-libraries/Hosting/`Assimalign.Cohesion.Hosting.Telemetry`/docs/DESIGN.md for ordering and protocol
+`libraries/Hosting/Assimalign.Cohesion.Hosting.Telemetry/docs/DESIGN.md` for ordering and protocol
 limits.
+
+That export is logs. The server's spans and HTTP metrics are emitted on their own `ActivitySource`
+and `Meter` (see "Server telemetry"); Hosting.Telemetry does not export them yet (#317).
 
 ## Hosting family (O34)
 

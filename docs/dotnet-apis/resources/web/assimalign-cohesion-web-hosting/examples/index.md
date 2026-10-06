@@ -7,8 +7,12 @@ Examples for `Assimalign.Cohesion.Web.Hosting` are derived from source documenta
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
-- **[Web Application Server Lifecycle Tests](web-application-server-lifecycle-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Pipeline Integration Tests](web-application-pipeline-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Application Server Diagnostics Tests](web-application-server-diagnostics-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Application Server Drain Tests](web-application-server-drain-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Application Server Lifecycle Tests](web-application-server-lifecycle-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Mutual Tls Hosting Integration Tests](web-mutual-tls-hosting-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Server Telemetry Tests](web-server-telemetry-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Template application](template-application.md)** — The shipped `cohesion-web` template demonstrates the Web executable entry point.
 
 [Assembly overview](../index.md) · [Design](../design.md)

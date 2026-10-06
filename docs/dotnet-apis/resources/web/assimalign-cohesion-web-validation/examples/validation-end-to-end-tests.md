@@ -24,8 +24,10 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 11** — Registration: without AddValidation nothing is validated.
 - **Case 12** — Registration: a validator from AddProfile reports every failing rule of every member.
 - **Case 13** — Registration: a validator with default options from AddValidator reports every failing member, one message each.
-- **Case 14** — Handlers: a handler validates a value it bound itself through context.ValidateAsync.
-- **Case 15** — Handlers: a validator that throws on failure still answers 400.
+- **Case 14** — Typed: the errors map lists members in declaration order, a nested profile's members in place.
+- **Case 15** — Handlers: a handler validates a value it bound itself through context.ValidateAsync.
+- **Case 16** — Handlers: a validator that throws on failure still answers 400.
+- **Case 17** — Handlers: a validator whose rule throws faults the request instead of running the handler.
 
 ## Source example
 
@@ -329,10 +331,13 @@ public class ValidationEndToEndTests
         // Act
         using HttpResponseMessage response = await client.PostAsync("/signups", Json(invalidSignup), cancellation.Token);
 
-        // Assert — every failing member, and both of the user name's failing rules.
+        // Assert — every failing member in declaration order, and both of the user name's failing rules in
+        // the order they are chained: NotEmpty, then MinLength.
         JsonElement errors = await ReadErrorsAsync(response, cancellation.Token);
-        errors.EnumerateObject().Select(member => member.Name).ShouldBe(["UserName", "Age", "Address.City"], ignoreOrder: true);
+        errors.EnumerateObject().Select(member => member.Name).ShouldBe(["UserName", "Age", "Address.City"]);
         errors.GetProperty("UserName").GetArrayLength().ShouldBe(2);
+        errors.GetProperty("UserName")[0].GetString()!.ShouldEndWith("was empty.", Case.Sensitive);
+        errors.GetProperty("UserName")[1].GetString()!.ShouldContain("minimum length", Case.Sensitive);
         errors.GetProperty("Age").GetArrayLength().ShouldBe(1);
         errors.GetProperty("Address.City").GetArrayLength().ShouldBe(1);
     }
@@ -351,12 +356,32 @@ public class ValidationEndToEndTests
         // Act
         using HttpResponseMessage response = await client.PostAsync("/signups", Json(invalidSignup), cancellation.Token);
 
-        // Assert — every failing member; the user name's chain stops once one of its rules fails.
+        // Assert — every failing member in declaration order; the user name's chain stops at its first
+        // failing rule, NotEmpty.
         JsonElement errors = await ReadErrorsAsync(response, cancellation.Token);
-        errors.EnumerateObject().Select(member => member.Name).ShouldBe(["UserName", "Age", "Address.City"], ignoreOrder: true);
+        errors.EnumerateObject().Select(member => member.Name).ShouldBe(["UserName", "Age", "Address.City"]);
         errors.GetProperty("UserName").GetArrayLength().ShouldBe(1);
+        errors.GetProperty("UserName")[0].GetString()!.ShouldEndWith("was empty.", Case.Sensitive);
         errors.GetProperty("Age").GetArrayLength().ShouldBe(1);
         errors.GetProperty("Address.City").GetArrayLength().ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Validation] - Typed: the errors map lists members in declaration order, a nested profile's members in place")]
+    public async Task MapPost_SeveralInvalidNestedMembers_ShouldListMembersInDeclarationOrder()
+    {
+        // Arrange — the label and both of the destination's members fail.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = CreateFactory(options => options.AddProfile(new ParcelProfile()));
+        factory.Application.MapPost("/parcels", (Parcel parcel) => "accepted");
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/parcels", Json("""{"label":"","destination":{"city":"","zip":""}}"""), cancellation.Token);
+
+        // Assert
+        JsonElement errors = await ReadErrorsAsync(response, cancellation.Token);
+        errors.EnumerateObject().Select(member => member.Name).ShouldBe(["Label", "Destination.City", "Destination.Zip"]);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Validation] - Handlers: a handler validates a value it bound itself through context.ValidateAsync")]
@@ -416,6 +441,53 @@ public class ValidationEndToEndTests
         JsonElement errors = await ReadErrorsAsync(response, cancellation.Token);
         errors.ValueKind.ShouldBe(JsonValueKind.Object);
         errors.EnumerateObject().ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Validation] - Handlers: a validator whose rule throws faults the request instead of running the handler")]
+    public async Task MapPost_ValidatorRuleThrows_ShouldFaultWithoutRunningHandler()
+    {
+        // Arrange — a nested rule that throws was recorded as not invoked, which let the body through to the
+        // handler (#1292). The fault now reaches the exception boundary.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        IValidator faulting = Validator.Create(builder => builder.AddProfile(new FaultingCustomerProfile()));
+
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.AddRouting();
+        factory.Builder.AddJsonSerialization(ValidationTestJsonContext.Default);
+        factory.Builder.AddValidation(options => options.AddValidator(faulting));
+
+        InvalidOperationException? fault = null;
+        factory.Application.Use(async (context, next) =>
+        {
+            try
+            {
+                await next.Invoke(context);
+            }
+            catch (InvalidOperationException exception)
+            {
+                fault = exception;
+                context.Response.StatusCode = HttpStatusCode.InternalServerError;
+            }
+        });
+        factory.Application.UseRouting();
+
+        bool handlerRan = false;
+        factory.Application.MapPost("/customers", (Customer customer) =>
+        {
+            handlerRan = true;
+            return "accepted";
+        });
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/customers", Json(validCustomer), cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.InternalServerError);
+        fault.ShouldNotBeNull();
+        fault.Message.ShouldBe("nested rule fault");
+        handlerRan.ShouldBeFalse();
     }
 }
 ```
