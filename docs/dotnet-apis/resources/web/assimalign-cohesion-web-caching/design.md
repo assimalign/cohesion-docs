@@ -213,8 +213,8 @@ hit therefore carries the shared body and headers but no `Set-Cookie`.
 ## Time-to-live and Age
 
 The effective time-to-live is the policy `Duration`. When `HonorResponseCacheControl` is set
-(default) and the response declares an explicit freshness lifetime (`Cache-Control:
-s-maxage`/`max-age`, or `Expires` − `Date`, via `HttpFreshness.GetFreshnessLifetime` as a
+(default) and the response declares an explicit freshness lifetime
+(`Cache-Control: s-maxage`/`max-age`, or `Expires` − `Date`, via `HttpFreshness.GetFreshnessLifetime` as a
 **shared** cache), the smaller of the two wins — the origin may **shorten** but never **lengthen**
 the policy cap; a `max-age=0` response is not stored. Client revalidation semantics (conditional
 requests, `304`, `stale-while-revalidate`) are out of scope (they belong to #755's client story);
