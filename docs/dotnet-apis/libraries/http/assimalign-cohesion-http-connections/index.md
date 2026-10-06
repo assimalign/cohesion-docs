@@ -18,6 +18,16 @@ The package consumes `IConnection` and `IMultiplexedConnection` rather than owni
 transport stack. Protocol handling uses the core feature and interceptor seams, allowing optional
 concerns to attach without reverse references from the transport.
 
+One TLS listener can serve HTTP/2 and HTTP/1.1, chosen per connection through ALPN (RFC 7301):
+`HttpConnectionListenerOptions.UseHttp1AndHttp2` serves `h2` as HTTP/2 and `http/1.1`, or no ALPN
+at all, as HTTP/1.1, and closes a connection that negotiated anything else. Every exchange that
+arrived over TLS carries the core's `IHttpTlsConnectionFeature`, copied from the connection's
+`ITlsConnectionInfo`. A host stops a connection in two steps:
+`IHttpConnectionContext.BeginGracefulClose` takes no new exchange and announces the close
+(`Connection: close`, or a `GOAWAY`) while the exchanges in flight finish, and cancelling the token
+`ReceiveAsync` is enumerated with cancels what is left. The package raises no events and has no
+event source. See the [design](design.md#graceful-close-the-host-contract).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -89,3 +99,5 @@ concerns to attach without reverse references from the transport.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Abstractions/IHttpConnectionContext.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Abstractions/IHttpConnectionListener.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/README.md`.

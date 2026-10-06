@@ -16,16 +16,16 @@ Two options decide which failures a validation reports, each at its own level:
 
 - **`ValidationMode` decides between items**, one item per `RuleFor` or `RuleForEach` member.
   `Cascade`, the default, evaluates every item and reports each one that fails. `Stop` evaluates no
-  further item once the context holds an error, so only one failing item is reported.
+  further item once the context holds an error, so only the first failing item is reported.
 - **`ContinueThroughValidationChain` decides within one item's rule chain.** Off, the default, the
-  chain stops once one of the item's own rules has failed; on, every chained rule runs.
+  chain stops at the first of the item's rules that fails; on, every chained rule runs.
 
 | `ValidationMode` | `ContinueThroughValidationChain` | Reported |
 | --- | --- | --- |
-| `Cascade` (default) | off (default) | Every failing member, each with one rule's errors |
+| `Cascade` (default) | off (default) | Every failing member, each with its first failing rule's errors |
 | `Cascade` | on | Every failing rule of every member |
-| `Stop` | off | One failing member, with one rule's errors |
-| `Stop` | on | Every failing rule of one failing member |
+| `Stop` | off | The first failing member, with its first failing rule's errors |
+| `Stop` | on | Every failing rule of the first failing member |
 
 **An item's chain stops on its own failure only.** An item stops its chain when one of its own
 rules reports an error, never because of errors that earlier items, or the caller, added to the
@@ -41,12 +41,61 @@ request body with three invalid members was answered with one error.
 - **`ThrowExceptionOnFailure`** changes nothing that is evaluated; the validator throws afterwards,
   when the context holds an error.
 
-**Evaluation order is newest first, a known constraint (#1221).** The item and rule queues
-enumerate from the top of their stacks, so a profile's items run from the last declared member to
-the first, and a chain from its last chained rule to its first. With the defaults, a member whose
-chain has two failing rules reports the later-declared rule's error, and `Stop` reports the
-last-declared failing member. `IValidationRuleQueue` documents first-in, first-out order, which the
-enumerators do not implement yet.
+**Evaluation order is declaration order.** A profile's items run in the order its members are
+declared (a `When` block's members where the block is declared), and each item's rules in the order
+they are chained. "First" above means first in that order: with the defaults, a member whose chain
+has several failing rules reports the first of them, and `Stop` reports the first-declared failing
+member. `ValidationItemQueue` and `ValidationRuleQueue` are first-in, first-out, as
+`IValidationRuleQueue` says: enumeration, the indexer, copies, `Peek` and `Pop` all start at the
+entry pushed first. `ValidationContext<T>` keeps its errors and invocations in the order they are
+added, so `ValidationResult.Errors` lists failures in declaration order. A nested profile's errors
+sit in place under their parent member, and a collection's are listed rule by rule, each rule's
+element by element.
+
+The context's collections changed with the queues, and for the same reason. Had the errors stayed on
+a stack, `ValidationResult.Errors` would have listed members newest first, and a nested profile's
+errors, which are copied into every enclosing context, would have been reversed once per level of
+nesting.
+
+Until #1221 both queues enumerated newest first and the context held its errors on a stack. A chain
+reported its last failing rule: `RuleFor(x => x.Name).NotEmpty().MinLength(3)` on `""` reported
+`MinLength`'s message, not `NotEmpty`'s. `Stop` reported the last-declared failing member, and
+Web.Validation's `errors` map listed members in reverse declaration order.
+
+## A rule that throws
+
+A rule reports a failure by adding errors to its context; an exception is a fault, not a failure. A
+nested profile's rules (`ChildRules`, `UseProfile`) and a custom rule's delegate (`Custom`) run
+arbitrary code, and an exception from either propagates out of `Validate` and `ValidateAsync`:
+validation fails closed.
+
+Until #1292 both rules caught every exception and returned `false`, which an item records as "rule
+not invoked". A throwing nested profile or custom delegate therefore reported no error and the value
+passed; Web.Validation let such a body through to the handler. A null nested object is still
+skipped, explicitly: the nested rule's `object` overload returns an empty, successful context for
+`null`.
+
+The built-in rules (`NotEmpty`, `GreaterThan`, the length and pattern rules, and so on) still catch
+their own exceptions and report "not invoked", which may be an intended skip for a null or
+incomparable value but is not stated; #1293 decides each rule's behavior explicitly.
+
+## Concurrency
+
+A validator, its profiles, their items and their rules are built once and shared by every
+validation that uses them: Web.Validation registers one validator per model type and every request
+validates through it. Evaluation therefore keeps per-validation state in the `ValidationContext` and
+in locals, never on a shared object.
+
+- **Timing** — each validation and each rule invocation is timed from a `Stopwatch.GetTimestamp()`
+  local and reported in `TimeSpan` ticks (`Stopwatch.GetElapsedTime`). Until #1291 the validator
+  rented a `Stopwatch` from an unsynchronized static pool on every validation, and each item rented
+  one in its constructor and restarted it on every evaluation. Concurrent validations raced on the
+  pool's list, which could hand a validation `null`, and they shared one stopwatch per item. The
+  pool's `ElapsedTicks` were also `Stopwatch` ticks, read as `TimeSpan` ticks, which is wrong
+  wherever the timer is not 10 MHz.
+- **Known shared state** — a rule's `ParentContext` is still assigned on the shared rule before it
+  runs, so two concurrent validations with different options can run a nested profile with the
+  other's options (#1207). Errors never cross between validations: each lands in its own context.
 
 ## Error sources
 

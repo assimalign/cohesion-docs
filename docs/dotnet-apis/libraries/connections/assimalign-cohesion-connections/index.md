@@ -19,6 +19,12 @@ Listeners bind explicitly and factories establish outbound connections. Capabili
 delivery and security; connection layers transform connections at establishment without introducing
 a parallel transport abstraction.
 
+`ITlsConnectionInfo` reports what a TLS handshake negotiated: the ALPN application protocol, the TLS
+version, the cipher suite, and the peer's certificate. Connections that terminate TLS implement it
+beside their connection contract — the secured connection `Assimalign.Cohesion.Connections.Security`
+returns, and a QUIC connection — and a consumer finds it with a type test, so HTTP reads it without
+referencing the TLS layer. See the [design](design.md#handshake-facts-itlsconnectioninfo).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -91,3 +97,5 @@ a parallel transport abstraction.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/ValueObjects/DatagramReceiveResult.cs`.
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/DuplexPipeStream.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/ITlsConnectionInfo.cs`.

@@ -18,6 +18,14 @@ Headers and trailers are distinct ordered field sections using compatible collec
 Optional concerns attach through feature and interceptor seams rather than widening the protocol
 root. The core remains independent of hosting and resource platforms.
 
+`IHttpTlsConnectionFeature` tells a handler how the connection its exchange arrived on is secured:
+the client certificate (`null` when the client presented none), the TLS protocol version, the
+cipher suite, and the application protocol ALPN selected. The server transport
+(`Assimalign.Cohesion.Http.Connections`) attaches it to every exchange that arrived over TLS —
+HTTP/1.1 and HTTP/2 over the TLS layer, HTTP/3 over QUIC — and attaches none to a cleartext
+exchange. Code reads it as `context.TlsConnection` (`HttpTlsConnectionExtensions`). The values
+belong to the connection, so every exchange on it carries the same instance.
+
 ## Dependencies
 
 | Reference | Build item |
@@ -88,3 +96,7 @@ root. The core remains independent of hosting and resource platforms.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpEntityTag.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpEntityTagCondition.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpTlsConnectionFeature.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpTlsConnectionExtensions.cs`.

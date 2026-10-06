@@ -12,6 +12,10 @@ The exporter is transport-only; Hosting.Telemetry owns the logging adapter. A bo
 retry, and bounded shutdown prevent a collector outage from owning host startup. Traces, metrics,
 gRPC, and binary protobuf export remain deferred.
 
+Emitters of traces and metrics use the BCL `ActivitySource` and `Meter`, starting with the Web
+server's (`Assimalign.Cohesion.Web.Hosting`, #1064), so a trace or metric exporter would subscribe
+through `ActivityListener` and `MeterListener` (#317).
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`. The [overview](index.md#dependencies)

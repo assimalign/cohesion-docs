@@ -18,6 +18,10 @@ Each QUIC stream surfaces as a `Connection` with an explicit direction. The driv
 and stream lifecycle, while stream typing and HTTP settings belong above it. Availability follows
 `System.Net.Quic`, so callers must account for platform support.
 
+`QuicMultiplexedConnection` reports its TLS 1.3 handshake (the ALPN protocol, the cipher suite, the
+peer certificate) through the contracts' `ITlsConnectionInfo`, so HTTP/3 can show the session to
+handlers. See the [design](design.md#handshake-facts).
+
 ## Dependencies
 
 | Reference | Build item |
