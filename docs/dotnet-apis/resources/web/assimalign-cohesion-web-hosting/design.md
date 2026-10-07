@@ -346,8 +346,19 @@ same way as the rest.
 
 | Signal | Fires | Carries |
 | --- | --- | --- |
-| `Draining` | when the stop begins | the accept loop, a bind still in progress, and every connection's graceful close |
+| `Draining` | when the stop begins | the accept loop, a bind still in progress, every connection's graceful close, and every exchange's `IWebServerDrainFeature` |
 | `Aborted` | when the budget runs out | every connection's open and receive, every exchange's pipeline and send, and every connection's abort |
+
+`Draining` also reaches the exchanges themselves. A graceful close ends a connection after its
+exchanges finish, but a long-lived exchange — a WebSocket, a server-sent event stream — would finish
+only when the budget cuts it off, without a close of its own. So the server installs one shared
+`IWebServerDrainFeature` (a Web-root contract, `Internal/WebServerDrainFeature`) on every exchange
+beside the response-completion feature, before the pipeline runs; its token is `Draining`. A
+long-lived exchange registers on it and ends its own work while the budget lasts: `UseWebSockets`
+(Web.WebSockets) closes each open socket with `1001 Going Away` (decision 16, the Http area's ADR 1).
+Firing it cancels nothing; an exchange that ignores it is cancelled only when the budget runs out,
+like any other. The token is captured once, so it stays readable after the stop disposes its
+sources.
 
 The stop runs in order:
 
@@ -782,8 +793,17 @@ connection is aborted with a `ConnectionAbortedException`, and the stop still co
 end: an HTTP/1.1 request in flight when the stop begins completes in full with `Connection: close`;
 one that outlives the budget observes `RequestCancelled` and its client gets no response; and a raw
 prior-knowledge HTTP/2 client sees `GOAWAY(NO_ERROR)` naming its open stream as the last processed
-while that stream is still running, then the stream's full response. The per-version announcements
-are pinned in the transport's own suite (`HttpConnectionGracefulCloseTests`).
+while that stream is still running, then the stream's full response. An exchange in flight sees its
+`IWebServerDrainFeature` fire when the stop begins, while its `RequestCancelled` does not, and its
+response is still delivered. The per-version announcements are pinned in the transport's own suite
+(`HttpConnectionGracefulCloseTests`). The WebSocket close it enables (`1001` before the budget runs
+out) is pinned end to end in `Web.WebSockets`' suite.
+
+The default protocol-upgrade interceptor is pinned by `WebApplicationServerDefaultsTests` (slot 1,
+by behavior) and by `WebApplicationProtocolUpgradeTests` over a real loopback connection: an upgrade
+nobody accepts is served as an ordinary `200`, and an accepted one answers `101` and hands the
+handler the raw connection. `WebApplicationServerExtendedConnectTests` runs a WebSocket over an
+HTTP/2 extended CONNECT tunnel through the server.
 
 The diagnostics (#147) are pinned by `WebApplicationServerDiagnosticsTests`, which records the
 entries through a real `LoggerFactoryBuilder`: a bind failure (`Critical`, with its cause), an
@@ -1057,36 +1077,59 @@ No reflection, no codegen, no dynamic activation. The binder is straight-line `G
 certificate files load through the BCL's `X509Certificate2.CreateFromPemFile` /
 `X509CertificateLoader` APIs.
 
-## Default request-parse interceptors
+## Default interceptors
 
 ### What it is
 
-When the web host composes the `HttpConnectionListener`, it installs the default request-parse
-interceptors **before** any user `UseServer` configuration runs
-(`WebApplicationServerBuilder.ApplyDefaultInterceptors`). Today that is one interceptor:
-`Http.RequestLimits`' max-request-body-size interceptor, which occupies slot 0 of the interceptor
-order so every request carries the typed `IHttpMaxRequestBodySizeFeature` and user-registered
-interceptors' `AfterRequestHead` hooks can observe it. As of #819 the seam is invoked on **all
-three** parse paths — HTTP/1.1, HTTP/2, and HTTP/3 — so the feature is attached uniformly regardless
-of protocol. The cap is *enforced* with 413 on all three: HTTP/1.1 inline in its parser, HTTP/2
-against the value the interceptor pipeline freezes (#1048), and HTTP/3 in its incrementally read
-body (#1066). Http.RequestLimits' DESIGN, "Protocol coverage (honest gaps)", has the detail; the
-transport-wide default is `HttpConnectionListenerLimits.MaxRequestBodySize`.
+When the web host composes the `HttpConnectionListener`, it installs the default interceptors
+**before** any user `UseServer` configuration runs
+(`WebApplicationServerBuilder.ApplyDefaultInterceptors`). There are two, in this order:
+
+1. `Http.RequestLimits`' max-request-body-size interceptor (request scope), in slot 0, described
+   below.
+2. `Http.ProtocolUpgrade`'s interceptor (decision 16, the Http area's ADR 1). It surfaces an HTTP/1.1
+   upgrade or `CONNECT` as `context.Upgrade`, so a WebSocket handshake (`context.WebSockets`,
+   `Http.WebSockets`) works on every HTTP/1.1 listener with no listener configuration. Nothing
+   changes for a request no application accepts: it is served exactly as before, and the upgrade is
+   ignored (RFC 9110 §7.8). `Web.Hosting` references `Http.ProtocolUpgrade` for this, a reference
+   outside the Web area (COHRES002 is about same-area references).
+
+The upgrade interceptor needs the exchange control's takeover, and a response-scoped interceptor is
+what makes a transport build the per-exchange response sink and exchange control for every exchange.
+So it declares the request scope only and joins the response phase of the exchanges that ask for a
+transition: its `AfterRequestHead` adds it to an HTTP/1.1 upgrade's or `CONNECT`'s exchange
+(`HttpExchangeInterceptorRequestContext.AddResponseInterceptor`). Every other exchange, and every
+HTTP/2 and HTTP/3 one, stays on the transports' fast path, so default-on WebSockets cost an ordinary
+request a version and header check. Measured with the two default interceptors and a loopback
+`HttpClient` in one process, a plain `GET` allocates 12,552 B over HTTP/1.1 and 9,842 B over HTTP/2,
+the same as with no upgrade interceptor; the interceptor in every response phase cost 12,912 B and
+10,125 B.
+
+The max-request-body-size interceptor occupies slot 0 of the interceptor order so every request
+carries the typed `IHttpMaxRequestBodySizeFeature` and user-registered interceptors'
+`AfterRequestHead` hooks can observe it. As of #819 the seam is invoked on **all three** parse paths
+— HTTP/1.1, HTTP/2, and HTTP/3 — so the feature is attached uniformly regardless of protocol. The
+cap is *enforced* with 413 on all three: HTTP/1.1 inline in its parser, HTTP/2 against the value the
+interceptor pipeline freezes (#1048), and HTTP/3 in its incrementally read body (#1066).
+Http.RequestLimits' DESIGN, "Protocol coverage (honest gaps)", has the detail; the transport-wide
+default is `HttpConnectionListenerLimits.MaxRequestBodySize`.
 
 ### Why default-on, and why here
 
 The transport itself stays lean — with zero interceptors it allocates no per-request interception
-state at all — so the "every request always has the typed feature" guarantee is a *hosting* policy,
-not a transport one. It lives here because this is the composition root: apps that want a leaner
-pipeline can inspect or clear `HttpConnectionListenerOptions.Interceptors` in their own `UseServer`
-callback (user configurations run after the defaults), which keeps the default overridable without a
-dedicated opt-out knob.
+state at all — so the "every request always has the typed feature" and "a WebSocket handshake just
+works" guarantees are *hosting* policy, not transport policy. They live here because this is the
+composition root: apps that want a leaner pipeline can inspect or clear
+`HttpConnectionListenerOptions.Interceptors` in their own `UseServer` callback (user configurations
+run after the defaults), which keeps the default overridable without a dedicated opt-out knob.
 
 ### Non-goals
 
 No other interceptor ships by default. Parse-time features under design (digest fields, request
 decompression) register through the same seam when their packages land, but each is an explicit
-opt-in.
+opt-in. The WebSocket policy (origins, keep-alive defaults, the drain close) is not an interceptor:
+it is `UseWebSockets`, a middleware in `Web.WebSockets`, which this module does not reference
+(COHRES002).
 
 ## TLS convenience surface
 
@@ -1355,6 +1398,7 @@ terminal (`Internal/EnabledResourcePipeline.cs`).
 | `Assimalign.Cohesion.FileSystem` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Connections` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.RequestLimits` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections.Tcp` | `CohesionProjectReference` |

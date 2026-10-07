@@ -10,6 +10,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[In Memory Output Cache Store Tests](in-memory-output-cache-store-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 - **[Output Cache Middleware Tests](output-cache-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 - **[Output Cache Route Convention Tests](output-cache-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
+- **[Output Cache Web Socket Tests](output-cache-web-socket-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
