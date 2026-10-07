@@ -26,6 +26,22 @@ HTTP/1.1 and HTTP/2 over the TLS layer, HTTP/3 over QUIC — and attaches none t
 exchange. Code reads it as `context.TlsConnection` (`HttpTlsConnectionExtensions`). The values
 belong to the connection, so every exchange on it carries the same instance.
 
+`IHttpExtendedConnectFeature` is the HTTP/2 and HTTP/3 extended CONNECT capability (RFC 8441,
+RFC 9220): the `Protocol` a `CONNECT` with `:protocol` asked for, and `AcceptAsync`, which answers
+`200` without ending the stream and returns the stream as a duplex tunnel. The contract moved here
+from `Http.ExtendedConnect` (#1316), because the transport produces it; the transport installs it on
+every valid extended CONNECT, and `context.ExtendedConnect` still ships in `Http.ExtendedConnect`.
+
+`Request.Trailers` and `Response.Trailers` report per exchange whether a trailer section is
+supported (`IsSupported`). The transports fill request trailers on every version (on HTTP/1.1 for a
+chunked request) once the body has been read to its end, and send response trailers on HTTP/2 and
+HTTP/3 only. See the [design](design.md#trailers).
+
+A request-parse hook can add an interceptor to its own exchange's response phase
+(`HttpExchangeInterceptorRequestContext.AddResponseInterceptor`), so an interceptor that needs the
+response phase for a few exchanges keeps every other exchange on the transport's fast path. See the
+[design](design.md#per-exchange-response-interceptors).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -100,3 +116,11 @@ belong to the connection, so every exchange on it carries the same instance.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpTlsConnectionFeature.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpTlsConnectionExtensions.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExtendedConnectFeature.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpExchangeInterceptorRequestContext.cs`.
+
+- **Source** — `cohesion/docs/libraries/Http/DECISIONS.md`.

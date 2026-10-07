@@ -22,6 +22,11 @@ and stream lifecycle, while stream typing and HTTP settings belong above it. Ava
 peer certificate) through the contracts' `ITlsConnectionInfo`, so HTTP/3 can show the session to
 handlers. See the [design](design.md#handshake-facts).
 
+A stream's `ConnectionClosed` also fires when the peer abandons the stream (`RESET_STREAM` or
+`STOP_SENDING`) or the QUIC connection is lost, which is how an HTTP/3 server fires
+`RequestCancelled` for a request its client cancelled (#1329). See the
+[design](design.md#connectionclosed-on-an-abandoned-stream).
+
 ## Dependencies
 
 | Reference | Build item |

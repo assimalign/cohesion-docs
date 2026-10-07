@@ -31,6 +31,11 @@ most 512 at a time (`listener.Use(layer, maxConcurrentUpgrades)`). A failed or t
 closes only that connection, and the library's internal event source, `Assimalign.Cohesion.Connections`,
 reports it. See the [design](design.md#a-listener-contains-each-connections-failure).
 
+`ConnectionClosed` fires when a connection is closed or aborted. A stream of a multiplexed connection
+also fires it when its peer abandons the stream (a QUIC `RESET_STREAM` or `STOP_SENDING`, or the
+in-memory equivalents), so a consumer such as an HTTP/3 request learns of it without reading or
+writing (#1329). See the [design](design.md#when-connectionclosed-fires).
+
 ## Dependencies
 
 | Reference | Build item |

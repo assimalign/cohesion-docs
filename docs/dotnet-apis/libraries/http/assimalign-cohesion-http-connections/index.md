@@ -28,6 +28,16 @@ arrived over TLS carries the core's `IHttpTlsConnectionFeature`, copied from the
 `ReceiveAsync` is enumerated with cancels what is left. The package raises no events and has no
 event source. See the [design](design.md#graceful-close-the-host-contract).
 
+Trailers travel on every version that can carry them: HTTP/1.1 (for a chunked request), HTTP/2 and
+HTTP/3 surface a request's trailer section on `Request.Trailers`, and HTTP/2 and HTTP/3 send
+response trailers; HTTP/1.1 sends none. HTTP/2 now decodes every field block, a trailer section
+included, so HPACK stays in step. A valid extended CONNECT carries the core's
+`IHttpExtendedConnectFeature`, whose `AcceptAsync` turns the stream into a duplex tunnel, which is
+what WebSockets on HTTP/2 and HTTP/3 run over. Stage 10 also hardened the multiplexed transports:
+HTTP/2 writes every frame in one piece, a request body cut off by a reset faults instead of ending
+cleanly, HTTP/2 and HTTP/3 drop connection-specific fields from response heads, and an HTTP/3
+client's reset fires `RequestCancelled`. See the [design](design.md#trailers-on-http2-and-http3).
+
 ## Dependencies
 
 | Reference | Build item |

@@ -43,6 +43,17 @@ counts connections whose handshake is in progress plus those waiting to be accep
 timeout is `System.Net.Quic`'s default of 10 seconds. `TlsServerOptions.HandshakeTimeout` and
 `MaxConcurrentHandshakes` belong to the TCP TLS layer and do not apply here.
 
+## `ConnectionClosed` on an abandoned stream
+
+A stream's `ConnectionClosed` fires on its own `Abort` and `DisposeAsync`, and also when the stream
+ends underneath it (#1329). The stream watches `QuicStream.ReadsClosed` and `WritesClosed` and
+signals when either faults with anything but `QuicError.OperationAborted`: a peer `RESET_STREAM` or
+`STOP_SENDING` (`StreamAborted`), or the loss of the connection. Faults from this end's own
+operations (`OperationAborted`) and a half that ends cleanly signal nothing. The check runs on the
+thread pool, never on the QUIC event thread that completed the task. A consumer learns that the peer
+abandoned the stream without reading or writing, which is how an HTTP/3 server fires
+`RequestCancelled` for a request the client cancelled.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`,

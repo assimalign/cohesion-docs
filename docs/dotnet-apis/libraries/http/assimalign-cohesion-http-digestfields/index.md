@@ -18,6 +18,10 @@ Digest values use structured fields and support SHA-256 and SHA-512 computation.
 rejects malformed fields before dispatch; HTTP/2 and HTTP/3 body verification is lazy and reports
 mismatches on terminal reads. Recognized deprecated algorithms are not enabled for computation.
 
+`HttpContentDigester` is the incremental "hash as you write" primitive for a streamed body: its field
+can be staged on `Response.Trailers`, which HTTP/2 and HTTP/3 send; HTTP/1.1 has no response
+trailers. See the [design](design.md#digests-as-trailers).
+
 ## Dependencies
 
 | Reference | Build item |

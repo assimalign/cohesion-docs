@@ -101,6 +101,20 @@ The alternatives were rejected for these reasons:
 - **An unbounded listener** would make every stalled handshake cost a socket, its buffers, and TLS
   state, which is a memory-exhaustion target.
 
+## When `ConnectionClosed` fires
+
+A connection has three teardown paths: complete `Output` for a graceful half-close,
+`DisposeAsync()` to close, and `Abort(Exception?)` to tear down at once, discarding in-flight data.
+`ConnectionClosed` is signaled on closure, and `ConnectionState` tracks
+`Idle → Opening → Open → Closing → Closed`, or `Aborted`.
+
+A stream of a multiplexed connection also signals `ConnectionClosed` when its peer abandons the
+stream — a QUIC `RESET_STREAM` or `STOP_SENDING`, or the in-memory driver's equivalents — so a
+consumer learns of it without reading or writing (#1329). A half that ends cleanly does not signal
+it. The contract is stated on `IConnection.ConnectionClosed`, and it is how an HTTP/3 server fires
+`RequestCancelled` for a request the client cancelled while the application neither reads nor
+writes, which HTTP/3 cannot otherwise see because it has no frame pump.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`. The [overview](index.md#dependencies)

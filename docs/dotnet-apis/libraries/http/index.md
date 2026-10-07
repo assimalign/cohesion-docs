@@ -14,7 +14,7 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http.Connections` | Carries HTTP exchanges over Cohesion stream and multiplexed connections. | [Overview](assimalign-cohesion-http-connections/index.md) |
 | `Assimalign.Cohesion.Http.Cookies` | Adds typed request and response cookies to the HTTP feature model. | [Overview](assimalign-cohesion-http-cookies/index.md) |
 | `Assimalign.Cohesion.Http.DigestFields` | Parses and verifies HTTP integrity digest fields. | [Overview](assimalign-cohesion-http-digestfields/index.md) |
-| `Assimalign.Cohesion.Http.ExtendedConnect` | Exposes extended CONNECT exchanges through an optional HTTP feature. | [Overview](assimalign-cohesion-http-extendedconnect/index.md) |
+| `Assimalign.Cohesion.Http.ExtendedConnect` | Surfaces the HTTP/2 and HTTP/3 extended CONNECT feature on `IHttpContext`. | [Overview](assimalign-cohesion-http-extendedconnect/index.md) |
 | `Assimalign.Cohesion.Http.Forms` | Parses URL-encoded and multipart form bodies into typed collections. | [Overview](assimalign-cohesion-http-forms/index.md) |
 | `Assimalign.Cohesion.Http.Forwarded` | Defines effective request identity after a trusted proxy has forwarded an exchange. | [Overview](assimalign-cohesion-http-forwarded/index.md) |
 | `Assimalign.Cohesion.Http.InterimResponses` | Sends interim HTTP responses through the exchange interceptor seam. | [Overview](assimalign-cohesion-http-interimresponses/index.md) |

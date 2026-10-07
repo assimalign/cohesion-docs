@@ -15,6 +15,8 @@ where the original project supplies it globally.
 
 ```csharp
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Http.ExtendedConnect.Tests.TestObjects;
@@ -23,21 +25,44 @@ namespace Assimalign.Cohesion.Http.ExtendedConnect.Tests;
 
 public class HttpExtendedConnectExtensionsTests
 {
-    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: A present :protocol item exposes the feature")]
-    public void ExtendedConnect_OnProtocolItemPresent_ShouldExposeFeature()
+    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: An installed feature is exposed, the same instance on every read")]
+    public void ExtendedConnect_OnInstalledFeature_ShouldExposeTheSameFeatureOnEveryRead()
+    {
+        // Arrange — the transport installs its implementation on the feature collection.
+        FakeHttpContext context = new();
+        FakeExtendedConnectFeature feature = new("websocket", Stream.Null);
+        context.Features.Set(feature);
+
+        // Act
+        IHttpExtendedConnectFeature? first = context.ExtendedConnect;
+        IHttpExtendedConnectFeature? second = context.ExtendedConnect;
+
+        // Assert
+        context.IsExtendedConnect.ShouldBeTrue();
+        first.ShouldBeSameAs(feature);
+        second.ShouldBeSameAs(feature);
+        first!.Protocol.ShouldBe("websocket");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: Accepting through the accessor returns the feature's tunnel")]
+    public async Task ExtendedConnect_OnAccept_ShouldReturnTheFeaturesTunnel()
     {
         // Arrange
         FakeHttpContext context = new();
-        context.Items[":protocol"] = "websocket";
+        await using MemoryStream tunnel = new();
+        FakeExtendedConnectFeature feature = new("websocket", tunnel);
+        context.Features.Set(feature);
 
-        // Act / Assert
-        context.IsExtendedConnect.ShouldBeTrue();
-        context.ExtendedConnect.ShouldNotBeNull();
-        context.ExtendedConnect!.Protocol.ShouldBe("websocket");
+        // Act
+        Stream accepted = await context.ExtendedConnect!.AcceptAsync();
+
+        // Assert
+        accepted.ShouldBeSameAs(tunnel);
+        feature.AcceptCount.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: No :protocol item exposes no feature")]
-    public void ExtendedConnect_OnNoProtocolItem_ShouldReturnNull()
+    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: No installed feature exposes no feature")]
+    public void ExtendedConnect_OnNoFeature_ShouldReturnNull()
     {
         // Arrange
         FakeHttpContext context = new();
@@ -47,12 +72,13 @@ public class HttpExtendedConnectExtensionsTests
         context.ExtendedConnect.ShouldBeNull();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: An empty :protocol item exposes no feature")]
-    public void ExtendedConnect_OnEmptyProtocolItem_ShouldReturnNull()
+    [Fact(DisplayName = "Cohesion Test [Http.ExtendedConnect] - ExtendedConnect: A :protocol item alone exposes no feature")]
+    public void ExtendedConnect_OnProtocolItemWithoutFeature_ShouldReturnNull()
     {
-        // Arrange
+        // Arrange — the former transport bridge published :protocol under Items. The accessors read only
+        // the feature collection now: a value there models no capability the transport can honor.
         FakeHttpContext context = new();
-        context.Items[":protocol"] = "";
+        context.Items[":protocol"] = "websocket";
 
         // Act / Assert
         context.IsExtendedConnect.ShouldBeFalse();
@@ -74,9 +100,10 @@ public class HttpExtendedConnectExtensionsTests
 
 ## Walkthrough
 
-- **Covered behavior** — ExtendedConnect: A present :protocol item exposes the feature.
-- **Covered behavior** — ExtendedConnect: No :protocol item exposes no feature.
-- **Covered behavior** — ExtendedConnect: An empty :protocol item exposes no feature.
+- **Covered behavior** — ExtendedConnect: An installed feature is exposed, the same instance on every read.
+- **Covered behavior** — ExtendedConnect: Accepting through the accessor returns the feature's tunnel.
+- **Covered behavior** — ExtendedConnect: No installed feature exposes no feature.
+- **Covered behavior** — ExtendedConnect: A :protocol item alone exposes no feature.
 - **Covered behavior** — ExtendedConnect: A null context throws.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled

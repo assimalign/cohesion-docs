@@ -18,6 +18,11 @@ Paired pipes are cross-wired so both ends can exchange bytes repeatedly. Listene
 preserve the production connection contracts while avoiding operating-system sockets. This driver
 moves bytes; application protocol behavior belongs to its consumers.
 
+An end of a multiplexed stream that aborts, or whose holder completes either pipe half with an error
+(the in-memory `RESET_STREAM` and `STOP_SENDING`), fires the other end's `ConnectionClosed` at once,
+as the QUIC driver does for a peer that abandons a stream (#1329). See the
+[design](design.md#teardown-and-an-abandoned-stream).
+
 ## Dependencies
 
 | Reference | Build item |
