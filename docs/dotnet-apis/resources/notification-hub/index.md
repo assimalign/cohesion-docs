@@ -51,6 +51,8 @@ family. Its reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
 | `Assimalign.Cohesion.IdentityModel.Token` |

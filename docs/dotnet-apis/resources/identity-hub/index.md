@@ -58,7 +58,9 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Web.SecurityHeaders` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.Forms` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Connections.Tcp` |
