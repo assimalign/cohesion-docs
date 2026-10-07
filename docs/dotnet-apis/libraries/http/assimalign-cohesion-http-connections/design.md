@@ -104,6 +104,45 @@ reports both protocols in `HttpConnectionListener.Protocols`.
   blocklist) is left to the TLS options; the transport does not inspect the negotiated version or
   suite before serving `h2`.
 
+## Accept-side isolation: where the handshake runs (#1304)
+
+The transport listener keeps one connection's failure away from the accept loops here. A TLS
+handshake never runs in an accept loop in this package. The TLS-layered listener (`UseTls`) runs
+each connection's handshake on its own task, at most `TlsServerOptions.MaxConcurrentHandshakes` at
+a time, and `AcceptAsync` returns only connections whose handshake completed.
+- **A failed TLS handshake** closes that connection, is reported by the
+  `Assimalign.Cohesion.Connections` event source, and never reaches the accept loop. Failures
+  include garbage bytes, a client the certificate policy refuses, and a silent client that times
+  out.
+- **QUIC handshakes** are contained the same way by the QUIC driver, which reports them from its
+  own event source.
+- **A client that resets while queued** is skipped by the TCP driver (#1308). Windows fails that
+  accept with `ConnectionReset`.
+
+So a slow client never delays another client's accept, and one client never stops an endpoint.
+
+That is the contract of `AcceptAsync` on both listener shapes: a listener contains each
+connection's failure, so whatever escapes it is the listener's own. The accept loops rely on it:
+
+- **An exception from `AcceptAsync` is fatal to the `HttpConnectionListener`.** The accept loop
+  completes the backlog channel with the listener's exception before it cancels the internal
+  dispose token. It also records the exception, so accepts that begin after the cancellation
+  rethrow it too. The host therefore sees the transport's root-cause exception from
+  `AcceptOrListenAsync`, never a bare `ObjectDisposedException`.
+- **Only this listener's own cancellation ends a loop quietly.** Before #1304 any
+  `OperationCanceledException` did, so a TLS handshake that timed out inside the transport's
+  `AcceptAsync` silently ended that endpoint's accepts. A cancellation this listener did not request
+  is now the transport's failure. The Web server's accept loop applies the same rule (#1310).
+
+Rejected: classifying exceptions in the accept loop and continuing on the ones that look like a
+connection's. The loop cannot tell them apart:
+- A handshake timeout throws `OperationCanceledException`, the type a disposed in-memory listener
+  throws.
+- Garbage bytes throw `IOException`, the family of transport I/O failures.
+
+A wrong guess either stops the server or spins on a dead listener. The component that ran the
+handshake knows which failure it was, so it decides.
+
 ## The TLS session on every exchange
 
 Every exchange that arrived over TLS carries the core's `IHttpTlsConnectionFeature`: the client
@@ -138,7 +177,7 @@ needs a design of its own:
 | --- | --- |
 | Per-request latency, status, route, errors and trace context | The Web server's `ActivitySource` and `Meter`, `Assimalign.Cohesion.Web.Hosting` (#1064). The host sees the whole exchange and how its pipeline ended; the transport sees neither. |
 | Connection lifetimes and counts | Each connection driver's event source (`Assimalign.Cohesion.Connections.Tcp`, `.Quic`, `.NamedPipes`). An HTTP/1.1 or HTTP/2 connection is one driver connection and an HTTP/3 connection is one QUIC connection, so an HTTP-level `Opened`/`Closed` pair and a second `current-connections` counter would count the same connections twice under two names. |
-| TLS handshakes | The runtime's `System.Net.Security` source. |
+| TLS handshakes | The runtime's `System.Net.Security` source. A handshake that failed or timed out, and the connection closed for it: `Assimalign.Cohesion.Connections` (`UpgradeFailed`) for TCP endpoints, `Assimalign.Cohesion.Connections.Quic` (`HandshakeFailed`) for HTTP/3. |
 | Requests this package answers itself before dispatch (400, 408, 413, 414, 431), and protocol errors (HTTP/2 `GOAWAY` and `RST_STREAM` codes, the flood guards' `ENHANCE_YOUR_CALM`, HTTP/3 error codes) | Not reported yet. |
 
 The last row is the remaining gap, and filling a placeholder would not close it. It needs an error

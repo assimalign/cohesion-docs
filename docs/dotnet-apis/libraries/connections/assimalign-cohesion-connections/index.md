@@ -25,6 +25,12 @@ beside their connection contract — the secured connection `Assimalign.Cohesion
 returns, and a QUIC connection — and a consumer finds it with a type test, so HTTP reads it without
 referencing the TLS layer. See the [design](design.md#handshake-facts-itlsconnectioninfo).
 
+A listener contains each connection's failure: what escapes `AcceptAsync` is the listener's own.
+A layered listener (`listener.Use(layer)`) upgrades each accepted connection on its own task, at
+most 512 at a time (`listener.Use(layer, maxConcurrentUpgrades)`). A failed or timed-out upgrade
+closes only that connection, and the library's internal event source, `Assimalign.Cohesion.Connections`,
+reports it. See the [design](design.md#a-listener-contains-each-connections-failure).
+
 ## Dependencies
 
 | Reference | Build item |

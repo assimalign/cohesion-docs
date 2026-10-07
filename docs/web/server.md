@@ -104,6 +104,36 @@ The delivered PEM document contains a leaf certificate, exactly one private key,
 issuer chain. Empty content means absent; malformed or multi-key bundles fail. Gateway-materialized
 trust anchors travel separately from this certificate mount.
 
+### Handshakes and failing clients
+
+Each TLS handshake runs on its own task, away from the accept loop. A client that connects and
+sends nothing holds up only its own handshake. When a handshake fails, only that client's
+connection is lost, and the endpoint keeps accepting. A handshake fails for any of these reasons:
+- the client sends bytes that are not TLS;
+- the certificate policy refuses it;
+- it exceeds `TlsServerOptions.HandshakeTimeout`, 10 seconds by default.
+
+`TlsServerOptions.MaxConcurrentHandshakes` caps the connections held while their handshakes run
+(512 by default). Above the cap, new clients wait in the TCP backlog. An endpoint that expects many
+slow handshakes at once raises the cap or shortens the timeout.
+
+HTTP/3 behaves the same way for QUIC's own handshakes. It uses `System.Net.Quic`'s 10-second
+timeout and the listener's backlog.
+
+Below TLS, a client that connects and resets before the server accepts it costs only that
+connection too.
+
+These are routine events on a public endpoint, so the server's log does not report them. Each one
+is reported by an event source, which a tool enables by name:
+
+| What happened | Event source | Event |
+|---|---|---|
+| A TLS handshake over TCP failed or timed out | `Assimalign.Cohesion.Connections` | `UpgradeFailed` (Warning) |
+| A QUIC handshake failed | `Assimalign.Cohesion.Connections.Quic` | `HandshakeFailed` (Warning) |
+| A client reset before the accept | `Assimalign.Cohesion.Connections.Tcp` | `AcceptSkipped` (Verbose) |
+
+Before #1304 and #1308, any of these stopped the endpoint.
+
 ## Client certificates
 
 Mutual TLS is set on the `TlsServerOptions` an endpoint is registered with, so every TLS
@@ -248,7 +278,7 @@ registered, nothing is written.
 | Event | Level |
 |---|---|
 | A listener cannot be bound; logged before `HostStartupException` propagates | `Critical` |
-| The accept loop faults; the server keeps running but accepts nothing more | `Critical` |
+| The accept loop faults, a cancellation the server did not request included; the server keeps running but accepts nothing more | `Critical` |
 | A connection fault the server cannot blame on the peer, such as a response that could not be framed | `Error` |
 | A connection the peer or the network ended (`IOException`, `SocketException`, `ConnectionException`), or a fault after the server aborted its drain | `Debug` |
 | A stop's budget ran out with work in flight; logged before the abort | `Warning` |

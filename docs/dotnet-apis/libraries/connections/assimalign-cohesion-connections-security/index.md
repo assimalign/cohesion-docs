@@ -26,6 +26,11 @@ implements the contracts' `ITlsConnectionInfo`: the ALPN protocol, the TLS versi
 suite, and the peer's certificate, which the connection disposes with itself. See the
 [design](design.md#client-certificates).
 
+On a TLS-layered listener each handshake runs on its own task, and
+`TlsServerOptions.MaxConcurrentHandshakes` (default 512) bounds how many run at once. A handshake
+that fails or times out closes only its connection. See the
+[design](design.md#handshakes-on-a-tls-layered-listener).
+
 ## Dependencies
 
 | Reference | Build item |

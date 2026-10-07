@@ -60,6 +60,41 @@ needs a callback.
 Reading the certificate after the handshake is the application's job (`ITlsConnectionInfo`, and
 the HTTP transport's TLS connection feature); authenticating a user from it is out of scope here.
 
+## Handshakes on a TLS-layered listener
+
+`UseTls` composes this layer through the contracts library's layered listener. For a TLS endpoint
+that means the following (#1304):
+
+- **Each handshake runs on its own task.** A client that sends nothing holds only its own handshake;
+  every other client is accepted and handshaken alongside it.
+- **A failed handshake fails only its connection.** Each of these closes that connection and leaves
+  the listener accepting:
+  - bytes that are not a ClientHello;
+  - a client the certificate policy refuses;
+  - a handshake that exceeds `HandshakeTimeout`;
+  - a client that hangs up mid-handshake.
+
+  The `Assimalign.Cohesion.Connections` event source reports each one as `UpgradeFailed`.
+  `RequireClientCertificate` therefore refuses a client without a certificate without affecting
+  anyone else. Before #1304 that refusal stopped the listener.
+- **`HandshakeTimeout` applies per connection.** Short of the client hanging up, it is what ends a
+  silent client's handshake.
+- **`MaxConcurrentHandshakes` bounds the connections held at once** (default 512). A connection
+  counts from accept until it is returned secured or its handshake fails. At the bound, new clients
+  wait in the transport's backlog, so a flood of stalled handshakes cannot grow memory without
+  bound.
+
+The option lives on `TlsServerOptions` because only a listener that handshakes has handshakes to
+bound. A QUIC listener handed the same `AuthenticationOptions` does not use it: QUIC bounds its
+pending handshakes with its own listener backlog.
+
+When `UpgradeAsync` fails, the exception propagates and the caller still owns the inner connection:
+- `AuthenticationException` from the platform TLS stack;
+- `IOException` for bytes that are not a TLS handshake;
+- `OperationCanceledException` when the timeout elapses.
+
+The layered listener and the layered factory both dispose it.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`. The

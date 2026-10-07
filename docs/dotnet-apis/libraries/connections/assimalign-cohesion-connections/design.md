@@ -55,6 +55,52 @@ The cost is the usual one for decorators. A layer composed above TLS that return
 hides the facet unless it implements the facet too and forwards it. A pass-through layer, which
 returns the connection it was given, keeps it visible.
 
+## A listener contains each connection's failure
+
+`AcceptAsync`, on both listener shapes, returns a connection that is ready to use, with any
+handshake already complete. A failure that belongs to one inbound connection is the listener's to
+handle: it releases that connection and accepts the next. Examples are a handshake that fails or
+times out, or a client that resets before the accept. An exception from `AcceptAsync` therefore
+means the listener itself can produce no more connections (it was disposed, or its endpoint failed),
+or the caller canceled. A consumer such as the HTTP listener treats it as fatal.
+
+- **The layered listener** (`listener.Use(layer)`, and so `UseTls`) runs each connection's upgrade
+  on its own task, off the accept loop (#1304). `AcceptAsync` returns connections in the order
+  their upgrades complete.
+  - A failed or timed-out upgrade fails only its connection: the listener disposes the connection,
+    reports `UpgradeFailed`, and keeps accepting.
+  - At most `maxConcurrentUpgrades` connections are held at once; the default is 512, and TLS sets
+    it from `TlsServerOptions.MaxConcurrentHandshakes`. At the bound the pump stops accepting, and
+    new peers wait in the transport's own backlog.
+  - Canceling an `AcceptAsync` call abandons only that wait. Disposal releases every connection the
+    listener still holds.
+- **The drivers** honor the same contract. The QUIC driver drops an inbound connection whose
+  handshake failed and keeps accepting (#1304). The TCP driver skips a connection whose client
+  reset it while it waited in the accept queue (#1308).
+- **A layer that fails leaves the connection to its caller**, which disposes it. The layered
+  listener disposes a connection it accepted, and the layered factory a connection it dialed
+  (#1309).
+
+The layered listener reports through this library's one internal event source,
+`Assimalign.Cohesion.Connections`:
+
+| Id | Event | Level | Payload |
+|---|---|---|---|
+| 1 | `UpgradeFailed` | Warning | `connectionId`, `remoteEndPoint`, `exceptionType`, `exceptionMessage` |
+
+The counters are `current-upgrades` and `failed-upgrades`. The payload is the exception's type and
+message, never the peer's bytes, a certificate, or key material. An upgrade canceled because the
+listener is being disposed is not reported.
+
+The alternatives were rejected for these reasons:
+- **Upgrading inside `AcceptAsync`**, the shape before #1304, serialized handshakes on the accept
+  loop and turned one peer's failure into the listener's.
+- **Containing the failure in the consumer** cannot work by exception type. A handshake timeout
+  throws `OperationCanceledException`, the same type a disposed listener throws. Only the component
+  that ran the upgrade knows which failure it was.
+- **An unbounded listener** would make every stalled handshake cost a socket, its buffers, and TLS
+  state, which is a memory-exhaustion target.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`. The [overview](index.md#dependencies)

@@ -18,6 +18,10 @@ One socket data path serves the supported endpoint forms. Binding is explicit, a
 lifetime belongs to the listener. Shared pipe plumbing is compiled from the connection contracts
 project rather than exposed as driver-specific public infrastructure.
 
+A client that resets its connection before the listener accepts it costs only that connection: the
+listener skips it and accepts the next. See the
+[design](design.md#a-client-that-resets-before-the-accept).
+
 ## Dependencies
 
 | Reference | Build item |

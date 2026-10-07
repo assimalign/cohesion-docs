@@ -611,7 +611,7 @@ traces are the telemetry work (#1064).
 | Event | Level | When | Content |
 | --- | --- | --- | --- |
 | Bind failure | `Critical` | `StartAsync` cannot bind the listener; logged before `HostStartupException` propagates | the transport's exception; `http.server.listener.protocols` |
-| Accept-loop fault | `Critical` | accepting faults; the server keeps running but accepts nothing more | the exception |
+| Accept-loop fault | `Critical` | accepting faults; the server keeps running but accepts nothing more. Only the drain's own cancellation ends the loop quietly; a cancellation the server did not request is the listener's fault and is logged here (#1310) | the exception |
 | Connection fault, a defect | `Error` | the connection-level isolation boundary caught a failure not attributable to the peer: an unexpected receive-side failure, an HTTP/1.1 response that could not be framed, a teardown failure | the exception; `connection.id`, `network.local.address`/`.port`, `network.peer.address`/`.port`, `network.protocol.version` |
 | Connection fault, the peer or the network | `Debug` | the same boundary, for an `IOException`, `SocketException`, or `ConnectionException`, or any fault after the server aborted its drain | as above |
 | Drain cut short | `Warning` | a stop's budget ran out with work in flight; logged before the abort | `http.server.drain.connections`, `.exchanges`, `.duration` |
@@ -637,6 +637,16 @@ What is never logged is request or response content. A connection is identified 
 endpoints, and the version of the exchanges it carried (absent when it faulted before its first
 exchange); no header value, body, path, or query reaches an entry. An exception's message is the
 faulting component's own.
+
+The peer's address is logged even though server telemetry leaves it out of spans and metrics (see
+"Deliberately not emitted" under [Server telemetry](#server-telemetry-1064)). The two go to
+different sinks under different policies:
+- **Logs.** A connection-fault entry is an operator's lead when investigating a failing or abusive
+  peer, and logs stay under the application's own retention and access control.
+- **Spans and metrics.** Their attributes flow to telemetry backends. There a client address is
+  personal data, a cardinality risk on metrics, and ambiguous until forwarded headers are trusted.
+
+The logged address is the transport's peer, which behind a proxy is the proxy.
 
 Not logged here: an exception the application's pipeline throws. The server isolates it to its
 exchange (a `500`, or a reset), and reporting it belongs to the application's error handling
