@@ -34,8 +34,13 @@ every valid extended CONNECT, and `context.ExtendedConnect` still ships in `Http
 
 `Request.Trailers` and `Response.Trailers` report per exchange whether a trailer section is
 supported (`IsSupported`). The transports fill request trailers on every version (on HTTP/1.1 for a
-chunked request) once the body has been read to its end, and send response trailers on HTTP/2 and
-HTTP/3 only. See the [design](design.md#trailers).
+chunked request) once the body has been read to its end, hold a received trailer section to one
+rule set on every version, and send response trailers on HTTP/2 and HTTP/3 only. See the
+[design](design.md#trailers).
+
+`HttpQuery.Parse`, which every transport uses for a request's query, skips a parameter with an empty
+name (`?=1`) rather than failing the request as its head is read (#1323). See the
+[design](design.md#query-parameters).
 
 A request-parse hook can add an interceptor to its own exchange's response phase
 (`HttpExchangeInterceptorRequestContext.AddResponseInterceptor`), so an interceptor that needs the
@@ -124,3 +129,5 @@ response phase for a few exchanges keeps every other exchange on the transport's
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpExchangeInterceptorRequestContext.cs`.
 
 - **Source** — `cohesion/docs/libraries/Http/DECISIONS.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpQuery.cs`.

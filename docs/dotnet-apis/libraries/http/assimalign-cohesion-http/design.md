@@ -30,13 +30,14 @@ The `Assimalign.Cohesion.Http.Connections` transports report it per direction an
 | HTTP/2 | Supported | Supported: sent as a HEADERS frame that ends the stream |
 | HTTP/3 | Supported | Supported: sent as a HEADERS frame before the stream's FIN |
 
-- **Request trailers** are filled once the body has been read to its end.
+- **Request trailers** are filled once the body has been read to its end. Every version holds a
+  received trailer section to one rule set: a connection-specific field, or a field in the
+  `HttpFieldRules.IsProhibitedInTrailers` set (RFC 9110 §6.5.1: framing, routing, request
+  modifiers, authentication, content-processing controls, and `Trailer` itself), makes the request
+  malformed. HTTP/1.1's chunked reader applies it too.
 - **A supported response collection** also refuses, when they are added, the fields a trailer
   section cannot carry — pseudo-headers, connection-specific fields, and the
-  `HttpFieldRules.IsProhibitedInTrailers` set (RFC 9110 §6.5.1: framing, routing, request modifiers,
-  authentication, content-processing controls, and `Trailer` itself) — with `ArgumentException`.
-  The HTTP/2 and HTTP/3 transports check the same set in both directions, so a received trailer
-  section that carries one of these fields is malformed.
+  `IsProhibitedInTrailers` set — with `ArgumentException`.
 - **A response to `HEAD` sends no trailers**, and a `CONNECT` exchange reports the response
   collection unsupported, since its stream becomes a DATA-only tunnel.
 - **HTTP/1.1 response trailers stay out** (decision 18): a buffered HTTP/1.1 response carries
@@ -44,6 +45,20 @@ The `Assimalign.Cohesion.Http.Connections` transports report it per direction an
   model makes it a drop-in: `IsSupported = true` and a populated collection.
 
 Trailers were decided as HTTP semantics, apart from gRPC, which stays outside the HTTP/Web program.
+
+## Query parameters
+
+`HttpQuery.Parse` splits the raw query on `&`, splits each parameter on its first `=`, and
+percent-decodes both halves (RFC 3986 §2.1) into an `HttpQueryCollection`. Every transport parses the
+query through it, so a query reads the same on HTTP/1.1, HTTP/2 and HTTP/3.
+
+A parameter with an empty name — `?=1`, a bare `=` — is **skipped** (#1323). `HttpQueryKey` is
+never empty, and RFC 3986 §3.4 gives the query no syntax that would make such a parameter an error,
+so it is left out of the collection and stays visible only in the raw `HttpQuery.Value`. Before
+#1323 the parse threw `ArgumentException` while the transport read the request head, so any client
+could fail its own connection or stream, and have the server log the failure as a defect, with one
+`=`. A rewrite target is held to a stricter rule: `Web.Rewrite` still refuses a query entry without
+a name, at registration for a target's literal text and with `400` when a capture produces one.
 
 ## The TLS connection feature
 
@@ -171,3 +186,5 @@ distinguishes project references, package references, shared source, and analyze
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExtendedConnectFeature.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpExchangeInterceptorRequestContext.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpQuery.cs`.

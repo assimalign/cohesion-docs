@@ -31,7 +31,7 @@ connection's disposal waits for it. Calls after the first do nothing.
 | Version | Announcement | New work after the call | `ReceiveAsync` ends |
 | --- | --- | --- | --- |
 | HTTP/1.1 (RFC 9112 §9.6) | `Connection: close` on the response to the exchange in flight | not read; an idle keep-alive wait ends at once without a response, but a request whose head started to arrive is read and answered with `Connection: close` | after the exchange in flight, or at once when idle |
-| HTTP/2 (RFC 9113 §6.8) | `GOAWAY(NO_ERROR)` carrying the highest stream accepted | a new stream, or one whose header block was still arriving, is refused with `RST_STREAM(REFUSED_STREAM)` | once the contexts already queued are read |
+| HTTP/2 (RFC 9113 §6.8) | `GOAWAY(NO_ERROR)` carrying the highest stream accepted | a new stream, or one whose header block was still arriving, is refused with `RST_STREAM(REFUSED_STREAM)` once its header block is decoded | once the contexts already queued are read |
 | HTTP/3 (RFC 9114 §5.2) | `GOAWAY` carrying the first stream not accepted, once the accept loop has stopped | not accepted; a request whose head was still arriving is reset with `H3_REQUEST_REJECTED` | after the requests already published |
 
 The seam is a member of the context contract rather than a capability interface a host type-tests
@@ -215,13 +215,28 @@ The frame pump now treats the trailer section as a field block of its own:
 
 Two alternatives fail on HPACK: decoding at the body read, as HTTP/3 does (QPACK inserts on its
 encoder stream, so an unread section can be skipped; HPACK inserts inside the blocks), and validating
-while decoding (rejecting a field mid-block abandons the rest of the block, so every violation would
-cost the connection). A handler that answers without reading the whole body makes the server reset
-the stream with `NO_ERROR`, and the client may already have sent its trailers, so the connection
-remembers the most recent 128 streams it reset while the peer was still sending, and decodes and
-drops a trailer section that arrives for one of them. HTTP/3 applies the same validation, which now
-rejects the whole RFC 9110 §6.5.1 set rather than only connection-specific fields, `Content-Length`
-and `Host`.
+while decoding, as the request head did before #1322 (rejecting a field mid-block abandons the rest
+of the block, so every violation would cost the connection). A handler that answers without reading
+the whole body makes the server reset the stream with `NO_ERROR`, and the client may already have
+sent its trailers, so the connection remembers the most recent 128 streams it reset while the peer
+was still sending, and decodes and drops a trailer section that arrives for one of them. DATA and
+WINDOW_UPDATE frames on such a stream are ignored the same way (see
+[frames after a reset](#http2-refused-streams-and-frames-after-a-reset)).
+
+**One trailer rule set for every version.** `HttpTrailerFieldRules` is the single rule set for a
+received trailer section, so a section one version accepts no version refuses. Every version
+rejects a connection-specific field and the fields RFC 9110 §6.5.1 excludes from trailers (framing,
+routing, request modifiers, authentication, response controls, content processing, `Trailer`
+itself, and the cookie fields). HTTP/2 and HTTP/3 also reject a pseudo-header and an uppercase
+name, two rules of their field-section syntax; HTTP/1.1's own syntax rule — a token name with
+nothing before the colon — is its header section's (see
+[HTTP/1.1 field lines](#http11-field-lines-and-malformed-bodies)). Each version reports a violation
+through its own malformed-message path: a stream `PROTOCOL_ERROR` on HTTP/2, `H3_MESSAGE_ERROR` on
+HTTP/3, and on HTTP/1.1 a failed body read, after which the transport answers `400` and closes the
+connection. Before #1314, HTTP/3 rejected only connection-specific fields, `Content-Length` and
+`Host`; before #1319, HTTP/1.1 rejected only `Content-Length`, `Transfer-Encoding` and `Host`, so a
+trailer section carrying, say, `Authorization` or `Keep-Alive` was accepted over HTTP/1.1 and
+refused over HTTP/2 and HTTP/3.
 
 **Response trailers (#1315).** The fields an application stages on `Response.Trailers` before the
 response completes go out after the body, on the buffered and the streaming path alike:
@@ -284,6 +299,107 @@ upload, with or without a `content-length`, read as complete. A reader now sees 
 `OperationCanceledException` or the pipe's `IOException`, never a clean end, and the request's
 trailer section is published only at a clean end. HTTP/3 needed no change: its body reads the
 request stream directly, and a reset or a closed connection fails that read.
+
+## HTTP/2 request heads (RFC 9113 §8.3)
+
+`HPackDecoder.DecodeRequestHeaders` decodes the whole field block first, then folds the field lines
+into the request's fields (#1322). Two kinds of failure come out of it, reported differently:
+
+- **The block cannot be decompressed** — an index of zero or past the dynamic table, a Huffman
+  string with an EOS symbol or with padding longer than seven bits or not all 1 bits, an integer
+  over 31 bits, a string length past the end of the block, or a dynamic table size update that
+  follows a field line or exceeds the `SETTINGS_HEADER_TABLE_SIZE` the server advertised (RFC 7541).
+  The connection ends with `GOAWAY(COMPRESSION_ERROR)` (RFC 9113 §4.3), because its decoder state
+  can no longer be trusted. A decoded list over `SETTINGS_MAX_HEADER_LIST_SIZE` is the one
+  exception: `ENHANCE_YOUR_CALM`. The same mapping covers a trailer section and the block of a
+  refused or reset stream.
+- **A decoded field breaks a field rule** — an empty or uppercase name, a connection-specific field,
+  `TE` other than `trailers`, a pseudo-header field after a regular field, or one not defined for
+  requests. The request is malformed, so its stream is reset with `RST_STREAM(PROTOCOL_ERROR)`
+  (RFC 9113 §8.1.1, #1332): the request never reaches the application, and the connection keeps
+  serving its other streams, which is safe because the block was decoded to its end. This used to
+  close the connection, so one client's malformed request took down every request multiplexed with
+  it — a proxy's connection, for one.
+
+Whether the pseudo-header fields make a complete request is judged afterwards, with the whole block
+decoded (#1321). In order:
+
+| Rule | Applies to | Failure |
+| --- | --- | --- |
+| No pseudo-header field repeats (§8.3) | every request | stream `PROTOCOL_ERROR` |
+| `:protocol` only on CONNECT, which then carries `:scheme`, `:path` and `:authority` (RFC 8441 §4) | a request with `:protocol` | connection `PROTOCOL_ERROR` |
+| A `:path` that is present is not empty (§8.3.1) | every request | stream `PROTOCOL_ERROR` |
+| `:method` is present (§8.3.1) | every request | stream `PROTOCOL_ERROR` |
+| `:scheme` and `:path` are present (§8.3.1) | every request but a classic CONNECT (§8.5) | stream `PROTOCOL_ERROR` |
+| `:path` decodes to a legal path (#937) | every request | stream `PROTOCOL_ERROR` |
+
+Nothing is defaulted. A missing `:method` used to become `GET` and a missing `:path` `/`, so a head
+without its pseudo-header fields reached the application as `GET /`. `OPTIONS` for the server as a
+whole carries `:path: *` and is dispatched with the path `*`, as asterisk-form is on HTTP/1.1; a
+classic CONNECT carries only `:method` and `:authority`, and its path is the root. HTTP/3 applies the
+equivalent rules in its QPACK field-section codec.
+
+**HEADERS padding (#1320).** Only the field block fragment reaches the HPACK decoder: the frame
+reader strips a HEADERS frame's Pad Length octet and PRIORITY fields, and the trailing padding is
+stripped before the fragment is appended, so the decoder never sees framing octets and the
+raw-size cap counts only the block. Padding longer than the octets left after the fixed fields is a
+connection `PROTOCOL_ERROR` (RFC 9113 §6.2).
+
+## HTTP/2: refused streams and frames after a reset
+
+**Refused streams (#1317).** A stream is refused when it would exceed
+`SETTINGS_MAX_CONCURRENT_STREAMS`, or when it arrives after a graceful close began. Refusal does not
+skip the stream's header block: a refused request's head can add entries to the dynamic table that
+later requests reference, so the block, CONTINUATION frames included, is decoded first, and
+`RST_STREAM(REFUSED_STREAM)` goes out once that decode is done. A refused head used to go undecoded,
+so every later request on the connection could decode against a stale table. The refused id also
+counts as seen (RFC 9113 §5.1.1): DATA or a trailer section the client already sent lands on a
+closed stream rather than an idle one, which was a connection `PROTOCOL_ERROR`. `GOAWAY` still
+announces the highest *accepted* stream (RFC 9113 §6.8), so the peer may retry every refused stream.
+
+**Frames on a stream the server reset (#1318).** A stream the server reset, or refused, while the
+peer was still sending ignores the peer's later frames with no reply, since the peer sent them before
+the reset reached it (RFC 9113 §5.1). DATA on it is discarded, but its cost is credited back to the
+connection's receive window (RFC 9113 §6.9), so a benign race does not shrink the window, and a
+WINDOW_UPDATE on it is ignored too, even a zero increment that would be a stream error on a live
+stream. Any other retired stream still answers DATA with `RST_STREAM(STREAM_CLOSED)`.
+
+**Exchange tokens (#1307).** `Http2Stream.CreateContextAsync` takes no connection token, so the abort
+token an exchange observes is its stream's own, and no exchange builds a linked token source that
+would outlive it. After many sequential exchanges on one connection, cancelling the connection's
+token reaches none of the completed ones.
+
+## HTTP/1.1 field lines and malformed bodies
+
+**Field lines (#1333).** A field line whose name is not a token is answered `400 Bad Request`: the
+reader rejects whitespace before the colon, an empty name, a line that starts with whitespace
+(obsolete line folding, RFC 9112 §5.2), and a line with no colon. RFC 9112 §5.1 makes the `400` a
+must for whitespace before the colon: a field name that one parser trims and another keeps is how
+requests are smuggled. The name is no longer trimmed, and an empty one, which used to throw out of
+the reader past its error handling, is a `400` like the rest. A trailer section uses the same
+parser, so its lines follow the same syntax and the
+[one trailer rule set](#trailers-on-http2-and-http3).
+
+**A malformed chunked body (#1333).** The first framing error the chunked decoder meets — a broken
+chunk framing or a malformed trailer section — fails the read and latches the body as malformed:
+
+- **The body is never read again, so it is never drained.** The drain used to resume decoding where
+  the read had failed, so the octets after a bad chunk-size line — `0`, an empty line, then
+  `GET /next ...` — read like a last chunk and a fresh request, and the connection served a request
+  the original framing never delimited.
+- **The transport answers `400` with `Connection: close`** in place of whatever the application
+  staged, when the response has not started; a response already on the wire is finished, and the
+  connection still closes after it. That is HTTP/1.1's counterpart of the stream reset HTTP/2 and
+  HTTP/3 send for a malformed request.
+- **A body the application never read to its end** is found malformed by the drain instead, after
+  its response, and the connection closes.
+
+## Query parameters with an empty name
+
+All three versions parse a request's query through the core's `HttpQuery.Parse`, which now skips a
+parameter with an empty name (`?=1`, a bare `=`) instead of throwing (#1323). The throw happened
+while the transport read the request head, so one `=` failed the client's connection or stream and
+was logged as a server defect. The parameter stays visible in the raw query.
 
 ## HTTP/3: a client's cancellation fires `RequestCancelled` (#1329)
 

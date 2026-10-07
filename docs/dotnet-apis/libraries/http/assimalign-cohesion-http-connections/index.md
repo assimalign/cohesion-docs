@@ -38,6 +38,16 @@ HTTP/2 writes every frame in one piece, a request body cut off by a reset faults
 cleanly, HTTP/2 and HTTP/3 drop connection-specific fields from response heads, and an HTTP/3
 client's reset fires `RequestCancelled`. See the [design](design.md#trailers-on-http2-and-http3).
 
+The transports also follow RFC 9113 and RFC 9112 more strictly. HTTP/2 decodes a refused stream's
+header block before refusing it, ignores frames on a stream it reset while crediting their flow
+control, strips HEADERS padding before decoding, resets a request that lacks `:method`, `:scheme` or
+`:path` instead of serving it as `GET /`, ends the connection with `COMPRESSION_ERROR` for a block
+it cannot decompress, and resets only the stream of a malformed request head. HTTP/1.1 holds chunked
+trailers to the shared trailer rule set, answers `400` for whitespace before a field name's colon,
+an empty name, obsolete line folding, or a line without a colon, and answers a malformed chunked body
+with `400` and `Connection: close` without ever draining it. Every version skips a query parameter
+with an empty name. See the [design](design.md#http2-request-heads-rfc-9113-83).
+
 ## Dependencies
 
 | Reference | Build item |
