@@ -40,6 +40,7 @@ framework.
 | [`Assimalign.Cohesion.Web.Query`](assimalign-cohesion-web-query/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.RateLimiting`](assimalign-cohesion-web-ratelimiting/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.RequestTimeouts`](assimalign-cohesion-web-requesttimeouts/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.Rewrite`](assimalign-cohesion-web-rewrite/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Routing`](assimalign-cohesion-web-routing/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.SecurityHeaders`](assimalign-cohesion-web-securityheaders/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Serialization`](assimalign-cohesion-web-serialization/index.md) | Feature library | Public reference and runtime |
@@ -47,6 +48,7 @@ framework.
 | [`Assimalign.Cohesion.Web.StaticFiles`](assimalign-cohesion-web-staticfiles/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Testing`](assimalign-cohesion-web-testing/index.md) | Testing | Not listed in this framework |
 | [`Assimalign.Cohesion.Web.Validation`](assimalign-cohesion-web-validation/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.WebSockets`](assimalign-cohesion-web-websockets/index.md) | Feature library | Public reference and runtime |
 
 ## Architecture
 
@@ -105,12 +107,14 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.Query` |
 | `Assimalign.Cohesion.Web.RateLimiting` |
 | `Assimalign.Cohesion.Web.RequestTimeouts` |
+| `Assimalign.Cohesion.Web.Rewrite` |
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.SecurityHeaders` |
 | `Assimalign.Cohesion.Web.Serialization` |
 | `Assimalign.Cohesion.Web.Sessions` |
 | `Assimalign.Cohesion.Web.StaticFiles` |
 | `Assimalign.Cohesion.Web.Validation` |
+| `Assimalign.Cohesion.Web.WebSockets` |
 | `Assimalign.Cohesion.Caching` |
 | `Assimalign.Cohesion.Caching.InMemory` |
 | `Assimalign.Cohesion.Http` |
@@ -119,9 +123,12 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.Forms` |
 | `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Http.Sessions` |
+| `Assimalign.Cohesion.Http.WebSockets` |
 | `Assimalign.Cohesion.ObjectValidation` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Http.ServerSentEvents` |
 | `Assimalign.Cohesion.Http.InterimResponses` |
