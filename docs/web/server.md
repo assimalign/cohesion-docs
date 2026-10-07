@@ -32,6 +32,39 @@ control on buffered responses, HTTP/3 reads each request stream incrementally af
 both send no body for `HEAD`, and both reject a malformed `:path` on its own stream without
 closing the connection.
 
+## Upgrades, WebSockets, and trailers
+
+Every listener the default server composes gets two interceptors before any the application
+registers: the request-size limit, and the HTTP/1.1 protocol upgrade. So `context.Upgrade` and a
+WebSocket handshake work without listener configuration, a request that no handler accepts is served
+exactly as before, and an ordinary request pays only a version and header check: the upgrade
+interceptor joins the response phase of an HTTP/1.1 upgrade or `CONNECT` only. HTTP/2 and HTTP/3
+surface extended CONNECT (RFC 8441, RFC 9220) themselves: a valid one carries
+`IHttpExtendedConnectFeature`, whose `AcceptAsync` turns the stream into a duplex tunnel. WebSockets
+run over both; [WebSockets](websockets.md) covers the endpoints, the origin policy, and the drain
+close.
+
+Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
+has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
+request. `Response.Trailers` is supported on HTTP/2 and HTTP/3, where the fields staged before the
+response completes go out after the body, buffered or streamed. On HTTP/1.1, and for a `CONNECT`
+exchange, its `IsSupported` is `false` and adding to it throws, so check it before staging:
+
+```csharp
+using Assimalign.Cohesion.Http;
+
+// context is the exchange's IHttpContext.
+if (context.Response.Trailers.IsSupported)
+{
+    context.Response.Trailers.Add(new HttpHeaderKey("Server-Timing"), "total;dur=12");
+}
+```
+
+A pseudo-header, a connection-specific field, or a field RFC 9110 §6.5.1 prohibits in trailers
+(`Content-Length`, `Host`, and the rest) is refused with `ArgumentException` when it is added, and a
+response to `HEAD` sends no trailers. See
+[Http's trailers](../dotnet-apis/libraries/http/assimalign-cohesion-http/design.md#trailers).
+
 ## Application configuration
 
 `WebApplication.CreateBuilder(args)` loads configuration in increasing precedence:
@@ -260,6 +293,10 @@ budget, and cancels only what outlives it.
   `RST_STREAM(REFUSED_STREAM)`. HTTP/3 accepts no further request stream and sends a `GOAWAY`.
 - **The requests in flight** — nothing is cancelled while the budget lasts: a running request
   finishes, and its response is delivered.
+- **Long-lived exchanges** — every exchange carries `IWebServerDrainFeature`, whose `Draining` token
+  fires when the stop begins and cancels nothing, so an exchange that would otherwise run until the
+  budget cuts it off can end its own work in time. `UseWebSockets` closes each open socket with
+  `1001 Going Away` there (see [WebSockets](websockets.md#shutdown-the-drain-close)).
 - **When the budget runs out** — the server logs a warning with what is still in flight, every
   request still running observes `RequestCancelled`, and every connection still open is aborted.
   The stop waits up to one second for them to unwind, releases the listener, and completes
@@ -325,6 +362,8 @@ Return to [Web](index.md).
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
 - **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpTlsConnectionFeature.cs`.
 - **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerLog.cs`.
+- **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebServerDrainFeature.cs`.
+- **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
 - **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md`.
 - **Certificate carrier** — `cohesion/docs/RUNTIME_CONTRACT.md`.

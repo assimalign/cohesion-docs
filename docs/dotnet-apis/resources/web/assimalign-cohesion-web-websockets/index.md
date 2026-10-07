@@ -50,7 +50,8 @@ are members of the `App.Web` shared framework.
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+See the [source-backed usage examples](examples/index.md) and the
+[WebSockets guide](../../../../web/websockets.md).
 
 ```csharp
 using System;

@@ -37,6 +37,7 @@ on the application.
 | `Web.ForwardedHeaders` | Trusted-proxy handling and an effective client/host/scheme feature. |
 | `Web.HostFiltering` | Allowed-host enforcement against the effective host (forwarded by a trusted proxy, else transport-resolved); rejects a host outside the allowlist. |
 | `Web.HttpsPolicy` | HTTPS redirects and HTTP Strict Transport Security (HSTS) response policy. |
+| `Web.Rewrite` | Ordered rewrite and redirect rules ahead of routing, canonicalization redirects, and the request view that keeps the client's URL in `IWebRewriteFeature`; see [URL rewriting](rewrite.md). |
 | `Web.SecurityHeaders` | `nosniff`, clickjacking protection and a referrer policy by default; opt-in Content Security Policy with per-request nonces, Permissions-Policy and cross-origin isolation fields; endpoint overrides. |
 | `Web.Authentication` | Named schemes, default selection, principal feature, and request dispatch. |
 | `Web.Authentication.Cookie` | Protected tickets, sign-in/out, and sliding expiration. |
@@ -55,6 +56,7 @@ on the application.
 | `Web.Diagnostics` | Field-selected request logging, allowlist redaction, bounded body capture, and access-log files. |
 | `Web.Health` | Independent check model, readiness/liveness selection, and pipeline endpoints. |
 | `Web.Query` | QUERY request negotiation, conditional requests, and method-preserving redirects. |
+| `Web.WebSockets` | `MapWebSocket` endpoints for every handshake shape, the cross-site origin check, keep-alive and compression defaults, and the drain close; see [WebSockets](websockets.md). |
 
 ## Ordering and behavior to preserve
 
@@ -62,9 +64,10 @@ on the application.
 middleware, the reason for each position, and the whole order in code. From the front of the
 pipeline to the endpoint: `UseHttpLogging` and `UseSecurityHeaders` wrap everything; forwarded
 headers, host filtering, HTTPS redirection and HSTS settle the client's identity and transport; the
-exception boundary, status-code pages, cookie policy, compression, static files, authentication and
-sessions follow; then `UseRouting` and the endpoint policies: CORS, authorization, timeouts, rate
-limits, forms, antiforgery and the output cache.
+exception boundary, status-code pages, URL rewriting, cookie policy, compression, static files,
+authentication and sessions follow; then `UseRouting` and the endpoint policies: CORS,
+authorization, timeouts, rate limits, forms, antiforgery, the output cache and, closest to the
+endpoints, the WebSocket policy.
 
 - **Proxy and host policy** — Forwarded-header processing goes ahead of every middleware that reads
   the client's identity on the way in; only `UseHttpLogging` and `UseSecurityHeaders`, which read
@@ -106,7 +109,8 @@ policy. Request decompression supports gzip, Brotli, and deflate, returns 413 wh
 size limit is exceeded, and 415 for unsupported codings.
 
 Output caching bypasses responses with prohibitive cache directives, `Set-Cookie`, non-200 status,
-or authenticated requests under its default rules. Distributed cache and session backends remain
+or authenticated requests under its default rules, and never answers or stores a protocol switch,
+so a cached page and a WebSocket can share a URL. Distributed cache and session backends remain
 adapter work through `IOutputCacheStore` and `IHttpSessionStore`.
 
 For fault handling and content writers, see [Endpoints and responses](endpoints.md).

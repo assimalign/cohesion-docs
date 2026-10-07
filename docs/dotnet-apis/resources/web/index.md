@@ -150,6 +150,8 @@ the source tree from those included by the current framework inventory.
 - **Product** — [Web](../../../web/index.md).
 - **Middleware order** — [the registration order for every Web middleware](../../../web/middleware-order.md).
 - **OpenAPI** — [serving and describing an API with Web.OpenApi](../../../web/openapi.md).
+- **WebSockets** — [socket endpoints on every protocol, the origin policy, and the drain close](../../../web/websockets.md).
+- **URL rewriting** — [rewrite and redirect rules ahead of routing](../../../web/rewrite.md).
 - **Observability** — [the server's request spans, HTTP metrics, and request id](../../../web/observability.md).
 - **SDK** — [`Assimalign.Cohesion.Sdk.Web`](../../sdks/sdk-web/index.md).
 - **Parent** — [Resources](../index.md).

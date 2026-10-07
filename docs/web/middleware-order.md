@@ -24,10 +24,10 @@ flowchart TD
         Forwarded["UseForwardedHeaders"] --> Hosts["UseHostFiltering"] --> Https["UseHttpsRedirection"] --> Hsts["UseHsts"]
     end
     subgraph Shaping["Exception boundary and request shaping"]
-        Errors["UseErrorHandling"] --> Pages["UseStatusCodePages"] --> Cookies["UseCookiePolicy"] --> Compress["UseResponseCompression"] --> Decompress["UseRequestDecompression"] --> Static["UseStaticFiles"] --> Authn["UseAuthentication"] --> Sessions["UseSessions"]
+        Errors["UseErrorHandling"] --> Pages["UseStatusCodePages"] --> Rewrite["UseRewrite"] --> Cookies["UseCookiePolicy"] --> Compress["UseResponseCompression"] --> Decompress["UseRequestDecompression"] --> Static["UseStaticFiles"] --> Authn["UseAuthentication"] --> Sessions["UseSessions"]
     end
     subgraph Policy["Endpoint policy: reads the endpoint UseRouting published"]
-        Routing["UseRouting"] --> Cors["UseCors"] --> Authz["UseAuthorization"] --> Timeouts["UseRequestTimeouts"] --> Limits["UseRateLimiting"] --> Forms["UseForms"] --> Csrf["UseAntiforgery"] --> Cache["UseOutputCache"] --> Endpoint["Endpoint, run by the pipeline terminal"]
+        Routing["UseRouting"] --> Cors["UseCors"] --> Authz["UseAuthorization"] --> Timeouts["UseRequestTimeouts"] --> Limits["UseRateLimiting"] --> Forms["UseForms"] --> Csrf["UseAntiforgery"] --> Cache["UseOutputCache"] --> Sockets["UseWebSockets"] --> Endpoint["Endpoint, run by the pipeline terminal"]
     end
     Headers --> Forwarded
     Hsts --> Errors
@@ -44,20 +44,22 @@ flowchart TD
 | 6 | `UseHsts` | [Web.HttpsPolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-httpspolicy/index.md) | Ahead of the exception boundary, so the header survives a reset error response. |
 | 7 | `UseErrorHandling` | [Web.ErrorHandling](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | The exception boundary: a fault anywhere after it becomes a problem-details response. See [the CORS trade-off](#the-cors-trade-off). |
 | 8 | `UseStatusCodePages` | [Web.ErrorHandling](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | Inside the boundary and ahead of the middleware whose bodyless `4xx`/`5xx` responses it fills in, including the `404` and `405` from routing. |
-| 9 | `UseCookiePolicy` | [Web.CookiePolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Ahead of every middleware that writes a cookie: sessions, the authentication cookie, antiforgery. Its `Secure` decision reads the effective scheme. |
-| 10 | `UseResponseCompression` | [Web.Compression](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Here when the application does not use output caching. With `UseOutputCache` it moves after the cache (row 22). |
-| 11 | `UseRequestDecompression` | [Web.Compression](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Ahead of every middleware that reads the request body. |
-| 12 | `UseStaticFiles` | [Web.StaticFiles](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Ahead of `UseRouting`, so an existing file is served without routing or authentication. |
-| 13 | `UseAuthentication` | [Web.Authentication](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication/index.md) | Anywhere ahead of `UseAuthorization`. In this position, branches and middleware ahead of routing also see `context.User`. |
-| 14 | `UseSessions` | [Web.Sessions](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | After `UseCookiePolicy`, which applies the policy to the session cookie. The session loads on first use, so a request that never touches it costs nothing. |
-| 15 | `UseRouting` | [Web.Routing](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Publishes the matched endpoint and calls `next`; the pipeline terminal runs the endpoint. Every middleware after it can read the endpoint. |
-| 16 | `UseCors` | [Web.Cors](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Ahead of every middleware that can reject a preflight. A preflight carries no credentials, so authorization would answer it `401`, a rate limit `429` and antiforgery `400`. |
-| 17 | `UseAuthorization` | [Web.Authorization](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | After authentication, and ahead of output caching so an unauthorized request is never served from the cache. |
-| 18 | `UseRequestTimeouts` | [Web.RequestTimeouts](../dotnet-apis/resources/web/assimalign-cohesion-web-requesttimeouts/index.md) | Ahead of the work it bounds. The rate limiter waits for a permit on the request's cancellation token, so a timeout here also cuts off a request still queued for a permit. |
-| 19 | `UseRateLimiting` | [Web.RateLimiting](../dotnet-apis/resources/web/assimalign-cohesion-web-ratelimiting/index.md) | Ahead of the expensive middleware, so excess requests are rejected before any body is read or token decrypted. |
-| 20 | `UseForms` | [Web.Forms](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Optional, because it parses every request. It goes after the limits, so rejected requests are never parsed, and ahead of `UseAntiforgery`, which reuses the parsed form. |
-| 21 | `UseAntiforgery` | [Web.Antiforgery](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md) | After the limits, and inside the timeout so its form read is bounded. |
-| 22 | `UseOutputCache` | [Web.Caching](../dotnet-apis/resources/web/assimalign-cohesion-web-caching/index.md) | After authorization. `UseResponseCompression` comes right after it, so the cache stores and replays the compressed bytes. |
+| 9 | `UseRewrite` | [Web.Rewrite](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ahead of everything that reads the path (static files, routing, the endpoint), so they all see the rewritten URL; middleware ahead of it, and the server's request telemetry, keep the client's. Inside the boundary and after status-code pages, so a fault in a rule becomes a problem-details response and its `400` gets a body. After `UseForwardedHeaders` and `UseHostFiltering`, so its canonicalization redirects read the client's scheme and a validated host. Inside it, register redirects ahead of internal rewrites. |
+| 10 | `UseCookiePolicy` | [Web.CookiePolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Ahead of every middleware that writes a cookie: sessions, the authentication cookie, antiforgery. Its `Secure` decision reads the effective scheme. |
+| 11 | `UseResponseCompression` | [Web.Compression](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Here when the application does not use output caching. With `UseOutputCache` it moves after the cache (row 23). |
+| 12 | `UseRequestDecompression` | [Web.Compression](../dotnet-apis/resources/web/assimalign-cohesion-web-compression/index.md) | Ahead of every middleware that reads the request body. |
+| 13 | `UseStaticFiles` | [Web.StaticFiles](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Ahead of `UseRouting`, so an existing file is served without routing or authentication. |
+| 14 | `UseAuthentication` | [Web.Authentication](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication/index.md) | Anywhere ahead of `UseAuthorization`. In this position, branches and middleware ahead of routing also see `context.User`. |
+| 15 | `UseSessions` | [Web.Sessions](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | After `UseCookiePolicy`, which applies the policy to the session cookie. The session loads on first use, so a request that never touches it costs nothing. |
+| 16 | `UseRouting` | [Web.Routing](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Publishes the matched endpoint and calls `next`; the pipeline terminal runs the endpoint. Every middleware after it can read the endpoint. |
+| 17 | `UseCors` | [Web.Cors](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Ahead of every middleware that can reject a preflight. A preflight carries no credentials, so authorization would answer it `401`, a rate limit `429` and antiforgery `400`. |
+| 18 | `UseAuthorization` | [Web.Authorization](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | After authentication, and ahead of output caching so an unauthorized request is never served from the cache. |
+| 19 | `UseRequestTimeouts` | [Web.RequestTimeouts](../dotnet-apis/resources/web/assimalign-cohesion-web-requesttimeouts/index.md) | Ahead of the work it bounds. The rate limiter waits for a permit on the request's cancellation token, so a timeout here also cuts off a request still queued for a permit. |
+| 20 | `UseRateLimiting` | [Web.RateLimiting](../dotnet-apis/resources/web/assimalign-cohesion-web-ratelimiting/index.md) | Ahead of the expensive middleware, so excess requests are rejected before any body is read or token decrypted. |
+| 21 | `UseForms` | [Web.Forms](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Optional, because it parses every request. It goes after the limits, so rejected requests are never parsed, and ahead of `UseAntiforgery`, which reuses the parsed form. |
+| 22 | `UseAntiforgery` | [Web.Antiforgery](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md) | After the limits, and inside the timeout so its form read is bounded. |
+| 23 | `UseOutputCache` | [Web.Caching](../dotnet-apis/resources/web/assimalign-cohesion-web-caching/index.md) | After authorization. `UseResponseCompression` comes right after it, so the cache stores and replays the compressed bytes. Ahead of `UseWebSockets` safely: it passes every protocol switch (an `Upgrade` request, a `CONNECT`) through untouched, never answering a handshake from the cache or storing a taken-over exchange. |
+| 24 | `UseWebSockets` | [Web.WebSockets](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) | After `UseForwardedHeaders`, whose effective scheme and host its same-origin check reads, and ahead of every endpoint that accepts a socket. Last, so host filtering, authorization and rate limiting apply to a handshake first; it refuses a cross-site or malformed handshake before the endpoint runs. Map socket endpoints with `MapWebSocket`, which routes the HTTP/1.1 `GET` and the HTTP/2 and HTTP/3 `CONNECT` handshakes alike (a `MapGet` socket fails over HTTP/2) and applies the default policy itself when this middleware is absent. A request timeout cancels a socket's endpoint when it fires, so WebSocket endpoints disable it (`DisableRequestTimeout()`). |
 
 ## The order in code
 
@@ -85,10 +87,12 @@ using Assimalign.Cohesion.Web.Hosting;
 using Assimalign.Cohesion.Web.HttpsPolicy;
 using Assimalign.Cohesion.Web.RateLimiting;
 using Assimalign.Cohesion.Web.RequestTimeouts;
+using Assimalign.Cohesion.Web.Rewrite;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.SecurityHeaders;
 using Assimalign.Cohesion.Web.Sessions;
 using Assimalign.Cohesion.Web.StaticFiles;
+using Assimalign.Cohesion.Web.WebSockets;
 
 // app is the built WebApplication; loggerFactory is the application's composed ILoggerFactory.
 app.UseHttpLogging(loggerFactory);
@@ -103,6 +107,7 @@ app.UseHttpsRedirection();
 app.UseHsts();
 app.UseErrorHandling();
 app.UseStatusCodePages();
+app.UseRewrite(rules => rules.AddRewrite("^/legacy/(.*)$", "/$1"));
 app.UseCookiePolicy();
 app.UseRequestDecompression();
 app.UseStaticFiles();
@@ -116,7 +121,8 @@ app.UseRateLimiting();
 app.UseForms();
 app.UseAntiforgery();
 app.UseOutputCache();
-app.UseResponseCompression();   // row 10 instead when the application does not cache
+app.UseResponseCompression();   // row 11 instead when the application does not cache
+app.UseWebSockets();
 ```
 
 ## What fails closed, and what does not

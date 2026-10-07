@@ -19,8 +19,10 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 - **[Server and TLS](server.md)** — Listeners, HTTPS with ALPN, client certificates, configuration keys, graceful shutdown, and diagnostics.
 - **[Observability](observability.md)** — Request spans, HTTP server metrics, the request id, and how to subscribe to them.
 - **[Routing](routing.md)** — Route matching, precedence, groups, metadata, and generated links.
+- **[URL rewriting](rewrite.md)** — Rewrite and redirect rules, canonical URLs, the request view, and where `UseRewrite` goes.
 - **[Endpoints and responses](endpoints.md)** — Typed parameter binding, return values, validation, file uploads, and errors.
 - **[OpenAPI](openapi.md)** — Serving an OpenAPI document generated from endpoint metadata, and describing endpoints for it.
+- **[WebSockets](websockets.md)** — Socket endpoints on HTTP/1.1, HTTP/2 and HTTP/3, the origin policy, keep-alive, compression, and the drain close.
 - **[Middleware](middleware.md)** — Feature families, composition order, and incomplete surfaces.
 - **[Middleware order](middleware-order.md)** — The registration order for every Web middleware and the reason for each position.
 - **[Testing](testing.md)** — In-memory protocol tests and real `Program.cs` execution.
@@ -35,7 +37,9 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
 | [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation. |
+| [`Assimalign.Cohesion.Web.Rewrite`](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ordered rewrite and redirect rules ahead of routing, the request view and `IWebRewriteFeature`, and canonicalization redirects (HTTPS, `www`, trailing slash, lowercase). |
 | [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, source-generated typed-delegate binding (uploaded files included), returned values, `COHWEB` compile errors, and endpoint-description metadata with its description verbs. |
+| [`Assimalign.Cohesion.Web.WebSockets`](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) | `MapWebSocket` endpoints for every handshake shape (`GET` on HTTP/1.1, extended `CONNECT` on HTTP/2 and HTTP/3) and the `UseWebSockets` policy: the cross-site origin check, keep-alive and compression defaults, and the `1001` drain close. |
 | [`Assimalign.Cohesion.Web.Serialization`](../dotnet-apis/resources/web/assimalign-cohesion-web-serialization/index.md) | Media-type-keyed request readers and response writers, and the read-only JSON contract lookup describers use. |
 | [`Assimalign.Cohesion.Web.OpenApi`](../dotnet-apis/resources/web/assimalign-cohesion-web-openapi/index.md) | OpenAPI 3.0, 3.1 and 3.2 documents from endpoint metadata, served as JSON or YAML; a NuGet package outside the shared framework. |
 | [`Assimalign.Cohesion.Web.Validation`](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md) | Request-body validation for typed endpoints over ObjectValidation, answered with 400 and an `errors` map keyed by member path. |
