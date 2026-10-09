@@ -34,15 +34,21 @@ closing the connection.
 
 ## Upgrades, WebSockets, and trailers
 
-Every listener the default server composes gets two interceptors before any the application
-registers: the request-size limit, and the HTTP/1.1 protocol upgrade. So `context.Upgrade` and a
-WebSocket handshake work without listener configuration, a request that no handler accepts is served
-exactly as before, and an ordinary request pays only a version and header check: the upgrade
-interceptor joins the response phase of an HTTP/1.1 upgrade or `CONNECT` only. HTTP/2 and HTTP/3
-surface extended CONNECT (RFC 8441, RFC 9220) themselves: a valid one carries
-`IHttpExtendedConnectFeature`, whose `AcceptAsync` turns the stream into a duplex tunnel. WebSockets
-run over both; [WebSockets](websockets.md) covers the endpoints, the origin policy, and the drain
-close.
+Every listener the default server composes gets three interceptors before any the application
+registers: the request-size limit, the HTTP/1.1 protocol upgrade, and the HTTP/2 and HTTP/3
+extended CONNECT (RFC 8441, RFC 9220). So `context.Upgrade`, `context.ExtendedConnect`, and a
+WebSocket handshake work on every protocol without listener configuration, a request that no
+handler accepts is served exactly as before, and an ordinary request pays only a version and header
+check: each transition interceptor joins the response phase only of the exchanges that ask for a
+transition, an HTTP/1.1 upgrade or `CONNECT`, or an extended CONNECT whose `:protocol` the transport
+validated. There the extended CONNECT interceptor installs `IHttpExtendedConnectFeature`, from
+`Http.ExtendedConnect`, whose `AcceptAsync` turns the stream into a duplex tunnel. WebSockets run
+over both; [WebSockets](websockets.md) covers the endpoints, the origin policy, and the drain close.
+
+A `UseServer` callback that clears `options.Interceptors` removes the defaults, and with them
+WebSockets on every protocol: the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT,
+so browsers keep sending their handshakes that way, but nothing surfaces them. A host that clears
+the list and still serves WebSockets adds the two transition interceptors back.
 
 Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
 has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
@@ -201,9 +207,12 @@ authentication (RFC 9113 §9.2.1, §9.2.3), so there is no deferred mode.
 
 A handler reads the session as `context.TlsConnection`: `ClientCertificate`, `Protocol`,
 `CipherSuite`, and `ApplicationProtocol`, on HTTP/1.1, HTTP/2 and HTTP/3 alike, and `null` on a
-cleartext exchange. Every exchange on a connection shares the session, and the connection owns the
-certificate, so copy it to keep it beyond the exchange. Mapping a certificate to a principal under
-an authentication scheme is not provided yet.
+cleartext exchange. The accessor ships in
+[`Http.Tls`](../dotnet-apis/libraries/http/assimalign-cohesion-http-tls/index.md), an `App.Web`
+member, and builds the session on first read from the handshake facts the transport publishes on
+the exchange's connection info. Every exchange on a connection shares the session, and the
+connection owns the certificate, so copy it to keep it beyond the exchange. Mapping a certificate to
+a principal under an authentication scheme is not provided yet.
 
 ## Configuration-bound endpoints
 
@@ -360,9 +369,9 @@ Return to [Web](index.md).
 - **Runtime** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **TLS registrations** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Extensions/WebHostingExtensions.cs`.
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
-- **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpTlsConnectionFeature.cs`.
+- **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src/Abstractions/IHttpTlsConnectionFeature.cs`.
 - **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerLog.cs`.
-- **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebServerDrainFeature.cs`.
+- **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebServerDrainFeature.cs`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
 - **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md`.

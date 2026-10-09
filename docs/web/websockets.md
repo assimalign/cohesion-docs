@@ -10,8 +10,8 @@ owns the opening handshake and hands the socket to the .NET runtime's RFC 6455 i
 endpoint works with an ordinary `System.Net.WebSockets.WebSocket`;
 [`Web.WebSockets`](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) maps the
 endpoints and applies the policy a browser-facing server needs. Nothing has to be registered on the
-listeners: the default server installs the HTTP/1.1 upgrade interceptor, and HTTP/2 and HTTP/3
-surface extended CONNECT on their own.
+listeners: the default server installs the HTTP/1.1 upgrade interceptor and the HTTP/2 and HTTP/3
+extended CONNECT interceptor.
 
 ## Map a socket endpoint
 
@@ -181,7 +181,10 @@ gets no drain close. See [Graceful shutdown](server.md#graceful-shutdown).
 The same endpoint and the same policy serve every protocol. Over HTTP/2 and HTTP/3 the handshake is
 an extended CONNECT whose `:protocol` is `websocket`: the transports advertise
 `SETTINGS_ENABLE_CONNECT_PROTOCOL`, so a browser on an HTTP/2 connection opens its socket there
-rather than on a separate HTTP/1.1 connection. The success response is `200` with no
+rather than on a separate HTTP/1.1 connection. The handshake reaches `context.WebSockets` through
+the extended CONNECT interceptor the default server installs. A host that clears its listener's
+interceptors still advertises the setting, but `IsWebSocketRequest` then reads `false` and the
+request is served as an ordinary `CONNECT`. The success response is `200` with no
 `Sec-WebSocket-Accept`, a `426` carries no `Upgrade` or `Connection` field (both protocols prohibit
 them), and the socket's frames travel in the stream's `DATA` frames. During a drain, the server also
 sends `GOAWAY`, which stops new streams and leaves an open socket's stream to finish its close
@@ -212,9 +215,9 @@ Code that serves the exchange itself reads `context.WebSockets`: `IsWebSocketReq
 the `400` or `426` a refused handshake gets. Such code has to be reached by both handshake methods.
 Under `UseWebSockets` it is guarded too: the middleware refuses a cross-site or malformed handshake
 before the code runs, and decorates the feature, so every accept takes the policy's defaults and the
-drain close. On a bare HTTP/1.1 listener outside the Web host, register
-`HttpProtocolUpgrade.CreateInterceptor()` on the listener and check `Origin` before accepting a
-socket that serves browsers.
+drain close. On a bare listener outside the Web host, register the interceptors yourself,
+`HttpProtocolUpgrade.CreateInterceptor()` for HTTP/1.1 and `HttpExtendedConnect.CreateInterceptor()`
+for HTTP/2 and HTTP/3, and check `Origin` before accepting a socket that serves browsers.
 
 For the server's listeners, TLS and shutdown, see [Server and TLS](server.md). Return to
 [Web](index.md).
@@ -223,6 +226,7 @@ For the server's listeners, TLS and shutdown, see [Server and TLS](server.md). R
 
 - **Packages** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/DESIGN.md`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/DESIGN.md`.
 - **Verbs and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketEndpointExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/WebSocketOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src/HttpWebSocketAcceptOptions.cs`.
+- **Default interceptors** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs`.
 - **Decision record** — `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 1).
 - **Tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndpointTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndToEndTests.cs`.
 - **NativeAOT guard** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.

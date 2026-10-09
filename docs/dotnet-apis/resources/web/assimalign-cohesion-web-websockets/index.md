@@ -45,8 +45,8 @@ this package is the policy a browser-facing server needs around them.
 - **`Assimalign.Cohesion.Http`** — the protocol core.
 
 It references nothing in the hosting family (`COHRES001`, `COHRES004`): the drain signal reaches it
-through the Web root's feature contract. The package, `Http.WebSockets` and `Http.ProtocolUpgrade`
-are members of the `App.Web` shared framework.
+through the Web root's feature contract. The package, `Http.WebSockets`, `Http.ProtocolUpgrade` and
+`Http.ExtendedConnect` are members of the `App.Web` shared framework.
 
 ## Usage
 
