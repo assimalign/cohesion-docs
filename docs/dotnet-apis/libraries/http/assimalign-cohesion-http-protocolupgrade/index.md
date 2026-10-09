@@ -25,7 +25,9 @@ capability on `IHttpContext`, wired entirely through the server transport's inte
 WebSockets are the main consumer: `context.WebSockets`
 ([`Assimalign.Cohesion.Http.WebSockets`](../assimalign-cohesion-http-websockets/index.md)) validates
 the RFC 6455 handshake, answers with `Sec-WebSocket-Accept`, and accepts through this upgrade. HTTP/2
-and HTTP/3 removed `Upgrade`; their bootstrap is the extended CONNECT the transport surfaces itself.
+and HTTP/3 removed `Upgrade`; their bootstrap is extended CONNECT, which
+[`Assimalign.Cohesion.Http.ExtendedConnect`](../assimalign-cohesion-http-extendedconnect/index.md)'s
+interceptor surfaces.
 
 The Web host (`Web.Hosting`) registers the interceptor on every listener by default, after the
 request-size interceptor, so a WebSocket handshake works with no listener configuration. The

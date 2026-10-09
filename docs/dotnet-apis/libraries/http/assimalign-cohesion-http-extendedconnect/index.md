@@ -24,11 +24,31 @@ another protocol, most often WebSocket, over its one stream.
 - **Accept** the exchange as a duplex tunnel: a `200` response head, then raw octets in both
   directions over the exchange's stream.
 
-The accessors read the `IHttpExtendedConnectFeature` the HTTP/2 and HTTP/3 transports
-(`Assimalign.Cohesion.Http.Connections`) install on every valid extended CONNECT, so they return the
-same instance on every read, and an ordinary exchange, any HTTP/1.1 exchange included, reads `null`.
-The contract and its `AcceptAsync` live in the core, `Assimalign.Cohesion.Http` (#1316); this package
-keeps the accessors. Neither it nor the transport references the other.
+The package owns the `IHttpExtendedConnectFeature` contract and the exchange interceptor that
+installs it (#1368). On an HTTP/2 or HTTP/3 extended CONNECT the transport validated, the
+interceptor installs the feature and binds it to the transport's exchange control, whose
+`AcceptTunnelAsync` commits the `200` and returns the tunnel. The accessors are plain feature reads,
+so they return the same instance on every read, and an ordinary exchange, any HTTP/1.1 exchange
+included, reads `null`.
+
+## Registration
+
+The feature is installed by an exchange interceptor, so register it on the listener:
+
+```csharp
+using Assimalign.Cohesion.Http;
+using Assimalign.Cohesion.Http.Connections;
+
+HttpConnectionListenerOptions options = new();
+options.Interceptors.Add(HttpExtendedConnect.CreateInterceptor());
+```
+
+The Web host (`Assimalign.Cohesion.Web.Hosting`) registers it by default. Without it, an extended
+CONNECT reaches the application as an ordinary `CONNECT` and `context.ExtendedConnect` is `null`,
+although the HTTP/2 and HTTP/3 transports still advertise extended CONNECT to clients. An ordinary
+exchange pays one null check and the interceptor's no-op body hooks, and the interceptor allocates
+nothing for it. On a listener with no other request-scoped interceptor, registering it does make the
+transport build its per-exchange request-parse context (see the [design](design.md#the-interceptor)).
 
 ## Usage
 
@@ -63,16 +83,20 @@ HTTP/1.1.
 |---|---|
 | [`Assimalign.Cohesion.Http`](../../http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
 
-The package is a member of the `App.Web` shared framework.
+The core supplies the interceptor seam, the validated `:protocol` on the request context, and the
+exchange control's `AcceptTunnelAsync`. The HTTP/2 and HTTP/3 transports
+(`Assimalign.Cohesion.Http.Connections`) validate extended CONNECT and implement the tunnel accept on
+their exchange controls; this package's interceptor wraps it into the feature. Neither references the
+other. The package is a member of the `App.Web` shared framework, and a private runtime member of
+every area framework that carries `Web.Hosting`.
 
 ## Principal public types
 
 | Type | Source file |
 |---|---|
+| `HttpExtendedConnect` | `src/HttpExtendedConnect.cs` |
 | `HttpExtendedConnectExtensions` | `src/Extensions/HttpExtendedConnectExtensions.cs` |
-
-`IHttpExtendedConnectFeature` is declared in the core, in
-`cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExtendedConnectFeature.cs`.
+| `IHttpExtendedConnectFeature` | `src/Abstractions/IHttpExtendedConnectFeature.cs` |
 
 ## Sources
 
@@ -88,8 +112,12 @@ The package is a member of the `App.Web` shared framework.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src`.
 
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs`.
+
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/Extensions/HttpExtendedConnectExtensions.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExtendedConnectFeature.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/Abstractions/IHttpExtendedConnectFeature.cs`.
 
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.
+
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.

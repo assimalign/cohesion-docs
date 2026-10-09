@@ -145,26 +145,56 @@ handshake knows which failure it was, so it decides.
 
 ## The TLS session on every exchange
 
-Every exchange that arrived over TLS carries the core's `IHttpTlsConnectionFeature`: the client
-certificate, the TLS protocol version, the cipher suite, and the application protocol ALPN
-selected. The transport does not run TLS, so it copies these from the connection that did, through
-`ITlsConnectionInfo`; a connection that does not implement it (cleartext, or secured by a layer that
-does not report its handshake) gives its exchanges no feature.
+Every exchange that arrived over TLS has a connection info that also implements the contracts
+library's `ITlsConnectionInfo`: the client certificate, the TLS protocol version, the cipher suite,
+and the application protocol ALPN selected. The transport does not run TLS, so it copies these from
+the connection that did, through that same interface; a connection that does not implement it
+(cleartext, or secured by a layer that does not report its handshake) gives its exchanges a plain
+`HttpConnectionInfo`.
 
-| Version | Source of the session |
+| Version | Source of the handshake facts |
 |---|---|
 | HTTP/1.1, HTTP/2 | the accepted `IConnection`, which the TLS layer secured |
 | HTTP/3 | the accepted `IMultiplexedConnection`: QUIC's own TLS 1.3 handshake (RFC 9001) |
 
-The internal `HttpTlsConnectionFeature` is built once per connection when its context opens and set
-on each exchange as the exchange is produced: after the request-parse interceptors have run and
-before the response interceptors' `BeforeResponse`, so response hooks and middleware see it and
-request-parse hooks do not. One immutable instance serves all of a connection's exchanges, which is
-safe for concurrent HTTP/2 and HTTP/3 streams. It is not disposable, because an exchange's disposal
-walk disposes the disposable features it carries and the session outlives every exchange: the
-certificate belongs to the connection, which disposes it when it is disposed. The session is fixed
-at the handshake; there is no renegotiation or post-handshake client authentication, which HTTP/2
-forbids anyway (RFC 9113 §9.2.1, §9.2.3).
+The transport installs no HTTP TLS feature. It depends only on `Assimalign.Cohesion.Connections`
+and core Http, and references neither the TLS layer nor the HTTP TLS feature package
+(`Assimalign.Cohesion.Http.Tls`). Applications read the session as `context.TlsConnection` from
+`Http.Tls`, which builds its `IHttpTlsConnectionFeature` from this facet on first read. Code that
+needs only the raw facts reads `context.ConnectionInfo is ITlsConnectionInfo`.
+
+**Where it is published.** The internal `HttpTlsConnectionInfo` derives from `HttpConnectionInfo`
+and implements `ITlsConnectionInfo`. `HttpTlsConnectionInfo.Create` returns it when the accepted
+connection reports a handshake and a plain `HttpConnectionInfo` otherwise, and it is called wherever
+the transport builds a connection info:
+
+- **HTTP/1.1 and HTTP/2** build one when the connection context opens
+  (`HttpStreamConnectionContext`). Every exchange on the connection shares it.
+- **HTTP/3** builds one per request stream, because each carries the stream's endpoints. The facet's
+  values come from the multiplexed connection, captured once when `Http3ConnectionContext` opens.
+
+The same instance goes to the request-parse interceptors' context, the exchange, and the response
+interceptors' context. Request-parse hooks therefore see the session from `AfterRequestHead`
+onward, through their context's `ConnectionInfo`. When the transport attached a feature instead,
+those hooks could not see it, because they run before the exchange exists.
+
+**Why a facet and not a feature.** Core Http holds base contracts only, and a concern-specific
+feature lives in its own package (owner decision 20, 2026-10-09). The transport could install a
+feature only by referencing the package that declares it. `Http.Connections` is a member of every
+area's framework, so that reference would add the package to 18 framework lists, and it would make
+the transport reference a feature package. A facet needs neither: the contracts library already
+declares `ITlsConnectionInfo`, and the transport already references it. The per-exchange
+`Features.Set` the transport used to make is gone too, so an exchange that never reads the session
+pays nothing for it.
+
+**Sharing and ownership.** The snapshot is immutable, which is safe for concurrent HTTP/2 and HTTP/3
+streams. It copies the four values and never references the connection that ran the handshake:
+`QuicMultiplexedConnection` is public, and a handler that could cast the connection info back to it
+could open streams. The certificate is the connection's own instance, which the connection disposes
+when it is disposed, so code that keeps it beyond the exchange copies it. A context wrapper that
+returns a new connection info object hides the facet; the shipped wrappers forward the inner
+context's object. The session is fixed at the handshake; there is no renegotiation or
+post-handshake client authentication, which HTTP/2 forbids anyway (RFC 9113 §9.2.1, §9.2.3).
 
 ## Response interceptors per exchange: the fast path
 
@@ -177,9 +207,12 @@ added ones, each once) and builds the sink and control only when that list is no
 protocol-upgrade interceptor `Web.Hosting` installs by default, which declares the request scope and
 joins the response phase only of an HTTP/1.1 upgrade or `CONNECT`, costs an ordinary exchange
 nothing on any version. While that interceptor declared both scopes, every exchange on every version
-built a sink, an exchange control and a response context for it; the transport's tests now pin the
-fast path for an ordinary request on all three versions and for an HTTP/2 and HTTP/3 extended
-CONNECT.
+built a sink, an exchange control and a response context for it. The extended CONNECT interceptor
+the Web host also installs by default follows the same pattern and joins only an HTTP/2 or HTTP/3
+extended CONNECT (see [the tunnel](#extended-connect-the-tunnel)).
+`HttpExchangeResponseInterceptorTests` pins the fast path for an ordinary request on all three
+versions under the Web host's three default interceptors, and pins that an HTTP/2 and HTTP/3
+extended CONNECT joins the response phase.
 
 ## Trailers on HTTP/2 and HTTP/3
 
@@ -327,7 +360,7 @@ decoded (#1321). In order:
 | Rule | Applies to | Failure |
 | --- | --- | --- |
 | No pseudo-header field repeats (§8.3) | every request | stream `PROTOCOL_ERROR` |
-| `:protocol` only on CONNECT, which then carries `:scheme`, `:path` and `:authority` (RFC 8441 §4) | a request with `:protocol` | connection `PROTOCOL_ERROR` |
+| `:protocol` is not empty, appears only on CONNECT, and that CONNECT then carries `:scheme`, `:path` and `:authority` (RFC 8441 §4, RFC 9110 §5.6.2) | a request with `:protocol` | stream `PROTOCOL_ERROR` |
 | A `:path` that is present is not empty (§8.3.1) | every request | stream `PROTOCOL_ERROR` |
 | `:method` is present (§8.3.1) | every request | stream `PROTOCOL_ERROR` |
 | `:scheme` and `:path` are present (§8.3.1) | every request but a classic CONNECT (§8.5) | stream `PROTOCOL_ERROR` |
@@ -425,21 +458,85 @@ receive token into the source behind `RequestCancelled`.
 
 Extended CONNECT (RFC 8441 for HTTP/2, RFC 9220 for HTTP/3) lets a client run another protocol —
 most commonly WebSocket — over one stream by sending a `CONNECT` that also carries `:protocol`. The
-transport validates it and installs the core's `IHttpExtendedConnectFeature` at dispatch, so
-response interceptors and the application see it from the start; ordinary requests and a classic
-`CONNECT` carry none. The feature used to travel as a `:protocol` string under an `IHttpContext.Items`
-key; a string cannot carry an accept call, so that bridge is gone (#1316). `AcceptAsync` turns the
-exchange's stream into a duplex tunnel (RFC 8441 §5, RFC 9220 §3). The sequence shows a tunnel's
-life from the request to the end of the exchange.
+transport recognizes and validates it, and lets the application accept the stream as a duplex
+tunnel, which is what WebSockets on HTTP/2 and HTTP/3 run over (the Http area's ADR 1).
+
+**A mechanism on the exchange control, a feature in a package.** The transport installs no extended
+CONNECT feature and references no feature package. It offers two generic seam members from the core
+(the core's [extended CONNECT seam](../assimalign-cohesion-http/design.md#the-extended-connect-seam);
+owner decision 20, #1368):
+
+- **The validated `:protocol`.** Once a head passes validation, the decoded `:protocol` rides the
+  request head (`TransportHttpRequestHead.Protocol`), and `HttpRequestInterceptorPipeline` hands it
+  to the request-parse hooks as `HttpExchangeInterceptorRequestContext.Protocol`. It is `null` on
+  every other request, HTTP/1.1 included. `Http2Context` and `Http3Context` keep it as
+  `ExtendedConnectProtocol`.
+- **The tunnel accept.** `Http2ExchangeControl` and `Http3ExchangeControl` implement
+  `IHttpExchangeControl.CanAcceptTunnel` and `AcceptTunnelAsync` for an exchange that carries a
+  `:protocol`. `Http1ExchangeControl` reports `false` and refuses: an HTTP/1.1 `CONNECT` takes the
+  connection over through `TakeOver` instead.
+
+`Assimalign.Cohesion.Http.ExtendedConnect` turns them into `IHttpExtendedConnectFeature`: its
+interceptor installs the feature when a head hook sees `Protocol`, adds itself to that exchange's
+response phase, and binds the feature to the control in `BeforeResponse`, before the application
+observes the exchange. The `context.ExtendedConnect` / `context.IsExtendedConnect` accessors read it.
+Without that interceptor on the listener, an extended CONNECT reaches the application as an ordinary
+`CONNECT`. Joining the response phase gives an extended CONNECT exchange the raw response body sink
+and the exchange control; that is the price of one WebSocket handshake, and an ordinary exchange
+keeps the [fast path](#response-interceptors-per-exchange-the-fast-path). Recognition, validation,
+and the `IsExtendedConnect` / `ValidateExtendedConnect` rules are shared between HTTP/2 and HTTP/3
+through `HttpFieldNormalization`, so both versions behave identically. A classic `CONNECT` (no
+`:protocol`) has no `Protocol` and cannot accept a tunnel.
+
+**Deterministic validation (RFC 8441 §4, RFC 9220).**
+
+- A **present but empty** `:protocol` is malformed on every method. A protocol name is a token,
+  `1*tchar` (RFC 9110 §5.6.2), so `""` names no protocol (#1369). Only an absent field means "not an
+  extended CONNECT"; before #1369 an empty value passed as absent, and on a `GET` the exchange
+  controls then reported `CanAcceptTunnel`.
+- `:protocol` on a **non-CONNECT** request is malformed.
+- An extended CONNECT (CONNECT + `:protocol`) MUST also carry `:scheme`, `:path`, and `:authority`;
+  a missing one is malformed.
+- `:protocol` MUST NOT appear more than once.
+
+A violation fails deterministically — never a silent downgrade. It is a malformed request, so both
+versions reset only the offending stream and keep serving the connection: HTTP/2 with
+`RST_STREAM(PROTOCOL_ERROR)` (RFC 9113 §8.1.1, as for the other pseudo-header rules; until #1369 it
+closed the connection with `GOAWAY(PROTOCOL_ERROR)`), HTTP/3 with `H3_MESSAGE_ERROR` (RFC 9114
+§4.1.2). As defense in depth the exchange controls do not trust the head alone: they decide at
+dispatch, through `HttpFieldNormalization.IsExtendedConnect`, that the exchange is a `CONNECT` with
+a non-empty `:protocol`. For anything else `CanAcceptTunnel` is `false` and `AcceptTunnelAsync`
+refuses it as not an extended CONNECT.
+
+**Advertising is unconditional.** HTTP/2 advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` in its
+initial SETTINGS (RFC 8441 §3), and HTTP/3 sends the same setting in the SETTINGS frame on the
+server's own control stream, a unidirectional stream it opens (RFC 9220 §3), whether or not the
+listener registered the extended CONNECT interceptor. A listener without it still receives extended CONNECT requests,
+validates them, and surfaces them as ordinary `CONNECT` requests with no `context.ExtendedConnect`,
+so a WebSocket over HTTP/2 or HTTP/3 cannot be accepted there. The Web host registers the
+interceptor by default.
+
+**The tunnel.** `AcceptTunnelAsync` turns the exchange's stream into a duplex tunnel (RFC 8441 §5,
+RFC 9220 §3). The accept rules both versions share live in `HttpExtendedConnectRules` (the refusals
+and the `200` head) and `HttpExtendedConnectStream`; `Http2ExchangeControl` and
+`Http3ExchangeControl` run the accept, and the `Http2ConnectionContext` / `Http3ConnectionContext`
+partials (`*.ExtendedConnect.cs`) and the per-version tunnel streams do the wire work. The sequence
+shows a tunnel's life from the request to the end of the exchange.
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant Transport
+    participant Ext as Http.ExtendedConnect interceptor
     participant App as Application
     Client->>Transport: HEADERS CONNECT + :protocol, stream left open
+    Transport->>Ext: AfterRequestHead (Protocol = websocket)
+    Ext->>Transport: install the feature, join the response phase
+    Transport->>Ext: BeforeResponse (exchange control)
+    Ext->>Ext: bind the feature to the control
     Transport->>App: exchange carrying IHttpExtendedConnectFeature
-    App->>Transport: AcceptAsync
+    App->>Ext: AcceptAsync
+    Ext->>Transport: AcceptTunnelAsync
     Transport->>Client: HEADERS :status 200, stream left open
     Client->>Transport: DATA
     Transport->>App: tunnel read
@@ -451,10 +548,15 @@ sequenceDiagram
     Transport->>Client: RST_STREAM NO_ERROR or STOP_SENDING if still sending
 ```
 
-- **Accepting** works at most once, never after the final response started and never on a cancelled
-  exchange (`InvalidOperationException`), and never on a stream already gone (`IOException`). The
-  head is a `200` with the headers the application set, minus `Content-Length` and the
-  connection-specific fields; it gets no `Alt-Svc` advertisement.
+- **Accepting.** The guards run in a fixed order before anything is written: at most once (the
+  attempt latches even when a later guard refuses it), never on a cancelled exchange, never after
+  the final response started — each an `InvalidOperationException` — and never on a stream already
+  gone (HTTP/2 reset; HTTP/3 reset or connection closed), an `IOException`. An exchange that is not
+  an extended CONNECT is refused first, without latching. Then the head is prepared, the HTTP/2
+  stream's final response is claimed, the final response is marked started, the tunnel is
+  registered, the head is written, and the head is marked committed. The head is a `200` with the
+  headers the application set, minus `Content-Length` and the connection-specific fields; it gets
+  no `Alt-Svc` advertisement.
 - **Takeover.** Accepting registers the tunnel before the head is written, so the exchange reports a
   takeover: the raw response sink refuses to commit a head, `SendAsync` finalizes the tunnel instead
   of writing the application's response, and the interceptors' response-head and after-response

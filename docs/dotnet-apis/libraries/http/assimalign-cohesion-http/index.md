@@ -18,19 +18,25 @@ Headers and trailers are distinct ordered field sections using compatible collec
 Optional concerns attach through feature and interceptor seams rather than widening the protocol
 root. The core remains independent of hosting and resource platforms.
 
-`IHttpTlsConnectionFeature` tells a handler how the connection its exchange arrived on is secured:
-the client certificate (`null` when the client presented none), the TLS protocol version, the
-cipher suite, and the application protocol ALPN selected. The server transport
-(`Assimalign.Cohesion.Http.Connections`) attaches it to every exchange that arrived over TLS —
-HTTP/1.1 and HTTP/2 over the TLS layer, HTTP/3 over QUIC — and attaches none to a cleartext
-exchange. Code reads it as `context.TlsConnection` (`HttpTlsConnectionExtensions`). The values
-belong to the connection, so every exchange on it carries the same instance.
+The core holds base contracts only: no transport-produced feature contract is declared here. A
+transport publishes further facts about a connection as *facets* on `IHttpConnectionInfo`:
+additional interfaces the object it hands out also implements, found with a type test. The server
+transport (`Assimalign.Cohesion.Http.Connections`) publishes what a TLS handshake negotiated as the
+Connections library's `ITlsConnectionInfo`, which `context.TlsConnection` in
+`Assimalign.Cohesion.Http.Tls` reads; `IHttpTlsConnectionFeature` and its accessor moved there
+(#1367). `HttpConnectionInfo` is unsealed so a transport can publish a facet on a subclass, and code
+that wraps an `IHttpContext` forwards the inner context's connection info rather than building a new
+object, which would hide the facets.
 
-`IHttpExtendedConnectFeature` is the HTTP/2 and HTTP/3 extended CONNECT capability (RFC 8441,
-RFC 9220): the `Protocol` a `CONNECT` with `:protocol` asked for, and `AcceptAsync`, which answers
-`200` without ending the stream and returns the stream as a duplex tunnel. The contract moved here
-from `Http.ExtendedConnect` (#1316), because the transport produces it; the transport installs it on
-every valid extended CONNECT, and `context.ExtendedConnect` still ships in `Http.ExtendedConnect`.
+For the HTTP/2 and HTTP/3 extended CONNECT (RFC 8441, RFC 9220) the core carries two generic seam
+members (#1368): `HttpExchangeInterceptorRequestContext.Protocol`, the `:protocol` the transport
+validated, and `IHttpExchangeControl.CanAcceptTunnel` / `AcceptTunnelAsync`, which answers `200`
+without ending the stream and returns the stream as a duplex tunnel. `IHttpExtendedConnectFeature`
+(`context.ExtendedConnect`) moved back to `Http.ExtendedConnect`, whose interceptor installs it.
+Adding the two control members is a source break for an `IHttpExchangeControl` implementer outside
+this repository. `HttpFieldNormalization.ValidateExtendedConnect`, which HTTP/2 and HTTP/3 share,
+treats a present but empty `:protocol` as malformed (#1369); only an absent field means the request
+is not an extended CONNECT. See the [design](design.md#the-extended-connect-seam).
 
 `Request.Trailers` and `Response.Trailers` report per exchange whether a trailer section is
 supported (`IsSupported`). The transports fill request trailers on every version (on HTTP/1.1 for a
@@ -118,11 +124,11 @@ response phase for a few exchanges keeps every other exchange on the transport's
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpEntityTagCondition.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpTlsConnectionFeature.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpConnectionInfo.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpTlsConnectionExtensions.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExchangeControl.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpExtendedConnectFeature.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpFieldNormalization.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`.
 

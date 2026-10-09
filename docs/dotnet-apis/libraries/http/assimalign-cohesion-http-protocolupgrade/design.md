@@ -49,8 +49,9 @@ exchange control only when some interceptor takes part in its response phase. De
 Web host registers this interceptor on every listener. So the interceptor declares
 `HttpInterceptorScopes.Request` and joins the response phase only of the exchange whose head asked
 for a transition. An ordinary HTTP/1.1 request, and every HTTP/2 and HTTP/3 request (including an
-extended CONNECT WebSocket, which the transport's own feature carries), costs one version check and,
-on HTTP/1.1, a method check and a `Connection` header lookup. The transport's
+extended CONNECT WebSocket, which `Http.ExtendedConnect`'s interceptor carries the same way, over the
+control's `AcceptTunnelAsync`), costs one version check and, on HTTP/1.1, a method check and a
+`Connection` header lookup. The transport's
 `HttpExchangeResponseInterceptorTests` pin the fast path on all three versions and the takeover on an
 upgrade; `Web.Hosting`'s design records the measured allocations.
 
@@ -81,7 +82,7 @@ readable from the returned stream.
   `context.Upgrade`, and hands the stream to the BCL's `WebSocket.CreateFromStream`.
 - **No client-side initiation.** Server-side accept surface only.
 - **No HTTP/2 or HTTP/3 upgrade.** Those versions removed `Upgrade`; their bootstrap is extended
-  CONNECT.
+  CONNECT ([`Assimalign.Cohesion.Http.ExtendedConnect`](../assimalign-cohesion-http-extendedconnect/index.md)).
 - **No installation by the transport.** A host registers the interceptor per listener; the Web host
   does so by default.
 

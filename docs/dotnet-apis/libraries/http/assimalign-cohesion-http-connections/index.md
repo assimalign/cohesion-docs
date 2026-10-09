@@ -20,9 +20,11 @@ concerns to attach without reverse references from the transport.
 
 One TLS listener can serve HTTP/2 and HTTP/1.1, chosen per connection through ALPN (RFC 7301):
 `HttpConnectionListenerOptions.UseHttp1AndHttp2` serves `h2` as HTTP/2 and `http/1.1`, or no ALPN
-at all, as HTTP/1.1, and closes a connection that negotiated anything else. Every exchange that
-arrived over TLS carries the core's `IHttpTlsConnectionFeature`, copied from the connection's
-`ITlsConnectionInfo`. A host stops a connection in two steps:
+at all, as HTTP/1.1, and closes a connection that negotiated anything else. Each exchange that
+arrived over TLS carries the handshake (client certificate, protocol, cipher suite, negotiated ALPN
+protocol) on its `ConnectionInfo` as the `ITlsConnectionInfo` facet, which `context.TlsConnection`
+in `Http.Tls` reads; the transport installs no TLS feature and references no feature package (see
+the [design](design.md#the-tls-session-on-every-exchange)). A host stops a connection in two steps:
 `IHttpConnectionContext.BeginGracefulClose` takes no new exchange and announces the close
 (`Connection: close`, or a `GOAWAY`) while the exchanges in flight finish, and cancelling the token
 `ReceiveAsync` is enumerated with cancels what is left. The package raises no events and has no
@@ -31,9 +33,11 @@ event source. See the [design](design.md#graceful-close-the-host-contract).
 Trailers travel on every version that can carry them: HTTP/1.1 (for a chunked request), HTTP/2 and
 HTTP/3 surface a request's trailer section on `Request.Trailers`, and HTTP/2 and HTTP/3 send
 response trailers; HTTP/1.1 sends none. HTTP/2 now decodes every field block, a trailer section
-included, so HPACK stays in step. A valid extended CONNECT carries the core's
-`IHttpExtendedConnectFeature`, whose `AcceptAsync` turns the stream into a duplex tunnel, which is
-what WebSockets on HTTP/2 and HTTP/3 run over. Stage 10 also hardened the multiplexed transports:
+included, so HPACK stays in step. A valid extended CONNECT reaches the request-parse hooks with its
+`:protocol` (`HttpExchangeInterceptorRequestContext.Protocol`), and its exchange control's
+`AcceptTunnelAsync` turns the stream into a duplex tunnel, which is what WebSockets on HTTP/2 and
+HTTP/3 run over; `Http.ExtendedConnect`'s interceptor, which `Web.Hosting` registers by default,
+wraps it as `context.ExtendedConnect` (#1368). Stage 10 also hardened the multiplexed transports:
 HTTP/2 writes every frame in one piece, a request body cut off by a reset faults instead of ending
 cleanly, HTTP/2 and HTTP/3 drop connection-specific fields from response heads, and an HTTP/3
 client's reset fires `RequestCancelled`. See the [design](design.md#trailers-on-http2-and-http3).
@@ -42,11 +46,12 @@ The transports also follow RFC 9113 and RFC 9112 more strictly. HTTP/2 decodes a
 header block before refusing it, ignores frames on a stream it reset while crediting their flow
 control, strips HEADERS padding before decoding, resets a request that lacks `:method`, `:scheme` or
 `:path` instead of serving it as `GET /`, ends the connection with `COMPRESSION_ERROR` for a block
-it cannot decompress, and resets only the stream of a malformed request head. HTTP/1.1 holds chunked
-trailers to the shared trailer rule set, answers `400` for whitespace before a field name's colon,
-an empty name, obsolete line folding, or a line without a colon, and answers a malformed chunked body
-with `400` and `Connection: close` without ever draining it. Every version skips a query parameter
-with an empty name. See the [design](design.md#http2-request-heads-rfc-9113-83).
+it cannot decompress, and resets only the stream of a malformed request head, an extended CONNECT
+whose `:protocol` is empty or misplaced included (#1369; HTTP/3 resets it with `H3_MESSAGE_ERROR`).
+HTTP/1.1 holds chunked trailers to the shared trailer rule set, answers `400` for whitespace before a
+field name's colon, an empty name, obsolete line folding, or a line without a colon, and answers a
+malformed chunked body with `400` and `Connection: close` without ever draining it. Every version
+skips a query parameter with an empty name. See the [design](design.md#http2-request-heads-rfc-9113-83).
 
 ## Dependencies
 

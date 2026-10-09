@@ -61,19 +61,21 @@ the server ends the connection (HTTP/1.1) or the stream (HTTP/2, HTTP/3) when th
 completes. To select a subprotocol, pick one of `webSockets.RequestedProtocols` (the client's offer,
 in its order of preference) and pass it as `HttpWebSocketAcceptOptions.SubProtocol`.
 
-On a bare HTTP/1.1 listener, register the protocol-upgrade interceptor yourself, and check `Origin`
-before accepting a socket that serves browsers. HTTP/2 and HTTP/3 listeners need nothing registered:
-the transport surfaces extended CONNECT itself.
+On a bare listener, register the interceptors yourself, and check `Origin` before accepting a socket
+that serves browsers: the protocol-upgrade interceptor for HTTP/1.1, and the extended CONNECT
+interceptor for HTTP/2 and HTTP/3. The Web host registers both by default; a host that clears its
+listener's interceptors loses WebSockets on the protocols whose interceptor it removed.
 
 ```csharp
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 
-// tcpListener is the IConnectionListener the HTTP/1.1 listener serves.
+// tlsListener is a TLS IConnectionListener; ALPN picks HTTP/1.1 or HTTP/2 per connection.
 HttpConnectionListener listener = HttpConnectionListener.Create(options =>
 {
-    options.UseHttp1(tcpListener);
+    options.UseHttp1AndHttp2(tlsListener);
     options.Interceptors.Add(HttpProtocolUpgrade.CreateInterceptor());
+    options.Interceptors.Add(HttpExtendedConnect.CreateInterceptor());
 });
 ```
 
@@ -87,11 +89,13 @@ alongside attacker-controlled data leaks them through the compressed size.
 |---|---|
 | [`Assimalign.Cohesion.Http`](../../http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Http.ProtocolUpgrade`](../../http/assimalign-cohesion-http-protocolupgrade/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Http.ExtendedConnect`](../../http/assimalign-cohesion-http-extendedconnect/index.md) | `CohesionProjectReference` |
 
-The core supplies `IHttpContext`, headers, and `IHttpExtendedConnectFeature`, the HTTP/2 and HTTP/3
-tunnel the handshake rides; `Http.ProtocolUpgrade` supplies the HTTP/1.1 upgrade and raw-stream
-takeover. The framing is `System.Net.WebSockets` from the shared framework, so there is no package
-dependency. The package is a member of the `App.Web` shared framework.
+The core supplies `IHttpContext`, the feature collection, and headers; `Http.ProtocolUpgrade`
+supplies the HTTP/1.1 upgrade and raw-stream takeover; `Http.ExtendedConnect` supplies
+`IHttpExtendedConnectFeature`, the HTTP/2 and HTTP/3 extended CONNECT tunnel the handshake rides. The
+framing is `System.Net.WebSockets` from the shared framework, so there is no package dependency. The
+package is a member of the `App.Web` shared framework.
 
 ## Principal public types
 
