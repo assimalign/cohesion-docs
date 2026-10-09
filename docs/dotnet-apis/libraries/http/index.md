@@ -23,6 +23,7 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http.ServerSentEvents` | Formats Server-Sent Events and writes them through HTTP response streaming. | [Overview](assimalign-cohesion-http-serversentevents/index.md) |
 | `Assimalign.Cohesion.Http.Sessions` | Defines per-exchange binary session state and typed convenience access. | [Overview](assimalign-cohesion-http-sessions/index.md) |
 | `Assimalign.Cohesion.Http.Streaming` | Writes HTTP response bodies incrementally through an optional feature. | [Overview](assimalign-cohesion-http-streaming/index.md) |
+| `Assimalign.Cohesion.Http.Tls` | Surfaces the TLS session of the connection an exchange arrived on as a feature on `IHttpContext`. | [Overview](assimalign-cohesion-http-tls/index.md) |
 | `Assimalign.Cohesion.Http.WebSockets` | Accepts server WebSockets on HTTP/1.1, HTTP/2, and HTTP/3 through their opening handshakes. | [Overview](assimalign-cohesion-http-websockets/index.md) |
 
 ## Dependencies and delivery
@@ -47,7 +48,8 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.Http.ServerSentEvents` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Streaming` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Sessions` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Streaming` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Http.WebSockets` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.ProtocolUpgrade` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.Tls` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.WebSockets` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.ProtocolUpgrade` (CohesionProjectReference), `Assimalign.Cohesion.Http.ExtendedConnect` (CohesionProjectReference) |
 
 ## Sources
 
@@ -168,6 +170,14 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src/Assimalign.Cohesion.Http.Tls.csproj`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src/Assimalign.Cohesion.Http.WebSockets.csproj`.
 

@@ -121,6 +121,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Http.Antiforgery` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.Forms` |
 | `Assimalign.Cohesion.Http.Forwarded` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
@@ -128,7 +129,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Http.Sessions` |
 | `Assimalign.Cohesion.Http.WebSockets` |
 | `Assimalign.Cohesion.ObjectValidation` |
-| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Tls` |
 | `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Http.ServerSentEvents` |
 | `Assimalign.Cohesion.Http.InterimResponses` |
