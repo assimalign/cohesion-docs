@@ -32,8 +32,10 @@ The hosting family in this area contains `Assimalign.Cohesion.LoadBalancer.Hosti
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.LoadBalancer` delivers the `Assimalign.Cohesion.App.LoadBalancer` family.
-Its reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
+Its producers, `Assimalign.Cohesion.LoadBalancer.Refs` and
+`Assimalign.Cohesion.LoadBalancer.Runtime`, declare `CohesionFrameworkName` and import
+`libraries/App/Assimalign.Cohesion.App.props`. The public and private assembly inventory is
+hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs producer imports.
 `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
 `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
@@ -51,6 +53,7 @@ Its reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
@@ -74,5 +77,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/LoadBalancer/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.LoadBalancer.Refs/src/Assimalign.Cohesion.App.LoadBalancer.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/LoadBalancer/Assimalign.Cohesion.LoadBalancer.Refs/src/Assimalign.Cohesion.LoadBalancer.Refs.csproj` and `cohesion/resources/LoadBalancer/Assimalign.Cohesion.LoadBalancer.Runtime/Directory.Build.props`.

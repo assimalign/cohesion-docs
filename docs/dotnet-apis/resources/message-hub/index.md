@@ -33,10 +33,11 @@ The hosting family in this area contains `Assimalign.Cohesion.MessageHub.Hosting
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.MessageHub` delivers the `Assimalign.Cohesion.App.MessageHub` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.MessageHub.Refs` and `Assimalign.Cohesion.MessageHub.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -52,6 +53,7 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
@@ -75,5 +77,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/MessageHub/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.MessageHub.Refs/src/Assimalign.Cohesion.App.MessageHub.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/MessageHub/Assimalign.Cohesion.MessageHub.Refs/src/Assimalign.Cohesion.MessageHub.Refs.csproj` and `cohesion/resources/MessageHub/Assimalign.Cohesion.MessageHub.Runtime/Directory.Build.props`.

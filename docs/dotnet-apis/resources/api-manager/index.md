@@ -32,10 +32,11 @@ The hosting family in this area contains `Assimalign.Cohesion.ApiManager.Hosting
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.ApiManager` delivers the `Assimalign.Cohesion.App.ApiManager` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.ApiManager.Refs` and `Assimalign.Cohesion.ApiManager.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -51,6 +52,7 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
@@ -74,5 +76,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/ApiManager/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.ApiManager.Refs/src/Assimalign.Cohesion.App.ApiManager.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/ApiManager/Assimalign.Cohesion.ApiManager.Refs/src/Assimalign.Cohesion.ApiManager.Refs.csproj` and `cohesion/resources/ApiManager/Assimalign.Cohesion.ApiManager.Runtime/Directory.Build.props`.

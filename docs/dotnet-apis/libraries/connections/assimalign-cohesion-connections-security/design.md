@@ -57,8 +57,9 @@ needs a callback.
   replaces the earlier policy. Assigning a new `AuthenticationOptions` after calling them drops the
   policy, so they are called last.
 
-Reading the certificate after the handshake is the application's job (`ITlsConnectionInfo`, and
-the HTTP transport's TLS connection feature); authenticating a user from it is out of scope here.
+Reading the certificate after the handshake is the application's job (`ITlsConnectionInfo`, and over
+HTTP `context.TlsConnection` from `Assimalign.Cohesion.Http.Tls`); authenticating a user from it is
+out of scope here.
 
 ## Handshakes on a TLS-layered listener
 

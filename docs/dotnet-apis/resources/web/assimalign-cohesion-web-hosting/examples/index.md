@@ -9,6 +9,7 @@ examples require their original test project’s dependencies and supporting obj
 
 - **[Web Application Pipeline Integration Tests](web-application-pipeline-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Protocol Upgrade Tests](web-application-protocol-upgrade-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Application Server Defaults Tests](web-application-server-defaults-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Diagnostics Tests](web-application-server-diagnostics-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Drain Tests](web-application-server-drain-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Extended Connect Tests](web-application-server-extended-connect-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.

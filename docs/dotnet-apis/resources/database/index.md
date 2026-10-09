@@ -95,10 +95,11 @@ The hosting family in this area contains `Assimalign.Cohesion.Database.Hosting`.
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.Database` delivers the `Assimalign.Cohesion.App.Database` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.Database.Refs` and `Assimalign.Cohesion.Database.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
+private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
+the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
+packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -151,6 +152,7 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Connections.Tcp` |
@@ -174,6 +176,6 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/Database/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.Database.Refs/src/Assimalign.Cohesion.App.Database.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Refs/src/Assimalign.Cohesion.Database.Refs.csproj` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Runtime/Directory.Build.props`.
 - **Architecture source** — `cohesion/docs/resources/Database/DESIGN.md`.

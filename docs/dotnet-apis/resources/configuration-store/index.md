@@ -31,10 +31,12 @@ The hosting family in this area contains `Assimalign.Cohesion.ConfigurationStore
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.ConfigurationStore` delivers the
-`Assimalign.Cohesion.App.ConfigurationStore` family. Its reference-pack project declares
-`CohesionFrameworkName` and imports `frameworks/Assimalign.Cohesion.App.props`, the public and
-private assembly inventory. `CohesionFrameworkAssembly` entries appear in the reference and runtime
-packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.App.ConfigurationStore` family. Its producers,
+`Assimalign.Cohesion.ConfigurationStore.Refs` and `Assimalign.Cohesion.ConfigurationStore.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -53,6 +55,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Connections.Tcp` |
@@ -73,5 +76,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/ConfigurationStore/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.ConfigurationStore.Refs/src/Assimalign.Cohesion.App.ConfigurationStore.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Refs/src/Assimalign.Cohesion.ConfigurationStore.Refs.csproj` and `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Runtime/Directory.Build.props`.

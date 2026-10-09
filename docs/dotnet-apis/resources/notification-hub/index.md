@@ -33,8 +33,10 @@ The hosting family in this area contains `Assimalign.Cohesion.NotificationHub.Ho
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.NotificationHub` delivers the `Assimalign.Cohesion.App.NotificationHub`
-family. Its reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
+family. Its producers, `Assimalign.Cohesion.NotificationHub.Refs` and
+`Assimalign.Cohesion.NotificationHub.Runtime`, declare `CohesionFrameworkName` and import
+`libraries/App/Assimalign.Cohesion.App.props`. The public and private assembly inventory is
+hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs producer imports.
 `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
 `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
@@ -52,6 +54,7 @@ family. Its reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
@@ -75,5 +78,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/NotificationHub/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.NotificationHub.Refs/src/Assimalign.Cohesion.App.NotificationHub.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/NotificationHub/Assimalign.Cohesion.NotificationHub.Refs/src/Assimalign.Cohesion.NotificationHub.Refs.csproj` and `cohesion/resources/NotificationHub/Assimalign.Cohesion.NotificationHub.Runtime/Directory.Build.props`.
