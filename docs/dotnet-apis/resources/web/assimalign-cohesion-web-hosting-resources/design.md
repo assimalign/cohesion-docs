@@ -16,12 +16,22 @@ The route and envelope contract matches Web.Hosting's terminal: public `/healthz
 Unknown namespaced routes are 404. Health reports preserve diagnostic values and ordinal
 contribution/endpoint ordering. HEAD suppresses bodies.
 
-Managed namespaced requests verify an ES256 JWT with the published application P-256 JWK:
-issuer/application, subject/gateway, key id, signature, required temporal claims and jti, and at
-most 24 hours from issuance to expiry. Invalid credentials are 401 with a Bearer challenge; a valid
-credential for another resource audience is 403. A missing gateway identity enables standalone
-execution. The verifier is internal and creates/disposes its cryptographic handle within each
-authenticated request; tokens rotated at reconciliation are accepted without byte-equality pinning.
+Managed namespaced requests first consult the resource's registered `IResourceCredentialVerifier`
+(`ResourceRuntime.TryGetCredentialVerifier(resourceContext)`, see the Hosting.Resources design),
+passing the `Authorization` value split into scheme and credential. A `NoResult` verdict falls
+through to the default application-key verification; any other verdict is final. The default
+verifies an ES256 JWT with the published application P-256 JWK: issuer/application,
+subject/gateway, key id, signature, required temporal claims and jti, and at most 24 hours from
+issuance to expiry. It is a thin configuration of the shared `JsonWebTokenValidator`
+(IdentityModel.Token.JsonWebToken) with `ResourceCredentialProfile` constants (Hosting.Resources);
+the JWK parsing, signature, and claim rules are no longer copied here. Either path yields a
+`ResourceCaller`, and the management plane admits only `Kind=Gateway` callers whose `Application`
+is the ambient application and whose `Subject` is the ambient gateway — for application-key tokens
+exactly the former `iss`/`sub` rule. Invalid credentials are 401 with a Bearer challenge; an
+authentic credential for another resource audience, or a caller that is not this application's
+gateway, is 403. A missing gateway identity enables standalone execution. The verifier is internal
+and creates/disposes its cryptographic handle within each authenticated request; tokens rotated at
+reconciliation are accepted without byte-equality pinning.
 
 Command discovery includes both acceptedCommandKinds and applied commands. Non-object envelopes,
 non-string/base64 payloads, and blank identity fields are 400. Unsupported kinds return 501 and
@@ -30,10 +40,13 @@ no command kinds or handlers.
 
 O35 permits the exact Web.Hosting module to consume its own hosting family under `COHRES002`.
 `COHRES001` still prevents roots and features from referencing it and prevents it from referencing
-Web.Hosting. Web.Hosting and `Database.Hosting` consume this single terminal. The Web root's
-`IWebResponseCompletionFeature` defers stop until the transport has written 202; custom servers
-without the feature retain direct stop. The executable regression compares the Web.Hosting wrapper
-through FromProgram with the direct verb, guarding both composition paths.
+Web.Hosting. Web.Hosting and `Database.Hosting` consume this single terminal.
+[Web.Server](../assimalign-cohesion-web-server/index.md)'s `IWebResponseCompletionFeature` defers
+stop until the transport has written 202; custom servers without the feature retain direct stop.
+The contract lived in the Web root until #1379 moved the server's per-exchange contracts to
+Web.Server (owner decision 33); its namespace stayed `Assimalign.Cohesion.Web`, so this package
+added a Web.Server reference and no code change. The executable regression compares the
+Web.Hosting wrapper through FromProgram with the direct verb, guarding both composition paths.
 
 `ResourceControlPlaneMiddleware` exposes `InvokeAsync` for manually composed hosts and `Validate` for
 eager identity validation. `UseResourceControlPlane` calls `Validate` before registration. Its optional
@@ -42,10 +55,10 @@ separately treats an unknown observed http/https port as disabled, so it forward
 this terminal. Web and `Database` validate managed identity at `Build` only when their control-plane
 listener is installed.
 
-Serialization uses Utf8JsonWriter and JsonDocument only. Dependencies are Web root,
-Hosting.Resources, Hosting.Health, and `IdentityModel.Token.JsonWebToken`. App.Web exposes the feature
-publicly; other areas consume its implementation privately. No ApplicationModel package enters a
-framework.
+Serialization uses Utf8JsonWriter and JsonDocument only. Dependencies are Web root, Web.Server,
+Hosting.Resources, Hosting.Health, and `IdentityModel.Token.JsonWebToken`. App.Web exposes the
+feature publicly; other areas consume its implementation privately. No ApplicationModel package
+enters a framework.
 
 Tests may reference Web.Hosting and the sample `Program`: `COHRES001`/002 skip the tests leaf via
 `_CohesionHostingRuleApplies`; `COHAM001`/`COHRES003` skip harness path segments via
@@ -64,6 +77,7 @@ flowchart LR
     WebHost["Web.Hosting"] --> Terminal["Web.Hosting.Resources"]
     DbHost["Database.Hosting"] --> Terminal
     Terminal --> Web["Web"]
+    Terminal --> Server["Web.Server"]
     Terminal --> Resources["Hosting.Resources"]
     Terminal --> Health["Hosting.Health"]
     Terminal --> JWT["IdentityModel.Token.JsonWebToken"]
@@ -74,6 +88,7 @@ flowchart LR
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |

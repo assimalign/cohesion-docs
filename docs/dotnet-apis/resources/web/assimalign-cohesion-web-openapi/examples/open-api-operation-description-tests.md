@@ -23,7 +23,8 @@ test objects.
 - **Case 9** — Operations: an endpoint requiring authorization lists its declared scheme.
 - **Case 10** — Operations: raw endpoints appear only when described, typed from their constraints.
 - **Case 11** — Operations: a QUERY endpoint is described for OpenAPI 3.2 and left out below it.
-- **Case 12** — Operations: document tags list declared tags first, then tags endpoints use.
+- **Case 12** — Operations: a route mapped for a standard method in another case is an extension method and is left out.
+- **Case 13** — Operations: document tags list declared tags first, then tags endpoints use.
 
 ## Source example
 
@@ -301,6 +302,26 @@ public class OpenApiOperationDescriptionTests
         // Assert — QUERY carries a body (RFC 10008) and exists as an operation field only from 3.2.
         line32.Paths!.Items["/orders/search"].Operations[OperationType.Query].RequestBody!.Content.Keys.ShouldBe(["application/json"]);
         line31.Paths!.Items.Keys.ShouldBe(["/ping"]);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.OpenApi] - Operations: a route mapped for a standard method in another case is an extension method and is left out")]
+    public async Task Describe_MethodInAnotherCase_ShouldBeLeftOut()
+    {
+        // Arrange — methods are case-sensitive (RFC 9110 §9.1): the route serves 'get', never GET.
+        using CancellationTokenSource cancellation = new(OpenApiTestApplication.Timeout);
+        await using WebApplicationTestFactory factory = OpenApiTestApplication.CreateFactory();
+        factory.Application.UseRouting();
+        factory.Application.Map(new Assimalign.Cohesion.Http.HttpMethod("get"), "/orders/lowercase", () => "lowercase");
+        factory.Application.MapGet("/ping", () => "pong");
+
+        using HttpClient client = factory.CreateClient();
+        using HttpResponseMessage response = await client.GetAsync("/ping", cancellation.Token);
+
+        // Act
+        OpenApiDocument document = factory.Application.GetOpenApiDescriptionProvider().GetDocument(OpenApiSpecVersion.V3_2);
+
+        // Assert
+        document.Paths!.Items.Keys.ShouldBe(["/ping"]);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.OpenApi] - Operations: document tags list declared tags first, then tags endpoints use")]

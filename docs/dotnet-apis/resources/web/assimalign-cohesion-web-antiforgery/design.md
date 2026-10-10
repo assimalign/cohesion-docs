@@ -13,8 +13,8 @@ its default protector signed with a per-process random key (issue #1057; D12 in
 `docs/programs/HTTP_WEB_PROGRAM_PLAN.md` §7.2). This package is the Web-pipeline half. It owns three
 things and nothing else:
 
-- **Registration** — `AddAntiforgery` creates the application's antiforgery service once and chooses
-  the protector it seals tokens with.
+- **Registration** — `builder.Services.AddAntiforgery(...)` creates the application's antiforgery
+  service once and chooses the protector it seals tokens with.
 - **Enforcement** — `UseAntiforgery` validates protected endpoints between `UseRouting` and the
   endpoint.
 - **Declaration** — the sealed `AntiforgeryMetadata` carrier and the `RequireAntiforgery` /
@@ -184,17 +184,27 @@ route its interceptor maps.
   middleware anyway.
 
 Application impact: a `Sdk.Web` application with `[FromForm]` endpoints must register
-`AddAntiforgery` and `UseAntiforgery` (after `UseRouting`), or opt those endpoints out. Otherwise
-their requests fail at dispatch, by design.
+`builder.Services.AddAntiforgery()` and `UseAntiforgery` (after `UseRouting`), or opt those endpoints
+out. Otherwise their requests fail at dispatch, by design.
 
 ## Registration and protector selection
 
-`AddAntiforgery` builds `HttpAntiforgeryOptions`, runs the caller's `configure`, selects the
-protector, creates the service with `HttpAntiforgery.Create(options)`, and registers it through
-`IWebApplicationBuilder.AddFeature` as an `IHttpAntiforgeryFeature`. The host seeds application
-features onto every exchange, so the render path mints with
-`context.RequireAntiforgery.GetAndStoreTokens(context)` on any route, protected or not, and with or
-without `UseAntiforgery`.
+`builder.Services.AddAntiforgery(...)` is a component integration (owner decision 34, #1380): the
+package declares `[assembly: ComponentIntegration]` over `AntiforgeryComponents.CreateFeature` in
+`src/Properties/ComponentIntegrations.cs`, and the generator projects both overloads onto
+`IServiceProviderBuilder` in the application's compilation, so the package takes no
+dependency-injection reference. `AntiforgeryComponents` is the static-factory shape because the verb
+is called bare or with an optional callback, and one overload takes the data-protection provider; it
+is `[EditorBrowsable(Never)]` and declares the package's root namespace, so the projected verb sits
+beside `UseAntiforgery`.
+
+The factory builds `HttpAntiforgeryOptions`, runs the caller's `configure`, selects the protector,
+creates the service with `HttpAntiforgery.Create(options)`, and the verb registers it as an
+`IHttpFeature` singleton (an `IHttpAntiforgeryFeature`), the only lifetime `Web.Hosting` accepts
+(decision 35). A composition surface without a container registers the factory's result through
+`IWebApplicationBuilder.AddFeature`. The host seeds application features onto every exchange, so the
+render path mints with `context.RequireAntiforgery.GetAndStoreTokens(context)` on any route,
+protected or not, and with or without `UseAntiforgery`.
 
 The protector is chosen in this order:
 
@@ -210,14 +220,21 @@ The protector is chosen in this order:
    version segment.
 3. **Otherwise** the engine's HMAC-SHA256 protector over a per-process random key. This is for
    development only: a restart invalidates every token, and instances behind a load balancer reject
-   each other's tokens. It is documented that way on `AddAntiforgery()`,
-   `HttpAntiforgeryOptions.Key`, and `IHttpAntiforgeryProtector`.
+   each other's tokens. It is documented that way on `AntiforgeryComponents.CreateFeature()` (the
+   `AddAntiforgery()` verb), `HttpAntiforgeryOptions.Key`, and `IHttpAntiforgeryProtector`.
 
 The adapter maps `DataProtectionException` — every verification and key-lifecycle failure — to
-"invalid", because the engine feeds it untrusted request input. Anything else, such as an unreadable
-key repository, is an infrastructure fault and propagates. This is the adapter
-`Security.DataProtection`'s design promised; it lives here because this package is where the Web
-application composes the two.
+"invalid", because the engine feeds it untrusted request input. That includes a key repository the
+ring cannot read while it looks for a key id the token names and the ring does not hold: the token's
+sender chooses that id, so it must not be able to turn a repository outage into a `500`. Anything
+else is an infrastructure fault and propagates, and so does an unreadable key repository while a
+token is issued. This is the adapter `Security.DataProtection`'s design promised; it lives here
+because this package is where the Web application composes the two.
+
+A forged token cannot make the ring re-read its repository on every request: an unknown key id
+reloads the ring at most once per `DataProtectionOptions.UnknownKeyReloadInterval` (default 30
+seconds), and known keys never wait on that read (#1155; see `Security.DataProtection`'s DESIGN,
+"Reloads and the unknown-key throttle").
 
 ### Why an explicit provider, not a discovered one
 
@@ -271,7 +288,8 @@ endpoint. The area's [middleware order](../../../../web/middleware-order.md) pla
 | Rejection after the response head was committed | The exchange is aborted |
 | A protected endpoint dispatched without `UseAntiforgery` having processed it | `InvalidOperationException` at dispatch |
 | `UseAntiforgery` without `AddAntiforgery` | `InvalidOperationException` when the pipeline is built |
-| Key repository unreadable, or another infrastructure fault | Propagates |
+| Key repository unreadable while the ring looks for a key id a token names | `400` `application/problem+json`, as for a forged token |
+| Key repository unreadable while a token is issued, or another infrastructure fault | Propagates |
 
 ## AOT posture
 
@@ -301,9 +319,6 @@ emitted code is a static property read inside the interceptor it already generat
   read, so one registration serves both.
 - An `OnRejected` hook, as rate limiting has, for applications that want an HTML error page rather
   than problem+json.
-- The key ring reloads its repository for every payload that names an unknown key id
-  (`KeyRing.ResolveForUnprotect`), so forged tokens can force repeated repository reads; a negative
-  cache or reload throttle belongs in `Security.DataProtection`.
 
 ## Testing
 

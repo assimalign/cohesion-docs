@@ -17,11 +17,11 @@ map in the shape binding failures already use.
 ## Scope
 
 - **`builder.Services.AddValidation(...)`** (builder time), a component integration the
-  application's compilation receives, registers a validator per model type and the application's
-  default. Validators are keyed by `typeof(T)`: `AddProfile(new CustomerProfile())` builds a
-  validator over one profile, `AddValidator(validator)` registers a configured `IValidator` for
-  every type it has a profile for, and `AddValidator<T>(validator)` names the type. No reflection is
-  involved.
+  application's compilation receives (#1380), registers a validator per model type and the
+  application's default. Validators are keyed by `typeof(T)`: `AddProfile(new CustomerProfile())`
+  builds a validator over one profile, `AddValidator(validator)` registers a configured `IValidator`
+  for every type it has a profile for, and `AddValidator<T>(validator)` names the type. No
+  reflection is involved.
 - **Typed endpoints validate their body model.** When an application references this package, the
   Web endpoint-binding generator emits a validation call into every typed endpoint that binds a
   request-body model, after all its parameters are bound and before its handler runs. A body type

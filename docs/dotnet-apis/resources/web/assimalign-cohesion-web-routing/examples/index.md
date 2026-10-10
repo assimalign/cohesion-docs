@@ -9,9 +9,11 @@ examples require their original test project’s dependencies and supporting obj
 
 - **[Endpoint Selection Tests](endpoint-selection-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 - **[Fallback Route Tests](fallback-route-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
+- **[Route Host Forwarded Tests](route-host-forwarded-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 - **[Route Pattern Parser Tests](route-pattern-parser-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 - **[Route Precedence Tests](route-precedence-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 - **[Router Convention Tests](router-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
+- **[Web Application Branching Tests](web-application-branching-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

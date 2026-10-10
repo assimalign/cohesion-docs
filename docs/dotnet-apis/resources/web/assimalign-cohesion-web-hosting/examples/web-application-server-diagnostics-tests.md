@@ -14,11 +14,12 @@ test objects.
 
 - **Case 1** — Server/Diagnostics: A bind failure is logged as Critical with its cause before startup fails.
 - **Case 2** — Server/Diagnostics: An accept-loop fault is logged as Critical.
-- **Case 3** — Server/Diagnostics: A connection fault is logged as Error with the connection's id, endpoints and protocol only.
-- **Case 4** — Server/Diagnostics: A connection the peer or the network ended is logged at Debug only.
-- **Case 5** — Server/Diagnostics: A drain the budget cut short is logged as Warning with the connections and exchanges still in flight.
-- **Case 6** — Server/Diagnostics: A connection fault on a real exchange is logged without its header values or bodies.
-- **Case 7** — Server/Diagnostics: The default server logs through the application's logger factory.
+- **Case 3** — Server/Diagnostics: A cancellation the server did not request is logged as an accept-loop fault.
+- **Case 4** — Server/Diagnostics: A connection fault is logged as Error with the connection's id, endpoints and protocol only.
+- **Case 5** — Server/Diagnostics: A connection the peer or the network ended is logged at Debug only.
+- **Case 6** — Server/Diagnostics: A drain the budget cut short is logged as Warning with the connections and exchanges still in flight.
+- **Case 7** — Server/Diagnostics: A connection fault on a real exchange is logged without its header values or bodies.
+- **Case 8** — Server/Diagnostics: The default server logs through the application's logger factory.
 
 ## Source example
 
@@ -88,6 +89,31 @@ public class WebApplicationServerDiagnosticsTests
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = CreateLoggerFactory(recorded);
         InvalidOperationException failure = new("listener faulted");
+        FakeHttpConnectionListener listener = new()
+        {
+            AcceptHandler = _ => Task.FromException<IHttpConnection>(failure),
+        };
+        WebApplicationServer server = CreateServer(new FakePipeline(), listener, loggerFactory);
+
+        // Act
+        await server.StartAsync();
+        ILoggerEntry entry = await WaitForEntryAsync(recorded, LogLevel.Critical);
+
+        // Assert
+        entry.Category.ShouldBe(WebApplicationServerLog.Category);
+        entry.Exception.ShouldBeSameAs(failure);
+
+        await server.StopAsync();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web Hosting] - Server/Diagnostics: A cancellation the server did not request is logged as an accept-loop fault")]
+    public async Task AcceptLoop_WhenTheListenerFaultsWithACancellation_ShouldLogCritical()
+    {
+        // Arrange — the listener reports a transport fault whose exception is a cancellation the server never
+        // requested (#1310). Before the fix the accept loop read it as the drain and ended without a log.
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = CreateLoggerFactory(recorded);
+        OperationCanceledException failure = new("The transport canceled its own accept.");
         FakeHttpConnectionListener listener = new()
         {
             AcceptHandler = _ => Task.FromException<IHttpConnection>(failure),

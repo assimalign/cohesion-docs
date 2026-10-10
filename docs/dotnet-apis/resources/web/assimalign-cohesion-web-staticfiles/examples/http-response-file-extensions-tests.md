@@ -16,46 +16,49 @@ test objects.
 - **Case 2** — SendFileAsync: a file should carry the validators UseStaticFiles emits for it.
 - **Case 3** — SendFileAsync: an explicit content type should replace the derived one.
 - **Case 4** — SendFileAsync: an unmapped extension should be sent as application/octet-stream.
-- **Case 5** — SendFileAsync: a current If-None-Match should respond 304 without content.
-- **Case 6** — SendFileAsync: an unchanged If-Modified-Since should respond 304.
-- **Case 7** — SendFileAsync: a stale If-Match should respond 412.
-- **Case 8** — SendFileAsync: a failed If-Unmodified-Since should respond 412.
-- **Case 9** — SendFileAsync: a matching If-None-Match on an unsafe method should respond 412.
-- **Case 10** — SendFileAsync: a single byte range should respond 206 with Content-Range.
-- **Case 11** — SendFileAsync: an unsatisfiable range should respond 416 with bytes */N.
-- **Case 12** — SendFileAsync: a multi-range request should fall back to the full 200.
-- **Case 13** — SendFileAsync: a current If-Range entity-tag should honor the range.
-- **Case 14** — SendFileAsync: a current If-Range date should honor the range.
-- **Case 15** — SendFileAsync: a stale If-Range should ignore the range and send the full 200.
-- **Case 16** — SendFileAsync: HEAD should emit the GET header section without content.
-- **Case 17** — SendFileAsync: header fields set before the call should be kept, also on a 304.
-- **Case 18** — SendFileAsync: a content type that is not a concrete media type should be rejected.
-- **Case 19** — SendFileAsync: null arguments should be rejected.
-- **Case 20** — SendFileAsync: a cancelled token should stop the content copy.
-- **Case 21** — SendFileAsync: without a token the copy should observe the exchange's cancellation.
-- **Case 22** — SendFileAsync: a mount-relative path should resolve and send the file.
-- **Case 23** — SendFileAsync: an unsafe path should respond 404 without reaching the mount.
-- **Case 24** — SendFileAsync: a path naming a directory or nothing should respond 404.
-- **Case 25** — WriteStreamAsync: a seekable stream should be sent with its length and range support.
-- **Case 26** — WriteStreamAsync: a stream should be sent as application/octet-stream by default.
-- **Case 27** — WriteStreamAsync: validators should be the caller's and never derived from the content.
-- **Case 28** — WriteStreamAsync: a matching If-None-Match should respond 304 without reading the stream.
-- **Case 29** — WriteStreamAsync: If-Modified-Since against the supplied time should respond 304.
-- **Case 30** — WriteStreamAsync: a stale If-Match should respond 412.
-- **Case 31** — WriteStreamAsync: preconditions without validators should only match the * forms.
-- **Case 32** — WriteStreamAsync: a weak entity-tag should satisfy If-None-Match but never If-Match.
-- **Case 33** — WriteStreamAsync: a single range on a seekable stream should respond 206.
-- **Case 34** — WriteStreamAsync: the representation should start at the stream's current position.
-- **Case 35** — WriteStreamAsync: an unsatisfiable range should respond 416 with bytes */N.
-- **Case 36** — WriteStreamAsync: If-Range should honor the range only for the current strong entity-tag.
-- **Case 37** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
-- **Case 38** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
-- **Case 39** — WriteStreamAsync: the stream should be left open for its owner.
-- **Case 40** — WriteStreamAsync: invalid arguments should be rejected.
-- **Case 41** — WriteStreamAsync: a cancelled token should stop the content copy.
-- **Case 42** — SendFileAsync: revalidation and ranges should round-trip over the wire.
-- **Case 43** — SendFileAsync: HEAD over the wire should return the header section and no content.
-- **Case 44** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
+- **Case 5** — SendFileAsync: a file with no extension should be sent as application/octet-stream, whatever its name.
+- **Case 6** — SendFileAsync: a mount path to a file with no extension should be sent as application/octet-stream.
+- **Case 7** — SendFileAsync: a current If-None-Match should respond 304 without content.
+- **Case 8** — SendFileAsync: an unchanged If-Modified-Since should respond 304.
+- **Case 9** — SendFileAsync: a stale If-Match should respond 412.
+- **Case 10** — SendFileAsync: a failed If-Unmodified-Since should respond 412.
+- **Case 11** — SendFileAsync: a matching If-None-Match on an unsafe method should respond 412.
+- **Case 12** — SendFileAsync: a single byte range should respond 206 with Content-Range.
+- **Case 13** — SendFileAsync: an unsatisfiable range should respond 416 with bytes */N.
+- **Case 14** — SendFileAsync: a multi-range request should fall back to the full 200.
+- **Case 15** — SendFileAsync: a current If-Range entity-tag should honor the range.
+- **Case 16** — SendFileAsync: a current If-Range date should honor the range.
+- **Case 17** — SendFileAsync: a stale If-Range should ignore the range and send the full 200.
+- **Case 18** — SendFileAsync: HEAD should emit the GET header section without content.
+- **Case 19** — SendFileAsync: header fields set before the call should be kept, also on a 304.
+- **Case 20** — SendFileAsync: a content type that is not a concrete media type should be rejected.
+- **Case 21** — SendFileAsync: null arguments should be rejected.
+- **Case 22** — SendFileAsync: a cancelled token should stop the content copy.
+- **Case 23** — SendFileAsync: without a token the copy should observe the exchange's cancellation.
+- **Case 24** — SendFileAsync: a mount-relative path should resolve and send the file.
+- **Case 25** — SendFileAsync: an unsafe path should respond 404 without reaching the mount.
+- **Case 26** — SendFileAsync: a path spelled as an 8.3 short-name alias should respond 404.
+- **Case 27** — SendFileAsync: a path naming a directory or nothing should respond 404.
+- **Case 28** — WriteStreamAsync: a seekable stream should be sent with its length and range support.
+- **Case 29** — WriteStreamAsync: a stream should be sent as application/octet-stream by default.
+- **Case 30** — WriteStreamAsync: validators should be the caller's and never derived from the content.
+- **Case 31** — WriteStreamAsync: a matching If-None-Match should respond 304 without reading the stream.
+- **Case 32** — WriteStreamAsync: If-Modified-Since against the supplied time should respond 304.
+- **Case 33** — WriteStreamAsync: a stale If-Match should respond 412.
+- **Case 34** — WriteStreamAsync: preconditions without validators should only match the * forms.
+- **Case 35** — WriteStreamAsync: a weak entity-tag should satisfy If-None-Match but never If-Match.
+- **Case 36** — WriteStreamAsync: a single range on a seekable stream should respond 206.
+- **Case 37** — WriteStreamAsync: the representation should start at the stream's current position.
+- **Case 38** — WriteStreamAsync: an unsatisfiable range should respond 416 with bytes */N.
+- **Case 39** — WriteStreamAsync: If-Range should honor the range only for the current strong entity-tag.
+- **Case 40** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
+- **Case 41** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
+- **Case 42** — WriteStreamAsync: the stream should be left open for its owner.
+- **Case 43** — WriteStreamAsync: invalid arguments should be rejected.
+- **Case 44** — WriteStreamAsync: a cancelled token should stop the content copy.
+- **Case 45** — SendFileAsync: revalidation and ranges should round-trip over the wire.
+- **Case 46** — SendFileAsync: HEAD over the wire should return the header section and no content.
+- **Case 47** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
 
 ## Source example
 
@@ -181,6 +184,36 @@ public class HttpResponseFileExtensionsTests
         context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
         Header(context, HttpHeaderKey.ContentType).ShouldBe("application/octet-stream");
         context.ReadResponseBody().ShouldBe("mystery");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a file with no extension should be sent as application/octet-stream, whatever its name")]
+    [InlineData("html")]
+    [InlineData(".json")]
+    public async Task SendFileAsync_FileWithoutExtension_ShouldServeOctetStream(string name)
+    {
+        // Arrange — a name that happens to spell a type is not that type's extension.
+        using InMemoryFileSystem site = StaticSite.Create(("uploads/" + name, "<script>alert(1)</script>"));
+
+        // Act
+        TestHttpContext context = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(GetFile(site, "uploads/" + name)));
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        Header(context, HttpHeaderKey.ContentType).ShouldBe("application/octet-stream");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a mount path to a file with no extension should be sent as application/octet-stream")]
+    public async Task SendFileAsync_PathToFileWithoutExtension_ShouldServeOctetStream()
+    {
+        // Arrange
+        using InMemoryFileSystem site = StaticSite.Create(("uploads/html", "<script>alert(1)</script>"));
+
+        // Act
+        TestHttpContext context = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(site, "uploads/html"));
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        Header(context, HttpHeaderKey.ContentType).ShouldBe("application/octet-stream");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a current If-None-Match should respond 304 without content")]
@@ -550,6 +583,22 @@ public class HttpResponseFileExtensionsTests
 
         // Act
         TestHttpContext context = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(site, path));
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        context.ReadResponseBody().ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a path spelled as an 8.3 short-name alias should respond 404")]
+    public async Task SendFileAsync_ShortNameAliasPath_ShouldRespond404()
+    {
+        // Arrange — the in-memory mount holds the alias as a real name, so only the gate can refuse
+        // it. On a volume that generates short names the same path opens upload.htmlx and would be
+        // typed text/html from the alias's ".HTM".
+        using InMemoryFileSystem site = StaticSite.Create(("uploads/UPLOAD~1.HTM", "<script>alert(1)</script>"));
+
+        // Act
+        TestHttpContext context = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(site, "uploads/UPLOAD~1.HTM"));
 
         // Assert
         context.Response.StatusCode.ShouldBe(HttpStatusCode.NotFound);

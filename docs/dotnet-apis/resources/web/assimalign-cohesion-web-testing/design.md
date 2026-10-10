@@ -132,11 +132,12 @@ for it); disposal now cancels it on both. A test that needs its requests to fini
 ## Parallel test isolation
 
 Each factory owns a private listener, dial factory, and application. Because the router builder is
-per-application state (#789 — `AddRouting` registers a per-application `IRouterFeature`, and
-`UseRouting` resolves that same feature), two factories in one process share no route tables,
-middleware, or connections. The test suite guards this end to end: two live factories with disjoint
-route maps serve their own routes and 404 each other's, sequentially and concurrently. This is what
-makes the factory safe under parallel xUnit execution — the intended usage, not an edge case.
+per-application state (#789 — `builder.Services.AddRouting()` registers a per-application
+`IRouterFeature`, and `UseRouting` resolves that same feature), two factories in one process share no
+route tables, middleware, or connections. The test suite guards this end to end: two live factories
+with disjoint route maps serve their own routes and 404 each other's, sequentially and concurrently.
+This is what makes the factory safe under parallel xUnit execution — the intended usage, not an edge
+case.
 
 `Program`-backed factories extend this guarantee to full hosts: each entry runs on its own execution
 flow under an `AsyncLocal` resource frame, so endpoints, settings, references, mounts, environment,

@@ -13,29 +13,49 @@ builder-time — nothing resolves services per request.
 **The hosting module is dependency-isolated within the Web area** (rule adopted 2026-07-10, recorded
 in `resources/Web/README.md`): no Web feature library references this package — a feature that did
 would drag the DI/configuration composition surface into every consumer — and this package
-references **no** Web feature library. It references the root `Assimalign.Cohesion.Web`
-abstractions, its own hosting family under O35, and non-Web infrastructure. Applications still see
-the whole Web family because the `App.Web` shared framework (via `Sdk.Web`) delivers every Web
-assembly; registration verbs ship with their features as `builder.Services` component
-integrations the application's compilation receives (`AddAuthentication` from
-`Web.Authentication`, with `AddCookie`/`AddJwtBearer` grafted on its builder by their handler
-packages), so this module needs no reference to them. The one sanctioned exception is `Web.Testing`, the harness
-that drives this concrete runtime.
+references exactly two Web feature libraries,
+[`Web.Routing`](../assimalign-cohesion-web-routing/index.md) and
+[`Web.Server`](../assimalign-cohesion-web-server/index.md) (#1379). It references the root
+`Assimalign.Cohesion.Web` abstractions, those two packages, its own hosting family under O35, and
+non-Web infrastructure. The rule as adopted forbade this module's references to Web features too;
+since its relaxation (COHRES002, owner decision 32 of 2026-10-09) the module may reference any Web
+library except `Web.Testing`, `Web.ApplicationModel`, the `App.Web` producers, and harnesses, and
+takes such a reference only for runtime machinery it composes itself, because each one ships in all
+18 area frameworks. The two it takes are the contracts it runs or publishes, which left the Web root
+under owner decision 33: `Web.Routing` for the pipeline terminal (`WebApplicationTerminal`) and the
+`IWebEndpointFeature.RouteTemplate` its telemetry reads, and `Web.Server` for the request id,
+response completion and drain features it installs on every exchange. Applications still see the
+whole Web family because the `App.Web` shared framework (via `Sdk.Web`) delivers every Web assembly;
+builder verbs ship with their features: feature registration is a component integration each feature
+package declares and the application's compilation projects onto `builder.Services`
+(`builder.Services.AddAuthentication(auth => auth.AddCookie())`, owner decision 34), and pipeline
+verbs extend the root `IWebApplicationPipelineBuilder` seam, so this module needs no reference to a
+feature to host it. The one sanctioned exception is `Web.Testing`, the harness that drives this
+concrete runtime.
 
 This document focuses on the piece with the most load-bearing runtime behaviour:
 `WebApplicationServer`, the default `IWebApplicationServer`. Its dispatch model and stop semantics
 are the contract the rest of the Web middleware stack builds on, so they are recorded here rather
 than left to be re-derived from the code.
 
-The Web runtime references the public response-completion contract and the shared terminal; the
-terminal depends only on the Web root within this area.
+The runtime's references within the Web area, with every arrow meaning "references":
 
 ```mermaid
 flowchart LR
     Runtime["Web.Hosting"] --> Root["Web"]
-    Runtime --> Terminal["Web.Hosting.Resources"]
-    Terminal --> Root
+    Runtime --> Routing["Web.Routing"]
+    Runtime --> Server["Web.Server"]
+    Runtime --> Resources["Web.Hosting.Resources"]
+    Routing --> Root
+    Server --> Root
+    Resources --> Root
+    Resources --> Server
 ```
+
+The runtime references the root, `Web.Routing`, `Web.Server` and its hosting family's
+`Web.Hosting.Resources`. `Web.Routing` and `Web.Server` reference only the root within the area,
+and `Web.Hosting.Resources` references the root and `Web.Server`, whose completion feature defers
+its stop route's stop.
 
 ## Design intent
 
@@ -68,7 +88,7 @@ explicit-interface shims over those registrations:
 | --- | --- |
 | `AddService(IHostService)` / `AddService(Func<WebApplicationContext, IHostService>)` | `IHostService` |
 | `IWebApplicationBuilder.AddServer(...)`, `Server.UseServer<TServer>(...)` | `IWebApplicationServer` |
-| `IWebApplicationBuilder.AddFeature(...)` | `IHttpFeature` |
+| `IWebApplicationBuilder.AddFeature(...)`, the feature packages' `builder.Services.Add<Feature>(...)` verbs | `IHttpFeature` (singleton only) |
 | `AddHealthCheck(name, check)` | `IHealthContributor` |
 
 A value becomes an instance registration, which stays owned by its caller; a
@@ -203,12 +223,12 @@ longer delays the streams behind it.
   `SETTINGS_MAX_CONCURRENT_STREAMS` (`Http2Limits.MaxStreamsPerConnection`, default
   100) with `RST_STREAM(REFUSED_STREAM)`, and HTTP/3 peers cannot open request
   streams beyond the QUIC stream credit (`QuicConnectionListenerOptions.MaxBidirectionalStreamCount`,
-  default 100). One gap remains in the HTTP/2 transport: a peer `RST_STREAM` frees the
-  stream's slot immediately (`Http2ConnectionContext.ProcessRstStreamFrameAsync`),
-  while an application that ignores `RequestCancelled` keeps its task running. The
-  rapid-reset flood guard (`MaxResetStreamsPerWindow`) bounds the rate at which such
-  tasks can accumulate; counting a reset stream against the limit until its
-  application task completes, as Kestrel does, is transport work.
+  default 100). A reset does not reopen the gap on HTTP/2: since #1072 a reset stream,
+  whether the peer or the transport reset it, keeps its slot until its exchange ends,
+  which is when this server's `SendAsync` for it returns or its disposal runs, so an
+  application that ignores `RequestCancelled` still occupies one slot per task (see
+  the transport's `docs/DESIGN.md`, "A reset stream keeps its slot until its exchange
+  ends").
 - **The connection waits for its streams.** `MultiplexedExchangeTracker` is a
   countdown, not a task set: it starts at one (the receive loop's hold), rises as each
   stream starts, falls as each finishes, and the loop gives up its hold when it stops
@@ -258,7 +278,8 @@ how its pipeline ended:
 | Pipeline outcome | Finalization | On the wire |
 | --- | --- | --- |
 | Returned | `SendAsync` | the application's response |
-| Threw, response not started | the staged status, headers, and body are replaced by a bodyless `500`, then `SendAsync` | `500 Internal Server Error` |
+| Returned, but the transport refused a field of its response (#1183) | as for a throw before the response started | `500 Internal Server Error` |
+| Threw, response not started | the staged status, headers, trailers, and body are replaced by a bodyless `500`, then `SendAsync` | `500 Internal Server Error` |
 | Threw after the response started, or the exchange was cancelled | `IHttpContext.CancelAsync`, then `SendAsync` | a reset: HTTP/2 `RST_STREAM(CANCEL)`, HTTP/3 stream abort, HTTP/1.1 no further bytes and a connection that ends after the exchange |
 
 - **Cancelled, not faulted.** An `OperationCanceledException` counts as a cancellation
@@ -274,6 +295,16 @@ how its pipeline ended:
   probe `Http.Connections` exposes for exactly this decision; the runtime module takes
   no dependency on `Http.Streaming`, which would also have to enter every area
   framework that privately carries this module.
+- **A refused response is a fault (#1183).** Every transport refuses a response field
+  whose name is not a token or whose value holds CR, LF, NUL, or another control
+  character, before it writes any of the head: a value reflected from the request would
+  otherwise split an HTTP/1.1 response (CWE-113). `SendAsync` then throws an
+  `HttpException` with `HttpErrorCode.InvalidResponseField` and the response has not
+  started, so the server treats the exchange as faulted: the bodyless `500` replaces the
+  refused response, its completion callbacks do not run, and an HTTP/1.1 connection stays
+  usable. The same refusal from a streamed write, an early hint, or a protocol upgrade's
+  accept surfaces inside the pipeline and is a fault there. A refused trailer section on a
+  response already streamed cannot be replaced; the transport resets that stream itself.
 - **The replacement `500` swaps the body rather than truncating it.** A seekable body
   the application supplied may be a file it owns, so the staged body is replaced with a
   fresh empty one and disposed, never `SetLength(0)`-ed. If the response object itself
@@ -299,8 +330,32 @@ connection, so an HTTP/1.1 client saw a dropped connection instead of a status. 
 `500` on a connection that stays usable for keep-alive, the same as Kestrel. The transport still
 decides reuse: if the faulted handler left a request body that cannot be drained within the limits,
 the connection closes after the `500`. A post-dispatch body-limit violation (`413` or `408` raised
-from the body read) surfaces as an exception whose status only the transport knows, so it is
-answered with `500` until the transport exposes that status.
+from the body read) faults the pipeline like any exception, and the server stages its `500`. The
+HTTP/1.1 transport latched the limit when it threw, so its `SendAsync` answers `413` or `408` with
+`Connection: close` in place of the unstarted `500`, sets the exchange's status to match, and
+closes the connection (#1339); a malformed body gets `400` the same way (#1333). No `500` reaches
+the client. HTTP/2 and HTTP/3 answer an over-cap body with `413`, and a body below the minimum data
+rate with `408` (#1085), on their own stream, and they too set the exchange's status to the one they
+answered with, so the server's telemetry reports that status rather than the `500` it staged.
+
+**A client fault is not an application fault (#1340).** The read above throws an
+`InvalidDataException` or an `IOException`, and so does a read the client cuts short by closing the
+connection before the body is complete (an `EndOfStreamException`, which the HTTP/1.1 transport also
+answers `400`, RFC 9112 §8). Before #1340 everything in the pipeline that observed it treated it as
+an application defect: the HTTP logging middleware logged it at `Error`, the exception boundary ran
+`OnException` and rendered a `500` problem, and the request decompression middleware relabeled a
+framing failure under its decoders as malformed content. Any client could trigger that at will. The
+server now publishes the transport's report, `IHttpExchangeControl.ClientFaultStatusCode`, as
+`IWebClientFaultFeature` ([`Web.Server`](../assimalign-cohesion-web-server/index.md)), which those
+consumers read; see [Default interceptors](#default-interceptors) for how it is installed. The
+server's own finalization needs no change: it still stages its `500`, the transport still replaces
+it, and the exchange's telemetry reads the status the transport set, so the span and the duration
+carry `http.response.status_code` `400`, `413` or `408`, no `error.type`, and an unset span status
+(`WebServerTelemetryTests` pins it). The faulted pipeline is otherwise handled as before, since it
+is the application's code that did not catch the read's exception. The one place the server reads
+the feature itself is its telemetry, for a fault after the response started: the transport's status
+can no longer replace that response, so the exchange is reset, and its `error.type` is
+`client_fault` rather than `unhandled_exception` (see "Outcomes and `error.type`").
 
 Catching bare `Exception` at each of these points is a deliberate, documented departure from the
 "catch specific exceptions" rule. This is a **fault-isolation boundary around arbitrary user code**
@@ -353,12 +408,12 @@ same way as the rest.
 `Draining` also reaches the exchanges themselves. A graceful close ends a connection after its
 exchanges finish, but a long-lived exchange — a WebSocket, a server-sent event stream — would finish
 only when the budget cuts it off, without a close of its own. So the server installs one shared
-`IWebServerDrainFeature` (a Web-root contract, `Internal/WebServerDrainFeature`) on every exchange
-beside the response-completion feature, before the pipeline runs; its token is `Draining`. A
-long-lived exchange registers on it and ends its own work while the budget lasts: `UseWebSockets`
-(Web.WebSockets) closes each open socket with `1001 Going Away` (decision 16, the Http area's ADR 1).
-Firing it cancels nothing; an exchange that ignores it is cancelled only when the budget runs out,
-like any other. The token is captured once, so it stays readable after the stop disposes its
+`IWebServerDrainFeature` (a `Web.Server` contract, `Internal/WebServerDrainFeature`) on every
+exchange beside the response-completion feature, before the pipeline runs; its token is `Draining`.
+A long-lived exchange registers on it and ends its own work while the budget lasts: `UseWebSockets`
+(Web.WebSockets) closes each open socket with `1001 Going Away` (decision 16, the Http area's ADR
+1). Firing it cancels nothing; an exchange that ignores it is cancelled only when the budget runs
+out, like any other. The token is captured once, so it stays readable after the stop disposes its
 sources.
 
 The stop runs in order:
@@ -537,10 +592,11 @@ requires.
 `QUERY`, which are exactly the methods `HttpMethod` canonicalizes. The convention requires a way to
 replace it, because a valid extension method would otherwise always report `_OTHER`.
 `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` (comma-separated, case-sensitive, a full replacement) is
-read once per process, as the source and meter are process-wide. The HTTP stack upper-cases method
-tokens when it parses a request, so entries should be upper case. For the same reason the original
-casing of a known method is not available, and `http.request.method_original` is set only for
-`_OTHER`.
+read once per process, as the source and meter are process-wide. Methods are case-sensitive
+(RFC 9110 §9.1, #1301): the HTTP stack keeps the token as the client sent it, so a lower-case `get`
+is an unknown method, reported as `_OTHER` with `http.request.method_original` = `get`. A method is
+known only when it matches a list entry exactly, so its original never differs from
+`http.request.method`, and `http.request.method_original` is set only for `_OTHER`.
 
 **Outcomes and `error.type`.** The server reports how it finalized the exchange; the exception
 itself stays with the error boundary, which does not keep it, and with the hosting logs (#147).
@@ -548,15 +604,33 @@ itself stays with the error boundary, which does not keep it, and with the hosti
 | How the exchange ended | `http.response.status_code` | `error.type` |
 | --- | --- | --- |
 | A response was sent with a status below 500 | the status | none |
+| The request body broke its framing or a limit while it was read, or the client cut it short, and the HTTP/1.1 transport answered it in place of the staged response (#1333, #1339, #1340) | the transport's `400`, `413`, `408` or `431`, which it also sets on the exchange | none |
+| The request body fell below the minimum data rate while it was read, and the HTTP/2 or HTTP/3 transport answered its stream with `408` before the server's replacement `500` (#1085) | `408`, which the transport also sets on the exchange | none |
 | A response was sent with a 5xx status, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | The exchange was cancelled (a peer reset or closed connection, the server stopping, `IHttpContext.Cancel`) and reset | only when a streamed response had started | `request_canceled` |
+| The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset (#1340) | only when the response had started | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
 | The response could not be put on the wire (a body or lifecycle hook threw, the write was cut off) | none: the transport marks the head committed before it writes it, so whether it went out is unknown | `response_send_failed` |
 
-**How `http.route` reaches the span.** `Web.Hosting` may not reference `Web.Routing` (COHRES002),
-so the template travels through the root's `IWebEndpointFeature`, which already carries the
-selected endpoint to the pipeline terminal. Its default member `RouteTemplate` is `null`; routing's
-matched route returns its template with a leading `/` (Web.Routing DESIGN,
+**A client fault after the response started (#1340).** An endpoint that starts a streamed response
+and then reads a malformed, over-limit or cut-short body throws after its response started, so the
+transport's status cannot replace it and the server resets the exchange. Before, that was
+`unhandled_exception`, while the HTTP access log recorded the same exchange as a client fault at its
+configured level; any client could raise it on such an endpoint. `WebExchangeTelemetry.Stop` now
+reads `IWebClientFaultFeature` for a faulted exchange and reports `client_fault`, so
+`unhandled_exception` means the application's own defect again. It reads the feature only when the
+exchange is instrumented and faulted, so the fast path pays nothing. The span status stays `Error`,
+as for `request_canceled`: the reset cut off a response whose status (usually a `2xx`) is not how
+the exchange ended, and the semantic convention sets `Error` on a `1xx`–`3xx` span that ended in
+another error. The `4xx`-is-unset rule covers a `4xx` that was sent, which is the case where the
+transport's status replaced the staged response (the table's second row).
+
+**How `http.route` reaches the span.** The template travels through `IWebEndpointFeature`, which
+already carries the selected endpoint to the pipeline terminal. When this was designed COHRES002
+forbade a `Web.Routing` reference, so the contract sat in the Web root; since #1379 it is
+`Web.Routing`'s, and this module references `Web.Routing` to read it (owner decisions 32 and 33).
+The reference adds no telemetry code to routing. Its default member `RouteTemplate` is `null`;
+routing's matched route returns its template with a leading `/` (Web.Routing DESIGN,
 "[The route template the server's telemetry reports](../assimalign-cohesion-web-routing/design.md#the-route-template-the-servers-telemetry-reports-1064)").
 The server reads it once, when it stops the exchange's telemetry, and only when a span or the
 duration is being recorded. Rejected:
@@ -687,9 +761,11 @@ described in that library's DESIGN ("NativeAOT compatibility checks").
 
 ## Application feature seeding
 
-`IWebApplicationBuilder.AddFeature` registers `IHttpFeature` singletons (routing's per-application
-`IRouterFeature` is the canonical example), but a feature is only useful once it is present on each
-exchange's `IHttpContext.Features` collection. That bridging happens when the pipeline is built:
+`IWebApplicationBuilder.AddFeature` and the feature packages' `builder.Services.Add<Feature>(...)`
+verbs register `IHttpFeature` singletons (routing's per-application `IRouterFeature`, from
+`builder.Services.AddRouting()`, is the canonical example), but a feature is only useful once it is
+present on each exchange's `IHttpContext.Features` collection. That bridging happens when the
+pipeline is built:
 `WebApplication`'s pipeline `Build()` resolves the registered features **once** and, when any
 exist, wraps the composed pipeline in a seeding middleware that stamps each feature onto every
 exchange before any user middleware runs.
@@ -706,23 +782,185 @@ Two deliberate properties:
   only its own DI-registered features, which is half of the process-wide isolation
   story (#789's per-application router state is the other half).
 
+### Feature registrations are singletons (owner decision 35, #1380)
+
+Seeding stamps one snapshot of the `IHttpFeature` aggregate onto every exchange, and
+composition-time readers (`UseRouting`, `UseAntiforgery`, the OpenAPI document) resolve the same
+aggregate from the root provider. A feature therefore has exactly one lawful shape, an
+`IHttpFeature` singleton, and the module enforces it where it can see each violation; every error
+names the registration:
+
+| Check | Where | Rejects | Why |
+| --- | --- | --- | --- |
+| Lifetime | `WebApplicationBuilder.Build`, before `MakeReadOnly` | an `IHttpFeature` registration that is scoped or transient | One scoped item makes the whole aggregate unresolvable from the root ("scoped from root" at host start); a transient one hands each reader its own instance, so routes mapped into one router are served by another |
+| Contract | `WebApplicationBuilder.Build`, before `MakeReadOnly` | a registration whose service type derives from `IHttpFeature` but is not `IHttpFeature` | It never joins the aggregate, so it is never stamped |
+| Disposal, descriptor | `WebApplicationBuilder.Build`, before `MakeReadOnly` | an `IHttpFeature` instance or implementation type that is `IDisposable` or `IAsyncDisposable` (`AddFeature(instance)`, every static-factory verb, `AddSingleton<IHttpFeature, T>()`) | The exchange disposes the disposable features it carries at teardown, so the shared instance would be disposed after its first request |
+| Disposal, factory product | the pipeline build, where the aggregate is resolved | a feature a factory registration produced that is `IDisposable` or `IAsyncDisposable` (the builder-template verbs, `AddFeature(factory)`) | The same; the product exists only once the factory runs |
+
+The provider's own `ValidateOnBuild` sees none of these: this module registers factories and
+instances, whose implied lifetimes and products it does not inspect. The `Build` checks run before
+`Build` adds its own registrations, so a rejected build leaves the builder as its caller composed
+it. A factory registration's product exists only when it is resolved, so its disposal check runs at
+the pipeline build, which still fails host start before any request. Decision 35 reads "at `Build`"
+for all three rejections; the factory-product case is the one place the check cannot run there.
+Request-scoped services for handlers are a separate, future decision: a lazily created scope owned
+by the server, for a separate service type, never a looser `IHttpFeature` lifetime. A measured
+analysis found no performance or functional gain in scoped or transient features (plan §7.4,
+decision 35).
+
+How a registration reaches an exchange, and where each check stops it:
+
+```mermaid
+flowchart TD
+    Verb["A builder.Services registration verb, or IWebApplicationBuilder.AddFeature"] --> Descriptor["IHttpFeature descriptor in builder.Services"]
+    Descriptor --> Build{"WebApplicationBuilder.Build: singleton, typed IHttpFeature, instance or type not disposable?"}
+    Build -->|"no"| BuildError["InvalidOperationException naming the registration and its builder.Services index"]
+    Build -->|"yes"| Provider["MakeReadOnly, then the provider"]
+    Provider --> Snapshot{"Pipeline build: any factory product disposable?"}
+    Snapshot -->|"yes"| StartError["InvalidOperationException naming the feature; start fails"]
+    Snapshot -->|"no"| Stamp["Stamped onto every exchange"]
+```
+
+`WebApplicationFeatureRegistrationTests`
+([example](examples/web-application-feature-registration-tests.md)) pins each check.
+
 **The pipeline is built before any service starts (#1051).** `WebApplication.OnStartingAsync`
 resolves the servers, and with them the pipeline and every middleware factory, so a composition
 failure such as an invalid route table fails `StartAsync` with nothing to roll back and leaves the
 host `Failed`. `ExecuteAsync` runs no middleware for a token that is already cancelled; middleware
 observe cancellation through `RequestCancelled`.
 
+### Sizing each exchange's feature collection (owner decision 36, #1381)
+
+Stamping used to grow each exchange's feature collection. Its dictionary starts with three slots
+and grows to 7, 17 and 37, copying into a new array each time, and that growth was nearly all of
+the stamping cost. The default server now tells the transport how many features an exchange
+carries, through the transport's generic `HttpConnectionListenerOptions.ExchangeFeatureCapacity`.
+The transport sizes every exchange's collection for that many features when it creates it. The
+transport learns a number, not which features this module installs (owner decision 20).
+
+The count is the application features the pipeline stamps plus
+`WebApplicationServerBuilder.HostFeatureCount`, the four features every exchange of the default
+server carries:
+
+| Feature | Installed by |
+| --- | --- |
+| `IHttpMaxRequestBodySizeFeature` | the first default interceptor, while the request is parsed |
+| `IWebRequestIdFeature` | the server's exchange telemetry, before the pipeline runs |
+| `IWebResponseCompletionFeature` | the server, before the pipeline runs |
+| `IWebServerDrainFeature` | the server, before the pipeline runs |
+
+- The pipeline build records how many features it stamps
+  (`WebApplicationContext.StampedFeatureCount`). The default server resolves the pipeline before it
+  composes the listener, so the count is known. A pipeline passed to `AddPipeline` stamps none, so
+  the count is the host's four.
+- The count is set before user `UseServer` configurations run, as the default interceptors are, so
+  a configuration sees it and can add to it. After the last configuration the server rounds the
+  result up (see "Rounding" below) and hands that to the listener.
+- `WebApplicationExchangeFeatureCapacityTests`
+  ([example](examples/web-application-exchange-feature-capacity-tests.md)) pins the count. A plain
+  request on HTTP/1.1 and HTTP/2 carries exactly as many features as are counted, so the test fails
+  if the server starts installing another feature on every exchange without counting it.
+
+#### What the count leaves out
+
+The count covers only what the host knows every exchange carries. Middleware install features as an
+exchange passes through them, and in an ordinary application those sit on most exchanges:
+
+- **Routing** installs one feature on every matched request. `RouteMatchFeature` implements both
+  `IRouteMatchFeature` and `IWebEndpointFeature` under the one name `IWebEndpointFeature`, so it
+  takes one slot; a 405 takes the same slot with `MethodNotAllowedEndpointFeature`. In a routed
+  application a matched request is the ordinary exchange. A `Map` branch also installs
+  `IWebPathBaseFeature` on each request that enters it.
+- **One feature on every exchange that passes through:** `UseForwardedHeaders`,
+  `UseResponseCompression` (not on a `HEAD`, nor over HTTPS unless `EnableForHttps` is set),
+  `UseSecurityHeaders`, `UseRequestTimeouts`, `UseRateLimiting`, `UseSessions`, `UseOutputCache`
+  and `UseForms`.
+- **Up to two:** `UseAuthentication` installs `IAuthenticationResultFeature` on every exchange when
+  a default authenticate scheme is configured, and `IAuthenticationFeature` too on each exchange
+  that authenticates. `UseCookiePolicy` installs `ICookieConsentFeature` and its
+  `IHttpResponseCookieFeature`.
+- **Only some exchanges:** the upgrade and extended CONNECT features, the client-fault feature on an
+  HTTP/1.1 request with a body (#1340), the WebSocket policy feature on a handshake, the rewrite
+  feature on a rewritten request, the exception feature on a failure, and the TLS feature built on
+  first read.
+
+The server cannot count these itself: the transport learns only a number (owner decision 20), and
+the pipeline's middleware are opaque delegates. A host adds one slot in a listener configuration for
+each feature its middleware install on an ordinary exchange, for example
+`options.ExchangeFeatureCapacity += 3` for routing, `UseResponseCompression` and
+`UseSecurityHeaders`.
+
+#### Rounding: an overflow never costs more than not presizing
+
+The dictionary rounds the size it is given up to a prime, and outgrown, it grows to the smallest
+prime at least twice its size. An unsized dictionary therefore grows through 3, 7, 17, 37, 89, 197,
+431 and 919 slots. A size between two of those grows to another size between them, and that
+overflow costs more than never presizing. Handing the transport the exact count did that whenever
+the count's prime fell between two of those sizes and the uncounted features pushed an exchange
+past it. With seven application features the count is eleven. A matched request carries a twelfth
+feature, routing's, which grows an 11-slot dictionary to 23 slots. That is 144 B more per request
+than the unsized collection, which grows through 3, 7 and 17.
+
+So after the last listener configuration the server rounds the capacity up to the smallest of those
+sizes that holds it (`WebApplicationServerBuilder.RoundExchangeFeatureCapacity`). From there an
+overflow grows exactly as an unsized dictionary does, so an exchange carrying any number of
+uncounted features never allocates more than it would without presizing. A configuration that sets
+`0` opts out, and `0` stays `0`. Rounding last matters: rounding the host's count first and letting
+a configuration add slots to it would land between the sizes again.
+
+The price is unused slots when the count falls between two sizes and nothing overflows: eight
+counted features take a 17-slot dictionary where 11 slots would do (168 B more), and twenty take 37
+where 23 would do (392 B more). Those slots are what the first uncounted feature lands in.
+
+`WebApplicationExchangeFeatureCapacityTests` pins the rounding. For a range of application feature
+counts it stamps every count from one past the host's count to twice the rounded capacity onto a
+collection sized as the server sizes it, and asserts that this allocates no more than an unsized
+collection holding the same features. Another test adds slots in a listener configuration, fills a
+real exchange to the rounded capacity on HTTP/1.1 and HTTP/2, and asserts that this allocates
+nothing.
+
+Measured with a loopback `HttpClient` in the same process, so the client's allocations are
+included, a plain `GET` through the default server allocates the bytes below (median of five rounds
+of 20,000). "Uncounted" is how many more features the terminal middleware installs on every
+exchange, standing in for routing's route match and the `Use*` features above. "Unsized" sets the
+capacity to `0`, the state before #1381; "exact" hands the transport the count unrounded, as the
+first version of this change did; "rounded" is the shipped behavior.
+
+| Application features | Uncounted | HTTP/1.1 unsized | HTTP/1.1 exact | HTTP/1.1 rounded | HTTP/2 unsized | HTTP/2 exact | HTTP/2 rounded |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | 0 | 13,056 B | 12,920 B | 12,920 B | 10,875 B | 10,725 B | 10,724 B |
+| 4 | 0 | 13,616 B | 13,064 B | 13,232 B | 11,433 B | 10,869 B | 11,036 B |
+| 8 | 0 | 13,648 B | 13,264 B | 13,265 B | 11,453 B | 11,069 B | 11,069 B |
+| 16 | 0 | 14,800 B | 13,496 B | 13,887 B | 12,622 B | 11,301 B | 11,695 B |
+| 4 | 4 | 13,648 B | 13,792 B | 13,264 B | 11,462 B | 11,595 B | 11,071 B |
+| 7 | 1 | 13,648 B | 13,792 B | 13,264 B | 11,453 B | 11,597 B | 11,068 B |
+| 16 | 1 | 14,808 B | 13,504 B | 13,895 B | 12,611 B | 11,309 B | 11,703 B |
+| 16 | 4 | 14,832 B | 14,896 B | 13,920 B | 12,637 B | 12,701 B | 11,725 B |
+
+The exact count beat not presizing until an uncounted feature overflowed it, and then it lost: seven
+application features plus a route match cost 144 B more than unsized, and sixteen plus four cost 64
+B more. Rounded, no row costs more than unsized. Rounding gives back part of the gain where the
+count falls between two sizes and nothing overflows (168 B at four application features, 391 B at
+sixteen), and it saves 528 B over the exact count on the routed seven-feature application. Sixteen
+application features with four uncounted cost 1,000 B over a featureless application on HTTP/1.1,
+where unsized they cost 1,776 B. An application with no features saves 136 B, because the host's own
+four features no longer grow the collection past three slots.
+
 ## The pipeline terminal — endpoint dispatch and the bodyless 404 fallback (#881, #1054)
 
 `WebApplication`'s pipeline `Build()` composes the innermost middleware — the terminal reached only
 when every registered middleware chained to `next`.
 
-**Endpoint dispatch (#1054).** When an endpoint-selecting middleware (`UseRouting`) published the
-root's `IWebEndpointFeature`, the terminal runs that endpoint. That is where a matched route's
-handler runs, after every middleware registered behind `UseRouting`, and where routing's 405 is
-written. The terminal reads only the root seam; it cannot see `Web.Routing` (COHRES002). The
-terminal is the root's `WebApplicationTerminal.InvokeAsync` (#1056), shared with every non-rejoining
-pipeline branch, so the application and its branches agree on what "unhandled" means.
+**Endpoint dispatch (#1054).** When an endpoint-selecting middleware (`UseRouting`) published an
+`IWebEndpointFeature`, the terminal runs that endpoint. That is where a matched route's handler
+runs, after every middleware registered behind `UseRouting`, and where routing's 405 is written. The
+terminal is `WebApplicationTerminal.InvokeAsync` (#1056), shared with every non-rejoining pipeline
+branch, so the application and its branches agree on what "unhandled" means. The terminal and the
+endpoint contract are `Web.Routing`'s since #1379
+([Web.Routing design](../assimalign-cohesion-web-routing/design.md#pipeline-branching-and-the-terminal-1056-1379));
+until then they were the Web root's, because COHRES002 forbade this module a `Web.Routing`
+reference.
 
 **The 404 fallback (#881).** With no endpoint selected, the request went unhandled. The terminal
 used to be a silent `Task.CompletedTask`, which handed the transport an empty `200` for any
@@ -732,9 +970,10 @@ non-`200` status, a written body/content type, or a redirect `Location` — is l
 
 Two deliberate properties:
 
-- **Payload-free by necessity.** The resource hosting-isolation rule (`COHRES002`)
-  forbids this runtime module from referencing the Web feature libraries, including
-  `Web.ProblemDetails`, so the terminal can only *set the status*. Turning the
+- **Payload-free.** Neither this runtime module nor `Web.Routing` references
+  `Web.ProblemDetails`: the resource hosting-isolation rule (COHRES002) forbade it when the
+  fallback was written, and since the 2026-10-09 relaxation such a reference would still ship in
+  every framework that carries this module. So the terminal can only *set the status*. Turning the
   bodyless 404 into an RFC 9457 problem+json body is the job of the opt-in
   `UseStatusCodePages()` middleware in `Web.ErrorHandling`, which the application
   composes over the top.
@@ -781,9 +1020,10 @@ Server telemetry (#1064) is pinned end to end by `WebServerTelemetryTests`, over
 transport with a real client and an `ActivityListener` and `MeterListener` subscribed by name
 (`TestObjects/TelemetryRecorder`): one server span per request, parented to the caller's
 `traceparent` and current while the pipeline runs; the attributes and the span name, a routed
-request's `http.route` (through real `Web.Routing`, a test-only reference); every outcome in the
-`error.type` table; `_OTHER`; one span per HTTP/2 stream; an ambient activity at server start that
-must not parent requests; the duration and the active-request count; the request id with and
+request's `http.route` (through real `Web.Routing`); every outcome in the `error.type` table;
+`_OTHER`, including a lower-case `get` written raw and reported with its original case; one span per
+HTTP/2 stream; an ambient activity at server start that must not parent requests; the duration and
+the active-request count; the request id with and
 without a span; and no activity at all without a listener. Listeners are process-wide, so the class
 runs in the non-parallel `TelemetryCollection`.
 
@@ -805,7 +1045,14 @@ by behavior) and by `WebApplicationProtocolUpgradeTests` over a real loopback co
 nobody accepts is served as an ordinary `200`, and an accepted one answers `101` and hands the
 handler the raw connection. The default extended CONNECT interceptor is pinned by the same defaults
 suite (slot 2, by behavior) and by `WebApplicationServerExtendedConnectTests`, a WebSocket echo over
-a real HTTP/2 extended CONNECT.
+a real HTTP/2 extended CONNECT. The client-fault interceptor (#1340) is pinned by the defaults suite
+(slot 3, by behavior: it joins the response phase only for an HTTP/1.1 request that declares a body,
+and its feature reads the control on each access) and by `WebApplicationServerClientFaultTests`
+([example](examples/web-application-server-client-fault-tests.md)) over a raw in-memory connection:
+a malformed chunked body and a body over the cap are reported to the pipeline as the `400` and `413`
+the transport sends, a well-formed body reports nothing, and a plain `GET` carries no feature.
+`WebServerTelemetryTests` pins that the same two faults end the span with the transport's status, no
+`error.type` and an unset status.
 
 The diagnostics (#147) are pinned by `WebApplicationServerDiagnosticsTests`, which records the
 entries through a real `LoggerFactoryBuilder`: a bind failure (`Critical`, with its cause), an
@@ -830,8 +1077,8 @@ whose response cannot be framed is logged without either, and an application bui
 - **Host filtering.** Allowed-hosts enforcement ships as the
   `Assimalign.Cohesion.Web.HostFiltering` feature package (`UseHostFiltering`,
   registered at the front of the application's pipeline). The runtime module deliberately has no
-  knowledge of it — the hosting-isolation rule forbids the reference, and
-  pipeline composition is the application's, not the host's.
+  knowledge of it — pipeline composition is the application's, not the host's (the
+  hosting-isolation rule also forbade the reference until 2026-10-09).
 The Web resource's composition root: the `WebApplicationBuilder` / `WebApplication` surface that
 wires the `Assimalign.Cohesion.Http.Connections` transport, the request pipeline, DI, logging, and
 configuration into a runnable host. Per the repo's hosting philosophy, **this is the one place DI /
@@ -856,8 +1103,9 @@ wraps the final resolved pipeline — including a pipeline supplied through
 `/cohesion/v1/livez` aliases, together with `/cohesion/v1/endpoints`, `/cohesion/v1/stop`, and
 `/cohesion/v1/commands`.
 
-The default server installs the public Web-root `IWebResponseCompletionFeature` contract with an
-internal implementation on each exchange. The stop terminal uses it to register the host shutdown
+The default server installs the public `IWebResponseCompletionFeature` contract
+([`Web.Server`](../assimalign-cohesion-web-server/index.md)) with an internal implementation on each
+exchange. The stop terminal uses it to register the host shutdown
 signal, returns `202 Accepted`, and lets the server invoke that signal only after `SendAsync` has
 written the response. This keeps the control-plane route terminal while preventing server
 cancellation from racing delivery of its own acknowledgement.
@@ -877,7 +1125,7 @@ preserves filler behavior. A known port gates all paths, including bare probes.
 
 This module consumes the plain `Hosting` lifecycle plus the opt-in `Hosting.Resources`
 runtime/control-plane and `Hosting.Health` contribution contracts. It never references
-`Web.ApplicationModel` or `Web.Health`, preserving `COHRES002`. The no-argument and options overloads
+`Web.ApplicationModel` (a COHRES002 exclusion) or `Web.Health`. The no-argument and options overloads
 remain plain applications: they install no control-plane terminal, so the ordinary bodyless-404
 fallback handles those paths.
 
@@ -935,6 +1183,7 @@ Kestrel-section parity:
   "Limits": {
     "MaxConcurrentConnections": 1000,
     "MaxRequestLineSize": 8192,
+    "MaxChunkFramingLineSize": 8192,
     "MaxRequestBodySize": 30000000,
     "KeepAliveTimeout": "00:02:10",
     "RequestHeadersTimeout": "00:00:30",
@@ -960,7 +1209,20 @@ overloads:
 
 The HTTP/1.1 wire-format keys have no HTTP/2 or HTTP/3 meaning. HTTP/3's stream and flow-control
 bounds belong to the QUIC transport, and its one HTTP/3-specific limit
-(`Http3Limits.MaxRequestHeadersFrameSize`) is not bound yet.
+(`Http3Limits.MaxRequestHeadersFrameSize`) is not bound yet. The shared timeouts take effect on
+every version: HTTP/2 and HTTP/3 enforce `KeepAliveTimeout` and `RequestHeadersTimeout` as HTTP/1.1
+does (#1085; the transport's DESIGN, "HTTP/2 and HTTP/3 connection timeouts and data rates").
+
+The same change puts the default minimum request-body data rate on every HTTP/2 and HTTP/3
+endpoint, as HTTP/1.1 already had it: 240 octets per second after a 5-second grace period, from the
+first body read. No `Limits` key binds `MinRequestBodyDataRate` (or `MinResponseDataRate`) on any
+version, so an endpoint bound from configuration keeps the default. An endpoint registered in code
+can change it through the HTTP options callback of `UseHttp1s`, `UseHttp2s`, `UseHttps` or
+`UseHttp3`, for example `http2 => http2.Limits.MinRequestBodyDataRate = null`. There is no
+per-request override: a request body that legitimately idles, such as a client-streaming call,
+fails with `408` (or a stream reset once the response has started) when an idle gap outlasts its
+allowance, about 5 seconds plus 1 second per 240 octets already received. Before #1085 such a body
+was served on HTTP/2 and HTTP/3.
 
 `Limits:MaxConcurrentConnections` is not an endpoint limit: it caps the default server (see
 "Concurrency cap (`MaxConcurrentConnections`)"). The binder hands it to the server builder, and a
@@ -1085,7 +1347,7 @@ certificate files load through the BCL's `X509Certificate2.CreateFromPemFile` /
 
 When the web host composes the `HttpConnectionListener`, it installs the default interceptors
 **before** any user `UseServer` configuration runs
-(`WebApplicationServerBuilder.ApplyDefaultInterceptors`). There are three, in this order:
+(`WebApplicationServerBuilder.ApplyDefaultInterceptors`). There are four, in this order:
 
 1. `Http.RequestLimits`' max-request-body-size interceptor (request scope), in slot 0, described
    below.
@@ -1098,6 +1360,11 @@ When the web host composes the `HttpConnectionListener`, it installs the default
    extended CONNECT (RFC 8441, RFC 9220) as `context.ExtendedConnect`, bound to the exchange
    control's `AcceptTunnelAsync`, so a WebSocket handshake works on every HTTP/2 and HTTP/3 listener
    too. A request no application accepts is served exactly as before.
+4. `WebClientFaultInterceptor`, internal to this module (#1340, owner decision 28). It publishes
+   the exchange control's client-fault report (`IHttpExchangeControl.ClientFaultStatusCode`) as
+   `IWebClientFaultFeature`, so the pipeline can tell a malformed or over-limit request body from
+   an application defect. The feature reads the control on each access, because the transport
+   latches the status while the pipeline runs.
 
 `Web.Hosting` references `Http.ProtocolUpgrade` and `Http.ExtendedConnect` for this, references
 outside the Web area (COHRES002 is about same-area references); both are private members of every
@@ -1121,13 +1388,34 @@ comparison, the upgrade interceptor cost 12,912 B and 10,125 B when it still sat
 response phase (measured against 12,552 B and 9,840 B without it, before it moved to the request
 scope).
 
+The client-fault interceptor follows the same rule with a wider condition. Only an exchange whose
+body is read after dispatch can fault that way, so it joins the response phase of an HTTP/1.1
+request that declares a body (a `Transfer-Encoding`, or a `Content-Length` other than zero, RFC 9112
+§6) and installs the feature there. Its head hook allocates nothing, so a request without a body (a
+plain `GET`) keeps the fast path and carries no feature. `HostFeatureCount` stays four because the
+feature is not on every exchange; when it overflows the rounded capacity, the collection grows as an
+unsized one would (see "Rounding: an overflow never costs more than not presizing"), so it never
+costs more than not presizing. That is not spare room: the rounding leaves a free slot only when the
+count falls between two growth sizes, and a count already on one (three stamped application
+features make seven) is full. A request with a body pays for the response sink, the control, the
+response context and the feature, and for that growth when the count sits on a growth size.
+Measured over the in-memory transport with a raw keep-alive client (Debug build, median of five
+rounds of 5,000 requests, three runs), a 3-byte `POST` allocated about 470 B more with no stamped
+application features (36,837 B against 36,308 B), where the host's four round up to seven slots and
+the feature takes a free one, and about 1,150 B more with three (37,512 B against 36,351 B), where
+the count is seven and the feature grows the collection to 17 slots. A plain `GET` stayed within the
+run-to-run noise in both. HTTP/2 and HTTP/3 exchanges are left alone: their controls keep the
+interface's `null` default until #1378, so the response phase would buy nothing there.
+
 **Clearing the defaults removes WebSockets.** A `UseServer` callback that clears
 `HttpConnectionListenerOptions.Interceptors` removes both transition interceptors: HTTP/1.1 upgrades
 no longer surface as `context.Upgrade`, and HTTP/2 and HTTP/3 extended CONNECT no longer surface as
 `context.ExtendedConnect`. The transports still advertise `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` on
 HTTP/2 and HTTP/3, so browsers keep sending WebSocket handshakes as extended CONNECT, and
 `context.WebSockets.IsWebSocketRequest` reads `false` for them. A host that clears the list and
-still serves WebSockets adds the two interceptors back.
+still serves WebSockets adds the two interceptors back. Clearing it also removes the client-fault
+interceptor: a malformed or over-limit body is then logged at `Error` and observed by `OnException`
+again, while the transport still answers it with its own status.
 
 The max-request-body-size interceptor occupies slot 0 of the interceptor order so every request
 carries the typed `IHttpMaxRequestBodySizeFeature` and user-registered interceptors'
@@ -1154,13 +1442,22 @@ its exchange control and references no feature package (core Http DESIGN, "The e
 seam"). There is no Web-root seam through which a feature library could register an interceptor, so
 the composition root registers it, as it does the upgrade interceptor.
 
+The client-fault interceptor lives in this module, unlike the other three, because the contract it
+fills is the server's: `IWebClientFaultFeature` sits beside the other server-published features in
+`Web.Server`, whose readers are feature libraries that may not reference this module (COHRES001).
+The transport reports the fault on its exchange control rather than through a core feature contract
+(core Http DESIGN, "The client-fault report"), and the control exists only in the response phase,
+so an interceptor is the one place the server can reach it. A zero-cost alternative, an
+`Http.Connections` extension read by the server like `HasResponseStarted`, was not taken: decision
+28 routes the fault through the control, so a package outside this module can wrap it the same way.
+
 ### Non-goals
 
 No other interceptor ships by default. Parse-time features under design (digest fields, request
 decompression) register through the same seam when their packages land, but each is an explicit
 opt-in. The WebSocket policy (origins, keep-alive defaults, the drain close) is not an interceptor:
-it is `UseWebSockets`, a middleware in `Web.WebSockets`, which this module does not reference
-(COHRES002).
+it is `UseWebSockets`, a middleware in `Web.WebSockets`, which this module does not reference; the
+application composes it.
 
 ## TLS convenience surface
 
@@ -1408,15 +1705,19 @@ and `Meter` (see "Server telemetry"); Hosting.Telemetry does not export them yet
 
 The root contracts and feature libraries reference no `Assimalign.Cohesion.Hosting*` library.
 `Web.Hosting.Resources` and `Web.Hosting.Health` own reusable hosting integration. They never
-reference this runtime module. COHRES002 permits this module to reference the Web root and its own
-hosting family, and it consumes `Web.Hosting.Resources` for the enabled resource's control-plane
-terminal (`Internal/EnabledResourcePipeline.cs`).
+reference this runtime module. COHRES002 permits this module to reference any Web library except
+`Web.Testing`, `Web.ApplicationModel`, the `App.Web` producers, and harnesses (owner decision
+2026-10-09). It references the Web root, `Web.Routing` and `Web.Server` (#1379), and its own hosting
+family, and it consumes `Web.Hosting.Resources` for the enabled resource's control-plane terminal
+(`Internal/EnabledResourcePipeline.cs`).
 
 ## Declared dependencies
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |

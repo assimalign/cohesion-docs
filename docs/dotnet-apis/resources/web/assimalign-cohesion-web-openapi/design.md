@@ -101,9 +101,12 @@ parameters typed from the template's constraints and a bare `200`. This mirrors 
 API explorer skips plain `RequestDelegate` endpoints.
 
 A route that accepts any method names no operation and is skipped. `CONNECT` and extension methods
-have no operation field and are skipped. `QUERY` becomes the 3.2 `query` operation, which generation
-drops for earlier lines. The first route registered for a path and method keeps it: routes whose
-templates differ only in constraints (`{id:int}` beside `{id}`) or host share one OpenAPI path.
+have no operation field and are skipped. Methods map to operation fields byte for byte (RFC 9110
+§9.1, #1301): a route mapped for `get` serves only `get`, an extension method, so it is not described
+as the `get` operation, which means `GET`. `QUERY` becomes the 3.2 `query` operation, which
+generation drops for earlier lines. The first route registered for a path and method keeps it:
+routes whose templates differ only in constraints (`{id:int}` beside `{id}`) or host share one
+OpenAPI path.
 
 ## How each element is derived
 
@@ -289,11 +292,18 @@ consumer.
 
 ## The document endpoint
 
-`AddOpenApi(options => ...)` captures the options as a typed application feature; they are read-only
-once the callback returns, and a second call replaces the first registration.
-`MapOpenApi(pattern = "/openapi/v1.json")` maps a `GET` route through Web.Api's raw `Map` and returns
-its `IRouterRouteBuilder`, so the document route can carry policies (`RequireAuthorization`,
-`RequireCors`). The route is itself marked `ExcludeFromDescription`.
+`builder.Services.AddOpenApi(options => ...)` captures the options as a typed application feature, an
+`IHttpFeature` singleton; they are read-only once the callback returns, and a second call replaces the
+first registration. The verb is a component integration (owner decisions 34 and 35, 2026-10-09,
+#1380): the package declares `[assembly: ComponentIntegration]` over
+`OpenApiComponents.CreateFeature` (`src/Properties/ComponentIntegrations.cs`), and the generator
+projects `AddOpenApi` onto `IServiceProviderBuilder` in the application's compilation, so the package
+takes no dependency-injection reference; until #1380 it was an `extension(IWebApplicationBuilder)`
+member. `OpenApiComponents` is the static-factory shape, `[EditorBrowsable(Never)]` in the package's
+root namespace, because the callback is optional. `MapOpenApi(pattern = "/openapi/v1.json")` maps a
+`GET` route through Web.Api's raw `Map` and returns its `IRouterRouteBuilder`, so the document route
+can carry policies (`RequireAuthorization`, `RequireCors`). The route is itself marked
+`ExcludeFromDescription`.
 
 - **Format.** A pattern ending in `.yaml` or `.yml` serves YAML as `application/yaml` (RFC 9512), any
   other JSON as `application/json; charset=utf-8`. YAML is offered because `OpenApi.Serialization`

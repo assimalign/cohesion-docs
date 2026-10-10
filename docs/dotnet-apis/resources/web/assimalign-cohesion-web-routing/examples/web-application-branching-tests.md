@@ -1,13 +1,13 @@
 # Web Application Branching Tests
 
-This example exercises `Assimalign.Cohesion.Web` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Routing` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web/tests/WebApplicationBranchingTests.cs`. It retains
-the test class and assertions so the setup, operation, and expected outcome stay together. Use it in
-the source project’s test context, with its test dependencies and supporting test objects.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/tests/WebApplicationBranchingTests.cs`. It
+retains the test class and assertions so the setup, operation, and expected outcome stay together.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
@@ -18,11 +18,10 @@ the source project’s test context, with its test dependencies and supporting t
 - **Case 5** — Map: An endpoint selected before the branch runs at the branch's terminal.
 - **Case 6** — Map: Component factories inside a branch receive the application context.
 - **Case 7** — Map: The root or a non-origin path is rejected.
-- **Case 8** — MapWhen: A predicate branch runs only for matching requests and does not rejoin.
-- **Case 9** — UseWhen: A conditional segment runs, then rejoins the main pipeline.
-- **Case 10** — UseWhen: A segment that short-circuits keeps the main pipeline from running.
-- **Case 11** — Run: Terminal middleware answers and nothing after it runs.
-- **Case 12** — Terminal: An unhandled request gets a bodyless 404; a shaped response is left alone.
+- **Case 8** — Map: A branch that throws restores the enclosing path base.
+- **Case 9** — MapWhen: A predicate branch runs only for matching requests and does not rejoin.
+- **Case 10** — MapWhen: A branch without a response ends in the terminal and does not rejoin.
+- **Case 11** — Terminal: An unhandled request gets a bodyless 404; a shaped response is left alone.
 
 ## Source example
 
@@ -33,19 +32,20 @@ using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Http;
-using Assimalign.Cohesion.Web.Tests.TestObjects;
+using Assimalign.Cohesion.Web.Routing.Tests.TestObjects;
 
-namespace Assimalign.Cohesion.Web.Tests;
+namespace Assimalign.Cohesion.Web.Routing.Tests;
 
 /// <summary>
-/// Pipeline branching (#1056): <c>Map(path)</c>, <c>MapWhen</c>, <c>UseWhen</c>, <c>Run</c>, the path-base
-/// view a path branch publishes, and the standard terminal every non-rejoining branch ends in.
+/// Pipeline branches that do not rejoin (#1056, moved from the Web root by #1379): <c>Map(path)</c>,
+/// <c>MapWhen</c>, the path-base view a path branch publishes, and the standard terminal every
+/// non-rejoining branch ends in. The root's <c>UseWhen</c> and <c>Run</c> are covered in the root's tests.
 /// </summary>
 public class WebApplicationBranchingTests
 {
     // ------------------------------------------------------------------ Map(path)
 
-    [Theory(DisplayName = "Cohesion Test [Web] - Map: A path branch sees the path below its prefix and the prefix as the path base")]
+    [Theory(DisplayName = "Cohesion Test [Web.Routing] - Map: A path branch sees the path below its prefix and the prefix as the path base")]
     [InlineData("/static/app.js", "/app.js")]
     [InlineData("/STATIC/app.js", "/app.js")]
     [InlineData("/static", "/")]
@@ -76,7 +76,7 @@ public class WebApplicationBranchingTests
         context.GetEffectivePath().Value.ShouldBe(requestPath);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web] - Map: A path that only shares a prefix's characters skips the branch")]
+    [Theory(DisplayName = "Cohesion Test [Web.Routing] - Map: A path that only shares a prefix's characters skips the branch")]
     [InlineData("/staticx/app.js")]
     [InlineData("/other")]
     public async Task Map_NonMatchingPath_ShouldContinueMainPipeline(string requestPath)
@@ -96,7 +96,7 @@ public class WebApplicationBranchingTests
         mainRan.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web] - Map: Nested path branches accumulate the path base")]
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Map: Nested path branches accumulate the path base")]
     public async Task Map_Nested_ShouldAccumulatePathBase()
     {
         // Arrange
@@ -118,7 +118,7 @@ public class WebApplicationBranchingTests
         seenBase!.Value.Value.ShouldBe("/api/v1");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web] - Map: A branch without a response ends in a 404 and does not rejoin")]
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Map: A branch without a response ends in a 404 and does not rejoin")]
     public async Task Map_UnhandledInBranch_ShouldEndIn404WithoutRejoining()
     {
         // Arrange
@@ -135,7 +135,7 @@ public class WebApplicationBranchingTests
         context.Response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web] - Map: An endpoint selected before the branch runs at the branch's terminal")]
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Map: An endpoint selected before the branch runs at the branch's terminal")]
     public async Task Map_WithEndpointSelectedBeforeBranch_ShouldRunEndpointAtBranchTerminal()
     {
         // Arrange
@@ -155,7 +155,7 @@ public class WebApplicationBranchingTests
         endpointRan.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web] - Map: Component factories inside a branch receive the application context")]
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Map: Component factories inside a branch receive the application context")]
     public async Task Map_ContextAwareMiddleware_ShouldReceiveApplicationContext()
     {
         // Arrange
@@ -174,7 +174,7 @@ public class WebApplicationBranchingTests
         seen.ShouldBeSameAs(builder.Context);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web] - Map: The root or a non-origin path is rejected")]
+    [Theory(DisplayName = "Cohesion Test [Web.Routing] - Map: The root or a non-origin path is rejected")]
     [InlineData("/")]
     [InlineData("*")]
     public void Map_InvalidPrefix_ShouldThrow(string prefix)
@@ -186,9 +186,33 @@ public class WebApplicationBranchingTests
         Should.Throw<ArgumentException>(() => builder.Map(prefix, _ => { }));
     }
 
-    // ------------------------------------------------------------------ MapWhen / UseWhen / Run
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Map: A branch that throws restores the enclosing path base")]
+    public async Task Map_BranchThrows_ShouldRestoreEnclosingPathBase()
+    {
+        // Arrange — the outer branch observes the view after its inner branch faulted.
+        TestPipelineBuilder builder = new();
+        HttpPath? baseAfterInnerFault = null;
+        builder.Map("/api", api =>
+        {
+            api.Use(next => async context =>
+            {
+                await Should.ThrowAsync<InvalidOperationException>(() => next(context));
+                baseAfterInnerFault = context.GetPathBase();
+            });
+            api.Map("/v1", v1 => v1.Run(_ => throw new InvalidOperationException("branch fault")));
+        });
 
-    [Fact(DisplayName = "Cohesion Test [Web] - MapWhen: A predicate branch runs only for matching requests and does not rejoin")]
+        // Act
+        TestHttpContext context = await builder.SendAsync(HttpMethod.Get, "/api/v1/orders");
+
+        // Assert
+        baseAfterInnerFault!.Value.Value.ShouldBe("/api");
+        context.Features.Get<IWebPathBaseFeature>().ShouldBeNull();
+    }
+
+    // ------------------------------------------------------------------ MapWhen
+
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - MapWhen: A predicate branch runs only for matching requests and does not rejoin")]
     public async Task MapWhen_Predicate_ShouldBranchWithoutRejoining()
     {
         // Arrange
@@ -209,72 +233,39 @@ public class WebApplicationBranchingTests
         calls.ShouldBe(new[] { "branch", "main" });
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web] - UseWhen: A conditional segment runs, then rejoins the main pipeline")]
-    public async Task UseWhen_Predicate_ShouldRunSegmentThenRejoin()
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - MapWhen: A branch without a response ends in the terminal and does not rejoin")]
+    public async Task MapWhen_UnhandledInBranch_ShouldEndInTerminalWithoutRejoining()
     {
-        // Arrange
-        TestPipelineBuilder builder = new();
-        List<string> calls = new();
-        builder.UseWhen(context => context.Request.Path.Value.StartsWith("/admin", StringComparison.Ordinal), segment => segment.Use(next => context =>
-        {
-            calls.Add("segment");
-            return next(context);
-        }));
-        builder.Run(_ => { calls.Add("main"); return Task.CompletedTask; });
-
-        // Act
-        await builder.SendAsync(HttpMethod.Get, "/admin/users");
-        await builder.SendAsync(HttpMethod.Get, "/public");
-
-        // Assert
-        calls.ShouldBe(new[] { "segment", "main", "main" });
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web] - UseWhen: A segment that short-circuits keeps the main pipeline from running")]
-    public async Task UseWhen_SegmentShortCircuits_ShouldNotRejoin()
-    {
-        // Arrange
+        // Arrange — an endpoint selected before the branch runs at the branch's terminal; without one, a 404.
         TestPipelineBuilder builder = new();
         bool mainRan = false;
-        builder.UseWhen(_ => true, segment => segment.Run(context =>
+        bool endpointRan = false;
+        builder.Use(next => context =>
         {
-            context.Response.StatusCode = HttpStatusCode.Forbidden;
-            return Task.CompletedTask;
-        }));
+            if (context.Request.Path.Value == "/selected")
+            {
+                context.Features.Set<IWebEndpointFeature>(new TestEndpointFeature(_ => { endpointRan = true; return Task.CompletedTask; }));
+            }
+
+            return next(context);
+        });
+        builder.MapWhen(_ => true, branch => branch.Use(next => next));
         builder.Run(_ => { mainRan = true; return Task.CompletedTask; });
 
         // Act
-        TestHttpContext context = await builder.SendAsync(HttpMethod.Get, "/x");
+        TestHttpContext unhandled = await builder.SendAsync(HttpMethod.Get, "/other");
+        TestHttpContext selected = await builder.SendAsync(HttpMethod.Get, "/selected");
 
         // Assert
         mainRan.ShouldBeFalse();
-        context.Response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web] - Run: Terminal middleware answers and nothing after it runs")]
-    public async Task Run_Terminal_ShouldStopThePipeline()
-    {
-        // Arrange
-        TestPipelineBuilder builder = new();
-        bool laterRan = false;
-        builder.Run(context =>
-        {
-            context.Response.StatusCode = HttpStatusCode.Accepted;
-            return Task.CompletedTask;
-        });
-        builder.Use(next => context => { laterRan = true; return next(context); });
-
-        // Act
-        TestHttpContext context = await builder.SendAsync(HttpMethod.Get, "/x");
-
-        // Assert
-        laterRan.ShouldBeFalse();
-        context.Response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        unhandled.Response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        endpointRan.ShouldBeTrue();
+        selected.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
     }
 
     // ------------------------------------------------------------------ terminal
 
-    [Fact(DisplayName = "Cohesion Test [Web] - Terminal: An unhandled request gets a bodyless 404; a shaped response is left alone")]
+    [Fact(DisplayName = "Cohesion Test [Web.Routing] - Terminal: An unhandled request gets a bodyless 404; a shaped response is left alone")]
     public async Task Terminal_Unhandled_ShouldSet404UnlessShaped()
     {
         // Arrange
@@ -301,5 +292,5 @@ public class WebApplicationBranchingTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web/tests/WebApplicationBranchingTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web/tests/Assimalign.Cohesion.Web.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/tests/WebApplicationBranchingTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/tests/Assimalign.Cohesion.Web.Routing.Tests.csproj`.

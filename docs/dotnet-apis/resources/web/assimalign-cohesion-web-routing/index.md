@@ -44,10 +44,14 @@ area is middleware-first; the controller, function and result programming models
 - **Carries an immutable, typed** — **endpoint-metadata bag** on each route and surfaces the
   **route-match result** (route + typed values + metadata) as a strongly-typed HTTP feature — the
   reflection-free seam that auth, docs, and observability consume.
-- **`Supports`** — **host-constrained routes** (exact hosts, `*.wildcard` subdomains, `host:port`,
+- Supports **host-constrained routes** (exact hosts, `*.wildcard` subdomains, `host:port`,
   IPv6 literals) declared as endpoint metadata and evaluated during candidate selection:
   non-matching hosts fall through to other candidates, and host-constrained routes outrank
-  unconstrained ties.
+  unconstrained ties. The host matched is the effective one (`context.EffectiveHost` from
+  `Http.Forwarded`): the host a trusted proxy forwarded when `UseForwardedHeaders` runs ahead of
+  routing, otherwise the wire host. Either way the client asserts it, so a host constraint selects
+  a route and never protects one: guard internal endpoints with authorization or the connection's
+  local endpoint ([design, "Not an access control"](design.md#not-an-access-control)).
 - **Keeps routing state **per** — application** (no process-wide shared builder), so multiple web
   applications hosted in one process have fully isolated route tables.
 - **Generates **outbound URLs** (`ILinkGenerator`)** — routes register a unique, case-insensitive
@@ -79,6 +83,9 @@ area is middleware-first; the controller, function and result programming models
 | `ILinkGenerator` | Outbound URL generation (`GetPathByName`, `GetUriByName`, `TryGetPathByValues`, …); exposed as `IRouter.LinkGenerator` and via `context.GetLinkGenerator()`. |
 | `HttpContextRoutingExtensions` | `SetRouteMatch` / `GetRouteMatch` / `TryGetRoute` / `TryGetRouteValues` / `GetEndpointMetadata`(`<T>`) / `AcknowledgeEndpointMiddleware` / `GetLinkGenerator` over the routing features. |
 | `RoutingExtensions.UseRouting` | Pipeline integration: selects the endpoint (match / 405 / preflight candidate / none) and calls `next`; the terminal runs it. |
+| `IWebEndpointFeature` | The endpoint selected for the exchange: the delegate the terminal runs and the `RouteTemplate` the server reports as `http.route`. Moved here from the Web root (#1379). |
+| `WebApplicationTerminal` | The standard pipeline terminal: runs the published endpoint, or answers an untouched response with a bodyless 404. `WebApplication` and every non-rejoining branch end in it (#1379). |
+| `WebApplicationBranchingExtensions` / `IWebPathBaseFeature` | `Map(path, branch)` and `MapWhen` (branches that end in the terminal), and the path-base view a path branch publishes (`GetPathBase()`, `GetEffectivePath()`). Moved here from the Web root (#1379); the rejoining `UseWhen` and `Run` stay in the root. |
 
 ## Usage
 
@@ -116,6 +123,7 @@ model, the HEAD→GET fallback, AOT posture, and the routing features delivered 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

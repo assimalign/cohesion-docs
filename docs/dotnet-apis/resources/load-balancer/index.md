@@ -20,11 +20,14 @@ program.
 
 ## Dependency boundary
 
-The single runtime module is `Assimalign.Cohesion.LoadBalancer.Hosting`. Roots and feature
-libraries do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child
-libraries. Feature registration composes against the root contracts. The exact runtime may reference
-its area root and its hosting-family integrations; integrations may not reference the exact runtime.
-The declarative application model remains separate from the runtime. See the
+The single runtime module is `Assimalign.Cohesion.LoadBalancer.Hosting`. Roots and feature libraries
+do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.LoadBalancer.Hosting`.
@@ -54,6 +57,7 @@ hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs p
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
@@ -62,6 +66,8 @@ hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs p
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting.Resources` |
 | `Assimalign.Cohesion.Web.Hosting` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
 
 `Application`-model and client packages are NuGet-only and are excluded from the area shared
 framework. The package table distinguishes assemblies present in the source tree from those included

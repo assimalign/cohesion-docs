@@ -23,9 +23,10 @@ reflection-free under NativeAOT.
   registers the built-in JSON pair over a source-generated `IJsonTypeInfoResolver`;
   `builder.Services.AddContentSerialization(serialization => ...)` and its
   `ContentSerializationBuilder` register custom formats. Both verbs are component integrations the
-  application's compilation receives; this package takes no dependency-injection reference. Call
-  one of them, once: a second call replaces the registry, so a JSON registry with extra readers or
-  writers is `AddContentSerialization(s => s.AddJson(AppJsonContext.Default).AddReader(...))`.
+  application's compilation receives (#1380); this package takes no dependency-injection
+  reference. Call one of them, once: a second call replaces the registry, so a JSON registry with
+  extra readers or writers is
+  `AddContentSerialization(s => s.AddJson(AppJsonContext.Default).AddReader(...))`.
 - **Typed call sites** — `request.ReadContentAsync<T>()` and
   `response.WriteContentAsync(value)` extensions that dispatch through the registry.
 - **Content negotiation** — `context.WriteNegotiatedContentAsync(value)` selects the response

@@ -21,13 +21,16 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 8** — Telemetry: The meter should record the duration and balance the active-request count.
 - **Case 9** — Telemetry: A pipeline fault should report the replacement 500 as an error.
 - **Case 10** — Telemetry: A client error should not mark the server span as failed.
-- **Case 11** — Telemetry: A cancelled exchange should report request_canceled and no status code.
-- **Case 12** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
-- **Case 13** — Telemetry: A response that cannot be sent should report response_send_failed.
-- **Case 14** — Telemetry: A method outside the known list should be reported as _OTHER.
-- **Case 15** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
-- **Case 16** — Telemetry: Each HTTP/2 stream should get its own server span.
-- **Case 17** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
+- **Case 11** — Telemetry: A client fault found reading the body should report the transport's status, not a 500 error.
+- **Case 12** — Telemetry: An HTTP/2 body below the minimum data rate should report the transport's 408, not a 500 error.
+- **Case 13** — Telemetry: A cancelled exchange should report request_canceled and no status code.
+- **Case 14** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
+- **Case 15** — Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception.
+- **Case 16** — Telemetry: A response that cannot be sent should report response_send_failed.
+- **Case 17** — Telemetry: A method outside the known list should be reported as _OTHER.
+- **Case 18** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
+- **Case 19** — Telemetry: Each HTTP/2 stream should get its own server span.
+- **Case 20** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
 
 ## Source example
 
@@ -42,6 +45,8 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
@@ -54,8 +59,6 @@ using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
@@ -457,6 +460,105 @@ public class WebServerTelemetryTests
         span.Status.ShouldBe(ActivityStatusCode.Unset);
     }
 
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A client fault found reading the body should report the transport's status, not a 500 error")]
+    [InlineData("Transfer-Encoding: chunked\r\n\r\nzz\r\nabc\r\n0\r\n\r\n", 400)]
+    [InlineData("Content-Length: 32\r\n\r\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 413)]
+    public async Task ServerSpan_ClientFaultReadingTheBody_ShouldReportTheTransportStatusWithoutAnError(string framingAndBody, int expectedStatus)
+    {
+        // Arrange — the pipeline reads the body and lets the failed read escape, so the server's fault
+        // boundary stages a 500 that the transport replaces with its own status (#1333, #1339, #1340).
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new();
+
+        string path = $"/telemetry/client-fault/{Guid.NewGuid():N}";
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp1(transport, http1 => http1.Limits.MaxRequestBodySize = 16));
+        factory.Application.Use(async (context, next) =>
+        {
+            byte[] buffer = new byte[256];
+
+            while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+            {
+            }
+
+            context.Response.StatusCode = CohesionHttpStatusCode.NoContent;
+        });
+
+        await factory.StartAsync(cancellationToken);
+
+        await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        Stream stream = client.AsStream();
+
+        // Act
+        await stream.WriteAsync(Encoding.ASCII.GetBytes($"POST {path} HTTP/1.1\r\nHost: localhost\r\n{framingAndBody}"), cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+        Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+        RecordedMeasurement duration = await recorder.WaitForMeasurementAsync(
+            m => m.Instrument == "http.server.request.duration" && Equals(m.Tags.GetValueOrDefault("http.response.status_code"), expectedStatus),
+            cancellationToken);
+
+        // Assert
+        span.GetTagItem("http.response.status_code").ShouldBe(expectedStatus);
+        span.GetTagItem("error.type").ShouldBeNull();
+        span.Status.ShouldBe(ActivityStatusCode.Unset);
+        duration.Tags.ContainsKey("error.type").ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: An HTTP/2 body below the minimum data rate should report the transport's 408, not a 500 error")]
+    public async Task ServerSpan_Http2BodyBelowMinimumDataRate_ShouldReportTheTransport408WithoutAnError()
+    {
+        // Arrange — the pipeline reads a body the client never sends and lets the failed read escape, so
+        // the server's fault boundary stages a 500. The transport has already answered the stream with
+        // 408 and reset it (#1085), so the 500 never reaches the wire and must not be what is recorded.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new();
+
+        string path = $"/telemetry/h2-slow-body/{Guid.NewGuid():N}";
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp2(
+            transport,
+            http2 => http2.Limits.MinRequestBodyDataRate = new HttpMinDataRate(bytesPerSecond: 1000, gracePeriod: TimeSpan.FromMilliseconds(100))));
+        factory.Application.Use(async (context, next) =>
+        {
+            byte[] buffer = new byte[256];
+
+            while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+            {
+            }
+
+            context.Response.StatusCode = CohesionHttpStatusCode.NoContent;
+        });
+
+        await factory.StartAsync(cancellationToken);
+
+        await using Http2RawClient client = await Http2RawClient.ConnectAsync(transport, cancellationToken);
+
+        // Act — the HEADERS frame leaves the stream open for a body that never comes.
+        await client.SendPostHeadersAsync(1, path, cancellationToken);
+        Http2RawFrame answer = await client.ReadUntilAsync(frame => frame.StreamId == 1 && frame.Type == Http2RawFrame.HeadersType, cancellationToken);
+        Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+
+        // The span stops after the duration is recorded, so the exchange's measurement is already in.
+        RecordedMeasurement duration = recorder.Measurements.Single(
+            m => m.Instrument == "http.server.request.duration" && Equals(m.Tags.GetValueOrDefault("network.protocol.version"), "2"));
+
+        // Assert — the transport's 408 is the stream's only response, and it is what the server reports.
+        answer.EndStream.ShouldBeTrue();
+        client.Frames.Count(frame => frame.StreamId == 1 && frame.Type == Http2RawFrame.HeadersType).ShouldBe(1);
+        span.GetTagItem("network.protocol.version").ShouldBe("2");
+        span.GetTagItem("http.response.status_code").ShouldBe(408);
+        span.GetTagItem("error.type").ShouldBeNull();
+        span.Status.ShouldBe(ActivityStatusCode.Unset);
+        duration.Tags.GetValueOrDefault("http.response.status_code").ShouldBe(408);
+        duration.Tags.ContainsKey("error.type").ShouldBeFalse();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A cancelled exchange should report request_canceled and no status code")]
     public async Task ServerSpan_CanceledExchange_ShouldReportRequestCanceled()
     {
@@ -528,6 +630,59 @@ public class WebServerTelemetryTests
         span.Status.ShouldBe(ActivityStatusCode.Error);
         span.GetTagItem("error.type").ShouldBe("unhandled_exception");
         span.GetTagItem("http.response.status_code").ShouldBe(200);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception")]
+    public async Task ServerSpan_ClientFaultAfterResponseStarted_ShouldReportClientFault()
+    {
+        // Arrange — the pipeline starts a streamed response, then reads a malformed chunked body and lets
+        // the failed read escape. The transport's 400 can no longer replace the response, so the server
+        // resets the exchange; the fault is still the client's, not the application's (#1340).
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new();
+
+        string path = $"/telemetry/client-fault-streamed/{Guid.NewGuid():N}";
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options =>
+        {
+            options.UseHttp1(transport);
+            options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor());
+        });
+        factory.Application.Use(async (context, next) =>
+        {
+            context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+            IHttpResponseStreamingFeature streaming = context.Response.Streaming;
+            await streaming.WriteAsync(Encoding.UTF8.GetBytes("partial"), cancellationToken);
+            await streaming.FlushAsync(cancellationToken);
+
+            byte[] buffer = new byte[256];
+
+            while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+            {
+            }
+        });
+
+        await factory.StartAsync(cancellationToken);
+
+        await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        Stream stream = client.AsStream();
+
+        // Act — "zz" is not a chunk size (RFC 9112 §7.1).
+        await stream.WriteAsync(Encoding.ASCII.GetBytes($"POST {path} HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nabc\r\n0\r\n\r\n"), cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+        Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+        RecordedMeasurement duration = await recorder.WaitForMeasurementAsync(
+            m => m.Instrument == "http.server.request.duration" && Equals(m.Tags.GetValueOrDefault("error.type"), "client_fault"),
+            cancellationToken);
+
+        // Assert
+        span.GetTagItem("error.type").ShouldBe("client_fault");
+        span.GetTagItem("http.response.status_code").ShouldBe(200);
+        span.Status.ShouldBe(ActivityStatusCode.Error);
+        duration.Tags.GetValueOrDefault("http.response.status_code").ShouldBe(200);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A response that cannot be sent should report response_send_failed")]

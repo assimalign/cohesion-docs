@@ -26,8 +26,8 @@ documents its API references it.
 - **`builder.Services.AddOpenApi(options => ...)`** registers the document: title, API version,
   description, the OpenAPI line (3.1 by default; 3.0 and 3.2 as well), declared security schemes
   and tags, extra endpoint sources, and document transformers. The options are read-only once the
-  callback returns. The verb is a component integration the application's compilation receives;
-  this package takes no dependency-injection reference.
+  callback returns. The verb is a component integration the application's compilation receives
+  (#1380); this package takes no dependency-injection reference.
 - **`MapOpenApi(pattern)`** serves the document from a `GET` route as JSON, or as YAML for a
   `.yaml`/`.yml` pattern. The document is built on the first request, cached, and revalidated with a
   strong `ETag`: a matching `If-None-Match` is answered `304`.

@@ -37,8 +37,8 @@ for it (#1059, see "Return Values").
   `RouterGroupBuilderEndpointExtensions.MapGet(group, ...)`).
 
 All `Map*` overloads compose on the router: they resolve the `IRouterFeature` and register a
-`Route`, so an application still calls `AddRouting()` (builder) and `UseRouting()` (pipeline)
-exactly as it does for the raw router surface.
+`Route`, so an application still calls `builder.Services.AddRouting()` (builder) and `UseRouting()`
+(pipeline) exactly as it does for the raw router surface.
 
 **Every `Map*` returns the mapped route's `IRouterRouteBuilder` (#1055).** Per-endpoint policies
 attach where the endpoint is mapped, for example
@@ -144,7 +144,8 @@ message; any other unreadable form is a `400` (`errors` keyed `$form`). Before #
 exception boundary as a `500`. A body over the transport's own cap is answered `413` by the
 transport, and an over-limit decompressed body by `Web.Compression`; the thunk does not catch
 either. `UseForms()` parses every request eagerly, ahead of the endpoint, so a form it cannot read
-fails in that middleware (and reaches the exception boundary) before the thunk's mapping applies.
+never reaches the thunk: the middleware answers it with the same `413` or `400` payload and the
+endpoint does not run (#1210, Web.Forms DESIGN).
 
 ## Return Values (#1059)
 
@@ -232,6 +233,7 @@ Binding failures are outcomes the thunk writes imperatively as RFC 9457 `applica
 | The form is otherwise unreadable (a malformed multipart or urlencoded body) | 400 | `errors` extension keyed `$form` |
 | The request carries no parseable Content-Type, or the registry has no reader for it (an empty registry included) | 415 | problem+json |
 | `System.Text.Json.JsonException` while deserializing the body | 400 | `errors` extension keyed `$body` |
+| `InvalidDataException` while reading the body: a malformed message framing, which the HTTP/1.1 transport also answers `400` (#1340) | 400 | `errors` extension keyed `$body` |
 | The bound body model fails its registered validator (an application with `Web.Validation`, see "Validation") | 400 | `errors` extension keyed by member path |
 
 Validation runs after every parameter is bound, so a binding failure is answered first.

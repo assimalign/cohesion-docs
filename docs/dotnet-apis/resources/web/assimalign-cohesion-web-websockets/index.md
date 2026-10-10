@@ -35,8 +35,8 @@ this package is the policy a browser-facing server needs around them.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the pipeline seams and the server drain feature
-  (`IWebServerDrainFeature`).
+- **`Assimalign.Cohesion.Web`** — the pipeline seams.
+- **`Assimalign.Cohesion.Web.Server`** — the server drain feature (`IWebServerDrainFeature`).
 - **`Assimalign.Cohesion.Web.Routing`** — the router builder and the route groups `MapWebSocket`
   maps into.
 - **`Assimalign.Cohesion.Http.WebSockets`** — the handshake, the negotiation and the accept.
@@ -45,7 +45,7 @@ this package is the policy a browser-facing server needs around them.
 - **`Assimalign.Cohesion.Http`** — the protocol core.
 
 It references nothing in the hosting family (`COHRES001`, `COHRES004`): the drain signal reaches it
-through the Web root's feature contract. The package, `Http.WebSockets`, `Http.ProtocolUpgrade` and
+through `Web.Server`'s feature contract. The package, `Http.WebSockets`, `Http.ProtocolUpgrade` and
 `Http.ExtendedConnect` are members of the `App.Web` shared framework.
 
 ## Usage
@@ -129,6 +129,7 @@ two, so a receive loop written the usual way ends cleanly.
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.WebSockets` | `CohesionProjectReference` |

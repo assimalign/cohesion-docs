@@ -44,6 +44,7 @@ framework.
 | [`Assimalign.Cohesion.Web.Routing`](assimalign-cohesion-web-routing/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.SecurityHeaders`](assimalign-cohesion-web-securityheaders/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Serialization`](assimalign-cohesion-web-serialization/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.Server`](assimalign-cohesion-web-server/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Sessions`](assimalign-cohesion-web-sessions/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.StaticFiles`](assimalign-cohesion-web-staticfiles/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Testing`](assimalign-cohesion-web-testing/index.md) | Testing | Not listed in this framework |
@@ -62,13 +63,69 @@ adapts hosting health contributors into the independent `Web.Health` model.
 
 The single runtime module is `Assimalign.Cohesion.Web.Hosting`. Roots and feature libraries do not
 depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries. Feature
-registration composes against the root contracts. The exact runtime may reference its area root and
-its hosting-family integrations; integrations may not reference the exact runtime. The declarative
-application model remains separate from the runtime. See the
-[resource dependency rules](../index.md#dependency-rules) .
+registration verbs are component integrations on `builder.Services` (owner decision 34, #1380), and
+pipeline verbs extend the root's `IWebApplicationPipelineBuilder`, so hosting a feature needs no
+reference to it. The exact runtime may reference any Web library except `Web.Testing`,
+`Web.ApplicationModel`, the `App.Web` producers, and test, example, sample, and fixture projects
+(COHRES002, relaxed by owner decision 2026-10-09); integrations may not reference the exact runtime.
+It references only what it needs, `Web.Routing` and `Web.Server` (owner decision 33, #1379),
+because every reference it takes ships in each framework that carries it: `App.Web` and, privately,
+all 17 other area frameworks. The declarative application model remains separate from the runtime.
+See the [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.Web.Hosting`,
 `Assimalign.Cohesion.Web.Hosting.Health`, `Assimalign.Cohesion.Web.Hosting.Resources`.
+
+## Feature registration
+
+Owner decisions 34 and 35 (2026-10-09, #1380) set how a feature reaches an application:
+
+- **Registration verbs are component integrations on `builder.Services`.** Each feature package
+  declares `[assembly: ComponentIntegration(...)]` targeting
+  `Assimalign.Cohesion.DependencyInjection.IServiceProviderBuilder.AddSingleton` with
+  `Contract = typeof(IHttpFeature)`, and the generator projects the verb into the application, so
+  neither the package nor `Web.Hosting` takes a reference for it. `Sdk.Web` applications get the
+  generator from the App framework; in-repo projects add a `CohesionAnalyzerReference` to
+  `Assimalign.Cohesion.SourceGeneration.ComponentModel`.
+- **Pipeline verbs stay `extension(...)` members** of the feature package: `Use<Feature>` on
+  `IWebApplicationPipelineBuilder`, `Map*` on the pipeline and router surfaces.
+- **Every `IHttpFeature` registration is a singleton.** `Web.Hosting` rejects a scoped or transient
+  one, one registered under a narrower contract, and a disposable instance or implementation type at
+  `Build`, and a disposable feature a factory registration produces at the pipeline build, where the
+  product first exists; each error names the registration.
+- **`IWebApplicationBuilder.AddFeature` stays the raw path**, for features no package ships a verb
+  for.
+
+| Package | Verb | Shape |
+|---|---|---|
+| `Web.Routing` | `AddRouting()` | static factory (`RoutingComponents`) |
+| `Web.Authentication` | `AddAuthentication(auth => auth.AddCookie().AddJwtBearer(...))` | builder template (`AuthenticationBuilder`) |
+| `Web.Authorization` | `AddAuthorization(options => ...)` | static factory (`AuthorizationComponents`) |
+| `Web.Antiforgery` | `AddAntiforgery(...)`, `AddAntiforgery(dataProtectionProvider, ...)` | static factory (`AntiforgeryComponents`) |
+| `Web.ErrorHandling` | `AddErrorHandling(errors => errors.OnError(...))` | builder template (`ErrorHandlingBuilder`) |
+| `Web.Serialization` | `AddContentSerialization(serialization => ...)`, `AddJsonSerialization(resolver, ...)` | builder template (`ContentSerializationBuilder`); static factory (`SerializationComponents`) |
+| `Web.Validation` | `AddValidation(validation => ...)` | static factory (`ValidationComponents`) |
+| `Web.OpenApi` | `AddOpenApi(options => ...)` | static factory (`OpenApiComponents`) |
+
+A verb whose callback configures a builder other packages graft onto is a builder template. A verb
+called bare, with an optional options callback, with a value argument, or with a required callback
+over an options type that has no `Build()` (`ValidationComponents`) is a static factory, so callers
+keep `builder.Services.AddRouting()`.
+
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services
+    .AddRouting()
+    .AddJsonSerialization(AppJsonContext.Default)
+    .AddAuthentication(auth => auth.AddCookie())
+    .AddAuthorization();
+
+await using WebApplication app = builder.Build();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+await app.RunAsync();
+```
 
 ## Framework and SDK
 
@@ -111,6 +168,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.SecurityHeaders` |
 | `Assimalign.Cohesion.Web.Serialization` |
+| `Assimalign.Cohesion.Web.Server` |
 | `Assimalign.Cohesion.Web.Sessions` |
 | `Assimalign.Cohesion.Web.StaticFiles` |
 | `Assimalign.Cohesion.Web.Validation` |

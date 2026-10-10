@@ -40,6 +40,10 @@ Scope of this library:
   or absolute URI (#787).
 - **Minimal **pipeline integration** (`UseRouting`)** — so a web application can dispatch through
   the router.
+- The **endpoint seam and the pipeline terminal** (`IWebEndpointFeature`, `WebApplicationTerminal`)
+  and the **non-rejoining branches** (`Map(path)`, `MapWhen`, `IWebPathBaseFeature`,
+  `GetPathBase()`, `GetEffectivePath()`), moved here from the Web root by #1379 (see
+  ["Pipeline branching and the terminal"](#pipeline-branching-and-the-terminal-1056-1379)).
 
 ## The matcher pipeline
 
@@ -113,6 +117,10 @@ single `HttpMethod` (the common case) or an `IEnumerable<HttpMethod>`. Duplicate
 de-duplicated at construction. An **empty** method set means "accept any method" — useful for
 catch-all/fallback routes.
 
+Methods match byte for byte, because `HttpMethod` is case-sensitive (RFC 9110 §9.1, #1301). A `GET`
+route does not serve a request whose method is `get`: that request is answered `405` with
+`Allow: GET, HEAD`, as any other method the route does not list.
+
 ### 405 vs 404 and the `Allow` header
 
 `Router.Match` returns a `RouteMatch` with one of three `RouteMatchStatus` values:
@@ -141,8 +149,10 @@ correctly end-to-end.
 
 ## Host-constrained matching (#788)
 
-Routes can constrain the hosts they serve (multi-tenant hosts, admin-on-internal-host patterns) by
-attaching `RouteHostMetadata` to their endpoint metadata (#150):
+Routes can constrain the hosts they serve (multi-tenant hosts, an admin site on its own host name)
+by attaching `RouteHostMetadata` to their endpoint metadata (#150). A host constraint selects a
+route; it does not control access to it (see ["Not an access control"](#not-an-access-control)
+below):
 
 See the [source-backed usage examples](examples/index.md).
 
@@ -154,13 +164,20 @@ Each pattern is `host[:port]`, where `host` takes one of four forms:
 |---|---|---|
 | Exact host | `api.example.com` | that host only |
 | Wildcard subdomain | `*.example.com` | `api.example.com`, `a.b.example.com` — **not** the apex `example.com` |
-| Any host | `*` | every host (useful combined with a port: `*:5000`) |
+| Any host | `*` | every host; `*:8443` matches any host that carries port 8443, the port the client asserted rather than the listener's |
 | IPv6 literal | `[::1]`, `[2001:db8::1]:443` | brackets are the canonical form; comparison strips them, so `::1` denotes the same constraint |
 
 - **Host comparison is **case-insensitive**** — (RFC 9110 §4.2.3 / RFC 3986 §3.2.2); ports compare exactly.
-- **A port constraint requires** — the port to be **explicit** in the request's `Host` value. A request
-  whose host omits the port (an implied scheme default) does not satisfy a port-constrained route —
-  the matcher compares against the Host header as sent, mirroring ASP.NET `RequireHost`.
+- **A port constraint requires the port to be explicit** in the request host. A request whose host
+  omits the port (an implied scheme default) does not satisfy a port-constrained route — the matcher
+  compares against the host as the client sent it, mirroring ASP.NET `RequireHost`. Behind a trusted
+  proxy that is the forwarded host (see ["Which host"](#which-host-the-effective-host-1077) below),
+  so the port is the one the client asserted, not the one the proxy dialed. It is often absent: a
+  client addressing a default port sends none, and some proxies strip it (nginx's `$host`). A
+  port-constrained route that matched the upstream port in the rewritten wire `Host` therefore stops
+  matching proxied traffic once `UseForwardedHeaders` runs. A port constraint cannot partition
+  traffic by listener either: the client chooses the port (see
+  ["Not an access control"](#not-an-access-control) below).
 - **The constraints in one `RouteHostMetadata` are **OR-combined**** — the request host must satisfy any
   one of them.
 - **Patterns are parsed **once,** — at metadata construction** (`RouteHostConstraint.Parse`/`TryParse`);
@@ -171,7 +188,10 @@ Each pattern is `host[:port]`, where `host` takes one of four forms:
   `HttpHost.TryParsePort` (#890). This is the same primitive `HttpHostMatcher` (#781) validates
   against, so host **selection** here and host **allowlist validation** there cannot drift on what
   a given wire value means — the bracket rules, single-colon rule, and 1–65535 port range are one
-  copy of the logic.
+  copy of the logic. The request host is trimmed the way `HttpHost.TryGetComponents` trims it, SP
+  and HTAB only (RFC 9110 §5.6.3): a Unicode trim also stripped a no-break space or a next-line
+  character, so `api.test\xA0` selected an `api.test` route that the allowlist would refuse (#1341).
+  Patterns are configuration, not wire input, and are still trimmed of any whitespace.
 - **The port-unconstrained leniency (deliberate, pinned).** The shared helper is the *structural*
   split only; port digits are validated as a separate step. A route that constrains no port skips
   that step entirely, so an otherwise well-formed request host carrying a **junk or out-of-range
@@ -206,7 +226,84 @@ path and method, and candidate-selection concerns layer on top in the router.
 it never rejects a request. Validating the request host against an allowlist (→ 400) is the separate
 host-filtering middleware's job (#781). The two compose: the middleware guards the edge, and
 whatever it admits is routed — possibly onto host-constrained endpoints — by this matcher. Neither
-duplicates the other.
+duplicates the other, and both read the same host (below).
+
+### Which host: the effective host (#1077)
+
+The router matches host constraints against `context.EffectiveHost`, the feature-first read from
+`Assimalign.Cohesion.Http.Forwarded` (owner decision 3 in `docs/programs/HTTP_WEB_PROGRAM_PLAN.md`
+§7.4):
+
+- With `UseForwardedHeaders` registered ahead of `UseRouting` and a trusted proxy that forwarded a
+  host, it is that forwarded host: the authority the client addressed.
+- Otherwise it is the wire host (`IHttpRequest.Host`, as the transport resolved it): no
+  forwarded-headers middleware, an untrusted peer, a hop that forwarded no host, or
+  forwarded-headers registered after routing. `X-Forwarded-Host` from a client is never read
+  directly; only the trust walk can make it the effective host.
+
+**Why the effective host.** A host constraint picks the route for the host the client addressed.
+Before #1077 the router read `IHttpRequest.Host`. Behind a proxy that rewrites `Host` to its
+upstream name and forwards the client's host in `X-Forwarded-Host` or `Forwarded: host=`, every
+proxied request carried the same wire host, so selection followed the proxy's configuration instead
+of the request:
+
+- Routes constrained to a public host stopped matching and answered 404.
+- A route constrained to the upstream name the proxy dials matched every proxied request, whatever
+  host its client addressed.
+
+On the effective host, the routes the proxy's clients address are the ones that match.
+[`Web.HostFiltering`](../assimalign-cohesion-web-hostfiltering/index.md) already validated the
+effective host (#1050). With both on it, the host the allowlist bounds is the host routing selects
+on.
+
+**Cost.** Reading the effective host is one `Features.Get<IHttpForwardedFeature>()`: an `O(n)` scan
+of the request's features that allocates nothing on the transport's `HttpFeatureCollection` (`Http`
+DESIGN, "Feature lookup by contract"). The router computes once, at construction, whether any
+candidate declares hosts, and a router without host-constrained candidates never reads the host at
+all. A CORS preflight that falls back to the requested method runs `Match` twice and reads it twice.
+
+**Dependency.** `Web.Routing` takes a public `CohesionProjectReference` on `Http.Forwarded`, the
+contract-only package that owns `IHttpForwardedFeature` and the `Effective*` members. It is outside
+the Web area, so the hosting-isolation rule does not constrain it, and the trust model stays in
+`Web.ForwardedHeaders`, which routing does not reference. `App.Web` ships `Http.Forwarded`
+publicly. Every other area framework carries `Web.Hosting`, and so `Web.Routing` and
+`Http.Forwarded`, as private members: `Web.Hosting` references `Web.Routing` (#1379).
+
+`RouteHostForwardedTests` ([example](examples/route-host-forwarded-tests.md)) runs the real
+forwarded-headers middleware ahead of `UseRouting`, from a known proxy address that rewrote `Host`.
+It pins the forwarded-host match, the internal-host route a public request for the public host does
+not reach, the internal-host route a client that asserts the internal host does reach, the
+forwarded port in place of the upstream one (a port the client asserts matches; a forwarded host
+without a port misses a port-constrained route), and the wire-host fallback without
+`UseForwardedHeaders` and from an untrusted peer.
+
+### Not an access control
+
+`RequireHost` selects on a host the client asserts. On the wire the client writes `Host` (or
+`:authority`) itself. Behind a proxy, `X-Forwarded-Host` and `Forwarded: host=` relay that same
+client-chosen value: the usual configurations (nginx's `$host`, Envoy's and Traefik's
+`X-Forwarded-Host`) forward the `Host` the client sent. The trust walk believes the proxy, not the
+value, and `Web.ForwardedHeaders` checks only the value's shape.
+
+So a remote client that sends `Host: admin.internal` to the public proxy reaches a
+`RequireHost("admin.internal")` route. `Web.HostFiltering` does not stop it: the internal callers
+need `admin.internal` on the allowlist, which admits it for every client. A port constraint is no
+different. It compares with the port in the asserted host, not the port the connection arrived on,
+so `*:9090` cannot fence a management listener: a public client that sends
+`Host: www.example.com:9090` matches it.
+
+Protect an internal endpoint with something the client cannot assert:
+
+- authorization on the route or its group (`RequireAuthorization`,
+  [`Web.Authorization`](../assimalign-cohesion-web-authorization/index.md)), or
+- the connection's local endpoint (`context.ConnectionInfo.LocalPort` or `LocalIp`), which the
+  transport takes from the socket: an internal listener that only internal callers can reach.
+  Check it in a middleware or branch on it with `MapWhen` (the `Web.Hosting.Resources` control
+  plane gates its port this way), or serve internal endpoints from a separate application bound
+  only to that listener.
+
+`RouteHostForwardedTests` pins the matches a client gets when it asserts the internal host or a
+port through a trusted proxy, so nothing comes to rely on the constraint as a gate.
 
 ### Ordering (the documented tie-break)
 
@@ -453,8 +550,10 @@ at that read, so a route never observes two different metadata sets.
 
 When the pipeline is built, the `UseRouting` middleware factory builds the application's router (see
 "Router lifecycle" below). For each request the middleware **selects** the endpoint and calls
-`next`. It never runs the endpoint and never short-circuits (#1054). The pipeline's terminal runs
-whatever was selected, through the root's `IWebEndpointFeature`.
+`next`. It never runs the endpoint and never short-circuits (#1054). The pipeline's terminal
+(`WebApplicationTerminal`) runs whatever was selected, through `IWebEndpointFeature`. Both are this
+package's since #1379 (see
+["Pipeline branching and the terminal"](#pipeline-branching-and-the-terminal-1056-1379) below).
 
 ```mermaid
 flowchart TD
@@ -473,8 +572,10 @@ The middleware calls `router.Match(context)` once and publishes the result:
 - `MethodNotAllowed` → a 405 endpoint is published. It is an `IWebEndpointFeature` only, not a route
   match, so metadata consumers see no endpoint. The terminal sets `405` and the `Allow` header.
 - A **CORS preflight** to a path that no route accepts `OPTIONS` on → routing matches again with the
-  method named in `Access-Control-Request-Method` (`IRouter.Match(context, method)`). A candidate
-  is published as an `IRouteMatchFeature` with `IsPreflight` set, so CORS can read its metadata.
+  method named in `Access-Control-Request-Method` (`IRouter.Match(context, method)`), parsed as
+  sent: methods are case-sensitive (RFC 9110 §9.1, #1301), so a preflight for `patch` resolves no
+  `PATCH` route, just as the actual `patch` request matches none. A candidate is published as an
+  `IRouteMatchFeature` with `IsPreflight` set, so CORS can read its metadata.
   The candidate never runs for the preflight: if no middleware answers it, the terminal answers
   the plain `OPTIONS` request with `405` and `Allow`. A path with an explicit `OPTIONS` route handles
   the request itself, with no preflight flag.
@@ -514,12 +615,16 @@ The inbound matcher used to reject an empty catch-all, so `/files/{**path}` did 
 
 The endpoint runs at the pipeline's terminal; there is no `UseEndpoints` step. An explicit dispatch
 middleware would silently turn every existing application into a 404 server: its routes would match
-and publish, and nothing would run them. The terminal belongs to the pipeline builder
-(`WebApplication` in Web.Hosting), and COHRES002 forbids Web.Hosting from referencing Web.Routing.
-So the selected endpoint reaches the terminal through a root seam, `IWebEndpointFeature`, which
-carries the delegate to run and the route template telemetry names it by. The route, its values and
-its metadata stay in Web.Routing's `IRouteMatchFeature`. `RouteMatchFeature` implements both
-contracts.
+and publish, and nothing would run them. The terminal is the pipeline builder's (`WebApplication` in
+Web.Hosting composes its pipeline around it), and the selected endpoint reaches it through
+`IWebEndpointFeature`, which carries the delegate to run and the route template telemetry names it
+by. The route, its values and its metadata stay in `IRouteMatchFeature`. `RouteMatchFeature`
+implements both contracts.
+
+When this was designed COHRES002 forbade Web.Hosting from referencing Web.Routing, so the endpoint
+seam and the terminal lived in the Web root. Owner decision 32 relaxed the rule on 2026-10-09, and
+decision 33 (#1379) moved both here: the root holds no feature contracts, and Web.Hosting now
+references Web.Routing for the terminal and for the `RouteTemplate` its telemetry reads.
 
 ### The route template the server's telemetry reports (#1064)
 
@@ -596,8 +701,18 @@ would reject exactly the group-plus-override shape the convention verbs make rou
 and the immutable `IRouter` built from it once, at startup. The wiring guarantees a single builder
 per app:
 
-- **`AddRouting()`** — (builder time) registers the per-application `RouterFeature` as an `IHttpFeature`.
-  Because it is one DI singleton per application, two applications get two distinct features.
+- **`builder.Services.AddRouting()`** (builder time) registers the per-application `RouterFeature`
+  as an `IHttpFeature`. Because it is one DI singleton per application, two applications get two
+  distinct features. The verb is a component integration (owner decisions 34 and 35, 2026-10-09,
+  #1380): the package declares `[assembly: ComponentIntegration]` over
+  `RoutingComponents.CreateFeature` (`src/Properties/ComponentIntegrations.cs`), and the generator
+  projects `AddRouting` onto `IServiceProviderBuilder` in the application's compilation, so the
+  package takes no dependency-injection reference. `RoutingComponents` is the static-factory shape,
+  `[EditorBrowsable(Never)]` in the package's root namespace, because the verb takes no
+  configuration. The singleton is load-bearing, and `Web.Hosting` enforces it at `Build`: a
+  transient registration would hand `UseRouting` and the exchange two different routers, so routes
+  mapped into one would be served by the other. Until #1380 the verb was an
+  `extension(IWebApplicationBuilder)` member.
 - **`UseRouting()`** — (pipeline time) resolves that **same** feature off the application context
   (`builder.Context.Features`) and returns its `Builder`. `MapGet`/`Map` (in `Web.Api`) resolve the
   same feature the same way. So `AddRouting`, `UseRouting`, and `MapGet` all map into and match
@@ -667,9 +782,9 @@ sequenceDiagram
 
 **Why this seam.** Three alternatives were rejected:
 
-- *Web.Hosting calls into routing at startup.* Web.Hosting may not reference feature libraries
-  (COHRES002), and Web.Routing may reference neither Web.Hosting nor any `Hosting*` library
-  (COHRES001, COHRES004).
+- *Web.Hosting calls into routing at startup.* When this was decided Web.Hosting could not
+  reference feature libraries (COHRES002, relaxed 2026-10-09), and Web.Routing may reference
+  neither Web.Hosting nor any `Hosting*` library (COHRES001, COHRES004).
 - *A new root lifecycle contract*, such as a freeze or application-starting hook on
   `IWebApplication` or on a feature. It adds public surface for something the root contract already
   provides: the component-factory `Use` overload is a composition-time callback that runs exactly
@@ -690,6 +805,97 @@ that is the token the handler sees.
 token at the boundary: an already-cancelled token returns a cancelled task without starting the
 middleware, and a running middleware observes cancellation through `RequestCancelled`. The Web
 host's pipeline treats its own `ExecuteAsync` token the same way.
+
+## Pipeline branching and the terminal (#1056, #1379)
+
+Until #1379 the endpoint seam, the standard terminal, the non-rejoining branches and the path-base
+view lived in the Web root. Owner decision 33 holds the root to base contracts and composition
+seams, so every `IHttpFeature` contract left it. The two this package publishes, and the code that
+cannot compile without them, moved here:
+
+| Type | Kind | Reads or publishes |
+|---|---|---|
+| `IWebEndpointFeature` | contract, `Abstractions/` | published by `UseRouting`; run by the terminal; read by Web.Hosting's telemetry |
+| `WebApplicationTerminal` | static class | runs `IWebEndpointFeature`, else a bodyless 404 |
+| `IWebPathBaseFeature` | contract, `Abstractions/` | published by `Map(path)` and by Web.Rewrite inside a branch |
+| `WebApplicationBranchingExtensions` | `Map(path)`, `MapWhen`, `GetPathBase()`, `GetEffectivePath()` | end in the terminal; read and publish the path base |
+
+The rejoining `UseWhen` and `Run` stay in the root (`WebApplicationExtensions`): they depend on no
+feature.
+
+### The terminal
+
+`WebApplicationTerminal.InvokeAsync` runs the published endpoint, or sets a bodyless `404` on an
+untouched response (a `200` with no `Location`, no `Content-Type` and no written body). It sets no
+body because routing references no error-handling library; `UseStatusCodePages` in
+Web.ErrorHandling upgrades the 404 to problem+json. `WebApplication` in Web.Hosting and every
+non-rejoining branch end in it, so there is one definition of "unhandled". A custom
+`IWebApplicationPipelineBuilder` should end in it too.
+
+### Non-rejoining branches
+
+| Verb | Runs the branch when | Rejoins the main pipeline |
+|---|---|---|
+| `Map(path, branch)` | the effective path starts with `path` at a segment boundary (case-insensitive) | no; ends in `WebApplicationTerminal` |
+| `MapWhen(predicate, branch)` | `predicate(context)` is true | no; ends in `WebApplicationTerminal` |
+
+Each branch is the root's `UseWhen` segment ending in `Run(WebApplicationTerminal.InvokeAsync)`:
+the terminal never calls `next`, so the segment never rejoins. Routing therefore composes branches
+against the root's public seams and keeps no second branch builder. The segment keeps the
+component-factory shape that takes the application context, so middleware that reads the context
+at composition time (`UseStaticFiles` reads the web root) composes inside a branch exactly as it
+does on the application. An endpoint selected before a branch still runs at the branch's terminal.
+
+The pipeline a path branch builds, in order:
+
+```mermaid
+flowchart TD
+    Match["UseWhen predicate: effective path starts with the prefix"] -->|"no"| Next["The rest of the containing pipeline"]
+    Match -->|"yes"| Base["Install IWebPathBaseFeature, restore the enclosing view on return"]
+    Base --> Branch["The branch's own middleware"]
+    Branch --> Terminal["WebApplicationTerminal: the selected endpoint, or 404"]
+```
+
+The predicate is allocation-free; the path below the prefix is computed once the branch is entered.
+
+**`Map(path)` does not rewrite the request.** `IHttpRequest.Path` is read-only on the interface,
+and the Web area's model is to publish an effective view rather than mutate the request (owner
+decision 3, the forwarded-headers model; Web ADR 1 for rewrites). A path branch publishes
+`IWebPathBaseFeature`: the accumulated `PathBase` (outermost prefix first) and the `Path` below it.
+Middleware that can be mounted in a branch reads `context.GetEffectivePath()`, which
+Web.StaticFiles and Web.Rewrite do. Absolute URLs keep using the full `IHttpRequest.Path`, which
+also keeps a redirect such as static files' add-a-slash correct inside a branch. A nested `Map`
+matches against the effective path, so prefixes compose. The view is removed when the branch
+returns, including when it throws.
+
+**Branches hold middleware, not routes.** Routes belong to the application's router (`app.MapGet`,
+`app.MapGroup`), and per-endpoint behavior is endpoint metadata. The routing verbs require the
+application builder (`TBuilder : IWebApplicationPipelineBuilder, IWebApplication`), so they are not
+available on a branch. A sub-path API is a route group; a sub-path asset mount is a `Map` branch.
+
+[`WebApplicationBranchingTests`](examples/web-application-branching-tests.md) pins the branches and
+the terminal.
+
+### Namespace: `Assimalign.Cohesion.Web.Routing`
+
+The moved types declare this package's namespace, not the root's `Assimalign.Cohesion.Web`. The
+package's code already declares `Assimalign.Cohesion.Web.Routing` throughout, so its
+`RootNamespace` pin cannot become the family name, and the rules require `Abstractions/` and
+`Extensions/` types to declare the `RootNamespace` (`general-rules.md`, "Every project pins its
+`RootNamespace`"). The alternative, keeping `Assimalign.Cohesion.Web` on these four types as a
+marked deviation, was not taken: it needs the deviation protocol's owner approval, and most call
+sites already import this namespace for `UseRouting`.
+
+The source break: code that names `IWebEndpointFeature`, `IWebPathBaseFeature` or
+`WebApplicationTerminal`, or calls `Map(path, branch)`, `MapWhen`, `GetPathBase()` or
+`GetEffectivePath()`, adds `using Assimalign.Cohesion.Web.Routing;`. A library that does so adds a
+reference to this package (Web.Rewrite did). `UseWhen` and `Run` keep the root assembly and
+namespace but moved from the root's `WebApplicationBranchingExtensions` into its
+`WebApplicationExtensions`; the `WebApplicationBranchingExtensions` name now belongs to this
+package's type, which declares neither. Extension-form calls (`app.UseWhen(...)`, `app.Run(...)`)
+are unchanged, a static-form call (`WebApplicationBranchingExtensions.UseWhen(app, ...)`) must name
+`WebApplicationExtensions`, and a binary that called either must be rebuilt. The moved types also
+changed assembly, so a binary compiled against the root's copies must be rebuilt.
 
 ## Parameter policies (constraints)
 
@@ -935,6 +1141,8 @@ The endpoint-metadata seam (#150) is consumed by:
   names fail when the route table is built.
 - **#1051 Startup router build, template error messages, cancellation** — see "Router lifecycle",
   "Cancellation", and the error-model section above.
+- **#1379 The endpoint seam, the terminal and the non-rejoining branches** — moved from the Web
+  root; see "Pipeline branching and the terminal" above.
 
 ## Non-goals (delivered elsewhere in the routing epic #28)
 
@@ -962,6 +1170,7 @@ The endpoint-metadata seam (#150) is consumed by:
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 

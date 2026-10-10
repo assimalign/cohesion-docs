@@ -21,7 +21,8 @@ never reimplements token cryptography; it chooses the protector the engine seals
   `IHttpAntiforgery` service and registers it as an application feature, an `IHttpFeature`
   singleton, so every exchange carries it and a handler mints tokens with
   `context.RequireAntiforgery.GetAndStoreTokens(context)`. The verb is a component integration the
-  application's compilation receives; this package takes no dependency-injection reference.
+  application's compilation receives (owner decision 34, #1380); this package takes no
+  dependency-injection reference.
 - **Protector selection.** `AddAntiforgery(dataProtectionProvider)` seals tokens with a protector
   the application's `Security.DataProtection` key ring derives for the antiforgery purpose, so
   tokens survive restarts and validate on every instance that shares the key repository.

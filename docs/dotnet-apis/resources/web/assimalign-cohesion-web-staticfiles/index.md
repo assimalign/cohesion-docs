@@ -39,6 +39,18 @@ Mount any other file system explicitly:
 
 See the [source-backed usage examples](examples/index.md).
 
+A `ContentTypeMappings` key maps an extension, never a whole file name, so no key types a file
+without one, such as `apple-app-site-association`. Give such files a mount of their own whose
+fallback type is theirs, or send them from a handler with an explicit type:
+
+- **A mount of their own** — `UseStaticFiles(wellKnownRoot, ...)` over a file system that holds
+  only the extensionless files, with `RequestPath = new HttpPath("/.well-known")`,
+  `ServeUnknownContentTypes = true`, and `FallbackContentType = "application/json"`.
+- **A handler** — `context.Response.SendFileAsync(wellKnownRoot, name, "application/json")`.
+
+Request paths whose segments look like Windows 8.3 short names (`UPLOAD~1.HTM`) answer `404`: an
+alias would open `upload.htmlx` and type it from the alias's extension.
+
 A single-page application serves its assets first and answers every client-side route with
 `index.html`. The fallback never answers a file-name path, so a missing asset stays a 404:
 
@@ -54,8 +66,8 @@ the middleware answers it — validators, conditional requests, single byte rang
 they run the same engine:
 
 - **`SendFileAsync(IFileSystem fileSystem, string path, ...)`** — a path inside a mount. It is safe
-  to build the path from a route value: dot segments, `\` traversal, drive and stream forms, and NUL
-  are answered `404`, and nothing outside the mount can be addressed.
+  to build the path from a route value: dot segments, `\` traversal, drive and stream forms, NUL,
+  and 8.3 short-name aliases are answered `404`, and nothing outside the mount can be addressed.
 - **`SendFileAsync(IFileSystemFile file, ...)`** — a file the handler already resolved, with an
   optional explicit content type.
 - **`WriteStreamAsync(Stream stream, ...)`** — a stream. The caller supplies the validators
@@ -63,7 +75,7 @@ they run the same engine:
 
 | Helper | Content type | Validators | Ranges |
 |---|---|---|---|
-| `SendFileAsync(IFileSystemFile, ...)` | Explicit, else from the file name; unmapped → `application/octet-stream` | Strong `ETag` from `Size` + `UpdatedOn`, `Last-Modified` — the same as `UseStaticFiles` | Single range → `206`; unsatisfiable → `416` |
+| `SendFileAsync(IFileSystemFile, ...)` | Explicit, else from the file name; unmapped or no extension (`html`, `.json`) → `application/octet-stream` | Strong `ETag` from `Size` + `UpdatedOn`, `Last-Modified` — the same as `UseStaticFiles` | Single range → `206`; unsatisfiable → `416` |
 | `SendFileAsync(IFileSystem, path, ...)` | As above, for the resolved file | As above | As above; an unsafe, missing, or directory path → `404` |
 | `WriteStreamAsync(Stream, ...)` | Explicit, else `application/octet-stream` | Only the `entityTag`/`lastModified` the caller passes | Seekable stream only; a non-seekable stream is sent whole, without `Content-Length` |
 
@@ -80,7 +92,7 @@ the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061)
 | Validators | Strong `ETag` derived from `Size` + `UpdatedOn`; `Last-Modified` (HTTP-date). |
 | Conditional GET | `If-None-Match` / `If-Modified-Since` → `304`; `If-Match` / `If-Unmodified-Since` → `412` (RFC 9110 §13.2.2 via `HttpConditionalRequest`). |
 | Ranges | `Accept-Ranges: bytes`; single satisfiable byte range → `206` + `Content-Range`; multi-range set → full `200` fallback; unsatisfiable → `416` + `bytes */N` (via `HttpRangeSelector`); `If-Range` gates application. |
-| Content types | `Extension` lookup via `HttpContentTypes` with builder-time overlays; unmapped extensions pass through by default or serve the configured fallback type. |
+| Content types | File-name lookup via `HttpContentTypes` with builder-time overlays; a name whose extension is unmapped, or that has none (`html`, the dotfile `.json`), passes through by default or serves the configured fallback type. |
 | Precompression | On-disk `name.ext.br` / `name.ext.gz` siblings negotiate against `Accept-Encoding` (server prefers `br`); served with the logical file's `Content-Type`, the sibling's bytes/length/validators, `Content-Encoding`, and `Vary: Accept-Encoding` (emitted whenever a sibling exists, including on identity responses). |
 | Default documents | Directory requests probe the configured names in order; a slash-less directory URL is `301`-redirected to its canonical slash form first. |
 | HEAD | Same header section as `GET` (including `Content-Length`), no body. |
@@ -92,6 +104,8 @@ and default documents.
 
 - **`Assimalign.Cohesion.Web`** — pipeline contracts (`IWebApplicationPipelineBuilder`,
   `IWebApplicationMiddleware`).
+- **`Assimalign.Cohesion.Web.Routing`** — `MapFallbackToFile`'s fallback route, and the path-branch
+  view (`context.GetEffectivePath()`) a `Map(path)` branch publishes.
 - **`Assimalign.Cohesion.Http`** — the protocol primitives listed above.
 - **`Assimalign.Cohesion.FileSystem`** — the content-root abstraction.
 

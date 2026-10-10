@@ -19,14 +19,15 @@ the source project’s test context, with its test dependencies and supporting t
 - **Case 6** — Endpoint: An explicit OPTIONS route answers a preflight-shaped request itself.
 - **Case 7** — Endpoint: A preflight with no candidate for the requested method is a plain 405.
 - **Case 8** — Endpoint: OPTIONS without CORS headers is not a preflight.
-- **Case 9** — Endpoint: Metadata naming a middleware that never ran fails the request instead of running the endpoint.
-- **Case 10** — Endpoint: An acknowledged required middleware lets the endpoint run.
-- **Case 11** — Endpoint: Metadata that names no middleware places no requirement.
-- **Case 12** — Endpoint: A requirement that a later item of the same type replaces places no requirement.
-- **Case 13** — Endpoint: A requirement that replaces a disabled item still fails closed.
-- **Case 14** — Endpoint: A grouped route publishes its composed template with a leading '/'.
-- **Case 15** — Endpoint: The 405 endpoint publishes no route template.
-- **Case 16** — Endpoint: A CORS preflight publishes its candidate's route template.
+- **Case 9** — Endpoint: A standard method in another case is a different method, answered 405 (RFC 9110 §9.1).
+- **Case 10** — Endpoint: Metadata naming a middleware that never ran fails the request instead of running the endpoint.
+- **Case 11** — Endpoint: An acknowledged required middleware lets the endpoint run.
+- **Case 12** — Endpoint: Metadata that names no middleware places no requirement.
+- **Case 13** — Endpoint: A requirement that a later item of the same type replaces places no requirement.
+- **Case 14** — Endpoint: A requirement that replaces a disabled item still fails closed.
+- **Case 15** — Endpoint: A grouped route publishes its composed template with a leading '/'.
+- **Case 16** — Endpoint: The 405 endpoint publishes no route template.
+- **Case 17** — Endpoint: A CORS preflight publishes its candidate's route template.
 
 ## Source example
 
@@ -200,6 +201,7 @@ public class EndpointSelectionTests
     [Theory(DisplayName = "Cohesion Test [Web.Routing] - Endpoint: A preflight with no candidate for the requested method is a plain 405")]
     [InlineData("PUT")]       // no route accepts PUT on the path
     [InlineData("DEL ETE")]   // not a method token
+    [InlineData("get")]       // methods are case-sensitive (RFC 9110 §9.1): 'get' is not GET
     public async Task UseRouting_OnPreflightWithoutCandidate_ShouldAnswer405WithoutMatch(string requestedMethod)
     {
         // Arrange
@@ -233,6 +235,28 @@ public class EndpointSelectionTests
         // Assert
         context.GetRouteMatch().ShouldBeNull();
         context.Response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Routing] - Endpoint: A standard method in another case is a different method, answered 405 (RFC 9110 §9.1)")]
+    [InlineData("get")]
+    [InlineData("Get")]
+    [InlineData("head")]
+    public async Task UseRouting_OnMethodInAnotherCase_ShouldAnswer405WithoutRunningTheRoute(string method)
+    {
+        // Arrange — the method as a transport parses it off the wire.
+        RecordingRouterRouteHandler handler = new();
+        TestHttpContext context = TestHttpContext.Create(HttpMethod.GetCanonicalizedValue(method), "/items");
+        TestWebApplication app = new();
+        app.AddRouting();
+        app.UseRouting().Map(new Route(HttpMethod.Get, "/items", handler));
+
+        // Act
+        await app.ExecuteAsync(context);
+
+        // Assert
+        handler.WasInvoked.ShouldBeFalse();
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
+        context.Response.Headers[HttpHeaderKey.Allow].ToString().ShouldBe("GET, HEAD");
     }
 
     // ------------------------------------------------------------------ required middleware
