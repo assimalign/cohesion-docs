@@ -11,7 +11,8 @@ Web composes the Hypertext Transfer Protocol (HTTP) stack, application pipeline,
 composition at builder time. Feature packages extend the hosting-free root contracts.
 
 An application receives the family through the Web shared framework. The runtime does not need
-compile-time references to each feature. See the [Web API reference](../dotnet-apis/resources/web/index.md)
+compile-time references to each feature: it references only `Web.Routing` and `Web.Server`, whose
+contracts it runs or publishes. See the [Web API reference](../dotnet-apis/resources/web/index.md)
 and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 ## Guides
@@ -31,12 +32,13 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 | Assembly | Responsibility |
 |---|---|
-| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, pipeline branching, and the shared pipeline terminal. |
+| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
+| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, response completion, the drain signal, and the client-fault report. |
 | [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; the server's request spans, HTTP metrics, and request id. |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
-| [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation. |
+| [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation; the endpoint contract, the shared pipeline terminal, and the `Map` and `MapWhen` branches that end in it. |
 | [`Assimalign.Cohesion.Web.Rewrite`](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ordered rewrite and redirect rules ahead of routing, the request view and `IWebRewriteFeature`, and canonicalization redirects (HTTPS, `www`, trailing slash, lowercase). |
 | [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, source-generated typed-delegate binding (uploaded files included), returned values, `COHWEB` compile errors, and endpoint-description metadata with its description verbs. |
 | [`Assimalign.Cohesion.Web.WebSockets`](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) | `MapWebSocket` endpoints for every handshake shape (`GET` on HTTP/1.1, extended `CONNECT` on HTTP/2 and HTTP/3) and the `UseWebSockets` policy: the cross-site origin check, keep-alive and compression defaults, and the `1001` drain close. |
@@ -59,7 +61,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Sessions`](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | Cookie-backed session identity over asynchronous session stores. |
 | [`Assimalign.Cohesion.Web.CookiePolicy`](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Consent, attribute floors, RFC 6265bis prefix rules, and the lifetime cap for every cookie the application appends. |
 | [`Assimalign.Cohesion.Web.Cors`](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/index.md) | Validated cross-origin resource sharing (CORS) policies, preflight answers, and per-endpoint policy selection. |
-| [`Assimalign.Cohesion.Web.Forms`](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Pipeline integration for HTTP form parsing. |
+| [`Assimalign.Cohesion.Web.Forms`](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/index.md) | Pipeline integration for HTTP form parsing, answering a form over a limit `413` and a malformed one `400`. |
 | [`Assimalign.Cohesion.Web.Antiforgery`](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/index.md) | Cross-site request forgery token validation for endpoints that require it, including every form-bound typed endpoint. |
 | [`Assimalign.Cohesion.Web.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-health/index.md) | Health model, readiness/liveness selection, and HTTP endpoints. |
 | [`Assimalign.Cohesion.Web.StaticFiles`](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md) | Web-root file serving, default documents, ranges, validators, precompressed assets, the single-page-application fallback, and the `SendFileAsync`/`WriteStreamAsync` response helpers. |

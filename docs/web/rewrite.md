@@ -178,7 +178,9 @@ HttpPath clientPath = context.Features.Get<IWebRewriteFeature>()?.OriginalPath ?
 
 Inside `Map(path)`, the rules work on the branch's terms. They see the path below the branch's
 prefix, which `IRewriteContext.PathBase` reports: a rule written inside `Map("/docs")` matches
-`/old/intro`, not `/docs/old/intro`. A rewrite publishes a matching `IWebPathBaseFeature`, so
+`/old/intro`, not `/docs/old/intro`. `Map(path)` and the path-branch view it publishes,
+`IWebPathBaseFeature`, are `Web.Routing`'s since #1379, which is why Web.Rewrite references that
+package although it runs ahead of routing. A rewrite publishes a matching `IWebPathBaseFeature`, so
 `/docs/old/intro` rewritten to `/new/intro` reads `/docs/new/intro` as `Request.Path`. A redirect's
 target path is relative to the prefix, and an absolute `http` or `https` target leaves the branch. An
 application-level rewrite ahead of a branch decides which branch runs, because `Map` matches the

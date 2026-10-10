@@ -117,18 +117,27 @@ ran. Its end time is set from the duration measurement, so the span and
 | How the exchange ended | `http.response.status_code` | `error.type` |
 |---|---|---|
 | A response with a status below 500 | the status | none |
+| The request body broke its framing or a limit while it was read, or the client cut it short, and the HTTP/1.1 transport answered in place of the staged response | the transport's `400`, `413`, `408` or `431` | none |
+| The request body fell below the minimum data rate, and the HTTP/2 or HTTP/3 transport answered its stream with `408` | `408` | none |
 | A `5xx` response, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | Cancelled — a peer reset or closed connection, the server stopping, `IHttpContext.Cancel` — and reset | only when a streamed response had started | `request_canceled` |
+| The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset | only when the response had started | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
 | The response could not be put on the wire | none | `response_send_failed` |
 
 The exception itself is not recorded on the span; reporting it belongs to the application's error
-handling.
+handling. A body the client got wrong is not the application's fault: when the transport's status
+replaced the response, the span and the duration carry that status, no `error.type`, and an unset
+span status. When the response had already started, the exchange is reset and reported as
+`client_fault` with the span status `Error`, so `unhandled_exception` means the application's own
+defect (see [Client faults](server.md#client-faults-and-refused-responses)).
 
 **Known methods** are the OpenTelemetry convention's: RFC 9110's eight methods, `PATCH`, and
 `QUERY`. `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` replaces the list with a comma-separated,
-case-sensitive one, read once per process. The HTTP stack upper-cases method tokens when it parses
-a request, so its entries should be upper case.
+case-sensitive one, read once per process. Methods are case-sensitive (RFC 9110 §9.1, #1301): the
+HTTP stack keeps the token as the client sent it, so a lower-case `get` is an unknown method,
+reported as `_OTHER` with `http.request.method_original` set to `get`. A method is known only when
+it matches a list entry exactly.
 
 ## The metrics
 
@@ -145,21 +154,24 @@ recorded whenever it is enabled, with or without a span.
 ## Route templates
 
 `http.route` comes from the endpoint that routing selected: `UseRouting` publishes the matched
-route's template through the Web root's `IWebEndpointFeature.RouteTemplate`, and the server reads it
-when the exchange ends. The template is the route's pattern with one leading `/`, so
-`/orders/{id}`, `orders/{id}`, and `~/orders/{id}` all report `/orders/{id}`, and a route in a
-group reports the composed template, `/api/orders/{id:int}`. A request that no route selected has
+route's template through `IWebEndpointFeature.RouteTemplate`, a `Web.Routing` contract since #1379,
+and the server reads it when the exchange ends. The template is the route's pattern with one leading
+`/`, so `/orders/{id}`, `orders/{id}`, and `~/orders/{id}` all report `/orders/{id}`, and a route in
+a group reports the composed template, `/api/orders/{id:int}`. A request that no route selected has
 no `http.route`, and neither has a `405` answer, which no single route selected. A custom endpoint
 selector reports a template by implementing `RouteTemplate`, which defaults to `null`.
 
 ## The request id
 
 Every exchange the default server handles carries `IWebRequestIdFeature`, with or without a
-listener. Its `RequestId` is an `ActivityTraceId`: the server span's trace id when the request is
-traced, otherwise the trace id of a valid `traceparent`, otherwise a random id generated on first
-read. It is stable for the exchange, so one value finds the request in its span, in the logs, and in
-whatever the application returns to the caller. `ToHexString()` gives the 32-character lower-case
-form that `traceparent` uses. A custom server may omit the feature, so check for it:
+listener. The contract ships in
+[`Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) and keeps the
+`Assimalign.Cohesion.Web` namespace. Its `RequestId` is an `ActivityTraceId`: the server span's
+trace id when the request is traced, otherwise the trace id of a valid `traceparent`, otherwise a
+random id generated on first read. It is stable for the exchange, so one value finds the request in
+its span, in the logs, and in whatever the application returns to the caller. `ToHexString()` gives
+the 32-character lower-case form that `traceparent` uses. A custom server may omit the feature, so
+check for it:
 
 ```csharp
 using Assimalign.Cohesion.Http;
@@ -201,5 +213,6 @@ Return to [Web](index.md).
 - **Telemetry design** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Instruments and attributes** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebServerTelemetry.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebExchangeTelemetry.cs`.
 - **Subscription** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/GuardSmoke.cs` and `cohesion/docs/EVENT_SOURCES.md`.
-- **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
+- **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Abstractions/IWebEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
+- **Client faults** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebClientFaultFeature.cs`.
 - **Tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebServerTelemetryTests.cs`.

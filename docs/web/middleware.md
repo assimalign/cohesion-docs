@@ -6,7 +6,8 @@ Web feature packages compose typed request behavior through the root application
 
 ## Composition model
 
-Feature registration extends `IWebApplicationBuilder` or `IWebApplicationPipelineBuilder`.
+Feature registration verbs are component integrations on `builder.Services`
+(`builder.Services.AddRouting()`), and pipeline verbs extend `IWebApplicationPipelineBuilder`.
 Runtime dependencies are captured during composition. Request middleware exchanges state through
 typed features on the Hypertext Transfer Protocol (HTTP) context, avoiding per-request service
 location. Each feature package owns its builder verbs rather than adding them to `Web.Hosting`.
@@ -28,7 +29,9 @@ The pipeline can also branch. `Map(path, ...)` runs a separate middleware chain 
 a path prefix and publishes the prefix as the path base, `MapWhen` branches on a predicate,
 `UseWhen` runs extra middleware for matching requests and then rejoins the main pipeline, and
 `Run` ends a pipeline with a terminal middleware. Branches hold middleware only; routes are mapped
-on the application.
+on the application. `UseWhen` and `Run` are the Web root's; `Map(path, ...)` and `MapWhen` end in
+routing's pipeline terminal, so they and the path base ship in `Web.Routing` and its
+`Assimalign.Cohesion.Web.Routing` namespace (#1379).
 
 ## Feature families
 
@@ -46,7 +49,7 @@ on the application.
 | `Web.Cors` | Validated CORS policies, preflight answers, actual-response headers with `Vary: Origin`, and per-endpoint policy selection. |
 | `Web.CookiePolicy` | Consent gating for non-essential cookies, `Secure`/`HttpOnly`/`SameSite` floors, RFC 6265bis prefix rules, and the 400-day cap, applied as each cookie is appended. |
 | `Web.Sessions` | Lazy store-backed sessions, cookie identity, commit/slide, and identifier regeneration. |
-| `Web.Forms` | Form parsing through `Http.Forms` and `IHttpFormFeature`. |
+| `Web.Forms` | Form parsing through `Http.Forms` and `IHttpFormFeature`; a form over a limit is answered `413` and a malformed one `400`, as problem+json, without running the rest of the pipeline. |
 | `Web.Antiforgery` | Cross-site request forgery token validation for endpoints that require it, including typed endpoints that bind form fields or files, with a `400` problem response on failure and `413` for a form over its size limits. |
 | `Web.StaticFiles` | Web-root serving, conditional GET, single byte ranges, default documents, precompressed assets, the single-page-application fallback (`MapFallbackToFile`), and the `SendFileAsync`/`WriteStreamAsync` response helpers for handlers. |
 | `Web.Compression` | Negotiated response compression and bounded request decompression. |
@@ -121,7 +124,7 @@ Return to [Web](index.md).
 - **Feature map** — `cohesion/resources/Web/README.md`.
 - **Ordering** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Endpoint selection and ordering** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
-- **Pipeline branching** — `cohesion/resources/Web/Assimalign.Cohesion.Web/docs/DESIGN.md`.
+- **Pipeline branching** — `cohesion/resources/Web/Assimalign.Cohesion.Web/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Cache and compression order** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/docs/DESIGN.md`.
 - **Authentication** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Cookie/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Bearer/docs/DESIGN.md`.
 - **Forms and health** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Forms/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/docs/DESIGN.md`.

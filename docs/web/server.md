@@ -19,6 +19,14 @@ The server owns accepted connections, exchanges, and contexts, and tracks in-fli
 shutdown, which lets the requests in flight finish before the connections close (see
 [Graceful shutdown](#graceful-shutdown)).
 
+Each exchange's feature collection is sized for the features the server knows it carries: the
+application features the pipeline stamps plus the host's own four (#1381), rounded up to a size an
+unsized collection grows through, so an exchange that carries more never costs more than an unsized
+one. Middleware install features of their own as an exchange passes through them. A host whose
+middleware put one on every exchange adds a slot for each in a `UseServer` configuration, for
+example `options.ExchangeFeatureCapacity += 3` for routing, `UseResponseCompression` and
+`UseSecurityHeaders`; `0` turns the sizing off.
+
 Within a connection, HTTP/1.1 serves one exchange at a time, in order, because its transport
 realigns on the next request only after the previous one finished. HTTP/2 and HTTP/3 run one task
 per stream, so a slow request, a long poll, or a server-sent-events stream no longer holds up its
@@ -32,23 +40,36 @@ control on buffered responses, HTTP/3 reads each request stream incrementally af
 both send no body for `HEAD`, and both reject a malformed `:path` on its own stream without
 closing the connection.
 
+`KeepAliveTimeout`, `RequestHeadersTimeout` and the minimum request-body data rate apply to every
+version. Before #1085 only HTTP/1.1 enforced them, so an HTTP/2 or HTTP/3 client could hold a
+connection or a stream open by sending nothing. A body that falls below the rate is answered `408`.
+A limit or a framing error found while a handler reads the body is answered by the transport with
+`413`, `408`, `431` or `400` in place of the server's `500` (#1339); `431` is a trailer section over
+its bounds (#1375). See
+[Client faults and refused responses](#client-faults-and-refused-responses).
+
 ## Upgrades, WebSockets, and trailers
 
-Every listener the default server composes gets three interceptors before any the application
-registers: the request-size limit, the HTTP/1.1 protocol upgrade, and the HTTP/2 and HTTP/3
-extended CONNECT (RFC 8441, RFC 9220). So `context.Upgrade`, `context.ExtendedConnect`, and a
-WebSocket handshake work on every protocol without listener configuration, a request that no
-handler accepts is served exactly as before, and an ordinary request pays only a version and header
-check: each transition interceptor joins the response phase only of the exchanges that ask for a
-transition, an HTTP/1.1 upgrade or `CONNECT`, or an extended CONNECT whose `:protocol` the transport
-validated. There the extended CONNECT interceptor installs `IHttpExtendedConnectFeature`, from
-`Http.ExtendedConnect`, whose `AcceptAsync` turns the stream into a duplex tunnel. WebSockets run
-over both; [WebSockets](websockets.md) covers the endpoints, the origin policy, and the drain close.
+Every listener the default server composes gets four interceptors before any the application
+registers: the request-size limit, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3
+extended CONNECT (RFC 8441, RFC 9220), and the client fault. So `context.Upgrade`,
+`context.ExtendedConnect`, and a WebSocket handshake work on every protocol without listener
+configuration, a request that no handler accepts is served exactly as before, and an ordinary
+request pays only a version and header check: each transition interceptor joins the response phase
+only of the exchanges that ask for a transition, an HTTP/1.1 upgrade or `CONNECT`, or an extended
+CONNECT whose `:protocol` the transport validated. There the extended CONNECT interceptor installs
+`IHttpExtendedConnectFeature`, from `Http.ExtendedConnect`, whose `AcceptAsync` turns the stream
+into a duplex tunnel. WebSockets run over both; [WebSockets](websockets.md) covers the endpoints,
+the origin policy, and the drain close. The client-fault interceptor joins only an HTTP/1.1 request
+that declares a body (see
+[Client faults and refused responses](#client-faults-and-refused-responses)).
 
 A `UseServer` callback that clears `options.Interceptors` removes the defaults, and with them
 WebSockets on every protocol: the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT,
 so browsers keep sending their handshakes that way, but nothing surfaces them. A host that clears
-the list and still serves WebSockets adds the two transition interceptors back.
+the list and still serves WebSockets adds the two transition interceptors back. Clearing it also
+removes the client-fault classification: a malformed or over-limit body is then logged at `Error`
+and observed by `OnException` again, while the transport still answers it with its own status.
 
 Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
 has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
@@ -70,6 +91,30 @@ A pseudo-header, a connection-specific field, or a field RFC 9110 §6.5.1 prohib
 (`Content-Length`, `Host`, and the rest) is refused with `ArgumentException` when it is added, and a
 response to `HEAD` sends no trailers. See
 [Http's trailers](../dotnet-apis/libraries/http/assimalign-cohesion-http/design.md#trailers).
+
+## Client faults and refused responses
+
+A handler that throws before its response starts is answered with a bodyless `500`; the staged
+headers, trailers and body are dropped. So is a response the transport refuses to send. Every
+protocol refuses a header or trailer whose name is not a token, or whose value holds CR, LF, NUL, or
+another control character but HTAB, before it writes any of the head (#1183). Such a value is
+typically request text copied into a header unvalidated, which would otherwise split an HTTP/1.1
+response (CWE-113). The `500` replaces the refused response, its completion callbacks do not run,
+and an HTTP/1.1 connection stays usable. A refused trailer section on a response already streamed
+cannot be replaced, so the transport resets that stream. HTTP/2 and HTTP/3 also send every value
+without leading or trailing spaces and tabs, which those versions do not allow.
+
+A request body that breaks its framing or a limit while a handler reads it, or that the client cuts
+short by closing the connection, is the client's fault, not the application's. The read still
+throws, and the transport answers the exchange with its own status in place of the server's `500`:
+`400`, `413`, `408` or `431`. On an HTTP/1.1 request that declares a body, the client-fault
+interceptor publishes that status as `IWebClientFaultFeature`, a
+[`Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) contract
+(#1340). The HTTP logging middleware then logs the exchange at its configured level instead of
+`Error`, and the exception boundary skips `OnException` and its `OnError` chain and stages the
+transport's status. Request telemetry reports the status the transport sent, with no `error.type`
+(see [Observability](observability.md#the-request-span)). HTTP/2 and HTTP/3 exchanges carry no such
+report until #1378, so the pipeline handles their body faults like any other exception.
 
 ## Application configuration
 
@@ -160,18 +205,23 @@ HTTP/3 behaves the same way for QUIC's own handshakes. It uses `System.Net.Quic`
 timeout and the listener's backlog.
 
 Below TLS, a client that connects and resets before the server accepts it costs only that
-connection too.
+connection too, as does a socket that fails to be set up right after the accept. When an accept
+fails for want of file descriptors or socket buffers, or on Unix for an error .NET does not name,
+the TCP listener waits and retries the accept, from 5 ms doubling to at most 1 second, instead of
+stopping the endpoint (#1312); it recovers once connections close.
 
-These are routine events on a public endpoint, so the server's log does not report them. Each one
-is reported by an event source, which a tool enables by name:
+None of these reach the server's log. Each one is reported by an event source, which a tool enables
+by name:
 
 | What happened | Event source | Event |
 |---|---|---|
 | A TLS handshake over TCP failed or timed out | `Assimalign.Cohesion.Connections` | `UpgradeFailed` (Warning) |
 | A QUIC handshake failed | `Assimalign.Cohesion.Connections.Quic` | `HandshakeFailed` (Warning) |
-| A client reset before the accept | `Assimalign.Cohesion.Connections.Tcp` | `AcceptSkipped` (Verbose) |
+| A client reset before the accept, or on Linux a network error was pending on the queued connection | `Assimalign.Cohesion.Connections.Tcp` | `AcceptSkipped` (Verbose) |
+| An accepted socket could not be set up and was closed | `Assimalign.Cohesion.Connections.Tcp` | `AcceptedConnectionDropped` (Verbose) |
+| An accept failed for want of descriptors or buffers, or on Unix for an error .NET does not name, and waited | `Assimalign.Cohesion.Connections.Tcp` | `AcceptBackoff` (Warning, at most once a second per listener) |
 
-Before #1304 and #1308, any of these stopped the endpoint.
+Before #1304, #1308 and #1312, any of these stopped the endpoint.
 
 ## Client certificates
 
@@ -260,7 +310,7 @@ instead.
 | `Endpoints:<name>:Certificate` | TLS endpoints: the name of a Secret mount (when absent, the endpoint's registered mount, or `tls`), or a section with `Path` (a PEM or PFX file), `KeyPath` (a separate PEM key file), and `Password` (an encrypted PEM key or a protected PFX) |
 | `Endpoints:<name>:ClientCertificateMode` | TLS endpoints: `NoCertificate` (the default), `AllowCertificate`, or `RequireCertificate` |
 | `Limits:MaxConcurrentConnections` | a positive cap on the connections served at once; a cap set in code with `LimitConcurrentConnections` wins |
-| `Limits:MaxRequestLineSize`, `Limits:MaxRequestHeaderCount`, `Limits:MaxRequestHeadersTotalSize` | HTTP/1.1 request limits |
+| `Limits:MaxRequestLineSize`, `Limits:MaxRequestHeaderCount`, `Limits:MaxRequestHeadersTotalSize`, `Limits:MaxChunkFramingLineSize` | HTTP/1.1 request limits |
 | `Limits:MaxRequestBodySize` | bytes, or `unbounded` / `none` for no cap |
 | `Limits:KeepAliveTimeout`, `Limits:RequestHeadersTimeout` | a `TimeSpan` (`00:00:30`), whole seconds, or `infinite` / `-1` |
 | `Limits:Http2:<key>` | `MaxStreamsPerConnection`, `MaxRequestHeaderListSize`, `MaxResetStreamsPerWindow`, `MaxSettingsFramesPerWindow`, `MaxPingFramesPerWindow`, and `FloodDetectionWindow` |
@@ -268,6 +318,7 @@ instead.
 An HTTP/1.1 endpoint, including the HTTP/1.1 connections of an `Https` endpoint, receives every
 request limit above. An HTTP/2 endpoint receives `MaxRequestBodySize`, `KeepAliveTimeout`,
 `RequestHeadersTimeout`, and the `Limits:Http2` keys; an HTTP/3 endpoint receives the first three.
+Both timeouts take effect on every version (#1085).
 `MaxConcurrentConnections` caps the server rather than an endpoint. Configuring an `Http3` endpoint
 turns on the `Alt-Svc` advertisement, which a later `UseServer` callback can turn off. On an
 operating system without `System.Net.Quic` an `Http3` endpoint is refused with
@@ -287,6 +338,15 @@ authority needs the code form. A cleartext endpoint that declares a mode other t
 is refused, as is an unknown mode. Not bound from configuration: the HTTP/3 header-frame limit and
 QPACK options, QUIC stream limits, a validation callback, and data-rate limits.
 
+So an endpoint bound from configuration keeps the default minimum request-body data rate, on every
+version: 240 octets per second after a 5-second grace period, from the first body read. An endpoint
+registered in code changes it through the HTTP options callback of `UseHttp1s`, `UseHttp2s`,
+`UseHttps` or `UseHttp3`, for example `http2 => http2.Limits.MinRequestBodyDataRate = null`. There
+is no per-request override: a request body that legitimately idles, such as a client-streaming
+call, fails with `408`, or a stream reset once the response has started, when an idle gap outlasts
+its allowance, about 5 seconds plus 1 second per 240 octets already received. Before #1085 such a
+body was served on HTTP/2 and HTTP/3.
+
 ## Graceful shutdown
 
 When the host stops, the default server drains lame-duck style: it accepts nothing new, tells every
@@ -302,10 +362,11 @@ budget, and cancels only what outlives it.
   `RST_STREAM(REFUSED_STREAM)`. HTTP/3 accepts no further request stream and sends a `GOAWAY`.
 - **The requests in flight** — nothing is cancelled while the budget lasts: a running request
   finishes, and its response is delivered.
-- **Long-lived exchanges** — every exchange carries `IWebServerDrainFeature`, whose `Draining` token
-  fires when the stop begins and cancels nothing, so an exchange that would otherwise run until the
-  budget cuts it off can end its own work in time. `UseWebSockets` closes each open socket with
-  `1001 Going Away` there (see [WebSockets](websockets.md#shutdown-the-drain-close)).
+- **Long-lived exchanges** — every exchange carries `IWebServerDrainFeature`, a `Web.Server`
+  contract, whose `Draining` token fires when the stop begins and cancels nothing, so an exchange
+  that would otherwise run until the budget cuts it off can end its own work in time.
+  `UseWebSockets` closes each open socket with `1001 Going Away` there (see
+  [WebSockets](websockets.md#shutdown-the-drain-close)).
 - **When the budget runs out** — the server logs a warning with what is still in flight, every
   request still running observes `RequestCancelled`, and every connection still open is aborted.
   The stop waits up to one second for them to unwind, releases the listener, and completes
@@ -371,7 +432,10 @@ Return to [Web](index.md).
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
 - **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src/Abstractions/IHttpTlsConnectionFeature.cs`.
 - **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerLog.cs`.
-- **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web/src/Abstractions/IWebServerDrainFeature.cs`.
+- **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebServerDrainFeature.cs`.
+- **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
+- **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
+- **Accept back-off** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
 - **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md`.

@@ -137,7 +137,10 @@ recursive type references its own component, and the RFC 9457 `ProblemDetails` t
 component with the five standard members.
 
 `QUERY` endpoints become the 3.2 `query` operation and are left out of earlier lines. A route that
-accepts any method, and `CONNECT` and extension methods, have no operation to describe.
+accepts any method, and `CONNECT` and extension methods, have no operation to describe. Methods map
+to operations byte for byte, because HTTP methods are case-sensitive (RFC 9110 §9.1, #1301): a
+route mapped for `get` serves only the extension method `get`, so it is not described as the `get`
+operation, which means `GET`.
 
 ### Uploaded files
 

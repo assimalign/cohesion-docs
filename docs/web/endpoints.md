@@ -55,11 +55,13 @@ application endpoint, and the group's prefix, metadata and policies apply to it.
 
 Missing required or invalid scalar inputs, and a missing required file, produce Hypertext Transfer
 Protocol (HTTP) 400 problem responses with an `errors` extension naming the parameter. A form over an
-Http.Forms size limit produces 413 and a malformed form 400. A request whose Content-Type is missing
-or has no registered reader produces 415; a malformed body produces 400. A body type the registered
-resolver has no contract for, or an application with no serialization registry, is the server's
-fault, not the client's: `HttpContentSerializationException` reaches the exception boundary (a 500)
-instead of a 415.
+Http.Forms size limit produces 413 and a malformed form 400; with `UseForms()` in the pipeline the
+middleware parses the form first and answers it with the same payload, and the endpoint does not
+run. A request whose Content-Type is missing or has no registered reader produces 415; a malformed
+body, its message framing included, produces 400. A body type the registered resolver has no
+contract for, or an application with no serialization registry, is the server's fault, not the
+client's: `HttpContentSerializationException` reaches the exception boundary (a 500) instead of a
+415.
 
 An endpoint with a `[FromForm]` or uploaded-file parameter requires antiforgery when the application
 references `Assimalign.Cohesion.Web.Antiforgery`, which every `Sdk.Web` application does through
@@ -255,7 +257,10 @@ it does not decide which application outcomes are errors.
 `UseErrorHandling`.
 The middleware captures faults in `IHttpExceptionFeature`, dispatches an ordered handler chain,
 and provides a terminal problem response. It avoids clobbering an already committed response.
-`UseStatusCodePages` can upgrade an otherwise bodyless 404.
+`UseStatusCodePages` can upgrade an otherwise bodyless 404. A request body the client broke, or
+cut short, while a handler read it is not treated as a fault: on an HTTP/1.1 request the boundary
+skips `OnException` and the `OnError` chain and stages the `400`, `413`, `408` or `431` the
+transport answers with (see [Client faults](server.md#client-faults-and-refused-responses)).
 
 Return to [Web](index.md).
 
@@ -266,8 +271,8 @@ Return to [Web](index.md).
 - **Antiforgery on form-bound endpoints** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`.
 - **Validation** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Validation/docs/OVERVIEW.md`.
 - **File and stream helpers** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
-- **Form limits** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/docs/DESIGN.md`.
+- **Form limits** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Forms/docs/DESIGN.md`.
 - **Serialization and withdrawn results** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Serialization/docs/DESIGN.md`.
 - **Problem payload** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ProblemDetails/docs/DESIGN.md`.
-- **Error-handling surface** — `cohesion/resources/Web/README.md`.
+- **Error-handling surface** — `cohesion/resources/Web/README.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.ErrorHandling/docs/OVERVIEW.md`.
 - **Programming-model direction** — `cohesion/docs/programs/HTTP_WEB_PROGRAM_PLAN.md`.

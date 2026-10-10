@@ -21,6 +21,13 @@ endpoint through `context.GetRouteMatch()` and `context.GetEndpointMetadata<T>()
 position for endpoint policies: CORS, authorization, timeouts, rate limits, antiforgery and output
 caching, in that order ([Middleware order](middleware-order.md)).
 
+The selected endpoint reaches the end of the pipeline through `IWebEndpointFeature`, and the
+pipeline terminal that runs it, `WebApplicationTerminal`, belongs to this package too, with the
+branches that end in it: `Map(path, branch)`, `MapWhen`, and the path-base view a path branch
+publishes (`IWebPathBaseFeature`, `GetPathBase()`, `GetEffectivePath()`). They moved here from the
+Web root (#1379) and declare `Assimalign.Cohesion.Web.Routing`, so code that names them imports that
+namespace. The rejoining `UseWhen` and `Run` stay in the root.
+
 ## Matching and precedence
 
 Matching evaluates the path and constraints before the request method. That distinction preserves
@@ -31,6 +38,10 @@ Hypertext Transfer Protocol (HTTP) method semantics:
 | `Matched` | Publish `IRouteMatchFeature` and call the next middleware; the end of the pipeline runs the endpoint. |
 | `MethodNotAllowed` | Call the next middleware; the end of the pipeline answers 405 with `Allow`. |
 | `NoMatch` | Call the next middleware; the end of the pipeline answers 404 if nothing else did. |
+
+Methods match byte for byte, because HTTP methods are case-sensitive (RFC 9110 §9.1, #1301). A
+`GET` route does not serve a request whose method is `get`; that request is answered `405` with
+`Allow: GET, HEAD`, as any other method the route does not list.
 
 A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) to a path with no
 `OPTIONS` route publishes the endpoint for the requested method, flagged `IsPreflight`, so CORS
@@ -65,6 +76,15 @@ Constraints apply when a value is present; they do not make an optional value ma
 `IRouterRouteMetadataCollection` carries endpoint metadata without reflection. Consumers use
 `IRouteMatchFeature` to inspect the selected route and its values. `RouteHostMetadata` constrains
 host matching through `RouteHostConstraint`.
+
+A host constraint (`RequireHost`) matches the effective host, `context.EffectiveHost` (#1077): the
+host a trusted proxy forwarded when `UseForwardedHeaders` runs ahead of `UseRouting`, otherwise the
+host on the wire. Behind a proxy that rewrites `Host`, routing therefore selects on the host the
+client addressed. A port constraint compares the port in that host, the one the client asserted,
+not the port the connection arrived on. Either way the client chooses the host, so a host
+constraint selects a route and never protects one: guard an internal endpoint with authorization,
+or with the connection's local endpoint (`context.ConnectionInfo.LocalPort`), which the transport
+takes from the socket.
 
 `MapGroup` creates an `IRouterGroupBuilder` combining a path prefix, shared parameter policies,
 and metadata with child routes. Named routes use `RouteNameMetadata`; `ILinkGenerator` produces
