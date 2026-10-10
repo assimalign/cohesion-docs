@@ -23,6 +23,13 @@ failing rule: `ValidationMode.Stop` stops at the first failing member, and
 `ContinueThroughValidationChain` runs every rule of a member. See
 [which failures are reported](design.md#which-failures-are-reported).
 
+The pattern rules bound what a request body can cost. `EmailAddress` runs in linear time and fails
+an address over the RFC 5321 sizes. `Matches` runs the caller's pattern in linear time when the
+non-backtracking engine supports it. Otherwise each match gets one second, per element under
+`RuleForEach`, so N strings can cost N seconds. A match that runs out fails the rule, and an invalid
+pattern throws where the profile declares it. See
+[pattern rules on untrusted input](design.md#pattern-rules-on-untrusted-input).
+
 A nested profile's rule or a custom rule that throws faults the validation: the exception propagates
 out of `Validate` and `ValidateAsync` rather than letting the value pass (see
 [a rule that throws](design.md#a-rule-that-throws)). A validator is shared by every validation that

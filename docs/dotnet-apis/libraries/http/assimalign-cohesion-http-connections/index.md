@@ -53,6 +53,31 @@ field name's colon, an empty name, obsolete line folding, or a line without a co
 malformed chunked body with `400` and `Connection: close` without ever draining it. Every version
 skips a query parameter with an empty name. See the [design](design.md#http2-request-heads-rfc-9113-83).
 
+HTTP/2 and HTTP/3 now enforce `KeepAliveTimeout`, `RequestHeadersTimeout` and
+`MinRequestBodyDataRate`, which only HTTP/1.1 read before (#1085). An HTTP/2 stream that is reset
+keeps its `SETTINGS_MAX_CONCURRENT_STREAMS` slot until its exchange ends, the reset budget also
+counts the resets the server sends for the peer's stream errors (MadeYouReset, CVE-2025-8671;
+#1072), and a cancelled HTTP/2 send resets its stream instead of leaving it open (#1075). HTTP/3 puts
+its RFC 9114 error codes on the wire through the connection contracts' code-carrying aborts (#1080),
+so it refuses an unread request body with `STOP_SENDING(H3_NO_ERROR)` instead of draining it, and it
+bounds the decoded field section with `Http3QPackOptions.MaxFieldSectionSize`, answered `431`
+(#1082). See the [design](design.md#http2-and-http3-connection-timeouts-and-data-rates-1085).
+
+HTTP/1.1 rejects request-line and field-value octets RFC 9112 and RFC 9110 do not allow (#1341),
+caps each chunk framing line with `MaxChunkFramingLineSize` and the body's whole chunk framing with a
+budget derived from it (#1375), and answers a body over a limit itself with `413`, `408` or `431`
+(#1339). `IHttpExchangeControl.ClientFaultStatusCode` reports that status, so a host can tell the
+client's fault from the application's (#1340). See the
+[design](design.md#http11-reporting-the-client-fault-1340).
+
+Every version refuses a response field whose name is not a token or whose value holds a control
+character other than HTAB before it writes a byte, with an `HttpException` whose code is
+`HttpErrorCode.InvalidResponseField` (#1183), and HTTP/2 and HTTP/3 refuse such a field when they
+receive it (#1376). The method is kept as sent, so `get` is not `GET` (#1301), and
+`HttpConnectionListenerOptions.ExchangeFeatureCapacity` sizes each exchange's feature collection for
+the features a host installs (#1381). See the
+[design](design.md#response-field-syntax-refused-before-a-byte-is-written-1183).
+
 ## Dependencies
 
 | Reference | Build item |

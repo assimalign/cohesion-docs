@@ -90,6 +90,46 @@ public class HttpProtocolUpgradeInterceptorTests
         context.Upgrade.ShouldNotBeNull();
     }
 
+    [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Interceptor: A Connection option padded with obs-text whitespace is not the upgrade token")]
+    [InlineData("upgrade\u00A0")]          // a trailing no-break space, as HTTP/1.1 decodes 0xA0
+    [InlineData("\u0085upgrade")]          // a leading next-line octet
+    [InlineData("keep-alive, upgrade\u00A0")]
+    public void Interceptors_OnConnectionUpgradeTokenWithObsTextWhitespace_ShouldNotInstallFeature(string connection)
+    {
+        // Arrange — RFC 9110 §5.6.3: only SP and HTAB are optional whitespace.
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = connection;
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+
+        // Act
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(new MemoryStream()));
+
+        // Assert
+        context.Upgrade.ShouldBeNull();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Interceptor: The Upgrade protocol keeps obs-text whitespace and loses only SP and HTAB")]
+    [InlineData(" \twebsocket\t , h2c", "websocket")]
+    [InlineData("websocket\u00A0", "websocket\u00A0")]   // not websocket, so no WebSocket handshake takes it
+    [InlineData("\u0085websocket", "\u0085websocket")]
+    public void Interceptors_OnUpgradeProtocolWithWhitespace_ShouldTrimOnlySpaceAndTab(string upgradeValue, string expectedProtocol)
+    {
+        // Arrange
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = upgradeValue;
+        FakeHttpContext context = new();
+
+        // Act
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(new MemoryStream()));
+
+        // Assert
+        IHttpProtocolUpgrade? upgrade = context.Upgrade;
+        upgrade.ShouldNotBeNull();
+        upgrade!.Protocol.ShouldBe(expectedProtocol);
+    }
+
     [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Interceptor: HTTP/2 exchanges are never transitions, even with upgrade-shaped headers")]
     public void Interceptors_OnHttp2_ShouldNotInstallFeature()
     {
@@ -181,7 +221,7 @@ public class HttpProtocolUpgradeInterceptorTests
         response.ShouldContain("HTTP/1.1 101 Switching Protocols");
         response.ShouldContain("Connection: Upgrade");
         response.ShouldContain("Upgrade: websocket");
-        // RFC 9112 §9.9 — a 101 carries no body framing.
+        // RFC 9112 §6.3, RFC 9110 §15.2.2 — a 101 carries no body framing.
         response.ShouldNotContain("Content-Length");
         response.ShouldNotContain("Transfer-Encoding");
     }
@@ -251,6 +291,88 @@ public class HttpProtocolUpgradeInterceptorTests
         // Act / Assert — the single-shot guard throws before any byte is written.
         await Should.ThrowAsync<InvalidOperationException>(async () => await upgrade.AcceptAsync());
         wire.Length.ShouldBe(lengthAfterFirstAccept);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A response field the 101 cannot carry is refused before the connection is claimed")]
+    [InlineData("x-echo", "a\r\nSet-Cookie: injected=1")]
+    [InlineData("x-echo", "a\nb")]
+    [InlineData("x-echo", "a\0b")]
+    [InlineData("x-echo", "a\u0001b")]
+    [InlineData("x-echo\r\nSet-Cookie", "injected=1")]
+    [InlineData("x echo", "value")]
+    public async Task AcceptAsync_OnInvalidResponseField_ShouldRefuseBeforeClaimingTheConnection(string name, string value)
+    {
+        // Arrange — the handler reflected request text into a response field before accepting (#1183).
+        MemoryStream wire = new();
+        FakeExchangeControl takeover = new(wire);
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, takeover, out HttpHeaderCollection responseHeaders);
+        responseHeaders[HttpHeaderKey.ContentLength] = "0";
+        responseHeaders[new HttpHeaderKey(name)] = value;
+        IHttpProtocolUpgrade upgrade = context.Upgrade!;
+
+        // Act
+        HttpException refusal = await Should.ThrowAsync<HttpException>(async () => await upgrade.AcceptAsync());
+
+        // Assert — nothing written, the connection still the transport's, and the staged fields untouched,
+        // so the exchange can be answered with an ordinary response. The accept is spent.
+        refusal.Code.ShouldBe(HttpErrorCode.InvalidResponseField);
+        refusal.Message.ShouldNotContain("injected");
+        wire.Length.ShouldBe(0);
+        takeover.TakenOver.ShouldBeFalse();
+        responseHeaders.ContainsKey(HttpHeaderKey.ContentLength).ShouldBeTrue();
+        responseHeaders.ContainsKey(HttpHeaderKey.Connection).ShouldBeFalse();
+        responseHeaders.ContainsKey(HttpHeaderKey.Upgrade).ShouldBeFalse();
+        await Should.ThrowAsync<InvalidOperationException>(async () => await upgrade.AcceptAsync());
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A Set-Cookie value the 101 cannot carry is refused before the connection is claimed")]
+    public async Task AcceptAsync_OnInvalidSetCookieValue_ShouldRefuseBeforeClaimingTheConnection()
+    {
+        // Arrange — the second of two cookies carries a line break that would start a field of its own.
+        MemoryStream wire = new();
+        FakeExchangeControl takeover = new(wire);
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, takeover, out HttpHeaderCollection responseHeaders);
+        responseHeaders[HttpHeaderKey.SetCookie] = new HttpHeaderValue(new[] { "a=1", "b=2\r\nLocation: /evil" });
+        IHttpProtocolUpgrade upgrade = context.Upgrade!;
+
+        // Act
+        HttpException refusal = await Should.ThrowAsync<HttpException>(async () => await upgrade.AcceptAsync());
+
+        // Assert — nothing written and the connection still the transport's.
+        refusal.Code.ShouldBe(HttpErrorCode.InvalidResponseField);
+        refusal.Message.ShouldNotContain("evil");
+        wire.Length.ShouldBe(0);
+        takeover.TakenOver.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A response field with HTAB inside its value rides the 101")]
+    public async Task AcceptAsync_OnValueWithInnerTab_ShouldEmitIt()
+    {
+        // Arrange — HTAB is the one control character a field value may hold (RFC 9110 §5.5).
+        MemoryStream wire = new();
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(wire), out HttpHeaderCollection responseHeaders);
+        responseHeaders[new HttpHeaderKey("x-echo")] = "a\tb";
+
+        // Act
+        await context.Upgrade!.AcceptAsync();
+
+        // Assert
+        string response = Encoding.ASCII.GetString(wire.ToArray());
+        response.ShouldContain("x-echo: a\tb\r\n");
+        response.ShouldContain("Connection: Upgrade\r\n");
+        response.ShouldContain("Upgrade: websocket\r\n");
     }
 
     [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Upgrade: Repeated accessor reads return the same single-shot instance")]
@@ -399,6 +521,8 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Interceptor: A CONNECT request installs the feature with Kind=Connect and no protocol.
 - **Covered behavior** — Interceptor: A bare Upgrade header without the Connection token is not a transition.
 - **Covered behavior** — Interceptor: The upgrade token is found inside a Connection token list.
+- **Covered behavior** — Interceptor: A Connection option padded with obs-text whitespace is not the upgrade token.
+- **Covered behavior** — Interceptor: The Upgrade protocol keeps obs-text whitespace and loses only SP and HTAB.
 - **Covered behavior** — Interceptor: HTTP/2 exchanges are never transitions, even with upgrade-shaped headers.
 - **Covered behavior** — Interceptor: No transport takeover capability degrades to a null upgrade.
 - **Covered behavior** — Interceptor: A control that cannot take over degrades to a null upgrade.
@@ -408,6 +532,9 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Accept: CONNECT writes 200 without framing or Connection headers.
 - **Covered behavior** — Accept: Application response headers set before accepting ride the 101.
 - **Covered behavior** — Accept: A second accept throws without writing a second response.
+- **Covered behavior** — Accept: A response field the 101 cannot carry is refused before the connection is claimed.
+- **Covered behavior** — Accept: A Set-Cookie value the 101 cannot carry is refused before the connection is claimed.
+- **Covered behavior** — Accept: A response field with HTAB inside its value rides the 101.
 - **Covered behavior** — Upgrade: Repeated accessor reads return the same single-shot instance.
 - **Covered behavior** — Interceptor: It declares the request scope only, so it is never in every exchange's response phase.
 - **Covered behavior** — Interceptor: An h1 upgrade or CONNECT joins that exchange's response phase.

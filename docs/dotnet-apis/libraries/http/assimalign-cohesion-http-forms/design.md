@@ -19,6 +19,15 @@ returns the first with that name (names compare case-insensitively). Before #106
 keyed by name and each part replaced the previous one, so only the last file of such a field
 survived. Repeated scalar values are unaffected.
 
+## An empty file input is a value
+
+The multipart parser reads value parts as text, and file parts flow through `ReadFileSectionAsync`.
+A part is a file part only when its `filename` is non-empty, ASP.NET Core's `IsFileDisposition`
+rule: a browser sends an optional `<input type="file">` left empty as `filename=""` with no content,
+and that part is read as an empty value. Before the #1210 review it reached the `HttpFormFile`
+constructor, whose `ArgumentException` no caller catches, so the ordinary submission failed as a
+`500`.
+
 ## Error model
 
 Every parse failure surfaces as `System.IO.InvalidDataException` mid-parse — the same type the
@@ -29,6 +38,8 @@ message; a malformed body has no inner exception. That is the one distinction a 
 request needs, made by type rather than by message: a body over a limit is content the server is
 unwilling to process, `413 Content Too Large` (RFC 9110 §15.5.14), and a malformed body is a `400`.
 The source-generated typed-endpoint binding and `UseAntiforgery` answer exactly that way (#1061).
+So does `UseForms()` (`Assimalign.Cohesion.Web.Forms`): a form over a limit is answered `413` and a
+malformed one `400` there, as problem+json, and the rest of the pipeline does not run (#1210).
 `InvalidDataException` is sealed, so the limit cannot be a subtype of it; the inner exception keeps
 the established contract — existing `catch (InvalidDataException)` sites, such as IdentityHub's token
 endpoint, are unaffected — while making the cause explicit.

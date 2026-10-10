@@ -53,6 +53,33 @@ A request-parse hook can add an interceptor to its own exchange's response phase
 response phase for a few exchanges keeps every other exchange on the transport's fast path. See the
 [design](design.md#per-exchange-response-interceptors).
 
+`HttpFieldNormalization` states the one field-syntax rule every reader and writer applies
+(`IsValidFieldName`, `IsValidFieldValue`, `IndexOfInvalidControlCharacter`; #1341): a name is a
+token, and a value holds no control character but HTAB. HTTP/1.1 refuses a request that breaks it
+with `400` (#1341), HTTP/2 and HTTP/3 reset its stream (#1376), and every response writer refuses
+such a field before it writes a byte, with an `HttpException` whose code is the new
+`HttpErrorCode.InvalidResponseField` (#1183). See the [design](design.md#field-syntax).
+
+`HttpMethod` is case-sensitive (RFC 9110 §9.1, #1301): it keeps its token as sent and compares it
+ordinally, so `get` is an unknown extension method rather than `GET`, on every version. This is a
+breaking change for code that compared methods without regard to case. See the
+[design](design.md#methods-are-case-sensitive-rfc-9110-91).
+
+`HttpContentTypes` reads its table through two lookups, by file name (`TryGetFromFileName`) and by
+extension (`TryGetFromExtension`), and never guesses between them: a file named `html` maps to
+nothing (#1186). The single `TryGetContentType` is gone. See the
+[design](design.md#content-types-two-lookups).
+
+`IHttpExchangeControl.ClientFaultStatusCode` reports the `4xx` status a transport answers because
+the client's request was at fault, or `null` (#1340). It is a default interface member returning
+`null`, so adding it is not a source break; the server transport reports it for HTTP/1.1. See the
+[design](design.md#the-client-fault-report).
+
+`HttpHeaderValue.Concat` appends in amortized constant time, so a field repeated `n` times combines
+in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
+`Features.Get<TFeature>()` allocates nothing on an `HttpFeatureCollection`. See the
+[design](design.md#repeated-fields-combine-in-linear-time).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -64,20 +91,20 @@ response phase for a few exchanges keeps every other exchange on the transport's
 | Type | Source file |
 |---|---|
 | `HttpAcceptParser` | `src/HttpAcceptParser.cs` |
-| `HttpAcceptQuery` | `src/HttpAcceptQuery.cs` |
-| `HttpAltService` | `src/HttpAltService.cs` |
+| `HttpAcceptQuery` | `src/ValueObjects/HttpAcceptQuery.cs` |
+| `HttpAltService` | `src/ValueObjects/HttpAltService.cs` |
 | `HttpCacheControl` | `src/HttpCacheControl.cs` |
-| `HttpCacheControlExtension` | `src/HttpCacheControlExtension.cs` |
+| `HttpCacheControlExtension` | `src/ValueObjects/HttpCacheControlExtension.cs` |
 | `HttpConditionalRequest` | `src/HttpConditionalRequest.cs` |
 | `HttpConditionalRequestContext` | `src/HttpConditionalRequestContext.cs` |
 | `HttpConnectionInfo` | `src/HttpConnectionInfo.cs` |
 | `HttpContentNegotiation` | `src/HttpContentNegotiation.cs` |
-| `HttpContentRange` | `src/HttpContentRange.cs` |
+| `HttpContentRange` | `src/ValueObjects/HttpContentRange.cs` |
 | `HttpContentTypes` | `src/HttpContentTypes.cs` |
 | `HttpContext` | `src/HttpContext.cs` |
 | `HttpContextExtensions` | `src/Extensions/HttpContextExtensions.cs` |
 | `HttpDate` | `src/HttpDate.cs` |
-| `HttpEntityTag` | `src/HttpEntityTag.cs` |
+| `HttpEntityTag` | `src/ValueObjects/HttpEntityTag.cs` |
 | `HttpEntityTagCondition` | `src/HttpEntityTagCondition.cs` |
 
 ## Sources
@@ -94,13 +121,13 @@ response phase for a few exchanges keeps every other exchange on the transport's
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpAcceptParser.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpAcceptQuery.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpAcceptQuery.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpAltService.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpAltService.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpCacheControl.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpCacheControlExtension.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpCacheControlExtension.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpConditionalRequest.cs`.
 
@@ -110,7 +137,7 @@ response phase for a few exchanges keeps every other exchange on the transport's
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpContentNegotiation.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpContentRange.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpContentRange.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpContentTypes.cs`.
 
@@ -120,7 +147,7 @@ response phase for a few exchanges keeps every other exchange on the transport's
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpDate.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpEntityTag.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpEntityTag.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpEntityTagCondition.cs`.
 
@@ -137,3 +164,15 @@ response phase for a few exchanges keeps every other exchange on the transport's
 - **Source** — `cohesion/docs/libraries/Http/DECISIONS.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpQuery.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpHeaderValue.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpHost.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMethod.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpFeatureCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpFeatureCollectionExtensions.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Exceptions/HttpErrorCode.cs`.

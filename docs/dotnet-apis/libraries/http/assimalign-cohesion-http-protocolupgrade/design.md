@@ -26,7 +26,11 @@ capability lives here, wired through the transport's two generic interceptor sea
    transition as an internal candidate feature. It checks the version itself, because the
    request-parse seam runs on every version. A CONNECT is `Method == CONNECT`; an upgrade requires
    both a `Connection: upgrade` token and a non-empty `Upgrade` header, and CONNECT takes precedence
-   (§7.8 requires ignoring `Upgrade` on CONNECT). A matched transition also adds the interceptor to
+   (§7.8 requires ignoring `Upgrade` on CONNECT). Both headers are comma lists whose elements lose SP
+   and HTAB only (RFC 9110 §5.6.1, §5.6.3). The transport decodes field values as Latin-1, so a
+   no-break space (`0xA0`) or a next-line octet (`0x85`) can end a token, and a Unicode trim read
+   `Upgrade: websocket\xA0` as `websocket` and `Connection: upgrade\xA0` as the upgrade option, while
+   a hop comparing exactly sees neither (#1341). A matched transition also adds the interceptor to
    that exchange's response phase (`HttpExchangeInterceptorRequestContext.AddResponseInterceptor`).
 2. **Materialization.** `BeforeResponse` runs at the setup of each exchange step 1 joined, after the
    head is parsed and before the handler. When the transport's exchange control can surrender the
@@ -61,14 +65,30 @@ upgrade; `Web.Hosting`'s design records the measured allocations.
 call before any byte is written, so a second response can never reach the wire. It:
 
 1. resolves the status line (`101` for an upgrade, `200` for a CONNECT) before side effects;
-2. claims the connection first (`IHttpExchangeControl.TakeOver()`), so even a cancelled or failed
-   head write cannot be followed by a second HTTP response on a desynchronized stream;
-3. scrubs `Content-Length` and `Transfer-Encoding` (RFC 9112 §9.9, RFC 9110 §9.3.6);
-4. writes the head to the surrendered stream — `Connection: Upgrade` and `Upgrade: <protocol>` for an
-   upgrade, no `Connection` header for a CONNECT — with the response headers and cookies the
-   application set before accepting (`Sec-WebSocket-Accept`, for example);
+2. encodes the head before anything else changes (#1183): the status line, the response headers and
+   cookies the application set before accepting (`Sec-WebSocket-Accept`, for example), less
+   `Content-Length` and `Transfer-Encoding` (RFC 9112 §6.3 and RFC 9110 §15.2.2: a `101` carries no
+   body framing; RFC 9110 §9.3.6: a successful CONNECT response must not include them), then
+   `Connection: Upgrade` and `Upgrade: <protocol>` for an upgrade, or no `Connection` header for a
+   CONNECT (the tunnel persists; `close` applies to HTTP framing, not the tunnel). The status is
+   always the RFC-standard one;
+3. claims the connection (`IHttpExchangeControl.TakeOver()`), so even a cancelled or failed head
+   write cannot be followed by a second HTTP response on a desynchronized stream. The takeover is
+   itself one-shot, so two features can never both claim a connection;
+4. applies the same field rules to the live response headers, so the exchange records the head that
+   was sent, then writes the encoded head to the surrendered stream;
 5. returns the raw stream. The caller owns I/O on it; the transport still owns the connection's
    disposal.
+
+Step 2 checks each field line against the core field rule as it encodes it
+(`HttpFieldNormalization`). A name that is not a token, or a value holding CR, LF, NUL, or another
+control character but HTAB, throws an `HttpException` with `HttpErrorCode.InvalidResponseField`.
+That is the rule the transport's head writers apply, so a value reflected from the request cannot
+split the response (CWE-113). The refusal comes before the takeover: nothing is written, the
+connection is still the transport's, and the response headers are as the application staged them,
+so the exchange can still be answered with an ordinary response (`Web.Hosting` answers the resulting
+fault with a `500`). The accept is spent either way. The message never quotes the offending text,
+which may hold CR, LF, or NUL and would forge a log line.
 
 The HTTP/1.1 parser reads no body for a bodyless upgrade `GET` and skips body framing for CONNECT,
 so no post-transition octet is buffered: octets the client pipelined behind the handshake are
