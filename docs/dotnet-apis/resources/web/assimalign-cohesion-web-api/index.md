@@ -117,14 +117,16 @@ maps them onto operation tags, summaries and descriptions.
 - **Allow-list the generated namespace** —
   `<InterceptorsNamespaces>$(InterceptorsNamespaces);Assimalign.Cohesion.Web.Api.Generated</InterceptorsNamespaces>`.
 - **Body binding and serialized return values need `Web.Serialization`** —
-  `AddJsonSerialization(...)` with the application's source-generated `JsonSerializerContext`; form
+  `builder.Services.AddJsonSerialization(...)` with the application's source-generated
+  `JsonSerializerContext`; form
   binding needs `Http.Forms`. Both are carried by the `App.Web` shared framework.
 - **File uploads honor the Http.Forms limits** of the exchange's form feature (`HttpFormOptions`) —
   install `new HttpFormFeature(context.Request, options)` in a middleware ahead of the endpoint to
   change them.
 - **Form-bound endpoints (form fields or files) require antiforgery** — when the application
   references `Assimalign.Cohesion.Web.Antiforgery` (every `Sdk.Web` application does): register
-  `AddAntiforgery(...)` and `UseAntiforgery()` after `UseRouting()`, or opt an endpoint out with
+  `builder.Services.AddAntiforgery(...)` and `UseAntiforgery()` after `UseRouting()`, or opt an
+  endpoint out with
   `.DisableAntiforgery()`. Without the middleware those endpoints fail at dispatch.
 
 ## Project references

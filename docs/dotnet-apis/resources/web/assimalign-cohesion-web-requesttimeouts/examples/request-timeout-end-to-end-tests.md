@@ -29,14 +29,14 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Routing.Metadata;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.RequestTimeouts.Tests;
 
@@ -119,7 +119,7 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -150,7 +150,7 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -184,7 +184,7 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -218,7 +218,7 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         InvalidOperationException? dispatchFailure = null;
         int endpointInvocations = 0;
@@ -270,7 +270,7 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRequestTimeouts(_neverInTestBudget);
 

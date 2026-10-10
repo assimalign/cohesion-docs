@@ -31,7 +31,7 @@ endpoints can describe them without referencing this package.
 
 ## Serve the document
 
-`AddOpenApi` registers the document's options on the builder, and `MapOpenApi` maps a `GET` route
+`builder.Services.AddOpenApi` registers the document's options, and `MapOpenApi` maps a `GET` route
 that serves it. Every type a typed endpoint reads or returns must be in the `JsonSerializerContext`
 passed to `AddJsonSerialization`, as it must for the endpoint to serialize it.
 
@@ -46,9 +46,9 @@ using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.AddRouting();
-builder.AddJsonSerialization(AppJsonContext.Default);
-builder.AddOpenApi(options =>
+builder.Services.AddRouting();
+builder.Services.AddJsonSerialization(AppJsonContext.Default);
+builder.Services.AddOpenApi(options =>
 {
     options.Title = "Orders API";
     options.ApiVersion = "1.0.0";
@@ -178,7 +178,7 @@ using Assimalign.Cohesion.Web.OpenApi;
 // builder is the application's WebApplicationBuilder. The application also registers
 // authentication with a "Bearer" scheme and AddAuthorization, and its pipeline runs
 // UseAuthentication and UseAuthorization.
-builder.AddOpenApi(options =>
+builder.Services.AddOpenApi(options =>
 {
     options.Title = "Orders API";
     options.AddSecurityScheme(new OpenApiSecuritySchemeMetadata
@@ -224,7 +224,7 @@ using Assimalign.Cohesion.OpenApi.Attributes;
 using Assimalign.Cohesion.Web.OpenApi;
 
 // builder is the application's WebApplicationBuilder.
-builder.AddOpenApi(options => options
+builder.Services.AddOpenApi(options => options
     .AddTag(new OpenApiTagMetadata { Name = "orders", Description = "Order operations" })
     .AddDocumentTransformer(document => document.Servers.Add(new OpenApiServer { Url = "https://api.example.com" }))
     .AddDocumentTransformer(document => document.Info.Contact = new OpenApiContact { Name = "Orders team" }));
@@ -257,7 +257,7 @@ For binding, return values and the description metadata itself, see
 ## Sources
 
 - **Package overview and design** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/DESIGN.md`.
-- **Registration and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
+- **Registration and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/ComponentModel/OpenApiComponents.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
 - **Document endpoint** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Internal/OpenApiDocumentEndpoint.cs`.
 - **Test composition** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/tests/TestObjects/OpenApiTestApplication.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/tests/OpenApiOptionsTests.cs`.
 - **Description metadata and verbs** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md`.

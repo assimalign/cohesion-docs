@@ -50,8 +50,6 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
@@ -60,6 +58,8 @@ using Assimalign.Cohesion.Web.Authentication;
 using Assimalign.Cohesion.Web.Authorization.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Authorization.Tests;
 
@@ -771,7 +771,7 @@ public class AuthorizationEndToEndTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
         factory.Application.UseAuthorization();
@@ -786,11 +786,15 @@ public class AuthorizationEndToEndTests
     private static WebApplicationTestFactory CreateFactory(Action<AuthorizationOptions>? configure = null)
     {
         WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAuthentication(TestEndpoints.Primary)
-            .AddScheme(TestEndpoints.Scheme(TestEndpoints.Primary))
-            .AddScheme(TestEndpoints.Scheme(TestEndpoints.Secondary));
-        factory.Builder.AddAuthorization(configure);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAuthentication(authentication =>
+        {
+            authentication.Options.DefaultScheme = TestEndpoints.Primary;
+            authentication
+                .AddScheme(TestEndpoints.Scheme(TestEndpoints.Primary))
+                .AddScheme(TestEndpoints.Scheme(TestEndpoints.Secondary));
+        });
+        factory.Builder.Services.AddAuthorization(configure);
         return factory;
     }
 

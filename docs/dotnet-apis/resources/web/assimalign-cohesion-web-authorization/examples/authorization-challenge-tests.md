@@ -32,8 +32,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
@@ -45,6 +43,8 @@ using Assimalign.Cohesion.Web.Authentication.Cookie;
 using Assimalign.Cohesion.Web.Authorization.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Authorization.Tests;
 
@@ -249,16 +249,21 @@ public sealed class AuthorizationChallengeTests : IDisposable
     private WebApplicationTestFactory CreateFactory(string defaultScheme)
     {
         WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAuthentication(options => options.DefaultScheme = defaultScheme, _dataProtection)
-            .AddCookie()
-            .AddJwtBearer(options =>
-            {
-                options.SigningKeys.Add(JwtSignatureVerifier.CreateHmac(_signingKey));
-                options.ValidIssuers.Add(TestJwt.Issuer);
-                options.ValidAudiences.Add(TestJwt.Audience);
-            });
-        factory.Builder.AddAuthorization();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAuthentication(authentication =>
+        {
+            authentication.Options.DefaultScheme = defaultScheme;
+            authentication
+                .UseDataProtection(_dataProtection)
+                .AddCookie()
+                .AddJwtBearer(options =>
+                {
+                    options.SigningKeys.Add(JwtSignatureVerifier.CreateHmac(_signingKey));
+                    options.ValidIssuers.Add(TestJwt.Issuer);
+                    options.ValidAudiences.Add(TestJwt.Audience);
+                });
+        });
+        factory.Builder.Services.AddAuthorization();
         return factory;
     }
 

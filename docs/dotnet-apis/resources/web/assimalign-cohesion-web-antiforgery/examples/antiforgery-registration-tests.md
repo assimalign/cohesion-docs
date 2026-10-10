@@ -12,26 +12,28 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — AddAntiforgery: Should throw on a null builder.
-- **Case 2** — AddAntiforgery: Should throw on a null data-protection provider.
-- **Case 3** — AddAntiforgery: Should register the service as an exchange feature.
-- **Case 4** — AddAntiforgery: With a data-protection provider, tokens should survive a restart.
-- **Case 5** — AddAntiforgery: Without a data-protection provider, a restart should invalidate tokens.
-- **Case 6** — AddAntiforgery: Tokens should be sealed under the antiforgery purpose chain.
-- **Case 7** — AddAntiforgery: Payloads protected for another purpose should not validate as tokens.
-- **Case 8** — AddAntiforgery: A tampered token should be invalid, not an exception.
-- **Case 9** — AddAntiforgery: An explicitly configured protector should take precedence over the provider.
-- **Case 10** — AddAntiforgery: The configure callback should shape the registered service.
-- **Case 11** — AddAntiforgery: The last registration should be the one the middleware validates with.
+- **Case 1** — AddAntiforgery: Should throw on a null data-protection provider.
+- **Case 2** — AddAntiforgery: Should register the service as an IHttpFeature singleton.
+- **Case 3** — AddAntiforgery: With a data-protection provider, tokens should survive a restart.
+- **Case 4** — AddAntiforgery: Without a data-protection provider, a restart should invalidate tokens.
+- **Case 5** — AddAntiforgery: Tokens should be sealed under the antiforgery purpose chain.
+- **Case 6** — AddAntiforgery: Payloads protected for another purpose should not validate as tokens.
+- **Case 7** — AddAntiforgery: A tampered token should be invalid, not an exception.
+- **Case 8** — AddAntiforgery: An explicitly configured protector should take precedence over the provider.
+- **Case 9** — AddAntiforgery: The configure callback should shape the registered service.
+- **Case 10** — AddAntiforgery: The last registration should be the one the middleware validates with.
 
 ## Source example
 
 ```csharp
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
+using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Security.DataProtection;
 using Assimalign.Cohesion.Web.Routing;
@@ -39,7 +41,8 @@ using Assimalign.Cohesion.Web.Routing;
 namespace Assimalign.Cohesion.Web.Antiforgery.Tests;
 
 /// <summary>
-/// <c>AddAntiforgery</c> and the protector it selects: a data-protection provider makes tokens survive a
+/// <c>builder.Services.AddAntiforgery</c>, the projected component integration, and the protector it
+/// selects: a data-protection provider makes tokens survive a
 /// restart and validate across instances that share a key repository, sealed under the antiforgery purpose
 /// alone; without one the per-process random key is the (development-only) default; an explicit protector
 /// wins; and the last registration is the one exchanges carry and the middleware validates with. Each
@@ -50,39 +53,33 @@ public class AntiforgeryRegistrationTests
     private const string cookieName = "__cohesion-antiforgery";
     private const string headerName = "X-CSRF-TOKEN";
 
-    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: Should throw on a null builder")]
-    public void AddAntiforgery_NullBuilder_ShouldThrow()
-    {
-        // Arrange
-        IWebApplicationBuilder builder = null!;
-
-        // Act / Assert
-        Should.Throw<ArgumentNullException>(() => builder.AddAntiforgery());
-        Should.Throw<ArgumentNullException>(() => builder.AddAntiforgery(DataProtectionProvider.Create(new InMemoryKeyRepository())));
-    }
-
     [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: Should throw on a null data-protection provider")]
     public void AddAntiforgery_NullDataProtectionProvider_ShouldThrow()
     {
         // Arrange
-        TestWebApplicationBuilder builder = new();
+        ServiceProviderBuilder services = new();
 
         // Act / Assert
-        Should.Throw<ArgumentNullException>(() => builder.AddAntiforgery((IDataProtectionProvider)null!));
+        Should.Throw<ArgumentNullException>(() => services.AddAntiforgery((IDataProtectionProvider)null!));
+        services.Container.Count.ShouldBe(0);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: Should register the service as an exchange feature")]
-    public void AddAntiforgery_Default_ShouldRegisterAntiforgeryFeature()
+    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: Should register the service as an IHttpFeature singleton")]
+    public void AddAntiforgery_Default_ShouldRegisterAntiforgeryFeatureSingleton()
     {
         // Arrange
-        TestWebApplicationBuilder builder = new();
+        ServiceProviderBuilder services = new();
 
         // Act
-        IWebApplicationBuilder returned = builder.AddAntiforgery();
+        IServiceProviderBuilder returned = services.AddAntiforgery();
 
-        // Assert — the slot is named for the contract, so an exchange carries one antiforgery service.
-        returned.ShouldBeSameAs(builder);
-        IHttpFeature feature = builder.Features.ShouldHaveSingleItem();
+        // Assert — one singleton the host stamps onto every exchange (owner decision 35); the slot is
+        // named for the contract, so an exchange carries one antiforgery service.
+        returned.ShouldBeSameAs(services);
+        ServiceDescriptor descriptor = services.Container.ShouldHaveSingleItem();
+        descriptor.ServiceType.ShouldBe(typeof(IHttpFeature));
+        descriptor.Lifetime.ShouldBe(ServiceLifetime.Singleton);
+        IHttpFeature feature = Resolve(services).ShouldHaveSingleItem();
         feature.ShouldBeAssignableTo<IHttpAntiforgeryFeature>().ShouldNotBeNull().Antiforgery.ShouldNotBeNull();
         feature.Name.ShouldBe(nameof(IHttpAntiforgeryFeature));
     }
@@ -222,13 +219,14 @@ public class AntiforgeryRegistrationTests
     public async Task AddAntiforgery_CalledTwice_LastRegistrationShouldWin()
     {
         // Arrange
-        TestWebApplicationBuilder application = new();
-        application.AddAntiforgery();
-        IHttpAntiforgery replaced = application.Antiforgery;
-        application.AddAntiforgery();
-        IHttpAntiforgery last = application.Antiforgery;
+        ServiceProviderBuilder services = new();
+        services.AddAntiforgery();
+        services.AddAntiforgery();
+        IHttpFeature[] features = Resolve(services);
+        IHttpAntiforgery replaced = features.OfType<IHttpAntiforgeryFeature>().First().Antiforgery;
+        IHttpAntiforgery last = features.OfType<IHttpAntiforgeryFeature>().Last().Antiforgery;
 
-        TestPipelineBuilder pipeline = new(new TestWebApplicationContext(application.Features), _ => Task.CompletedTask);
+        TestPipelineBuilder pipeline = new(new TestWebApplicationContext(features), _ => Task.CompletedTask);
         pipeline.UseAntiforgery();
         IWebApplicationPipeline built = pipeline.Build();
 
@@ -249,11 +247,18 @@ public class AntiforgeryRegistrationTests
         withReplaced.Response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    private static IHttpAntiforgery Register(Action<TestWebApplicationBuilder> register)
+    private static IHttpAntiforgery Register(Action<IServiceProviderBuilder> register)
     {
-        TestWebApplicationBuilder builder = new();
-        register(builder);
-        return builder.Antiforgery;
+        ServiceProviderBuilder services = new();
+        register(services);
+        return Resolve(services).OfType<IHttpAntiforgeryFeature>().Last().Antiforgery;
+    }
+
+    // Resolves the application features the way the host does when it composes the pipeline.
+    private static IHttpFeature[] Resolve(IServiceProviderBuilder services)
+    {
+        IServiceProvider provider = services.Build();
+        return provider.GetRequiredService<IEnumerable<IHttpFeature>>().ToArray();
     }
 
     private static AntiforgeryTestContext Post(HttpAntiforgeryTokenSet tokens)

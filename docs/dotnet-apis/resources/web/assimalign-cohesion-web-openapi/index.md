@@ -23,9 +23,11 @@ documents its API references it.
   Web.Api description verbs, and security requirements from each endpoint's effective
   Web.Authorization policy, the one `UseAuthorization` applies (the fallback policy and named
   policies included).
-- **`AddOpenApi(options => ...)`** registers the document: title, API version, description, the
-  OpenAPI line (3.1 by default; 3.0 and 3.2 as well), declared security schemes and tags, extra
-  endpoint sources, and document transformers. The options are read-only once the callback returns.
+- **`builder.Services.AddOpenApi(options => ...)`** registers the document: title, API version,
+  description, the OpenAPI line (3.1 by default; 3.0 and 3.2 as well), declared security schemes
+  and tags, extra endpoint sources, and document transformers. The options are read-only once the
+  callback returns. The verb is a component integration the application's compilation receives;
+  this package takes no dependency-injection reference.
 - **`MapOpenApi(pattern)`** serves the document from a `GET` route as JSON, or as YAML for a
   `.yaml`/`.yml` pattern. The document is built on the first request, cached, and revalidated with a
   strong `ETag`: a matching `If-None-Match` is answered `304`.
@@ -61,8 +63,8 @@ document its API carries none of the OpenApi family.
 
 See the [source-backed usage examples](examples/index.md).
 
-Register the document on the builder, beside `AddRouting` and `AddJsonSerialization`, with
-`builder.AddOpenApi(options => options.Title = "Orders API")`, and map it in the pipeline:
+Register the document on `builder.Services`, beside `AddRouting` and `AddJsonSerialization`, with
+`builder.Services.AddOpenApi(options => options.Title = "Orders API")`, and map it in the pipeline:
 `app.MapOpenApi()` serves `GET /openapi/v1.json` (OpenAPI 3.1, JSON),
 `app.MapOpenApi("/openapi/v1.yaml")` serves the same document as YAML, and
 `app.MapOpenApi(pattern, OpenApiSpecVersion.V3_0)` serves a 3.0 rendition beside the default.
@@ -106,4 +108,4 @@ walks through a complete application.
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/README.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Assimalign.Cohesion.Web.OpenApi.csproj`.
-- **Registration and mapping** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
+- **Registration and mapping** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/ComponentModel/OpenApiComponents.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.

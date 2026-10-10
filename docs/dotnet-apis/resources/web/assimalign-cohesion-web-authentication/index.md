@@ -15,8 +15,10 @@ is absent and reuses an existing feature when assigning a principal.
 
 `AuthenticationBuilder`, `AuthenticationOptions`, and `AuthenticationScheme` compose handlers.
 `IAuthenticationHandler` defines authentication, challenge, and forbidden handling;
-`IAuthenticationSignInHandler` adds sign-in and sign-out. `AddAuthentication` composes against
-`IWebApplicationBuilder`; `UseAuthentication` composes the request pipeline.
+`IAuthenticationSignInHandler` adds sign-in and sign-out.
+`builder.Services.AddAuthentication(auth => ...)`, a component integration the application's
+compilation receives, composes an `AuthenticationBuilder` and registers its service;
+`UseAuthentication` composes the request pipeline.
 
 The README still uses the older implementation name `HttpAuthenticationFeature`. This reference
 uses the current source names `IAuthenticationFeature` and the internal `AuthenticationFeature`

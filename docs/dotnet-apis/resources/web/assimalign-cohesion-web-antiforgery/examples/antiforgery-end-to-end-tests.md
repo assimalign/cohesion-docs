@@ -33,8 +33,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
@@ -43,6 +41,8 @@ using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Hosting;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Antiforgery.Tests;
 
@@ -222,7 +222,7 @@ public class AntiforgeryEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         InvalidOperationException? dispatchFailure = null;
         ObserveDispatchFailure(factory.Application, exception => dispatchFailure = exception);
@@ -250,8 +250,8 @@ public class AntiforgeryEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAntiforgery();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAntiforgery();
 
         InvalidOperationException? dispatchFailure = null;
         ObserveDispatchFailure(factory.Application, exception => dispatchFailure = exception);
@@ -280,7 +280,7 @@ public class AntiforgeryEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRouting();
         factory.Application.UseAntiforgery();
 
@@ -336,8 +336,8 @@ public class AntiforgeryEndToEndTests
         IHttpAntiforgery replacement = HttpAntiforgery.Create();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAntiforgery();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAntiforgery();
         factory.Application.Use((context, next) =>
         {
             context.Antiforgery = replacement;
@@ -370,8 +370,8 @@ public class AntiforgeryEndToEndTests
     private static WebApplicationTestFactory CreateFactory()
     {
         WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAntiforgery();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAntiforgery();
         factory.Application.UseRouting();
         factory.Application.UseAntiforgery();
         MapTokenEndpoint(factory.Application);

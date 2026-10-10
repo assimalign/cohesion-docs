@@ -45,8 +45,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
@@ -58,6 +56,8 @@ using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.StaticFiles;
 using Assimalign.Cohesion.Web.Testing;
 using static Assimalign.Cohesion.Web.SecurityHeaders.Tests.SecurityHeadersTestHost;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.SecurityHeaders.Tests;
 
@@ -168,7 +168,7 @@ public class SecurityHeadersEndToEndTests
         // Arrange
         using CancellationTokenSource cancellation = new(TestTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseSecurityHeaders();
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/known", Ok());

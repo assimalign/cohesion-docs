@@ -143,7 +143,7 @@ public class EndpointValidationOptionsTests
         await using WebApplicationTestFactory factory = new();
 
         // Act
-        Action act = () => factory.Builder.AddValidation(null!);
+        Action act = () => factory.Builder.Services.AddValidation(null!);
 
         // Assert
         act.ShouldThrow<ArgumentNullException>();

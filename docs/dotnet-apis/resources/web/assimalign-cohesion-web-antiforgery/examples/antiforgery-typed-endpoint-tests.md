@@ -31,7 +31,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
@@ -39,6 +38,7 @@ using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Hosting;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Antiforgery.Tests;
 
@@ -173,7 +173,7 @@ public class AntiforgeryTypedEndpointTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         InvalidOperationException? dispatchFailure = null;
         factory.Application.Use(async (context, next) =>
@@ -290,8 +290,8 @@ public class AntiforgeryTypedEndpointTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAntiforgery();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAntiforgery();
         factory.Application.Use(async (context, next) =>
         {
             context.Features.Set<IHttpFormFeature>(new HttpFormFeature(context.Request, new HttpFormOptions { MultipartBodyLengthLimit = 16 }));
@@ -329,8 +329,8 @@ public class AntiforgeryTypedEndpointTests
     private static WebApplicationTestFactory CreateFactory(bool useAntiforgery)
     {
         WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddAntiforgery();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAntiforgery();
         factory.Application.UseRouting();
 
         if (useAntiforgery)

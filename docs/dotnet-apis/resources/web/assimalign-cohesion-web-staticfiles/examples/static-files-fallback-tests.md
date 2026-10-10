@@ -25,14 +25,14 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.StaticFiles.Tests;
 
@@ -84,7 +84,7 @@ public sealed class StaticFilesFallbackTests : IDisposable
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseStaticFiles();
         factory.Application.UseRouting().Map(HttpMethod.Get, "/api/ping", Text("pong"));
         factory.Application.MapFallbackToFile("index.html");
@@ -114,7 +114,7 @@ public sealed class StaticFilesFallbackTests : IDisposable
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRouting();
         factory.Application.MapFallbackToFile("missing.html");
         using HttpClient client = factory.CreateClient();
@@ -133,7 +133,7 @@ public sealed class StaticFilesFallbackTests : IDisposable
     {
         // Arrange
         await using WebApplicationTestFactory factory = CreateFactory();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         // Act & Assert
         Should.Throw<ArgumentException>(() => factory.Application.MapFallbackToFile(filePath));

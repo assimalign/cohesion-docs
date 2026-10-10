@@ -16,9 +16,13 @@ builder time.
 
 ## Composition and lifecycle
 
-Feature verbs extend the root `IWebApplicationBuilder`, whose members this module implements as
-explicit shims over `WebApplicationBuilder.Services` registrations (`IHttpFeature`,
-`IWebApplicationServer`). Background work is registered through the concrete
+Feature packages register through `WebApplicationBuilder.Services`, with component-integration
+verbs the application's compilation receives (`builder.Services.AddRouting()`); the root
+`IWebApplicationBuilder` members, `AddFeature` among them, are explicit shims over the same
+registrations (`IHttpFeature`, `IWebApplicationServer`). Every `IHttpFeature` registration must be a
+singleton typed as `IHttpFeature`, and no feature may be disposable: `Build()` rejects the rest,
+naming the registration, except a disposable feature a factory produces, which the pipeline build
+rejects when the factory first runs. Background work is registered through the concrete
 `WebApplicationBuilder.AddService` instance or context-factory overload, which registers an
 `IHostService`. `Build()` closes registration and runs each service factory once; services start in
 registration order before servers and stop in reverse order after every server drains. The default

@@ -17,8 +17,9 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
 
 - **The hook contract** — `IErrorHandler` / the `HttpErrorHandler` delegate: inspect a fault, own
   the response for it (return `true`) or pass (`false`).
-- **Builder-time registration** — `builder.AddErrorHandling().OnError(...)`; handlers are
-  consulted in registration order.
+- **Builder-time registration** — `builder.Services.AddErrorHandling(errors => errors.OnError(...))`,
+  a component integration the application's compilation receives; handlers are consulted in
+  registration order.
 - **The exchange feature** — `IErrorHandlingFeature`, seeded onto every exchange; a pipeline
   exception boundary invokes `HandleAsync(context, exception)` to turn a caught fault into the
   application's response.

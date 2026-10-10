@@ -7,11 +7,11 @@ Web routing matches request paths and methods while exposing typed route values 
 ## Composition
 
 `Assimalign.Cohesion.Web.Routing` owns patterns, constraints, groups, metadata, matching, and
-outbound links. Call `AddRouting` during builder composition and `UseRouting` on the application
-pipeline. Both use the same application-local `IRouterFeature`; route state is not process-wide.
-`UseRouting` fails if routing was not added first. The router is built when the pipeline is built,
-at startup, so an invalid route table fails the start rather than a request, and mapping a route
-after the application started throws.
+outbound links. Call `builder.Services.AddRouting()` during builder composition and `UseRouting` on
+the application pipeline. Both use the same application-local `IRouterFeature`; route state is not
+process-wide. `UseRouting` fails if routing was not added first. The router is built when the
+pipeline is built, at startup, so an invalid route table fails the start rather than a request, and
+mapping a route after the application started throws.
 
 Endpoint mapping lives in `Assimalign.Cohesion.Web.Api`; see
 [Endpoints and responses](endpoints.md). `UseRouting` selects the endpoint and calls the next

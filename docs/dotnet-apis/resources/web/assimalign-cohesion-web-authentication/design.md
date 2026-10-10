@@ -10,8 +10,10 @@ is absent and reuses an existing feature when assigning a principal.
 
 `AuthenticationBuilder`, `AuthenticationOptions`, and `AuthenticationScheme` compose handlers.
 `IAuthenticationHandler` defines authentication, challenge, and forbidden handling;
-`IAuthenticationSignInHandler` adds sign-in and sign-out. `AddAuthentication` composes against
-`IWebApplicationBuilder`; `UseAuthentication` composes the request pipeline.
+`IAuthenticationSignInHandler` adds sign-in and sign-out.
+`builder.Services.AddAuthentication(auth => ...)`, a component integration the application's
+compilation receives, composes an `AuthenticationBuilder` and registers its service;
+`UseAuthentication` composes the request pipeline.
 
 Authorization is not part of this package. Policy evaluation, role and claim requirements, and
 per-endpoint scheme selection live in

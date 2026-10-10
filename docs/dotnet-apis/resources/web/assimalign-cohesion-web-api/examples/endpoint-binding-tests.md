@@ -42,7 +42,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
@@ -51,6 +50,7 @@ using Assimalign.Cohesion.Web.Api.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Api.Tests;
 
@@ -86,7 +86,7 @@ public class EndpointBindingTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -112,7 +112,7 @@ public class EndpointBindingTests
         // Arrange — each of these used to compile against the placeholder, which throws when mapping.
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -140,7 +140,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -162,7 +162,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -184,7 +184,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -206,7 +206,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -230,7 +230,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -252,7 +252,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -276,7 +276,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -300,7 +300,7 @@ public class EndpointBindingTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -326,8 +326,8 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -350,8 +350,8 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -374,8 +374,8 @@ public class EndpointBindingTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -397,8 +397,8 @@ public class EndpointBindingTests
         // Arrange — a JSON reader is registered, but the resolver does not cover the parameter's type.
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         HttpContentSerializationException? fault = null;
         factory.Application.Use(async (context, next) =>
@@ -441,7 +441,7 @@ public class EndpointBindingTests
         // Arrange — the application registered no serialization at all.
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         HttpContentSerializationException? fault = null;
         factory.Application.Use(async (context, next) =>
@@ -476,8 +476,8 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -499,7 +499,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -526,7 +526,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -549,7 +549,7 @@ public class EndpointBindingTests
         // Arrange — no serialization registry: had the parameters bound from the body, the read would fault.
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -579,7 +579,7 @@ public class EndpointBindingTests
     {
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 

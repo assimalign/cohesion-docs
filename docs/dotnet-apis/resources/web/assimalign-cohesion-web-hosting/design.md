@@ -16,9 +16,10 @@ would drag the DI/configuration composition surface into every consumer — and 
 references **no** Web feature library. It references the root `Assimalign.Cohesion.Web`
 abstractions, its own hosting family under O35, and non-Web infrastructure. Applications still see
 the whole Web family because the `App.Web` shared framework (via `Sdk.Web`) delivers every Web
-assembly; builder verbs ship with their features (`AddAuthentication` moved to
-`Web.Authentication`, `AddCookie`/`AddJwtBearer` to their handler packages) and compose against
-the root `IWebApplicationBuilder` seam. The one sanctioned exception is `Web.Testing`, the harness
+assembly; registration verbs ship with their features as `builder.Services` component
+integrations the application's compilation receives (`AddAuthentication` from
+`Web.Authentication`, with `AddCookie`/`AddJwtBearer` grafted on its builder by their handler
+packages), so this module needs no reference to them. The one sanctioned exception is `Web.Testing`, the harness
 that drives this concrete runtime.
 
 This document focuses on the piece with the most load-bearing runtime behaviour:

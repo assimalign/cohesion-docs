@@ -208,7 +208,7 @@ public class OpenApiOptionsTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         // Act / Assert
         Should.Throw<InvalidOperationException>(() => factory.Application.GetOpenApiDescriptionProvider());

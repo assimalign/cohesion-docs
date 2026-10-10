@@ -17,9 +17,11 @@ never reimplements token cryptography; it chooses the protector the engine seals
 
 ## Scope
 
-- **`AddAntiforgery`** (builder time) creates the application's `IHttpAntiforgery` service and
-  registers it as an application feature, so every exchange carries it and a handler mints tokens
-  with `context.RequireAntiforgery.GetAndStoreTokens(context)`.
+- **`builder.Services.AddAntiforgery(...)`** (builder time) creates the application's
+  `IHttpAntiforgery` service and registers it as an application feature, an `IHttpFeature`
+  singleton, so every exchange carries it and a handler mints tokens with
+  `context.RequireAntiforgery.GetAndStoreTokens(context)`. The verb is a component integration the
+  application's compilation receives; this package takes no dependency-injection reference.
 - **Protector selection.** `AddAntiforgery(dataProtectionProvider)` seals tokens with a protector
   the application's `Security.DataProtection` key ring derives for the antiforgery purpose, so
   tokens survive restarts and validate on every instance that shares the key repository.
@@ -66,9 +68,9 @@ are members of the `App.Web` shared framework.
 See the [source-backed usage examples](examples/index.md).
 
 To share the key ring cookie authentication uses, pass the same provider to both
-(`builder.AddAuthentication(dataProtectionProvider: dataProtection)` and
-`builder.AddAntiforgery(dataProtection)`); each derives its own purpose, so neither accepts the
-other's payloads.
+(`builder.Services.AddAuthentication(auth => auth.UseDataProtection(dataProtection).AddCookie())`
+and `builder.Services.AddAntiforgery(dataProtection)`); each derives its own purpose, so neither
+accepts the other's payloads.
 
 The cookie token is `Secure` whenever the request's effective scheme is HTTPS: a direct TLS
 connection, or TLS terminated at a trusted proxy that `UseForwardedHeaders`, registered ahead of the

@@ -26,13 +26,13 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.RateLimiting.Tests;
 
@@ -53,7 +53,7 @@ public class RateLimitingRouteConventionTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/expensive", Ok()).RequireRateLimiting("expensive");
@@ -84,7 +84,7 @@ public class RateLimitingRouteConventionTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         IRouterGroupBuilder api = routes.MapGroup("/api");
@@ -117,7 +117,7 @@ public class RateLimitingRouteConventionTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         IRouterGroupBuilder api = routes.MapGroup("/api").RequireRateLimiting(SinglePermitPerPath());
@@ -144,7 +144,7 @@ public class RateLimitingRouteConventionTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         InvalidOperationException? dispatchFailure = null;
 

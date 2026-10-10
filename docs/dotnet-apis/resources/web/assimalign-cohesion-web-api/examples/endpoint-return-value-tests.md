@@ -35,7 +35,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
@@ -44,6 +43,7 @@ using Assimalign.Cohesion.Web.Api.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Api.Tests;
 
@@ -63,11 +63,11 @@ public class EndpointReturnValueTests
     private static WebApplicationTestFactory CreateFactory(bool registerJson = true)
     {
         WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         if (registerJson)
         {
-            factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+            factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
         }
 
         return factory;

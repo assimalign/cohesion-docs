@@ -27,13 +27,13 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Cors.Tests;
 
@@ -53,7 +53,7 @@ public class CorsRouteConventionTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         factory.Application.UseCors(options => options.AddPolicy("spa", policy => policy.WithOrigins(App)));
@@ -77,7 +77,7 @@ public class CorsRouteConventionTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         factory.Application.UseCors();
@@ -103,7 +103,7 @@ public class CorsRouteConventionTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         factory.Application.UseCors();
@@ -128,7 +128,7 @@ public class CorsRouteConventionTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         factory.Application.UseCors(options => options.AddDefaultPolicy(policy => policy.AllowAnyOrigin()));

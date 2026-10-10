@@ -68,7 +68,7 @@ public class ErrorHandlingPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddErrorHandling();
+        factory.Builder.Services.AddErrorHandling(errors => { });
 
         UseErrorBoundary(factory);
         factory.Application.Use((context, next) => throw new InvalidOperationException("the key ring is unavailable"));
@@ -99,7 +99,7 @@ public class ErrorHandlingPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddErrorHandling().OnError(async (context, exception, token) =>
+        factory.Builder.Services.AddErrorHandling(errors => errors.OnError(async (context, exception, token) =>
         {
             if (exception is not TimeoutException)
             {
@@ -110,7 +110,7 @@ public class ErrorHandlingPipelineTests
             context.Response.Headers[HttpHeaderKey.ContentType] = "text/plain; charset=utf-8";
             await context.Response.Body.WriteAsync("upstream timed out"u8.ToArray(), token);
             return true;
-        });
+        }));
 
         UseErrorBoundary(factory);
         factory.Application.Use((context, next) => throw new TimeoutException("upstream"));
@@ -133,7 +133,7 @@ public class ErrorHandlingPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddErrorHandling();
+        factory.Builder.Services.AddErrorHandling(errors => { });
         factory.Application.UseErrorHandling();
         factory.Application.Use((context, next) => throw new InvalidOperationException("the key ring is unavailable"));
 
@@ -160,7 +160,7 @@ public class ErrorHandlingPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddErrorHandling().OnError(async (context, exception, token) =>
+        factory.Builder.Services.AddErrorHandling(errors => errors.OnError(async (context, exception, token) =>
         {
             if (exception is not TimeoutException)
             {
@@ -171,7 +171,7 @@ public class ErrorHandlingPipelineTests
             context.Response.Headers[HttpHeaderKey.ContentType] = "text/plain; charset=utf-8";
             await context.Response.Body.WriteAsync("upstream timed out"u8.ToArray(), token);
             return true;
-        });
+        }));
         factory.Application.UseErrorHandling();
         factory.Application.Use((context, next) => throw new TimeoutException("upstream"));
 
@@ -190,7 +190,7 @@ public class ErrorHandlingPipelineTests
     {
         // Arrange — no routing/handler middleware, so the request reaches the Web.Hosting terminal,
         // which sets a bodyless 404; the status-code-pages verb upgrades it to problem+json. This is
-        // the cross-package layering the hosting-isolation rule mandates.
+        // the cross-package layering the Web area uses.
         using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 

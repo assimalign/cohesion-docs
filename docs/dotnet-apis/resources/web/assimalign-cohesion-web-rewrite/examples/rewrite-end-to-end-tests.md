@@ -30,8 +30,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
@@ -42,6 +40,8 @@ using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.StaticFiles;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Rewrite.Tests;
 
@@ -62,7 +62,7 @@ public class RewriteEndToEndTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         int oldInvocations = 0;
 
         factory.Application.UseRewrite(rules => rules.AddRewrite("^/old/(\\d+)$", "/new/$1"));
@@ -103,7 +103,7 @@ public class RewriteEndToEndTests
         ActivitySource.AddActivityListener(listener);
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRewrite(rules => rules.AddRewrite("^/legacy/telemetry/(\\d+)$", "/telemetry/orders/$1"));
         factory.Application.UseRouting().Map(CohesionHttpMethod.Get, "/telemetry/orders/{id:int}", Text(_ => "order"));
 
@@ -192,7 +192,7 @@ public class RewriteEndToEndTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRewrite(rules => rules.AddRewrite("^/products/(\\d+)$", "/product?id=$1&view=full"));
         factory.Application.UseRouting();
         factory.Application.MapGet("/product", (int id, string view) => $"product:{id}:{view}");
@@ -213,7 +213,7 @@ public class RewriteEndToEndTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         int oldInvocations = 0;
 
         factory.Application.UseRewrite(rules => rules.AddRedirect("^/v1/orders$", "/v2/orders", CohesionHttpStatusCode.PermanentRedirect));
@@ -241,7 +241,7 @@ public class RewriteEndToEndTests
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRewrite(rules => rules.AddRewrite("^/shop/(.*)$", "/store/$1?ref=shop"));
         factory.Application.UseRouting().Map(CohesionHttpMethod.Get, "/store/{**rest}", Text(context =>
         {

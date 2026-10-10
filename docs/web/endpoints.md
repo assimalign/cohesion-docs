@@ -63,7 +63,7 @@ instead of a 415.
 
 An endpoint with a `[FromForm]` or uploaded-file parameter requires antiforgery when the application
 references `Assimalign.Cohesion.Web.Antiforgery`, which every `Sdk.Web` application does through
-the shared framework. Register `AddAntiforgery(...)` on the builder and `UseAntiforgery()` after
+the shared framework. Register `builder.Services.AddAntiforgery(...)` and `UseAntiforgery()` after
 `UseRouting()`, or opt the endpoint out with `.DisableAntiforgery()`; without the middleware the
 endpoint fails at dispatch instead of running unprotected. The generator attaches the requirement
 where the endpoint is mapped, so a group's `DisableAntiforgery()` does not reach it. See
@@ -107,7 +107,7 @@ using Assimalign.Cohesion.Web.Validation;
 
 // builder is the WebApplicationBuilder and app the built WebApplication; Customer is in the
 // application's JsonSerializerContext.
-builder.AddValidation(validation => validation.AddProfile(new CustomerProfile()));
+builder.Services.AddValidation(validation => validation.AddProfile(new CustomerProfile()));
 
 // An invalid customer is answered 400 before the handler runs.
 app.MapPost("/customers", (Customer customer) => customer);
@@ -154,7 +154,8 @@ using System.Collections.Generic;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web;
 
-// app is the built WebApplication; AddAntiforgery is registered and UseAntiforgery follows UseRouting.
+// app is the built WebApplication; builder.Services.AddAntiforgery(...) registered antiforgery, and
+// UseAntiforgery follows UseRouting.
 app.MapPost("/profiles/{id:long}/media", (long id, IHttpFormFile avatar, IReadOnlyList<IHttpFormFile> photos) =>
     $"{avatar.FileName}: {avatar.Length} bytes, {photos.Count} photos");
 ```
@@ -232,8 +233,8 @@ withdrawn before merge, and a returned value is plain data. Controller and funct
 also removed from that direction.
 
 `Web.Serialization` supplies independent `IHttpContentReader` and `IHttpContentWriter` contracts
-keyed by media type. `AddJsonSerialization` uses a source-generated resolver for JavaScript Object
-Notation (JSON). `ReadContentAsync` and `WriteContentAsync` provide the request/response call sites,
+keyed by media type. `builder.Services.AddJsonSerialization(...)` uses a source-generated resolver
+for JavaScript Object Notation (JSON). `ReadContentAsync` and `WriteContentAsync` provide the request/response call sites,
 and `WriteNegotiatedContentAsync` selects the writer from the request's `Accept`.
 
 `Web.StaticFiles` adds two response helpers that answer the way the static-files middleware does —
@@ -250,7 +251,8 @@ a stream with the validators the caller supplies. See
 and `WriteProblemDetailsAsync`. The writer is reflection-free. This library defines the payload;
 it does not decide which application outcomes are errors.
 
-`Web.ErrorHandling` supplies `AddErrorHandling().OnError(...)` and `UseErrorHandling`.
+`Web.ErrorHandling` supplies `builder.Services.AddErrorHandling(errors => errors.OnError(...))` and
+`UseErrorHandling`.
 The middleware captures faults in `IHttpExceptionFeature`, dispatches an ordered handler chain,
 and provides a terminal problem response. It avoids clobbering an already committed response.
 `UseStatusCodePages` can upgrade an otherwise bodyless 404.

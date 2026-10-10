@@ -16,7 +16,8 @@ map in the shape binding failures already use.
 
 ## Scope
 
-- **`AddValidation`** (builder time) registers a validator per model type and the application's
+- **`builder.Services.AddValidation(...)`** (builder time), a component integration the
+  application's compilation receives, registers a validator per model type and the application's
   default. Validators are keyed by `typeof(T)`: `AddProfile(new CustomerProfile())` builds a
   validator over one profile, `AddValidator(validator)` registers a configured `IValidator` for
   every type it has a profile for, and `AddValidator<T>(validator)` names the type. No reflection is
@@ -54,8 +55,8 @@ surface takes its `IValidator` and `IValidationProfile<T>`.
 
 See the [source-backed usage examples](examples/index.md).
 
-Register the validators on the builder, beside `AddRouting` and `AddJsonSerialization`, with
-`builder.AddValidation(validation => validation.AddProfile(new CustomerProfile()))`. A typed
+Register the validators on `builder.Services`, beside `AddRouting` and `AddJsonSerialization`, with
+`builder.Services.AddValidation(validation => validation.AddProfile(new CustomerProfile()))`. A typed
 endpoint such as `app.MapPost("/customers", (Customer customer) => ...)` then answers an invalid
 customer with `400` before the handler runs, and `.DisableValidation()` on an endpoint (for example
 one that saves drafts) lets its body through as it is. The profile is an ObjectValidation

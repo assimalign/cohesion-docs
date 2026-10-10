@@ -23,13 +23,13 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Serialization.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Serialization.Tests;
 
@@ -50,7 +50,7 @@ public class SerializationPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddJsonSerialization(TestJsonContext.Default);
+        factory.Builder.Services.AddJsonSerialization(TestJsonContext.Default);
 
         factory.Application.Use(async (context, next) =>
         {
@@ -85,7 +85,7 @@ public class SerializationPipelineTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddJsonSerialization(TestJsonContext.Default);
+        factory.Builder.Services.AddJsonSerialization(TestJsonContext.Default);
 
         factory.Application.Use(async (context, next) =>
         {

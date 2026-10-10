@@ -50,11 +50,18 @@ same seam.
   `MakeReadOnly()` (the non-populating overload), and a type outside the resolver's contracts
   faults with `HttpContentSerializationException` instead of silently reflecting. Options
   default to `JsonSerializerDefaults.Web` (camelCase, case-insensitive reads).
-- **Builder-time feature, no DI** — the `AddAuthentication` idiom. The root verb creates the
-  registry and attaches it via `IWebApplicationBuilder.AddFeature`; the returned
-  `ContentSerializationBuilder` feeds the same instance, so chained format verbs (`AddJson`,
-  future grafts) take effect without re-registration. Repeating the *root* verb composes a
-  fresh registry that replaces the old one (features are name-keyed) — call it once.
+- **Builder-time feature, no DI reference** — the registration verbs are component integrations
+  the application's compilation receives.
+  `builder.Services.AddContentSerialization(serialization => serialization.AddJson(...))` is the
+  builder template over `ContentSerializationBuilder`: the
+  generator constructs the builder, runs the callback, so format verbs (`AddJson`, future grafts)
+  compose on it, calls `Build()`, and registers an immutable snapshot of the registry as an
+  `IHttpFeature` singleton. `builder.Services.AddJsonSerialization(resolver, configure)` is the
+  static-factory shorthand, because the resolver is an argument the template's single callback
+  cannot carry. Repeating a verb composes a fresh registry that replaces the old one (features
+  are name-keyed) — call one, once. `AddJsonSerialization` no longer returns the builder, so a JSON
+  registry with extra readers or writers is
+  `AddContentSerialization(s => s.AddJson(...).AddReader(...))`.
 - **`ReadContentAsync`/`WriteContentAsync`, not `WriteAsync`.** The issue sketch says
   `response.WriteAsync(value)`; the shipped names add `Content` because a raw-text
   `WriteAsync(string)` response helper is a likely future addition, and an unconstrained

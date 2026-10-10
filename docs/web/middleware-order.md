@@ -64,8 +64,9 @@ flowchart TD
 ## The order in code
 
 The whole order, with the configuration the verbs that require it take. `UseRouting`,
-`UseAuthorization` and `UseAntiforgery` also need their builder registrations (`AddRouting`,
-`AddAuthorization`, `AddAntiforgery`); the last two fail application start without one.
+`UseAuthorization` and `UseAntiforgery` also need their registrations on `builder.Services`
+(`AddRouting`, `AddAuthorization`, `AddAntiforgery`); the last two fail application start without
+one.
 
 ```csharp
 using System.Net;

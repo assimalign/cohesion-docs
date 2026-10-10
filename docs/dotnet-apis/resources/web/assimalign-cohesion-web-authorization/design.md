@@ -94,8 +94,10 @@ and to read the options from concurrent requests without locks.
 
 ### Registration
 
-`AddAuthorization` (on `IWebApplicationBuilder`) captures the options as a typed application feature
-(`builder.AddFeature`), the only channel between the builder and the pipeline. `UseAuthorization`
+`builder.Services.AddAuthorization(options => ...)` captures the options as a typed application
+feature, an `IHttpFeature` singleton, the only channel between the builder and the pipeline. The
+verb is a component integration over `AuthorizationComponents.CreateFeature` that the application's
+compilation receives, so the package takes no dependency-injection reference. `UseAuthorization`
 uses the context-aware `Use` overload to read the options once, through
 `TryGetAuthorizationOptions`, when the pipeline is composed: a missing `AddAuthorization` fails
 application start rather than a request, and nothing is looked up per request. A second

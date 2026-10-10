@@ -224,9 +224,10 @@ application composes the two.
 The application "has a data-protection provider" when it hands one over. Web composition is
 dependency-free: there is no container to discover a provider in, and there is no application-level
 data-protection contract both `Web.Authentication` and this package could read without one of them,
-or the area root, owning a data-protection seam. `AddAuthentication(..., dataProtectionProvider)`
-set the precedent of an explicit parameter; sharing one key ring is passing the same provider to
-both registrations. A shared application-level provider feature is a recorded follow-up.
+or the area root, owning a data-protection seam. Authentication's explicit provider set the
+precedent (today `AuthenticationBuilder.UseDataProtection` inside
+`builder.Services.AddAuthentication`); sharing one key ring is passing the same provider to both
+registrations. A shared application-level provider feature is a recorded follow-up.
 
 ### Why not default to a file-system key ring
 

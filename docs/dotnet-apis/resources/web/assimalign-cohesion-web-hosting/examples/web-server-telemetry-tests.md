@@ -25,8 +25,9 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 12** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
 - **Case 13** — Telemetry: A response that cannot be sent should report response_send_failed.
 - **Case 14** — Telemetry: A method outside the known list should be reported as _OTHER.
-- **Case 15** — Telemetry: Each HTTP/2 stream should get its own server span.
-- **Case 16** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
+- **Case 15** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
+- **Case 16** — Telemetry: Each HTTP/2 stream should get its own server span.
+- **Case 17** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
 
 ## Source example
 
@@ -35,22 +36,26 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using Shouldly;
 using Xunit;
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http;
+using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
@@ -154,7 +159,7 @@ public class WebServerTelemetryTests
         using TelemetryRecorder recorder = new();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRouting()
             .MapGroup("/telemetry")
             .Map(CohesionHttpMethod.Get, "orders/{id:int}", new RouterRouteHandler(async context =>
@@ -363,7 +368,7 @@ public class WebServerTelemetryTests
         double activeInPipeline = double.NaN;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
         factory.Application.UseRouting().Map(CohesionHttpMethod.Get, "/telemetry/metrics/{id}", new RouterRouteHandler(context =>
         {
             activeInPipeline = SumActiveRequests(recorder);
@@ -590,6 +595,52 @@ public class WebServerTelemetryTests
         span.GetTagItem("http.request.method").ShouldBe("_OTHER");
         span.GetTagItem("http.request.method_original").ShouldBe("PURGE");
         duration.Tags.ContainsKey("http.request.method_original").ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A standard method in another case should be reported as _OTHER with its original case")]
+    public async Task ServerSpan_MethodInAnotherCase_ShouldReportOtherAndTheOriginalCase()
+    {
+        // Arrange — HttpClient upper-cases 'get' before sending it, so the request is written raw. Methods
+        // are case-sensitive (RFC 9110 §9.1): 'get' is an unknown method, not GET.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new(metrics: false);
+
+        string path = $"/telemetry/lowercase/{Guid.NewGuid():N}";
+
+        await using InMemoryConnectionListener transport = new();
+        IHttpConnectionListener listener = HttpConnectionListener.Create(options => options.UseHttp1(transport));
+        WebApplicationServer server = new(new WebApplicationServerOptions
+        {
+            Pipeline = new FakePipeline((context, _) =>
+            {
+                context.Response.StatusCode = CohesionHttpStatusCode.NoContent;
+                return Task.CompletedTask;
+            }),
+            Listener = listener,
+        });
+
+        await server.StartAsync(cancellationToken);
+
+        try
+        {
+            await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+            Stream stream = client.AsStream();
+
+            // Act
+            await stream.WriteAsync(Encoding.ASCII.GetBytes($"get {path} HTTP/1.1\r\nHost: localhost\r\n\r\n"), cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+            Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+
+            // Assert
+            span.DisplayName.ShouldBe("HTTP");
+            span.GetTagItem("http.request.method").ShouldBe("_OTHER");
+            span.GetTagItem("http.request.method_original").ShouldBe("get");
+        }
+        finally
+        {
+            await server.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: Each HTTP/2 stream should get its own server span")]

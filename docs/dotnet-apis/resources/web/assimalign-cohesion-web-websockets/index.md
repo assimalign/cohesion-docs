@@ -65,7 +65,7 @@ using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.WebSockets;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.AddRouting();
+builder.Services.AddRouting();
 
 await using WebApplication app = builder.Build();
 app.UseRouting();

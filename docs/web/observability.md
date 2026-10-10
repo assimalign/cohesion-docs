@@ -69,7 +69,7 @@ meters.SetMeasurementEventCallback<long>((instrument, delta, tags, state) =>
 meters.Start();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.AddRouting();
+builder.Services.AddRouting();
 
 await using WebApplication app = builder.Build();
 app.UseRouting();

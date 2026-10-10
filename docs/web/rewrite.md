@@ -25,7 +25,7 @@ using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.StaticFiles;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.AddRouting();
+builder.Services.AddRouting();
 
 await using WebApplication app = builder.Build();
 

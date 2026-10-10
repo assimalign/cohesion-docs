@@ -31,15 +31,15 @@ Use it in the source project’s test context, with its test dependencies and su
 ```csharp
 using System.Net;
 using System.Text;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
 using Shouldly;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.Diagnostics.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Routing.Metadata;
 using Assimalign.Cohesion.Web.Testing;
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
 
 namespace Assimalign.Cohesion.Web.Diagnostics.Tests;
 
@@ -289,7 +289,7 @@ public class HttpLoggingEndToEndTests
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
@@ -335,7 +335,7 @@ public class HttpLoggingEndToEndTests
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
@@ -373,7 +373,7 @@ public class HttpLoggingEndToEndTests
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
@@ -414,7 +414,7 @@ public class HttpLoggingEndToEndTests
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
