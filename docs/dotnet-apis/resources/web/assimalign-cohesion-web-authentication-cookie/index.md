@@ -36,6 +36,13 @@ and drives the login / logout / access-denied flow.
 
 See the [source-backed usage examples](examples/index.md).
 
+Over HTTPS the ticket cookie is always `Secure`, even without `Cookie.Secure`: the handler reads the
+effective scheme, so TLS terminated at a trusted proxy counts once `UseForwardedHeaders` runs ahead
+of `UseAuthentication`.
+
+The ticket cookie is essential by default (`Cookie.IsEssential`), so a `UseCookiePolicy` consent
+requirement never stops a user from signing in.
+
 See [docs/DESIGN.md](design.md) for the ticket format, sliding-renewal rule, and the
 redirect-vs-status decision.
 
@@ -45,6 +52,7 @@ redirect-vs-status decision.
 |---|---|
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Cookies` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Authentication` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Security.DataProtection` | `CohesionProjectReference` |

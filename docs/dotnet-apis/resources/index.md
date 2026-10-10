@@ -42,7 +42,7 @@ integrations use the `<Area>.Hosting.<Suffix>` naming family.
 | `Diagnostic` | Enforced boundary |
 |---|---|
 | `COHRES001` | Area libraries cannot reference the exact hosting module without a named exemption. Roots and features also cannot reference hosting-family integrations. Integrations can reference each other, but cannot reference the exact runtime. |
-| `COHRES002` | The exact hosting module’s direct same-area references are limited to the area root and its hosting integrations. |
+| `COHRES002` | The exact hosting module may reference any same-area library except `<Area>.Testing`, `<Area>.ApplicationModel`, `<Area>.ApplicationModel.Orchestration`, the framework producers, and harnesses; its resolved closure may carry neither ApplicationModel package (owner decision 2026-10-09). |
 | `COHRES003` | Shipped resource assemblies cannot resolve `Assimalign.Cohesion.ApplicationModel.Gateway*` assemblies; there is no exemption. |
 | `COHRES004` | Roots and features cannot directly or transitively reference `Assimalign.Cohesion.Hosting` or `Assimalign.Cohesion.Hosting.*`. The hosting family, exact area testing package, and application-model assemblies are the permitted categories. |
 | `COHAM001` | An application-model assembly opting into `CohesionApplicationModelGuard` is restricted to the fixed dependency closure below. All 18 resource application-model assemblies enable the guard. |
@@ -55,9 +55,10 @@ Windows mount carrier. The guard is an opt-in migration gate, not permission to 
 allowlist.
 
 `COHRES001`, `COHRES003`, `COHRES004`, and `COHAM001` check both the project-reference graph and
-resolved assemblies, including package-delivered references. `COHRES002` constrains direct
-references: child roots may arrive transitively through the area root. Tests, examples, samples, and
-fixtures are excluded by their source paths.
+resolved assemblies, including package-delivered references. `COHRES002` checks the module's direct
+references against every excluded category, and its resolved assemblies for the two
+`ApplicationModel` packages only: child roots may arrive transitively through the area root. Tests,
+examples, samples, and fixtures are excluded by their source paths.
 
 ## Composition and packaging
 
@@ -65,7 +66,9 @@ fixtures are excluded by their source paths.
   `I<Area>Application`. Child roots are independently consumable; the parent root
   references them, and they never reference the parent root.
 - **Feature registration** — Feature packages own their registration verbs and consume
-  root contracts. Sibling feature references are permitted.
+  root contracts. A verb is a root-builder extension or a component integration that the
+  generator projects onto the hosting builder's `Services`, as Web's are
+  (`builder.Services.AddAuthentication(...)`). Sibling feature references are permitted.
 - **Runtime composition** — `<Area>Application.CreateBuilder(string[] args)` returns
   a concrete builder. Background-service registration belongs on that concrete builder.
 - **Orchestration** — `<Area>.ApplicationModel` owns manifest-backed resources,
@@ -79,7 +82,7 @@ fixtures are excluded by their source paths.
 - **Testing exemption** — Where present, `<Area>.Testing` is the area’s sole
   explicit `CohesionHostingIsolationExemptions` holder and invokes the real entry
   point in a test-scoped resource context.
-- **Framework delivery** — `frameworks/Assimalign.Cohesion.App.props` distinguishes
+- **Framework delivery** — `libraries/App/Assimalign.Cohesion.App.props` distinguishes
   public reference-pack assemblies from private runtime assemblies. `Application`-model and
   client packages remain NuGet-only.
 
@@ -90,4 +93,4 @@ fixtures are excluded by their source paths.
 - **Primary source** — `cohesion/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/build/Targets/Build.Rules.targets`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.

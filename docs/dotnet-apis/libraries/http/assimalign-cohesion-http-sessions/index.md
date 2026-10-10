@@ -18,6 +18,11 @@ Defines per-exchange binary session state and typed convenience access.
 Typed string and integer helpers are extension members over that binary contract. An attached
 feature supplies the session without adding application state to the protocol core.
 
+`HttpSessionOptions` carries the session cookie's settings. `CookieIsEssential`, `false` by
+default, tells a cookie-consent policy (`Web.CookiePolicy`) whether it may emit the session cookie
+before the user consents; an application that cannot work without its session, such as a cart or a
+multi-step form, sets it to `true`.
+
 ## Dependencies
 
 | Reference | Build item |

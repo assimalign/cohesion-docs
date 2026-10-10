@@ -111,14 +111,17 @@ resources; report `COHGW002` for missing opt-in.
 
 ### `CohesionCreateResourceVerbs`
 
-Read the resolved manifest closure and provider contributions, generate Gateway.g.cs, and collect
-the selected in-process entry assemblies and runtime assets.
+Read the resolved manifest closure and provider contributions, generate Gateway.g.cs, add it to
+`Compile`, and collect the selected in-process entry assemblies and runtime assets. A design-time
+build (`DesignTimeBuild=true`) never builds the members, so it keeps an existing Gateway.g.cs
+untouched and, when none exists, generates the surface without the in-process pass; the real build
+regenerates it with the bindings.
 
 | Contract | Exact value |
 |---|---|
-| `BeforeTargets` | `CoreCompile` |
+| `BeforeTargets` | `BeforeCompile;CoreCompile` |
 | `AfterTargets` | `ResolveProjectReferences` |
-| `DependsOnTargets` | `CohesionResolveResourceReferences` |
+| `DependsOnTargets` | `CohesionResolveResourceReferences;_CohesionCollectAvailableApplicationModels` |
 | `Condition` | Not declared |
 | `Inputs` | Not declared |
 | `Outputs` | Not declared |
@@ -126,7 +129,7 @@ the selected in-process entry assemblies and runtime assets.
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `CohesionCreateResourceVerbs` | `SourceOutputPath=$(CohesionGatewaySourcePath)`; `ProjectFullPath=$(MSBuildProjectFullPath)`; `ApplicationName=$(CohesionApplicationName)`; `Gateways=$(CohesionGateways)`; `InProcessEnabled=$(_CohesionGatewayInProcessActive)`; `ResourceReferences=@(CohesionResourceReference)`; `ReferencedManifests=@(_CohesionReferencedManifest);@(CohesionResourceManifest->WithMetadataValue('IsSelf', 'false'))`; `ResourceKinds=@(CohesionGatewayResourceKind)`; `GatewayProviders=@(CohesionGatewayProvider)`; `ClientKinds=@(CohesionGatewayClientKind)` | `TaskParameter=RequiredApplicationModels`; `ItemName=_CohesionGatewayRequiredApplicationModel`; `TaskParameter=RequiredClientPackages`; `ItemName=_CohesionGatewayRequiredClientPackage`; `TaskParameter=InProcessProjectReferences`; `ItemName=_CohesionGatewayInProcessProjectReference` |
+| `CohesionCreateResourceVerbs` | `SourceOutputPath=$(CohesionGatewaySourcePath)`; `ProjectFullPath=$(MSBuildProjectFullPath)`; `ApplicationName=$(CohesionApplicationName)`; `Gateways=$(CohesionGateways)`; `InProcessEnabled=$(_CohesionGatewayInProcessActive)`; `ResourceReferences=@(CohesionResourceReference)`; `ReferencedManifests=@(_CohesionReferencedManifest);@(CohesionResourceManifest->WithMetadataValue('IsSelf', 'false'))`; `ResourceKinds=@(CohesionGatewayResourceKind)`; `AvailableApplicationModels=@(_CohesionGatewayAvailableApplicationModel)`; `GatewayProviders=@(CohesionGatewayProvider)`; `ClientKinds=@(CohesionGatewayClientKind)` | `TaskParameter=RequiredApplicationModels`; `ItemName=_CohesionGatewayRequiredApplicationModel`; `TaskParameter=RequiredClientPackages`; `ItemName=_CohesionGatewayRequiredClientPackage`; `TaskParameter=InProcessProjectReferences`; `ItemName=_CohesionGatewayInProcessProjectReference` |
 | `MSBuild` | `Projects=@(_CohesionGatewayInProcessProjectReference)`; `Targets=CohesionGetInProcessRuntimeAssets`; `BuildInParallel=$(BuildInParallel)`; `Properties=Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)`; `SkipNonexistentTargets=false`; `RemoveProperties=OutDir;PublishDir`; `Condition='$(_CohesionGatewayInProcessActive)' == 'true' and '@(_CohesionGatewayInProcessProjectReference)' != ''` | `TaskParameter=TargetOutputs`; `ItemName=_CohesionGatewayInProcessRuntimeAsset` |
 | `Message` | `Importance=Low`; `Text=Sdk.Gateway manifest application models: @(_CohesionGatewayRequiredApplicationModel).` | None |
 | `Message` | `Importance=Low`; `Text=Sdk.Gateway manifest mount and command clients: @(_CohesionGatewayRequiredClientPackage).` | None |
@@ -183,16 +186,30 @@ Reject resolved Assimalign.Cohesion.*.Hosting assemblies with `COHGW001` unless
 |---|---|---|
 | `Error` | `Condition='@(_CohesionForbiddenGatewayHostingReference)' != ''`; `Code=COHGW001`; `File=$(MSBuildProjectFullPath)`; `Text=Out-of-process Sdk.Gateway project '$(MSBuildProjectName)' resolved forbidden Hosting assembly '%(_CohesionForbiddenGatewayHostingReference.Filename)'. Remove the runtime reference or set CohesionGatewayInProcess=true for the sanctioned Composite boundary.` | None |
 
-### `CohesionCleanGatewaySource`
+### `_CohesionCollectAvailableApplicationModels`
 
-Remove Gateway.g.cs after Clean.
+Collect the ApplicationModel assemblies the gateway references (`PackageReference` and `ProjectReference` items whose name ends in `.ApplicationModel`), the set a typed verb may compile against.
+
+| Contract | Exact value |
+|---|---|
+| `BeforeTargets` | Not declared |
+| `AfterTargets` | Not declared |
+| `DependsOnTargets` | Not declared |
+| `Condition` | Not declared |
+| `Inputs` | Not declared |
+| `Outputs` | Not declared |
+| `Returns` | Not declared |
+
+### `CohesionRegenerateGatewaySourceAfterClean`
+
+Regenerate Gateway.g.cs after CoreClean has deleted it with the other file writes, without the in-process pass (the members' assemblies are gone until the next build), so IntelliSense keeps the generated verbs. A separate target rather than a dependency on `CohesionCreateResourceVerbs`, because a target runs once per build and a Rebuild must still run the real target.
 
 | Contract | Exact value |
 |---|---|
 | `BeforeTargets` | Not declared |
 | `AfterTargets` | `Clean` |
-| `DependsOnTargets` | Not declared |
-| `Condition` | Not declared |
+| `DependsOnTargets` | `CohesionResolveResourceReferences;_CohesionCollectAvailableApplicationModels` |
+| `Condition` | `Exists('$(ProjectAssetsFile)') and '@(CohesionGatewayProvider)' != ''` (a project that was never restored is left alone) |
 | `Inputs` | Not declared |
 | `Outputs` | Not declared |
 | `Returns` | Not declared |

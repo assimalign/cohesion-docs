@@ -36,7 +36,8 @@ BCL codecs only — no external dependencies, AOT-safe.
   that streams via the response-streaming feature (that path commits its own head and bypasses
   `IHttpResponse.Body`).
 - **BREACH-cautious:** over an `https` request the middleware does nothing unless
-  `EnableForHttps` is set (default off).
+  `EnableForHttps` is set (default off). "`https`" is the effective scheme, so TLS terminated at a
+  trusted proxy counts once `UseForwardedHeaders` runs ahead of this middleware.
 - **A handler can opt** — its own response out through `IResponseCompressionFeature.Disable()`.
 
 ### Request decompression — `UseRequestDecompression`
@@ -48,7 +49,9 @@ BCL codecs only — no external dependencies, AOT-safe.
   `413`. The transport's byte cap protects only the compressed wire bytes; this bounds the decoded
   output.
 - **`415`** for an unsupported coding, **`400`** for a malformed coded body; multiple codings
-  (`Content-Encoding: gzip, br`) are decoded in reverse application order.
+  (`Content-Encoding: gzip, br`) are decoded in reverse application order. A malformed message
+  framing under the decoders (a broken chunk size) is the transport's client fault, not the
+  content's: it propagates unchanged and the transport answers it (#1340).
 
 ## Usage
 
@@ -67,10 +70,12 @@ See the [source-backed usage examples](examples/index.md).
 ## Dependencies
 
 `Assimalign.Cohesion.Web` (pipeline seams) · `Assimalign.Cohesion.Http` (headers, status codes,
-negotiation primitives) · `Assimalign.Cohesion.Http.Streaming` (the `HasStarted` probe used on the
-abort path). Per the Web-area dependency rule it references no hosting module, holds no
-DI/configuration/logging state, and is delivered to applications through the `App.Web` shared
-framework. Compression itself rides the BCL `GZipStream` / `BrotliStream` / `ZLibStream` — no
+negotiation primitives) · `Assimalign.Cohesion.Http.Forwarded` (the `EffectiveScheme` read behind
+the BREACH guard) · `Assimalign.Cohesion.Http.Streaming` (the `HasStarted` probe used on the abort
+path) · `Assimalign.Cohesion.Web.Server` (`IWebClientFaultFeature`, which tells a transport framing
+failure from a decoder's, #1340). Per the Web-area dependency rule it references no hosting module,
+holds no DI/configuration/logging state, and is delivered to applications through the `App.Web`
+shared framework. Compression itself rides the BCL `GZipStream` / `BrotliStream` / `ZLibStream` — no
 external packages.
 
 Design rationale — the deferred-first-write wrapper, the BREACH default, multiple-coding handling,
@@ -82,7 +87,9 @@ and the non-goals — lives in [DESIGN.md](design.md) .
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

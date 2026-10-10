@@ -19,6 +19,31 @@ Listeners bind explicitly and factories establish outbound connections. Capabili
 delivery and security; connection layers transform connections at establishment without introducing
 a parallel transport abstraction.
 
+`ITlsConnectionInfo` reports what a TLS handshake negotiated: the ALPN application protocol, the TLS
+version, the cipher suite, and the peer's certificate. Connections that terminate TLS implement it
+beside their connection contract — the secured connection `Assimalign.Cohesion.Connections.Security`
+returns, and a QUIC connection — and a consumer finds it with a type test, so HTTP reads it without
+referencing the TLS layer. See the [design](design.md#handshake-facts-itlsconnectioninfo).
+
+`IMultiplexedStreamAbort` abandons one direction of a multiplexed stream with an application error
+code (`AbortRead` sends QUIC `STOP_SENDING`, `AbortWrite` sends `RESET_STREAM`), and
+`IMultiplexedConnectionAbort` aborts a multiplexed connection with an application error code on its
+close (QUIC `CONNECTION_CLOSE`). The QUIC driver implements both, and the in-memory driver's stream
+ends implement the stream facet; a consumer finds each with a type test. `ConnectionResetException`
+carries the peer's `ApplicationErrorCode` when a driver reports a coded stream reset through it (#1080).
+See the [design](design.md#application-error-codes-imultiplexedstreamabort-and-imultiplexedconnectionabort).
+
+A listener contains each connection's failure: what escapes `AcceptAsync` is the listener's own.
+A layered listener (`listener.Use(layer)`) upgrades each accepted connection on its own task, at
+most 512 at a time (`listener.Use(layer, maxConcurrentUpgrades)`). A failed or timed-out upgrade
+closes only that connection, and the library's internal event source, `Assimalign.Cohesion.Connections`,
+reports it. See the [design](design.md#a-listener-contains-each-connections-failure).
+
+`ConnectionClosed` fires when a connection is closed or aborted. A stream of a multiplexed connection
+also fires it when its peer abandons the stream (a QUIC `RESET_STREAM` or `STOP_SENDING`, or the
+in-memory equivalents), so a consumer such as an HTTP/3 request learns of it without reading or
+writing (#1329). See the [design](design.md#when-connectionclosed-fires).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -91,3 +116,9 @@ a parallel transport abstraction.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/ValueObjects/DatagramReceiveResult.cs`.
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/DuplexPipeStream.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/ITlsConnectionInfo.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedStreamAbort.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedConnectionAbort.cs`.

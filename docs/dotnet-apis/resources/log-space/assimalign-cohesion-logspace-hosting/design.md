@@ -10,10 +10,11 @@ Item 31b makes LogSpace the Platform sink for Hosting.Telemetry. The resource ro
 contract-only; all composition is in Hosting. OTLP/HTTP JSON logs are accepted, protobuf receives
 415 with an OTLP/JSON-only detail. /v1/traces and /v1/metrics are reserved POST routes returning 501
 after authentication/content validation: libraries/Logging has no span or instrument primitive, and
-protobuf is deferred. No gRPC framing or response-trailer support exists in the HTTP server;
-therefore the SDK otlp endpoint changed from grpc/tcp 4317 to https/tcp 4318, Certificate=tls. query
-stays https/tcp 8443. Both Public flags remain false: application reachability through observed
-endpoints is not external exposure.
+protobuf is deferred. The HTTP server has no gRPC framing (response trailers ship on HTTP/2 and
+HTTP/3 since decision 18, but gRPC hosting stays outside the HTTP/Web program); therefore the SDK
+otlp endpoint changed from grpc/tcp 4317 to https/tcp 4318, Certificate=tls. query stays https/tcp
+8443. Both Public flags remain false: application reachability through observed endpoints is not
+external exposure.
 
 ## HTTP and TLS
 
@@ -117,6 +118,7 @@ area-owned service abstraction is introduced.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.LogSpace` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |

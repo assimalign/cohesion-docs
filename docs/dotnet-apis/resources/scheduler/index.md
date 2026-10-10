@@ -23,11 +23,14 @@ Jobs are declarations, not one-shot work: `AddJob` creates a dormant job. `AddCr
 
 ## Dependency boundary
 
-The single runtime module is `Assimalign.Cohesion.Scheduler.Hosting`. Roots and feature libraries
-do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
-Feature registration composes against the root contracts. The exact runtime may reference its area
-root and its hosting-family integrations; integrations may not reference the exact runtime. The
-declarative application model remains separate from the runtime. See the
+The single runtime module is `Assimalign.Cohesion.Scheduler.Hosting`. Roots and feature libraries do
+not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.Scheduler.Hosting`.
@@ -35,10 +38,11 @@ The hosting family in this area contains `Assimalign.Cohesion.Scheduler.Hosting`
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.Scheduler` delivers the `Assimalign.Cohesion.App.Scheduler` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.Scheduler.Refs` and `Assimalign.Cohesion.Scheduler.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
+private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
+the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
+packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -52,9 +56,15 @@ reference-pack project declares `CohesionFrameworkName` and imports
 |---|
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
 | `Assimalign.Cohesion.Web.Hosting.Resources` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.Cookies` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Connections.Quic` |
@@ -77,5 +87,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/Scheduler/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.Scheduler.Refs/src/Assimalign.Cohesion.App.Scheduler.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.Refs/src/Assimalign.Cohesion.Scheduler.Refs.csproj` and `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.Runtime/Directory.Build.props`.

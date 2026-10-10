@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Content Serialization Builder Tests](content-serialization-builder-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Serialization` through its co-located test source.
+- **[Json Contract Lookup Tests](json-contract-lookup-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Serialization` through its co-located test source.
 - **[Serialization Pipeline Tests](serialization-pipeline-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Serialization` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)

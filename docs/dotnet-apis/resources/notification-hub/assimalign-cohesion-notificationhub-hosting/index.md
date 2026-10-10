@@ -44,6 +44,7 @@ and stop in reverse. No area-owned service abstraction is introduced.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.NotificationHub` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |

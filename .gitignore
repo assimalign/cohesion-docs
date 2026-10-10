@@ -1,4 +1,5 @@
 .nuget/
+_out/
 **/bin/
 **/obj/
 .vs/

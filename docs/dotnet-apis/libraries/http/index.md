@@ -14,7 +14,7 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http.Connections` | Carries HTTP exchanges over Cohesion stream and multiplexed connections. | [Overview](assimalign-cohesion-http-connections/index.md) |
 | `Assimalign.Cohesion.Http.Cookies` | Adds typed request and response cookies to the HTTP feature model. | [Overview](assimalign-cohesion-http-cookies/index.md) |
 | `Assimalign.Cohesion.Http.DigestFields` | Parses and verifies HTTP integrity digest fields. | [Overview](assimalign-cohesion-http-digestfields/index.md) |
-| `Assimalign.Cohesion.Http.ExtendedConnect` | Exposes extended CONNECT exchanges through an optional HTTP feature. | [Overview](assimalign-cohesion-http-extendedconnect/index.md) |
+| `Assimalign.Cohesion.Http.ExtendedConnect` | Surfaces the HTTP/2 and HTTP/3 extended CONNECT feature on `IHttpContext`. | [Overview](assimalign-cohesion-http-extendedconnect/index.md) |
 | `Assimalign.Cohesion.Http.Forms` | Parses URL-encoded and multipart form bodies into typed collections. | [Overview](assimalign-cohesion-http-forms/index.md) |
 | `Assimalign.Cohesion.Http.Forwarded` | Defines effective request identity after a trusted proxy has forwarded an exchange. | [Overview](assimalign-cohesion-http-forwarded/index.md) |
 | `Assimalign.Cohesion.Http.InterimResponses` | Sends interim HTTP responses through the exchange interceptor seam. | [Overview](assimalign-cohesion-http-interimresponses/index.md) |
@@ -23,6 +23,8 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http.ServerSentEvents` | Formats Server-Sent Events and writes them through HTTP response streaming. | [Overview](assimalign-cohesion-http-serversentevents/index.md) |
 | `Assimalign.Cohesion.Http.Sessions` | Defines per-exchange binary session state and typed convenience access. | [Overview](assimalign-cohesion-http-sessions/index.md) |
 | `Assimalign.Cohesion.Http.Streaming` | Writes HTTP response bodies incrementally through an optional feature. | [Overview](assimalign-cohesion-http-streaming/index.md) |
+| `Assimalign.Cohesion.Http.Tls` | Surfaces the TLS session of the connection an exchange arrived on as a feature on `IHttpContext`. | [Overview](assimalign-cohesion-http-tls/index.md) |
+| `Assimalign.Cohesion.Http.WebSockets` | Accepts server WebSockets on HTTP/1.1, HTTP/2, and HTTP/3 through their opening handshakes. | [Overview](assimalign-cohesion-http-websockets/index.md) |
 
 ## Dependencies and delivery
 
@@ -46,6 +48,8 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.Http.ServerSentEvents` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Streaming` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Sessions` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Streaming` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.Tls` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.WebSockets` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.ProtocolUpgrade` (CohesionProjectReference), `Assimalign.Cohesion.Http.ExtendedConnect` (CohesionProjectReference) |
 
 ## Sources
 
@@ -166,3 +170,19 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src/Assimalign.Cohesion.Http.Tls.csproj`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src/Assimalign.Cohesion.Http.WebSockets.csproj`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src`.

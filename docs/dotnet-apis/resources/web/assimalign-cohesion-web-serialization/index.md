@@ -19,15 +19,24 @@ reflection-free under NativeAOT.
 - **The registry** — `IHttpContentSerializationFeature`, a typed feature on every exchange with
   distinct request-deserialization (`IHttpContentReader`) and response-serialization
   (`IHttpContentWriter`) halves, keyed by `HttpMediaType`.
-- **Builder-time registration** — `AddJsonSerialization(AppJsonContext.Default)` registers the
-  built-in JSON pair over a source-generated `IJsonTypeInfoResolver`;
-  `AddContentSerialization()` + `ContentSerializationBuilder` register custom formats.
+- **Builder-time registration** — `builder.Services.AddJsonSerialization(AppJsonContext.Default)`
+  registers the built-in JSON pair over a source-generated `IJsonTypeInfoResolver`;
+  `builder.Services.AddContentSerialization(serialization => ...)` and its
+  `ContentSerializationBuilder` register custom formats. Both verbs are component integrations the
+  application's compilation receives (#1380); this package takes no dependency-injection
+  reference. Call one of them, once: a second call replaces the registry, so a JSON registry with
+  extra readers or writers is
+  `AddContentSerialization(s => s.AddJson(AppJsonContext.Default).AddReader(...))`.
 - **Typed call sites** — `request.ReadContentAsync<T>()` and
   `response.WriteContentAsync(value)` extensions that dispatch through the registry.
 - **Content negotiation** — `context.WriteNegotiatedContentAsync(value)` selects the response
   format from the request's `Accept` header (over the same registry, reusing the #771 negotiation
   primitive), stamps `Vary: Accept`, and composes a bodyless `406` when nothing is acceptable;
   `feature.TryNegotiate(acceptHeader, out mediaType)` is the underlying non-throwing seam.
+- **Contract lookup** — `feature.TryGetJsonTypeInfo(type, out typeInfo)` returns the
+  System.Text.Json contract the built-in JSON writer serializes a type with, read-only, for
+  components that describe payloads rather than serialize them (the
+  [OpenAPI adapter](../assimalign-cohesion-web-openapi/index.md)).
 
 ## Usage
 

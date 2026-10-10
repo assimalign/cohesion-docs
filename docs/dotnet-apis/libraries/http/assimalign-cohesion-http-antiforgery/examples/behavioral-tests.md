@@ -51,6 +51,23 @@ public class HttpContextAntiforgeryExtensionsTests
         context.Features.Get<IHttpAntiforgeryFeature>().ShouldNotBeNull();
     }
 
+    [Fact(DisplayName = "Cohesion Test [Http.Antiforgery] - Antiforgery: Should replace a feature that occupies the contract slot")]
+    public void Antiforgery_SetOverContractSlot_ShouldReplaceTheFeature()
+    {
+        // Arrange — another installer (an application-level registration) named its feature for the
+        // contract, as IHttpAntiforgeryFeature asks.
+        IHttpContext context = new TestHttpContext();
+        context.Features.Set(new ContractSlotFeature(HttpAntiforgery.Create()));
+        IHttpAntiforgery replacement = HttpAntiforgery.Create();
+
+        // Act
+        context.Antiforgery = replacement;
+
+        // Assert — one antiforgery service per exchange.
+        context.Features.ShouldHaveSingleItem().ShouldBeAssignableTo<IHttpAntiforgeryFeature>().ShouldNotBeNull().Antiforgery.ShouldBeSameAs(replacement);
+        context.Features.Get(nameof(IHttpAntiforgeryFeature)).ShouldNotBeNull();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Http.Antiforgery] - Antiforgery: Should reject a null assignment")]
     public void Antiforgery_SetNull_ShouldThrow()
     {
@@ -92,6 +109,7 @@ public class HttpContextAntiforgeryExtensionsTests
 - **Covered behavior** — Antiforgery: Should return null before a feature is installed.
 - **Covered behavior** — Antiforgery: Should round-trip through the setter.
 - **Covered behavior** — Antiforgery: Should install an antiforgery feature on set.
+- **Covered behavior** — Antiforgery: Should replace a feature that occupies the contract slot.
 - **Covered behavior** — Antiforgery: Should reject a null assignment.
 - **Covered behavior** — RequireAntiforgery: Should throw before set.
 - **Covered behavior** — RequireAntiforgery: Should return the service after set.

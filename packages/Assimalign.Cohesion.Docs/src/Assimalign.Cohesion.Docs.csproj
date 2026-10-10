@@ -1,0 +1,43 @@
+<Project Sdk="Assimalign.Viu.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Assimalign.Cohesion.Docs</RootNamespace>
+    <AssemblyName>Assimalign.Cohesion.Docs</AssemblyName>
+    <PackageId>Assimalign.Cohesion.Docs</PackageId>
+    <Version>1.0.0-preview.1</Version>
+    <Description>Cohesion framework documentation as a build-time Viu micro-frontend.</Description>
+    <PackageTags>Assimalign;Cohesion;Viu;MicroFrontends;Documentation;AOT</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/assimalign/cohesion-docs</RepositoryUrl>
+    <PackageReadmeFile>docs/OVERVIEW.md</PackageReadmeFile>
+    <Authors>Assimalign</Authors>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);NU5123</NoWarn>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ViuMarkdownContentRoot>../../../docs</ViuMarkdownContentRoot>
+    <ViuMarkdownContentPrefix>_content/Assimalign.Cohesion.Docs/docs/</ViuMarkdownContentPrefix>
+    <ViuMarkdownRouteBase>/cohesion</ViuMarkdownRouteBase>
+    <ViuMarkdownGeneratedNamespace>Assimalign.Cohesion.Docs</ViuMarkdownGeneratedNamespace>
+    <FrontendStaticContentRoot>../../../docs</FrontendStaticContentRoot>
+    <FrontendStaticContentPrefix>docs</FrontendStaticContentPrefix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="1.0.0-preview.1" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="10.0.0-beta.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../docs/OVERVIEW.md" Pack="true" PackagePath="docs/OVERVIEW.md" />
+  </ItemGroup>
+
+</Project>

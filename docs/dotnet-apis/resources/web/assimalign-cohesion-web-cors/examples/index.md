@@ -2,13 +2,19 @@
 
 Examples for `Assimalign.Cohesion.Web.Cors` are derived from source documentation and code.
 
-> **Status:** Not yet implemented.
+> **Status:** Partial.
 
-This project has no implemented usage surface from which to derive a working example. The assembly
-page records the empty project or placeholder contract.
+The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
+examples require their original test project’s dependencies and supporting objects.
+
+- **[Cors End To End Tests](cors-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Middleware Tests](cors-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Options Tests](cors-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Policy Builder Tests](cors-policy-builder-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Route Convention Tests](cors-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/src/Assimalign.Cohesion.Web.Cors.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/OVERVIEW.md`.

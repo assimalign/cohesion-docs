@@ -26,9 +26,12 @@ fallback is Local-only.
 
 The single runtime module is `Assimalign.Cohesion.IdentityHub.Hosting`. Roots and feature libraries
 do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
-Feature registration composes against the root contracts. The exact runtime may reference its area
-root and its hosting-family integrations; integrations may not reference the exact runtime. The
-declarative application model remains separate from the runtime. See the
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.IdentityHub.Hosting`.
@@ -36,10 +39,11 @@ The hosting family in this area contains `Assimalign.Cohesion.IdentityHub.Hostin
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.IdentityHub` delivers the `Assimalign.Cohesion.App.IdentityHub` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.IdentityHub.Refs` and `Assimalign.Cohesion.IdentityHub.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
 | Public reference-pack assembly |
 |---|
@@ -54,10 +58,18 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting` |
 | `Assimalign.Cohesion.Web.Hosting.Resources` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.SecurityHeaders` |
+| `Assimalign.Cohesion.Web.Server` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.Forms` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
+| `Assimalign.Cohesion.Http.Streaming` |
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Connections.Quic` |
 | `Assimalign.Cohesion.Connections.Security` |
@@ -78,5 +90,5 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/IdentityHub/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.IdentityHub.Refs/src/Assimalign.Cohesion.App.IdentityHub.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Refs/src/Assimalign.Cohesion.IdentityHub.Refs.csproj` and `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Runtime/Directory.Build.props`.

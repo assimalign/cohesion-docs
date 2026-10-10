@@ -20,6 +20,9 @@ ambient loopback `http` endpoint.
 ## Scope
 
 - **`IWebApplicationTestFactory` / `WebApplicationTestFactory`** — the per-test application host.
+  Disposing a factory stops it and releases its transport: a `Program`-backed factory requests a
+  graceful stop bounded by its shutdown budget, and a manual factory cancels the requests still in
+  flight, so call `StopAsync` first when they must finish.
 - **`IWebApplicationProgramTestFactory`** — exposes the `Program` invocation's `ResourceContext`.
 - **`WebApplicationTestFactoryOptions`** — protocol selection and client base address.
 - **`WebApplicationProgramTestFactoryOptions`** — context, arguments, and lifecycle budgets.
@@ -35,6 +38,11 @@ business.
 See the [source-backed usage examples](examples/index.md).
 
 Prior-knowledge HTTP/2 over the same in-memory pair:
+
+See the [source-backed usage examples](examples/index.md).
+
+Point the application at a content root on disk (its `wwwroot` becomes the web root that
+`UseStaticFiles()` serves; the default is the test assembly's base directory):
 
 See the [source-backed usage examples](examples/index.md).
 
@@ -83,3 +91,4 @@ See [`DESIGN.md`](design.md) for the composition model, lifecycle contract, prot
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Assimalign.Cohesion.Web.Testing.csproj`.
+- **Disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Abstractions/IWebApplicationTestFactory.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.

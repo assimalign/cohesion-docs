@@ -9,6 +9,7 @@ examples require their original test project’s dependencies and supporting obj
 
 - **[Rate Limiting End To End Tests](rate-limiting-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RateLimiting` through its co-located test source.
 - **[Rate Limiting Middleware Tests](rate-limiting-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RateLimiting` through its co-located test source.
+- **[Rate Limiting Route Convention Tests](rate-limiting-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RateLimiting` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

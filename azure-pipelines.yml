@@ -1,0 +1,180 @@
+parameters:
+  - name: githubServiceConnection
+    displayName: GitHub service connection
+    type: string
+    default: github-assimalign
+
+trigger:
+  branches:
+    include:
+      - main
+      - feature/*
+  paths:
+    include:
+      - docs/**
+      - packages/**
+      - app/**
+      - azure-pipelines.yml
+
+variables:
+  buildConfiguration: Release
+  AalnPackageFeed: aaln-core
+  viuRef: 5f1904e3971da2948bea00ace3d9a2e099804c40
+  viuPlatformsRef: 48a7ac64f01179ff202c95c535fa8e3dd5c94f60
+  cohesionRef: 82a45439f470520f90e96c5d8a40c26265d2df05
+  frontendRef: 3c5172e31a526ae14f5cc317afaecd98224aaaed
+
+resources:
+  repositories:
+    - repository: viu
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/viu
+      ref: ${{ variables.viuRef }}
+    - repository: viuPlatforms
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/viu-platforms
+      ref: ${{ variables.viuPlatformsRef }}
+    - repository: cohesion
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/cohesion
+      ref: ${{ variables.cohesionRef }}
+    - repository: frontend
+      type: git
+      name: Core/aaln-core-frontend
+      ref: ${{ variables.frontendRef }}
+
+stages:
+  - stage: Bootstrap
+    displayName: Reconstruct sibling package feeds
+    jobs:
+      - job: Bootstrap
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            path: s/assimalign/cohesion-docs
+          - checkout: viu
+            path: s/assimalign/viu
+          - checkout: viuPlatforms
+            path: s/assimalign/viu-platforms
+          - checkout: cohesion
+            path: s/assimalign/cohesion
+          - checkout: frontend
+            path: s/assimalign-core/aaln-core-frontend
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+          - powershell: dotnet workload install wasm-tools
+            displayName: Install WebAssembly workload
+          - powershell: |
+              & '$(Pipeline.Workspace)\s\assimalign\cohesion\installer\scripts\Install-Local.ps1'
+              & '$(Pipeline.Workspace)\s\assimalign\viu\scripts\Install-Local.ps1' -Configuration Release
+              & '$(Pipeline.Workspace)\s\assimalign\viu-platforms\scripts\Install-Local.ps1' -Configuration Release
+
+              $frontendProps = '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend\Directory.Build.props'
+              $content = Get-Content -Raw $frontendProps
+              $content = $content.Replace(
+                '<CohesionViuVersion>10.0.0-beta.4</CohesionViuVersion>',
+                '<CohesionViuVersion>10.0.0-beta.5</CohesionViuVersion>')
+              Set-Content -Path $frontendProps -Value $content
+              & '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend\scripts\Install-Local.ps1'
+            displayName: Build pinned sibling feeds
+          - publish: $(Pipeline.Workspace)/s/assimalign/cohesion-docs
+            artifact: source
+          - publish: $(Pipeline.Workspace)/s/assimalign
+            artifact: assimalign-siblings
+          - publish: $(Pipeline.Workspace)/s/assimalign-core
+            artifact: assimalign-core-siblings
+
+  - stage: Build
+    dependsOn: Bootstrap
+    jobs:
+      - job: Build
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: none
+          - download: current
+            artifact: source
+            path: $(Pipeline.Workspace)/work/assimalign/cohesion-docs
+          - download: current
+            artifact: assimalign-siblings
+            path: $(Pipeline.Workspace)/work/assimalign
+          - download: current
+            artifact: assimalign-core-siblings
+            path: $(Pipeline.Workspace)/work/assimalign-core
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+          - script: dotnet build CohesionDocs.slnx -c $(buildConfiguration)
+            workingDirectory: $(Pipeline.Workspace)/work/assimalign/cohesion-docs
+            displayName: Build
+          - publish: $(Pipeline.Workspace)/work/assimalign/cohesion-docs
+            artifact: built-source
+
+  - stage: Test
+    dependsOn: Build
+    jobs:
+      - job: Test
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: none
+          - download: current
+            artifact: built-source
+            path: $(Pipeline.Workspace)/built-source
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+          - script: dotnet test CohesionDocs.slnx -c $(buildConfiguration) --no-build
+            workingDirectory: $(Pipeline.Workspace)/built-source
+            displayName: Test
+
+  - stage: Pack
+    dependsOn: Test
+    jobs:
+      - job: Pack
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: none
+          - download: current
+            artifact: built-source
+            path: $(Pipeline.Workspace)/work/assimalign/cohesion-docs
+          - download: current
+            artifact: assimalign-siblings
+            path: $(Pipeline.Workspace)/work/assimalign
+          - download: current
+            artifact: assimalign-core-siblings
+            path: $(Pipeline.Workspace)/work/assimalign-core
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+          - script: dotnet pack packages/Assimalign.Cohesion.Docs/src -c $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/packages
+            workingDirectory: $(Pipeline.Workspace)/work/assimalign/cohesion-docs
+            displayName: Pack
+          - publish: $(Build.ArtifactStagingDirectory)/packages
+            artifact: packages
+
+  - stage: Push
+    dependsOn: Pack
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: Push
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: none
+          - download: current
+            artifact: packages
+          - task: NuGetAuthenticate@1
+          - powershell: |
+              dotnet nuget push '$(Pipeline.Workspace)\packages\*.nupkg' --source 'https://pkgs.dev.azure.com/assimalign/Core/_packaging/$(AalnPackageFeed)/nuget/v3/index.json' --api-key AzureArtifacts --skip-duplicate
+            displayName: Push package

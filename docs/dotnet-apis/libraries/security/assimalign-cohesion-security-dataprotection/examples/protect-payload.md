@@ -19,6 +19,7 @@ IDataProtectionProvider provider = DataProtectionProvider.Create(
         options.ApplicationDiscriminator = "myapp";
         options.KeyLifetime = TimeSpan.FromDays(90);
         options.UnprotectGracePeriod = TimeSpan.FromDays(7);
+        options.UnknownKeyReloadInterval = TimeSpan.FromSeconds(30);
     });
 
 IDataProtector protector = provider.CreateProtector("Cohesion.Http.Antiforgery.v1");
@@ -31,7 +32,8 @@ byte[] recovered = protector.Unprotect(wire);
 
 Choose a writable key directory for the application deployment. The provider shares one ring across
 purpose-scoped protectors, while the application discriminator separates co-located applications.
-The protector authenticates the payload; invalid input raises `DataProtectionException`. The payload
+`UnknownKeyReloadInterval` is shown at its default: a payload naming a key the ring does not hold
+reloads the repository at most once per interval. The protector authenticates the payload; invalid input raises `DataProtectionException`. The payload
 initialization is supplied here to complete the overview snippet.
 
 ## Sources

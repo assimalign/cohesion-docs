@@ -5,9 +5,9 @@ This example exercises `Assimalign.Cohesion.Web.Testing` through its co-located 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/tests/WebApplicationTestFactoryHttp2Tests.cs`
-. It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/tests/WebApplicationTestFactoryHttp2Tests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
@@ -43,13 +43,13 @@ namespace Assimalign.Cohesion.Web.Testing.Tests;
 /// </summary>
 public class WebApplicationTestFactoryHttp2Tests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     [Fact(DisplayName = "Cohesion Test [Web.Testing] - Http2: Should serve a prior-knowledge HTTP/2 request over the in-memory pair")]
     public async Task CreateClient_Http2Factory_ShouldServePriorKnowledgeHttp2()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions
@@ -82,7 +82,7 @@ public class WebApplicationTestFactoryHttp2Tests
         // Arrange — the in-memory driver mints a distinct ephemeral endpoint per dialed
         // connection, so a single observed remote endpoint across concurrent exchanges proves
         // the client multiplexed them as streams of one HTTP/2 connection.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions

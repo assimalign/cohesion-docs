@@ -23,8 +23,8 @@ every response written imperatively.
   the accepted set advertised on the rejection); the request's `Accept` field must be
   satisfiable against the resource's producible representations (else `406`). Configured
   through `WebQueryValidationOptions`.
-- **Method-preserving redirects (RFC 10008 § 2.5)** — `response.``RedirectQuery``(location,
-  permanent)` emits `307`/`308` (never `301`/`302`, whose legacy GET rewrite would drop the
+- **Method-preserving redirects (RFC 10008 § 2.5)** — `response.RedirectQuery(location, permanent)`
+  emits `307`/`308` (never `301`/`302`, whose legacy GET rewrite would drop the
   query content), and `response.RedirectQueryToGet(location)` emits the one sanctioned method
   switch, `303 See Other`. The client half — a redirect-following client that re-issues QUERY
   with its content — lives in `Assimalign.Cohesion.Http.ClientFactory`.

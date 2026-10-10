@@ -7,7 +7,7 @@ This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-loca
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/tests/HttpLoggingEndToEndTests.cs`. It
 retains the test class and assertions so the setup, operation, and expected outcome stay together.
-`Use` it in the source project’s test context, with its test dependencies and supporting test objects.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
@@ -17,12 +17,18 @@ retains the test class and assertions so the setup, operation, and expected outc
 - **Case 4** — E2E: Opt-in body capture is bounded and content-type gated.
 - **Case 5** — E2E: Binary content types are counted but never captured.
 - **Case 6** — E2E: `HttpLoggingFields.None` endpoint metadata silences the endpoint.
-- **Case 7** — E2E: Endpoint metadata narrows the emitted field set.
-- **Case 8** — E2E: A faulting downstream escalates the entry to Error and rethrows.
-- **Case 9** — E2E: An inbound traceparent yields trace and span id attributes.
-- **Case 10** — E2E: LogRequestStart correlates start and completion via ParentId.
-- **Case 11** — E2E: The client-address resolver seam overrides the socket peer.
-- **Case 12** — E2E: The W3C provider writes an access-log line with no redacted secrets.
+- **Case 7** — E2E: WithHttpLogging on a group applies to its routes, and a route override wins.
+- **Case 8** — E2E: A CORS preflight is logged even when its candidate endpoint silences logging.
+- **Case 9** — E2E: Endpoint metadata narrows the emitted field set.
+- **Case 10** — E2E: A faulting downstream escalates the entry to Error and rethrows.
+- **Case 11** — E2E: A malformed chunked body is logged as a client fault with the 400 sent, not escalated to Error.
+- **Case 12** — E2E: A body over the size cap is logged as a client fault with the 413 sent.
+- **Case 13** — E2E: A body the client cuts short is logged as a client fault with the 400 sent, not escalated to Error.
+- **Case 14** — E2E: A well-formed body read to its end carries no client-fault attribute.
+- **Case 15** — E2E: An inbound traceparent yields trace and span id attributes.
+- **Case 16** — E2E: LogRequestStart correlates start and completion via ParentId.
+- **Case 17** — E2E: The client-address resolver seam overrides the socket peer.
+- **Case 18** — E2E: The W3C provider writes an access-log line with no redacted secrets.
 
 ## Source example
 
@@ -33,6 +39,9 @@ using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
 using Shouldly;
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Connections.InMemory;
+using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.Diagnostics.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
@@ -49,7 +58,7 @@ namespace Assimalign.Cohesion.Web.Diagnostics.Tests;
 /// </summary>
 public class HttpLoggingEndToEndTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Waits until the recording provider has seen <paramref name="count"/> entries. The
@@ -78,7 +87,7 @@ public class HttpLoggingEndToEndTests
     public async Task Get_DefaultFields_ShouldEmitExchangeEntry()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -124,7 +133,7 @@ public class HttpLoggingEndToEndTests
     public async Task Headers_OutsideAllowlist_ShouldBeRedacted()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -177,7 +186,7 @@ public class HttpLoggingEndToEndTests
     public async Task Query_OptIn_ShouldLogSerializedQuery()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -206,7 +215,7 @@ public class HttpLoggingEndToEndTests
     public async Task Bodies_OptIn_ShouldCaptureBoundedPrefixes()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -245,7 +254,7 @@ public class HttpLoggingEndToEndTests
     public async Task Bodies_BinaryContentType_ShouldCountWithoutCapturing()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -282,12 +291,12 @@ public class HttpLoggingEndToEndTests
     {
         // Arrange — a health-style route silenced via the endpoint metadata bag, and a normal
         // route that still logs.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
@@ -323,16 +332,96 @@ public class HttpLoggingEndToEndTests
         entries[0].Attributes[HttpLoggingAttributes.RequestPath].ShouldBe("/orders");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: Endpoint metadata narrows the emitted field set")]
-    public async Task EndpointMetadata_NarrowedFields_ShouldLimitAttributes()
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: WithHttpLogging on a group applies to its routes, and a route override wins")]
+    public async Task WithHttpLogging_OnGroupAndRoute_ShouldApplyMostSpecificFields()
     {
-        // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        // Arrange — the probes group is silenced through the convention verb (#1055); one probe opts back
+        // in with the request line only.
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
+
+        RouterRouteHandler ok = new(context =>
+        {
+            context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+            return Task.CompletedTask;
+        });
+
+        IRouterBuilder routes = factory.Application.UseRouting();
+        IRouterGroupBuilder probes = routes.MapGroup("/probes").WithHttpLogging(HttpLoggingFields.None);
+        probes.Map(CohesionHttpMethod.Get, "live", ok);
+        probes.Map(CohesionHttpMethod.Get, "ready", ok).WithHttpLogging(HttpLoggingFields.RequestLine);
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act — the silenced probe first, so its entry would precede the other if it were logged.
+        (await client.GetAsync("/probes/live", cancellation.Token)).Dispose();
+        (await client.GetAsync("/probes/ready", cancellation.Token)).Dispose();
+
+        // Assert
+        IReadOnlyList<ILoggerEntry> entries = await WaitForEntriesAsync(recorded, 1, cancellation.Token);
+        entries.Count.ShouldBe(1);
+        entries[0].Attributes[HttpLoggingAttributes.RequestPath].ShouldBe("/probes/ready");
+        entries[0].Attributes.ContainsKey(HttpLoggingAttributes.ResponseStatusCode).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: A CORS preflight is logged even when its candidate endpoint silences logging")]
+    public async Task EndpointMetadata_CorsPreflight_ShouldNotApplyCandidateOverride()
+    {
+        // Arrange — the probe silences the exchanges it handles; a preflight naming it is not one of
+        // them (the candidate never runs, and the terminal answers the plain OPTIONS request).
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
+
+        IRouterBuilder routes = factory.Application.UseRouting();
+        routes.Map(new Route(
+            CohesionHttpMethod.Get,
+            "/healthz",
+            new RouterRouteHandler(context =>
+            {
+                context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+                return Task.CompletedTask;
+            }),
+            new RouterRouteMetadataCollection(new HttpLoggingMetadata(HttpLoggingFields.None))));
+
+        using HttpClient client = factory.CreateClient();
+        using HttpRequestMessage preflight = new(System.Net.Http.HttpMethod.Options, "/healthz");
+        preflight.Headers.TryAddWithoutValidation("Origin", "https://app.example").ShouldBeTrue();
+        preflight.Headers.TryAddWithoutValidation("Access-Control-Request-Method", "GET").ShouldBeTrue();
+
+        // Act
+        using HttpResponseMessage response = await client.SendAsync(preflight, cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.MethodNotAllowed);
+
+        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
+        entry.Attributes[HttpLoggingAttributes.RequestMethod].ShouldBe("OPTIONS");
+        entry.Attributes[HttpLoggingAttributes.RequestPath].ShouldBe("/healthz");
+        entry.Attributes[HttpLoggingAttributes.ResponseStatusCode].ShouldBe(405);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: Endpoint metadata narrows the emitted field set")]
+    public async Task EndpointMetadata_NarrowedFields_ShouldLimitAttributes()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category));
 
@@ -367,7 +456,7 @@ public class HttpLoggingEndToEndTests
     public async Task Fault_Downstream_ShouldEscalateToErrorAndRethrow()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -385,9 +474,10 @@ public class HttpLoggingEndToEndTests
 
         using HttpClient client = factory.CreateClient();
 
-        // Act — the middleware rethrows, so the server's exception-isolation boundary tears the
-        // connection down and the client observes a transport failure.
-        await Should.ThrowAsync<HttpRequestException>(() => client.GetAsync("/kaboom", cancellation.Token));
+        // Act — the middleware rethrows, so the server's exception-isolation boundary answers the
+        // faulted exchange with a bare 500.
+        using HttpResponseMessage response = await client.GetAsync("/kaboom", cancellation.Token);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.InternalServerError);
 
         // Assert
         ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
@@ -397,11 +487,200 @@ public class HttpLoggingEndToEndTests
         entry.Attributes[HttpLoggingAttributes.RequestPath].ShouldBe("/kaboom");
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: A malformed chunked body is logged as a client fault with the 400 sent, not escalated to Error")]
+    public async Task Fault_MalformedChunkedBody_ShouldLogAClientFaultWithTheSentStatus()
+    {
+        // Arrange — "zz" is not a chunk size (RFC 9112 §7.1), so the body read throws InvalidDataException
+        // and the transport answers 400 itself (#1333). The read's exception reaches the middleware.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp1(transport));
+        factory.Application
+            .UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category))
+            .Use(ReadBodyToEndAsync);
+
+        // Act
+        string response = await ExchangeRawAsync(
+            factory,
+            transport,
+            "POST /upload HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nabc\r\n0\r\n\r\n",
+            cancellation.Token);
+
+        // Assert
+        response.ShouldStartWith("HTTP/1.1 400");
+
+        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
+        entry.Level.ShouldBe(LogLevel.Information);
+        entry.Exception.ShouldBeNull();
+        entry.Message.ShouldEndWith("(client fault)");
+        entry.Message.ShouldStartWith("POST /upload -> 400");
+        entry.Attributes[HttpLoggingAttributes.ResponseStatusCode].ShouldBe(400);
+        entry.Attributes[HttpLoggingAttributes.ClientFault].ShouldBe(true);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: A body over the size cap is logged as a client fault with the 413 sent")]
+    public async Task Fault_BodyOverCap_ShouldLogAClientFaultWithTheSentStatus()
+    {
+        // Arrange — the body breaks the transport's size cap at the first read (#1339).
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp1(transport, http1 => http1.Limits.MaxRequestBodySize = 16));
+        factory.Application
+            .UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category))
+            .Use(ReadBodyToEndAsync);
+
+        // Act
+        string response = await ExchangeRawAsync(
+            factory,
+            transport,
+            "POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Length: 32\r\n\r\n" + new string('a', 32),
+            cancellation.Token);
+
+        // Assert
+        response.ShouldStartWith("HTTP/1.1 413");
+
+        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
+        entry.Level.ShouldBe(LogLevel.Information);
+        entry.Exception.ShouldBeNull();
+        entry.Attributes[HttpLoggingAttributes.ResponseStatusCode].ShouldBe(413);
+        entry.Attributes[HttpLoggingAttributes.ClientFault].ShouldBe(true);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: A body the client cuts short is logged as a client fault with the 400 sent, not escalated to Error")]
+    [InlineData("Content-Length: 100\r\n\r\n{")]
+    [InlineData("Transfer-Encoding: chunked\r\n\r\n10\r\nshort")]
+    public async Task Fault_BodyCutShortByTheClient_ShouldLogAClientFaultWithTheSentStatus(string framingAndBody)
+    {
+        // Arrange — the client writes part of the body its framing declares, then closes its sending side,
+        // so the read throws EndOfStreamException and the transport answers 400 (RFC 9112 §8).
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp1(transport));
+        factory.Application
+            .UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category))
+            .Use(ReadBodyToEndAsync);
+
+        // Act
+        string response = await ExchangeRawAsync(
+            factory,
+            transport,
+            "POST /widgets HTTP/1.1\r\nHost: localhost\r\n" + framingAndBody,
+            cancellation.Token,
+            closeSendingSide: true);
+
+        // Assert
+        response.ShouldStartWith("HTTP/1.1 400");
+
+        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
+        entry.Level.ShouldBe(LogLevel.Information);
+        entry.Exception.ShouldBeNull();
+        entry.Message.ShouldStartWith("POST /widgets -> 400");
+        entry.Attributes[HttpLoggingAttributes.ResponseStatusCode].ShouldBe(400);
+        entry.Attributes[HttpLoggingAttributes.ClientFault].ShouldBe(true);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: A well-formed body read to its end carries no client-fault attribute")]
+    public async Task Post_WellFormedChunkedBody_ShouldNotMarkAClientFault()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
+
+        await using InMemoryConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Server.UseServer(options => options.UseHttp1(transport));
+        factory.Application
+            .UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category))
+            .Use(ReadBodyToEndAsync);
+
+        // Act
+        string response = await ExchangeRawAsync(
+            factory,
+            transport,
+            "POST /upload HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n",
+            cancellation.Token);
+
+        // Assert
+        response.ShouldStartWith("HTTP/1.1 204");
+
+        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
+        entry.Level.ShouldBe(LogLevel.Information);
+        entry.Attributes[HttpLoggingAttributes.ResponseStatusCode].ShouldBe(204);
+        entry.Attributes.ContainsKey(HttpLoggingAttributes.ClientFault).ShouldBeFalse();
+    }
+
+    /// <summary>Reads the request body to its end, letting a failed read escape, then answers 204.</summary>
+    private static async Task ReadBodyToEndAsync(Assimalign.Cohesion.Http.IHttpContext context, WebApplicationMiddleware next)
+    {
+        byte[] buffer = new byte[256];
+
+        while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+        {
+        }
+
+        context.Response.StatusCode = CohesionHttpStatusCode.NoContent;
+    }
+
+    /// <summary>
+    /// Starts the factory, writes <paramref name="request"/> on one raw connection to
+    /// <paramref name="transport"/>, and reads until the server closes the connection. Returns everything
+    /// the server wrote. With <paramref name="closeSendingSide"/> the client closes its sending side after
+    /// the request.
+    /// </summary>
+    private static async Task<string> ExchangeRawAsync(
+        WebApplicationTestFactory factory,
+        InMemoryConnectionListener transport,
+        string request,
+        CancellationToken cancellationToken,
+        bool closeSendingSide = false)
+    {
+        await factory.StartAsync(cancellationToken);
+
+        await using Connection connection = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        Stream stream = connection.AsStream();
+
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(request), cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+
+        if (closeSendingSide)
+        {
+            await connection.Output.CompleteAsync();
+        }
+
+        StringBuilder received = new();
+        byte[] buffer = new byte[1024];
+
+        while (true)
+        {
+            int read = await stream.ReadAsync(buffer, cancellationToken);
+
+            if (read == 0)
+            {
+                return received.ToString();
+            }
+
+            received.Append(Encoding.ASCII.GetString(buffer, 0, read));
+        }
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: An inbound traceparent yields trace and span id attributes")]
     public async Task TraceContext_InboundTraceparent_ShouldAttachIds()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -431,7 +710,7 @@ public class HttpLoggingEndToEndTests
     public async Task RequestStart_Enabled_ShouldCorrelateEntries()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -467,9 +746,9 @@ public class HttpLoggingEndToEndTests
     [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: The client-address resolver seam overrides the socket peer")]
     public async Task ClientAddress_ResolverSeam_ShouldOverrideSocketPeer()
     {
-        // Arrange — until the #778 forwarded middleware merges, the resolver is the seam a
-        // proxy-aware composition plugs in; the default remains the socket peer.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        // Arrange — the resolver overrides the logged client for a source the forwarded-headers
+        // trust model does not cover; without one the effective client address is logged.
+        using CancellationTokenSource cancellation = new(_testTimeout);
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
 
@@ -499,7 +778,7 @@ public class HttpLoggingEndToEndTests
     {
         // Arrange — the full composition: middleware emits through a factory that fans out to
         // both the recording provider and the W3C file provider.
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         string directory = Path.Combine(Path.GetTempPath(), "cohesion-w3c-tests", Guid.NewGuid().ToString("N"));
 
         try

@@ -18,6 +18,19 @@ A TLS upgrade returns a new secured connection over `SslStream`; it does not mut
 identity into a middleware context. Listener and factory composition use `TlsConnectionLayer`.
 Client and server authentication settings and handshake timeouts are explicit options.
 
+`TlsServerOptions.RequireClientCertificate` and `AllowClientCertificate` set the server's mutual-TLS
+policy, each with an optional validation callback: both request a client certificate in the
+handshake, `RequireClientCertificate` refuses a client without one, and a presented certificate must
+pass the callback or, without one, the platform's chain validation. The secured connection
+implements the contracts' `ITlsConnectionInfo`: the ALPN protocol, the TLS version, the cipher
+suite, and the peer's certificate, which the connection disposes with itself. See the
+[design](design.md#client-certificates).
+
+On a TLS-layered listener each handshake runs on its own task, and
+`TlsServerOptions.MaxConcurrentHandshakes` (default 512) bounds how many run at once. A handshake
+that fails or times out closes only its connection. See the
+[design](design.md#handshakes-on-a-tls-layered-listener).
+
 ## Dependencies
 
 | Reference | Build item |

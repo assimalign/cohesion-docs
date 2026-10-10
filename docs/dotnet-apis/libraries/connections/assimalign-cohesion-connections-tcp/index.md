@@ -18,6 +18,17 @@ One socket data path serves the supported endpoint forms. Binding is explicit, a
 lifetime belongs to the listener. Shared pipe plumbing is compiled from the connection contracts
 project rather than exposed as driver-specific public infrastructure.
 
+A client that resets its connection before the listener accepts it costs only that connection: the
+listener skips it and accepts the next. See the
+[design](design.md#a-client-that-resets-before-the-accept).
+
+When the process runs out of descriptors or buffers, `AcceptAsync` waits and retries instead of
+failing (#1312): 5 ms, doubling with each consecutive failure, at most 1 s. Skipped accepts and these
+back-offs are reported through the driver's internal event source,
+`Assimalign.Cohesion.Connections.Tcp`, with listener and connection lifecycle events, back-pressure
+and reset detail, errors, and connection counters. See the
+[design](design.md#running-out-of-descriptors-or-buffers-waits-and-retries).
+
 ## Dependencies
 
 | Reference | Build item |

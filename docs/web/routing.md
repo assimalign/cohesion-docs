@@ -7,14 +7,26 @@ Web routing matches request paths and methods while exposing typed route values 
 ## Composition
 
 `Assimalign.Cohesion.Web.Routing` owns patterns, constraints, groups, metadata, matching, and
-outbound links. Call `AddRouting` during builder composition and `UseRouting` on the application
-pipeline. Both use the same application-local `IRouterFeature`; route state is not process-wide.
-`UseRouting` fails if routing was not added first.
+outbound links. Call `builder.Services.AddRouting()` during builder composition and `UseRouting` on
+the application pipeline. Both use the same application-local `IRouterFeature`; route state is not
+process-wide. `UseRouting` fails if routing was not added first. The router is built when the
+pipeline is built, at startup, so an invalid route table fails the start rather than a request, and
+mapping a route after the application started throws.
 
 Endpoint mapping lives in `Assimalign.Cohesion.Web.Api`; see
-[Endpoints and responses](endpoints.md). Register middleware that must surround an endpoint before
-the routing terminal: a successful routing match invokes the selected handler without continuing
-to downstream middleware.
+[Endpoints and responses](endpoints.md). `UseRouting` selects the endpoint and calls the next
+middleware; it does not run the endpoint. The end of the pipeline runs it. Middleware registered
+after `UseRouting` therefore runs for matched requests, before the endpoint, and reads the selected
+endpoint through `context.GetRouteMatch()` and `context.GetEndpointMetadata<T>()`. That is the
+position for endpoint policies: CORS, authorization, timeouts, rate limits, antiforgery and output
+caching, in that order ([Middleware order](middleware-order.md)).
+
+The selected endpoint reaches the end of the pipeline through `IWebEndpointFeature`, and the
+pipeline terminal that runs it, `WebApplicationTerminal`, belongs to this package too, with the
+branches that end in it: `Map(path, branch)`, `MapWhen`, and the path-base view a path branch
+publishes (`IWebPathBaseFeature`, `GetPathBase()`, `GetEffectivePath()`). They moved here from the
+Web root (#1379) and declare `Assimalign.Cohesion.Web.Routing`, so code that names them imports that
+namespace. The rejoining `UseWhen` and `Run` stay in the root.
 
 ## Matching and precedence
 
@@ -23,9 +35,26 @@ Hypertext Transfer Protocol (HTTP) method semantics:
 
 | Match result | Pipeline behavior |
 |---|---|
-| `Matched` | Publish `IRouteMatchFeature` and invoke the endpoint as a terminal. |
-| `MethodNotAllowed` | Return 405 with `Allow`; do not fall through. |
-| `NoMatch` | Invoke the next middleware, allowing the eventual 404 path. |
+| `Matched` | Publish `IRouteMatchFeature` and call the next middleware; the end of the pipeline runs the endpoint. |
+| `MethodNotAllowed` | Call the next middleware; the end of the pipeline answers 405 with `Allow`. |
+| `NoMatch` | Call the next middleware; the end of the pipeline answers 404 if nothing else did. |
+
+Methods match byte for byte, because HTTP methods are case-sensitive (RFC 9110 §9.1, #1301). A
+`GET` route does not serve a request whose method is `get`; that request is answered `405` with
+`Allow: GET, HEAD`, as any other method the route does not list.
+
+A CORS preflight (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) to a path with no
+`OPTIONS` route publishes the endpoint for the requested method, flagged `IsPreflight`, so CORS
+middleware can read its metadata. That candidate never runs for the preflight: `UseCors` answers
+the preflight with the candidate's policy, authorization and antiforgery skip a preflight, and rate
+limiting skips the candidate's endpoint policy.
+
+Endpoint metadata can require a middleware. When an endpoint declares a policy that only a
+specific middleware applies, such as a rate limit, and that middleware did not process the
+request, the end of the pipeline throws `InvalidOperationException` naming the endpoint and the
+middleware instead of running the endpoint without its policy. CORS, authorization, request
+timeouts, rate limiting and antiforgery metadata all work this way. Only the declaration that
+applies counts: a route that disables a policy its group requires needs no middleware.
 
 `RoutePattern` computes inbound precedence. Candidates sort from literal segments through
 constrained parameters, ordinary parameters, constrained catch-alls, and ordinary catch-alls.
@@ -48,10 +77,63 @@ Constraints apply when a value is present; they do not make an optional value ma
 `IRouteMatchFeature` to inspect the selected route and its values. `RouteHostMetadata` constrains
 host matching through `RouteHostConstraint`.
 
+A host constraint (`RequireHost`) matches the effective host, `context.EffectiveHost` (#1077): the
+host a trusted proxy forwarded when `UseForwardedHeaders` runs ahead of `UseRouting`, otherwise the
+host on the wire. Behind a proxy that rewrites `Host`, routing therefore selects on the host the
+client addressed. A port constraint compares the port in that host, the one the client asserted,
+not the port the connection arrived on. Either way the client chooses the host, so a host
+constraint selects a route and never protects one: guard an internal endpoint with authorization,
+or with the connection's local endpoint (`context.ConnectionInfo.LocalPort`), which the transport
+takes from the socket.
+
 `MapGroup` creates an `IRouterGroupBuilder` combining a path prefix, shared parameter policies,
 and metadata with child routes. Named routes use `RouteNameMetadata`; `ILinkGenerator` produces
 outbound paths or absolute URIs from route names and values. These are builder-time declarations
 on the same router, rather than a separate registry.
+
+Every `Map` returns an `IRouterRouteBuilder`, and a group is an `IRouterGroupBuilder`; both are
+`IRouterConventionBuilder`s, so policies attach where the endpoint or group is declared:
+
+```csharp
+IRouterGroupBuilder api = app.MapGroup("/api").RequireRateLimiting("api");
+
+api.MapGet("orders/{id:int}", handler)
+    .WithName("order")
+    .WithRequestTimeout(TimeSpan.FromSeconds(5));
+api.MapGet("health", healthHandler).DisableRateLimiting();
+```
+
+Metadata is composed when the route table is built, outer group first, so the order of these
+calls does not matter, and a route-level declaration overrides its group's. Authorization is the
+exception: every authorization item applies, and an `AllowAnonymous` clears only the requirements
+declared before it, so a route that requires authorization inside an anonymous group stays
+protected ([Web.Authorization](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md)).
+`WithTags` items combine as well: every tag applies, outer group first.
+Routing ships `WithName` and `RequireHost`; feature packages ship their own verbs:
+`RequireCors` and `DisableCors`, `RequireAuthorization` and `AllowAnonymous`,
+`WithRequestTimeout` and `DisableRequestTimeout`, `RequireRateLimiting` and `DisableRateLimiting`,
+`RequireAntiforgery` and `DisableAntiforgery`, `CacheOutput` and `DisableOutputCache`,
+`WithSecurityHeaders` and `DisableSecurityHeaders`, `WithHttpLogging`, `RequireValidation` and
+`DisableValidation` (Web.Validation), and the description verbs `WithTags`, `WithSummary`,
+`WithDescription` and `ExcludeFromDescription` (Web.Api; see [OpenAPI](openapi.md)).
+
+## Fallback routes
+
+`MapFallback(handler)` maps a route that is tried after every other route. It answers only `GET`
+and `HEAD`, never answers a path whose last segment names a file (the `nonfile` policy), and never
+turns a method mismatch into a 405, so a missing asset still returns 404. `MapFallbackToFile`
+in `Web.StaticFiles` serves a file from the web root that way, which is how a single-page
+application answers its client-side routes:
+
+```csharp
+app.UseStaticFiles();
+app.UseRouting();
+app.MapGet("/api/orders", ordersHandler);
+app.MapFallbackToFile("index.html");
+```
+
+An omitted catch-all segment matches: `/files/{**path}` matches `/files`, and a fallback answers
+`/` as well.
 
 Return to [Web](index.md).
 
@@ -59,3 +141,7 @@ Return to [Web](index.md).
 
 - **Routing contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Endpoint integration** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/OVERVIEW.md`.
+- **Single-page fallback** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
+- **Policy order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
+- **Policy verbs and combination** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/DESIGN.md`.
+- **Description and validation verbs** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Validation/docs/DESIGN.md`.
