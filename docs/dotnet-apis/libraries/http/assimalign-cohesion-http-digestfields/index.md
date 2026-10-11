@@ -33,14 +33,14 @@ trailers. See the [design](design.md#digests-as-trailers).
 | Type | Source file |
 |---|---|
 | `HttpContentDigester` | `src/HttpContentDigester.cs` |
-| `HttpContentDigestMismatchException` | `src/HttpContentDigestMismatchException.cs` |
-| `HttpDigestAlgorithm` | `src/HttpDigestAlgorithm.cs` |
+| `HttpContentDigestMismatchException` | `src/Exceptions/HttpContentDigestMismatchException.cs` |
+| `HttpDigestAlgorithm` | `src/ValueObjects/HttpDigestAlgorithm.cs` |
 | `HttpDigestField` | `src/HttpDigestField.cs` |
 | `HttpDigestFields` | `src/HttpDigestFields.cs` |
 | `HttpDigestVerificationResult` | `src/HttpDigestVerificationResult.cs` |
 | `HttpWantDigestField` | `src/HttpWantDigestField.cs` |
 | `HttpDigestEntry` | `src/HttpDigestEntry.cs` |
-| `HttpDigestException` | `src/HttpDigestException.cs` |
+| `HttpDigestException` | `src/Exceptions/HttpDigestException.cs` |
 | `HttpDigestFieldsExtensions` | `src/Extensions/HttpDigestFieldsExtensions.cs` |
 | `HttpWantDigestPreference` | `src/HttpWantDigestPreference.cs` |
 
@@ -60,9 +60,9 @@ trailers. See the [design](design.md#digests-as-trailers).
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpContentDigester.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpContentDigestMismatchException.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/Exceptions/HttpContentDigestMismatchException.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpDigestAlgorithm.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/ValueObjects/HttpDigestAlgorithm.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpDigestField.cs`.
 
@@ -74,7 +74,7 @@ trailers. See the [design](design.md#digests-as-trailers).
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpDigestEntry.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/HttpDigestException.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/Exceptions/HttpDigestException.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.DigestFields/src/Extensions/HttpDigestFieldsExtensions.cs`.
 

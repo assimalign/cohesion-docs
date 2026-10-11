@@ -14,9 +14,9 @@ where the original project supplies it globally.
 ## Code
 
 ```csharp
-using System.Threading.Tasks;
-using System.Threading;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 
@@ -24,7 +24,7 @@ namespace Assimalign.Cohesion.Connections.InMemory.Tests;
 
 public class InMemoryConnectionListenerTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(5);
 
     [Fact(DisplayName = "Cohesion Test [Connections.InMemory] - BindAsync: Logical bind should complete until listener disposal")]
     public async Task BindAsync_BeforeAndAfterDispose_ShouldRespectTerminalDisposal()
@@ -44,7 +44,7 @@ public class InMemoryConnectionListenerTests
     public async Task Dial_ThenAccept_ShouldYieldConnectedPair()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using InMemoryConnectionListener listener = new();
         InMemoryConnectionFactory factory = listener.CreateFactory();
 
@@ -71,7 +71,7 @@ public class InMemoryConnectionListenerTests
     public async Task Accept_AcrossMultipleDials_ShouldReArm()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using InMemoryConnectionListener listener = new();
         InMemoryConnectionFactory factory = listener.CreateFactory();
 
@@ -93,7 +93,7 @@ public class InMemoryConnectionListenerTests
     public async Task DisposeAsync_WithPendingAccept_ShouldCancelAccept()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         InMemoryConnectionListener listener = new();
 
         ValueTask<Connection> acceptTask = listener.AcceptAsync(cancellation.Token);
@@ -109,7 +109,7 @@ public class InMemoryConnectionListenerTests
     public async Task Connect_AfterDispose_ShouldThrowConnectionAborted()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         InMemoryConnectionListener listener = new();
         InMemoryConnectionFactory factory = listener.CreateFactory();
 

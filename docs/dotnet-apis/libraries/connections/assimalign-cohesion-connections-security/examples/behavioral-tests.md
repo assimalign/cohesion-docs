@@ -14,21 +14,21 @@ original project supplies it globally.
 ## Code
 
 ```csharp
+using System;
 using System.Net.Security;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
-using System;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
-using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Connections.InMemory;
 
 namespace Assimalign.Cohesion.Connections.Security.Tests;
 
 public class TlsConnectionLayerTests : IClassFixture<TestCertificateFixture>
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(5);
 
     private readonly TestCertificateFixture _fixture;
 
@@ -55,7 +55,7 @@ public class TlsConnectionLayerTests : IClassFixture<TestCertificateFixture>
     public async Task UpgradeAsync_WithServerOptions_ShouldCompleteServerSideHandshake()
     {
         // Arrange
-        using CancellationTokenSource timeout = new(TestTimeout);
+        using CancellationTokenSource timeout = new(_testTimeout);
         (Connection client, Connection server) = InMemoryConnectionPair.Create();
         TlsConnectionLayer layer = new(new TlsServerOptions
         {

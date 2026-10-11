@@ -14,21 +14,21 @@ original project supplies it globally.
 ## Code
 
 ```csharp
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Net;
-using System.Security.Cryptography;
-using System.Text.Json;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
+using System.Text.Json;
+using System.Security.Cryptography;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
-using Assimalign.Cohesion.Core;
 using Assimalign.Cohesion.Hosting.Resources;
+using Assimalign.Cohesion.Hosting.Telemetry.Internal;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.OpenTelemetry;
 
@@ -84,7 +84,7 @@ public sealed class ResourceTelemetryTests
         Exception error = protocol == "otlp-grpc"
             ? Should.Throw<NotSupportedException>(() => ResourceTelemetry.Configure(context))
             : Should.Throw<InvalidOperationException>(() => ResourceTelemetry.Configure(context));
-        error.Message.ShouldContain(nameof(ResourceEnvironment.TelemetryProtocol), Case.Sensitive);
+        error.Message.ShouldContain(nameof(AppEnvironment.Variables.TelemetryProtocol), Case.Sensitive);
         if (protocol == "otlp-grpc") { error.Message.ShouldContain("HTTP only", Case.Sensitive); }
     }
 
@@ -107,7 +107,7 @@ public sealed class ResourceTelemetryTests
             var context = new ResourceContext(applicationName: "app", resourceName: "web", environmentName: "Development", gatewayName: "inprocess",
                 contentRootPath: null, endpoints: null, mounts: null, settings: null, references: null,
                 bootstrapCredential: ReadOnlyMemory<byte>.Empty, applicationTrustKey: ReadOnlyMemory<byte>.Empty,
-                ambientValues: new Dictionary<string, string?> { [ResourceEnvironment.TelemetryEndpoint] = "https://collector.test", [ResourceEnvironment.TelemetryHeadersPath] = path });
+                ambientValues: new Dictionary<string, string?> { [AppEnvironment.Variables.TelemetryEndpoint] = "https://collector.test", [AppEnvironment.Variables.TelemetryHeadersPath] = path });
             ResourceTelemetry.CreateOptions(context).Headers.ShouldBeEmpty();
             byte[] headers = Encoding.UTF8.GetBytes("# comment\r\nAuthorization: Bearer test\r\n");
             File.WriteAllBytes(path, OperatingSystem.IsWindows()
@@ -196,8 +196,8 @@ public sealed class ResourceTelemetryTests
         applicationName: "app", resourceName: "api", environmentName: "Development", gatewayName: gateway,
         contentRootPath: null, endpoints: null, mounts: null, settings: null, references: null,
         bootstrapCredential: ReadOnlyMemory<byte>.Empty, applicationTrustKey: ReadOnlyMemory<byte>.Empty,
-        ambientValues: new Dictionary<string, string?> { [ResourceEnvironment.TelemetryEndpoint] = endpoint,
-            [ResourceEnvironment.TelemetryProtocol] = protocol, [ResourceEnvironment.LogFormat] = format });
+        ambientValues: new Dictionary<string, string?> { [AppEnvironment.Variables.TelemetryEndpoint] = endpoint,
+            [AppEnvironment.Variables.TelemetryProtocol] = protocol, [AppEnvironment.Variables.LogFormat] = format });
 
     private sealed class TestHandler : HttpMessageHandler
     {

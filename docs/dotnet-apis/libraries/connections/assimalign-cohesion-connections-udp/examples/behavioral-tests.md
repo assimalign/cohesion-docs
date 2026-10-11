@@ -14,11 +14,11 @@ original project supplies it globally.
 ## Code
 
 ```csharp
-using System.Net.Sockets;
-using System.Net;
-using System.Threading.Tasks;
-using System.Threading;
 using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 
@@ -26,7 +26,7 @@ namespace Assimalign.Cohesion.Connections.Udp.Tests;
 
 public class UdpConnectionFactoryTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(5);
 
     [Fact]
     public async Task Bind_WithEphemeralLoopbackEndPoint_ShouldPopulateLocalEndPointOnly()
@@ -139,7 +139,7 @@ public class UdpConnectionFactoryTests
     public async Task BindAsync_WithPreCanceledToken_ShouldReturnCanceledTask()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         using CancellationTokenSource preCanceled = new();
 
         preCanceled.Cancel();

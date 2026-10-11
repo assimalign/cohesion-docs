@@ -29,7 +29,7 @@ seams rather than the concrete HTTP transport assembly.
 | Type | Source file |
 |---|---|
 | `HttpResponseStreaming` | `src/HttpResponseStreaming.cs` |
-| `IHttpResponseStreamingFeature` | `src/IHttpResponseStreamingFeature.cs` |
+| `IHttpResponseStreamingFeature` | `src/Abstractions/IHttpResponseStreamingFeature.cs` |
 | `HttpResponseStreamingExtensions` | `src/Extensions/HttpResponseStreamingExtensions.cs` |
 
 ## Sources
@@ -48,6 +48,6 @@ seams rather than the concrete HTTP transport assembly.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/HttpResponseStreaming.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/IHttpResponseStreamingFeature.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/Abstractions/IHttpResponseStreamingFeature.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/Extensions/HttpResponseStreamingExtensions.cs`.
