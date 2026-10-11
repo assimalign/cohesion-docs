@@ -92,8 +92,11 @@ ran. Its end time is set from the duration measurement, so the span and
 `http.server.request.duration` report the same value.
 
 - **Its parent is the caller.** The server reads the request's W3C `traceparent` and `tracestate`.
-  A missing, repeated or malformed `traceparent`, or an all-zero id, starts a new trace. An activity
-  that was current when the server started never becomes a request's parent.
+  A missing, repeated or malformed `traceparent`, or an all-zero id, starts a new trace. A header of
+  a later version continues the caller's trace too (#1299): the server reads its version-00 fields,
+  as W3C Trace Context §3.2.4 has a parser do, and keeps only its sampled flag; version `ff`, and a
+  version-00 value with extra fields, start a new trace. An activity that was current when the
+  server started never becomes a request's parent.
 - **It is current while the pipeline runs.** `Activity.Current` in a handler is the server span, so
   the handler's own activities and its outgoing `HttpClient` calls become its children.
 - **Its name** is the method, `GET`, and then the method and the route template,
@@ -108,6 +111,7 @@ ran. Its end time is set from the duration measurement, so the span and
 | `http.request.method_original` | when `_OTHER` | no | no | the method token |
 | `url.scheme` | yes | yes | yes | `http` or `https`, as the transport saw the request |
 | `url.path` | yes | no | no | the request path |
+| `url.query` | when the request has a query | no | no | the query's parameters, each value replaced by `REDACTED` unless the application declared the parameter safe (#1298) |
 | `server.address`, `server.port` | yes | no | no | the `Host` or `:authority` host, and its port when the value carries one |
 | `network.protocol.version` | yes | yes | no | `1.1`, `2` or `3` |
 | `http.route` | when routed | when routed | no | the matched route's template |
@@ -119,8 +123,11 @@ ran. Its end time is set from the duration measurement, so the span and
 | A response with a status below 500 | the status | none |
 | The request body broke its framing or a limit while it was read, or the client cut it short, and the HTTP/1.1 transport answered in place of the staged response | the transport's `400`, `413`, `408` or `431` | none |
 | The request body fell below the minimum data rate, and the HTTP/2 or HTTP/3 transport answered its stream with `408` | `408` | none |
+| The request body contradicted its content-length or carried a malformed trailer section, and the HTTP/2 or HTTP/3 transport reset its stream before a response started (#1378) | `400`, the client fault the transport reports; nothing reached the wire | none |
 | A `5xx` response, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | Cancelled — a peer reset or closed connection, the server stopping, `IHttpContext.Cancel` — and reset | only when a streamed response had started | `request_canceled` |
+| Cancelled by the HTTP/2 or HTTP/3 transport's answer to, or reset for, a client fault it reported, before the application's response started (#1378) | the transport's `400`, `408` or `413` | none |
+| Cancelled by that answer or reset after a streamed response had started (#1378) | the started response's status | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset | only when the response had started | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
 | The response could not be put on the wire | none | `response_send_failed` |
@@ -130,7 +137,11 @@ handling. A body the client got wrong is not the application's fault: when the t
 replaced the response, the span and the duration carry that status, no `error.type`, and an unset
 span status. When the response had already started, the exchange is reset and reported as
 `client_fault` with the span status `Error`, so `unhandled_exception` means the application's own
-defect (see [Client faults](server.md#client-faults-and-refused-responses)).
+defect, and `request_canceled` a cancellation that was not the transport's answer to a client fault
+(see [Client faults](server.md#client-faults-and-refused-responses)). On HTTP/2 and HTTP/3 that
+answer can cancel the exchange rather than fail its read, and an exchange cancelled that way before
+its response started reports the transport's status with no error, as if the read had met the
+fault. A client that resets its own request mid-body is reported as `request_canceled`.
 
 **Known methods** are the OpenTelemetry convention's: RFC 9110's eight methods, `PATCH`, and
 `QUERY`. `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` replaces the list with a comma-separated,
@@ -138,6 +149,34 @@ case-sensitive one, read once per process. Methods are case-sensitive (RFC 9110 
 HTTP stack keeps the token as the client sent it, so a lower-case `get` is an unknown method,
 reported as `_OTHER` with `http.request.method_original` set to `get`. A method is known only when
 it matches a list entry exactly.
+
+### The query
+
+`url.query` shows a query's parameter names and hides its values (#1298). A query string carries
+tokens, signatures, one-time codes and personal data the server cannot recognize generically, so
+every value is replaced with `REDACTED`, the convention's marker:
+`?access_token=s3cr3t&page=2&debug` is reported as `access_token=REDACTED&page=REDACTED&debug`.
+Declare the parameters whose values are safe to show:
+
+```csharp
+using Assimalign.Cohesion.Web.Hosting;
+
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Server.AllowQueryValuesInTelemetry("page", "sort");
+```
+
+- **Names compare case-insensitively**, as `HttpQueryKey` compares them. Calls add to one another,
+  and a missing or empty name is rejected before anything is declared.
+- **A parameter without a value** is written as its name alone.
+- **Names are treated as the application's schema**: a secret put in a parameter's name, such as a
+  bare `?<token>`, is reported.
+- **Rebuilt from the parsed query.** Names and shown values are percent-encoded again, a parameter
+  with an empty name is left out, and a repeated name appears once, with the value the query
+  collection kept. The server reads the query before the pipeline runs, so it reports what the
+  client sent, not a `Web.Rewrite` rewrite of it.
+- **Cost.** The value is built once per request while an `ActivityListener` subscribes, before the
+  sampler runs, so a sampler can read it. Without a span listener the server never reads the query,
+  and the metrics never carry `url.query`.
 
 ## The metrics
 
@@ -191,8 +230,7 @@ app.Use(async (context, next) =>
 
 ## What is deliberately not emitted
 
-- **`url.query`** — query strings carry tokens and signatures the server cannot recognize; an
-  application that wants it tags `Activity.Current` itself.
+- **Query values the application has not declared safe** — see [The query](#the-query).
 - **Proxy-resolved host and scheme** — `server.address` and `url.scheme` are what the transport
   saw, not `Forwarded` or `X-Forwarded-*` values, which are believable only after
   [forwarded-headers](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/index.md)
@@ -201,7 +239,7 @@ app.Use(async (context, next) =>
   personal data, and it depends on the same forwarded-headers question.
 - **`server.address` and `server.port` on the metrics** — they come from request headers, which
   would make them a cardinality attack vector.
-- **Requests the transport rejects before dispatch** — the 400, 408, 413, 414 and 431 answers that
+- **Requests the transport rejects before dispatch** — the 400, 408, 413, 414, 421, 431 and 501 answers that
   `Http.Connections` gives itself never reach the server, so they have no span or measurement, and
   the transport does not report them either.
 - **W3C `baggage`.**
@@ -212,6 +250,7 @@ Return to [Web](index.md).
 
 - **Telemetry design** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Instruments and attributes** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebServerTelemetry.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebExchangeTelemetry.cs`.
+- **Query values declared safe** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`.
 - **Subscription** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/GuardSmoke.cs` and `cohesion/docs/EVENT_SOURCES.md`.
 - **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Abstractions/IWebEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Client faults** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebClientFaultFeature.cs`.

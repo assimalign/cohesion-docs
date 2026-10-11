@@ -109,7 +109,7 @@ using Assimalign.Cohesion.Web.Validation;
 
 // builder is the WebApplicationBuilder and app the built WebApplication; Customer is in the
 // application's JsonSerializerContext.
-builder.Services.AddValidation(validation => validation.AddProfile(new CustomerProfile()));
+builder.Services.AddValidation(validation => validation.Options.AddProfile(new CustomerProfile()));
 
 // An invalid customer is answered 400 before the handler runs.
 app.MapPost("/customers", (Customer customer) => customer);
@@ -139,9 +139,9 @@ the order the profile declares them, and each member's messages in the order its
 A validator that throws, such as a nested profile's rule or a custom rule, is a fault rather than a
 verdict: the request reaches the exception boundary and the handler does not run. A binding failure
 is answered first. A body type with no registered validator, and a `null` body, are not validated;
-until `AddValidation` is called nothing is. `options.Enabled = false` turns validation off by
-default, and `RequireValidation()` / `DisableValidation()` turn it on or off for a route or a group,
-the most specific declaration winning. A handler that binds a value itself validates it with
+until `AddValidation` is called nothing is. `validation.Options.Enabled = false` turns validation
+off by default, and `RequireValidation()` / `DisableValidation()` turn it on or off for a route or a
+group, the most specific declaration winning. A handler that binds a value itself validates it with
 `if (!await context.ValidateAsync(order, context.RequestCancelled)) return;`. See
 [Web.Validation](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md).
 
@@ -258,9 +258,10 @@ it does not decide which application outcomes are errors.
 The middleware captures faults in `IHttpExceptionFeature`, dispatches an ordered handler chain,
 and provides a terminal problem response. It avoids clobbering an already committed response.
 `UseStatusCodePages` can upgrade an otherwise bodyless 404. A request body the client broke, or
-cut short, while a handler read it is not treated as a fault: on an HTTP/1.1 request the boundary
+cut short, while a handler read it is not treated as a fault: on every HTTP version the boundary
 skips `OnException` and the `OnError` chain and stages the `400`, `413`, `408` or `431` the
-transport answers with (see [Client faults](server.md#client-faults-and-refused-responses)).
+transport answers with; on HTTP/2 and HTTP/3 a malformed body resets the stream, and the `400` is
+what the server records (see [Client faults](server.md#client-faults-and-refused-responses)).
 
 Return to [Web](index.md).
 

@@ -37,8 +37,17 @@ the QUIC stream credit, 100 each by default.
 
 The request-body cap is enforced with 413 on HTTP/1.1, HTTP/2 and HTTP/3. HTTP/2 honors flow
 control on buffered responses, HTTP/3 reads each request stream incrementally after its headers,
-both send no body for `HEAD`, and both reject a malformed `:path` on its own stream without
-closing the connection.
+and both reject a malformed `:path` on its own stream without closing the connection. The three
+versions accept the same request targets (#1334): a `CONNECT` names only `host:port`, the asterisk
+form `*` is for `OPTIONS` alone, and a method is a token of at most 32 characters. HTTP/2 and HTTP/3
+reset the stream of any other request; HTTP/1.1 answers it with `400`, or `501` for a method longer
+than 32 characters. An octet above `0x7F` in a header value reaches `Request.Headers` as the same
+Latin-1 character on every version (#1387).
+
+A response that cannot carry content follows one rule on every version (#1073). The body and
+trailers staged for a `HEAD` response, a `204` or a `304` are discarded, not refused; a `204` never
+carries `Content-Length`, a `304` gets none synthesized from its empty body, and a `HEAD` response
+states a length only when the handler staged a non-empty body or set one.
 
 `KeepAliveTimeout`, `RequestHeadersTimeout` and the minimum request-body data rate apply to every
 version. Before #1085 only HTTP/1.1 enforced them, so an HTTP/2 or HTTP/3 client could hold a
@@ -48,11 +57,26 @@ A limit or a framing error found while a handler reads the body is answered by t
 its bounds (#1375). See
 [Client faults and refused responses](#client-faults-and-refused-responses).
 
+The minimum response data rate holds every response on every version too, buffered and streamed
+(#1384); before it, only the HTTP/1.1 streaming sink enforced it. A client that grants no
+flow-control credit or stops reading is reclaimed: the connection is closed on HTTP/1.1, the stream
+reset on HTTP/2 (or the connection ended, when its whole window stalls), and the request stream
+reset on HTTP/3. The exchange is recorded as cancelled, not as an application fault, because the
+stalled write throws an `OperationCanceledException` carrying `RequestCancelled`.
+
+A request that carries `Expect: 100-continue` gets its `100 Continue` at the handler's first body
+read on every version (#1385), so a handler that answers `401` or `417` from the head never invites
+the body. HTTP/2 and HTTP/3 used to send none, and a client that waited for it stalled until its own
+timeout.
+
 ## Upgrades, WebSockets, and trailers
 
 Every listener the default server composes gets four interceptors before any the application
-registers: the request-size limit, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3
-extended CONNECT (RFC 8441, RFC 9220), and the client fault. So `context.Upgrade`,
+registers: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3
+extended CONNECT (RFC 8441, RFC 9220), and the client fault. The first surfaces the body-size cap
+and the minimum request-body and response data rates per request (`context.MaxRequestBodySize`,
+`context.MinRequestBodyDataRate`, `context.MinResponseDataRate`; see
+[Configuration-bound endpoints](#configuration-bound-endpoints)). So `context.Upgrade`,
 `context.ExtendedConnect`, and a WebSocket handshake work on every protocol without listener
 configuration, a request that no handler accepts is served exactly as before, and an ordinary
 request pays only a version and header check: each transition interceptor joins the response phase
@@ -60,8 +84,8 @@ only of the exchanges that ask for a transition, an HTTP/1.1 upgrade or `CONNECT
 CONNECT whose `:protocol` the transport validated. There the extended CONNECT interceptor installs
 `IHttpExtendedConnectFeature`, from `Http.ExtendedConnect`, whose `AcceptAsync` turns the stream
 into a duplex tunnel. WebSockets run over both; [WebSockets](websockets.md) covers the endpoints,
-the origin policy, and the drain close. The client-fault interceptor joins only an HTTP/1.1 request
-that declares a body (see
+the origin policy, and the drain close. The client-fault interceptor joins only a request that can
+have a body, on every version (see
 [Client faults and refused responses](#client-faults-and-refused-responses)).
 
 A `UseServer` callback that clears `options.Interceptors` removes the defaults, and with them
@@ -107,14 +131,20 @@ without leading or trailing spaces and tabs, which those versions do not allow.
 A request body that breaks its framing or a limit while a handler reads it, or that the client cuts
 short by closing the connection, is the client's fault, not the application's. The read still
 throws, and the transport answers the exchange with its own status in place of the server's `500`:
-`400`, `413`, `408` or `431`. On an HTTP/1.1 request that declares a body, the client-fault
-interceptor publishes that status as `IWebClientFaultFeature`, a
+`400`, `413`, `408` or `431`. On a request that can have a body, on every version, the
+client-fault interceptor publishes that status as `IWebClientFaultFeature`, a
 [`Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) contract
-(#1340). The HTTP logging middleware then logs the exchange at its configured level instead of
-`Error`, and the exception boundary skips `OnException` and its `OnError` chain and stages the
+(#1340, #1378). The HTTP logging middleware then logs the exchange at its configured level instead
+of `Error`, and the exception boundary skips `OnException` and its `OnError` chain and stages the
 transport's status. Request telemetry reports the status the transport sent, with no `error.type`
-(see [Observability](observability.md#the-request-span)). HTTP/2 and HTTP/3 exchanges carry no such
-report until #1378, so the pipeline handles their body faults like any other exception.
+(see [Observability](observability.md#the-request-span)).
+
+On HTTP/2 and HTTP/3 a body that contradicts its content-length, or a malformed trailer section,
+makes the request malformed, so the transport resets the stream instead of answering it: the client
+gets no status, the feature reports `400`, and the reset also fires `RequestCancelled`, so a
+pipeline that meets the cancellation rather than the read's failure ends as a cancelled request. A
+client that resets its own request is not at fault on either version: the pipeline ends as
+cancelled and the server resets the exchange instead of staging a `500`.
 
 ## Application configuration
 
@@ -142,8 +172,14 @@ They are distinct environments. The default remains `Production`.
 Transport Layer Security (TLS) is composed beneath Hypertext Transfer Protocol (HTTP). The TLS
 registrations on `HttpConnectionListenerOptions` take a transport configuration callback and
 `TlsServerOptions`, compose the secure transport, and then register the HTTP listener; the
-connection's security capability gives each request its `https` scheme. A registration names what
-it serves, and the configuration's `Protocol` values are the registration names without `Use`:
+connection's security capability gives each request its `https` scheme. A request-target cannot
+claim it on a cleartext connection, so `https` on `Request.Scheme` means a secured connection on
+every version (#1324): HTTP/1.1 answers an `https` absolute-form target on a cleartext connection
+with `421 Misdirected Request` and closes the connection, and an h2c stream whose `:scheme` is
+`https` is given the connection's `http`.
+
+A registration names what it serves, and the configuration's `Protocol` values are the registration
+names without `Use`:
 
 | Registration | `Protocol` | Serves |
 |---|---|---|
@@ -296,6 +332,8 @@ instead.
       "MaxConcurrentConnections": 1000,
       "MaxRequestBodySize": 30000000,
       "KeepAliveTimeout": "00:02:10",
+      "MinRequestBodyDataRate": { "BytesPerSecond": 240, "GracePeriod": "00:00:05" },
+      "MinResponseDataRate": { "BytesPerSecond": 240, "GracePeriod": "00:00:05" },
       "Http2": { "MaxStreamsPerConnection": 100 }
     }
   }
@@ -313,12 +351,14 @@ instead.
 | `Limits:MaxRequestLineSize`, `Limits:MaxRequestHeaderCount`, `Limits:MaxRequestHeadersTotalSize`, `Limits:MaxChunkFramingLineSize` | HTTP/1.1 request limits |
 | `Limits:MaxRequestBodySize` | bytes, or `unbounded` / `none` for no cap |
 | `Limits:KeepAliveTimeout`, `Limits:RequestHeadersTimeout` | a `TimeSpan` (`00:00:30`), whole seconds, or `infinite` / `-1` |
+| `Limits:MinRequestBodyDataRate`, `Limits:MinResponseDataRate` | a section with `BytesPerSecond` (a positive, finite number) and `GracePeriod` (a positive `TimeSpan`), keeping the built-in value of a dimension it leaves out; `none` or `disabled` turns the rate off, and a JSON `null` keeps the default |
 | `Limits:Http2:<key>` | `MaxStreamsPerConnection`, `MaxRequestHeaderListSize`, `MaxResetStreamsPerWindow`, `MaxSettingsFramesPerWindow`, `MaxPingFramesPerWindow`, and `FloodDetectionWindow` |
 
 An HTTP/1.1 endpoint, including the HTTP/1.1 connections of an `Https` endpoint, receives every
 request limit above. An HTTP/2 endpoint receives `MaxRequestBodySize`, `KeepAliveTimeout`,
-`RequestHeadersTimeout`, and the `Limits:Http2` keys; an HTTP/3 endpoint receives the first three.
-Both timeouts take effect on every version (#1085).
+`RequestHeadersTimeout`, `MinRequestBodyDataRate`, `MinResponseDataRate`, and the `Limits:Http2`
+keys; an HTTP/3 endpoint receives the first five. Both timeouts take effect on every version
+(#1085).
 `MaxConcurrentConnections` caps the server rather than an endpoint. Configuring an `Http3` endpoint
 turns on the `Alt-Svc` advertisement, which a later `UseServer` callback can turn off. On an
 operating system without `System.Net.Quic` an `Http3` endpoint is refused with
@@ -336,16 +376,35 @@ Configuration cannot carry a validation callback, so a `ClientCertificateMode` e
 presented certificate only when it chains to a root the machine trusts; a private certificate
 authority needs the code form. A cleartext endpoint that declares a mode other than `NoCertificate`
 is refused, as is an unknown mode. Not bound from configuration: the HTTP/3 header-frame limit and
-QPACK options, QUIC stream limits, a validation callback, and data-rate limits.
+QPACK options, QUIC stream limits, and a validation callback.
 
-So an endpoint bound from configuration keeps the default minimum request-body data rate, on every
-version: 240 octets per second after a 5-second grace period, from the first body read. An endpoint
-registered in code changes it through the HTTP options callback of `UseHttp1s`, `UseHttp2s`,
-`UseHttps` or `UseHttp3`, for example `http2 => http2.Limits.MinRequestBodyDataRate = null`. There
-is no per-request override: a request body that legitimately idles, such as a client-streaming
-call, fails with `408`, or a stream reset once the response has started, when an idle gap outlasts
-its allowance, about 5 seconds plus 1 second per 240 octets already received. Before #1085 such a
-body was served on HTTP/2 and HTTP/3.
+Both data rates default to 240 octets per second after a 5-second grace period, on every version;
+the request-body rate counts from the first body read. `Limits:MinRequestBodyDataRate` (#1383) and
+`Limits:MinResponseDataRate` (#1384) bind the listener-wide values onto every endpoint; a value that
+is neither `none`/`disabled` nor a valid section, such as a bare number, fails startup. A `null` in
+JSON reads as an absent key, so it never switches the defence off by accident. An endpoint
+registered in code can still set either through the HTTP options callback of `UseHttp1s`,
+`UseHttp2s`, `UseHttps` or `UseHttp3`, for example
+`http2 => http2.Limits.MinRequestBodyDataRate = null`.
+
+One endpoint changes a rate for its own requests, and every other request keeps the listener's:
+
+```csharp
+using Assimalign.Cohesion.Http;
+
+// context is the exchange's IHttpContext; the default request-limits interceptor attached both
+// features. A client-streaming body idles between messages: turn the request-body rate off before
+// the first read freezes it.
+context.MinRequestBodyDataRate!.MinDataRate = null;
+
+// A reader that legitimately pauses: turn the slow-read check off before the response starts.
+context.MinResponseDataRate!.MinDataRate = null;
+```
+
+Without that, a request body that legitimately idles fails with `408`, or a stream reset once the
+response has started, when an idle gap outlasts its allowance, about 5 seconds plus 1 second per
+240 octets already received. The request-body rate freezes at the first body read on every
+version, and the response rate at the response's first write.
 
 ## Graceful shutdown
 
@@ -359,7 +418,9 @@ budget, and cancels only what outlives it.
 - **The announcement** — HTTP/1.1 answers the request in flight with `Connection: close` and ends
   the connection after it, and an idle keep-alive connection ends at once. HTTP/2 sends
   `GOAWAY(NO_ERROR)` naming the last stream processed and refuses later streams with
-  `RST_STREAM(REFUSED_STREAM)`. HTTP/3 accepts no further request stream and sends a `GOAWAY`.
+  `RST_STREAM(REFUSED_STREAM)`. HTTP/3 accepts no further request stream and sends a `GOAWAY`;
+  a request stream the client opens after it is reset at once with `H3_REQUEST_REJECTED`, so the
+  client can retry it elsewhere (#1306).
 - **The requests in flight** — nothing is cancelled while the budget lasts: a running request
   finishes, and its response is delivered.
 - **Long-lived exchanges** — every exchange carries `IWebServerDrainFeature`, a `Web.Server`
@@ -434,7 +495,7 @@ Return to [Web](index.md).
 - **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerLog.cs`.
 - **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebServerDrainFeature.cs`.
 - **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
-- **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
+- **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/docs/OVERVIEW.md`.
 - **Accept back-off** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.

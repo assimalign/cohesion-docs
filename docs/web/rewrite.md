@@ -75,7 +75,7 @@ restarting has a bug, and a `500` surfaces it.
   source-generated `[GeneratedRegex]`. The package never uses `RegexOptions.Compiled`.
 - **What it matches.** By default the path as routing sees it: percent-decoded, starting with `/`.
   `RewriteMatchTarget.PathAndQuery` matches the path, `?`, and the query rebuilt from the parsed
-  collection, each key and value percent-encoded.
+  collection, each key and value percent-encoded by the core `HttpQuery.Create`.
 - **Substitutions.** `$n` and `${n}` substitute a capture group (`$0` is the whole match), `${name}`
   a named group, and `$$` is a literal `$`. A reference to a group the pattern does not define is an
   `ArgumentException` at registration, so a typo fails at startup.
@@ -119,6 +119,12 @@ A redirect answers with its status and `Location` and ends the pipeline. `AddRed
 `302`, because browsers cache a permanent redirect and a mistaken one is hard to take back; the
 statuses are `301` and `308` for a permanent move and `302` and `307` for a temporary one, and `307`
 and `308` keep the request method and body. Any other status fails at registration.
+
+The `Location` is percent-encoded with the core helpers Web.HttpsPolicy and Web.StaticFiles use too
+(#1324): the path base and the decoded path through `HttpPath.ToUriComponent`, the query through
+`HttpQuery.Create`. An escape the transports keep as written, such as an encoded slash `%2F`, is
+written as the request carried it rather than as `%252F`. A target template's expansion is URL text
+already and is written as it is.
 
 The canonicalization helpers are redirect rules that answer only when the URL is not already in its
 canonical form, and default to `308`:

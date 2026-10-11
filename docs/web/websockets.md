@@ -191,9 +191,11 @@ sends `GOAWAY`, which stops new streams and leaves an open socket's stream to fi
 handshake. The .NET `ClientWebSocket` has no HTTP/3 WebSockets, so the HTTP/3 suites use a minimal
 client of their own.
 
-On real QUIC, ending the server's side of a stream also stops its read side, so a server that closes
-first cannot read what the client still sends. A WebSocket closes after its close handshake, when
-nothing more is expected, so it is unaffected.
+On real QUIC, ending the server's side of a stream ends only its sending direction (#1330): the
+stream stays readable, so the client can keep sending until it ends its own side, as the in-memory
+driver always allowed. Before #1330 it also stopped the read side, so a server that closed first
+could not read what the client still sent. A WebSocket closes after its close handshake, when nothing
+more is expected, so it was unaffected either way.
 
 ## Endpoint policies and request timeouts
 
@@ -228,6 +230,7 @@ For the server's listeners, TLS and shutdown, see [Server and TLS](server.md). R
 - **Verbs and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketEndpointExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/WebSocketOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src/HttpWebSocketAcceptOptions.cs`.
 - **Default interceptors** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs`.
 - **Decision record** — `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 1).
+- **Half-close over QUIC** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndpointTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndToEndTests.cs`.
 - **NativeAOT guard** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.
 - **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.

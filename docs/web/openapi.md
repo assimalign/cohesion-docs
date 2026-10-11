@@ -32,8 +32,9 @@ endpoints can describe them without referencing this package.
 ## Serve the document
 
 `builder.Services.AddOpenApi` registers the document's options, and `MapOpenApi` maps a `GET` route
-that serves it. Every type a typed endpoint reads or returns must be in the `JsonSerializerContext`
-passed to `AddJsonSerialization`, as it must for the endpoint to serialize it.
+that serves it. The callback receives an `OpenApiBuilder` and configures its `Options`; called bare,
+`AddOpenApi()` registers the defaults. Every type a typed endpoint reads or returns must be in the
+`JsonSerializerContext` passed to `AddJsonSerialization`, as it must for the endpoint to serialize it.
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -48,10 +49,10 @@ using Assimalign.Cohesion.Web.Serialization;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRouting();
 builder.Services.AddJsonSerialization(AppJsonContext.Default);
-builder.Services.AddOpenApi(options =>
+builder.Services.AddOpenApi(openApi =>
 {
-    options.Title = "Orders API";
-    options.ApiVersion = "1.0.0";
+    openApi.Options.Title = "Orders API";
+    openApi.Options.ApiVersion = "1.0.0";
 });
 
 await using WebApplication app = builder.Build();
@@ -100,8 +101,8 @@ internal sealed partial class AppJsonContext : JsonSerializerContext
 - **Policies** — `MapOpenApi` returns the route's `IRouterRouteBuilder`, so the document route can
   carry `RequireAuthorization` or `RequireCors` like any other.
 - **Options** — `Title` (the running application's name by default), `ApiVersion` (`1.0.0` by
-  default), `Description`, and `SpecVersion`. The options are read-only once the `AddOpenApi`
-  callback returns.
+  default), `Description`, and `SpecVersion`. The options are read-only once `OpenApiBuilder.Build`
+  runs, after the `AddOpenApi` callback returns.
 
 A type a typed endpoint reads or returns that no registered reader or writer covers fails the
 document request with an `InvalidOperationException` that names the endpoint (`GET /orders/{id}`)
@@ -181,10 +182,10 @@ using Assimalign.Cohesion.Web.OpenApi;
 // builder is the application's WebApplicationBuilder. The application also registers
 // authentication with a "Bearer" scheme and AddAuthorization, and its pipeline runs
 // UseAuthentication and UseAuthorization.
-builder.Services.AddOpenApi(options =>
+builder.Services.AddOpenApi(openApi =>
 {
-    options.Title = "Orders API";
-    options.AddSecurityScheme(new OpenApiSecuritySchemeMetadata
+    openApi.Options.Title = "Orders API";
+    openApi.Options.AddSecurityScheme(new OpenApiSecuritySchemeMetadata
     {
         Name = "Bearer",
         Type = SecuritySchemeType.Http,
@@ -227,7 +228,7 @@ using Assimalign.Cohesion.OpenApi.Attributes;
 using Assimalign.Cohesion.Web.OpenApi;
 
 // builder is the application's WebApplicationBuilder.
-builder.Services.AddOpenApi(options => options
+builder.Services.AddOpenApi(openApi => openApi.Options
     .AddTag(new OpenApiTagMetadata { Name = "orders", Description = "Order operations" })
     .AddDocumentTransformer(document => document.Servers.Add(new OpenApiServer { Url = "https://api.example.com" }))
     .AddDocumentTransformer(document => document.Info.Contact = new OpenApiContact { Name = "Orders team" }));
@@ -260,7 +261,7 @@ For binding, return values and the description metadata itself, see
 ## Sources
 
 - **Package overview and design** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/DESIGN.md`.
-- **Registration and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/ComponentModel/OpenApiComponents.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
+- **Registration and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiBuilder.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
 - **Document endpoint** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Internal/OpenApiDocumentEndpoint.cs`.
 - **Test composition** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/tests/TestObjects/OpenApiTestApplication.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/tests/OpenApiOptionsTests.cs`.
 - **Description metadata and verbs** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md`.
