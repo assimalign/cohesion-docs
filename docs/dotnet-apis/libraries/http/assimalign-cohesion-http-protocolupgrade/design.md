@@ -70,8 +70,13 @@ call before any byte is written, so a second response can never reach the wire. 
    `Content-Length` and `Transfer-Encoding` (RFC 9112 §6.3 and RFC 9110 §15.2.2: a `101` carries no
    body framing; RFC 9110 §9.3.6: a successful CONNECT response must not include them), then
    `Connection: Upgrade` and `Upgrade: <protocol>` for an upgrade, or no `Connection` header for a
-   CONNECT (the tunnel persists; `close` applies to HTTP framing, not the tunnel). The status is
-   always the RFC-standard one;
+   CONNECT (the tunnel persists; `close` applies to HTTP framing, not the tunnel). Cookies come from
+   the `Set-Cookie` header alone, one field line per value (RFC 6265 §3), as `Http1MessageWriter`
+   writes every other response (#1154). The response cookie collection writes each cookie through to
+   that header, so the header is the one source. Until #1154 the writer comma-folded the header's
+   values onto one line and then wrote each cookie of `IHttpResponseCookieFeature` again, so every
+   cookie went out twice and a replacement feature could disagree with the header. The package no
+   longer references Http.Cookies. The status is always the RFC-standard one;
 3. claims the connection (`IHttpExchangeControl.TakeOver()`), so even a cancelled or failed head
    write cannot be followed by a second HTTP response on a desynchronized stream. The takeover is
    itself one-shot, so two features can never both claim a connection;
@@ -114,9 +119,8 @@ surrendered stream.
 
 ## Dependency boundary
 
-The declared build inputs are `Assimalign.Cohesion.Http`, `Assimalign.Cohesion.Http.Cookies`. The
-[overview](index.md#dependencies) distinguishes project references, package references, shared
-source, and analyzer inputs.
+The declared build inputs are `Assimalign.Cohesion.Http`. The [overview](index.md#dependencies)
+distinguishes project references, package references, shared source, and analyzer inputs.
 
 ## Sources
 

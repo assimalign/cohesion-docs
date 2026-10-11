@@ -18,6 +18,12 @@ A host registers the interceptor to attach the feature to exchanges. Interim res
 final response and use the core response seam, keeping the transport independent of this package.
 Convenience members cover Continue and Early Hints.
 
+The transport emits `100 Continue` automatically, on HTTP/1.1, HTTP/2 and HTTP/3 (#1385), for a
+request that carries `Expect: 100-continue` and still has content to send, whether or not this
+package is registered: a large-upload client withholds its body until it is solicited. This package
+covers the application-initiated interim responses, `103 Early Hints` and an explicit,
+handler-driven `100 Continue` (`SendContinueAsync`).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -29,7 +35,7 @@ Convenience members cover Continue and Early Hints.
 | Type | Source file |
 |---|---|
 | `HttpInterimResponses` | `src/HttpInterimResponses.cs` |
-| `IHttpInterimResponseFeature` | `src/IHttpInterimResponseFeature.cs` |
+| `IHttpInterimResponseFeature` | `src/Abstractions/IHttpInterimResponseFeature.cs` |
 | `HttpInterimResponseExtensions` | `src/Extensions/HttpInterimResponseExtensions.cs` |
 
 ## Sources
@@ -48,6 +54,6 @@ Convenience members cover Continue and Early Hints.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/HttpInterimResponses.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/IHttpInterimResponseFeature.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/Abstractions/IHttpInterimResponseFeature.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/Extensions/HttpInterimResponseExtensions.cs`.

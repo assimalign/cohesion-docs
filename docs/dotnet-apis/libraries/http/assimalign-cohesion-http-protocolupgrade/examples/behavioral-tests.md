@@ -245,7 +245,8 @@ public class HttpProtocolUpgradeInterceptorTests
         takeover.TakenOver.ShouldBeTrue();
 
         string response = Encoding.ASCII.GetString(wire.ToArray());
-        response.ShouldContain("HTTP/1.1 200 Ok");
+        // The RFC 9110 §15.3.1 reason phrase, compared case-sensitively (#1204: it was "Ok").
+        response.ShouldStartWith("HTTP/1.1 200 OK\r\n", Case.Sensitive);
         // RFC 9110 §9.3.6 — a successful CONNECT response carries no framing headers and must
         // not advertise Connection: close (the tunnel persists).
         response.ShouldNotContain("Content-Length");
@@ -351,6 +352,70 @@ public class HttpProtocolUpgradeInterceptorTests
         refusal.Message.ShouldNotContain("evil");
         wire.Length.ShouldBe(0);
         takeover.TakenOver.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: Each Set-Cookie value rides the 101 on a field line of its own")]
+    public async Task AcceptAsync_OnTwoSetCookieValues_ShouldWriteOneFieldLinePerValue()
+    {
+        // Arrange — RFC 6265 §3: Set-Cookie is never comma-folded (#1154).
+        MemoryStream wire = new();
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(wire), out HttpHeaderCollection responseHeaders);
+        responseHeaders[HttpHeaderKey.SetCookie] = new HttpHeaderValue(new[] { "a=1; Path=/", "b=2; Path=/; HttpOnly" });
+
+        // Act
+        await context.Upgrade!.AcceptAsync();
+
+        // Assert
+        ReadSetCookieLines(wire).ShouldBe(new[] { "a=1; Path=/", "b=2; Path=/; HttpOnly" });
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: Cookies appended through the cookie feature ride the 101 exactly once")]
+    public async Task AcceptAsync_OnCookiesAppendedThroughTheCookieFeature_ShouldWriteEachOnce()
+    {
+        // Arrange — the default feature's collection writes each cookie through to Set-Cookie, so the
+        // header already holds both; reading the feature as well sent each one twice (#1154).
+        MemoryStream wire = new();
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(wire), out HttpHeaderCollection responseHeaders);
+        HttpCookieCollection cookies = new(responseHeaders, HttpHeaderKey.SetCookie);
+        context.Features.Set<IHttpResponseCookieFeature>(new TestResponseCookieFeature(cookies));
+        cookies.Add(new HttpCookie("session", "abc", new HttpCookieOptions { HttpOnly = true }));
+        cookies.Add(new HttpCookie("theme", "dark"));
+
+        // Act
+        await context.Upgrade!.AcceptAsync();
+
+        // Assert
+        ReadSetCookieLines(wire).ShouldBe(new[] { "session=abc; Path=/; HttpOnly", "theme=dark; Path=/" });
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: The Set-Cookie header is the one source, not a cookie feature that disagrees with it")]
+    public async Task AcceptAsync_OnCookieFeatureOutOfSyncWithTheHeader_ShouldWriteTheHeaderOnly()
+    {
+        // Arrange — a replacement feature whose collection is not bound to the response headers.
+        MemoryStream wire = new();
+        HttpHeaderCollection headers = new();
+        headers[HttpHeaderKey.Connection] = "Upgrade";
+        headers[HttpHeaderKey.Upgrade] = "websocket";
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(wire), out HttpHeaderCollection responseHeaders);
+        responseHeaders[HttpHeaderKey.SetCookie] = "a=1; Path=/; Secure";
+        HttpCookieCollection detached = new();
+        detached.Add(new HttpCookie("ghost", "1"));
+        context.Features.Set<IHttpResponseCookieFeature>(new TestResponseCookieFeature(detached));
+
+        // Act
+        await context.Upgrade!.AcceptAsync();
+
+        // Assert
+        ReadSetCookieLines(wire).ShouldBe(new[] { "a=1; Path=/; Secure" });
     }
 
     [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A response field with HTAB inside its value rides the 101")]
@@ -493,6 +558,27 @@ public class HttpProtocolUpgradeInterceptorTests
         }
     }
 
+    /// <summary>
+    /// Returns the value of every <c>Set-Cookie</c> field line of the transition head on
+    /// <paramref name="wire"/>, in order.
+    /// </summary>
+    private static string[] ReadSetCookieLines(MemoryStream wire)
+    {
+        const string prefix = "Set-Cookie: ";
+        string head = Encoding.ASCII.GetString(wire.ToArray());
+        List<string> values = new();
+
+        foreach (string line in head.Split("\r\n"))
+        {
+            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                values.Add(line[prefix.Length..]);
+            }
+        }
+
+        return values.ToArray();
+    }
+
     private static HttpExchangeInterceptorRequestContext CreateHeadContext(
         FakeHttpContext context,
         HttpVersion version,
@@ -534,6 +620,9 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Accept: A second accept throws without writing a second response.
 - **Covered behavior** — Accept: A response field the 101 cannot carry is refused before the connection is claimed.
 - **Covered behavior** — Accept: A Set-Cookie value the 101 cannot carry is refused before the connection is claimed.
+- **Covered behavior** — Accept: Each Set-Cookie value rides the 101 on a field line of its own.
+- **Covered behavior** — Accept: Cookies appended through the cookie feature ride the 101 exactly once.
+- **Covered behavior** — Accept: The Set-Cookie header is the one source, not a cookie feature that disagrees with it.
 - **Covered behavior** — Accept: A response field with HTAB inside its value rides the 101.
 - **Covered behavior** — Upgrade: Repeated accessor reads return the same single-shot instance.
 - **Covered behavior** — Interceptor: It declares the request scope only, so it is never in every exchange's response phase.

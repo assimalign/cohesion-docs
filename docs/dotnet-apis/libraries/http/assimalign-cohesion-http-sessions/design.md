@@ -14,6 +14,13 @@ feature supplies the session without adding application state to the protocol co
 that needs consent; under a consent requirement the session cookie, and so the session, starts only
 after the user consents unless the application marks it essential.
 
+`HttpSessionOptions.CookiePath` must be an RFC 6265 `path-value`: US-ASCII with no `;` and no
+control characters. The session cookie is written through the cookie model, whose
+`HttpCookieOptions.Path` refuses any other path (#1153), and the cookie is built each time a session
+is established, so `UseSessions` in `Assimalign.Cohesion.Web.Sessions` checks the path when it
+registers the middleware: a path such as `/tenant;x` or `/café` fails the application at
+composition instead of answering every session establishment with a 500.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Http`. The [overview](index.md#dependencies)

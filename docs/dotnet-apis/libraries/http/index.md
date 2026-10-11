@@ -19,7 +19,7 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http.Forwarded` | Defines effective request identity after a trusted proxy has forwarded an exchange. | [Overview](assimalign-cohesion-http-forwarded/index.md) |
 | `Assimalign.Cohesion.Http.InterimResponses` | Sends interim HTTP responses through the exchange interceptor seam. | [Overview](assimalign-cohesion-http-interimresponses/index.md) |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` | Models HTTP/1.1 upgrades and CONNECT tunnels. | [Overview](assimalign-cohesion-http-protocolupgrade/index.md) |
-| `Assimalign.Cohesion.Http.RequestLimits` | Exposes a per-request view of the maximum request body size. | [Overview](assimalign-cohesion-http-requestlimits/index.md) |
+| `Assimalign.Cohesion.Http.RequestLimits` | Exposes per-request views of the request body-size cap and the minimum request-body and response data rates. | [Overview](assimalign-cohesion-http-requestlimits/index.md) |
 | `Assimalign.Cohesion.Http.ServerSentEvents` | Formats Server-Sent Events and writes them through HTTP response streaming. | [Overview](assimalign-cohesion-http-serversentevents/index.md) |
 | `Assimalign.Cohesion.Http.Sessions` | Defines per-exchange binary session state and typed convenience access. | [Overview](assimalign-cohesion-http-sessions/index.md) |
 | `Assimalign.Cohesion.Http.Streaming` | Writes HTTP response bodies incrementally through an optional feature. | [Overview](assimalign-cohesion-http-streaming/index.md) |
@@ -43,7 +43,7 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.Http.Forms` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Forwarded` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.InterimResponses` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Http.ProtocolUpgrade` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Cookies` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.RequestLimits` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.ServerSentEvents` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Streaming` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Sessions` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |

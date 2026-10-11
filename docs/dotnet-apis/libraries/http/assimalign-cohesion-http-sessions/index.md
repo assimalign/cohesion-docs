@@ -21,7 +21,10 @@ feature supplies the session without adding application state to the protocol co
 `HttpSessionOptions` carries the session cookie's settings. `CookieIsEssential`, `false` by
 default, tells a cookie-consent policy (`Web.CookiePolicy`) whether it may emit the session cookie
 before the user consents; an application that cannot work without its session, such as a cart or a
-multi-step form, sets it to `true`.
+multi-step form, sets it to `true`. `CookiePath` must be an RFC 6265 `path-value` (US-ASCII with no
+`;` and no control characters), since the session cookie is written through the cookie model, which
+refuses any other path (#1153). `UseSessions` in `Assimalign.Cohesion.Web.Sessions` refuses such a
+value when it registers the middleware, not when a session is established.
 
 ## Dependencies
 

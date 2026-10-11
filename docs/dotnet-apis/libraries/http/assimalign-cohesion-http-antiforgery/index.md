@@ -25,9 +25,15 @@ from `Http.Forwarded`, so TLS terminated at a trusted proxy counts once the forw
 middleware runs before the token is stored. `CookieSecure = true` forces the flag on plain HTTP
 too. The cookie token is essential by default (`CookieIsEssential`), so a cookie-consent policy
 emits it before the user consents. The default protector signs with a per-process random key, which
-is for development only; deployed applications set a ring-backed `Protector`. Every
+is for development only; deployed applications set a ring-backed `Protector`, which a Web
+application does with `AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)`. Every
 `IHttpAntiforgeryFeature` reports `nameof(IHttpAntiforgeryFeature)` as its name, so an exchange
 carries one antiforgery service and assigning `context.Antiforgery` replaces a registered one.
+
+`CookiePath` must be an RFC 6265 `path-value`: US-ASCII with no `;` and no control characters, as
+`HttpCookieOptions.Path` requires (#1153). Both `HttpAntiforgery.Create` overloads refuse any other
+value with `ArgumentException` when they create the service, not when a token is stored, so a bad
+path fails the application at composition. See the [design](design.md#design-and-boundaries).
 
 ## Dependencies
 

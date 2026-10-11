@@ -33,9 +33,20 @@ contracts' `IMultiplexedConnectionAbort` (`CONNECTION_CLOSE`) and `IMultiplexedS
 ALPN, apply only where the caller gives none. See the
 [design](design.md#application-error-codes).
 
+Each half of a stream ends on its own (#1330). Completing `Output` sends the FIN and leaves the
+stream readable until the peer ends its side; completing it with an error sends `RESET_STREAM`
+instead. Completing `Input` stops the receiving direction (`STOP_SENDING` with
+`DefaultStreamErrorCode`) and leaves the sending direction alone. The QUIC stream is released once
+both halves are complete. Disposing a connection waits at most `CloseDeliveryTimeout` (five seconds
+by default, on both options types) for its streams' data and FINs to be acknowledged before it
+closes the connection. These are behavior breaks against 10.0.0-preview.1. See the
+[design](design.md#each-stream-half-ends-on-its-own).
+
 ## Usage
 
 ```csharp
+using System;
+using System.IO.Pipelines;
 using System.Net;
 
 using Assimalign.Cohesion.Connections;
@@ -45,6 +56,10 @@ QuicConnectionListenerOptions options = new();
 options.EndPoint = new IPEndPoint(IPAddress.Loopback, 4433);
 options.ServerAuthenticationOptions.ServerCertificate = certificate;
 
+// Disposing a connection waits this long, at most, for its streams' data and FINs to be
+// acknowledged before it closes the connection (five seconds by default).
+options.CloseDeliveryTimeout = TimeSpan.FromSeconds(2);
+
 await using QuicConnectionListener listener = new(options);
 await listener.BindAsync(cancellationToken);
 
@@ -52,14 +67,20 @@ await listener.BindAsync(cancellationToken);
 IMultiplexedConnection connection = await listener.AcceptAsync(cancellationToken);
 IConnection stream = await connection.AcceptStreamAsync(cancellationToken);
 
-// Refuse the rest of the peer's data with a code of the protocol's choosing (STOP_SENDING),
-// then end this side gracefully.
+// End this side gracefully (FIN). The stream stays readable: the peer may keep sending
+// until it ends its own side.
+await stream.Output.CompleteAsync();
+ReadResult rest = await stream.Input.ReadAsync(cancellationToken);
+
+// Or refuse the rest of the peer's data with a code of the protocol's choosing (STOP_SENDING).
+// Completing Input without one stops it with DefaultStreamErrorCode. Once both halves are
+// complete the QUIC stream is released.
 if (stream is IMultiplexedStreamAbort abort)
 {
     abort.AbortRead(0x100); // H3_NO_ERROR
 }
 
-await stream.Output.CompleteAsync();
+await stream.Input.CompleteAsync();
 ```
 
 ## Dependencies

@@ -76,7 +76,10 @@ copies into a response header. See the [design](design.md#the-accept-path).
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.Http`](../../http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Http.Cookies`](../../http/assimalign-cohesion-http-cookies/index.md) | `CohesionProjectReference` |
+
+Cookies appended through `context.Response.Cookies` before accepting ride the transition response
+through the `Set-Cookie` header they are written to, one field line per cookie; the package does not
+reference `Assimalign.Cohesion.Http.Cookies` (#1154).
 
 The server transport (`Assimalign.Cohesion.Http.Connections`) exposes its exchange control on the
 response-interceptor seam, and this package consumes its takeover capability, which only the

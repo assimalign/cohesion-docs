@@ -12,14 +12,58 @@ tokenizes the `Cookie` header the first time `request.Cookies` is read. The resp
 writes every change through to `response.Headers[Set-Cookie]`, one value per cookie, and the
 transports serialize that header like any other field, honoring the RFC 6265 rule that each
 `Set-Cookie` value goes on its own line. `Http.Connections` therefore takes no dependency on this
-package; the one serializer that reads `IHttpResponseCookieFeature` directly is the HTTP/1.1
-upgrade writer in `Http.ProtocolUpgrade`.
+package, and neither does the HTTP/1.1 upgrade writer in `Http.ProtocolUpgrade`, which writes the
+`101` head's `Set-Cookie` header the same way. No serializer reads `IHttpResponseCookieFeature`. The
+upgrade writer was the last one: it wrote the header's values comma-folded on one line and then
+each cookie of the feature again, so a `101` sent every cookie twice. Since #1154 it writes the
+header the way `Http1MessageWriter` does and takes no dependency on this package.
 
 A replacement response feature (signed cookies, encrypted cookies, a cookie policy) removes the
 existing feature's slot before installing itself, because the feature collection is keyed by
 `IHttpFeature.Name` and `Get<T>()` returns the first match. It must also keep `Set-Cookie` in sync,
-typically by queuing into the collection of the feature it replaces, as `Web.CookiePolicy` does.
+typically by queuing into the collection of the feature it replaces, as `Web.CookiePolicy` does;
+whatever the header holds is what every response, the `101` included, sends.
 Cookie-aware packages depend on this one, and this one depends only on the protocol core.
+
+## Attribute grammar
+
+`HttpCookie` validates its name against the RFC 6265 §4.1.1 `token` grammar and its value against
+`*cookie-octet` in the constructor, so a hostile value can never split or corrupt the emitted
+`Set-Cookie` line. The `Path` and `Domain` options are held to the same standard (#1153).
+`HttpCookie.ToString()` appends both values verbatim, so before #1153 a path of
+`/x; SameSite=None` added an attribute to the line, and a control character corrupted it.
+Applications build these values from untrusted input (a tenant segment, a forwarded host), and
+`Web.CookiePolicy` trusts them, so the model has to refuse them.
+
+- **`Path`** must be an RFC 6265 §4.1.1 `path-value`: US-ASCII with no control character
+  (`0x00`–`0x1F`, `0x7F`) and no `;`. RFC 6265bis writes the same set as
+  `av-octet = %x20-3A / %x3C-7E`. The empty string is in the grammar.
+- **`Domain`** must be a `domain-value`: an RFC 1034 §3.5 `subdomain` as enhanced by RFC 1123 §2.1.
+  That is dot-separated labels of 1–63 letters, digits and hyphens that neither start nor end with a
+  hyphen, at most 253 characters in all. One leading dot is tolerated because a user agent ignores
+  it (RFC 6265 §5.2.3), and it does not count toward the 253. An empty label, a trailing dot, an
+  underscore, a port, an IPv6 literal and a non-ASCII name are refused; an internationalized name is
+  written as its `xn--` A-label.
+- **`null` stays legal for both**, because `CookiePolicyRules` repairs a `__Host-` cookie with
+  `Domain = null` and the collection parser starts from `Path = null`. An empty `Domain` also means
+  "no attribute", as `ToString()` has always read it, and as RFC 6265 §5.2.3 tells a user agent to
+  treat an empty `Domain=`.
+- **The setters throw `ArgumentException`** whose `ParamName` and message name the attribute. The
+  message does not echo the value, which may hold the control character that made it invalid. Like
+  the name and value checks, this is a server bug surfacing, not a request rejection.
+- **Validation is in the setter**, so every reader sees only valid values: the copy constructor
+  (which copies the checked fields without checking them again), `HttpCookie`'s copy of its
+  options, and a later write to `cookie.Options`.
+- **The parser drops a cookie** whose `Path` or `Domain` attribute is outside the grammar, as it
+  drops an out-of-grammar name or value, instead of throwing on wire input. It does not keep the
+  cookie without the attribute: re-emitted that way, the cookie would have a different scope from
+  the one its sender wrote. An empty `Domain=` is the exception; it is ignored, per §5.2.3.
+- **What it does not cover.** `Extensions` are still appended verbatim; each one is an attribute by
+  design. The transports' head writers refuse CR, LF and the other control characters in any field
+  value at encode time (#1183), whatever builds the value.
+
+The grammar guard (`HttpCookieGrammar`) classifies characters with `SearchValues<char>` membership
+scans and character-range scans: no regex, no reflection.
 
 ## Dependency boundary
 

@@ -78,6 +78,37 @@ receive it (#1376). The method is kept as sent, so `get` is not `GET` (#1301), a
 the features a host installs (#1381). See the
 [design](design.md#response-field-syntax-refused-before-a-byte-is-written-1183).
 
+Every version now holds every response, buffered and streamed, to `MinResponseDataRate`, a slow-read
+defence that 10.0.0-preview.1 applied only to the HTTP/1.1 streaming sink (#1384): a peer below the
+rate has its response cancelled (HTTP/1.1 aborts the connection, HTTP/2 resets the stream or ends a
+stalled connection, HTTP/3 resets the request stream with `H3_REQUEST_CANCELLED`), and the stalled
+write throws an `OperationCanceledException`. Both rates are seeded into the request's parse
+context, so a request can lower, raise or disable `MinRequestBodyDataRate` until its body's first
+read (#1383) and `MinResponseDataRate` until its response's first write; `Http.RequestLimits`
+surfaces them as typed features. `HttpMinDataRate` moved to core `Assimalign.Cohesion.Http` for it,
+a source and binary break. See the [design](design.md#per-request-data-rates-1383).
+
+HTTP/2 and HTTP/3 report a request body's client fault through
+`IHttpExchangeControl.ClientFaultStatusCode` as HTTP/1.1 does, `400` for a malformed body they
+reset, and HTTP/2 now holds DATA to its `content-length` (#1378).
+`HttpExchangeInterceptorRequestContext.CanHaveBody` tells a host's gate which requests can have a
+body. HTTP/2 and HTTP/3 also answer `Expect: 100-continue` at the first body read (#1385). See the
+[design](design.md#client-faults-on-http2-and-http3-1378).
+
+Request heads are held to one target rule on every version (#1334): a classic CONNECT carries
+`host:port` and no `:scheme` or `:path`, asterisk-form is `OPTIONS *` alone, and `:method` is a
+token of at most 32 characters (HTTP/1.1 answers `400` or `501`). HPACK decodes obs-text as Latin-1
+like QPACK and HTTP/1.1, and `:path`, `:authority` and `Host` hold only VCHAR (#1387). An
+absolute-form target decodes like origin-form, an `https` one on a cleartext HTTP/1.1 connection is
+answered `421`, and h2c keeps the connection's `http` scheme (#1324). No version sends content, or a
+synthesized `Content-Length`, on a `204` or `304`, nor `Content-Length: 0` for an empty HEAD
+(#1073). See the [design](design.md#http2-request-heads-rfc-9113-83).
+
+HTTP/3 holds the peer's control and QPACK streams to their critical-stream rules as connection
+errors and bounds its priority map (#1083), resets a request stream opened after its `GOAWAY` with
+`H3_REQUEST_REJECTED` (#1306), and half-closes an extended CONNECT tunnel over QUIC (#1330). See the
+[design](design.md#http3-critical-streams-1083).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -100,7 +131,6 @@ the features a host installs (#1381). See the
 | `HttpConnectionListenerLimits` | `src/HttpConnectionListenerLimits.cs` |
 | `HttpConnectionListenerOptions` | `src/HttpConnectionListenerOptions.cs` |
 | `HttpContextTransportExtensions` | `src/Extensions/HttpContextTransportExtensions.cs` |
-| `HttpMinDataRate` | `src/HttpMinDataRate.cs` |
 | `HttpProtocol` | `src/HttpProtocol.cs` |
 | `IHttpConnection` | `src/Abstractions/IHttpConnection.cs` |
 | `IHttpConnectionContext` | `src/Abstractions/IHttpConnectionContext.cs` |
@@ -140,8 +170,6 @@ the features a host installs (#1381). See the
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Extensions/HttpContextTransportExtensions.cs`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/HttpMinDataRate.cs`.
-
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/HttpProtocol.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Abstractions/IHttpConnection.cs`.
@@ -151,3 +179,7 @@ the features a host installs (#1381). See the
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Abstractions/IHttpConnectionListener.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/README.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpExchangeInterceptorRequestContext.cs`.

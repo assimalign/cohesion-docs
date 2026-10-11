@@ -72,8 +72,37 @@ nothing (#1186). The single `TryGetContentType` is gone. See the
 
 `IHttpExchangeControl.ClientFaultStatusCode` reports the `4xx` status a transport answers because
 the client's request was at fault, or `null` (#1340). It is a default interface member returning
-`null`, so adding it is not a source break; the server transport reports it for HTTP/1.1. See the
+`null`, so adding it is not a source break; the server transport reports it on every version, HTTP/2
+and HTTP/3 since #1378, which report `400` for a malformed body they reset.
+`HttpExchangeInterceptorRequestContext.CanHaveBody` tells a host's gate whether content may follow
+the head, which an HTTP/2 or HTTP/3 request need not declare. See the
 [design](design.md#the-client-fault-report).
+
+`HttpMinDataRate` moved here from `Assimalign.Cohesion.Http.Connections` (#1383), a source and
+binary break: code that names it with only `using Assimalign.Cohesion.Http.Connections;` adds
+`using Assimalign.Cohesion.Http;`. The request-parse context carries `MinRequestBodyDataRate`
+(#1383) and `MinResponseDataRate` (#1384), seeded from the listener's limits and frozen at the
+body's first read and the response's first write, so a hook, middleware or endpoint can change
+either rate for one request. See the [design](design.md#the-request-contexts-data-rates-1383-1384).
+
+`HttpFieldNormalization.ValidateRequestTarget` (#1334) holds the HTTP/2 and HTTP/3 request targets
+to HTTP/1.1's: a classic CONNECT carries `host:port` and no `:scheme` or `:path`, asterisk-form is
+`OPTIONS *` alone, `:path`, `:authority` and `Host` hold only VCHAR now that HPACK decodes obs-text
+as Latin-1 like QPACK (#1387), and `:method` is a token of at most 32 characters. See the
+[design](design.md#request-target-forms-1334).
+
+`HttpPath.ToUriComponent()` and `HttpQuery.Create` write a decoded path and query back into a URI,
+the inverses of the transports' decode, so a redirect's `Location` keeps the request's escapes
+(#1324). See the
+[design](design.md#writing-a-path-and-a-query-back-out-touricomponent-httpquerycreate).
+
+`HttpIfRange.Matches` applies a date only when it exactly matches a strong `Last-Modified`, one at
+least a second before the `responseDate` a new third parameter supplies (#1185); the two-argument
+overload is gone, a source break. See the [design](design.md#if-range-is-step-5-rfc-9110-1315).
+
+`HttpStatusCode` carries the IANA registry's reason phrases, RFC 9110's wording, and marks the
+reserved `Unused` (`306`) obsolete (#1204). See the
+[design](design.md#status-codes-and-reason-phrases-rfc-9110-15).
 
 `HttpHeaderValue.Concat` appends in amortized constant time, so a field repeated `n` times combines
 in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
@@ -176,3 +205,11 @@ in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpFeatureCollectionExtensions.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Exceptions/HttpErrorCode.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpPath.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpIfRange.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpStatusCode.cs`.

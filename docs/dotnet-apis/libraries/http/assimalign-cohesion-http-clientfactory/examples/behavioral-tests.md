@@ -59,6 +59,18 @@ public class HttpClientFactoryComponentIntegrationTests
         }
     }
 
+    [Fact(DisplayName = "Cohesion Test [Http.ClientFactory] - AddHttpClientFactory: a bare call throws at registration and registers nothing")]
+    public void AddHttpClientFactory_CalledBare_ShouldThrowInvalidOperationException()
+    {
+        // Arrange — the projected callback is optional (owner decision 39), but the builder still
+        // requires a named client, and the adapter builds eagerly, so the call itself must fail.
+        var builder = new ServiceProviderBuilder();
+
+        // Act / Assert
+        Should.Throw<InvalidOperationException>(() => builder.AddHttpClientFactory());
+        builder.Container.Count.ShouldBe(0);
+    }
+
     [Fact(DisplayName = "Cohesion Test [Http.ClientFactory] - AddHttpClientFactory: provider disposal disposes the resolved factory")]
     public void AddHttpClientFactory_WhenProviderDisposed_ShouldDisposeResolvedFactory()
     {
@@ -81,6 +93,7 @@ public class HttpClientFactoryComponentIntegrationTests
 ## Walkthrough
 
 - **Covered behavior** — AddHttpClientFactory: resolves a configured named-client factory.
+- **Covered behavior** — AddHttpClientFactory: a bare call throws at registration and registers nothing.
 - **Covered behavior** — AddHttpClientFactory: provider disposal disposes the resolved factory.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled

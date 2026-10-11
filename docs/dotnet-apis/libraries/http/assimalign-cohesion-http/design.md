@@ -107,8 +107,10 @@ They scan spans with `SearchValues<char>` and `IndexOfAny`, which vectorize.
   calls such a value invalid but lets a recipient keep it, so the check is a separate member.
   HTTP/1.1 applies it to every received value once SP and HTAB are trimmed. obs-text (`%x80-FF`, C1
   controls included) is a valid octet in both rules.
-- **The rules judge characters, not octets.** A character above U+00FF is never produced by a
-  Latin-1 decode and is left to the encoder that writes it.
+- **The rules judge characters, not octets.** Every reader decodes a field octet as Latin-1
+  (HTTP/1.1 since #1341, QPACK, and HPACK since #1387), so obs-text reaches the rules as the
+  character of the same value, and a character above U+00FF is never produced by a reader; it is
+  left to the encoder that writes it.
 
 **Readers.** HTTP/1.1's `Http1FieldLine` applies the rule to headers and chunked trailers, and
 `Http1ChunkExtensions` to the tokens and quoted strings of chunk extensions. Since #1376 the HTTP/2
@@ -139,6 +141,32 @@ what the refusal leaves behind.
 `IHttpHeaderCollection` implementation could bypass it, and a value built over an array shares that
 array with its caller.
 
+## Request-target forms (#1334)
+
+`HttpFieldNormalization.ValidateExtendedConnect` and `ValidateRequestTarget` hold the pseudo-header
+shapes HTTP/2 and HTTP/3 share. An extended CONNECT carries a non-empty `:protocol` with `:scheme`,
+`:path`, and `:authority` (RFC 8441 §4, RFC 9220 §3). A classic CONNECT carries the host and port in
+`:authority` and neither `:scheme` nor `:path` (RFC 9113 §8.5, RFC 9114 §4.4), and a `:path` that
+starts with `*` is exactly `*` on an OPTIONS request (RFC 9110 §7.1, #1334).
+
+- **A request target holds only VCHAR.** `:path`, `:authority`, and every `Host` value hold only
+  VCHAR, as HTTP/1.1 holds its request line and `Host` (#1341, #1387): HPACK and QPACK decode
+  obs-text as Latin-1, which an ordinary value may carry but no request target or host does.
+- **`:method` is what `HttpMethod` can represent.** `ValidateRequestTarget` also holds `:method` to
+  a token (RFC 9110 §9.1) of at most 32 characters (`HttpMethod.MaximumLength`, internal), so a
+  request that passes can always be built with `HttpMethod.GetCanonicalizedValue`, which throws for
+  anything else.
+- **A violation is a message, not an exception.** Both return a violation message rather than throw,
+  and the message never quotes the peer's text, so HTTP/2 resets the stream with `PROTOCOL_ERROR`
+  and HTTP/3 with `H3_MESSAGE_ERROR`.
+- **One authority-form parse.** `ValidateRequestTarget` reuses `HttpRequestTarget.TryParse` for the
+  authority-form, so HTTP/1.1, which parses its request line through the same type, accepts the same
+  CONNECT and asterisk-form targets.
+
+`ValidateRequestTarget` is a new public member. The transport's design lists the requests HTTP/2 and
+HTTP/3 now reset
+([HTTP/2 request heads](../assimalign-cohesion-http-connections/design.md#http2-request-heads-rfc-9113-83)).
+
 ## Host values
 
 `HttpHost` carries the request's effective authority exactly as the transport resolved it, and
@@ -163,6 +191,55 @@ so it is left out of the collection and stays visible only in the raw `HttpQuery
 could fail its own connection or stream, and have the server log the failure as a defect, with one
 `=`. A rewrite target is held to a stricter rule: `Web.Rewrite` still refuses a query entry without
 a name, at registration for a target's literal text and with `400` when a capture produces one.
+
+## Writing a path and a query back out (`ToUriComponent`, `HttpQuery.Create`)
+
+Every transport hands middleware a **decoded** request: `HttpPath.FromUriComponent` decodes the
+path, and `HttpQuery.Parse` decodes the query into a collection. A component that writes the request
+back into a URL, such as a redirect's `Location`, needs the inverse of each, and before #1324 the
+Web redirects wrote the decoded path as it was: `/caf%C3%A9` became `/café`, which the HTTP/1.1
+writer sends as `/caf?`, and `/100%25` became `/100%`, which is not a URI reference (RFC 9110
+§10.2.2). The inverses live here, beside the decoder whose rules they have to mirror:
+
+- **`HttpPath.ToUriComponent()`** encodes each segment (RFC 3986 §3.3): `/` and every `pchar`
+  (unreserved, sub-delims, `:` and `@`) are written as they are, and everything else is
+  percent-encoded as UTF-8, a lone surrogate as U+FFFD. A `%` is written as `%25`, **except** where
+  it begins an escape `UrlDecoder` leaves as written, which a decoded path can only carry because
+  the request did:
+  - `%2F` or `%2f`. `UrlDecoder` never decodes an encoded slash, so it can never become a segment
+    separator (the routing `{**}` invariant depends on that).
+  - A sequence that is not valid UTF-8: an invalid or lone byte (the Latin-1 `/caf%E9`, a stray
+    continuation `%A9`), a truncated sequence (`/%C3` at the end), an overlong one (`%C0%AE`) or an
+    encoded surrogate (`%ED%A0%80`).
+- **`HttpQuery.Create(IHttpQueryCollection)`** joins the entries with `&` in enumeration order,
+  percent-encodes each name and value except for the unreserved characters, so an `&`, `=` or `+`
+  inside one cannot split or change it, and writes an empty value as the bare name. `Parse` reads it
+  back as the same collection. It is not the query the request carried: only the parsed collection
+  survives the transport, so order and percent-encoding are rebuilt.
+
+**Why the kept escapes.** Encoding the `%` of either kind again would write `%252F` or `%25E9`: it
+decodes to the same `HttpPath`, but it is a different URI, which a cache or another server in front
+reads as another resource. `UrlDecoder.DecodesEscapeAt` runs the decoder's own rule at the `%`, so
+the two cannot drift; any other `%` must have arrived as `%25`, because the decoder would have
+decoded it, and is escaped. The rule is applied to the decoded text and holds for the encoded text:
+an escape that a lead byte needs as its continuation is one the encoder keeps, since a character it
+encodes never starts with a continuation byte. So `FromUriComponent(path.ToUriComponent())` equals
+`path` for every path. A request-target in canonical form (upper-case hex, nothing escaped that need
+not be) comes back unchanged, except where it spells as `%25` a `%` that begins an escape the
+decoder leaves: `/a%2F` and `/a%252F` both decode to `/a%2F`, `/caf%E9` and `/caf%25E9` both decode
+to `/caf%E9`, and the decoded form cannot tell them apart. Each is written back in the form a client
+sends, `/a%2F` and `/caf%E9`, which decodes to the same path. (#1324's review, 2026-10-10: the first
+version kept only `%2F`, so `/caf%E9` came back as `/caf%25E9`.)
+
+A space, `?` or `#` never needs encoding in a path that came from a request: `HttpPath` rejects
+them, and the transports fail a request-target whose path decodes to one
+(`HttpRequestTargetDecodeParityTests`, `Http2MalformedPathTests`, `Http3MalformedPathTests` in
+Http.Connections). Both helpers are value-object members, not feature contracts, so decision 20's
+rule for the core is unchanged.
+[`Web.HttpsPolicy`](../../../resources/web/assimalign-cohesion-web-httpspolicy/index.md),
+[`Web.StaticFiles`](../../../resources/web/assimalign-cohesion-web-staticfiles/index.md) and
+[`Web.Rewrite`](../../../resources/web/assimalign-cohesion-web-rewrite/index.md) build their
+redirects with them.
 
 ## Content types: two lookups
 
@@ -200,6 +277,94 @@ previews.
 there is nothing to disambiguate: the key `gltf` maps `.gltf`, and a file named `gltf` still maps to
 nothing. A key with an interior dot (`.tar.gz`) is stored but never matched, because neither lookup
 produces one.
+
+## `If-Range` is step 5 (RFC 9110 §13.1.5)
+
+`HttpConditionalRequest.Evaluate` resolves the RFC 9110 §13.2.2 precondition steps 1–4 and returns
+`Proceed`, `NotModified` or `PreconditionFailed`. It deliberately stops there: `If-Range` is
+range-specific. `HttpIfRange.Matches` is step 5, and the two compose into the full decision a range
+feature needs, with `HttpRangeSelector` choosing `206` or `416`:
+
+```text
+outcome = HttpConditionalRequest.Evaluate(context)      // steps 1–4 → 304 / 412 / proceed
+if outcome != Proceed              → send 304 / 412
+else if a Range header is present:
+    applyRange = ifRange is null  ||  ifRange.Matches(currentETag, currentLastModified, responseDate)   // step 5
+    if applyRange   → HttpRangeSelector.Select(...)     → 206 / 416 / (Full → 200)
+    else            → 200 full          // validator stale: give the client the whole thing
+else                               → 200 full
+```
+
+Three correctness details:
+
+- **`If-Range` is always strong.** The entity-tag form uses `HttpEntityTag.StrongEquals` (a weak or
+  absent current tag never applies the range). A mismatch *ignores* the range (full `200`) —
+  `If-Range` is "give me the whole thing if my copy is stale", never a `412`.
+- **A date applies the range only on an exact match with a strong `Last-Modified` (#1185).** RFC
+  9110 §13.1.5 makes the date form true only when the date "exactly matches" `Last-Modified`, and
+  only when that date is a strong validator (§8.8.2.2). §8.8.2.2 lets an origin server treat
+  `Last-Modified` as strong only when it reliably knows the representation did not change twice
+  during that second, which a timestamp alone cannot show. `Matches` therefore uses a conservative
+  heuristic modeled on §8.8.2.2's client rule, which reads the `Date` of the response that delivered
+  the cached copy: `Last-Modified` counts as strong only when it is at least one second before
+  `responseDate`. So a representation modified in the current second, or dated after the response (a
+  clock running ahead), never applies a date.
+- **One-second granularity.** The date comparison and the strength test both run on whole Unix
+  seconds, because an HTTP-date carries only whole seconds. A sub-second write therefore does not
+  read as "modified", and a date built in code with a sub-second part names the second it falls in.
+
+**What the heuristic cannot detect.** The representation changes twice inside the validator's
+second, and the client's copy was taken between the two changes. Both versions carry the same
+`Last-Modified`, so the client's date matches and it gets a `206` of bytes that do not splice with
+its copy. The strong `ETag` form has no such case and is the reliable path for resuming a transfer.
+The caller passes `responseDate`, normally the current time, because the core reads no ambient clock
+(the `HttpFreshness` rule).
+
+**A source break.** Through 10.0.0-preview.1 the date form applied the range whenever
+`Last-Modified ≤ If-Range date`, the rule ASP.NET Core's StaticFiles and `RangeHelper` use. A client
+holding a *later* date (a file replaced by an older copy, or a client clock ahead of the server's)
+then got a `206` of a representation its partial copy does not splice with. The two-argument
+`Matches` was replaced rather than kept beside the new one, since it cannot decide strength without
+a date. That is a source break for a caller outside this repository, accepted during the previews on
+the terms of the HTTP/Web program's decision 15.
+[`Web.StaticFiles`](../../../resources/web/assimalign-cohesion-web-staticfiles/index.md) and output
+caching consume this layer.
+
+## Status codes and reason phrases (RFC 9110 §15)
+
+`HttpStatusCode` holds one table: the IANA HTTP Status Code Registry's assigned codes and the phrase
+the registry gives each (#1204). That is RFC 9110 §15's phrase for every code RFC 9110 defines, and
+the defining RFC's for the rest, `226 IM Used` (RFC 3229) included. The registry lists `510` as "Not
+Extended (OBSOLETED)" since RFC 2774 moved to Historic; that annotation is not part of the phrase,
+so the table sends `510 Not Extended`.
+
+- **One table, read three ways.** `ReasonPhrase` returns the phrase alone, `ToString()` renders
+  `200 OK` for the HTTP/1.1 status line (the transport's head writer and the Http.ProtocolUpgrade
+  `101`/`200` writer), and `IsValid` asks whether a code is in it.
+  [Web.ProblemDetails](../../../resources/web/assimalign-cohesion-web-problemdetails/index.md)
+  titles an `about:blank` problem with `ReasonPhrase`, and
+  [Web.OpenApi](../../../resources/web/assimalign-cohesion-web-openapi/index.md) describes a
+  response with it. Before #1204 Web.OpenApi kept a private RFC 9110 copy, because the core still
+  had pre-RFC 9110 wording ("Ok", "Redirect Keep Verb", "Request Entity Too Large", "Request Uri Too
+  Long", "Requested Range Not Satisfiable", "Un-Processable Entity", "Http Version Not Supported").
+  That wording reached HTTP/1.1 status lines and problem titles in 10.0.0-preview.1.
+- **Left out.** Reserved codes, such as `418 (Unused)` (RFC 9110 §15.5.19), and the registry's
+  temporary registrations, such as `104` for resumable uploads. The reserved `306 (Unused)`
+  (§15.4.7) is the one exception, and not on the merits: the public `HttpStatusCode.Unused => 306`
+  shipped in 10.0.0-preview.1, and dropping the code from the table would make that accessor throw.
+  So `306` stays valid with the registry's `(Unused)`, and `Unused` is marked `[Obsolete]` to steer
+  callers off it.
+- **Only registered codes are valid.** RFC 9110 §15 allows any three-digit code from 100 to 599, and
+  a recipient treats an unknown one as the `x00` code of its class. `IsValid` rejects anything not
+  in the table, so the constructor and the implicit conversion from `int` throw for an unregistered
+  code such as `299`. An application therefore cannot send a private or newly registered code until
+  the table learns it. Widening that changes what every transport accepts as a response status, so
+  it is outside #1204 and is recorded as a gap. The `HttpStatusCode` member names are unchanged
+  (`RedirectKeepVerb`, `RequestEntityTooLarge`, `UnProcessableEntity` and others still name their
+  codes), so no caller breaks; only the text changed.
+- **HTTP/2 and HTTP/3** send `:status` digits only, so the phrase never reaches them. RFC 9112 §4
+  tells an HTTP/1.1 client to ignore it, so the change is cosmetic on the wire. It is user-visible
+  in problem titles and in the OpenAPI document.
 
 ## Methods are case-sensitive (RFC 9110 §9.1)
 
@@ -368,6 +533,17 @@ Once it reports a status, it reports the same status for the rest of the exchang
 had already started is finished or reset as the host decides; the status then does not reach the
 wire, and the member still reports it.
 
+HTTP/2 and HTTP/3 report it too (#1378). Those versions frame the request themselves, so a body that
+breaks the framing — content that contradicts its `content-length`, or a malformed trailer section —
+makes the request malformed, and the transport resets the stream instead of answering it (RFC 9113
+§8.1.1, RFC 9114 §4.1.2). No status reaches the wire, and the member reports `400`, the status
+HTTP/1.1 answers a malformed body with, so a host classifies the exchange the same on every version.
+A body over a limit (`413`, `408`, and on HTTP/3 `431` for its trailer section) is answered with its
+status, as on HTTP/1.1. The reset also fires the exchange's cancellation, so a read on these
+versions reports the fault's `IOException` rather than the cancellation (the Http.Connections
+design,
+[client faults on HTTP/2 and HTTP/3](../assimalign-cohesion-http-connections/design.md#client-faults-on-http2-and-http3-1378)).
+
 **Why a probe on the control, not a typed exception or a feature contract.** Owner decision 28
 (2026-10-09) chose the seam for #1340, under decision 20's rule that the core holds base contracts
 and generic seams only:
@@ -386,8 +562,36 @@ and generic seams only:
 implementation that returns `null`, the precedent of the [trailer collections](#trailers). `null`
 means "no client fault reported", which is exactly what an implementation that predates the member,
 or a protocol version whose transport does not report faults yet, can honestly say. Nothing is hidden
-behind a runtime failure, so adding it is not a source break. The server transport overrides it for
-HTTP/1.1; HTTP/2 and HTTP/3 keep the default until #1378.
+behind a runtime failure, so adding it is not a source break. The server transport overrides it on
+every version: HTTP/1.1 since #1340, HTTP/2 and HTTP/3 since #1378.
+
+## The body signal: `HttpExchangeInterceptorRequestContext.CanHaveBody` (#1378)
+
+The control exists only in an exchange's response phase, which costs a response sink and the control
+itself, so a host that publishes the client-fault report joins the response phase only of an
+exchange whose body can fault. On HTTP/1.1 the head shows that: a `Transfer-Encoding`, or a
+`Content-Length` other than zero. An HTTP/2 or HTTP/3 request need not declare its body at all:
+content follows a HEADERS frame that did not end the stream, or a request stream that has not ended.
+Only the transport sees that, so the request context carries it as a generic fact, as it carries
+`Protocol` for an extended CONNECT:
+
+- **HTTP/1.1** — the framing declares a body: a `Transfer-Encoding`, or a `Content-Length` other
+  than zero. The transport decides the framing before the head hooks run, so they see it.
+- **HTTP/2** — the HEADERS frame did not carry `END_STREAM`, whatever `content-length` it declares:
+  DATA or a trailer section may still follow, and either can make the request malformed.
+- **HTTP/3** — the request stream had not visibly ended with its HEADERS frame. The transport looks
+  for a FIN already buffered behind the frame, without reading or waiting. Over the QUIC driver,
+  whose input is a `PipeReader` over the `QuicStream`, the end is seen only when a read returns no
+  octets, so a request whose FIN came with its HEADERS frame still reports `true` there: a host gate
+  on it takes the response phase for most HTTP/3 exchanges until the driver reports a FIN it has
+  already received. The in-memory driver reports it.
+- **CONNECT** never has one: the octets after its head are tunnel traffic, not content.
+
+The alternative #1378 weighed — a host that joins every HTTP/2 and HTTP/3 exchange — gives up the
+fast path for every one of them, a `GET` included, to learn what the transport already knows. The
+property is optional and defaults to `true`: a context built outside a transport, a test fake, can
+have a body until it says it cannot, which errs toward taking the response phase rather than toward
+missing a fault.
 
 ## Per-exchange response interceptors
 
@@ -405,6 +609,36 @@ fast path. Only a call from a request-parse hook takes effect: the transport rea
 interceptors once, when it sets up the exchange. `Http.ProtocolUpgrade`, which `Web.Hosting`
 installs by default and which needs the exchange control only for an HTTP/1.1 upgrade or `CONNECT`,
 is the case it exists for.
+
+## The request context's data rates (#1383, #1384)
+
+The request-parse context, `HttpExchangeInterceptorRequestContext`, is also where a request changes
+the transport's minimum data rates for itself, beside the body-size knob:
+
+- **The request-body rate cell (#1383).** `MinRequestBodyDataRate` (an `HttpMinDataRate`, `null` =
+  no rate) is seeded by every transport from its listener limits and frozen at the first read of the
+  request body on every protocol (`FreezeMinRequestBodyDataRate()` /
+  `IsMinRequestBodyDataRateReadOnly`), so a hook, middleware or endpoint can lower, raise or disable
+  it for one request until then. HTTP/2 freezes the body-size knob at dispatch but this one only at
+  its reader's first read, so the two freeze independently.
+- **The response rate cell (#1384).** `MinResponseDataRate` is the slow-read defence's knob: seeded
+  the same way, frozen at the response's first write (`FreezeMinResponseDataRate()` /
+  `IsMinResponseDataRateReadOnly`), independently of the request-body knobs. The context therefore
+  lives as long as the exchange that ran request hooks, not only until its body is consumed: the
+  transport hands it to the exchange so the response can read the knob when it starts.
+
+`HttpMinDataRate` is a core value object for this reason: the context, the transport's listener
+limits and the typed feature in
+[`Http.RequestLimits`](../assimalign-cohesion-http-requestlimits/index.md) all name it, and core can
+name nothing in `Http.Connections`. Moving it from there was a source and binary break (the
+transport's design,
+[per-request data rates](../assimalign-cohesion-http-connections/design.md#per-request-data-rates-1383),
+records it).
+
+The context's v1 members are `required`, and every member added since is optional with a default, so
+existing construction sites, test fakes included, keep compiling. `Protocol`,
+`MinRequestBodyDataRate` and `MinResponseDataRate` are such members: a context built without them
+reads `null`.
 
 ## Feature lookup by contract
 
@@ -445,9 +679,10 @@ Connections library's `ITlsConnectionInfo`, which `Assimalign.Cohesion.Http.Tls`
 `IHttpExchangeControl`, which a feature package wraps (`context.Upgrade` over `TakeOver`,
 `context.ExtendedConnect` over `AcceptTunnelAsync`). A request fact a hook needs that the parsed head
 cannot show is a member of the request context (`Protocol`, the validated `:protocol` of an extended
-CONNECT). Either way the feature package owns the application-facing contract, and the transport
-references no feature package. The rule has no exceptions left: the last two transport-produced
-contracts moved out in #1367 (TLS) and #1368 (extended CONNECT).
+CONNECT; `CanHaveBody`, whether content may follow the head). Either way the feature package owns
+the application-facing contract, and the transport references no feature package. The rule has no
+exceptions left: the last two transport-produced contracts moved out in #1367 (TLS) and #1368
+(extended CONNECT).
 
 ## Dependency boundary
 
@@ -493,3 +728,13 @@ distinguishes project references, package references, shared source, and analyze
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Extensions/HttpFeatureCollectionExtensions.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Exceptions/HttpErrorCode.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpPath.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpIfRange.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpStatusCode.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.

@@ -19,6 +19,14 @@ SDKs opt into generated `ResourceRuntime` calls; assembly presence alone does no
 supervision. Invocation context owns environment snapshots, mounts, control planes, and health
 aggregation.
 
+The control plane's health report never carries a contributor's exception (#1409). A
+contributor that throws becomes an `Unhealthy` contribution described by the fixed text
+`The contributor threw an exception.`, and an `Exception` value a contributor places in
+`HealthContribution.Data` is replaced by `The contributor reported an exception.`. Area hosts
+publish the report on the unauthenticated `/healthz`, `/readyz` and `/livez` probes, and an
+exception message routinely names hosts, databases, users and ports. A contributor that wants its
+failure diagnosed records it itself. See the [design](design.md#health-reports-withhold-exceptions).
+
 ## Dependencies
 
 | Reference | Build item |
@@ -38,7 +46,7 @@ aggregation.
 | `ResourceCommand` | `src/ResourceCommand.cs` |
 | `ResourceContext` | `src/ResourceContext.cs` |
 | `ResourceControlPlane` | `src/ResourceControlPlane.cs` |
-| `ResourceEntryExitException` | `src/ResourceEntryExitException.cs` |
+| `ResourceEntryExitException` | `src/Exceptions/ResourceEntryExitException.cs` |
 | `ResourceMount` | `src/ResourceMount.cs` |
 | `ResourceRuntime` | `src/ResourceRuntime.cs` |
 | `ResourceCommandRejectedException` | `src/Exceptions/ResourceCommandRejectedException.cs` |
@@ -67,7 +75,7 @@ aggregation.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceControlPlane.cs`.
 
-- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceEntryExitException.cs`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/Exceptions/ResourceEntryExitException.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceMount.cs`.
 

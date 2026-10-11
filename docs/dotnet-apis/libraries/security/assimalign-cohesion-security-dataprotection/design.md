@@ -13,9 +13,10 @@ from protection, allowing nodes to share a configured key directory.
 The library ships no DI, logging, configuration, or hosted-service integration: a consumer wires it
 at builder time and adapts the resulting `IDataProtector` to its own seam. For antiforgery that
 seam is `IHttpAntiforgeryProtector`. `Http.Antiforgery` takes no dependency on this library; the
-adapter ships in `Web.Antiforgery`, whose `AddAntiforgery(dataProtectionProvider)` derives a
-protector for the purpose chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and maps
-`DataProtectionException` to an invalid token.
+adapter ships in `Web.Antiforgery`, whose
+`AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)` derives a protector for the purpose
+chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and maps `DataProtectionException` to an
+invalid token.
 
 ## Reloads and the unknown-key throttle
 

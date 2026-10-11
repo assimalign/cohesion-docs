@@ -11,8 +11,9 @@ a request token. Antiforgery composes protocol, cookie, form, and forwarded-iden
 without adding these concerns to the HTTP root. Validation is an explicit server-side operation.
 Pipeline enforcement is the Web layer's: `Assimalign.Cohesion.Web.Antiforgery` validates the unsafe
 requests of endpoints that declare a requirement, reads the form for the form-token flow, and ships
-the adapter from a `Security.DataProtection` protector to `IHttpAntiforgeryProtector`. This package
-takes no data-protection dependency.
+the adapter from a `Security.DataProtection` protector to `IHttpAntiforgeryProtector`:
+`AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)` derives a protector for its own
+purpose chain and adapts it. This package takes no data-protection dependency.
 
 The cookie token is `Secure` whenever the request's effective scheme is HTTPS, so the
 forwarded-headers middleware has to run before a handler stores the token behind a TLS-terminating
@@ -21,6 +22,14 @@ proxy; `CookieSecure` forces the flag on plaintext requests too. Until 2026-10-0
 for every cookie, which `Web.CookiePolicy` owns as `CookiePolicyOptions.Secure`. The cookie token is
 also essential by default (`CookieIsEssential`), because without it no unsafe request from a user
 who has not answered a consent prompt could pass validation.
+
+The cookie token's `Path` is `HttpAntiforgeryOptions.CookiePath`. `HttpCookieOptions.Path` refuses a
+value outside the RFC 6265 `path-value` grammar (#1153), and the token's cookie options are built
+each time a token is stored, so the service checks `CookiePath` when `HttpAntiforgery.Create` builds
+it and throws `ArgumentException` there. A path such as `/tenant;x` or `/café` fails the application
+at composition (`AddAntiforgery` in `Web.Antiforgery` creates the service when it registers) instead
+of answering every token issue with a 500. The message does not echo the value, which may hold the
+control character that made it invalid.
 
 ## Dependency boundary
 

@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Http.Connections`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Http Min Data Rate behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise Min Data Rate Wait behavior using the original repository tests.
 
 ## Sources
 

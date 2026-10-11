@@ -25,9 +25,9 @@ that fails during that reload surfaces from `Unprotect` as `DataProtectionExcept
 [design](design.md#reloads-and-the-unknown-key-throttle).
 
 Consumers adapt `IDataProtector` to their own seams at builder time. `Web.Antiforgery`'s
-`AddAntiforgery(dataProtectionProvider)` derives a protector for the purpose chain
-`("Assimalign.Cohesion.Web.Antiforgery", "v1")` and adapts it to `IHttpAntiforgeryProtector`;
-`Http.Antiforgery` itself takes no dependency on this library.
+`AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)` derives a protector for the
+purpose chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and adapts it to
+`IHttpAntiforgeryProtector`; `Http.Antiforgery` itself takes no dependency on this library.
 
 ## Dependencies
 
