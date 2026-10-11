@@ -14,12 +14,14 @@ the source project’s test context, with its test dependencies and supporting t
 - **Case 1** — Options: defaults name the application and target OpenAPI 3.1.
 - **Case 2** — Options: invalid values and duplicate declarations are rejected.
 - **Case 3** — AddOpenApi: the options are read-only once the callback returns.
-- **Case 4** — Options: document transformers edit every built document.
-- **Case 5** — Options: an extra endpoint source is composed after the routes.
-- **Case 6** — Security: AllowAnonymous on a route clears its group's requirement.
-- **Case 7** — Security: a policy's schemes are listed as alternatives when declared.
-- **Case 8** — GetDocument: a result type without a JSON contract names the endpoint and the fix.
-- **Case 9** — GetOpenApiDescriptionProvider: reading the document without AddOpenApi fails.
+- **Case 4** — AddOpenApi: called bare, one IHttpFeature singleton is registered.
+- **Case 5** — OpenApiBuilder: Build makes the options read-only.
+- **Case 6** — Options: document transformers edit every built document.
+- **Case 7** — Options: an extra endpoint source is composed after the routes.
+- **Case 8** — Security: AllowAnonymous on a route clears its group's requirement.
+- **Case 9** — Security: a policy's schemes are listed as alternatives when declared.
+- **Case 10** — GetDocument: a result type without a JSON contract names the endpoint and the fix.
+- **Case 11** — GetOpenApiDescriptionProvider: reading the document without AddOpenApi fails.
 
 ## Source example
 
@@ -31,6 +33,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
+using Assimalign.Cohesion.DependencyInjection;
+using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.OpenApi;
 using Assimalign.Cohesion.OpenApi.Attributes;
 using Assimalign.Cohesion.OpenApi.Integration;
@@ -104,6 +108,39 @@ public class OpenApiOptionsTests
         Should.Throw<InvalidOperationException>(() => captured.Title = "Changed");
         Should.Throw<InvalidOperationException>(() => captured.Description = "Changed");
         Should.Throw<InvalidOperationException>(() => captured.AddTag(new OpenApiTagMetadata { Name = "late" }));
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.OpenApi] - AddOpenApi: called bare, one IHttpFeature singleton is registered")]
+    public void AddOpenApi_CalledBare_ShouldRegisterOneFeatureSingleton()
+    {
+        // Arrange
+        ServiceProviderBuilder services = new();
+
+        // Act — the builder template's callback is optional (owner decision 39).
+        IServiceProviderBuilder returned = services.AddOpenApi();
+
+        // Assert
+        returned.ShouldBeSameAs(services);
+        ServiceDescriptor descriptor = services.Container.ShouldHaveSingleItem();
+        descriptor.ServiceType.ShouldBe(typeof(IHttpFeature));
+        descriptor.Lifetime.ShouldBe(ServiceLifetime.Singleton);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.OpenApi] - OpenApiBuilder: Build makes the options read-only")]
+    public void OpenApiBuilderBuild_OptionsMutatedAfterward_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        OpenApiBuilder openApi = new();
+        openApi.Options.Title = "Orders API";
+
+        // Act
+        IHttpFeature feature = openApi.Build();
+        Action retitle = () => openApi.Options.Title = "Changed";
+
+        // Assert
+        feature.ShouldNotBeNull();
+        retitle.ShouldThrow<InvalidOperationException>();
+        openApi.Options.Title.ShouldBe("Orders API");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.OpenApi] - Options: document transformers edit every built document")]

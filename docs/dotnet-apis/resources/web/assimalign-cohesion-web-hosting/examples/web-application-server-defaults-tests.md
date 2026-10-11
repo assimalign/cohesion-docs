@@ -16,12 +16,12 @@ test objects.
 - **Case 2** — Server defaults: Concurrent lifecycle options are rejected.
 - **Case 3** — Server defaults: Root AddServer should not replace or double-start a configured default server.
 - **Case 4** — Server defaults: A custom-only server should not start the empty default server.
-- **Case 5** — Server defaults: Should install the max-request-body-size interceptor first.
+- **Case 5** — Server defaults: Should install the request-limits interceptor first.
 - **Case 6** — Server defaults: Should install the HTTP/1.1 protocol-upgrade interceptor after request limits.
 - **Case 7** — Server defaults: Should install the extended CONNECT interceptor after the protocol-upgrade interceptor.
-- **Case 8** — Server defaults: Should install the client-fault interceptor last, publishing the control's report on an HTTP/1.1 request with a body.
-- **Case 9** — Server defaults: The client-fault interceptor should leave a request that cannot fault on the fast path.
-- **Case 10** — Server defaults: The client-fault interceptor should take the response phase for an HTTP/1.1 request that declares a body.
+- **Case 8** — Server defaults: Should install the client-fault interceptor last, publishing the control's report on a request that can have a body.
+- **Case 9** — Server defaults: The client-fault interceptor should leave a request that cannot have a body on the fast path.
+- **Case 10** — Server defaults: The client-fault interceptor should take the response phase for a request that can have a body on every version.
 
 ## Source example
 
@@ -142,7 +142,7 @@ public class WebApplicationServerDefaultsTests
         customServer.StopCount.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: Should install the max-request-body-size interceptor first")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: Should install the request-limits interceptor first")]
     public void ApplyDefaultInterceptors_ShouldInstallRequestLimitsFirst()
     {
         // The web host composes the listener options with the default interceptors ahead of any
@@ -156,6 +156,7 @@ public class WebApplicationServerDefaultsTests
 
         // Prove slot 0 is the RequestLimits interceptor by behavior: its head hook attaches the
         // typed feature as a write-through view over the context knob.
+        HttpMinDataRate rate = new(240, TimeSpan.FromSeconds(5));
         HttpExchangeInterceptorRequestContext context = new()
         {
             Version = HttpVersion.Http11,
@@ -167,6 +168,7 @@ public class WebApplicationServerDefaultsTests
             Features = new HttpFeatureCollection(),
             ConnectionInfo = HttpConnectionInfo.Empty,
             MaxRequestBodySize = 2048,
+            MinRequestBodyDataRate = rate,
         };
 
         options.Interceptors[0].AfterRequestHead(context);
@@ -174,6 +176,13 @@ public class WebApplicationServerDefaultsTests
         IHttpMaxRequestBodySizeFeature? feature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
         feature.ShouldNotBeNull();
         feature!.MaxRequestBodySize.ShouldBe(2048);
+
+        // The same interceptor surfaces the per-request data rates (#1383, #1384), on the same feature object,
+        // so the host's feature count does not grow.
+        IHttpMinRequestBodyDataRateFeature? rateFeature = context.Features.Get<IHttpMinRequestBodyDataRateFeature>();
+        rateFeature.ShouldBeSameAs(feature);
+        rateFeature!.MinDataRate.ShouldBeSameAs(rate);
+        context.Features.Get<IHttpMinResponseDataRateFeature>().ShouldBeSameAs(feature);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: Should install the HTTP/1.1 protocol-upgrade interceptor after request limits")]
@@ -264,7 +273,7 @@ public class WebApplicationServerDefaultsTests
         control.AcceptCount.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: Should install the client-fault interceptor last, publishing the control's report on an HTTP/1.1 request with a body")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: Should install the client-fault interceptor last, publishing the control's report on a request that can have a body")]
     public void ApplyDefaultInterceptors_ShouldInstallClientFaultFourth()
     {
         // Arrange — #1340: the transport reports a client fault on the exchange control, which exists only
@@ -298,37 +307,16 @@ public class WebApplicationServerDefaultsTests
         feature.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: The client-fault interceptor should leave a request that cannot fault on the fast path")]
-    [InlineData("1.1", null, null)]
-    [InlineData("1.1", "0", null)]
-    [InlineData("1.1", "0, 0", null)]
-    [InlineData("2", "5", null)]
-    [InlineData("3", "5", null)]
-    public void ClientFaultInterceptor_OnRequestThatCannotFault_ShouldNotTakeTheResponsePhase(string version, string? contentLength, string? transferEncoding)
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: The client-fault interceptor should leave a request that cannot have a body on the fast path")]
+    [InlineData("1.1")]
+    [InlineData("2")]
+    [InlineData("3")]
+    public void ClientFaultInterceptor_OnRequestThatCannotHaveABody_ShouldNotTakeTheResponsePhase(string version)
     {
-        // Arrange — HTTP/2 and HTTP/3 controls report no client fault yet, so a feature there would only
-        // cost the response phase.
+        // Arrange — the transport found that nothing follows the head: no body can fault while it is read.
         HttpConnectionListenerOptions options = new();
         WebApplicationServerBuilder.ApplyDefaultInterceptors(options);
-
-        HttpHeaderCollection requestHeaders = new();
-        if (contentLength is not null)
-        {
-            requestHeaders[HttpHeaderKey.ContentLength] = contentLength;
-        }
-
-        if (transferEncoding is not null)
-        {
-            requestHeaders[HttpHeaderKey.TransferEncoding] = transferEncoding;
-        }
-
-        HttpVersion httpVersion = version switch
-        {
-            "2" => HttpVersion.Http20,
-            "3" => HttpVersion.Http30,
-            _ => HttpVersion.Http11,
-        };
-        HttpExchangeInterceptorRequestContext request = CreateRequestContext(httpVersion, requestHeaders, new HttpFeatureCollection());
+        HttpExchangeInterceptorRequestContext request = CreateRequestContext(ToVersion(version), new HttpHeaderCollection(), new HttpFeatureCollection(), canHaveBody: false);
 
         // Act
         options.Interceptors[3].AfterRequestHead(request);
@@ -337,37 +325,37 @@ public class WebApplicationServerDefaultsTests
         request.ResponseInterceptors.ShouldBeEmpty();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: The client-fault interceptor should take the response phase for an HTTP/1.1 request that declares a body")]
-    [InlineData("5", null)]
-    [InlineData("0, 5", null)]
-    [InlineData(null, "chunked")]
-    public void ClientFaultInterceptor_OnHttp11RequestWithBody_ShouldTakeTheResponsePhase(string? contentLength, string? transferEncoding)
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Server defaults: The client-fault interceptor should take the response phase for a request that can have a body on every version")]
+    [InlineData("1.1")]
+    [InlineData("2")]
+    [InlineData("3")]
+    public void ClientFaultInterceptor_OnRequestThatCanHaveABody_ShouldTakeTheResponsePhase(string version)
     {
-        // Arrange
+        // Arrange — #1378: an HTTP/2 or HTTP/3 request need not declare its body, so the head carries no
+        // Content-Length or Transfer-Encoding here; the transport's signal alone decides.
         HttpConnectionListenerOptions options = new();
         WebApplicationServerBuilder.ApplyDefaultInterceptors(options);
-
-        HttpHeaderCollection requestHeaders = new();
-        if (contentLength is not null)
-        {
-            requestHeaders[HttpHeaderKey.ContentLength] = contentLength;
-        }
-
-        if (transferEncoding is not null)
-        {
-            requestHeaders[HttpHeaderKey.TransferEncoding] = transferEncoding;
-        }
-
-        HttpExchangeInterceptorRequestContext request = CreateRequestContext(HttpVersion.Http11, requestHeaders, new HttpFeatureCollection());
+        HttpExchangeInterceptorRequestContext request = CreateRequestContext(ToVersion(version), new HttpHeaderCollection(), new HttpFeatureCollection(), canHaveBody: true);
 
         // Act
         options.Interceptors[3].AfterRequestHead(request);
 
         // Assert
-        request.ResponseInterceptors.ShouldHaveSingleItem();
+        request.ResponseInterceptors.ShouldHaveSingleItem().ShouldBeSameAs(options.Interceptors[3]);
     }
 
-    private static HttpExchangeInterceptorRequestContext CreateRequestContext(HttpVersion version, HttpHeaderCollection headers, HttpFeatureCollection features)
+    private static HttpVersion ToVersion(string version) => version switch
+    {
+        "2" => HttpVersion.Http20,
+        "3" => HttpVersion.Http30,
+        _ => HttpVersion.Http11,
+    };
+
+    private static HttpExchangeInterceptorRequestContext CreateRequestContext(
+        HttpVersion version,
+        HttpHeaderCollection headers,
+        HttpFeatureCollection features,
+        bool canHaveBody = true)
     {
         return new HttpExchangeInterceptorRequestContext
         {
@@ -376,6 +364,7 @@ public class WebApplicationServerDefaultsTests
             Path = new HttpPath("/upload"),
             Scheme = HttpScheme.Http,
             Host = new HttpHost("api.test"),
+            CanHaveBody = canHaveBody,
             Headers = headers.AsReadOnly(),
             Features = features,
             ConnectionInfo = HttpConnectionInfo.Empty,

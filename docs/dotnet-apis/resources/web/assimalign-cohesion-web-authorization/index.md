@@ -20,10 +20,11 @@ with a challenge or a forbid through `Web.Authentication`. It evaluates over the
   requirements a request must all satisfy (an authenticated user, roles, claims with allowed values,
   sync or async delegate assertions, or a custom `IAuthorizationRequirement`), plus the
   authentication schemes that establish the principal they evaluate.
-- **Options** (`AuthorizationOptions`, registered with `builder.Services.AddAuthorization(...)`, a
-  component integration the application's compilation receives): the default policy (an
-  authenticated user), an optional fallback policy for requests without authorization metadata, and
-  named policies. They become read-only once registered.
+- **Options** (`AuthorizationOptions`, configured as `AuthorizationBuilder.Options` in
+  `builder.Services.AddAuthorization(authorization => ...)`, a component integration the
+  application's compilation receives; called bare, `AddAuthorization()` registers the defaults): the
+  default policy (an authenticated user), an optional fallback policy for requests without
+  authorization metadata, and named policies. They become read-only once registered.
 - **Endpoint metadata** (`AuthorizationMetadata`, attached with `RequireAuthorization(...)` and
   `AllowAnonymous()` on routes and groups). Every authorization item on an endpoint applies, except
   those declared before the most specific `AllowAnonymous`, which clears them. A requirement

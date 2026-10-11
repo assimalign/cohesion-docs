@@ -13,6 +13,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Cookie Policy Forwarded Tests](cookie-policy-forwarded-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
 - **[Cookie Policy Interception Tests](cookie-policy-interception-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
 - **[Cookie Policy Options Tests](cookie-policy-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
+- **[Cookie Policy Protocol Upgrade Tests](cookie-policy-protocol-upgrade-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
 - **[Cookie Policy Rfc6265bis Compliance Tests](cookie-policy-rfc6265bis-compliance-tests.md)** — This example exercises `Assimalign.Cohesion.Web.CookiePolicy` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)

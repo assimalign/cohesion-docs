@@ -189,27 +189,36 @@ out. Otherwise their requests fail at dispatch, by design.
 
 ## Registration and protector selection
 
-`builder.Services.AddAntiforgery(...)` is a component integration (owner decision 34, #1380): the
-package declares `[assembly: ComponentIntegration]` over `AntiforgeryComponents.CreateFeature` in
-`src/Properties/ComponentIntegrations.cs`, and the generator projects both overloads onto
-`IServiceProviderBuilder` in the application's compilation, so the package takes no
-dependency-injection reference. `AntiforgeryComponents` is the static-factory shape because the verb
-is called bare or with an optional callback, and one overload takes the data-protection provider; it
-is `[EditorBrowsable(Never)]` and declares the package's root namespace, so the projected verb sits
-beside `UseAntiforgery`.
+`builder.Services.AddAntiforgery(antiforgery => ...)` is a component integration (owner decision 34,
+#1380): the package declares `[assembly: ComponentIntegration]` over the public
+`AntiforgeryBuilder.Build` instance method in `src/Properties/ComponentIntegrations.cs`, and the
+generator projects `AddAntiforgery` onto `IServiceProviderBuilder` in the application's compilation,
+so the package takes no dependency-injection reference. Naming an instance method selects the
+builder template, whose configure callback is optional (owner decision 39, 2026-10-10, #1395):
+`AddAntiforgery()` is the development default, and the data-protection provider is a builder method,
+`AddAntiforgery(antiforgery => antiforgery.UseDataProtection(dataProtectionProvider))`, because it
+is optional and the template's only argument is the callback. Until #1395 the verb was two
+static-factory overloads, `AddAntiforgery(configure)` and
+`AddAntiforgery(dataProtectionProvider, configure)`, behind a hidden `AntiforgeryComponents` type.
 
-The factory builds `HttpAntiforgeryOptions`, runs the caller's `configure`, selects the protector,
-creates the service with `HttpAntiforgery.Create(options)`, and the verb registers it as an
-`IHttpFeature` singleton (an `IHttpAntiforgeryFeature`), the only lifetime `Web.Hosting` accepts
-(decision 35). A composition surface without a container registers the factory's result through
-`IWebApplicationBuilder.AddFeature`. The host seeds application features onto every exchange, so the
-render path mints with `context.RequireAntiforgery.GetAndStoreTokens(context)` on any route,
-protected or not, and with or without `UseAntiforgery`.
+`AntiforgeryBuilder` owns the `HttpAntiforgeryOptions` and exposes them as `Options`, as
+`AuthenticationBuilder` does. `Build` selects the protector, creates the service with
+`HttpAntiforgery.Create(options)`, and the verb registers it as an `IHttpFeature` singleton (an
+`IHttpAntiforgeryFeature`), the only lifetime `Web.Hosting` accepts (decision 35). The service reads
+its options on every request, so `Build` hands it a snapshot, as `ValidationBuilder` does: a copy of
+`Options`, the key bytes included, carrying the selected protector. `Build` never writes to
+`Options`, so a change made afterward, or a later `UseDataProtection` call, reaches only a later
+`Build`, never a registered service. Every `HttpAntiforgeryOptions` member is copied by hand, so a
+new option needs a line in the snapshot. A composition surface without a container registers
+`Build`'s result through `IWebApplicationBuilder.AddFeature`. The host seeds application features
+onto every exchange, so the render path mints with
+`context.RequireAntiforgery.GetAndStoreTokens(context)` on any route, protected or not, and with or
+without `UseAntiforgery`.
 
 The protector is chosen in this order:
 
-1. **An explicit `options.Protector`** set in `configure` wins.
-2. **A data-protection provider** passed to `AddAntiforgery(dataProtectionProvider)` supplies the
+1. **An explicit `Options.Protector`** set in the callback wins.
+2. **A data-protection provider** passed to `UseDataProtection(dataProtectionProvider)` supplies the
    production default: an `IDataProtector` derived for the purpose chain
    `("Assimalign.Cohesion.Web.Antiforgery", "v1")` (under the provider's application discriminator),
    adapted to the engine's seam. The key ring persists and rotates its keys and names the producing
@@ -220,7 +229,7 @@ The protector is chosen in this order:
    version segment.
 3. **Otherwise** the engine's HMAC-SHA256 protector over a per-process random key. This is for
    development only: a restart invalidates every token, and instances behind a load balancer reject
-   each other's tokens. It is documented that way on `AntiforgeryComponents.CreateFeature()` (the
+   each other's tokens. It is documented that way on `AntiforgeryBuilder` (the bare
    `AddAntiforgery()` verb), `HttpAntiforgeryOptions.Key`, and `IHttpAntiforgeryProtector`.
 
 The adapter maps `DataProtectionException` — every verification and key-lifecycle failure — to
@@ -265,6 +274,12 @@ provider the package keeps the engine's in-memory key and says plainly that it i
 - **`UseAntiforgery` without `AddAntiforgery` fails the start.** The middleware resolves the
   registration from the application context when the pipeline is built, so a missing registration is
   an `InvalidOperationException` at startup, not a 500 on the first protected post.
+- **A malformed cookie path fails the registration.** `AddAntiforgery` runs
+  `AntiforgeryBuilder.Build`, which creates the service over its options snapshot, before it
+  registers, and `Http.Antiforgery` checks `HttpAntiforgeryOptions.CookiePath` against the RFC 6265
+  `path-value` grammar when the service is created (#1153). A path such as `/tenant;x` set through
+  `antiforgery.Options.CookiePath` is an `ArgumentException` from `AddAntiforgery`, and nothing is
+  registered, instead of a 500 on every token issue.
 
 ## Ordering
 
@@ -330,17 +345,17 @@ its failure, last-wins metadata in both directions, the preflight skip, the prob
 committed-head abort, validation with the exchange's service, a custom header, and a missing
 registration failing the build. `tests/AntiforgeryRegistrationTests.cs` covers protector selection:
 restart survival with a provider, restart invalidation without one, the pinned purpose chain,
-rejection of another purpose's payloads and of tampered tokens, the explicit protector winning, and
-last-registration-wins. `tests/AntiforgeryEndToEndTests.cs` and
-`tests/AntiforgeryRouteConventionTests.cs` run over the in-memory `WebApplicationTestFactory` with
-the real router: the cookie-and-header and form-token flows, a token replayed without its cookie,
-safe methods, a real CORS preflight, fail-closed dispatch with the middleware missing or misordered,
-startup failure without a registration, a multipart upload kept intact by a header token, a replaced
-exchange service, and the verbs on routes and groups with and without the middleware.
-`tests/AntiforgeryTypedEndpointTests.cs` compiles typed endpoints through the real generator and
-proves the attached requirement: rejection without a token, binding from the parsed form, a header
-token, a route opt-out, fail-closed dispatch, a group opt-out that does not reach the endpoint, and
-no requirement on endpoints that bind no form.
+rejection of another purpose's payloads and of tampered tokens, the explicit protector winning,
+last-registration-wins, and a malformed cookie path failing the registration.
+`tests/AntiforgeryEndToEndTests.cs` and `tests/AntiforgeryRouteConventionTests.cs` run over the
+in-memory `WebApplicationTestFactory` with the real router: the cookie-and-header and form-token
+flows, a token replayed without its cookie, safe methods, a real CORS preflight, fail-closed
+dispatch with the middleware missing or misordered, startup failure without a registration, a
+multipart upload kept intact by a header token, a replaced exchange service, and the verbs on routes
+and groups with and without the middleware. `tests/AntiforgeryTypedEndpointTests.cs` compiles typed
+endpoints through the real generator and proves the attached requirement: rejection without a token,
+binding from the parsed form, a header token, a route opt-out, fail-closed dispatch, a group opt-out
+that does not reach the endpoint, and no requirement on endpoints that bind no form.
 
 ## Declared dependencies
 

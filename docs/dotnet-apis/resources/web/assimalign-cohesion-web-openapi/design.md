@@ -122,7 +122,7 @@ OpenAPI path.
 | Parameter schemas | Declared CLR type | A fixed table, not JSON contracts, because the thunk parses these with `IParsable<T>` under the invariant culture: integers and floats with their registry format, `bool`, `string`, `Guid` (`uuid`), dates and times (`date-time`, `date`, `time`), `Uri`, `char`; an enum as a string enum of its names (`Enum.TryParse` accepts them); any other `IParsable<T>` as a string |
 | Request body | `EndpointParameterMetadata` (`Body`) | Required; media type of the first registered reader that can read the type (registration order is server preference); schema from the JSON contract |
 | Form body | `EndpointParameterMetadata` (`Form`, `FormFile`) | An object with one property per field and file, `required` listing the required ones; `multipart/form-data` when the endpoint uploads a file, otherwise `application/x-www-form-urlencoded`. A field's schema comes from the parameter-schema table; a file is `type: string, format: binary`, and a file sequence or an `IHttpFormFileCollection` an array of them (see "Uploaded files") |
-| Responses | `EndpointResponseMetadata` | One per status, the last item for a status winning (group, generated, then the endpoint's own); description the RFC 9110 reason phrase; no type means no content; a fixed media type as given (`text/plain` strings get `type: string`); a negotiated value under the media type of the first registered writer that can write it |
+| Responses | `EndpointResponseMetadata` | One per status, the last item for a status winning (group, generated, then the endpoint's own); description the RFC 9110 reason phrase (`HttpStatusCode.ReasonPhrase`, the core table since #1204, which replaced a private copy here); no type means no content; a fixed media type as given (`text/plain` strings get `type: string`); a negotiated value under the media type of the first registered writer that can write it |
 | Binding outcomes | The thunk's failure semantics | Added unless the endpoint describes the status: `400` problem+json when the endpoint binds any input, `413` problem+json when it reads a form field or file (a form over an Http.Forms limit), `415` problem+json when it reads a body, a bodyless `406` when it writes a negotiated value; a `200` when nothing else is described |
 | Schemas | JSON contracts | See "Schemas from System.Text.Json contracts" |
 | Security | The effective authorization policy: `AuthorizationMetadata` against the registered `AuthorizationOptions` | See "Security requirements" |
@@ -292,18 +292,20 @@ consumer.
 
 ## The document endpoint
 
-`builder.Services.AddOpenApi(options => ...)` captures the options as a typed application feature, an
-`IHttpFeature` singleton; they are read-only once the callback returns, and a second call replaces the
-first registration. The verb is a component integration (owner decisions 34 and 35, 2026-10-09,
-#1380): the package declares `[assembly: ComponentIntegration]` over
-`OpenApiComponents.CreateFeature` (`src/Properties/ComponentIntegrations.cs`), and the generator
-projects `AddOpenApi` onto `IServiceProviderBuilder` in the application's compilation, so the package
-takes no dependency-injection reference; until #1380 it was an `extension(IWebApplicationBuilder)`
-member. `OpenApiComponents` is the static-factory shape, `[EditorBrowsable(Never)]` in the package's
-root namespace, because the callback is optional. `MapOpenApi(pattern = "/openapi/v1.json")` maps a
-`GET` route through Web.Api's raw `Map` and returns its `IRouterRouteBuilder`, so the document route
-can carry policies (`RequireAuthorization`, `RequireCors`). The route is itself marked
-`ExcludeFromDescription`.
+`builder.Services.AddOpenApi(openApi => ...)` captures the options as a typed application feature,
+an `IHttpFeature` singleton; they are read-only once `OpenApiBuilder.Build` runs, after the callback
+returns. The verb is a component integration (owner decisions 34 and 35, 2026-10-09, #1380): the
+package declares `[assembly: ComponentIntegration]` over the public `OpenApiBuilder.Build` instance
+method (`src/Properties/ComponentIntegrations.cs`), and the generator projects `AddOpenApi` onto
+`IServiceProviderBuilder` in the application's compilation, so the package takes no
+dependency-injection reference; until #1380 it was an `extension(IWebApplicationBuilder)` member.
+Naming an instance method selects the builder template, whose callback is optional (owner decision
+39, 2026-10-10, #1395), so `AddOpenApi()` registers the default document; the callback configures
+`OpenApiBuilder.Options`, which the builder owns and exposes, as `AuthenticationBuilder` does. Until
+#1395 the verb was a static factory behind a hidden type taking `Action<OpenApiOptions>`.
+`MapOpenApi(pattern = "/openapi/v1.json")` maps a `GET` route through Web.Api's raw `Map` and
+returns its `IRouterRouteBuilder`, so the document route can carry policies (`RequireAuthorization`,
+`RequireCors`). The route is itself marked `ExcludeFromDescription`.
 
 - **Format.** A pattern ending in `.yaml` or `.yml` serves YAML as `application/yaml` (RFC 9512), any
   other JSON as `application/json; charset=utf-8`. YAML is offered because `OpenApi.Serialization`

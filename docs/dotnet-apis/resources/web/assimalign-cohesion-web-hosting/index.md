@@ -36,17 +36,23 @@ a listener that cannot bind, a connection fault, a drain the budget cut short â€
 provider and every factory-created service.
 
 Every listener the default server composes gets four interceptors before any of the application's
-own: the request-size limit, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3 extended CONNECT,
-and the client fault. The first three make `context.Upgrade`, `context.ExtendedConnect` and a
-WebSocket handshake (`context.WebSockets`) work on every protocol without listener configuration. A
-request no handler accepts is served as before. The last publishes `IWebClientFaultFeature` on an
-HTTP/1.1 request with a body: when the body breaks its framing or a limit while it is read, the
-transport answers `400`, `413`, `408` or `431` itself, and the HTTP logging middleware and the
-exception boundary treat the read's exception as the client's fault, not an application defect
-(#1340). A `UseServer` callback that clears `options.Interceptors` removes them, and with them
-WebSockets on every protocol (the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT,
-but nothing surfaces it) and the client-fault classification. See
-[Design](design.md#default-interceptors).
+own: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3 extended CONNECT, and
+the client fault. The first surfaces the body-size cap and the minimum request-body and response
+data rates per request (`context.MaxRequestBodySize`, `context.MinRequestBodyDataRate`,
+`context.MinResponseDataRate`), so an endpoint whose body legitimately idles can disable the request
+rate before it reads (#1383), and one whose reader pauses can disable the slow-read check before its
+response starts (#1384). A client that grants no flow-control credit or stops reading is otherwise
+reclaimed on every protocol, and its exchange is recorded as cancelled. The next two make
+`context.Upgrade`, `context.ExtendedConnect` and a WebSocket handshake (`context.WebSockets`) work
+on every protocol without listener configuration. A request no handler accepts is served as before.
+The last publishes `IWebClientFaultFeature` on a request that can have a body, on every version:
+when the body breaks its framing or a limit while it is read, the transport answers `400`, `413`,
+`408` or `431` itself (on HTTP/2 and HTTP/3 it resets the stream for a malformed body instead,
+reported as `400`), and the HTTP logging middleware and the exception boundary treat the read's
+exception as the client's fault, not an application defect (#1340, #1378). A `UseServer` callback
+that clears `options.Interceptors` removes them, and with them WebSockets on every protocol (the
+HTTP/2 and HTTP/3 transports keep advertising extended CONNECT, but nothing surfaces it) and the
+client-fault classification. See [Design](design.md#default-interceptors).
 
 A handler that throws before its response starts is answered with a bare `500`. So is a response
 the transport refuses to send because a header or trailer name is not a token or a value holds CR,
@@ -64,6 +70,13 @@ The default server traces and measures every request (#1064). Subscribe by name:
   `http.server.request.duration` (seconds) and `http.server.active_requests`.
 - **Request id** â€” `context.Features.Get<IWebRequestIdFeature>()?.RequestId` is the request's
   trace id, with or without a listener.
+
+A request's span carries its query as `url.query` with every value redacted
+(`access_token=REDACTED&page=REDACTED`). Declare the parameters whose values are safe to show:
+
+```csharp
+builder.Server.AllowQueryValuesInTelemetry("page", "sort");
+```
 
 With no listener the server creates no activity and records nothing. Exporting these signals is not
 this module's job; see [Design](design.md#server-telemetry-1064), "Server telemetry", for the

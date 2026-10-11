@@ -28,37 +28,41 @@ test objects.
 - **Case 14** — SendFileAsync: a multi-range request should fall back to the full 200.
 - **Case 15** — SendFileAsync: a current If-Range entity-tag should honor the range.
 - **Case 16** — SendFileAsync: a current If-Range date should honor the range.
-- **Case 17** — SendFileAsync: a stale If-Range should ignore the range and send the full 200.
-- **Case 18** — SendFileAsync: HEAD should emit the GET header section without content.
-- **Case 19** — SendFileAsync: header fields set before the call should be kept, also on a 304.
-- **Case 20** — SendFileAsync: a content type that is not a concrete media type should be rejected.
-- **Case 21** — SendFileAsync: null arguments should be rejected.
-- **Case 22** — SendFileAsync: a cancelled token should stop the content copy.
-- **Case 23** — SendFileAsync: without a token the copy should observe the exchange's cancellation.
-- **Case 24** — SendFileAsync: a mount-relative path should resolve and send the file.
-- **Case 25** — SendFileAsync: an unsafe path should respond 404 without reaching the mount.
-- **Case 26** — SendFileAsync: a path spelled as an 8.3 short-name alias should respond 404.
-- **Case 27** — SendFileAsync: a path naming a directory or nothing should respond 404.
-- **Case 28** — WriteStreamAsync: a seekable stream should be sent with its length and range support.
-- **Case 29** — WriteStreamAsync: a stream should be sent as application/octet-stream by default.
-- **Case 30** — WriteStreamAsync: validators should be the caller's and never derived from the content.
-- **Case 31** — WriteStreamAsync: a matching If-None-Match should respond 304 without reading the stream.
-- **Case 32** — WriteStreamAsync: If-Modified-Since against the supplied time should respond 304.
-- **Case 33** — WriteStreamAsync: a stale If-Match should respond 412.
-- **Case 34** — WriteStreamAsync: preconditions without validators should only match the * forms.
-- **Case 35** — WriteStreamAsync: a weak entity-tag should satisfy If-None-Match but never If-Match.
-- **Case 36** — WriteStreamAsync: a single range on a seekable stream should respond 206.
-- **Case 37** — WriteStreamAsync: the representation should start at the stream's current position.
-- **Case 38** — WriteStreamAsync: an unsatisfiable range should respond 416 with bytes */N.
-- **Case 39** — WriteStreamAsync: If-Range should honor the range only for the current strong entity-tag.
-- **Case 40** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
-- **Case 41** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
-- **Case 42** — WriteStreamAsync: the stream should be left open for its owner.
-- **Case 43** — WriteStreamAsync: invalid arguments should be rejected.
-- **Case 44** — WriteStreamAsync: a cancelled token should stop the content copy.
-- **Case 45** — SendFileAsync: revalidation and ranges should round-trip over the wire.
-- **Case 46** — SendFileAsync: HEAD over the wire should return the header section and no content.
-- **Case 47** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
+- **Case 17** — SendFileAsync: an If-Range date other than Last-Modified should send the full 200.
+- **Case 18** — SendFileAsync: a stale If-Range should ignore the range and send the full 200.
+- **Case 19** — SendFileAsync: HEAD should emit the GET header section without content.
+- **Case 20** — SendFileAsync: header fields set before the call should be kept, also on a 304.
+- **Case 21** — SendFileAsync: a content type that is not a concrete media type should be rejected.
+- **Case 22** — SendFileAsync: null arguments should be rejected.
+- **Case 23** — SendFileAsync: a cancelled token should stop the content copy.
+- **Case 24** — SendFileAsync: without a token the copy should observe the exchange's cancellation.
+- **Case 25** — SendFileAsync: a mount-relative path should resolve and send the file.
+- **Case 26** — SendFileAsync: an unsafe path should respond 404 without reaching the mount.
+- **Case 27** — SendFileAsync: a path spelled as an 8.3 short-name alias should respond 404.
+- **Case 28** — SendFileAsync: a path naming a directory or nothing should respond 404.
+- **Case 29** — WriteStreamAsync: a seekable stream should be sent with its length and range support.
+- **Case 30** — WriteStreamAsync: a stream should be sent as application/octet-stream by default.
+- **Case 31** — WriteStreamAsync: validators should be the caller's and never derived from the content.
+- **Case 32** — WriteStreamAsync: a matching If-None-Match should respond 304 without reading the stream.
+- **Case 33** — WriteStreamAsync: If-Modified-Since against the supplied time should respond 304.
+- **Case 34** — WriteStreamAsync: a stale If-Match should respond 412.
+- **Case 35** — WriteStreamAsync: preconditions without validators should only match the * forms.
+- **Case 36** — WriteStreamAsync: a weak entity-tag should satisfy If-None-Match but never If-Match.
+- **Case 37** — WriteStreamAsync: a single range on a seekable stream should respond 206.
+- **Case 38** — WriteStreamAsync: the representation should start at the stream's current position.
+- **Case 39** — WriteStreamAsync: an unsatisfiable range should respond 416 with bytes */N.
+- **Case 40** — WriteStreamAsync: If-Range should honor the range only for the current strong entity-tag.
+- **Case 41** — WriteStreamAsync: If-Range should honor the range only for a date equal to a strong Last-Modified.
+- **Case 42** — SendFileAsync: a file dated in the future should send the response time as Last-Modified.
+- **Case 43** — SendFileAsync: a 304 for a file dated in the future should send the response time as Last-Modified.
+- **Case 44** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
+- **Case 45** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
+- **Case 46** — WriteStreamAsync: the stream should be left open for its owner.
+- **Case 47** — WriteStreamAsync: invalid arguments should be rejected.
+- **Case 48** — WriteStreamAsync: a cancelled token should stop the content copy.
+- **Case 49** — SendFileAsync: revalidation and ranges should round-trip over the wire.
+- **Case 50** — SendFileAsync: HEAD over the wire should return the header section and no content.
+- **Case 51** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
 
 ## Source example
 
@@ -111,6 +115,10 @@ public class HttpResponseFileExtensionsTests
 
     private static string Header(TestHttpContext context, HttpHeaderKey key)
         => context.Response.Headers.TryGetValue(key, out HttpHeaderValue value) ? (string)value : string.Empty;
+
+    // An HTTP-date carries whole seconds, so a sent date is compared with the second it falls in.
+    private static DateTimeOffset WholeSecond(DateTimeOffset value)
+        => new(value.UtcTicks - (value.UtcTicks % TimeSpan.TicksPerSecond), TimeSpan.Zero);
 
     // ---------------------------------------------------------------- SendFileAsync(IFileSystemFile)
 
@@ -391,9 +399,9 @@ public class HttpResponseFileExtensionsTests
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a current If-Range date should honor the range")]
     public async Task SendFileAsync_IfRangeCurrentDate_ShouldHonorRange()
     {
-        // Arrange
-        using InMemoryFileSystem site = StaticSite.Create(("data.txt", "0123456789"));
-        IFileSystemFile file = GetFile(site, "data.txt");
+        // Arrange — modified well before the response, so HttpIfRange's one-second heuristic
+        // (modeled on RFC 9110 §8.8.2.2) counts Last-Modified as strong.
+        var file = new FixedTimestampFile("data.txt", "0123456789", new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
         TestHttpContext first = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(file));
         string lastModified = Header(first, HttpHeaderKey.LastModified);
 
@@ -410,6 +418,33 @@ public class HttpResponseFileExtensionsTests
         // Assert
         second.Response.StatusCode.ShouldBe(HttpStatusCode.PartialContent);
         second.ReadResponseBody().ShouldBe("01");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: an If-Range date other than Last-Modified should send the full 200")]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public async Task SendFileAsync_IfRangeDateOtherThanLastModified_ShouldServeFull200(int offsetSeconds)
+    {
+        // Arrange — RFC 9110 §13.1.5 applies the range only on an exact match. A later date used to
+        // pass (#1185), sending a 206 of a file that is not the one the client holds part of.
+        var updatedOn = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+        var file = new FixedTimestampFile("data.txt", "0123456789", updatedOn);
+        string ifRange = HttpDate.Format(new DateTimeOffset(updatedOn).AddSeconds(offsetSeconds));
+
+        // Act
+        TestHttpContext context = await RunAsync(
+            HttpMethod.Get,
+            response => response.SendFileAsync(file),
+            ctx =>
+            {
+                ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-1";
+                ctx.Request.Headers[HttpHeaderKey.IfRange] = ifRange;
+            });
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        context.ReadResponseBody().ShouldBe("0123456789");
+        context.Response.Headers.ContainsKey(HttpHeaderKey.ContentRange).ShouldBeFalse();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a stale If-Range should ignore the range and send the full 200")]
@@ -868,6 +903,105 @@ public class HttpResponseFileExtensionsTests
         weakContext.ReadResponseBody().ShouldBe("0123456789");
         unvalidatedContext.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
         unvalidatedContext.ReadResponseBody().ShouldBe("0123456789");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: If-Range should honor the range only for a date equal to a strong Last-Modified")]
+    public async Task WriteStreamAsync_IfRangeDate_ShouldHonorRangeOnlyForStrongLastModified()
+    {
+        // Arrange — a date names a representation only when it equals Last-Modified (RFC 9110
+        // §13.1.5), and only when Last-Modified is at least a second older than the response, the
+        // heuristic HttpIfRange models on §8.8.2.2's Date rule.
+        // One dated after the response (a clock running ahead) is weak, as is one in the current
+        // second; the past and the future are used here so the outcome cannot hinge on the clock.
+        DateTimeOffset settled = new(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset ahead = DateTimeOffset.UtcNow.AddHours(1);
+        using MemoryStream current = Content("0123456789");
+        using MemoryStream later = Content("0123456789");
+        using MemoryStream weak = Content("0123456789");
+        static Action<TestHttpContext> Prepare(DateTimeOffset ifRange) => ctx =>
+        {
+            ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-2";
+            ctx.Request.Headers[HttpHeaderKey.IfRange] = HttpDate.Format(ifRange);
+        };
+
+        // Act
+        TestHttpContext currentContext = await RunAsync(
+            HttpMethod.Get, response => response.WriteStreamAsync(current, "text/plain", lastModified: settled), Prepare(settled));
+        TestHttpContext laterContext = await RunAsync(
+            HttpMethod.Get, response => response.WriteStreamAsync(later, "text/plain", lastModified: settled), Prepare(settled.AddDays(1)));
+        TestHttpContext weakContext = await RunAsync(
+            HttpMethod.Get, response => response.WriteStreamAsync(weak, "text/plain", lastModified: ahead), Prepare(ahead));
+        DateTimeOffset answered = DateTimeOffset.UtcNow;
+
+        // Assert
+        currentContext.Response.StatusCode.ShouldBe(HttpStatusCode.PartialContent);
+        currentContext.ReadResponseBody().ShouldBe("012");
+        laterContext.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        laterContext.ReadResponseBody().ShouldBe("0123456789");
+        weakContext.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        weakContext.ReadResponseBody().ShouldBe("0123456789");
+        // RFC 9110 §8.8.2.1: the future time is replaced by the response's, never sent as given.
+        HttpDate.TryParse(Header(weakContext, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
+        sent.ShouldBeLessThanOrEqualTo(answered);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a file dated in the future should send the response time as Last-Modified")]
+    [InlineData(null, false, 200)]
+    [InlineData("bytes=0-1", true, 200)] // a date If-Range naming the future time does not apply the range
+    [InlineData("bytes=20-", false, 416)]
+    public async Task SendFileAsync_FutureLastModified_ShouldSendResponseTime(string? range, bool ifRangeFutureDate, int expectedStatus)
+    {
+        // Arrange — RFC 9110 §8.8.2.1: an origin server with a clock MUST NOT send a Last-Modified
+        // later than the response, and MUST send the response time instead.
+        DateTimeOffset requested = WholeSecond(DateTimeOffset.UtcNow);
+        DateTimeOffset future = requested.AddHours(1);
+        var file = new FixedTimestampFile("data.txt", "0123456789", future.UtcDateTime);
+
+        // Act
+        TestHttpContext context = await RunAsync(
+            HttpMethod.Get,
+            response => response.SendFileAsync(file),
+            ctx =>
+            {
+                if (range is not null)
+                {
+                    ctx.Request.Headers[HttpHeaderKey.Range] = range;
+                }
+                if (ifRangeFutureDate)
+                {
+                    ctx.Request.Headers[HttpHeaderKey.IfRange] = HttpDate.Format(future);
+                }
+            });
+        DateTimeOffset answered = DateTimeOffset.UtcNow;
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(expectedStatus);
+        HttpDate.TryParse(Header(context, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
+        sent.ShouldBeGreaterThanOrEqualTo(requested);
+        sent.ShouldBeLessThanOrEqualTo(answered);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a 304 for a file dated in the future should send the response time as Last-Modified")]
+    public async Task SendFileAsync_FutureLastModifiedNotModified_ShouldSendResponseTime()
+    {
+        // Arrange — the 304 carries the validators a 200 would (RFC 9110 §15.4.5), clamped the same way.
+        DateTimeOffset requested = WholeSecond(DateTimeOffset.UtcNow);
+        var file = new FixedTimestampFile("data.txt", "0123456789", requested.AddHours(1).UtcDateTime);
+        TestHttpContext first = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(file));
+        string etag = Header(first, HttpHeaderKey.ETag);
+
+        // Act
+        TestHttpContext second = await RunAsync(
+            HttpMethod.Get,
+            response => response.SendFileAsync(file),
+            ctx => ctx.Request.Headers[HttpHeaderKey.IfNoneMatch] = etag);
+        DateTimeOffset answered = DateTimeOffset.UtcNow;
+
+        // Assert
+        second.Response.StatusCode.ShouldBe(HttpStatusCode.NotModified);
+        HttpDate.TryParse(Header(second, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
+        sent.ShouldBeGreaterThanOrEqualTo(requested);
+        sent.ShouldBeLessThanOrEqualTo(answered);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support")]

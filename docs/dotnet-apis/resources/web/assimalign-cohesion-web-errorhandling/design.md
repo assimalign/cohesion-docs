@@ -148,8 +148,11 @@ problem was staged, which the transport then replaced. Any client could make the
 observer fire at will.
 
 The server reports such an exchange through `IWebClientFaultFeature` (`Web.Server`; the default Web
-server installs it on an HTTP/1.1 request with a body). When the feature reports a status the
-boundary:
+server installs it on a request that can have a body, on every version since #1378). On HTTP/2 and
+HTTP/3 a malformed body resets the stream instead of drawing a status; the feature reports `400`, and
+the reset also fires `RequestCancelled`, so a pipeline that meets the cancellation rather than the
+read's failure passes the boundary as a cancelled request, never as a fault. When the feature reports
+a status the boundary:
 
 - still publishes `IHttpExceptionFeature`, so a reader can see what the read threw;
 - skips `OnException`, as `SuppressDiagnosticsCallback` would, without the application writing a

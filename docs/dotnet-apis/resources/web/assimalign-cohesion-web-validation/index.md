@@ -16,12 +16,12 @@ map in the shape binding failures already use.
 
 ## Scope
 
-- **`builder.Services.AddValidation(...)`** (builder time), a component integration the
-  application's compilation receives (#1380), registers a validator per model type and the
-  application's default. Validators are keyed by `typeof(T)`: `AddProfile(new CustomerProfile())`
-  builds a validator over one profile, `AddValidator(validator)` registers a configured `IValidator`
-  for every type it has a profile for, and `AddValidator<T>(validator)` names the type. No
-  reflection is involved.
+- **`builder.Services.AddValidation(validation => ...)`** (builder time), a component integration
+  the application's compilation receives (#1380, #1395), registers a validator per model type and
+  the application's default on `validation.Options`. Validators are keyed by `typeof(T)`:
+  `AddProfile(new CustomerProfile())` builds a validator over one profile, `AddValidator(validator)`
+  registers a configured `IValidator` for every type it has a profile for, and
+  `AddValidator<T>(validator)` names the type. No reflection is involved.
 - **Typed endpoints validate their body model.** When an application references this package, the
   Web endpoint-binding generator emits a validation call into every typed endpoint that binds a
   request-body model, after all its parameters are bound and before its handler runs. A body type
@@ -30,7 +30,7 @@ map in the shape binding failures already use.
   occurred." and an `errors` extension member mapping each failing member to its messages. Keys are
   the member paths the profile declares (`Name`, `Address.City`); a nested profile's errors are
   reported under their parent member.
-- **Turning it off or on.** `options.Enabled = false` turns validation off by default;
+- **Turning it off or on.** `validation.Options.Enabled = false` turns validation off by default;
   `DisableValidation()` turns it off for a route or a route group, and `RequireValidation()` turns
   it on, the most specific declaration winning.
 - **Handlers** that bind a value themselves validate it the same way:
@@ -56,10 +56,10 @@ surface takes its `IValidator` and `IValidationProfile<T>`.
 See the [source-backed usage examples](examples/index.md).
 
 Register the validators on `builder.Services`, beside `AddRouting` and `AddJsonSerialization`, with
-`builder.Services.AddValidation(validation => validation.AddProfile(new CustomerProfile()))`. A typed
-endpoint such as `app.MapPost("/customers", (Customer customer) => ...)` then answers an invalid
-customer with `400` before the handler runs, and `.DisableValidation()` on an endpoint (for example
-one that saves drafts) lets its body through as it is. The profile is an ObjectValidation
+`builder.Services.AddValidation(validation => validation.Options.AddProfile(new CustomerProfile()))`.
+A typed endpoint such as `app.MapPost("/customers", (Customer customer) => ...)` then answers an
+invalid customer with `400` before the handler runs, and `.DisableValidation()` on an endpoint (for
+example one that saves drafts) lets its body through as it is. The profile is an ObjectValidation
 `ValidationProfile<Customer>`; a nested member validated with `ChildRules` or `UseProfile` reports
 under its parent member.
 

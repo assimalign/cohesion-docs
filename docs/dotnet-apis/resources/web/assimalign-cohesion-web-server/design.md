@@ -41,7 +41,7 @@ flowchart LR
 | Package | Role | Reference to `Web.Server` |
 |---|---|---|
 | `Assimalign.Cohesion.Web.Server` | declares the four contracts | — |
-| [`Assimalign.Cohesion.Web.Hosting`](../assimalign-cohesion-web-hosting/index.md) | runtime module: implements and installs all four (the client fault on an HTTP/1.1 request with a body) | project reference (COHRES002, relaxed by decision 32) |
+| [`Assimalign.Cohesion.Web.Hosting`](../assimalign-cohesion-web-hosting/index.md) | runtime module: implements and installs all four (the client fault on a request that can have a body, on every version) | project reference (COHRES002, relaxed by decision 32) |
 | [`Assimalign.Cohesion.Web.WebSockets`](../assimalign-cohesion-web-websockets/index.md) | closes open sockets with `1001 Going Away` when `Draining` fires | project reference |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../assimalign-cohesion-web-hosting-resources/index.md) | defers a control-plane stop until its `202` is written | project reference |
 | [`Assimalign.Cohesion.Web.Diagnostics`](../assimalign-cohesion-web-diagnostics/index.md) | logs a client fault at the configured level with the status sent, not at `Error` | project reference |
@@ -101,10 +101,14 @@ the `500` problem, and `Web.Compression` leaves the transport's framing failure 
 unrelabeled. It is a Web contract because decision 20 keeps the core to generic seams: the
 transport reports the fault on `IHttpExchangeControl.ClientFaultStatusCode`, which exists only in
 the exchange's response phase, and the default server publishes it from an interceptor. To keep the
-transport's fast path, the server installs the feature only on an HTTP/1.1 request that declares a
-body, the only exchanges whose transport reports faults today (HTTP/2 and HTTP/3 are #1378); it
-reads `null` until a fault is latched. The value is read through on each access, because the fault
-is latched while the pipeline runs.
+transport's fast path, the server installs the feature only on a request that can have a body, as
+the transport reports it (`HttpExchangeInterceptorRequestContext.CanHaveBody`): on HTTP/1.1 one that
+declares a body, on HTTP/2 one whose head did not end the stream, on HTTP/3 one whose request stream
+had not ended with its head (#1378), which over the QUIC driver is nearly every request, since the
+transport sees the stream's end only on a read. It reads `null` until a fault is latched. On HTTP/2
+and HTTP/3 a body that contradicts its content-length, or a malformed trailer section, resets the
+stream rather than drawing a status, and the feature reports `400` for it. The value is read through
+on each access, because the fault is latched while the pipeline runs.
 
 **Every contract is optional.** A custom `IWebApplicationServer` may omit any of them, so every
 reader handles an absent feature: the control plane falls back to a direct stop, WebSockets has no

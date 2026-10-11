@@ -75,10 +75,10 @@ public class ValidationEndToEndTests
 
         if (registerValidation)
         {
-            factory.Builder.Services.AddValidation(options =>
+            factory.Builder.Services.AddValidation(validation =>
             {
-                options.AddProfile(new CustomerProfile());
-                configure?.Invoke(options);
+                validation.Options.AddProfile(new CustomerProfile());
+                configure?.Invoke(validation.Options);
             });
         }
 
@@ -428,7 +428,7 @@ public class ValidationEndToEndTests
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
         factory.Builder.Services.AddJsonSerialization(ValidationTestJsonContext.Default);
-        factory.Builder.Services.AddValidation(options => options.AddValidator(throwing));
+        factory.Builder.Services.AddValidation(validation => validation.Options.AddValidator(throwing));
         factory.Application.UseRouting();
         factory.Application.MapPost("/customers", (Customer customer) => "accepted");
 
@@ -454,7 +454,7 @@ public class ValidationEndToEndTests
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
         factory.Builder.Services.AddJsonSerialization(ValidationTestJsonContext.Default);
-        factory.Builder.Services.AddValidation(options => options.AddValidator(faulting));
+        factory.Builder.Services.AddValidation(validation => validation.Options.AddValidator(faulting));
 
         InvalidOperationException? fault = null;
         factory.Application.Use(async (context, next) =>

@@ -59,7 +59,6 @@ runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime
 | `Assimalign.Cohesion.Web.Hosting.Resources` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
-| `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.Forwarded` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |

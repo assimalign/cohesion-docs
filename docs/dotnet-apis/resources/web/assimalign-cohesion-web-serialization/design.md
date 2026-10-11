@@ -50,18 +50,22 @@ same seam.
   `MakeReadOnly()` (the non-populating overload), and a type outside the resolver's contracts
   faults with `HttpContentSerializationException` instead of silently reflecting. Options
   default to `JsonSerializerDefaults.Web` (camelCase, case-insensitive reads).
-- **Builder-time feature, no DI reference** — the `AddAuthentication` idiom. Both registration
-  verbs are component integrations (owner decisions 34 and 35, 2026-10-09, #1380), declared in
+- **Builder-time feature, no DI reference** — the `AddAuthentication` idiom. Both registration verbs
+  are component integrations (owner decisions 34 and 35, 2026-10-09, #1380), declared in
   `src/Properties/ComponentIntegrations.cs` and projected onto `IServiceProviderBuilder` in the
   application's compilation, so the package never references the container.
   `builder.Services.AddContentSerialization(serialization => serialization.AddJson(...))` is the
-  builder template over `ContentSerializationBuilder`: the generator constructs the builder
-  (public, parameterless), runs the callback, so format verbs (`AddJson`, future grafts) compose on
-  it, calls `Build()`, and registers the registry as an `IHttpFeature` singleton. `Build()` hands
-  the registry a snapshot of the readers and writers, so it is immutable and the request path takes
-  no lock. `builder.Services.AddJsonSerialization(resolver, configure)` is the static-factory
-  shorthand (`SerializationComponents`, `[EditorBrowsable(Never)]`), because the resolver is an
-  argument the template's single callback cannot carry. Until #1380 both were
+  builder template over `ContentSerializationBuilder`: the generator constructs the builder (public,
+  parameterless), runs the callback, so format verbs (`AddJson`, future grafts) compose on it, calls
+  `Build()`, and registers the registry as an `IHttpFeature` singleton. `Build()` hands the registry
+  a snapshot of the readers and writers, so it is immutable and the request path takes no lock.
+  `builder.Services.AddJsonSerialization(resolver, configure)` is the static-factory shorthand
+  (`SerializationComponents`, `[EditorBrowsable(Never)]`), because the resolver is a required
+  argument. Since owner decision 39 (2026-10-10, #1395) the template's callback is optional and the
+  other Web registration verbs are builder templates, but the callback is still the template's only
+  argument: the resolver would become a builder method, and a missing one a registration-time throw
+  instead of a compile-time error. This is the one Web registration verb that keeps a static
+  factory. `AddContentSerialization` called bare registers an empty registry. Until #1380 both were
   `extension(IWebApplicationBuilder)` members that returned the builder, and the feature read
   copy-on-write arrays the builder kept mutating. Repeating a verb composes a fresh registry that
   replaces the old one (features are name-keyed) — call one, once. That is a break for code that

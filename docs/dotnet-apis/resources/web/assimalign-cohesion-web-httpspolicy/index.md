@@ -19,13 +19,14 @@ an enterprise-facing web server, and both hinge on the same question — *is thi
 ## What it provides
 
 - **`UseHttpsRedirection(Action<HttpsRedirectionOptions>?)`** — a pipeline verb on
-  `IWebApplicationPipelineBuilder`. An insecure request is answered with a
-  bodyless, method-preserving redirect (`307` by default, `308` when configured)
-  whose `Location` is the same request re-addressed to `https`, the request host
-  with its port replaced by the configured HTTPS port, and the path and query
-  preserved. An already-secure request passes straight through. **`Register` it
-  early** so an insecure request is discarded before downstream middleware works
-  on a response that is about to be thrown away.
+  `IWebApplicationPipelineBuilder`. An insecure request is answered with a bodyless,
+  method-preserving redirect (`307` by default, `308` when configured) whose `Location` is the same
+  request re-addressed to `https`, the request host with its port replaced by the configured HTTPS
+  port, and the path and query preserved, percent-encoded. A request whose host the redirect cannot
+  name (empty, malformed, or carrying a character such as `/` or `@`) is answered with `400`
+  instead. An already-secure request passes straight through. **Register it early** so an insecure
+  request is discarded before downstream middleware works on a response that is about to be thrown
+  away.
 - **`UseHsts(Action<HstsOptions>?)`** — a pipeline verb that emits the
   `Strict-Transport-Security` field, composed once at registration, on secure
   responses **only** (RFC 6797 §7.2), skipping the excluded hosts (`localhost`,

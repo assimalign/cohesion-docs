@@ -23,12 +23,13 @@ never reimplements token cryptography; it chooses the protector the engine seals
   `context.RequireAntiforgery.GetAndStoreTokens(context)`. The verb is a component integration the
   application's compilation receives (owner decision 34, #1380); this package takes no
   dependency-injection reference.
-- **Protector selection.** `AddAntiforgery(dataProtectionProvider)` seals tokens with a protector
-  the application's `Security.DataProtection` key ring derives for the antiforgery purpose, so
-  tokens survive restarts and validate on every instance that shares the key repository.
-  `AddAntiforgery()` without a provider falls back to the engine's per-process random key, which is
-  for **development only**: a restart invalidates every token, and instances reject each other's
-  tokens.
+- **Protector selection.**
+  `AddAntiforgery(antiforgery => antiforgery.UseDataProtection(dataProtectionProvider))` seals
+  tokens with a protector the application's `Security.DataProtection` key ring derives for the
+  antiforgery purpose, so tokens survive restarts and validate on every instance that shares the key
+  repository. `AddAntiforgery()` without a provider falls back to the engine's per-process random
+  key, which is for **development only**: a restart invalidates every token, and instances reject
+  each other's tokens.
 - **`UseAntiforgery`** (pipeline time, after `UseRouting`) validates unsafe-method requests to
   endpoints that carry `AntiforgeryMetadata.Required`. Safe methods (`GET`, `HEAD`, `OPTIONS`,
   `TRACE`) and CORS preflights pass through; `QUERY` carries a body and is validated. A failed
@@ -70,8 +71,9 @@ See the [source-backed usage examples](examples/index.md).
 
 To share the key ring cookie authentication uses, pass the same provider to both
 (`builder.Services.AddAuthentication(auth => auth.UseDataProtection(dataProtection).AddCookie())`
-and `builder.Services.AddAntiforgery(dataProtection)`); each derives its own purpose, so neither
-accepts the other's payloads.
+and
+`builder.Services.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(dataProtection))`);
+each derives its own purpose, so neither accepts the other's payloads.
 
 The cookie token is `Secure` whenever the request's effective scheme is HTTPS: a direct TLS
 connection, or TLS terminated at a trusted proxy that `UseForwardedHeaders`, registered ahead of the

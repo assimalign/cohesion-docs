@@ -372,9 +372,10 @@ integrator's recommendation, pending owner review: it keeps the 2026-07-20 decis
 intact, and keeps the engine out of the closure of every endpoint-mapping consumer.
 
 - **Registration** is the package's:
-  `AddValidation(options => options.AddProfile(new CustomerProfile()))` keys a validator per model
-  type by `typeof(T)`, with a global `Enabled` switch, and `DisableValidation()`/`RequireValidation()`
-  turn it off or on per endpoint and per group (`ValidationMetadata`, most specific wins).
+  `AddValidation(validation => validation.Options.AddProfile(new CustomerProfile()))` keys a
+  validator per model type by `typeof(T)`, with a global `Enabled` switch, and
+  `DisableValidation()`/`RequireValidation()` turn it off or on per endpoint and per group
+  (`ValidationMetadata`, most specific wins).
 - **The call** is the generator's, and only when the application can name the package: like the
   antiforgery requirement, the generator resolves
   `Assimalign.Cohesion.Web.Validation.HttpContextValidationExtensions` by metadata name and, when it

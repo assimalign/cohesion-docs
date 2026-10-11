@@ -55,7 +55,6 @@ hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs p
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
-| `Assimalign.Cohesion.Http.Cookies` |
 | `Assimalign.Cohesion.Http.ExtendedConnect` |
 | `Assimalign.Cohesion.Http.Forwarded` |
 | `Assimalign.Cohesion.Http.ProtocolUpgrade` |

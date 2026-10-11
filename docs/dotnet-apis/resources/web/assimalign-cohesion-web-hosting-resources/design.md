@@ -14,7 +14,15 @@ The route and envelope contract matches Web.Hosting's terminal: public `/healthz
 `/livez` aliases; namespaced health, readiness, liveness, endpoints, stop, and commands beneath
 `/cohesion/v1`. Reads allow GET/HEAD, stop allows POST, and commands allow GET/HEAD/POST/DELETE.
 Unknown namespaced routes are 404. Health reports preserve diagnostic values and ordinal
-contribution/endpoint ordering. HEAD suppresses bodies.
+contribution/endpoint ordering. HEAD suppresses bodies. The bare probes are never authorized, so the
+health writer publishes only what the control plane reports: a contributor that throws appears with
+the fixed description `The contributor threw an exception.`, never its exception message, and an
+exception a contributor places in its data appears as `The contributor reported an exception.`,
+never its `ToString()` (Hosting.Resources design, #1409). The writer's own data switch writes the
+same fixed text for an `Exception` value, as defense in depth: a custom `IResourceControlPlane`
+(`ResourceRuntime.RegisterControlPlane` accepts any implementation) passes its report through
+unfiltered, and every shipped area's control plane is the default one. Other unrecognized values are
+still written through `ToString()`.
 
 Managed namespaced requests first consult the resource's registered `IResourceCredentialVerifier`
 (`ResourceRuntime.TryGetCredentialVerifier(resourceContext)`, see the Hosting.Resources design),

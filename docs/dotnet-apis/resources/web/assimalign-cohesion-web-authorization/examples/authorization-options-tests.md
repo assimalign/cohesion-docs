@@ -18,16 +18,18 @@ test objects.
 - **Case 4** — Options: A configured policy without a requirement should be rejected at registration.
 - **Case 5** — Options: Setting a null default policy should throw.
 - **Case 6** — Registration: AddAuthorization should register one IHttpFeature singleton.
-- **Case 7** — Registration: Options should become read-only once AddAuthorization returns.
-- **Case 8** — Registration: UseAuthorization on a null pipeline builder should throw.
-- **Case 9** — Options: A registered policy should be resolvable by its exact name.
-- **Case 10** — Options: An unregistered or differently cased name should not resolve.
-- **Case 11** — Options: Resolving a null policy name should throw.
-- **Case 12** — Read access: The application context should hand back the read-only registered options.
-- **Case 13** — Read access: An application without AddAuthorization should report no options.
-- **Case 14** — Read access: The last AddAuthorization should be the one read back, as UseAuthorization reads it.
-- **Case 15** — Read access: The hosted application context should expose the registered options.
-- **Case 16** — Read access: Reading options from a null context should throw.
+- **Case 7** — Registration: AddAuthorization called bare should register the default options.
+- **Case 8** — Registration: AuthorizationBuilder.Build should make its options read-only.
+- **Case 9** — Registration: Options should become read-only once AddAuthorization returns.
+- **Case 10** — Registration: UseAuthorization on a null pipeline builder should throw.
+- **Case 11** — Options: A registered policy should be resolvable by its exact name.
+- **Case 12** — Options: An unregistered or differently cased name should not resolve.
+- **Case 13** — Options: Resolving a null policy name should throw.
+- **Case 14** — Read access: The application context should hand back the read-only registered options.
+- **Case 15** — Read access: An application without AddAuthorization should report no options.
+- **Case 16** — Read access: The last AddAuthorization should be the one read back, as UseAuthorization reads it.
+- **Case 17** — Read access: The hosted application context should expose the registered options.
+- **Case 18** — Read access: Reading options from a null context should throw.
 
 ## Source example
 
@@ -129,7 +131,7 @@ public class AuthorizationOptionsTests
         ServiceProviderBuilder builder = new();
 
         // Act
-        IServiceProviderBuilder result = builder.AddAuthorization(options => options.AddPolicy("admins", policy => policy.RequireRole("admin")));
+        IServiceProviderBuilder result = builder.AddAuthorization(authorization => authorization.Options.AddPolicy("admins", policy => policy.RequireRole("admin")));
 
         // Assert — one singleton the host stamps onto every exchange (owner decision 35).
         result.ShouldBeSameAs(builder);
@@ -137,6 +139,40 @@ public class AuthorizationOptionsTests
         descriptor.ServiceType.ShouldBe(typeof(IHttpFeature));
         descriptor.Lifetime.ShouldBe(ServiceLifetime.Singleton);
         Resolve(builder).ShouldHaveSingleItem();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authorization] - Registration: AddAuthorization called bare should register the default options")]
+    public void AddAuthorization_CalledBare_ShouldRegisterTheDefaultOptions()
+    {
+        // Arrange
+        ServiceProviderBuilder builder = new();
+
+        // Act — the builder template's callback is optional (owner decision 39).
+        builder.AddAuthorization();
+
+        // Assert — an authenticated user for RequireAuthorization(), no fallback, no named policies.
+        IWebApplicationContext context = new StubWebApplicationContext(Resolve(builder));
+        context.TryGetAuthorizationOptions(out AuthorizationOptions? options).ShouldBeTrue();
+        options.ShouldNotBeNull();
+        options.DefaultPolicy.Requirements.ShouldHaveSingleItem();
+        options.FallbackPolicy.ShouldBeNull();
+        options.TryGetPolicy("admins", out _).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authorization] - Registration: AuthorizationBuilder.Build should make its options read-only")]
+    public void AuthorizationBuilderBuild_OptionsMutatedAfterward_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        AuthorizationBuilder authorization = new();
+        AuthorizationPolicy policy = new AuthorizationPolicyBuilder().RequireRole("admin").Build();
+
+        // Act
+        IHttpFeature feature = authorization.Build();
+        Action addPolicy = () => authorization.Options.AddPolicy("late", policy);
+
+        // Assert
+        feature.ShouldNotBeNull();
+        addPolicy.ShouldThrow<InvalidOperationException>();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Authorization] - Registration: Options should become read-only once AddAuthorization returns")]
@@ -147,7 +183,7 @@ public class AuthorizationOptionsTests
         AuthorizationOptions? captured = null;
         AuthorizationPolicy policy = new AuthorizationPolicyBuilder().RequireRole("admin").Build();
 
-        builder.AddAuthorization(options => captured = options);
+        builder.AddAuthorization(authorization => captured = authorization.Options);
 
         // Act
         Action addPolicy = () => captured!.AddPolicy("late", policy);
@@ -227,11 +263,11 @@ public class AuthorizationOptionsTests
         // Arrange
         ServiceProviderBuilder builder = new();
         AuthorizationOptions? configured = null;
-        builder.AddAuthorization(options =>
+        builder.AddAuthorization(authorization =>
         {
-            options.AddPolicy("admins", policy => policy.RequireRole("admin"));
-            options.FallbackPolicy = options.DefaultPolicy;
-            configured = options;
+            authorization.Options.AddPolicy("admins", policy => policy.RequireRole("admin"));
+            authorization.Options.FallbackPolicy = authorization.Options.DefaultPolicy;
+            configured = authorization.Options;
         });
 
         IWebApplicationContext context = new StubWebApplicationContext(Resolve(builder));
@@ -269,8 +305,8 @@ public class AuthorizationOptionsTests
     {
         // Arrange
         ServiceProviderBuilder builder = new();
-        builder.AddAuthorization(options => options.AddPolicy("first", policy => policy.RequireRole("first")));
-        builder.AddAuthorization(options => options.AddPolicy("second", policy => policy.RequireRole("second")));
+        builder.AddAuthorization(authorization => authorization.Options.AddPolicy("first", policy => policy.RequireRole("first")));
+        builder.AddAuthorization(authorization => authorization.Options.AddPolicy("second", policy => policy.RequireRole("second")));
 
         IWebApplicationContext context = new StubWebApplicationContext(Resolve(builder));
 
@@ -288,7 +324,7 @@ public class AuthorizationOptionsTests
     {
         // Arrange — the real Web.Hosting context, whose features come from its service provider.
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.Services.AddAuthorization(options => options.AddPolicy("admins", policy => policy.RequireRole("admin")));
+        factory.Builder.Services.AddAuthorization(authorization => authorization.Options.AddPolicy("admins", policy => policy.RequireRole("admin")));
 
         IWebApplicationContext context = ((IWebApplication)factory.Application).Context;
 

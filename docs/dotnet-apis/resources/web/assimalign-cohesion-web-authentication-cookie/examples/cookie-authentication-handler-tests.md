@@ -21,16 +21,18 @@ test objects.
 - **Case 7** — Sliding expiration renews the cookie past the midpoint.
 - **Case 8** — Sliding expiration does not renew before the midpoint.
 - **Case 9** — Challenge on a browser endpoint redirects to the login path.
-- **Case 10** — Challenge on an API endpoint returns 401 without redirect.
-- **Case 11** — Forbid on an API endpoint returns 403 without redirect.
-- **Case 12** — Forbid on a browser endpoint redirects to access denied.
-- **Case 13** — SignOut deletes the cookie.
-- **Case 14** — A non-persistent sign-in emits a session cookie.
-- **Case 15** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
-- **Case 16** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
-- **Case 17** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
-- **Case 18** — SignIn from an untrusted peer asserting https keeps the template's Secure.
-- **Case 19** — SignIn without UseForwardedHeaders ignores a forwarded https header.
+- **Case 10** — Challenge should carry the request path percent-encoded in the return URL.
+- **Case 11** — Forbid should carry the request path percent-encoded in the return URL.
+- **Case 12** — Challenge on an API endpoint returns 401 without redirect.
+- **Case 13** — Forbid on an API endpoint returns 403 without redirect.
+- **Case 14** — Forbid on a browser endpoint redirects to access denied.
+- **Case 15** — SignOut deletes the cookie.
+- **Case 16** — A non-persistent sign-in emits a session cookie.
+- **Case 17** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
+- **Case 18** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
+- **Case 19** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
+- **Case 20** — SignIn from an untrusted peer asserting https keeps the template's Secure.
+- **Case 21** — SignIn without UseForwardedHeaders ignores a forwarded https header.
 
 ## Source example
 
@@ -323,6 +325,42 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
         location!.ShouldStartWith(options.LoginPath);
         location.ShouldContain("ReturnUrl=");
         location.ShouldContain(Uri.EscapeDataString("/secure/data"));
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Challenge should carry the request path percent-encoded in the return URL")]
+    [InlineData("/café", "/caf%C3%A9")]
+    [InlineData("/100%", "/100%25")]
+    [InlineData("/a%2Fb", "/a%2Fb")]
+    public async Task Challenge_PathNeedingEncoding_ShouldCarryEncodedReturnUrl(string decodedPath, string returnUrl)
+    {
+        // Arrange — the transports hand the handler the decoded path. The login page redirects to the return
+        // URL, so it must be the encoded path: "/café" written into a Location is sent as "/caf?".
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = TestHttpContext.Create(decodedPath);
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.ChallengeAsync(properties: null);
+
+        // Assert
+        string? location = context.Response.Headers.GetValue(HttpHeaderKey.Location);
+        location.ShouldBe($"{options.LoginPath}?{options.ReturnUrlParameter}={Uri.EscapeDataString(returnUrl)}");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Forbid should carry the request path percent-encoded in the return URL")]
+    public async Task Forbid_PathNeedingEncoding_ShouldCarryEncodedReturnUrl()
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+        TestHttpContext context = TestHttpContext.Create("/café");
+        IAuthenticationSignInHandler handler = await InitializeAsync(options, context);
+
+        // Act
+        await handler.ForbidAsync(properties: null);
+
+        // Assert
+        string? location = context.Response.Headers.GetValue(HttpHeaderKey.Location);
+        location.ShouldBe($"{options.AccessDeniedPath}?{options.ReturnUrlParameter}={Uri.EscapeDataString("/caf%C3%A9")}");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Challenge on an API endpoint returns 401 without redirect")]

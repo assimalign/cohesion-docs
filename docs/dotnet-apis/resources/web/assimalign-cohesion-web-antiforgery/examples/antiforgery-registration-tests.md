@@ -13,15 +13,19 @@ test objects.
 ## Behavior exercised
 
 - **Case 1** — AddAntiforgery: Should throw on a null data-protection provider.
-- **Case 2** — AddAntiforgery: Should register the service as an IHttpFeature singleton.
-- **Case 3** — AddAntiforgery: With a data-protection provider, tokens should survive a restart.
-- **Case 4** — AddAntiforgery: Without a data-protection provider, a restart should invalidate tokens.
-- **Case 5** — AddAntiforgery: Tokens should be sealed under the antiforgery purpose chain.
-- **Case 6** — AddAntiforgery: Payloads protected for another purpose should not validate as tokens.
-- **Case 7** — AddAntiforgery: A tampered token should be invalid, not an exception.
-- **Case 8** — AddAntiforgery: An explicitly configured protector should take precedence over the provider.
-- **Case 9** — AddAntiforgery: The configure callback should shape the registered service.
-- **Case 10** — AddAntiforgery: The last registration should be the one the middleware validates with.
+- **Case 2** — AddAntiforgery: A CookiePath outside path-value should fail at registration, not at token issue.
+- **Case 3** — AddAntiforgery: Should register the service as an IHttpFeature singleton.
+- **Case 4** — AddAntiforgery: With a data-protection provider, tokens should survive a restart.
+- **Case 5** — AddAntiforgery: Without a data-protection provider, a restart should invalidate tokens.
+- **Case 6** — AddAntiforgery: Tokens should be sealed under the antiforgery purpose chain.
+- **Case 7** — AddAntiforgery: Payloads protected for another purpose should not validate as tokens.
+- **Case 8** — AddAntiforgery: A tampered token should be invalid, not an exception.
+- **Case 9** — AddAntiforgery: An explicitly configured protector should take precedence over the provider.
+- **Case 10** — AddAntiforgery: A later UseDataProtection should replace the earlier provider.
+- **Case 11** — AddAntiforgery: The configure callback should shape the registered service.
+- **Case 12** — AntiforgeryBuilder.Build: Options changed afterward should not reach the built service.
+- **Case 13** — AntiforgeryBuilder.Build: A later Build should protect with a later data-protection provider.
+- **Case 14** — AddAntiforgery: The last registration should be the one the middleware validates with.
 
 ## Source example
 
@@ -45,7 +49,8 @@ namespace Assimalign.Cohesion.Web.Antiforgery.Tests;
 /// selects: a data-protection provider makes tokens survive a
 /// restart and validate across instances that share a key repository, sealed under the antiforgery purpose
 /// alone; without one the per-process random key is the (development-only) default; an explicit protector
-/// wins; and the last registration is the one exchanges carry and the middleware validates with. Each
+/// wins; the last registration is the one exchanges carry and the middleware validates with; and
+/// <c>AntiforgeryBuilder.Build</c> snapshots the options, so a later change reaches only a later build. Each
 /// "instance" is a separate registration, as a restarted or second application would make.
 /// </summary>
 public class AntiforgeryRegistrationTests
@@ -60,7 +65,23 @@ public class AntiforgeryRegistrationTests
         ServiceProviderBuilder services = new();
 
         // Act / Assert
-        Should.Throw<ArgumentNullException>(() => services.AddAntiforgery((IDataProtectionProvider)null!));
+        Should.Throw<ArgumentNullException>(() => services.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(null!)));
+        services.Container.Count.ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: A CookiePath outside path-value should fail at registration, not at token issue")]
+    public void AddAntiforgery_CookiePathOutsideGrammar_ShouldThrowAtRegistration()
+    {
+        // Arrange
+        ServiceProviderBuilder services = new();
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(
+            () => services.AddAntiforgery(antiforgery => antiforgery.Options.CookiePath = "/tenant;x"));
+
+        // Assert — the verb runs AntiforgeryBuilder.Build, which creates the service over its options
+        // snapshot, before it registers, so nothing is registered that would fail per request.
+        exception.Message.ShouldContain("HttpAntiforgeryOptions.CookiePath");
         services.Container.Count.ShouldBe(0);
     }
 
@@ -89,10 +110,10 @@ public class AntiforgeryRegistrationTests
     {
         // Arrange — the second instance creates its own provider over the same key repository.
         InMemoryKeyRepository keys = new();
-        IHttpAntiforgery first = Register(builder => builder.AddAntiforgery(DataProtectionProvider.Create(keys)));
+        IHttpAntiforgery first = Register(builder => builder.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(DataProtectionProvider.Create(keys))));
         HttpAntiforgeryTokenSet tokens = first.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
 
-        IHttpAntiforgery restarted = Register(builder => builder.AddAntiforgery(DataProtectionProvider.Create(keys)));
+        IHttpAntiforgery restarted = Register(builder => builder.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(DataProtectionProvider.Create(keys))));
 
         // Act
         bool valid = await restarted.IsRequestValidAsync(Post(tokens));
@@ -125,7 +146,7 @@ public class AntiforgeryRegistrationTests
         // Arrange — the purpose chain is part of the token format: a service that seals under exactly
         // ("Assimalign.Cohesion.Web.Antiforgery", "v1") interoperates with the registered one.
         IDataProtectionProvider provider = DataProtectionProvider.Create(new InMemoryKeyRepository());
-        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(provider));
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(provider)));
         IHttpAntiforgery samePurpose = HttpAntiforgery.Create(new HttpAntiforgeryOptions
         {
             Protector = new TestDataProtectionProtector(provider.CreateProtector("Assimalign.Cohesion.Web.Antiforgery", "v1")),
@@ -145,7 +166,7 @@ public class AntiforgeryRegistrationTests
     {
         // Arrange — same key ring, a different purpose (cookie authentication's): purpose-bound isolation.
         IDataProtectionProvider provider = DataProtectionProvider.Create(new InMemoryKeyRepository());
-        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(provider));
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(provider)));
         IHttpAntiforgery otherPurpose = HttpAntiforgery.Create(new HttpAntiforgeryOptions
         {
             Protector = new TestDataProtectionProtector(provider.CreateProtector("Assimalign.Cohesion.Web.Authentication.Cookie", "Cookies", "v1")),
@@ -164,7 +185,8 @@ public class AntiforgeryRegistrationTests
     public async Task AddAntiforgery_WithDataProtectionProvider_TamperedTokenShouldBeInvalid()
     {
         // Arrange
-        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(DataProtectionProvider.Create(new InMemoryKeyRepository())));
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(
+            antiforgery => antiforgery.UseDataProtection(DataProtectionProvider.Create(new InMemoryKeyRepository()))));
         HttpAntiforgeryTokenSet tokens = registered.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
 
         char[] tampered = tokens.CookieToken!.ToCharArray();
@@ -186,9 +208,11 @@ public class AntiforgeryRegistrationTests
     {
         // Arrange
         CountingProtector explicitProtector = new();
-        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(
-            DataProtectionProvider.Create(new InMemoryKeyRepository()),
-            options => options.Protector = explicitProtector));
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(antiforgery =>
+        {
+            antiforgery.UseDataProtection(DataProtectionProvider.Create(new InMemoryKeyRepository()));
+            antiforgery.Options.Protector = explicitProtector;
+        }));
 
         // Act
         registered.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
@@ -197,14 +221,33 @@ public class AntiforgeryRegistrationTests
         explicitProtector.ProtectCount.ShouldBe(2);
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: A later UseDataProtection should replace the earlier provider")]
+    public async Task AddAntiforgery_UseDataProtectionCalledTwice_LastProviderShouldProtectTokens()
+    {
+        // Arrange — a second instance over the same key repository as the later provider.
+        InMemoryKeyRepository keys = new();
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(antiforgery => antiforgery
+            .UseDataProtection(DataProtectionProvider.Create(new InMemoryKeyRepository()))
+            .UseDataProtection(DataProtectionProvider.Create(keys))));
+        IHttpAntiforgery sameKeys = Register(builder => builder.AddAntiforgery(
+            antiforgery => antiforgery.UseDataProtection(DataProtectionProvider.Create(keys))));
+        HttpAntiforgeryTokenSet tokens = sameKeys.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
+
+        // Act
+        bool valid = await registered.IsRequestValidAsync(Post(tokens));
+
+        // Assert
+        valid.ShouldBeTrue();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: The configure callback should shape the registered service")]
     public void AddAntiforgery_Configure_ShouldApplyOptions()
     {
         // Arrange
-        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(options =>
+        IHttpAntiforgery registered = Register(builder => builder.AddAntiforgery(antiforgery =>
         {
-            options.HeaderName = "X-XSRF-TOKEN";
-            options.FormFieldName = "csrf";
+            antiforgery.Options.HeaderName = "X-XSRF-TOKEN";
+            antiforgery.Options.FormFieldName = "csrf";
         }));
 
         // Act
@@ -213,6 +256,54 @@ public class AntiforgeryRegistrationTests
         // Assert
         tokens.HeaderName.ShouldBe("X-XSRF-TOKEN");
         tokens.FormFieldName.ShouldBe("csrf");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AntiforgeryBuilder.Build: Options changed afterward should not reach the built service")]
+    public async Task Build_OptionsChangedAfterBuild_ShouldKeepTheBuiltSnapshot()
+    {
+        // Arrange — the service reads the token names and the cookie name on every request, and the
+        // built-in protector signs with the key bytes on every token.
+        AntiforgeryBuilder builder = new();
+        IHttpAntiforgery built = builder.Build().Antiforgery;
+        HttpAntiforgeryTokenSet issued = built.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
+
+        // Act
+        builder.Options.HeaderName = "X-Changed";
+        builder.Options.FormFieldName = "changed";
+        builder.Options.CookieName = "changed-cookie";
+        Array.Clear(builder.Options.Key);
+        HttpAntiforgeryTokenSet tokens = built.GetTokens(new AntiforgeryTestContext(HttpMethod.Get));
+        bool valid = await built.IsRequestValidAsync(Post(issued));
+
+        // Assert
+        tokens.HeaderName.ShouldBe(headerName);
+        tokens.FormFieldName.ShouldBe("__RequestVerificationToken");
+        valid.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AntiforgeryBuilder.Build: A later Build should protect with a later data-protection provider")]
+    public async Task Build_UseDataProtectionAfterBuild_ShouldProtectWithTheLaterProvider()
+    {
+        // Arrange — the first Build must not pin its derived protector onto the builder's options.
+        InMemoryKeyRepository keys = new();
+        AntiforgeryBuilder builder = new AntiforgeryBuilder()
+            .UseDataProtection(DataProtectionProvider.Create(new InMemoryKeyRepository()));
+        builder.Build();
+        builder.UseDataProtection(DataProtectionProvider.Create(keys));
+        IHttpAntiforgery rebuilt = builder.Build().Antiforgery;
+
+        IHttpAntiforgery sameKeys = new AntiforgeryBuilder()
+            .UseDataProtection(DataProtectionProvider.Create(keys))
+            .Build()
+            .Antiforgery;
+        HttpAntiforgeryTokenSet tokens = sameKeys.GetAndStoreTokens(new AntiforgeryTestContext(HttpMethod.Get));
+
+        // Act
+        bool valid = await rebuilt.IsRequestValidAsync(Post(tokens));
+
+        // Assert
+        valid.ShouldBeTrue();
+        builder.Options.Protector.ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Antiforgery] - AddAntiforgery: The last registration should be the one the middleware validates with")]

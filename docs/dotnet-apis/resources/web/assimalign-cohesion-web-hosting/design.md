@@ -357,6 +357,28 @@ the feature itself is its telemetry, for a fault after the response started: the
 can no longer replace that response, so the exchange is reset, and its `error.type` is
 `client_fault` rather than `unhandled_exception` (see "Outcomes and `error.type`").
 
+**HTTP/2 and HTTP/3 (#1378).** Both report the fault too, and the feature is installed on a request
+that can have a body there as well (see [Default interceptors](#default-interceptors)). An over-cap
+or too-slow body is answered with its `413` or `408` as above. A body that contradicts its
+content-length, or a malformed trailer section, makes the request malformed on these versions, so
+the transport resets the stream instead (RFC 9113 §8.1.1, RFC 9114 §4.1.2): the client gets no
+status, the feature reports `400`, and the transport sets the exchange's status to that `400` when
+the server's finalization sends into the reset stream, so the span and the access log read it rather
+than the `500` the server staged. The reset also fires `RequestCancelled`, and so does the
+`RST_STREAM(NO_ERROR)` that follows HTTP/2's own `413` or `408`. A body read still throws the
+fault's `IOException`, but a pipeline that was awaiting something else meets the cancellation
+instead and ends as cancelled. The server's reset then sends into the stream, which sets the
+exchange's status to the transport's, and the telemetry reads the feature too: before the
+application's response started, that status is how the exchange ended, so the span carries the `4xx`
+with no `error.type`, exactly as when the read met the fault; after it started, the reset cut a
+response off, and the span reports `client_fault` rather than `request_canceled`. On HTTP/3 a
+connection error the body read finds (DATA after the trailer section, a frame type a request stream
+may not carry, a truncated frame) closes the connection, and the exchange whose read found it
+reports `400` as well, so it ends like a malformed body. A client that resets its own request is not
+at fault on either version: the read throws the exchange's cancellation with `RequestCancelled`
+already fired, so the pipeline ends as cancelled and the server resets the exchange
+(`request_canceled`) instead of staging a `500`.
+
 Catching bare `Exception` at each of these points is a deliberate, documented departure from the
 "catch specific exceptions" rule. This is a **fault-isolation boundary around arbitrary user code**
 — middleware, completion callbacks, application bodies and features — the same pattern the
@@ -561,13 +583,40 @@ flowchart TD
     Stop --> Dispose["Exchange disposed"]
 ```
 
-**The parent is the caller.** The server parses `traceparent` and `tracestate` with
-`ActivityContext.TryParse` (W3C Trace Context). A missing, repeated or malformed `traceparent`, or
-an all-zero id, gives no parent, and the request starts a new trace. Repeated `tracestate` fields
-are joined into one list. Before it starts the span, the server clears an ambient
-`Activity.Current`. The accept loop inherits whatever activity was current when `StartAsync` ran,
-and that activity is never a request's parent; without the clear, every request of a host started
-inside an activity would nest under it.
+**The parent is the caller.** The server parses `traceparent` and `tracestate` per W3C Trace Context
+(`WebServerTelemetry.TryParseTraceParent`). A missing, repeated or malformed `traceparent`, or an
+all-zero id, gives no parent, and the request starts a new trace. Repeated `tracestate` fields are
+joined into one list. Before it starts the span, the server clears an ambient `Activity.Current`.
+The accept loop inherits whatever activity was current when `StartAsync` ran, and that activity is
+never a request's parent; without the clear, every request of a host started inside an activity
+would nest under it.
+
+**A later version continues the trace (#1299).** W3C Trace Context §3.2.4, "Versioning of
+traceparent", has a parser read a header of a version it does not know by its version-00 fields and
+ignore what follows. `ActivityContext.TryParse` accepts exactly the 55 characters of a version-00
+header, so a later version with extra fields used to start a new trace, while HTTP logging, whose
+own parser accepts it, recorded the caller's. The server now checks what the BCL parser does not,
+then hands it the version-00 fields:
+
+- the three separators are dashes (`TryParse` checks only the characters between them);
+- a value longer than 55 characters belongs to a version other than `00`, and its flags are followed
+  by a dash, so `00-…-01-extra` and `cc-…-01.extra` are rejected;
+- of a later version's flags, only the sampled bit is kept; the specification defines the other bits
+  for version `00` only.
+
+`TryParse` still checks the rest: a lower-case hex version other than `ff`, lower-case hex ids that
+are not all zeros, and lower-case hex flags. A later version's header costs one 55-character
+substring; a version-00 header costs nothing more than before.
+
+Decision 32 lets this module reference `Web.Diagnostics`, whose HTTP logging already parses later
+versions. It does not, because:
+
+- its parser is internal, so reusing it needs a public API or shared source for one consumer;
+- it yields hex strings, not an `ActivityContext` with its `tracestate`, and it accepts a version-00
+  value with trailing fields, which W3C forbids;
+- the reference would ship `Web.Diagnostics` in every area framework that carries this module.
+
+The local check is one short method on top of the BCL parser.
 
 **Attributes** follow the stable OpenTelemetry HTTP server conventions:
 
@@ -577,6 +626,7 @@ inside an activity would nest under it.
 | `http.request.method_original` | when `_OTHER` | no | no | the method token |
 | `url.scheme` | yes | yes | yes | `http` or `https`, as the transport saw the request |
 | `url.path` | yes | no | no | the request path |
+| `url.query` | when the request has a query | no | no | the query's parameters, each value replaced by `REDACTED` unless the application declared the parameter safe (#1298) |
 | `server.address`, `server.port` | yes | no | no | the `Host` or `:authority` host, and its port when the value carries one |
 | `network.protocol.version` | yes | yes | no | `1.1`, `2` or `3` |
 | `http.route` | when routed | when routed | no | `IWebEndpointFeature.RouteTemplate` |
@@ -598,6 +648,53 @@ is an unknown method, reported as `_OTHER` with `http.request.method_original` =
 known only when it matches a list entry exactly, so its original never differs from
 `http.request.method`, and `http.request.method_original` is set only for `_OTHER`.
 
+**`url.query` shows the names and hides the values (#1298).** The convention makes `url.query`
+conditionally required when a query was received, and asks for sensitive content to be scrubbed
+rather than the attribute dropped. A query string carries tokens, signatures, one-time codes and
+personal data that the server cannot recognize generically, so every value is replaced with
+`REDACTED`, the convention's marker, and the parameter names stay:
+`?access_token=s3cr3t&page=2&debug` is reported as `access_token=REDACTED&page=REDACTED&debug`. The
+span still shows the query's shape, which is what an operator reads it for, and no value leaves the
+process unless the application said it may.
+
+- **Declaring values safe.** `builder.Server.AllowQueryValuesInTelemetry("page", "sort")` keeps
+  those parameters' values. Names compare case-insensitively, as `HttpQueryKey` compares them, so
+  the declaration covers every spelling the application itself reads as the same parameter. Calls
+  add to one another, and a missing or empty name is rejected before anything is declared. The set
+  is frozen when the default server is created and handed to it through
+  `WebApplicationServerOptions.TelemetryQueryValues`; no exchange carries it.
+- **A parameter without a value** is written as its name alone. There is nothing to hide, and
+  `REDACTED` would claim a value was sent.
+- **Names are treated as the application's schema.** An application that puts a secret in a
+  parameter's name, such as a bare `?<token>`, gets it reported. Redacting names too would leave
+  only a count of parameters, which is not the attribute the convention defines.
+- **Rebuilt from the parsed query.** `IHttpRequest` carries only the parsed `IHttpQueryCollection`;
+  no transport keeps the raw query string. So the value is normalized: names and shown values are
+  percent-encoded again with `Uri.EscapeDataString`, a parameter with an empty name is left out (the
+  parser skips it), and a repeated name appears once, holding the value the collection kept. The
+  parameters appear in the collection's order, which for the transports' collections is the order
+  they were received. When the collection gains a view of every value of a repeated name (#1335,
+  Stage 13), this is the reader to switch to it.
+- **The received query.** The server reads it before the pipeline runs, so it reports what the
+  client sent, not a `Web.Rewrite` rewrite of it, as it does for `url.path`.
+- **Cost.** It is built once per request while an `ActivityListener` subscribes to the source,
+  before the sampler runs, whether or not a span is recorded: it is a creation-time attribute, so
+  samplers can read it. A request with a query then pays one string, one `Uri.EscapeDataString` per
+  name and shown value, and the query collection's boxed enumerator, even when a ratio sampler drops
+  the span. Without a span listener the server never reads the query, and the metrics never carry
+  `url.query`, as the convention defines them.
+
+Rejected:
+
+- **The convention's short list as the default.** It names `AWSAccessKeyId`, `Signature`, `sig` and
+  `X-Goog-Signature`, and misses every application's own tokens (`access_token`, `code`, `state`,
+  `api_key`). Redacting every value fails closed.
+- **The raw query string from the transport.** It would need a new core request member and a change
+  to all three transports' request parsing for one attribute; core Http holds base contracts only
+  (owner decision 20), and the parsed form is enough to show the query's shape.
+- **A process-wide environment variable,** as `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` is. Which
+  parameters are safe is the application's knowledge, so the application declares them in code.
+
 **Outcomes and `error.type`.** The server reports how it finalized the exchange; the exception
 itself stays with the error boundary, which does not keep it, and with the hosting logs (#147).
 
@@ -606,8 +703,11 @@ itself stays with the error boundary, which does not keep it, and with the hosti
 | A response was sent with a status below 500 | the status | none |
 | The request body broke its framing or a limit while it was read, or the client cut it short, and the HTTP/1.1 transport answered it in place of the staged response (#1333, #1339, #1340) | the transport's `400`, `413`, `408` or `431`, which it also sets on the exchange | none |
 | The request body fell below the minimum data rate while it was read, and the HTTP/2 or HTTP/3 transport answered its stream with `408` before the server's replacement `500` (#1085) | `408`, which the transport also sets on the exchange | none |
+| The request body contradicted its content-length or carried a malformed trailer section, and the HTTP/2 or HTTP/3 transport reset its stream before a response started (#1378) | `400`, the client fault the transport reports and sets on the exchange; nothing reached the wire | none |
 | A response was sent with a 5xx status, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | The exchange was cancelled (a peer reset or closed connection, the server stopping, `IHttpContext.Cancel`) and reset | only when a streamed response had started | `request_canceled` |
+| The exchange was cancelled by the HTTP/2 or HTTP/3 transport's answer to, or reset for, a client fault it reported (`IWebClientFaultFeature`, #1378), before the application's response started | the transport's `400`, `408` or `413`, which it sets on the exchange when the server's reset sends into the stream | none |
+| The exchange was cancelled by that answer or reset after a streamed response had started (#1378) | the started response's status | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset (#1340) | only when the response had started | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
 | The response could not be put on the wire (a body or lifecycle hook threw, the write was cut off) | none: the transport marks the head committed before it writes it, so whether it went out is unknown | `response_send_failed` |
@@ -617,13 +717,18 @@ and then reads a malformed, over-limit or cut-short body throws after its respon
 transport's status cannot replace it and the server resets the exchange. Before, that was
 `unhandled_exception`, while the HTTP access log recorded the same exchange as a client fault at its
 configured level; any client could raise it on such an endpoint. `WebExchangeTelemetry.Stop` now
-reads `IWebClientFaultFeature` for a faulted exchange and reports `client_fault`, so
-`unhandled_exception` means the application's own defect again. It reads the feature only when the
-exchange is instrumented and faulted, so the fast path pays nothing. The span status stays `Error`,
-as for `request_canceled`: the reset cut off a response whose status (usually a `2xx`) is not how
-the exchange ended, and the semantic convention sets `Error` on a `1xx`–`3xx` span that ended in
-another error. The `4xx`-is-unset rule covers a `4xx` that was sent, which is the case where the
-transport's status replaced the staged response (the table's second row).
+reads `IWebClientFaultFeature` for a faulted exchange, and since #1378 for a cancelled one, and
+reports `client_fault`, so `unhandled_exception` means the application's own defect again and
+`request_canceled` a cancellation that was not the transport's answer to a client fault. A cancelled
+exchange whose response had not started is the exception: the transport's answer is then the whole
+outcome, so the span reports its status and no error (`IsCancellationAnsweringClientFault`, which
+also requires the exchange's status to be the fault's, so a staged status the transport never set is
+not reported). It reads the feature only when the exchange is instrumented and faulted or cancelled,
+so the fast path pays nothing. The span status stays `Error`, as for `request_canceled`: the reset
+cut off a response whose status (usually a `2xx`) is not how the exchange ended, and the semantic
+convention sets `Error` on a `1xx`–`3xx` span that ended in another error. The `4xx`-is-unset rule
+covers a `4xx` that was sent, which is the case where the transport's status replaced the staged
+response (the table's second row).
 
 **How `http.route` reaches the span.** The template travels through `IWebEndpointFeature`, which
 already carries the selected endpoint to the pipeline terminal. When this was designed COHRES002
@@ -659,9 +764,7 @@ response. This is the isolation boundary the server keeps around application cod
 
 **Deliberately not emitted.**
 
-- `url.query`, although the convention makes it conditionally required. Query strings carry
-  tokens and signatures that the server cannot recognize generically. An application can tag
-  `Activity.Current` itself.
+- Query values the application has not declared safe (see `url.query` above).
 - Proxy-resolved host and scheme. The convention prefers `Forwarded`/`X-Forwarded-*` values for
   `server.address` and `url.scheme`; the server reports what the transport saw. Those headers are
   believable only after `Web.ForwardedHeaders`' trust evaluation, and reading its result
@@ -671,16 +774,19 @@ response. This is the isolation boundary the server keeps around application cod
   address is personal data, and it depends on the same forwarded-headers question.
 - `server.address` and `server.port` on the metrics. They are opt-in there because they come from
   request headers, which makes them a cardinality attack vector.
-- Requests the transport rejects before dispatch (400, 408, 413, 414 and 431 answered by
-  `Http.Connections`). They never reach the server, so they have no span or measurement, and the
-  transport does not report them yet either (Http.Connections DESIGN, "Diagnostics").
+- Requests the transport rejects before dispatch (400, 408, 413, 414, 421, 431 and 501 answered by
+  `Http.Connections`; the 421 and 501 are HTTP/1.1-only). They never reach the server, so they have
+  no span or measurement, and the transport does not report them yet either (Http.Connections
+  DESIGN, "Diagnostics").
 - W3C `baggage`.
 
-**AOT.** `ActivitySource`, `Meter`, `TagList`, `ActivityContext.TryParse` and `FrozenSet`: no
-reflection and no runtime code. The Web AOT guard's smoke run subscribes with an `ActivityListener`
-and a `MeterListener` and checks a routed request's span and duration. In-process listeners need no
-`EventSourceSupport` in a NativeAOT application; tools that read meters out of process through
-EventPipe (`dotnet-counters`) do, as they do for event sources.
+**AOT.** `ActivitySource`, `Meter`, `TagList`, `ActivityContext.TryParse`, `FrozenSet`,
+`Uri.EscapeDataString` and `DefaultInterpolatedStringHandler`: no reflection and no runtime code.
+The Web AOT guard's smoke run subscribes with an `ActivityListener` and a `MeterListener` and checks
+a routed request's span and duration. In-process listeners need no `EventSourceSupport` in a
+NativeAOT application; tools that read meters out of process through EventPipe (`dotnet-counters`)
+do, as they do for event sources.
+
 
 ## Diagnostics (#147)
 
@@ -845,7 +951,7 @@ server carries:
 
 | Feature | Installed by |
 | --- | --- |
-| `IHttpMaxRequestBodySizeFeature` | the first default interceptor, while the request is parsed |
+| `IHttpMaxRequestBodySizeFeature`, `IHttpMinRequestBodyDataRateFeature` and `IHttpMinResponseDataRateFeature`, one object (#1383, #1384) | the first default interceptor, while the request is parsed |
 | `IWebRequestIdFeature` | the server's exchange telemetry, before the pipeline runs |
 | `IWebResponseCompletionFeature` | the server, before the pipeline runs |
 | `IWebServerDrainFeature` | the server, before the pipeline runs |
@@ -880,10 +986,10 @@ exchange passes through them, and in an ordinary application those sit on most e
   a default authenticate scheme is configured, and `IAuthenticationFeature` too on each exchange
   that authenticates. `UseCookiePolicy` installs `ICookieConsentFeature` and its
   `IHttpResponseCookieFeature`.
-- **Only some exchanges:** the upgrade and extended CONNECT features, the client-fault feature on an
-  HTTP/1.1 request with a body (#1340), the WebSocket policy feature on a handshake, the rewrite
-  feature on a rewritten request, the exception feature on a failure, and the TLS feature built on
-  first read.
+- **Only some exchanges:** the upgrade and extended CONNECT features, the client-fault feature on a
+  request that can have a body (#1340, #1378), the WebSocket policy feature on a handshake, the
+  rewrite feature on a rewritten request, the exception feature on a failure, and the TLS feature
+  built on first read.
 
 The server cannot count these itself: the transport learns only a number (owner decision 20), and
 the pipeline's middleware are opaque delegates. A host adds one slot in a listener configuration for
@@ -1023,9 +1129,17 @@ transport with a real client and an `ActivityListener` and `MeterListener` subsc
 request's `http.route` (through real `Web.Routing`); every outcome in the `error.type` table;
 `_OTHER`, including a lower-case `get` written raw and reported with its original case; one span per
 HTTP/2 stream; an ambient activity at server start that must not parent requests; the duration and
-the active-request count; the request id with and
-without a span; and no activity at all without a listener. Listeners are process-wide, so the class
-runs in the non-parallel `TelemetryCollection`.
+the active-request count; the request id with and without a span; and no activity at all without a
+listener. A version-00 `traceparent` and a later version's, with and without extra fields, continue
+the caller's trace (#1299). Version `ff`, a version-00 value with extra fields, a later version
+whose flags are followed by something other than a dash, upper-case hex, a short value and a
+separator other than a dash each start a new trace, and a later version keeps only its sampled flag.
+`url.query` (#1298) is pinned end to end with every value redacted, with values declared safe, and
+after a declaration rejected for a missing or empty name, which leaves its other names redacted; its
+builder is pinned against empty and valueless parameters, encoded names and case-insensitive
+declarations; a request double that counts reads of its query (`TestObjects/ServerTestDoubles`,
+`FakeHttpRequest`) shows the query is read only when a span listener subscribes. Listeners are
+process-wide, so the class runs in the non-parallel `TelemetryCollection`.
 
 The lame-duck drain (#146) is pinned by `WebApplicationServerDrainTests`. Against the doubles: the
 stop begins every connection's graceful close and the exchange in flight finishes and is sent under
@@ -1045,14 +1159,23 @@ by behavior) and by `WebApplicationProtocolUpgradeTests` over a real loopback co
 nobody accepts is served as an ordinary `200`, and an accepted one answers `101` and hands the
 handler the raw connection. The default extended CONNECT interceptor is pinned by the same defaults
 suite (slot 2, by behavior) and by `WebApplicationServerExtendedConnectTests`, a WebSocket echo over
-a real HTTP/2 extended CONNECT. The client-fault interceptor (#1340) is pinned by the defaults suite
-(slot 3, by behavior: it joins the response phase only for an HTTP/1.1 request that declares a body,
-and its feature reads the control on each access) and by `WebApplicationServerClientFaultTests`
-([example](examples/web-application-server-client-fault-tests.md)) over a raw in-memory connection:
-a malformed chunked body and a body over the cap are reported to the pipeline as the `400` and `413`
-the transport sends, a well-formed body reports nothing, and a plain `GET` carries no feature.
-`WebServerTelemetryTests` pins that the same two faults end the span with the transport's status, no
-`error.type` and an unset status.
+a real HTTP/2 extended CONNECT. The client-fault interceptor (#1340, #1378) is pinned by the
+defaults suite (slot 3, by behavior: it joins the response phase only for a request that can have a
+body, on every version, and its feature reads the control on each access) and by
+`WebApplicationServerClientFaultTests`
+([example](examples/web-application-server-client-fault-tests.md)) over raw in-memory connections:
+on HTTP/1.1 a malformed chunked body and a body over the cap are reported to the pipeline as the
+`400` and `413` the transport sends, a well-formed body reports nothing, and a plain `GET` carries
+no feature; on HTTP/2 and HTTP/3 a body that contradicts its content-length and a malformed trailer
+section are reported as `400` while the client sees the stream reset, a body over the cap as the
+`413` the transport sends, and a request whose stream ended with its head carries no feature; on
+HTTP/3, DATA after the trailer section is reported as `400` too, and a client's `RESET_STREAM`
+mid-body reaches the pipeline as the exchange's cancellation, with no fault reported, and ends in a
+reset rather than a `500`. `WebServerTelemetryTests` pins that the same faults end the span with the
+transport's status (the `400` a reset records, on HTTP/2 and HTTP/3), no `error.type` and an unset
+status, that an HTTP/2 exchange the fault's reset or the transport's `413` cancels before its
+response started reports that `400` or `413` the same way, and that an HTTP/3 request the client
+resets mid-body reports `request_canceled`.
 
 The diagnostics (#147) are pinned by `WebApplicationServerDiagnosticsTests`, which records the
 entries through a real `LoggerFactoryBuilder`: a bind failure (`Critical`, with its cause), an
@@ -1187,6 +1310,8 @@ Kestrel-section parity:
     "MaxRequestBodySize": 30000000,
     "KeepAliveTimeout": "00:02:10",
     "RequestHeadersTimeout": "00:00:30",
+    "MinRequestBodyDataRate": { "BytesPerSecond": 240, "GracePeriod": "00:00:05" },
+    "MinResponseDataRate": { "BytesPerSecond": 240, "GracePeriod": "00:00:05" },
     "Http2": { "MaxStreamsPerConnection": 100, "MaxRequestHeaderListSize": 16384 }
   }
 }
@@ -1204,7 +1329,7 @@ overloads:
 | Endpoint protocol | Limits it receives |
 |---|---|
 | HTTP/1.1 (`Http1`, `Http1s`, and the HTTP/1.1 connections of `Https`) | every top-level key |
-| HTTP/2 (`Http2`, `Http2s`, and the HTTP/2 connections of `Https`) | the shared `HttpConnectionListenerLimits` keys (`MaxRequestBodySize`, `KeepAliveTimeout`, `RequestHeadersTimeout`) and the `Limits:Http2` keys (`MaxStreamsPerConnection`, `MaxRequestHeaderListSize`, `MaxResetStreamsPerWindow`, `MaxSettingsFramesPerWindow`, `MaxPingFramesPerWindow`, `FloodDetectionWindow`) |
+| HTTP/2 (`Http2`, `Http2s`, and the HTTP/2 connections of `Https`) | the shared `HttpConnectionListenerLimits` keys (`MaxRequestBodySize`, `KeepAliveTimeout`, `RequestHeadersTimeout`, `MinRequestBodyDataRate`, `MinResponseDataRate`) and the `Limits:Http2` keys (`MaxStreamsPerConnection`, `MaxRequestHeaderListSize`, `MaxResetStreamsPerWindow`, `MaxSettingsFramesPerWindow`, `MaxPingFramesPerWindow`, `FloodDetectionWindow`) |
 | HTTP/3 (`Http3`) | the shared keys |
 
 The HTTP/1.1 wire-format keys have no HTTP/2 or HTTP/3 meaning. HTTP/3's stream and flow-control
@@ -1213,16 +1338,31 @@ bounds belong to the QUIC transport, and its one HTTP/3-specific limit
 every version: HTTP/2 and HTTP/3 enforce `KeepAliveTimeout` and `RequestHeadersTimeout` as HTTP/1.1
 does (#1085; the transport's DESIGN, "HTTP/2 and HTTP/3 connection timeouts and data rates").
 
-The same change puts the default minimum request-body data rate on every HTTP/2 and HTTP/3
-endpoint, as HTTP/1.1 already had it: 240 octets per second after a 5-second grace period, from the
-first body read. No `Limits` key binds `MinRequestBodyDataRate` (or `MinResponseDataRate`) on any
-version, so an endpoint bound from configuration keeps the default. An endpoint registered in code
-can change it through the HTTP options callback of `UseHttp1s`, `UseHttp2s`, `UseHttps` or
-`UseHttp3`, for example `http2 => http2.Limits.MinRequestBodyDataRate = null`. There is no
-per-request override: a request body that legitimately idles, such as a client-streaming call,
-fails with `408` (or a stream reset once the response has started) when an idle gap outlasts its
-allowance, about 5 seconds plus 1 second per 240 octets already received. Before #1085 such a body
-was served on HTTP/2 and HTTP/3.
+The same change puts the default minimum request-body data rate on every HTTP/2 and HTTP/3 endpoint,
+as HTTP/1.1 already had it: 240 octets per second after a 5-second grace period, from the first body
+read. `Limits:MinRequestBodyDataRate` binds the listener-wide value on every version (#1383): a
+section sets `BytesPerSecond` (a positive, finite number) and `GracePeriod` (a positive `TimeSpan`),
+keeping the built-in value of a dimension it leaves out, and the scalar `none` (or `disabled`) turns
+the rate off. A JSON `null` reads as an absent key and keeps the default, so it never switches the
+defence off by accident, and a value that does not parse fails the bind. An endpoint registered in
+code can still set it through the HTTP options callback of `UseHttp1s`, `UseHttp2s`, `UseHttps` or
+`UseHttp3`, for example `http2 => http2.Limits.MinRequestBodyDataRate = null`.
+
+A request body that legitimately idles, such as a client-streaming call, needs neither: its endpoint
+sets `context.MinRequestBodyDataRate!.MinDataRate = null` before it reads the body, through the
+feature the default request-limits interceptor attaches (#1383), and every other request keeps the
+listener's rate. Without that, such a body fails with `408` (or a stream reset once the response has
+started) when an idle gap outlasts its allowance, about 5 seconds plus 1 second per 240 octets
+already received.
+
+`Limits:MinResponseDataRate` binds the slow-read defence the same way (#1384): same shape, same
+`none`, onto every endpoint. Every version now holds every response to it, so a client that grants
+no flow-control credit or stops reading is reclaimed — the connection closed on HTTP/1.1, the stream
+reset (or the connection ended, when its whole window stalls) on HTTP/2, the request stream reset on
+HTTP/3 — and the exchange is cancelled. The server records that as a cancelled exchange, not an
+application fault, because the stalled write throws an `OperationCanceledException` carrying
+`RequestCancelled`. An endpoint whose reader legitimately pauses sets
+`context.MinResponseDataRate!.MinDataRate = null` before its response starts.
 
 `Limits:MaxConcurrentConnections` is not an endpoint limit: it caps the default server (see
 "Concurrency cap (`MaxConcurrentConnections`)"). The binder hands it to the server builder, and a
@@ -1310,7 +1450,8 @@ is an unknown mode.
 `UseConfiguration` binds HTTP, HTTPS, and HTTP/3 endpoints, their protocol-specific server limits,
 their client-certificate mode, and the connection cap. Not bound: the HTTP/3
 `MaxRequestHeadersFrameSize` and QPACK options, QUIC stream limits, and a client-certificate
-validation callback. Data-rate limits are deferred with the transport's streaming-body rework.
+validation callback. The minimum request-body and response data rates are bound
+(`Limits:MinRequestBodyDataRate`, `Limits:MinResponseDataRate`; #1383, #1384).
 
 ### Entry-point defaults (#1047)
 
@@ -1349,8 +1490,8 @@ When the web host composes the `HttpConnectionListener`, it installs the default
 **before** any user `UseServer` configuration runs
 (`WebApplicationServerBuilder.ApplyDefaultInterceptors`). There are four, in this order:
 
-1. `Http.RequestLimits`' max-request-body-size interceptor (request scope), in slot 0, described
-   below.
+1. `Http.RequestLimits`' request-limits interceptor (`HttpRequestLimits.CreateInterceptor()`,
+   request scope), in slot 0, described below.
 2. `Http.ProtocolUpgrade`'s interceptor (decision 16, the Http area's ADR 1). It surfaces an
    HTTP/1.1 upgrade or `CONNECT` as `context.Upgrade`, so a WebSocket handshake
    (`context.WebSockets`, `Http.WebSockets`) works on every HTTP/1.1 listener with no listener
@@ -1389,23 +1530,33 @@ response phase (measured against 12,552 B and 9,840 B without it, before it move
 scope).
 
 The client-fault interceptor follows the same rule with a wider condition. Only an exchange whose
-body is read after dispatch can fault that way, so it joins the response phase of an HTTP/1.1
-request that declares a body (a `Transfer-Encoding`, or a `Content-Length` other than zero, RFC 9112
-§6) and installs the feature there. Its head hook allocates nothing, so a request without a body (a
-plain `GET`) keeps the fast path and carries no feature. `HostFeatureCount` stays four because the
-feature is not on every exchange; when it overflows the rounded capacity, the collection grows as an
-unsized one would (see "Rounding: an overflow never costs more than not presizing"), so it never
-costs more than not presizing. That is not spare room: the rounding leaves a free slot only when the
-count falls between two growth sizes, and a count already on one (three stamped application
-features make seven) is full. A request with a body pays for the response sink, the control, the
-response context and the feature, and for that growth when the count sits on a growth size.
-Measured over the in-memory transport with a raw keep-alive client (Debug build, median of five
-rounds of 5,000 requests, three runs), a 3-byte `POST` allocated about 470 B more with no stamped
-application features (36,837 B against 36,308 B), where the host's four round up to seven slots and
-the feature takes a free one, and about 1,150 B more with three (37,512 B against 36,351 B), where
-the count is seven and the feature grows the collection to 17 slots. A plain `GET` stayed within the
-run-to-run noise in both. HTTP/2 and HTTP/3 exchanges are left alone: their controls keep the
-interface's `null` default until #1378, so the response phase would buy nothing there.
+body is read after dispatch can fault that way, so it joins the response phase of a request that can
+have a body and installs the feature there. The transport decides that from the framing only it sees
+(`HttpExchangeInterceptorRequestContext.CanHaveBody`, #1378): on HTTP/1.1 a `Transfer-Encoding` or a
+`Content-Length` other than zero (RFC 9112 §6); on HTTP/2 a head that did not end the stream,
+whatever `content-length` it declares; on HTTP/3 a request stream that had not ended with its
+HEADERS frame; never a `CONNECT`. Until #1378 the interceptor read the HTTP/1.1 framing fields
+itself and left HTTP/2 and HTTP/3 alone, since their controls reported nothing; an HTTP/2 or HTTP/3
+request need not declare its body, so those fields cannot answer it there. Its head hook allocates
+nothing, so a request without a body (a plain `GET`) keeps the fast path and carries no feature.
+`HostFeatureCount` stays four because the feature is not on every exchange; when it overflows the
+rounded capacity, the collection grows as an unsized one would (see "Rounding: an overflow never
+costs more than not presizing"), so it never costs more than not presizing. That is not spare room:
+the rounding leaves a free slot only when the count falls between two growth sizes, and a count
+already on one (three stamped application features make seven) is full. A request with a body pays
+for the response sink, the control, the response context and the feature, and for that growth when
+the count sits on a growth size. Measured over the in-memory transport with a raw keep-alive client
+(Debug build, median of five rounds of 5,000 requests, three runs), a 3-byte `POST` allocated about
+470 B more with no stamped application features (36,837 B against 36,308 B), where the host's four
+round up to seven slots and the feature takes a free one, and about 1,150 B more with three (37,512
+B against 36,351 B), where the count is seven and the feature grows the collection to 17 slots. A
+plain `GET` stayed within the run-to-run noise in both. On HTTP/2 a `GET` ends its stream with its
+head, so it keeps the fast path as on HTTP/1.1. On HTTP/3 it does only when the transport has
+already seen the request stream's FIN: the in-memory driver reports it, but the QUIC driver's input
+sees the end only on a read that returns nothing, so over QUIC most HTTP/3 requests report that they
+can have a body, and the interceptor takes the response phase for them. That costs an HTTP/3 `GET`
+the sink, the control, the response context and the feature until the driver reports a FIN it
+already holds (core Http DESIGN, "The body signal").
 
 **Clearing the defaults removes WebSockets.** A `UseServer` callback that clears
 `HttpConnectionListenerOptions.Interceptors` removes both transition interceptors: HTTP/1.1 upgrades
@@ -1417,14 +1568,18 @@ still serves WebSockets adds the two interceptors back. Clearing it also removes
 interceptor: a malformed or over-limit body is then logged at `Error` and observed by `OnException`
 again, while the transport still answers it with its own status.
 
-The max-request-body-size interceptor occupies slot 0 of the interceptor order so every request
-carries the typed `IHttpMaxRequestBodySizeFeature` and user-registered interceptors'
-`AfterRequestHead` hooks can observe it. As of #819 the seam is invoked on **all three** parse paths
-— HTTP/1.1, HTTP/2, and HTTP/3 — so the feature is attached uniformly regardless of protocol. The
-cap is *enforced* with 413 on all three: HTTP/1.1 inline in its parser, HTTP/2 against the value the
-interceptor pipeline freezes (#1048), and HTTP/3 in its incrementally read body (#1066).
-Http.RequestLimits' DESIGN, "Protocol coverage (honest gaps)", has the detail; the transport-wide
-default is `HttpConnectionListenerLimits.MaxRequestBodySize`.
+The request-limits interceptor occupies slot 0 of the interceptor order so every request carries the
+typed `IHttpMaxRequestBodySizeFeature`, `IHttpMinRequestBodyDataRateFeature` and
+`IHttpMinResponseDataRateFeature`, and user-registered interceptors' `AfterRequestHead` hooks can
+observe them. All three contracts sit on one feature object (#1383, #1384), so the rates added no
+slot and `HostFeatureCount` is unchanged. The request-body rate's knob freezes at the first body
+read on every protocol, and the response rate's at the response's first write, so an endpoint can
+disable either for its own exchange before then. As of #819 the seam is invoked on **all three**
+parse paths — HTTP/1.1, HTTP/2, and HTTP/3 — so the feature is attached uniformly regardless of
+protocol. The cap is *enforced* with 413 on all three: HTTP/1.1 inline in its parser, HTTP/2 against
+the value the interceptor pipeline freezes (#1048), and HTTP/3 in its incrementally read body
+(#1066). Http.RequestLimits' DESIGN, "Protocol coverage (honest gaps)", has the detail; the
+transport-wide default is `HttpConnectionListenerLimits.MaxRequestBodySize`.
 
 ### Why default-on, and why here
 

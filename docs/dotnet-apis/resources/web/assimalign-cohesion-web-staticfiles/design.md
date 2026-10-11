@@ -75,6 +75,26 @@ and `HEAD` in the package (see "Response helpers" below).
   before validator derivation, so `If-None-Match`/`If-Range` compare against the validators
   of the representation that would actually be served — and a `Range` applies to the encoded
   bytes (RFC 9110 §14.2: ranges address the selected representation).
+- **A date `If-Range` applies only to a settled file (#1185).** `HttpIfRange.Matches` honors the
+  range for a date only when the date equals `Last-Modified` and `Last-Modified` is at least one
+  second before the response, which `RepresentationWriter` takes as the current time
+  (`DateTimeOffset.UtcNow`; nothing upstream sets a response `Date`). A file written in the current
+  second can change again without changing its `Last-Modified`, so it gets the full `200`, and so
+  does any date earlier or later than `Last-Modified`. The one-second test is a conservative
+  heuristic, not RFC 9110 §8.8.2.2's "reliably knows" condition: a file written twice inside one
+  second, with a client's copy taken between the writes, keeps one `Last-Modified`, so that client's
+  date still matches (the core `HttpIfRange` design). The strong `ETag` form has no such case; it is
+  what a resuming client should send anyway.
+- **A future `Last-Modified` is sent as the response time.** RFC 9110 §8.8.2.1 forbids an origin
+  server with a clock to send a `Last-Modified` later than the response's origination, and makes it
+  send that time instead. A file stamped in the future (a clock that ran ahead, an archive extracted
+  with its original times) or a `WriteStreamAsync` caller's future `lastModified` would otherwise go
+  out unchanged. `TrySelectContent` reads the clock once, clamps
+  `RepresentationMetadata.LastModified` to that second (`ClampLastModified`), and evaluates the
+  preconditions, the `If-Range` test, and every header section that carries validators (`200`,
+  `206`, `304`, `416`) against the clamped value, passing the same instant to `HttpIfRange.Matches`.
+  A clamped `Last-Modified` falls in the current second, so it never applies a date `If-Range`. The
+  `ETag` keeps the file's real timestamp, so it stays stable while the clamped date moves.
 - **Single-range only; multi-range falls back to full `200`.** `multipart/byteranges`
   assembly is complexity with almost no modern client demand; the RFC permits serving the
   full representation instead. `HttpRangeSelector`'s DoS guard (16-range cap → full) rides
@@ -91,6 +111,19 @@ and `HEAD` in the package (see "Response helpers" below).
   canonicalizing to `/docs/` first is the correctness move. The query string is preserved by
   re-encoding the parsed pairs (semantic, not byte-for-byte, fidelity — an accepted trade
   since the raw query text is not surfaced by `IHttpRequest`).
+- **The redirect's `Location` is percent-encoded (#1324).** The transports decode the request path,
+  so `Location` encodes it back per segment with `HttpPath.ToUriComponent()` and rebuilds the query
+  with `HttpQuery.Create`, the two calls `UseHttpsRedirection` makes. Written decoded, a request for
+  `/caf%C3%A9` was redirected to `/café/`, which the HTTP/1.1 writer sends as `/caf?/`, and
+  `/100%25` to `/100%/`, which is not a URI reference. `ToUriComponent` writes an escape the decoder
+  keeps as the request carried it, rather than as `%252F` or `%25E9`: an encoded slash (`%2F`), or a
+  sequence that is not valid UTF-8 (`%E9`). The query is now rebuilt the way HttpsPolicy and Rewrite
+  rebuild it: an empty value is the bare key (`?flag`, where this middleware used to write
+  `?flag=`), and every character but the unreserved ones is encoded. A path that begins with two
+  separators (`//docs`, which the file lookup resolves to the directory `docs`) has its leading
+  slashes collapsed to one: written as is, `//docs/` is a network-path reference that sends the
+  client to the host `docs`. A backslash is encoded (`/%5Cdocs/`), so a browser cannot read
+  `/\docs/` that way either.
 - **Unknown extensions blocked by default.** Serving unmapped types as `octet-stream` invites
   accidental exposure (config files, dotfiles); the default passes them through so the
   application decides. `ServeUnknownContentTypes` + `FallbackContentType` opt in explicitly.

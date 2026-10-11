@@ -23,11 +23,12 @@ documents its API references it.
   Web.Api description verbs, and security requirements from each endpoint's effective
   Web.Authorization policy, the one `UseAuthorization` applies (the fallback policy and named
   policies included).
-- **`builder.Services.AddOpenApi(options => ...)`** registers the document: title, API version,
-  description, the OpenAPI line (3.1 by default; 3.0 and 3.2 as well), declared security schemes
-  and tags, extra endpoint sources, and document transformers. The options are read-only once the
-  callback returns. The verb is a component integration the application's compilation receives
-  (#1380); this package takes no dependency-injection reference.
+- **`builder.Services.AddOpenApi(openApi => ...)`** registers the document, configured on
+  `openApi.Options`: title, API version, description, the OpenAPI line (3.1 by default; 3.0 and 3.2
+  as well), declared security schemes and tags, extra endpoint sources, and document transformers.
+  `AddOpenApi()` registers the defaults. The options are read-only once `OpenApiBuilder.Build` runs,
+  after the callback returns. The verb is a component integration the application's compilation
+  receives (#1380, #1395); this package takes no dependency-injection reference.
 - **`MapOpenApi(pattern)`** serves the document from a `GET` route as JSON, or as YAML for a
   `.yaml`/`.yml` pattern. The document is built on the first request, cached, and revalidated with a
   strong `ETag`: a matching `If-None-Match` is answered `304`.
@@ -64,17 +65,17 @@ document its API carries none of the OpenApi family.
 See the [source-backed usage examples](examples/index.md).
 
 Register the document on `builder.Services`, beside `AddRouting` and `AddJsonSerialization`, with
-`builder.Services.AddOpenApi(options => options.Title = "Orders API")`, and map it in the pipeline:
-`app.MapOpenApi()` serves `GET /openapi/v1.json` (OpenAPI 3.1, JSON),
+`builder.Services.AddOpenApi(openApi => openApi.Options.Title = "Orders API")`, and map it in the
+pipeline: `app.MapOpenApi()` serves `GET /openapi/v1.json` (OpenAPI 3.1, JSON),
 `app.MapOpenApi("/openapi/v1.yaml")` serves the same document as YAML, and
 `app.MapOpenApi(pattern, OpenApiSpecVersion.V3_0)` serves a 3.0 rendition beside the default.
 `MapOpenApi` returns the route's `IRouterRouteBuilder`, so the document route can carry policies
 such as `RequireAuthorization`; requests reach it through `UseRouting`, like every route.
 
 Declare each authentication scheme an endpoint's authorization uses with
-`options.AddSecurityScheme(new OpenApiSecuritySchemeMetadata { Name = "Bearer", ... })`, under the
-authentication scheme's own name; every endpoint whose effective policy authenticates through it
-lists it as a security requirement.
+`openApi.Options.AddSecurityScheme(new OpenApiSecuritySchemeMetadata { Name = "Bearer", ... })`,
+under the authentication scheme's own name; every endpoint whose effective policy authenticates
+through it lists it as a security requirement.
 
 Every type a typed endpoint reads or returns must be in the `JsonSerializerContext` passed to
 `AddJsonSerialization`, as it must for the endpoint to serialize it; a missing one fails the
@@ -108,4 +109,4 @@ walks through a complete application.
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/README.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Assimalign.Cohesion.Web.OpenApi.csproj`.
-- **Registration and mapping** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/ComponentModel/OpenApiComponents.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.
+- **Registration and mapping** — `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiBuilder.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/Extensions/OpenApiWebApplicationExtensions.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.OpenApi/src/OpenApiOptions.cs`.

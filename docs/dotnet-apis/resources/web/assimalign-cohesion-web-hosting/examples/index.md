@@ -7,6 +7,7 @@ Examples for `Assimalign.Cohesion.Web.Hosting` are derived from source documenta
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
+- **[Http Server Configuration Tests](http-server-configuration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Exchange Feature Capacity Tests](web-application-exchange-feature-capacity-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Feature Registration Tests](web-application-feature-registration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Pipeline Integration Tests](web-application-pipeline-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.

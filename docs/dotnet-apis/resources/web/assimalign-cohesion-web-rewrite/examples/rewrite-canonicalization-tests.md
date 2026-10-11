@@ -12,29 +12,30 @@ Use it in the source project’s test context, with its test dependencies and su
 ## Behavior exercised
 
 - **Case 1** — HTTPS: A plaintext request should be redirected to https with 308 by default.
-- **Case 2** — HTTPS: A secure request should pass through.
-- **Case 3** — HTTPS: The inbound port should be replaced by the HTTPS port, omitted when 443.
-- **Case 4** — HTTPS: A host that cannot be echoed safely should not be redirected.
-- **Case 5** — HTTPS: A trusted proxy's forwarded https should pass through without a loop.
-- **Case 6** — HTTPS: A trusted proxy's forwarded http should redirect to the host the client addressed.
-- **Case 7** — HTTPS: An untrusted peer's forwarded https should be redirected on the wire values.
-- **Case 8** — HTTPS: An HTTPS port outside 1-65535 should be rejected at registration.
-- **Case 9** — Host: A bare host should be redirected to www with 308 by default.
-- **Case 10** — Host: A www host should pass the www rule, so the redirect cannot loop.
-- **Case 11** — Host: localhost and IP literals should never be redirected.
-- **Case 12** — Host: The www rule should keep the effective scheme and the port.
-- **Case 13** — Host: Configured domains should limit the www rule.
-- **Case 14** — Host: The www rule should redirect to the host a trusted proxy forwarded.
-- **Case 15** — Host: A www host should be redirected to the bare host.
-- **Case 16** — Host: Configured domains should limit the non-www rule.
-- **Case 17** — Host: An empty domain should be rejected at registration.
-- **Case 18** — Slash: A directory path should be redirected to its trailing-slash form.
-- **Case 19** — Slash: The root, a slashed path and a file path should not get a trailing slash.
-- **Case 20** — Slash: A trailing slash should be removed in one hop.
-- **Case 21** — Slash: The root and an unslashed path should keep their form.
-- **Case 22** — Case: A path with uppercase letters should be redirected to lowercase, the query untouched.
-- **Case 23** — Case: A lowercase path should pass, so the redirect cannot loop.
-- **Case 24** — Canonical: Helpers should apply in order, each answering on its own.
+- **Case 2** — HTTPS: The decoded path should be written back as the request carried it.
+- **Case 3** — HTTPS: A secure request should pass through.
+- **Case 4** — HTTPS: The inbound port should be replaced by the HTTPS port, omitted when 443.
+- **Case 5** — HTTPS: A host that cannot be echoed safely should not be redirected.
+- **Case 6** — HTTPS: A trusted proxy's forwarded https should pass through without a loop.
+- **Case 7** — HTTPS: A trusted proxy's forwarded http should redirect to the host the client addressed.
+- **Case 8** — HTTPS: An untrusted peer's forwarded https should be redirected on the wire values.
+- **Case 9** — HTTPS: An HTTPS port outside 1-65535 should be rejected at registration.
+- **Case 10** — Host: A bare host should be redirected to www with 308 by default.
+- **Case 11** — Host: A www host should pass the www rule, so the redirect cannot loop.
+- **Case 12** — Host: localhost and IP literals should never be redirected.
+- **Case 13** — Host: The www rule should keep the effective scheme and the port.
+- **Case 14** — Host: Configured domains should limit the www rule.
+- **Case 15** — Host: The www rule should redirect to the host a trusted proxy forwarded.
+- **Case 16** — Host: A www host should be redirected to the bare host.
+- **Case 17** — Host: Configured domains should limit the non-www rule.
+- **Case 18** — Host: An empty domain should be rejected at registration.
+- **Case 19** — Slash: A directory path should be redirected to its trailing-slash form.
+- **Case 20** — Slash: The root, a slashed path and a file path should not get a trailing slash.
+- **Case 21** — Slash: A trailing slash should be removed in one hop.
+- **Case 22** — Slash: The root and an unslashed path should keep their form.
+- **Case 23** — Case: A path with uppercase letters should be redirected to lowercase, the query untouched.
+- **Case 24** — Case: A lowercase path should pass, so the redirect cannot loop.
+- **Case 25** — Canonical: Helpers should apply in order, each answering on its own.
 
 ## Source example
 
@@ -76,6 +77,24 @@ public class RewriteCanonicalizationTests
         context.Response.StatusCode.Value.ShouldBe(308);
         context.Response.Headers[HttpHeaderKey.Location].Value.ShouldBe("https://example.com/page?a=1");
         probe.Invocations.ShouldBe(0);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Rewrite] - HTTPS: The decoded path should be written back as the request carried it")]
+    [InlineData("/a%2Fb", "https://example.com/a%2Fb")]          // an encoded slash, kept rather than written as %252F
+    [InlineData("/caf%E9", "https://example.com/caf%E9")]        // a Latin-1 escape the decoder leaves as written
+    [InlineData("/café/100%", "https://example.com/caf%C3%A9/100%25")]
+    public async Task AddRedirectToHttps_PathWithEscapes_ShouldEncodeItOnce(string decodedPath, string location)
+    {
+        // Arrange — the transports hand the rules the decoded path; the Location encodes it with
+        // HttpPath.ToUriComponent, as Web.HttpsPolicy's redirect does.
+        (TestPipelineBuilder builder, _) = Create(rules => rules.AddRedirectToHttps());
+
+        // Act
+        TestHttpContext context = await builder.SendAsync(new TestHttpContext(decodedPath));
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(308);
+        context.Response.Headers[HttpHeaderKey.Location].Value.ShouldBe(location);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Rewrite] - HTTPS: A secure request should pass through")]
@@ -327,6 +346,8 @@ public class RewriteCanonicalizationTests
     [Theory(DisplayName = "Cohesion Test [Web.Rewrite] - Slash: A directory path should be redirected to its trailing-slash form")]
     [InlineData("/docs", "a=1", "/docs/?a=1")]
     [InlineData("/v1.2/docs", null, "/v1.2/docs/")]
+    [InlineData("/a%2Fb", null, "/a%2Fb/")]
+    [InlineData("/docs", "flag", "/docs/?flag")]
     public async Task AddRedirectToTrailingSlash_DirectoryPath_ShouldRedirect(string path, string? query, string location)
     {
         // Arrange

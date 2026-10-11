@@ -89,9 +89,9 @@ the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061)
 
 | Concern | Behavior |
 |---|---|
-| Validators | Strong `ETag` derived from `Size` + `UpdatedOn`; `Last-Modified` (HTTP-date). |
+| Validators | Strong `ETag` derived from `Size` + `UpdatedOn`; `Last-Modified` (HTTP-date), sent as the response time when `UpdatedOn` is in the future (RFC 9110 §8.8.2.1). |
 | Conditional GET | `If-None-Match` / `If-Modified-Since` → `304`; `If-Match` / `If-Unmodified-Since` → `412` (RFC 9110 §13.2.2 via `HttpConditionalRequest`). |
-| Ranges | `Accept-Ranges: bytes`; single satisfiable byte range → `206` + `Content-Range`; multi-range set → full `200` fallback; unsatisfiable → `416` + `bytes */N` (via `HttpRangeSelector`); `If-Range` gates application. |
+| Ranges | `Accept-Ranges: bytes`; single satisfiable byte range → `206` + `Content-Range`; multi-range set → full `200` fallback; unsatisfiable → `416` + `bytes */N` (via `HttpRangeSelector`); `If-Range` gates application: the current strong `ETag`, or a date equal to a `Last-Modified` at least one second old (RFC 9110 §13.1.5), else the full `200`. |
 | Content types | File-name lookup via `HttpContentTypes` with builder-time overlays; a name whose extension is unmapped, or that has none (`html`, the dotfile `.json`), passes through by default or serves the configured fallback type. |
 | Precompression | On-disk `name.ext.br` / `name.ext.gz` siblings negotiate against `Accept-Encoding` (server prefers `br`); served with the logical file's `Content-Type`, the sibling's bytes/length/validators, `Content-Encoding`, and `Vary: Accept-Encoding` (emitted whenever a sibling exists, including on identity responses). |
 | Default documents | Directory requests probe the configured names in order; a slash-less directory URL is `301`-redirected to its canonical slash form first. |
