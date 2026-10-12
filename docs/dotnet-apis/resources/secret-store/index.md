@@ -9,6 +9,13 @@ trust, and private certificate workflows. The substantive runtime stores protect
 persistent `data` volume, verifies gateway-issued ES256 bootstrap credentials, and issues durable
 private-CA leaves on first resolution of `certs/<name>`.
 
+A standalone host has no bootstrap credential and therefore may bind only to loopback, including
+when it uses HTTPS. Its `/cohesion/v1` and `/cohesion/v1/*` routes accept only transport peers at
+`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive `403`. Forwarded
+headers do not affect this check. Bare `/healthz`, `/readyz`, and `/livez` remain open for probes.
+This tightens standalone request authorization from 10.0.0-preview.1; gateway-managed
+authentication is unchanged.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -81,6 +88,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/SecretStore/README.md`.
+- **Source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Refs/src/Assimalign.Cohesion.SecretStore.Refs.csproj` and `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Runtime/Directory.Build.props`.

@@ -27,9 +27,11 @@ map in the shape binding failures already use.
   request-body model, after all its parameters are bound and before its handler runs. A body type
   with no registered validator, and a `null` body, are not validated.
 - **The failure payload.** `400` problem details with `detail` "One or more validation errors
-  occurred." and an `errors` extension member mapping each failing member to its messages. Keys are
-  the member paths the profile declares (`Name`, `Address.City`); a nested profile's errors are
-  reported under their parent member.
+  occurred." and an `errors` extension member mapping each failing member to its messages:
+  `{ "name": ["..."], "address.city": ["..."], "items[2].quantity": ["..."] }`.
+  Keys use registered JSON contract names, with CLR names as a fallback, and zero-based collection
+  indexes. Explicit error sources are preserved. Throwing validators report their retained errors
+  in the same format.
 - **Turning it off or on.** `validation.Options.Enabled = false` turns validation off by default;
   `DisableValidation()` turns it off for a route or a route group, and `RequireValidation()` turns
   it on, the most specific declaration winning.
@@ -42,6 +44,7 @@ map in the shape binding failures already use.
 - **`Assimalign.Cohesion.Web.Routing`** — the endpoint metadata the decision reads and the
   convention-builder seam the verbs extend.
 - **`Assimalign.Cohesion.Web.ProblemDetails`** — the `application/problem+json` response.
+- **`Assimalign.Cohesion.Web.Serialization`** — registered JSON contracts through `TryGetJsonTypeInfo`.
 - **`Assimalign.Cohesion.Http`** — the HTTP context and status codes.
 - **`Assimalign.Cohesion.ObjectValidation`** — the validators and profiles.
 
@@ -55,6 +58,15 @@ surface takes its `IValidator` and `IValidationProfile<T>`.
 
 See the [source-backed usage examples](examples/index.md).
 
+`Sdk.Web` includes the Web source generator, which supplies reflection-free CLR member identities
+for source-declared partial `JsonSerializerContext` classes, including `[JsonPropertyName]` renames.
+When using individual packages, include `Assimalign.Cohesion.SourceGeneration.Web` as an analyzer.
+Custom resolvers that rename properties beyond policies and attributes implement
+`IValidationJsonPropertyResolver` to identify the final contract's properties. They may return null
+for unchanged members; validation then tries the originating resolver and the existing
+constructor-name/naming-policy fallback. Precompiled contexts without that metadata fall back to
+CLR names for renamed mutable members; see [The failure payload](design.md#the-failure-payload).
+
 Register the validators on `builder.Services`, beside `AddRouting` and `AddJsonSerialization`, with
 `builder.Services.AddValidation(validation => validation.Options.AddProfile(new CustomerProfile()))`.
 A typed endpoint such as `app.MapPost("/customers", (Customer customer) => ...)` then answers an
@@ -66,7 +78,7 @@ under its parent member.
 A customer whose `Name` and `Address.City` are empty is answered with:
 
 ```json
-{"type":"about:blank","title":"Bad Request","status":400,"detail":"One or more validation errors occurred.","errors":{"Name":["The following expression: 'customer => customer.Name' was empty."],"Address.City":["The following expression: 'a => a.City' was empty."]}}
+{"type":"about:blank","title":"Bad Request","status":400,"detail":"One or more validation errors occurred.","errors":{"name":["The following expression: 'customer => customer.Name' was empty."],"address.city":["The following expression: 'a => a.City' was empty."]}}
 ```
 
 See `docs/DESIGN.md` for how the generator detects the package, the decision order, the key format,
@@ -78,6 +90,7 @@ and why validation is its own package rather than part of `Web.Api`.
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Serialization` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.ObjectValidation` | `CohesionProjectReference` |

@@ -28,18 +28,32 @@ everything else, so it is safe on a factory that also carries application loggin
 seam a future OTLP/OpenTelemetry adapter would consume (#583/#317): correlation concepts (trace/span
 ids as attributes) live here; OTel-specific behavior belongs in later adapters.
 
-Trace correlation is the inbound `traceparent` header, span-parsed (`Internal/TraceParent`) into
-`trace.id` /`span.id` attributes when valid. Optionally (`LogRequestStart`), a start entry seeds an
-`IScopedLogger` scope so the completion entry correlates via `ILoggerEntry.ParentId` — the Logging
-library's own correlation mechanism, not a bespoke one.
+Trace correlation reads the exchange's server features from `Web.Server` (#1297). With
+`HttpLoggingFields.TraceContext` enabled, `trace.id` is
+`IWebRequestIdFeature.RequestId.ToHexString()`: the server span's trace id, the valid inbound trace
+id when no span exists, or the server's stable random id for an unparented request. `span.id` is
+the span id of `IWebRequestActivityFeature.Activity` only when that activity is a W3C `Server`
+span whose trace id matches the request id. The server publishes the activity on this exchange,
+which identifies its span even if a child or an unrelated activity is current during logging.
+The middleware never reads `Activity.Current` or parses `traceparent` itself. A custom server
+may omit either feature: without a request id both attributes are absent, and without a server
+activity only `span.id` is absent.
 
-The package does not read the server's request id (`IWebRequestIdFeature`). It references
-`Web.Server` only for the client-fault report (`IWebClientFaultFeature`, "Emission model" below).
-The request id is the same W3C trace id the header carries when it is valid, but the default server
-also invents one for a request without a valid `traceparent`. Logging that id would give every entry
-a `trace.id`, including entries no span or caller shares. That is a separate decision: if it is
-taken, the middleware reads the feature from `Web.Server`, where it moved from the Web root with
-#1379, and handles its absence under a custom server.
+The optional activity contract lives in `Web.Server`, alongside the existing request-id contract;
+no member is added to an existing interface or to the Web root. Source-name and trace-id checks
+on `Activity.Current` would not establish exchange ownership: with no listener the host can
+retain an ambient activity, and several exchanges can share a trace. The server's feature
+provides the association directly.
+
+**Behavior break from 10.0.0-preview.1 (decision 15).** That release copied the inbound
+`traceparent`'s parent span id into `span.id` and omitted both ids without a valid header.
+Logging now records the server span id when one exists, omits `span.id` without one, and records
+the server's request id even without an inbound header. Consumers that interpreted `span.id`
+as the caller's span must migrate. A custom server that supplies neither feature no longer gets
+header-derived ids.
+
+Optionally (`LogRequestStart`), a start entry seeds an `IScopedLogger` scope so the completion
+entry correlates via `ILoggerEntry.ParentId` — the Logging library's own correlation mechanism.
 
 ## Why-this-not-that
 
@@ -64,11 +78,18 @@ taken, the middleware reads the feature from `Web.Server`, where it moved from t
   behave exactly as without the middleware. The alternative (buffer-then-log, ASP.NET's
   `EnableBuffering`) would hold entire bodies in memory and fight the transport's
   consumption-driven window updates.
-- **Request-body interposition via the `HttpRequest` base, degrading gracefully.**
-  `IHttpRequest.Body` is get-only, but the abstract `HttpRequest` base (which every transport
-  derives from) has a settable `Body`. The middleware type-tests for the base; a hypothetical
-  `IHttpRequest` that isn't an `HttpRequest` simply gets no request-body capture or count. The
-  response side needs no such test — `IHttpResponse.Body` is settable by contract.
+- **Request-body interposition through an interface view (#1325).** `IHttpRequest.Body` is
+  get-only. When request capture or byte counting is armed, the middleware hands `next` an
+  internal context/request view whose body is the tee stream. It accepts every `IHttpRequest`,
+  including the views supplied by decompression and rewrite, and composes through request
+  timeouts. The request's `HttpContext` returns the logging view, so reads through that path
+  are observed too. Headers, trailers, path, query, features, response, items, connection info
+  and cancellation still delegate to the incoming exchange. No transport request is mutated
+  or restored, and logging does not dispose the request stream. Metadata is emitted from the
+  incoming context, preserving the path/query visible at logging's pipeline position.
+  The response body remains settable through `IHttpResponse` and is restored only when the
+  installed stream is still the logger's.
+
 - **Response capture decided at first write.** The response `Content-Type` does not exist when
   the middleware runs, so the content-type gate for response capture is a predicate the wrapper
   evaluates once, at the application's first body write — by which point the response head is
@@ -227,6 +248,15 @@ point, so they need no position relative to `UseRouting`. Two consequences to be
 - **Anything registered *before* it** — is invisible to the access log.
 - **Captured bodies are whatever crosses the wire at its position** — place it after a
   decompression middleware to capture decoded payloads, before it to capture the raw ones.
+
+**Behavior break from 10.0.0-preview.1 (#1325, decision 15).** The former `HttpRequest`
+downcast silently omitted request-body capture and byte counts behind request views. Those
+configured fields are now emitted there too. Capture stays opt-in, content-type gated and
+bounded, and only bytes consumed downstream are counted. After decompression the captured
+prefix and count describe decoded bytes; applications relying on the old omission should
+adjust their logging fields or limits explicitly. When capture or counting is armed, downstream
+code receives an `IHttpRequest` view instead of the concrete transport request and must use the
+interface contract.
 
 ## AOT posture
 

@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Otlp Receiver Tests](otlp-receiver-tests.md)** — This example exercises `Assimalign.Cohesion.LogSpace.Hosting` through its co-located test source.
+- **[Standalone Control Plane Tests](standalone-control-plane-tests.md)** — This example exercises `Assimalign.Cohesion.LogSpace.Hosting` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

@@ -25,20 +25,16 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 12** — E2E: A body over the size cap is logged as a client fault with the 413 sent.
 - **Case 13** — E2E: A body the client cuts short is logged as a client fault with the 400 sent, not escalated to Error.
 - **Case 14** — E2E: A well-formed body read to its end carries no client-fault attribute.
-- **Case 15** — E2E: An inbound traceparent yields trace and span id attributes.
-- **Case 16** — E2E: LogRequestStart correlates start and completion via ParentId.
-- **Case 17** — E2E: The client-address resolver seam overrides the socket peer.
-- **Case 18** — E2E: The W3C provider writes an access-log line with no redacted secrets.
+- **Case 15** — E2E: LogRequestStart correlates start and completion via ParentId.
+- **Case 16** — E2E: The client-address resolver seam overrides the socket peer.
+- **Case 17** — E2E: The W3C provider writes an access-log line with no redacted secrets.
 
 ## Source example
 
 ```csharp
 using System.Net;
 using System.Text;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
-using Shouldly;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http.Connections;
@@ -47,6 +43,12 @@ using Assimalign.Cohesion.Web.Diagnostics.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Routing.Metadata;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
 
 namespace Assimalign.Cohesion.Web.Diagnostics.Tests;
 
@@ -674,36 +676,6 @@ public class HttpLoggingEndToEndTests
 
             received.Append(Encoding.ASCII.GetString(buffer, 0, read));
         }
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: An inbound traceparent yields trace and span id attributes")]
-    public async Task TraceContext_InboundTraceparent_ShouldAttachIds()
-    {
-        // Arrange
-        using CancellationTokenSource cancellation = new(_testTimeout);
-        RecordingLoggerProvider recorded = new();
-        using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
-
-        await using WebApplicationTestFactory factory = new();
-        factory.Application
-            .UseHttpLogging(loggerFactory.Create(new HttpLoggingOptions().Category))
-            .Use((context, next) =>
-            {
-                context.Response.StatusCode = CohesionHttpStatusCode.Ok;
-                return Task.CompletedTask;
-            });
-
-        using HttpClient client = factory.CreateClient();
-        using HttpRequestMessage request = new(System.Net.Http.HttpMethod.Get, "/traced");
-        request.Headers.TryAddWithoutValidation("traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
-
-        // Act
-        (await client.SendAsync(request, cancellation.Token)).Dispose();
-
-        // Assert
-        ILoggerEntry entry = (await WaitForEntriesAsync(recorded, 1, cancellation.Token))[0];
-        entry.Attributes[HttpLoggingAttributes.TraceId].ShouldBe("0af7651916cd43dd8448eb211c80319c");
-        entry.Attributes[HttpLoggingAttributes.SpanId].ShouldBe("b7ad6b7169203331");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Diagnostics] - E2E: LogRequestStart correlates start and completion via ParentId")]

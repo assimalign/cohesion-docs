@@ -132,9 +132,31 @@ optional. Bodies are read through `Web.Serialization`'s `ReadContentAsync<T>`; a
 parameter is allowed (COHWEB0004) and body binding is mutually exclusive with form fields and files
 (COHWEB0005).
 
+**Repeated query values (#1335, owner decision 31).** A scalar reads the first occurrence, including
+an empty string. A one-dimensional array, `List<T>`, `IEnumerable<T>`, `IReadOnlyList<T>`,
+`IReadOnlyCollection<T>`, `IList<T>` or `ICollection<T>` of scalar elements binds every occurrence
+in order, by convention or `[FromQuery]`. A missing collection is empty; an empty string remains an
+element, and an empty nullable value-type element becomes null. Every element is converted using
+the scalar rules, and any invalid element produces 400 without invoking the handler. Collection
+metadata describes the declared collection type, the Query source, and `IsRequired = false`.
+
+**Breaking behavior relative to 10.0.0-preview.1:** scalar query reads change from last-wins to
+first-wins. Inferred scalar collections bind from the query instead of the body; use `[FromBody]`
+to retain a collection body. Explicit `[FromQuery]` collections now bind every value; preview.1
+left them ungenerated, reaching the throwing mapping placeholder, while the later diagnostic work
+rejected them at compile time. No runtime reflection or contract-interface member is added: the
+generated thunk uses the core `HttpQueryValue` multi-value view.
+
 **The form is read once**, through `context.ReadFormAsync`, for every form field and file a handler
 binds, so fields and files come from the same parse — the one `UseAntiforgery` or `UseForms`
-already cached, when either ran. The read honors the Http.Forms limits (`HttpFormOptions`) of the
+already cached, when either ran. A repeated scalar `[FromForm]` field binds its first submitted value,
+including an empty string, for both multipart and urlencoded bodies (#1211, owner decision 31).
+The parsed form collection retains every occurrence; generated scalar binding reads its `.Value`.
+This breaks preview.1 behavior: multipart selected the last value, while urlencoded comma-joined
+values (so a repeated numeric field could fail parsing). The same submitted values now bind the
+same way regardless of encoding.
+
+The read honors the Http.Forms limits (`HttpFormOptions`) of the
 exchange's `IHttpFormFeature`: the defaults (a 128 MB multipart section, 4 MB values, 1,024
 entries), or the limits an application sets by installing
 `new HttpFormFeature(context.Request, options)` ahead of the endpoint. A form over a limit is

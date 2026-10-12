@@ -10,6 +10,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Cors End To End Tests](cors-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Middleware Tests](cors-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Options Tests](cors-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Output Cache Tests](cors-output-cache-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Policy Builder Tests](cors-policy-builder-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Route Convention Tests](cors-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 

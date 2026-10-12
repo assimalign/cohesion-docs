@@ -55,14 +55,17 @@ test objects.
 - **Case 41** — WriteStreamAsync: If-Range should honor the range only for a date equal to a strong Last-Modified.
 - **Case 42** — SendFileAsync: a file dated in the future should send the response time as Last-Modified.
 - **Case 43** — SendFileAsync: a 304 for a file dated in the future should send the response time as Last-Modified.
-- **Case 44** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
-- **Case 45** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
-- **Case 46** — WriteStreamAsync: the stream should be left open for its owner.
-- **Case 47** — WriteStreamAsync: invalid arguments should be rejected.
-- **Case 48** — WriteStreamAsync: a cancelled token should stop the content copy.
-- **Case 49** — SendFileAsync: revalidation and ranges should round-trip over the wire.
-- **Case 50** — SendFileAsync: HEAD over the wire should return the header section and no content.
-- **Case 51** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
+- **Case 44** — WriteStreamAsync: Missing or invalid response Date withholds Last-Modified and its conditions.
+- **Case 45** — WriteStreamAsync: A repeated Date cannot provide the response's origination time.
+- **Case 46** — WriteStreamAsync: Missing or invalid response Date keeps entity-tag conditions and ranges.
+- **Case 47** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
+- **Case 48** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
+- **Case 49** — WriteStreamAsync: the stream should be left open for its owner.
+- **Case 50** — WriteStreamAsync: invalid arguments should be rejected.
+- **Case 51** — WriteStreamAsync: a cancelled token should stop the content copy.
+- **Case 52** — SendFileAsync: revalidation and ranges should round-trip over the wire.
+- **Case 53** — SendFileAsync: HEAD over the wire should return the header section and no content.
+- **Case 54** — WriteStreamAsync: a stream of unknown length should arrive whole over the wire.
 
 ## Source example
 
@@ -74,14 +77,18 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.FileSystem;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
+using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.StaticFiles.Tests;
 
@@ -115,10 +122,6 @@ public class HttpResponseFileExtensionsTests
 
     private static string Header(TestHttpContext context, HttpHeaderKey key)
         => context.Response.Headers.TryGetValue(key, out HttpHeaderValue value) ? (string)value : string.Empty;
-
-    // An HTTP-date carries whole seconds, so a sent date is compared with the second it falls in.
-    private static DateTimeOffset WholeSecond(DateTimeOffset value)
-        => new(value.UtcTicks - (value.UtcTicks % TimeSpan.TicksPerSecond), TimeSpan.Zero);
 
     // ---------------------------------------------------------------- SendFileAsync(IFileSystemFile)
 
@@ -911,15 +914,17 @@ public class HttpResponseFileExtensionsTests
         // Arrange — a date names a representation only when it equals Last-Modified (RFC 9110
         // §13.1.5), and only when Last-Modified is at least a second older than the response, the
         // heuristic HttpIfRange models on §8.8.2.2's Date rule.
-        // One dated after the response (a clock running ahead) is weak, as is one in the current
-        // second; the past and the future are used here so the outcome cannot hinge on the clock.
-        DateTimeOffset settled = new(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
-        DateTimeOffset ahead = DateTimeOffset.UtcNow.AddHours(1);
+        // The response date deliberately differs from the machine's clock: a later source time
+        // must be weak even when it is in the machine's past.
+        DateTimeOffset responseDate = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
+        DateTimeOffset settled = responseDate.AddDays(-1);
+        DateTimeOffset ahead = responseDate.AddHours(1);
         using MemoryStream current = Content("0123456789");
         using MemoryStream later = Content("0123456789");
         using MemoryStream weak = Content("0123456789");
-        static Action<TestHttpContext> Prepare(DateTimeOffset ifRange) => ctx =>
+        Action<TestHttpContext> Prepare(DateTimeOffset ifRange) => ctx =>
         {
+            ctx.Response.Headers[HttpHeaderKey.Date] = HttpDate.Format(responseDate);
             ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-2";
             ctx.Request.Headers[HttpHeaderKey.IfRange] = HttpDate.Format(ifRange);
         };
@@ -931,7 +936,6 @@ public class HttpResponseFileExtensionsTests
             HttpMethod.Get, response => response.WriteStreamAsync(later, "text/plain", lastModified: settled), Prepare(settled.AddDays(1)));
         TestHttpContext weakContext = await RunAsync(
             HttpMethod.Get, response => response.WriteStreamAsync(weak, "text/plain", lastModified: ahead), Prepare(ahead));
-        DateTimeOffset answered = DateTimeOffset.UtcNow;
 
         // Assert
         currentContext.Response.StatusCode.ShouldBe(HttpStatusCode.PartialContent);
@@ -942,7 +946,7 @@ public class HttpResponseFileExtensionsTests
         weakContext.ReadResponseBody().ShouldBe("0123456789");
         // RFC 9110 §8.8.2.1: the future time is replaced by the response's, never sent as given.
         HttpDate.TryParse(Header(weakContext, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
-        sent.ShouldBeLessThanOrEqualTo(answered);
+        sent.ShouldBe(responseDate);
     }
 
     [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a file dated in the future should send the response time as Last-Modified")]
@@ -953,8 +957,8 @@ public class HttpResponseFileExtensionsTests
     {
         // Arrange — RFC 9110 §8.8.2.1: an origin server with a clock MUST NOT send a Last-Modified
         // later than the response, and MUST send the response time instead.
-        DateTimeOffset requested = WholeSecond(DateTimeOffset.UtcNow);
-        DateTimeOffset future = requested.AddHours(1);
+        DateTimeOffset responseDate = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
+        DateTimeOffset future = responseDate.AddHours(1);
         var file = new FixedTimestampFile("data.txt", "0123456789", future.UtcDateTime);
 
         // Act
@@ -963,6 +967,7 @@ public class HttpResponseFileExtensionsTests
             response => response.SendFileAsync(file),
             ctx =>
             {
+                ctx.Response.Headers[HttpHeaderKey.Date] = HttpDate.Format(responseDate);
                 if (range is not null)
                 {
                     ctx.Request.Headers[HttpHeaderKey.Range] = range;
@@ -972,21 +977,19 @@ public class HttpResponseFileExtensionsTests
                     ctx.Request.Headers[HttpHeaderKey.IfRange] = HttpDate.Format(future);
                 }
             });
-        DateTimeOffset answered = DateTimeOffset.UtcNow;
 
         // Assert
         context.Response.StatusCode.Value.ShouldBe(expectedStatus);
         HttpDate.TryParse(Header(context, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
-        sent.ShouldBeGreaterThanOrEqualTo(requested);
-        sent.ShouldBeLessThanOrEqualTo(answered);
+        sent.ShouldBe(responseDate);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - SendFileAsync: a 304 for a file dated in the future should send the response time as Last-Modified")]
     public async Task SendFileAsync_FutureLastModifiedNotModified_ShouldSendResponseTime()
     {
         // Arrange — the 304 carries the validators a 200 would (RFC 9110 §15.4.5), clamped the same way.
-        DateTimeOffset requested = WholeSecond(DateTimeOffset.UtcNow);
-        var file = new FixedTimestampFile("data.txt", "0123456789", requested.AddHours(1).UtcDateTime);
+        DateTimeOffset responseDate = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
+        var file = new FixedTimestampFile("data.txt", "0123456789", responseDate.AddHours(1).UtcDateTime);
         TestHttpContext first = await RunAsync(HttpMethod.Get, response => response.SendFileAsync(file));
         string etag = Header(first, HttpHeaderKey.ETag);
 
@@ -994,14 +997,108 @@ public class HttpResponseFileExtensionsTests
         TestHttpContext second = await RunAsync(
             HttpMethod.Get,
             response => response.SendFileAsync(file),
-            ctx => ctx.Request.Headers[HttpHeaderKey.IfNoneMatch] = etag);
-        DateTimeOffset answered = DateTimeOffset.UtcNow;
+            ctx =>
+            {
+                ctx.Response.Headers[HttpHeaderKey.Date] = HttpDate.Format(responseDate);
+                ctx.Request.Headers[HttpHeaderKey.IfNoneMatch] = etag;
+            });
 
         // Assert
         second.Response.StatusCode.ShouldBe(HttpStatusCode.NotModified);
         HttpDate.TryParse(Header(second, HttpHeaderKey.LastModified), out DateTimeOffset sent).ShouldBeTrue();
-        sent.ShouldBeGreaterThanOrEqualTo(requested);
-        sent.ShouldBeLessThanOrEqualTo(answered);
+        sent.ShouldBe(responseDate);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: Missing or invalid response Date withholds Last-Modified and its conditions")]
+    [InlineData(null, "If-Range")]
+    [InlineData(null, "If-Modified-Since")]
+    [InlineData(null, "If-Unmodified-Since")]
+    [InlineData("invalid", "If-Range")]
+    [InlineData("invalid", "If-Modified-Since")]
+    [InlineData("invalid", "If-Unmodified-Since")]
+    public async Task WriteStreamAsync_UnusableResponseDate_ShouldWithholdDateValidators(string? responseDate, string condition)
+    {
+        // Arrange — without the response's origination time, a date cannot be clamped or
+        // classified as a strong validator. Entity tags remain available.
+        DateTimeOffset lastModified = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
+        using MemoryStream content = Content("0123456789");
+
+        // Act
+        TestHttpContext context = await RunAsync(
+            HttpMethod.Get,
+            response => response.WriteStreamAsync(content, "text/plain", HttpEntityTag.Strong("v1"), lastModified),
+            ctx =>
+            {
+                ctx.Response.Headers[HttpHeaderKey.Date] = new HttpHeaderValue(responseDate);
+                ctx.Request.Headers[new HttpHeaderKey(condition)] = HttpDate.Format(
+                    condition == "If-Unmodified-Since" ? lastModified.AddDays(-1) : lastModified);
+                if (condition == "If-Range")
+                {
+                    ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-2";
+                }
+            });
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        context.ReadResponseBody().ShouldBe("0123456789");
+        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
+        Header(context, HttpHeaderKey.ETag).ShouldBe("\"v1\"");
+        Header(context, HttpHeaderKey.Date).ShouldBe(responseDate ?? string.Empty);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: A repeated Date cannot provide the response's origination time")]
+    public async Task WriteStreamAsync_RepeatedResponseDate_ShouldWithholdDateValidators()
+    {
+        // Arrange
+        DateTimeOffset lastModified = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
+        string responseDate = HttpDate.Format(lastModified.AddDays(1));
+        using MemoryStream content = Content("0123456789");
+
+        // Act
+        TestHttpContext context = await RunAsync(
+            HttpMethod.Get,
+            response => response.WriteStreamAsync(content, "text/plain", lastModified: lastModified),
+            ctx =>
+            {
+                ctx.Response.Headers[HttpHeaderKey.Date] = new HttpHeaderValue([responseDate, responseDate]);
+                ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-2";
+                ctx.Request.Headers[HttpHeaderKey.IfRange] = HttpDate.Format(lastModified);
+            });
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        context.ReadResponseBody().ShouldBe("0123456789");
+        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
+        context.Response.Headers[HttpHeaderKey.Date].Count.ShouldBe(2);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: Missing or invalid response Date keeps entity-tag conditions and ranges")]
+    [InlineData(null, false, 206)]
+    [InlineData(null, true, 304)]
+    [InlineData("invalid", false, 206)]
+    [InlineData("invalid", true, 304)]
+    public async Task WriteStreamAsync_UnusableResponseDate_ShouldPreserveEntityTagConditions(string? responseDate, bool revalidate, int expectedStatus)
+    {
+        // Arrange
+        using MemoryStream content = Content("0123456789");
+
+        // Act
+        TestHttpContext context = await RunAsync(
+            HttpMethod.Get,
+            response => response.WriteStreamAsync(content, "text/plain", HttpEntityTag.Strong("v1"), TestHttpResponse.DefaultDate.AddDays(-1)),
+            ctx =>
+            {
+                ctx.Response.Headers[HttpHeaderKey.Date] = new HttpHeaderValue(responseDate);
+                ctx.Request.Headers[revalidate ? HttpHeaderKey.IfNoneMatch : HttpHeaderKey.IfRange] = "\"v1\"";
+                ctx.Request.Headers[HttpHeaderKey.Range] = "bytes=0-2";
+            });
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(expectedStatus);
+        context.ReadResponseBody().ShouldBe(revalidate ? string.Empty : "012");
+        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
+        Header(context, HttpHeaderKey.ETag).ShouldBe("\"v1\"");
+        Header(context, HttpHeaderKey.Date).ShouldBe(responseDate ?? string.Empty);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support")]

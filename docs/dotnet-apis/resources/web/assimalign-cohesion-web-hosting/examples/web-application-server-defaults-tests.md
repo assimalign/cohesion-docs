@@ -32,14 +32,18 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using HttpVersion = Assimalign.Cohesion.Http.HttpVersion;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Hosting;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Web;
+
+using Shouldly;
+
+using Xunit;
+
+using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using HttpVersion = Assimalign.Cohesion.Http.HttpVersion;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
@@ -152,7 +156,7 @@ public class WebApplicationServerDefaultsTests
 
         WebApplicationServerBuilder.ApplyDefaultInterceptors(options);
 
-        options.Interceptors.Count.ShouldBe(4);
+        options.Interceptors.Count.ShouldBe(5);
 
         // Prove slot 0 is the RequestLimits interceptor by behavior: its head hook attaches the
         // typed feature as a write-through view over the context knob.

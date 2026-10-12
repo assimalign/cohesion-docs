@@ -16,21 +16,26 @@ source project’s test context, with its test dependencies and supporting test 
 - **Case 3** — Binding: route value binds to a typed parameter.
 - **Case 4** — Binding: typed route constraint carries a boxed value.
 - **Case 5** — Binding: query scalars bind by inference.
-- **Case 6** — Binding: missing required query yields 400 problem.
-- **Case 7** — Binding: unparseable query scalar yields 400 problem.
-- **Case 8** — Binding: nullable query is optional.
-- **Case 9** — Binding: header binds by explicit attribute.
-- **Case 10** — Binding: an attribute name holding a quote or a backslash binds that exact key.
-- **Case 11** — Binding: JSON body binds through the serialization registry.
-- **Case 12** — Binding: unsupported body content type yields 415.
-- **Case 13** — Binding: a body without a Content-Type yields 415.
-- **Case 14** — Binding: a body type the resolver has no contract for faults instead of answering 415.
-- **Case 15** — Binding: a body read without a serialization registry faults instead of answering 415.
-- **Case 16** — Binding: malformed JSON body yields 400.
-- **Case 17** — Binding: form fields bind by attribute.
-- **Case 18** — Binding: CancellationToken and IHttpContext inject directly.
-- **Case 19** — Binding: IHttpRequest and IHttpResponse are injected, not read from the body.
-- **Case 20** — Binding: single-context handler uses the middleware overload.
+- **Case 6** — Binding: repeated query values reach sequences in order and scalars read first.
+- **Case 7** — Binding: nullable query sequence elements retain empty occurrences.
+- **Case 8** — Binding: a malformed repeated element rejects the whole query sequence.
+- **Case 9** — Binding: a missing query collection binds as an empty sequence.
+- **Case 10** — Binding: missing required query yields 400 problem.
+- **Case 11** — Binding: unparseable query scalar yields 400 problem.
+- **Case 12** — Binding: nullable query is optional.
+- **Case 13** — Binding: header binds by explicit attribute.
+- **Case 14** — Binding: an attribute name holding a quote or a backslash binds that exact key.
+- **Case 15** — Binding: JSON body binds through the serialization registry.
+- **Case 16** — Binding: unsupported body content type yields 415.
+- **Case 17** — Binding: a body without a Content-Type yields 415.
+- **Case 18** — Binding: a body type the resolver has no contract for faults instead of answering 415.
+- **Case 19** — Binding: a body read without a serialization registry faults instead of answering 415.
+- **Case 20** — Binding: malformed JSON body yields 400.
+- **Case 21** — Binding: form fields bind by attribute.
+- **Case 22** — Binding: repeated form scalars bind their first values in either encoding.
+- **Case 23** — Binding: CancellationToken and IHttpContext inject directly.
+- **Case 24** — Binding: IHttpRequest and IHttpResponse are injected, not read from the body.
+- **Case 25** — Binding: single-context handler uses the middleware overload.
 
 ## Source example
 
@@ -42,15 +47,19 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Api.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 using Assimalign.Cohesion.Web.Testing;
+
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Api.Tests;
 
@@ -199,6 +208,91 @@ public class EndpointBindingTests
 
         response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("hello:2");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: repeated query values reach sequences in order and scalars read first")]
+    public async Task Binding_RepeatedQueryValues_ShouldBindEveryOccurrenceAndFirstScalar()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/repeated", ([FromQuery(Name = "tag")] string[] tags,
+            [FromQuery(Name = "tag")] string first, int[] numbers, string other) =>
+            $"{string.Join('|', tags)}:{first}:{string.Join('|', numbers)}:{other}");
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync(
+            "/repeated?tag=first&numbers=1&other=kept&tag=&numbers=2&tag=last", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("first||last:first:1|2:kept");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: nullable query sequence elements retain empty occurrences")]
+    public async Task Binding_NullableQuerySequence_ShouldRetainEmptyOccurrences()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/nullable-sequence", (List<int?> values) => string.Join('|', values));
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/nullable-sequence?values=1&values=&values=3", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("1||3");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a malformed repeated element rejects the whole query sequence")]
+    public async Task Binding_InvalidQuerySequenceElement_ShouldReturnBadRequest()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        bool invoked = false;
+        factory.Application.MapGet("/invalid-sequence", (int[] values) =>
+        {
+            invoked = true;
+            return string.Join('|', values);
+        });
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/invalid-sequence?values=1&values=bad&values=3", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.BadRequest);
+        invoked.ShouldBeFalse();
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldContain("\"values\"", Case.Sensitive);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a missing query collection binds as an empty sequence")]
+    public async Task Binding_MissingQuerySequence_ShouldBindEmptySequence()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/missing-sequence", (IReadOnlyList<string> values) => values.Count.ToString());
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/missing-sequence", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("0");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: missing required query yields 400 problem")]
@@ -519,6 +613,45 @@ public class EndpointBindingTests
 
         response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("boxes:5");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Api] - Binding: repeated form scalars bind their first values in either encoding")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Binding_RepeatedFormScalars_ShouldBindFirstValuesForEitherEncoding(bool useMultipart)
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapPost("/repeated-form", ([FromForm] string title,
+            [FromForm(Name = "qty")] int quantity) => $"{title}:{quantity}");
+        KeyValuePair<string, string>[] fields =
+        [
+            new("title", "first"),
+            new("qty", "5"),
+            new("title", ""),
+            new("qty", "7"),
+            new("title", "last")
+        ];
+        using HttpContent content = useMultipart ? new MultipartFormDataContent() : new FormUrlEncodedContent(fields);
+        if (content is MultipartFormDataContent multipart)
+        {
+            foreach (KeyValuePair<string, string> field in fields)
+            {
+                multipart.Add(new StringContent(field.Value), field.Key);
+            }
+        }
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/repeated-form", content, cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("first:5");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: CancellationToken and IHttpContext inject directly")]

@@ -33,12 +33,10 @@ validated when they are built, and selected per endpoint from routing metadata.
 ## Dependencies
 
 - **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions.
-- **`Assimalign.Cohesion.Web.Routing`** — the published endpoint and its metadata, the preflight's
-  candidate endpoint, the endpoint convention builders, and the acknowledgement routing checks
-  before it dispatches.
+- **`Assimalign.Cohesion.Web.Routing`** — the published endpoint and its metadata, the preflight's candidate
+  endpoint, the endpoint convention builders, and the acknowledgement routing checks before it dispatches.
 - **`Assimalign.Cohesion.Http`** — the HTTP context, header keys and methods.
-- **`Assimalign.Cohesion.Http.Streaming`** — the response-streaming feature that tells the
-  middleware whether the response head has been sent.
+- **`Assimalign.Cohesion.Web.Server`** — the response-starting contract for buffered and streamed heads.
 
 It never references `Assimalign.Cohesion.Web.Hosting` or any `Assimalign.Cohesion.Hosting*` library
 (`COHRES001`, `COHRES004`).
@@ -47,16 +45,21 @@ It never references `Assimalign.Cohesion.Web.Hosting` or any `Assimalign.Cohesio
 
 See the [source-backed usage examples](examples/index.md).
 
-Register `UseCors` after `UseRouting`, so the endpoint's policy is known, and ahead of any
-middleware that can reject a preflight. An endpoint that declares CORS fails with
-`InvalidOperationException` when it is dispatched without `UseCors` having processed it (missing, or
-registered ahead of `UseRouting`), instead of running under the wrong policy. A preflight for a
-method no route serves is answered by the default policy, or left to routing's `405` when there is
-none.
+Register `UseCors` after `UseRouting`, so the endpoint's policy is known, and ahead of any middleware that
+can reject a preflight. Also register it before `UseOutputCache`, so cache hits register the starting
+callback that writes their CORS grant. An endpoint that declares CORS fails with `InvalidOperationException` when it is
+dispatched without `UseCors` having processed it (missing, or registered ahead of `UseRouting`), instead of
+running under the wrong policy. A preflight for a method no route serves is answered by the default policy,
+or left to routing's `405` when there is none.
 
-See [`DESIGN.md`](design.md) for the policy model and its validation, policy selection, the
-preflight's policy source, the `Vary: Origin` and cache rules, the fail-closed decision, ordering,
-and the non-goals.
+Actual-response grant headers are applied when the response head commits. An exception boundary on either
+side of `UseCors` can replace a failed response and keep its CORS headers. The default Web.Hosting server
+and Web.Testing publish the required `IWebResponseStartingFeature`; a custom server must implement it.
+The callback registers its grant fields and `Vary` for preservation, so a refused head's buffered
+replacement retains the final CORS decision without running the callback again.
+
+See [`DESIGN.md`](design.md) for the policy model and its validation, policy selection, the preflight's
+policy source, the `Vary: Origin` and cache rules, the fail-closed decision, ordering, and the non-goals.
 
 ## Project references
 
@@ -65,7 +68,7 @@ and the non-goals.
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

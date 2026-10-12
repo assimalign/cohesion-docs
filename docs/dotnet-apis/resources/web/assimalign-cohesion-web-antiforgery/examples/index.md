@@ -12,6 +12,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Antiforgery Registration Tests](antiforgery-registration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
 - **[Antiforgery Route Convention Tests](antiforgery-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
 - **[Antiforgery Typed Endpoint Tests](antiforgery-typed-endpoint-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
+- **[Antiforgery Cookie Name Tests](antiforgery-cookie-name-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

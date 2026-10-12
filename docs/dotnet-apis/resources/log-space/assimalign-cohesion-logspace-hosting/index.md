@@ -21,6 +21,11 @@ X-Cohesion-`Next`-Cursor when more scanning is possible. Query pages are bounded
 characters (plus at most one bounded record). Query and management require the sink's ordinary
 bootstrap/dev credential; telemetry scope is rejected.
 
+Without a gateway identity, query and management under `/cohesion/v1` accept only transport peers
+at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
+headers do not change this decision. Bare health probes remain open. This tightens standalone
+behavior from 10.0.0-preview.1.
+
 ## Concrete composition (T10 / O34)
 
 `LogSpaceApplication.CreateBuilder(args)` returns the public concrete `LogSpaceApplicationBuilder`;
@@ -37,6 +42,14 @@ can use environment, state, and hosted-service members beyond the small root con
 once per build against the same context retained by the application; the hosted-service snapshot is
 installed after factory evaluation. Services start in registration order and stop in reverse. No
 area-owned service abstraction is introduced.
+
+## Dependency injection composition
+
+`LogSpaceApplicationBuilder.Services` holds every registration the application runs with.
+`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the
+lifecycle in the same order. `Build` closes registration and resolves the services once. Disposing
+the application disposes every factory-created service.
+See [Design](design.md#dependency-injection-composition).
 
 ## Project references
 

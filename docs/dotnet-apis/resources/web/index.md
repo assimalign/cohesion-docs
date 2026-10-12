@@ -76,6 +76,18 @@ See the [resource dependency rules](../index.md#dependency-rules) .
 The hosting family in this area contains `Assimalign.Cohesion.Web.Hosting`,
 `Assimalign.Cohesion.Web.Hosting.Health`, `Assimalign.Cohesion.Web.Hosting.Resources`.
 
+## Server contracts
+
+[`Assimalign.Cohesion.Web.Server`](assimalign-cohesion-web-server/index.md) contains only contracts:
+the per-exchange features the server publishes, `IWebRequestIdFeature` (the request's W3C trace id),
+`IWebRequestActivityFeature` (the server span), `IWebResponseStartingFeature` (callbacks before
+final-head commit), `IWebResponseCompletionFeature` (callbacks after the response reaches the
+transport), `IWebServerDrainFeature` (the lame-duck drain signal) and `IWebClientFaultFeature` (the
+`4xx` the transport answers a request body that broke its framing or a limit with, which
+`Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read so a client fault is not handled
+as an application defect, #1340). `Web.Hosting` installs all six; namespace
+`Assimalign.Cohesion.Web`, moved from the root (#1379).
+
 ## Feature registration
 
 Owner decisions 34 and 35 (2026-10-09, #1380), and 39 (2026-10-10, #1395), set how a feature reaches

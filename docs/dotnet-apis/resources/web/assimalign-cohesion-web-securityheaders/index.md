@@ -49,25 +49,29 @@ and the middleware then emits neither framing field.
 See the [source-backed usage examples](examples/index.md).
 
 Register `UseSecurityHeaders` at the front of the pipeline, where only `UseHttpLogging` goes ahead
-of it, and ahead of the exception boundary: every response then passes through it, and the fields
-are staged after the boundary has written an error page.
+of it, and ahead of the exception boundary: every response then passes through it. The server stages
+fields at head commit, including on an error page produced by a boundary on either side of this
+middleware.
 
 ## Dependencies
 
 - **`Assimalign.Cohesion.Web`** — the pipeline abstractions the verb extends.
-- **`Assimalign.Cohesion.Web.Routing`** — endpoint metadata and the convention-builder seam the
-  override verbs extend.
+- **`Assimalign.Cohesion.Web.Routing`** — endpoint metadata and the convention-builder seam the override
+  verbs extend.
 - **`Assimalign.Cohesion.Http`** — the header keys, the feature collection, and the Structured Field
   toolkit `Permissions-Policy` is serialized with.
-- **`Assimalign.Cohesion.Http.Streaming`** — the response-streaming feature, which the middleware
-  stands in for so a streamed response carries the fields too.
+- **`Assimalign.Cohesion.Web.Server`** — the response-starting contract covering buffered and streamed heads.
+
+The default Web.Hosting server and Web.Testing publish the required starting feature. A custom server
+must implement `IWebResponseStartingFeature`; otherwise the middleware throws at request time.
+The callback registers the security-policy fields for preservation on a refused head's buffered
+replacement, including application-owned values kept by no-clobber, without running again.
 
 No DI, configuration, or logging dependency: the policy is captured and compiled when the verb is
 called, and the middleware resolves nothing per request. Delivered to applications through the
-`App.Web` shared framework (via `Sdk.Web`), with no project wiring required. `docs/DESIGN.md`
-records when the fields are written, the no-clobber and framing rules, the override model, the
-nonce, and the non-goals. HSTS is not part of this package; it is `UseHsts` in
-`Assimalign.Cohesion.Web.HttpsPolicy`.
+`App.Web` shared framework (via `Sdk.Web`), with no project wiring required. `docs/DESIGN.md` records
+when the fields are written, the no-clobber and framing rules, the override model, the nonce, and the
+non-goals. HSTS is not part of this package; it is `UseHsts` in `Assimalign.Cohesion.Web.HttpsPolicy`.
 
 ## Project references
 
@@ -76,7 +80,7 @@ nonce, and the non-goals. HSTS is not part of this package; it is `UseHsts` in
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

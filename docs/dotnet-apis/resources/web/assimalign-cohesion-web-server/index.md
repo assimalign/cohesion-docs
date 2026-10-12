@@ -19,6 +19,13 @@ that installs the features.
 - **Request id** — `IWebRequestIdFeature.RequestId` is the request's W3C trace id: the server
   span's trace id when the server traces the request, otherwise the trace id of a valid
   `traceparent`, otherwise a random id generated on first read (#1064).
+- **Server activity** — `IWebRequestActivityFeature.Activity` is this exchange's server span,
+  or `null` when no span was created. It is independent of `Activity.Current`, which may be a
+  child or unrelated ambient activity. The server owns the activity's lifetime (#1297).
+- **Response starting** — `IWebResponseStartingFeature.OnStarting(callback, state)` queues work
+  before the final head. It runs once in reverse order; a failure aborts before serialization.
+  Callback header changes survive a refused head's buffered replacement without rerunning callbacks.
+  Optional `preservedHeaders` keys also retain policy fields accepted unchanged by the callbacks.
 - **Response completion** — `IWebResponseCompletionFeature.Register` queues callbacks that run in
   order after the response is written to the transport. Registration after completion throws.
   `Web.Hosting.Resources` defers a control-plane stop until its `202` is written this way.
@@ -33,8 +40,8 @@ that installs the features.
   an application defect (#1340, #1378). The default server installs it on a request that can have a
   body, on every version. `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read it.
 
-A custom `IWebApplicationServer` may omit any of the four, so every reader handles an absent
-feature.
+A custom `IWebApplicationServer` may omit any of the six, so every reader handles an absent
+feature. SecurityHeaders and CORS require starting callbacks and throw if the feature is absent.
 
 ## Namespace
 
@@ -52,6 +59,16 @@ and `Assimalign.Cohesion.Http` (`IHttpFeature`). No Hosting, DI or configuration
 ```csharp
 // The 32-character lower-case trace id, or null under a server that does not publish it.
 string? requestId = context.Features.Get<IWebRequestIdFeature>()?.RequestId.ToHexString();
+
+// This exchange's server activity, or null when it has no span. Do not stop or dispose it.
+Activity? serverActivity = context.Features.Get<IWebRequestActivityFeature>()?.Activity;
+
+// Stage a final header. Callbacks must not start or write the response themselves.
+context.Features.Get<IWebResponseStartingFeature>()?.OnStarting(state =>
+{
+    ((IHttpContext)state!).Response.Headers[new HttpHeaderKey("x-example")] = "value";
+    return Task.CompletedTask;
+}, context);
 
 // Defer work until the response has reached the transport.
 context.Features.Get<IWebResponseCompletionFeature>()?.Register(() => ValueTask.CompletedTask);
@@ -72,6 +89,8 @@ reads one of these features references the package directly. Design detail:
 | Type | Member | Source file |
 |---|---|---|
 | `IWebRequestIdFeature` | `ActivityTraceId RequestId` | `src/Abstractions/IWebRequestIdFeature.cs` |
+| `IWebRequestActivityFeature` | `Activity? Activity` | `src/Abstractions/IWebRequestActivityFeature.cs` |
+| `IWebResponseStartingFeature` | `void OnStarting(Func<object?, Task> callback, object? state, IReadOnlyCollection<HttpHeaderKey>? preservedHeaders = null)` | `src/Abstractions/IWebResponseStartingFeature.cs` |
 | `IWebResponseCompletionFeature` | `void Register(Func<ValueTask> callback)` | `src/Abstractions/IWebResponseCompletionFeature.cs` |
 | `IWebServerDrainFeature` | `CancellationToken Draining` | `src/Abstractions/IWebServerDrainFeature.cs` |
 | `IWebClientFaultFeature` | `HttpStatusCode? StatusCode` | `src/Abstractions/IWebClientFaultFeature.cs` |

@@ -15,6 +15,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Static Files File Access Tests](static-files-file-access-tests.md)** — This example exercises `Assimalign.Cohesion.Web.StaticFiles` through its co-located test source.
 - **[Static Files Short Name Alias Tests](static-files-short-name-alias-tests.md)** — This example exercises `Assimalign.Cohesion.Web.StaticFiles` through its co-located test source.
 - **[Static Files Web Root Tests](static-files-web-root-tests.md)** — This example exercises `Assimalign.Cohesion.Web.StaticFiles` through its co-located test source.
+- **[Static Files Middleware Tests](static-files-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.StaticFiles` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

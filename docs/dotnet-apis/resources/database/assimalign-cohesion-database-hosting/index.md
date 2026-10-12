@@ -42,6 +42,11 @@ The runtime references the area root and non-area infrastructure, never `Databas
 Existing enabled-resource runner/admin/telemetry integration is preserved; this implementation adds
 no ApplicationModel functionality.
 
+An enabled resource's standalone `admin` control plane accepts `/cohesion/v1` only from transport
+peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
+forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
+Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior is unchanged.
+
 ## Project references
 
 | Reference | Kind |

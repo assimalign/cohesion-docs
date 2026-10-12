@@ -29,22 +29,24 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 16** — Telemetry: An HTTP/2 exchange cancelled after the transport answered its body 413 should report the 413 without an error.
 - **Case 17** — Telemetry: A malformed HTTP/3 body the transport resets the stream for should report the client fault's 400, not a 500 error.
 - **Case 18** — Telemetry: An HTTP/3 request the client resets mid-body should report request_canceled, not a 500 error.
-- **Case 19** — Telemetry: A cancelled exchange should report request_canceled and no status code.
-- **Case 20** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
-- **Case 21** — Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception.
-- **Case 22** — Telemetry: A response that cannot be sent should report response_send_failed.
-- **Case 23** — Telemetry: A method outside the known list should be reported as _OTHER.
-- **Case 24** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
-- **Case 25** — Telemetry: Each HTTP/2 stream should get its own server span.
-- **Case 26** — Telemetry: A request with a query should tag url.query with every value redacted and the names kept.
-- **Case 27** — Telemetry: Query parameters the application declares safe should keep their values in url.query.
-- **Case 28** — Telemetry: The request's query should be read only when a span listener subscribes.
-- **Case 29** — Telemetry: url.query should redact every value and keep every name.
-- **Case 30** — Telemetry: url.query should show the values of the parameters declared safe, re-encoded.
-- **Case 31** — Telemetry: A later-version traceparent should keep only its sampled flag.
-- **Case 32** — AllowQueryValuesInTelemetry: A missing or empty name should be rejected.
-- **Case 33** — AllowQueryValuesInTelemetry: A call rejected for a missing or empty name should declare none of its names.
-- **Case 34** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
+- **Case 19** — Telemetry: Losing an HTTP/3 connection mid-body should cancel the exchange without an Error log or a 500.
+- **Case 20** — Telemetry: A cancelled exchange should report request_canceled and no status code.
+- **Case 21** — Telemetry: The error boundary's streamed-response abort is cancelled and skips completion callbacks.
+- **Case 22** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
+- **Case 23** — Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception.
+- **Case 24** — Telemetry: A response that cannot be sent should report response_send_failed.
+- **Case 25** — Telemetry: A method outside the known list should be reported as _OTHER.
+- **Case 26** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
+- **Case 27** — Telemetry: Each HTTP/2 stream should get its own server span.
+- **Case 28** — Telemetry: A request with a query should tag url.query with every value redacted and the names kept.
+- **Case 29** — Telemetry: Query parameters the application declares safe should keep their values in url.query.
+- **Case 30** — Telemetry: The request's query should be read only when a span listener subscribes.
+- **Case 31** — Telemetry: url.query should redact every value and keep every name.
+- **Case 32** — Telemetry: url.query should show the values of the parameters declared safe, re-encoded.
+- **Case 33** — Telemetry: A later-version traceparent should keep only its sampled flag.
+- **Case 34** — AllowQueryValuesInTelemetry: A missing or empty name should be rejected.
+- **Case 35** — AllowQueryValuesInTelemetry: A call rejected for a missing or empty name should declare none of its names.
+- **Case 36** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
 
 ## Source example
 
@@ -59,20 +61,26 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpMethod = System.Net.Http.HttpMethod;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
+using Assimalign.Cohesion.Logging;
+using Assimalign.Cohesion.Web.ErrorHandling;
 using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
+using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpMethod = System.Net.Http.HttpMethod;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
@@ -853,6 +861,72 @@ public class WebServerTelemetryTests
         span.GetTagItem("http.response.status_code").ShouldBeNull();
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: Losing an HTTP/3 connection mid-body should cancel the exchange without an Error log or a 500")]
+    public async Task ServerSpan_Http3ConnectionLostMidBody_ShouldReportRequestCanceledWithoutAnError()
+    {
+        // Arrange — the request body is still incoming when the peer ends its critical control stream.
+        // The handler supplies no read cancellation token, so cancellation must come from the transport.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new(metrics: false);
+        RecordingLoggerProvider recorded = new();
+        TaskCompletionSource firstRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<(Exception Failure, CancellationToken RequestCancelled, CohesionHttpStatusCode? Fault)> failed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        string path = $"/telemetry/h3-connection-lost-mid-body/{Guid.NewGuid():N}";
+
+        InMemoryMultiplexedConnectionListener transport = new();
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Logging.AddProvider(recorded);
+        factory.Builder.Server.UseServer(options => options.UseHttp3(transport));
+        factory.Application.Use(async (context, next) =>
+        {
+            IWebClientFaultFeature? feature = context.Features.Get<IWebClientFaultFeature>();
+            CancellationToken requestToken = context.RequestCancelled;
+            byte[] buffer = new byte[256];
+
+            try
+            {
+                await context.Request.Body.ReadExactlyAsync(buffer.AsMemory(0, 5), CancellationToken.None);
+                firstRead.TrySetResult();
+
+                while (await context.Request.Body.ReadAsync(buffer, CancellationToken.None) > 0)
+                {
+                }
+            }
+            catch (Exception exception) when (exception is IOException or OperationCanceledException)
+            {
+                failed.TrySetResult((exception, requestToken, feature?.StatusCode));
+                throw;
+            }
+        });
+        await factory.StartAsync(cancellationToken);
+        await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
+        await using Connection controlStream = await client.OpenControlStreamAsync(cancellationToken);
+        await using Connection requestStream = await client.SendRequestAsync(
+            "POST",
+            path,
+            [],
+            [Http3RawClient.Data(Encoding.ASCII.GetBytes("hello"))],
+            endStream: false,
+            cancellationToken);
+        await firstRead.Task.WaitAsync(cancellationToken);
+
+        // Act — H3_CLOSED_CRITICAL_STREAM is raised outside the body reader (RFC 9114 §6.2.1).
+        await controlStream.Output.CompleteAsync();
+        (Exception failure, CancellationToken requestCancelled, CohesionHttpStatusCode? fault) = await failed.Task.WaitAsync(cancellationToken);
+        Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+        await factory.StopAsync(cancellationToken);
+
+        // Assert — this is an abandoned exchange, with no client-body fault or attempted error response.
+        OperationCanceledException canceled = failure.ShouldBeAssignableTo<OperationCanceledException>()!;
+        requestCancelled.IsCancellationRequested.ShouldBeTrue();
+        canceled.CancellationToken.ShouldBe(requestCancelled);
+        fault.ShouldBeNull();
+        span.GetTagItem("error.type").ShouldBe("request_canceled");
+        span.GetTagItem("http.response.status_code").ShouldBeNull();
+        recorded.Entries.ShouldNotContain(entry => entry.Level >= LogLevel.Error);
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A cancelled exchange should report request_canceled and no status code")]
     public async Task ServerSpan_CanceledExchange_ShouldReportRequestCanceled()
     {
@@ -886,6 +960,69 @@ public class WebServerTelemetryTests
         span.GetTagItem("error.type").ShouldBe("request_canceled");
         span.GetTagItem("http.response.status_code").ShouldBeNull();
         duration.Tags.ContainsKey("http.response.status_code").ShouldBeFalse();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: The error boundary's streamed-response abort is cancelled and skips completion callbacks")]
+    [InlineData(WebApplicationTestProtocol.Http1)]
+    [InlineData(WebApplicationTestProtocol.Http2)]
+    public async Task ServerSpan_ErrorBoundaryAbortsStartedResponse_ShouldReportCancellationAndSkipCompletion(WebApplicationTestProtocol protocol)
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+        using TelemetryRecorder recorder = new();
+        TaskCompletionSource releaseFault = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        string path = $"/telemetry/boundary-abort/{Guid.NewGuid():N}";
+        int completionCallbacks = 0;
+
+        await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions { Protocol = protocol });
+        factory.Builder.Server.UseServer(options => options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor()));
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseErrorHandling();
+        factory.Application.UseRouting().Map(CohesionHttpMethod.Get, path, new RouterRouteHandler(async context =>
+        {
+            context.Features.Get<IWebResponseCompletionFeature>().ShouldNotBeNull().Register(() =>
+            {
+                Interlocked.Increment(ref completionCallbacks);
+                return ValueTask.CompletedTask;
+            });
+            context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+            IHttpResponseStreamingFeature streaming = context.Response.Streaming;
+            await streaming.WriteAsync(Encoding.UTF8.GetBytes("partial"), cancellationToken);
+            await streaming.FlushAsync(cancellationToken);
+            await releaseFault.Task.WaitAsync(cancellationToken);
+            throw new InvalidOperationException("Deliberate fault after the client read a partial response.");
+        }));
+        using HttpClient client = factory.CreateClient();
+
+        try
+        {
+            // Act: read the streamed bytes before allowing the handler to fault, on either protocol.
+            using HttpResponseMessage response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            Stream body = await response.Content.ReadAsStreamAsync(cancellationToken);
+            byte[] partial = new byte[7];
+            await body.ReadExactlyAsync(partial, cancellationToken);
+            releaseFault.TrySetResult();
+            Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
+            RecordedMeasurement duration = await recorder.WaitForMeasurementAsync(
+                m => m.Instrument == "http.server.request.duration" && Equals(m.Tags.GetValueOrDefault("http.route"), path),
+                cancellationToken);
+
+            // Assert
+            Encoding.UTF8.GetString(partial).ShouldBe("partial");
+            response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+            Volatile.Read(ref completionCallbacks).ShouldBe(0);
+            span.Status.ShouldBe(ActivityStatusCode.Error);
+            span.GetTagItem("error.type").ShouldBe("request_canceled");
+            span.GetTagItem("http.response.status_code").ShouldBe(200);
+            duration.Tags.GetValueOrDefault("error.type").ShouldBe("request_canceled");
+            duration.Tags.GetValueOrDefault("http.response.status_code").ShouldBe(200);
+            await Should.ThrowAsync<Exception>(() => body.ReadAsync(new byte[1], cancellationToken).AsTask());
+        }
+        finally
+        {
+            releaseFault.TrySetResult();
+        }
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A fault after the response started should report unhandled_exception with the sent status")]

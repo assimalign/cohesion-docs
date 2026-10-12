@@ -10,6 +10,13 @@ processing jobs, packaging and manifests, and delivery policy.
 The host supports enabled-resource control planes; domain services remain fillers pending the area
 program.
 
+Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
+only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
+receive 403. Forwarded headers cannot grant access. Bare `/healthz`, `/readyz`, and `/livez` probes
+stay public. Gateway-managed credential checks are unchanged. This restricts remote standalone
+management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
+gateway identity with credentials for remote management.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -81,5 +88,6 @@ by the current framework inventory.
 
 - **Primary source** — `cohesion/resources/MediaHub/README.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/docs/OVERVIEW.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/MediaHub/Assimalign.Cohesion.MediaHub.Refs/src/Assimalign.Cohesion.MediaHub.Refs.csproj` and `cohesion/resources/MediaHub/Assimalign.Cohesion.MediaHub.Runtime/Directory.Build.props`.

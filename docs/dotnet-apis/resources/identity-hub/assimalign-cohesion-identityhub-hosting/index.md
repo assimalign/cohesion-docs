@@ -20,6 +20,11 @@ and the bootstrap-authenticated Cohesion resource control plane. Configuration i
 `AddAudience` and `AddClient`; the generated resource manifest supplies the `https` endpoint and
 `data` volume. Only `openid` and an empty scope are accepted.
 
+Without a gateway identity, the `/cohesion/v1` control plane accepts only transport peers at
+`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
+headers do not change this decision. Bare health probes remain open. This tightens standalone
+behavior from 10.0.0-preview.1.
+
 Device authorization and its fixed-subject browser approval page are exposed only by a loopback
 Local endpoint. Applications needing account login, subject selection, consent, recovery, or
 federation compose an authenticated user-facing flow separately.
@@ -73,6 +78,13 @@ area-owned service abstraction is introduced.
 The base host owns the already-cancelled run semantic: one complete start and graceful stop with
 fresh lifecycle tokens, normal run-observer notifications, and a final Stopped state. The concrete
 application and IHost route share it. Startup failures still roll back and propagate.
+
+## Dependency injection composition
+
+`IdentityHubApplicationBuilder.Services` holds every registration the application runs with.
+`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the lifecycle
+in the same order. `Build` closes registration and resolves the services once. Disposing the
+application disposes every factory-created service. See [Design](design.md#dependency-injection-composition).
 
 ## Project references
 

@@ -13,8 +13,8 @@ configuration provider. The readiness callback observes the owning resource host
 The route and envelope contract matches Web.Hosting's terminal: public `/healthz`, `/readyz`,
 `/livez` aliases; namespaced health, readiness, liveness, endpoints, stop, and commands beneath
 `/cohesion/v1`. Reads allow GET/HEAD, stop allows POST, and commands allow GET/HEAD/POST/DELETE.
-Unknown namespaced routes are 404. Health reports preserve diagnostic values and ordinal
-contribution/endpoint ordering. HEAD suppresses bodies. The bare probes are never authorized, so the
+Unknown namespaced routes are 404 after the access check. Health reports preserve diagnostic values
+and ordinal contribution/endpoint ordering. HEAD suppresses bodies. The bare probes are never authorized, so the
 health writer publishes only what the control plane reports: a contributor that throws appears with
 the fixed description `The contributor threw an exception.`, never its exception message, and an
 exception a contributor places in its data appears as `The contributor reported an exception.`,
@@ -37,9 +37,25 @@ the JWK parsing, signature, and claim rules are no longer copied here. Either pa
 is the ambient application and whose `Subject` is the ambient gateway — for application-key tokens
 exactly the former `iss`/`sub` rule. Invalid credentials are 401 with a Bearer challenge; an
 authentic credential for another resource audience, or a caller that is not this application's
-gateway, is 403. A missing gateway identity enables standalone execution. The verifier is internal
-and creates/disposes its cryptographic handle within each authenticated request; tokens rotated at
-reconciliation are accepted without byte-equality pinning.
+gateway, is 403. The verifier is internal and creates/disposes its cryptographic handle within each
+authenticated request; tokens rotated at reconciliation are accepted without byte-equality pinning.
+
+Without a gateway identity, standalone execution is for development: `/cohesion/v1` and every path
+beneath it admit only transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. The
+middleware reads `IHttpContext.ConnectionInfo.RemoteEndPoint` as an `IPEndPoint`, normalizes
+IPv4-mapped addresses, and refuses every other address, including absent and non-IP endpoints.
+Forwarded headers and effective forwarded-address features are not used. A refusal returns **403**,
+chosen to make the access restriction clear; it happens before route/method selection, body parsing,
+command dispatch, or stop registration. Unknown namespaced routes therefore return 403 to a refused
+standalone peer and 404 to an admitted one. The listener-port gate still applies first, and unrelated
+application routes are unchanged.
+
+Bare `/healthz`, `/readyz`, and `/livez` probes stay open for orchestrators and load balancers. Their
+namespaced aliases have the same protection as other management routes. Gateway-managed requests
+retain the existing credential checks on every peer, including loopback. This is a behavioral breaking
+change from 10.0.0-preview.1 (#1431, owner decision 46, accepted on decision 15's preview terms):
+unauthenticated remote standalone management previously worked. Use a loopback connection for
+standalone development or a gateway identity and credentials for remote management.
 
 Command discovery includes both acceptedCommandKinds and applied commands. Non-object envelopes,
 non-string/base64 payloads, and blank identity fields are 400. Unsupported kinds return 501 and
@@ -62,6 +78,14 @@ trailing controlPlanePort gates every route, including bare probes; null means n
 separately treats an unknown observed http/https port as disabled, so it forwards without invoking
 this terminal. Web and `Database` validate managed identity at `Build` only when their control-plane
 listener is installed.
+
+**Breaking behavior change from 10.0.0-preview.1 (#1410).** The default Web server runs every
+response-completion callback in registration order even when an earlier callback throws, and reports
+each failure through its existing server logger. A middleware callback registered before the control
+plane can therefore no longer prevent the deferred stop after its `202` acknowledgement. The
+real-server regression authenticates as a gateway over the in-memory transport, whose non-IP peer is
+deliberately refused in standalone mode. It holds an earlier callback until the client receives `202`,
+lets it throw, and observes the control plane's stop request with `CancellationToken.None`.
 
 Serialization uses Utf8JsonWriter and JsonDocument only. Dependencies are Web root, Web.Server,
 Hosting.Resources, Hosting.Health, and `IdentityModel.Token.JsonWebToken`. App.Web exposes the

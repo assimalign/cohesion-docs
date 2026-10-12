@@ -12,13 +12,14 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Composition regression: Web wrapper and direct verb serve the same protocol.
-- **Case 2** — Readiness: gates owning host startup and preserves health data.
-- **Case 3** — Health: a throwing contributor's exception message is absent from the unauthenticated probes.
-- **Case 4** — Health: an exception a contributor places in its data is absent from the unauthenticated probes.
-- **Case 5** — Health: an exception a custom control plane reports in data is absent from the unauthenticated probes.
-- **Case 6** — Bootstrap: verifies signature, identity, audience, lifetime, and rotation.
-- **Case 7** — Commands: lists applied envelopes and returns conflict refusals.
+- **Case 1** — Stop: an earlier throwing completion callback cannot prevent deferred stop.
+- **Case 2** — Composition regression: Web wrapper and direct verb serve the same protocol.
+- **Case 3** — Readiness: gates owning host startup and preserves health data.
+- **Case 4** — Health: a throwing contributor's exception message is absent from the unauthenticated probes.
+- **Case 5** — Health: an exception a contributor places in its data is absent from the unauthenticated probes.
+- **Case 6** — Health: an exception a custom control plane reports in data is absent from the unauthenticated probes.
+- **Case 7** — Bootstrap: verifies signature, identity, audience, lifetime, and rotation.
+- **Case 8** — Commands: lists applied envelopes and returns conflict refusals.
 
 ## Source example
 
@@ -33,18 +34,70 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
+
 using Assimalign.Cohesion.Hosting;
 using Assimalign.Cohesion.Hosting.Health;
 using Assimalign.Cohesion.Hosting.Resources;
+using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Testing;
 using Assimalign.Cohesion.Web.Testing.TestHost;
+
+using HttpMethod = System.Net.Http.HttpMethod;
+using HttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
 
 public sealed class ResourceControlPlaneTests
 {
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Stop: an earlier throwing completion callback cannot prevent deferred stop")]
+    public async Task Stop_WhenEarlierCompletionCallbackThrows_ShouldStillRequestStop()
+    {
+        // Arrange
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var callbackEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCallback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        // The in-memory peer has no IP address; authorize management as a gateway.
+        using var identity = new TestBootstrapIdentity("tests", "gateway");
+        string credential = identity.Issue("resource");
+        var plane = new RecordingControlPlane();
+        await using var factory = new WebApplicationTestFactory();
+        factory.Application.Use(async (context, next) =>
+        {
+            IWebResponseCompletionFeature completion = context.Features.Get<IWebResponseCompletionFeature>().ShouldNotBeNull();
+            completion.Register(async () =>
+            {
+                callbackEntered.TrySetResult();
+                await releaseCallback.Task.WaitAsync(timeout.Token);
+                throw new InvalidOperationException("The earlier completion callback failed.");
+            });
+            await next(context);
+        });
+        ((IWebApplicationPipelineBuilder)factory.Application).UseResourceControlPlane(plane, CreateContext(identity, credential), () => true);
+        using HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential);
+
+        try
+        {
+            // Act: the response reaches the client while the first callback still holds completion.
+            using HttpResponseMessage response = await client.PostAsync("/cohesion/v1/stop", null, timeout.Token);
+            await callbackEntered.Task.WaitAsync(timeout.Token);
+
+            // Assert
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+            plane.StopRequested.Task.IsCompleted.ShouldBeFalse();
+            releaseCallback.TrySetResult();
+            await plane.StopRequested.Task.WaitAsync(timeout.Token);
+            plane.StopTokens.ShouldBe(new[] { CancellationToken.None });
+        }
+        finally
+        {
+            releaseCallback.TrySetResult();
+        }
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Composition regression: Web wrapper and direct verb serve the same protocol")]
     public async Task Routes_ThroughWebWrapperAndDirectVerb_ShouldMatch()
     {
@@ -282,11 +335,15 @@ public sealed class ResourceControlPlaneTests
     [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Commands: lists applied envelopes and returns conflict refusals")]
     public async Task Commands_WithHandler_ShouldExposeStateAndRejectConflictingOwnership()
     {
+        // The in-memory transport has no IP peer; exercise commands as an authenticated gateway.
+        using var identity = new TestBootstrapIdentity("tests", "gateway");
+        string credential = identity.Issue("resource");
         await using var factory = new WebApplicationTestFactory();
         IResourceControlPlane plane = ResourceControlPlane.Create(["kind"]);
         plane.RegisterCommandHandler(new EchoHandler());
-        ((IWebApplicationPipelineBuilder)factory.Application).UseResourceControlPlane(plane, new ResourceContext(), () => true);
+        ((IWebApplicationPipelineBuilder)factory.Application).UseResourceControlPlane(plane, CreateContext(identity, credential), () => true);
         using HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         using HttpResponseMessage applied = await SendAsync(client, "POST", "/cohesion/v1/commands", Envelope("kind"), null, CancellationToken.None);
         applied.StatusCode.ShouldBe(HttpStatusCode.OK);
         using JsonDocument state = JsonDocument.Parse(await client.GetStringAsync("/cohesion/v1/commands", CancellationToken.None));

@@ -20,7 +20,10 @@ every listener. Hosts composing manually call
 acknowledgement before requesting shutdown. The feature serves health, readiness, liveness,
 endpoint discovery, stop, and command envelopes.
 Gateway-managed namespaced routes authenticate against the published application trust key;
-standalone resources work without a gateway. Domain command handlers remain the owning area's
+standalone namespaced routes accept only transport peers at `127.0.0.1`, `::1`, or IPv4-mapped
+`127.0.0.1` and return 403 to other or unknown peers. Forwarded headers do not grant access. Bare
+`/healthz`, `/readyz`, and `/livez` stay public. Remote standalone management is no longer supported
+(a behavioral break from 10.0.0-preview.1, #1431). Domain command handlers remain the owning area's
 responsibility.
 
 This hosting-family library references the Web root, Web.Server (for
@@ -40,7 +43,7 @@ identity.
 `ResourceControlPlaneMiddleware.InvokeAsync(IResourceControlPlane controlPlane, ResourceContext resourceContext, bool isApplicationReady, int? controlPlanePort, IHttpContext context, WebApplicationMiddleware next)`
 returns a `Task` for one exchange. Required reference arguments cannot be null. A mismatched
 non-null port forwards every path to `next`; null applies no port gate. Unknown namespaced paths
-authenticate before returning 404.
+apply the gateway credential check or standalone loopback restriction before returning 404.
 
 Call `Validate` during composition, then register `InvokeAsync` ahead of routes the terminal should
 own. The owning host supplies readiness and listener selection. Stop registers a callback on

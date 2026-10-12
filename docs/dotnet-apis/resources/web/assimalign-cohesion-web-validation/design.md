@@ -55,6 +55,7 @@ flowchart LR
     Validation --> ObjectValidation["ObjectValidation"]
     Validation --> Routing["Web.Routing"]
     Validation --> ProblemDetails["Web.ProblemDetails"]
+    Validation --> Serialization["Web.Serialization"]
     Validation --> Web["Web"]
     WebApi --> Routing
     WebApi --> Web
@@ -157,16 +158,40 @@ thunk writes for binding failures, so a client parses both the same way.
 
 | Error source | Key | Why |
 | --- | --- | --- |
-| A rule's default source, its member selector `p => p.Address.City` | `Address.City` | The member path a client names; the selector parameter is noise |
+| A rule's default source, its member selector `p => p.Address.City` | `address.city` with a camelCase contract | The registered JSON member names; the selector parameter is noise |
+| An element's default source `p => p.Items[2].Quantity` | `items[2].quantity` with a camelCase contract | Zero-based indexes distinguish failing elements |
 | A source the profile set (`error.Source = "name"`) | `name` | The author chose the key, for example the JSON property name |
 | No source (an error about the value as a whole) | `""` | The empty key, the model-level convention clients already handle |
 
-Keys are CLR member names as the profile declares them, not JSON property names: the JSON naming
-policy lives in `Web.Serialization`'s internal options, and a profile that wants JSON names sets its
-sources. A nested profile (`ChildRules`, `UseProfile`) reports under its parent member because
-ObjectValidation composes nested sources (`p => p.Address.City`; see the
-[ObjectValidation design](../../../libraries/object-validation/assimalign-cohesion-objectvalidation/design.md#error-sources));
-under `RuleForEach` the key names the collection member without an element index.
+The map asks the application's serialization feature for each owning type's registered contract
+through `TryGetJsonTypeInfo` (#152). It uses the matched `JsonPropertyInfo.Name`, follows
+`PropertyType` and collection contracts' `ElementType`, and retains CLR names wherever no
+contract/member can be resolved. Only default selector sources are translated; author-chosen
+sources and model-level errors stay as written. ObjectValidation composes nested sources and
+inserts each zero-based `RuleForEach` index locally while forwarding the element's errors, without
+changing a shared rule or adding a public index member.
+
+**CLR identity requires generated metadata.** System.Text.Json exposes JSON names but keeps the
+CLR member name internal. Reading `AttributeProvider` can trigger reflection, so validation never
+reads it. The optional, feature-owned `IValidationJsonPropertyResolver` identifies the matching
+property in the supplied final contract. The Web source generator adds an explicit implementation
+to source-declared partial `JsonSerializerContext` classes when this package is referenced. It
+discovers CLR names and `[JsonPropertyName]` at compile time, uses the registered naming policy for
+other names, and returns only a property present in that contract. The generator ships with
+`Sdk.Web`; a package-only consumer opts into `Assimalign.Cohesion.SourceGeneration.Web` alongside
+its JSON generator.
+
+A custom resolver can implement the same optional interface to handle arbitrary contract
+modifications; the map checks the options resolver first and then the contract's originating
+resolver, continuing when either returns null before trying constructor-associated names and the
+naming-policy fallback. This lets a custom resolver handle only the properties it changes without
+hiding generated mappings for other nested or collection members. A context that already
+implements it is not augmented. A precompiled context without that metadata still supports
+policy-named properties and constructor-associated member names; a renamed mutable member with no
+identity metadata falls back to its CLR name. Modifiers that rename or replace properties beyond
+the policy/attribute names need an application implementation that identifies those final
+properties. This limitation and the new optional public interface are escalated under #1209; no
+existing interface is widened.
 
 Keys and messages keep the order the rules ran, which is declaration order. ObjectValidation runs
 members in the order the profile declares them (a nested profile's members in place under their
@@ -174,9 +199,25 @@ parent) and each member's rules in the order they are chained. It lists its erro
 the map takes them as they come. Until ObjectValidation #1221, the map listed members in reverse
 declaration order.
 
-A validator built with `ThrowExceptionOnFailure` throws `ValidationFailureException`, which carries
-no errors. The request is still invalid, so it is answered `400` with an empty `errors` map rather
-than escaping to the exception boundary as a `500`.
+A validator built with `ThrowExceptionOnFailure` throws `ValidationFailureException`. Its retained
+`Errors` (#1208) go through the same mapper, so it returns the same `400` error paths as a returned
+validation result. Previously the catch returned an empty map.
+
+**Preview behavior change (#1209, HTTP/Web decision 15 terms).** Collection sources now include
+indexes in ObjectValidation, where preview.1 omitted them. Web.Validation was not in
+10.0.0-preview.1; its pre-fix wire keys change from CLR paths to JSON paths, and throwing validators
+now return populated maps. Clients keyed to the previous spelling must update. The `errors`
+extension remains an object of string arrays;
+[RFC 9457 §3.2](https://www.rfc-editor.org/rfc/rfc9457.html#section-3.2) permits extension members
+and does not prescribe this application's key syntax.
+
+**OpenAPI consistency check.** Web.OpenApi's `WebOpenApiEndpointSource` describes input-binding
+`400` responses with `OpenApiSchemaGenerator`'s generic ProblemDetails schema: five optional
+standard members, with additional members allowed. JSON paths and indexes fit that schema. It
+needs a future validation description policy that documents an optional `errors` object with
+string-array additional properties and the JSON-path/index convention; it currently does not
+consume `ValidationMetadata`. Keep the generic ProblemDetails extension space open rather than
+requiring every problem to carry validation errors.
 
 Any other exception from a validator is a fault in the application, not a verdict on the request: a
 nested profile's rule or a custom rule that throws (ObjectValidation's DESIGN,
@@ -200,7 +241,6 @@ payload is written by `Web.ProblemDetails`' `Utf8JsonWriter` writer.
 - **Attribute-driven validation** (data annotations). Rules live in ObjectValidation profiles,
   registered per type; there is no attribute scan.
 - **Asynchronous rules.** The engine's rules are synchronous.
-- **JSON-path keys and collection indices** in the `errors` map (see "The failure payload").
 - **Describing the `400`** in the endpoint description metadata. Like the binding `400`, it is an
   outcome the thunk produces on its own; a documentation adapter adds it by policy.
 
@@ -210,6 +250,7 @@ payload is written by `Web.ProblemDetails`' `Utf8JsonWriter` writer.
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Serialization` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.ObjectValidation` | `CohesionProjectReference` |

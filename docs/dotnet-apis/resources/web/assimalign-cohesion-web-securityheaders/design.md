@@ -52,78 +52,72 @@ deliberate, per-application decision.
 
 ## When the fields are written
 
-This is the decision the rest of the design hangs on. The Web stack has no response-starting
-callback (`Web.Compression`'s design records the same gap), and a response head is committed in one
-of two places:
+The middleware registers one callback on `IWebResponseStartingFeature`, the server-published contract
+in Web.Server. Web.Hosting drives it from the transport's existing response-head commit point for HTTP/1.1,
+HTTP/2 and HTTP/3. The same callback covers buffered responses and a handler's first streamed start, write,
+flush or completion; this package neither tracks response start nor decorates the streaming feature.
 
-- **Buffered responses** (the default) are written to `IHttpResponse.Body`. The server runs the
-  whole pipeline and only then calls the transport's `SendAsync`, which commits the head. Anything
-  set before the pipeline returns reaches the wire.
-- **Streamed responses** go through `IHttpResponseStreamingFeature` (`Http.Streaming`). The first
-  `StartAsync`, `WriteAsync`, `FlushAsync` or `CompleteAsync` commits the head, inside the handler,
-  before control returns to any middleware.
+The server runs callbacks once in reverse registration order, before serializing any head byte. The
+callback resolves endpoint overrides and applies the no-clobber rule at that moment. A boundary registered
+on either side of this middleware can clear a failed response and write an error page: the registered
+callback survives unwinding and stages the fields on that final response.
 
-The middleware therefore stages the fields at the last moment the head can still change, on
-whichever path commits it:
+The callback follows the exchange through its final head commit:
 
 ```mermaid
 flowchart TD
-    Enter["UseSecurityHeaders: install the nonce feature and stand in for the streaming feature"] --> Next["next: routing, error handling, the endpoint"]
-    Next -->|"handler streams"| First["first start, write, flush or complete"]
-    First --> StageStreamed["stage the fields, then commit the head"]
-    Next -->|"handler buffers"| Unwind["next returns"]
-    StageStreamed --> Unwind
-    Unwind --> Started{"head already committed?"}
-    Started -->|"yes"| Done["nothing more to do"]
-    Started -->|"no"| StageBuffered["stage the fields; the server commits the head"]
+    Register["Web pipeline: register security-header callback"] --> Endpoint["Run endpoint or produce error response"]
+    Endpoint --> Commit["HTTP transport: commit buffered or streamed response head"]
+    Commit --> Stage["Web.Server starting feature: resolve policy and stage fields once"]
+    Stage --> Validate["HTTP transport: validate and serialize response head"]
 ```
 
-- **After `next`, for a buffered response.** The middleware stages the fields once the downstream
-  pipeline has returned. That is also after an exception boundary registered inside it has reset the
-  faulted response (`UseErrorHandling` clears the headers before writing its problem response), so
-  the error page carries the fields. `UseHsts` applies its field after `next` for the same reason.
-- **Just before the first write, for a streamed response.** While `next` runs, the middleware
-  replaces the transport's `IHttpResponseStreamingFeature` with a decorator that reports the same
-  feature `Name`, so it takes the transport feature's slot, and that stages the fields immediately
-  before delegating the first start, write, flush or complete. `context.Response.Streaming`,
-  Server-Sent Events and the `HasStarted` checks of other middleware all resolve the decorator. The
-  transport's feature is put back when the middleware returns.
+If encode-time field validation refuses the head (`InvalidResponseField`), the server preserves the
+callback's added, changed and removed fields for a replacement buffered response without running the
+callback again. The middleware also registers every security-policy field above as an explicitly
+preserved key, including both `Content-Security-Policy` and `X-Frame-Options`. The server snapshots
+these keys at registration and captures their final values or absence after every callback succeeds.
+This keeps application-owned values honored by no-clobber, including framing ownership, even when the
+callback left them unchanged. Before retaining an unchanged application field, the server checks its
+name and every value against the transport's syntax rules. An invalid value (including CR, LF, NUL
+or another disallowed control character) is omitted from replacement replay, so it cannot defeat the
+clean server 500. Valid application policy fields and the callback's protections still survive.
+This corrects the post-preview.1 starting hook; the package did not exist in that release.
+Other unchanged application fields are excluded; the replacement owns
+its status and body.
+The nonce stays the exchange's nonce. A callback failure faults the exchange before any bytes are sent;
+no partially applied security policy is sent as a fallback response.
 
-### Alternatives rejected
+A custom server must publish `IWebResponseStartingFeature`. If it does not, `UseSecurityHeaders` throws
+an actionable `InvalidOperationException` instead of silently omitting protection.
 
-- **Stage before `next`.** It is the simplest option, and it is wrong twice. The exception boundary
-  clears the headers of a faulted response, so error pages would lose every field. And nothing would
-  know, when it is time to commit, whether a field present on the response was set by this
-  middleware or by the application, which is the whole of the no-clobber rule. The endpoint is not
-  known before `next` either, so an override could not apply.
-- **Stage before `next` and again after it.** This keeps the error page, but it needs a record of
-  every value staged so a later pass can tell an application's value from its own, and an
-  application that removes a field would see it come back. Staging once, at commit time, makes
-  "present" mean "the application set it" with no bookkeeping.
-- **A transport response interceptor (`IHttpExchangeInterceptor.BeforeResponseHeadAsync`).** That
-  hook is the transport's own head-commit point, and its documentation names security headers as a
-  use. It is registered on the server's listener options, which only the hosting layer composes, so
-  using it would mean a second, hosting-side registration for every application, or a feature
-  library reaching into `Web.Hosting`, which `COHRES001` forbids. `Web.Compression` declined the
-  same hook for the same reason. The streaming decorator gives the same timing from inside the
-  pipeline.
+### Compatibility against 10.0.0-preview.1 (#1156)
+
+The released tag contains no Web.SecurityHeaders package. No released
+implementation changes behavior. The integration requirements and behavior changes below apply to the
+post-tag development implementation.
+
+Header staging moves from middleware unwind and a streaming decorator to the server's starting callback.
+An outer exception boundary's response now carries the configured policy, and fields are no longer
+observable immediately after `next` returns but before the server commits the head. A nonce or endpoint
+adjustment failure at commit aborts the exchange without a response head. Custom servers must implement
+the new Web.Server feature. The package replaces its Http.Streaming dependency with Web.Server, which is
+already an App.Web member.
 
 ### What does not get the fields
 
 - **A response a middleware ahead of `UseSecurityHeaders` writes.** It never passes through the
   middleware. That is why the documented position is the front of the pipeline, behind only
   `UseHttpLogging`, which writes no response.
-- **A head committed some other way.** The middleware only stages an uncommitted head. If a
-  middleware ahead of it started the response, or a handler replaced the streaming feature with one
-  that does not delegate to the decorator, the fields are not added.
-- **Responses the server produces itself.** A transport-level rejection (`413`, `431`, a malformed
-  request) never becomes an exchange. When the pipeline faults with no exception boundary in it, the
-  server clears the headers and sends a bare `500`.
-- **`304 Not Modified`.** A `304` freshens a response the user agent has already stored, and RFC
-  9111 §4.3.4 replaces only the stored fields the `304` carries. The stored response already has the
-  fields of the response that created it. Re-emitting them would change nothing, except that a fresh
-  nonce would replace the stored policy's nonce while the stored body still carries the old one in
-  its `nonce` attributes, and every inline script would stop running. So a `304` gets no fields.
+- **A head already committed.** Registration after the server has started running its callbacks fails;
+  fields cannot be added to a head already sent.
+- **Heads outside pipeline dispatch.** Transport-generated rejections and protocol-takeover heads do not
+  run response-starting callbacks. A parse-time rejection never reaches this middleware.
+- **`304 Not Modified`.** A `304` freshens a response the user agent has already stored, and RFC 9111
+  §4.3.4 replaces only the stored fields the `304` carries. The stored response already has the fields
+  of the response that created it. Re-emitting them would change nothing, except that a fresh nonce
+  would replace the stored policy's nonce while the stored body still carries the old one in its
+  `nonce` attributes, and every inline script would stop running. So a `304` gets no fields.
 
 ## Never clobber a field the application set
 
@@ -251,59 +245,54 @@ The four forms map to `Disable` (`()`), `AllowAll` (`*`), `AllowSelf` (`(self ..
 
 `UseHttpLogging` → `UseSecurityHeaders` → `UseForwardedHeaders` → `UseHostFiltering` →
 `UseHttpsRedirection` → `UseHsts` → `UseErrorHandling` → `UseStaticFiles` → `UseRouting` → policy
-middleware → endpoint. The area's [middleware order](../../../../web/middleware-order.md) places
-every Web middleware.
+middleware → endpoint. The area's [middleware order](../../../../web/middleware-order.md) places every Web middleware.
 
-- **At the front**, so every response that passes through the pipeline gets the fields, the
-  rejections of the middleware after it included. Only `UseHttpLogging`, which writes no response,
-  goes ahead of it, and since this middleware reads no client identity it can precede
-  `UseForwardedHeaders`.
-- **Ahead of `UseErrorHandling`**, so the boundary's error page is written before the fields are
-  staged. Registered after the boundary, the middleware's own turn ends with the fault propagating
-  and the boundary then clears the response.
+- **At the front**, so every response that passes through the pipeline gets the fields, the rejections
+  of the middleware after it included. Only `UseHttpLogging`, which writes no response, goes ahead of
+  it, and since this middleware reads no client identity it can precede `UseForwardedHeaders`.
+- **Either side of `UseErrorHandling`** preserves the fields on an error response once this middleware
+  has run. The recommended front position also covers earlier short-circuits and redirects.
 - **Ahead of `UseRouting`** is fine: endpoint overrides still apply, because they are read when the
   fields are staged, after routing has run.
 
 ## Family map
 
 The package references the Web root (pipeline abstractions), Web.Routing (endpoint metadata and the
-convention-builder seam), the Http core (header keys, the feature collection, the Structured Field
-toolkit), and Http.Streaming (the streaming feature it stands in for). It references no hosting
-library.
+convention-builder seam), Web.Server (the response-starting contract), and the Http core (header keys,
+the feature collection, the Structured Field toolkit). It references no hosting library.
 
 ```mermaid
 flowchart LR
     SecurityHeaders["Web.SecurityHeaders"] --> Web["Web — area root"]
     SecurityHeaders --> Routing["Web.Routing"]
     SecurityHeaders --> Http["Http"]
-    SecurityHeaders --> Streaming["Http.Streaming"]
+    SecurityHeaders --> Server["Web.Server"]
     Routing --> Web
-    Streaming --> Http
+    Server --> Web
     Web --> Http
     SecurityHeaders -.->|"COHRES001 ✗"| Hosting["Web.Hosting"]
 ```
 
 The dotted edge is the reference `COHRES001` rejects: like every Web feature library, this one never
-references the runtime module, and its composition is dependency-free (values captured at builder
-time, no container, no configuration binding). Applications get it through the `App.Web` shared
-framework.
+references the runtime module, and its composition is dependency-free (values captured at builder time,
+no container, no configuration binding). Applications get it through the `App.Web` shared framework.
 
 ## Error model
 
 There is no package exception root; every failure is a BCL argument or state exception thrown when
 the policy is composed:
 
-- `ArgumentException` for a value outside its grammar (a host source, digest, directive name or
-  value, sandbox keyword, reporting endpoint, feature name, origin, ancestor source) and for an
-  empty or `'none'`-mixed source list.
-- `ArgumentOutOfRangeException` for an undefined enumeration value, thrown when the policy is
-  compiled: at `UseSecurityHeaders` for the pipeline's policy, at map time for a replacement.
-- `InvalidOperationException` for a CSP or Permissions Policy built with nothing in it, and, at
-  request time, for an application-supplied nonce outside the CSP grammar.
+- `ArgumentException` for a value outside its grammar (a host source, digest, directive name or value,
+  sandbox keyword, reporting endpoint, feature name, origin, ancestor source) and for an empty or
+  `'none'`-mixed source list.
+- `ArgumentOutOfRangeException` for an undefined enumeration value, thrown when the policy is compiled:
+  at `UseSecurityHeaders` for the pipeline's policy, at map time for a replacement.
+- `InvalidOperationException` for a CSP or Permissions Policy built with nothing in it, and, at request
+  time, for an application-supplied nonce outside the CSP grammar or a missing response-starting feature.
 
-The only request-time failures are that nonce check and an exception thrown by an endpoint
-adjustment on its first use. Both fail the exchange; neither is caught, so the exception boundary or
-the server answers it.
+A missing response-starting feature fails when the middleware runs. The nonce check and an exception
+thrown by an endpoint adjustment on its first use fail the starting callback at head commit; the server
+aborts the exchange without sending a head.
 
 ## AOT posture
 
@@ -341,17 +330,16 @@ one `string.Join` for a nonce-bearing policy. The Structured Field serializer an
 
 `tests/SecurityHeadersEndToEndTests.cs` drives the middleware over the in-memory
 `WebApplicationTestFactory`: the defaults and their opt-outs, every opt-in field with its exact wire
-value, an unmatched route's `404`, a short-circuiting middleware, the exception boundary's error
-page, a static file and its `304`, the no-clobber and framing-ownership rules,
-`OverwriteExistingHeaders`, the nonce (matching the handler's, unique per request, 128 bits, shared
-by both policies, supplied by the application, never read without a nonce source, refused when
-outside the grammar), streamed responses over HTTP/1.1 (chunked framing proves the handler committed
-the head) and HTTP/2, and composition-time validation.
-`tests/SecurityHeadersRouteConventionTests.cs` covers the overrides through the real router: adjust,
-replace (copied at map time), disable, group-versus-route precedence, the override on an endpoint's
-error and streamed responses, the CORS preflight, an adjustment compiled once, and map-time
-validation. The builder, framing and feature suites cover serialization and every grammar rule in
-isolation.
+value, an unmatched route's `404`, a short-circuiting middleware, the exception boundary's error page on either side of the middleware,
+a static file and its `304`, the no-clobber and framing-ownership rules, `OverwriteExistingHeaders`,
+the nonce (matching the handler's, unique per request, 128 bits, shared by both policies, supplied by
+the application, never read without a nonce source, refused when outside the grammar), streamed
+responses over HTTP/1.1 (chunked framing proves the handler committed the head) and HTTP/2, and
+composition-time validation. `tests/SecurityHeadersRouteConventionTests.cs` covers the overrides
+through the real router: adjust, replace (copied at map time), disable, group-versus-route precedence,
+the override on an endpoint's error and streamed responses, the CORS preflight, an adjustment compiled
+once, and map-time validation. The builder, framing and feature suites cover serialization and every
+grammar rule in isolation.
 
 ## Declared dependencies
 
@@ -360,7 +348,7 @@ isolation.
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 

@@ -277,15 +277,23 @@ how its pipeline ended:
 
 | Pipeline outcome | Finalization | On the wire |
 | --- | --- | --- |
-| Returned | `SendAsync` | the application's response |
+| Returned without cancellation | `SendAsync` | the application's response |
 | Returned, but the transport refused a field of its response (#1183) | as for a throw before the response started | `500 Internal Server Error` |
-| Threw, response not started | the staged status, headers, trailers, and body are replaced by a bodyless `500`, then `SendAsync` | `500 Internal Server Error` |
+| Threw, response not started | the staged status, headers, trailers, and body are replaced by a bodyless `500`, starting-callback edits are restored, then `SendAsync` | `500 Internal Server Error` |
 | Threw after the response started, or the exchange was cancelled | `IHttpContext.CancelAsync`, then `SendAsync` | a reset: HTTP/2 `RST_STREAM(CANCEL)`, HTTP/3 stream abort, HTTP/1.1 no further bytes and a connection that ends after the exchange |
 
 - **Cancelled, not faulted.** An `OperationCanceledException` counts as a cancellation
   only when the server's shutdown token or the exchange's own `RequestCancelled`
   fired (server stop, peer reset, closed connection, `IHttpContext.Cancel`). An
   operation cancelled for any other reason — an application timeout — is a fault.
+  The same generic cancellation signals are checked after a normal pipeline return (#1411).
+  In particular, ErrorHandling may abort a started response and return normally: that is a
+  cancelled exchange, so no completion callback runs, and telemetry records
+  `error.type=request_canceled` with the status already sent. The original exception remains
+  available through ErrorHandling's diagnostics; the server classifies the transport outcome.
+  This changes preview.1 behavior, which could run completion callbacks after the abort, and
+  corrects the later telemetry implementation's success report. No feature contract is added
+  to the Web root; `IHttpContext.RequestCancelled` carries the cancellation.
 - **Why "started" decides.** Once the final response head is on the wire (a
   streamed write or flush through the raw body sink — `Http.Streaming`, server-sent
   events), a replacement status can no longer reach the peer, and `SendAsync` would
@@ -319,7 +327,11 @@ how its pipeline ended:
 - **Post-response work is contained.** A throwing response-completion callback or a
   throwing exchange disposal costs nothing but its own exchange. Completion callbacks
   run only after the application's own response was sent — never after a replacement
-  `500` or a reset.
+  `500` or a reset. Each callback runs in registration order even if a previous one throws
+  (#1410). Completion collects all failures in an `AggregateException`; the server reports each
+  callback's exception separately through its existing logger, without changing the sent response.
+  This is a behavioral break from 10.0.0-preview.1, which skipped the remaining callbacks; in
+  particular, an earlier failure can no longer suppress the control plane's deferred stop.
 - **The connection-level catch remains** for what is left: a receive-side failure the
   transport surfaced and an HTTP/1.1 send failure. Either way the connection cannot
   carry another request, so it is logged (see "Diagnostics"), `Abort`-ed, and the
@@ -379,6 +391,14 @@ at fault on either version: the read throws the exchange's cancellation with `Re
 already fired, so the pipeline ends as cancelled and the server resets the exchange
 (`request_canceled`) instead of staging a `500`.
 
+**HTTP/3 connection loss (#1430, owner decision 45).** A control-stream FIN or reset, forbidden
+control frame, or another connection error after dispatch cancels every affected exchange. Its body
+read throws `OperationCanceledException` with the exchange's `RequestCancelled` token and no client
+fault status. The existing host cancellation boundary ends it as `request_canceled`, with no Error
+log, `OnException`, or staged `500`; an unstarted response has no status on the server span. The
+transport's former `IOException` made this an application fault. That streaming-body behavior was
+introduced after 10.0.0-preview.1, which buffered the HTTP/3 body before dispatch.
+
 Catching bare `Exception` at each of these points is a deliberate, documented departure from the
 "catch specific exceptions" rule. This is a **fault-isolation boundary around arbitrary user code**
 — middleware, completion callbacks, application bodies and features — the same pattern the
@@ -421,6 +441,18 @@ most that long.
 The server holds two signals (`Internal/WebApplicationServerDrain`). Each live connection registers
 on both once its context is open, so a connection accepted just as the stop begins is handled the
 same way as the rest.
+
+**QUIC delivery shares the stop budget (#1426).** The abort registration stays live until
+`connection.DisposeAsync` completes, including delivery of completed QUIC streams. Its graceful-close
+registration ends before context disposal, so a stop cannot call into an already-disposed context.
+QUIC's `CloseDeliveryTimeout` (five seconds by default) bounds its delivery wait independently;
+the host aborts that wait when the remaining stop budget expires first. Thus delivery receives
+the shorter of those two budgets. When the host budget expires, the server keeps its existing
+one-second abort-unwind allowance. A peer withholding receive credit cannot leave transport
+delivery waiting for five seconds after a shorter host budget expires. Previously the abort
+registration was disposed before connection disposal, so `StopAsync` could return after its abort grace while QUIC still
+waited. That ordering defect arose after 10.0.0-preview.1; the tag had neither the two-phase
+drain nor `CloseDeliveryTimeout`.
 
 | Signal | Fires | Carries |
 | --- | --- | --- |
@@ -573,7 +605,7 @@ The flow of one exchange's telemetry:
 
 ```mermaid
 flowchart TD
-    Start["Start: install the request-id feature"] --> Check{"A listener on the source or an instrument?"}
+    Start["Start: install request-id and server-activity features"] --> Check{"A listener on the source or an instrument?"}
     Check -->|"no"| Pipeline["Pipeline runs; UseRouting publishes RouteTemplate"]
     Check -->|"yes"| Begin["+1 active request, start timestamp, span parented to traceparent"]
     Begin --> Pipeline
@@ -592,11 +624,11 @@ never a request's parent; without the clear, every request of a host started ins
 would nest under it.
 
 **A later version continues the trace (#1299).** W3C Trace Context §3.2.4, "Versioning of
-traceparent", has a parser read a header of a version it does not know by its version-00 fields and
-ignore what follows. `ActivityContext.TryParse` accepts exactly the 55 characters of a version-00
-header, so a later version with extra fields used to start a new trace, while HTTP logging, whose
-own parser accepts it, recorded the caller's. The server now checks what the BCL parser does not,
-then hands it the version-00 fields:
+traceparent", has a parser read a header of a version it does not know by its version-00 fields
+and ignore what follows. `ActivityContext.TryParse` accepts exactly the 55 characters of a
+version-00 header, so a later version with extra fields used to start a new trace, while HTTP
+logging's former parser accepted it and recorded the caller's. The server now checks what the BCL
+parser does not, then hands it the version-00 fields:
 
 - the three separators are dashes (`TryParse` checks only the characters between them);
 - a value longer than 55 characters belongs to a version other than `00`, and its flags are followed
@@ -608,15 +640,16 @@ then hands it the version-00 fields:
 are not all zeros, and lower-case hex flags. A later version's header costs one 55-character
 substring; a version-00 header costs nothing more than before.
 
-Decision 32 lets this module reference `Web.Diagnostics`, whose HTTP logging already parses later
-versions. It does not, because:
+Decision 32 lets this module reference `Web.Diagnostics`. Reusing HTTP logging's former parser
+was rejected because:
 
 - its parser is internal, so reusing it needs a public API or shared source for one consumer;
 - it yields hex strings, not an `ActivityContext` with its `tracestate`, and it accepts a version-00
   value with trailing fields, which W3C forbids;
 - the reference would ship `Web.Diagnostics` in every area framework that carries this module.
 
-The local check is one short method on top of the BCL parser.
+The local check is one short method on top of the BCL parser. Since #1297 HTTP logging reads the
+server's published request id and activity instead of parsing the header again.
 
 **Attributes** follow the stable OpenTelemetry HTTP server conventions:
 
@@ -753,6 +786,26 @@ when there is a span. Without one, it is the trace id of a valid `traceparent`, 
 span would have had, or else a random trace id resolved on the first read and stable for the
 exchange.
 
+**The activity belongs to the exchange (#1297).** That same telemetry object implements
+`IWebRequestActivityFeature` from `Web.Server`, exposing its server `Activity` or `null` when
+no span was created. Both contracts resolve from the existing feature instance; no second
+object or new dependency is needed. The server owns the activity's lifetime. The feature stays
+available while middleware runs and completion callbacks finish, so a consumer can read the
+server span even while a child activity is current.
+
+HTTP logging reads the trace id from `IWebRequestIdFeature` and the server span id through this
+new feature, checking that it is a W3C `Server` activity with the same trace id. It never infers
+exchange ownership from `Activity.Current`: the ambient clear above runs only when a span
+listener exists, so an untraced exchange may retain an unrelated ambient activity. Checking
+only a source name and trace id would still confuse different exchanges sharing a trace.
+The optional contract belongs in `Web.Server`; existing interfaces and the Web root stay
+unchanged. A custom server may omit it.
+
+This is a behavior break from 10.0.0-preview.1 on decision 15's terms: HTTP logging formerly
+copied the inbound parent span id and omitted correlation without a valid header. It now logs
+the server span id when present, omits the span id otherwise, and logs the server's request id
+even for an unparented request.
+
 **No listener, no cost.** `Start` reads `ActivitySource.HasListeners()` and the two instruments'
 `Enabled`. With all three off it creates no activity, reads no request state, records nothing, and
 `Stop` returns at once. What is left on every exchange is the request id: one small object set on
@@ -806,6 +859,7 @@ traces are the telemetry work (#1064).
 | Accept-loop fault | `Critical` | accepting faults; the server keeps running but accepts nothing more. Only the drain's own cancellation ends the loop quietly; a cancellation the server did not request is the listener's fault and is logged here (#1310) | the exception |
 | Connection fault, a defect | `Error` | the connection-level isolation boundary caught a failure not attributable to the peer: an unexpected receive-side failure, an HTTP/1.1 response that could not be framed, a teardown failure | the exception; `connection.id`, `network.local.address`/`.port`, `network.peer.address`/`.port`, `network.protocol.version` |
 | Connection fault, the peer or the network | `Debug` | the same boundary, for an `IOException`, `SocketException`, or `ConnectionException`, or any fault after the server aborted its drain | as above |
+| Completion callback failure | `Error` | after every callback has been attempted; one entry per failing callback (#1410) | the callback's exception |
 | Drain cut short | `Warning` | a stop's budget ran out with work in flight; logged before the abort | `http.server.drain.connections`, `.exchanges`, `.duration` |
 
 Why these levels:
@@ -854,16 +908,17 @@ is a `switch` type test, the multiplexing check is an enum comparison, and the r
 probe is a type test inside `Http.Connections`; none is a reflection probe. No runtime code
 generation, no `Assembly.LoadFrom`, no reflection-based serialization.
 
-**The Web NativeAOT guard (#1052)** is the evidence for the area as a whole, not just this module:
-`samples/Assimalign.Cohesion.Web.AotGuard` composes a representative application (routing,
-source-generated typed binding and JSON, error handling, Cookie and JWT Bearer authentication,
-static files, response compression, request decompression, rate limiting and request timeouts). Its
-csproj promotes the trim/AOT analyzer diagnostics and ILC's per-assembly summaries (IL2104/IL3053)
-to errors, so a trim or AOT warning in any library it reaches fails the publish.
-`resource-web.yml`'s `aot-guard` job publishes it with `PublishAot` for linux-x64 and runs the
-native binary with `--smoke`, which serves on a free loopback port and checks every feature over
-real HTTP. The first run surfaced four DependencyInjection call-site diagnostics, resolved as
+**The Web NativeAOT guard (#1052)** is the evidence for the area as a whole, not just this
+module: `samples/Assimalign.Cohesion.Web.AotGuard` composes a representative application
+(routing, source-generated typed binding and JSON, error handling, Cookie and JWT Bearer
+authentication, static files, response compression, request decompression, rate limiting and
+request timeouts). Its csproj promotes the trim/AOT analyzer diagnostics and ILC's per-assembly
+summaries (IL2104/IL3053) to errors, so a trim or AOT warning in any library it reaches fails the
+publish. `resource-web.yml`'s `aot-guard` job publishes it with `PublishAot` for linux-x64 and runs
+the native binary with `--smoke`, which serves on a free loopback port and checks every feature
+over real HTTP. The first run surfaced four DependencyInjection call-site diagnostics, resolved as
 described in that library's DESIGN ("NativeAOT compatibility checks").
+The validation smoke check verifies the registered camelCase contract's `errors.name` key and rejects the legacy CLR spelling (#1209).
 
 ## Application feature seeding
 
@@ -930,11 +985,20 @@ flowchart TD
 `WebApplicationFeatureRegistrationTests`
 ([example](examples/web-application-feature-registration-tests.md)) pins each check.
 
-**The pipeline is built before any service starts (#1051).** `WebApplication.OnStartingAsync`
-resolves the servers, and with them the pipeline and every middleware factory, so a composition
-failure such as an invalid route table fails `StartAsync` with nothing to roll back and leaves the
-host `Failed`. `ExecuteAsync` runs no middleware for a token that is already cancelled; middleware
+**The pipeline is built before any service starts (#1051, #1079).** The host resolves
+`WebApplicationContext.HostedServices`, including the servers, pipeline and every middleware
+factory, before entering service lifecycle callbacks. A composition failure such as an invalid
+route table fails `StartAsync` and leaves the host `Failed`, even when resolving the same services
+also fails during rollback. The generic host owns this guarantee; Web needs no startup-hook
+workaround. `ExecuteAsync` runs no middleware for a token that is already cancelled; middleware
 observe cancellation through `RequestCancelled`.
+
+**Late middleware registration fails (#1078).** Once the pipeline has been built, every
+`WebApplication.Use` / `IWebApplicationPipelineBuilder.Use` overload throws
+`InvalidOperationException` explaining that the pipeline is already built. Each public `Use`
+contract documents this exception in its XML reference. Register middleware
+before starting the application (or explicitly building its pipeline). This is a behavioral
+break from 10.0.0-preview.1, which accepted the registration but never executed it.
 
 ### Sizing each exchange's feature collection (owner decision 36, #1381)
 
@@ -946,7 +1010,7 @@ The transport sizes every exchange's collection for that many features when it c
 transport learns a number, not which features this module installs (owner decision 20).
 
 The count is the application features the pipeline stamps plus
-`WebApplicationServerBuilder.HostFeatureCount`, the four features every exchange of the default
+`WebApplicationServerBuilder.HostFeatureCount`, the five features every exchange of the default
 server carries:
 
 | Feature | Installed by |
@@ -955,11 +1019,12 @@ server carries:
 | `IWebRequestIdFeature` | the server's exchange telemetry, before the pipeline runs |
 | `IWebResponseCompletionFeature` | the server, before the pipeline runs |
 | `IWebServerDrainFeature` | the server, before the pipeline runs |
+| `IWebResponseStartingFeature` | the response-starting interceptor, before the pipeline runs |
 
 - The pipeline build records how many features it stamps
   (`WebApplicationContext.StampedFeatureCount`). The default server resolves the pipeline before it
   composes the listener, so the count is known. A pipeline passed to `AddPipeline` stamps none, so
-  the count is the host's four.
+  the count is the host's five.
 - The count is set before user `UseServer` configurations run, as the default interceptors are, so
   a configuration sees it and can add to it. After the last configuration the server rounds the
   result up (see "Rounding" below) and hands that to the listener.
@@ -1235,10 +1300,14 @@ cancellation from racing delivery of its own acknowledgement.
 
 The terminal is shared from `Web.Hosting.Resources` (O35); the private copy is deleted.
 Gateway-managed contexts require an ES256 bootstrap JWT for every `/cohesion/v1/*` route:
-application issuer, gateway subject, resource audience, key id, signature, required claims, and at
-most 24 hours of lifetime. Invalid tokens return 401 with a Bearer challenge; a valid token for
-another audience returns 403 without a challenge. Bare probes remain public. No gateway name means
-unauthenticated routes, even when the context carries a credential.
+application issuer, gateway subject, resource audience, key id, signature, required claims,
+and at most 24 hours of lifetime. Invalid tokens return 401 with a Bearer challenge; a valid
+token for another audience returns 403 without a challenge. Bare probes remain public.
+Without a gateway name, `/cohesion/v1` and every path beneath it accept only transport peers
+at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive 403. Forwarded
+headers cannot grant access. Bare probes stay public, and managed credential checks are unchanged.
+This is a behavioral break from 10.0.0-preview.1 (#1431, owner decision 46): standalone remote
+management previously worked. See the Web.Hosting.Resources DESIGN for the peer-check policy.
 
 `Build` validates managed identity and the public P-256 trust key only when an ambient http/https
 listener is bound. A managed control plane without a listener still builds. The pipeline factory
@@ -1289,13 +1358,15 @@ adds no reflection binder or `Microsoft.Extensions.*` dependency.
 
 ### What it is
 
-`WebApplicationServerBuilder.UseConfiguration(IConfiguration, sectionKey = "Http")` (an extension
-member in `WebHostingExtensions`) binds the server's listener **endpoints**, **server limits**, and
-**connection cap** from a Cohesion `IConfiguration` section, giving `appsettings`-style
-Kestrel-section parity:
+`WebApplicationServerBuilder.UseConfiguration(IConfiguration, sectionKey = "Http")`
+(an extension member in `WebHostingExtensions`) binds the server's listener
+**endpoints**, **server limits**, **connection cap**, and **listener policy** from a Cohesion
+`IConfiguration` section, giving `appsettings`-style Kestrel-section parity:
 
 ```json
 "Http": {
+  "AllowAlternateSchemes": false,
+  "AddDateHeader": true,
   "Endpoints": {
     "Public":   { "Protocol": "Https", "Host": "0.0.0.0", "Port": 443,
                   "Certificate": { "Path": "certs/site.pem", "KeyPath": "certs/site.key" } },
@@ -1367,6 +1438,24 @@ application fault, because the stalled write throws an `OperationCanceledExcepti
 `Limits:MaxConcurrentConnections` is not an endpoint limit: it caps the default server (see
 "Concurrency cap (`MaxConcurrentConnections`)"). The binder hands it to the server builder, and a
 cap set through `LimitConcurrentConnections` takes precedence.
+
+`AllowAlternateSchemes` binds the aggregate listener option of the same name, defaulting to
+`false`. Cleartext HTTP/2 now answers `:scheme https` with `421` before the Web pipeline runs
+(#1415, owner decision 44). A trusted gateway deployment can set `Http:AllowAlternateSchemes`
+to `true` to accept that forwarded scheme; `Request.Scheme` then reports the gateway's value.
+This is a behavioral break from 10.0.0-preview.1, which trusted the client's scheme on every
+HTTP/2 listener. The boolean is read on both explicit `UseConfiguration` and entry-point
+default binding, before endpoint registration; an invalid value fails startup. An absent key
+preserves the listener's current setting, and a later `UseServer` callback can override it.
+
+`AddDateHeader` binds the aggregate listener option controlling automatic response dates (#1417).
+It defaults to `true`: HTTP/1.1, HTTP/2, and HTTP/3 add IMF-fixdate `Date` to every final response,
+including `5xx`, while interim responses carry none. An application-provided date is preserved.
+The cached default is visible before dispatch so static-file validators use the response's own
+origination time. A deployment whose proxy adds dates can set `Http:AddDateHeader` to `false`;
+that suppresses only the automatic value. Both binding paths parse it as a boolean and reject an
+invalid value. This changes 10.0.0-preview.1's response header set, which contained no automatic
+`Date`. See `Http.Connections` DESIGN for the process-wide, once-per-second formatting cache.
 
 ### Why explicit, hand-rolled binding
 
@@ -1447,8 +1536,9 @@ is an unknown mode.
 
 ### Scope boundary
 
-`UseConfiguration` binds HTTP, HTTPS, and HTTP/3 endpoints, their protocol-specific server limits,
-their client-certificate mode, and the connection cap. Not bound: the HTTP/3
+`UseConfiguration` binds HTTP, HTTPS, and HTTP/3 endpoints, their protocol-specific server
+limits, their client-certificate mode, the connection cap, `AllowAlternateSchemes`, and `AddDateHeader`.
+Not bound: the HTTP/3
 `MaxRequestHeadersFrameSize` and QPACK options, QUIC stream limits, and a client-certificate
 validation callback. The minimum request-body and response data rates are bound
 (`Limits:MinRequestBodyDataRate`, `Limits:MinResponseDataRate`; #1383, #1384).
@@ -1482,13 +1572,65 @@ No reflection, no codegen, no dynamic activation. The binder is straight-line `G
 certificate files load through the BCL's `X509Certificate2.CreateFromPemFile` /
 `X509CertificateLoader` APIs.
 
+## Response starting (#1156)
+
+`IWebResponseStartingFeature` lives in Web.Server beside completion. A default response interceptor
+publishes it, and the server binds its exchange before dispatch. The interceptor invokes callbacks
+through `TransportHttpContext.InvokeBeforeResponseHeadAsync`, the existing single gate used by
+buffered sends and streaming sinks on HTTP/1.1, HTTP/2 and HTTP/3. Web.Testing's in-memory factory
+uses this same path. There is no Web-owned `HasStarted` flag and no streaming-feature decorator.
+
+Callbacks run asynchronously, in reverse registration order, once per exchange. Registration closes
+when they begin; late registration throws. Callbacks stage the head only: they must not start, write,
+complete or take over the response recursively. A throwing callback cancels the exchange and stops
+the callback list, so a handler that catches the failure cannot retry an incomplete head. The
+transport aborts/reset the exchange before writing its final response, rather than sending a 500.
+This differs from completion callbacks, which isolate failures after a response is already sent.
+
+A starting callback may cancel its exchange and return normally. After `SendAsync` returns,
+finalization rechecks the exchange and shutdown tokens, reports cancellation instead of a sent
+response, and skips completion callbacks. The span and duration record `request_canceled` without
+an unsent status. This corrects the new hook's behavior; 10.0.0-preview.1 had no starting callbacks.
+
+A head refused by `InvalidResponseField` is still unstarted. Http.Streaming now reads the same
+transport commitment state for `HasStarted` (#1388), so a refused `StartAsync` or `CompleteAsync`
+can be retried, or the handler can stage a buffered replacement. This does not reopen starting
+registration: successful starting callbacks do not run again. Their header edits (added/changed
+values and removals) are captured as a delta, and the
+server reapplies that delta immediately before an unstarted buffered send, after clearing a refused
+response for its own bodyless 500. This also covers a boundary or handler that clears the refused
+streamed head and stages a buffered replacement. Status, body, framing and representation metadata
+are the replacement's. Replay excludes connection-specific fields, Content-Length, Trailer, content
+type/encoding/language/location/range/disposition, validators, digests and Accept-Ranges, including
+their removal or explicit preservation by a callback. The transport derives the new body length;
+callback policy fields still survive. These replay corrections affect the hook introduced after
+10.0.0-preview.1 and add no public surface or preview.1 behavior break. Application
+fields that callbacks neither changed nor explicitly preserved are not carried into the server's 500. An invalid field added
+by a callback is still rejected; it is never sanitized or sent. The no-callback path takes no header
+snapshot. The optional `preservedHeaders` argument copies policy header keys at registration and
+retains their final values or absence after all callbacks succeed, even if unchanged. This covers
+SecurityHeaders' no-clobber framing and CORS' early cache-selection `Vary` and accepted grants,
+without a middleware-specific list in Hosting or copying unrelated application fields.
+Unchanged preserved fields must have a valid field name and no forbidden control character in any
+value, matching transport validation. Invalid application values are omitted from replay so they
+cannot defeat the replacement 500; valid policy fields survive. Callback-modified invalid fields
+still fail transport validation. This is a correction to the post-preview.1 hook, with no released
+preview.1 behavior change.
+
+Compared with 10.0.0-preview.1, the contract is additive. Callback exceptions abort the exchange;
+security/CORS fields now stage at commit, including error responses caught by an outer boundary.
+Custom servers must publish and drive the contract for middleware that requires it. Clearing the
+default interceptor list also removes this feature; SecurityHeaders and CORS fail explicitly when
+they need it. Web.Server is already an App.Web member and the Hosting closure gains no assembly.
+
 ## Default interceptors
 
 ### What it is
 
-When the web host composes the `HttpConnectionListener`, it installs the default interceptors
-**before** any user `UseServer` configuration runs
-(`WebApplicationServerBuilder.ApplyDefaultInterceptors`). There are four, in this order:
+When the web host composes the `HttpConnectionListener`, it installs the
+default interceptors **before** any user `UseServer`
+configuration runs (`WebApplicationServerBuilder.ApplyDefaultInterceptors`).
+There are five, in this order:
 
 1. `Http.RequestLimits`' request-limits interceptor (`HttpRequestLimits.CreateInterceptor()`,
    request scope), in slot 0, described below.
@@ -1506,6 +1648,12 @@ When the web host composes the `HttpConnectionListener`, it installs the default
    `IWebClientFaultFeature`, so the pipeline can tell a malformed or over-limit request body from
    an application defect. The feature reads the control on each access, because the transport
    latches the status while the pipeline runs.
+
+5. `WebResponseStartingInterceptor` (#1156), which publishes `IWebResponseStartingFeature` and
+   runs callbacks through the transport's existing once-per-exchange head hook. Unlike the conditional
+   interceptors above, it joins every response, including plain GETs. This adds a response sink and
+   control to each exchange; the earlier fast-path measurements below describe the first four defaults
+   without this fifth interceptor.
 
 `Web.Hosting` references `Http.ProtocolUpgrade` and `Http.ExtendedConnect` for this, references
 outside the Web area (COHRES002 is about same-area references); both are private members of every
@@ -1533,30 +1681,29 @@ The client-fault interceptor follows the same rule with a wider condition. Only 
 body is read after dispatch can fault that way, so it joins the response phase of a request that can
 have a body and installs the feature there. The transport decides that from the framing only it sees
 (`HttpExchangeInterceptorRequestContext.CanHaveBody`, #1378): on HTTP/1.1 a `Transfer-Encoding` or a
-`Content-Length` other than zero (RFC 9112 §6); on HTTP/2 a head that did not end the stream,
-whatever `content-length` it declares; on HTTP/3 a request stream that had not ended with its
-HEADERS frame; never a `CONNECT`. Until #1378 the interceptor read the HTTP/1.1 framing fields
-itself and left HTTP/2 and HTTP/3 alone, since their controls reported nothing; an HTTP/2 or HTTP/3
-request need not declare its body, so those fields cannot answer it there. Its head hook allocates
-nothing, so a request without a body (a plain `GET`) keeps the fast path and carries no feature.
-`HostFeatureCount` stays four because the feature is not on every exchange; when it overflows the
-rounded capacity, the collection grows as an unsized one would (see "Rounding: an overflow never
-costs more than not presizing"), so it never costs more than not presizing. That is not spare room:
-the rounding leaves a free slot only when the count falls between two growth sizes, and a count
-already on one (three stamped application features make seven) is full. A request with a body pays
-for the response sink, the control, the response context and the feature, and for that growth when
-the count sits on a growth size. Measured over the in-memory transport with a raw keep-alive client
-(Debug build, median of five rounds of 5,000 requests, three runs), a 3-byte `POST` allocated about
-470 B more with no stamped application features (36,837 B against 36,308 B), where the host's four
-round up to seven slots and the feature takes a free one, and about 1,150 B more with three (37,512
-B against 36,351 B), where the count is seven and the feature grows the collection to 17 slots. A
-plain `GET` stayed within the run-to-run noise in both. On HTTP/2 a `GET` ends its stream with its
-head, so it keeps the fast path as on HTTP/1.1. On HTTP/3 it does only when the transport has
-already seen the request stream's FIN: the in-memory driver reports it, but the QUIC driver's input
-sees the end only on a read that returns nothing, so over QUIC most HTTP/3 requests report that they
-can have a body, and the interceptor takes the response phase for them. That costs an HTTP/3 `GET`
-the sink, the control, the response context and the feature until the driver reports a FIN it
-already holds (core Http DESIGN, "The body signal").
+`Content-Length` other than zero (RFC 9112 §6); on HTTP/2 a head that did not end the stream, whatever
+`content-length` it declares; on HTTP/3 a request stream that had not ended with its HEADERS frame; never
+a `CONNECT`. Until #1378 the interceptor read the HTTP/1.1 framing fields itself and left HTTP/2 and HTTP/3
+alone, since their controls reported nothing; an HTTP/2 or HTTP/3 request need not declare its body, so
+those fields cannot answer it there. Its head hook allocates nothing, so a request without a body (a plain
+`GET`) keeps the fast path and carries no feature. `HostFeatureCount` counts no client-fault slot because the feature is not on
+every exchange; when it overflows the rounded capacity, the collection grows as an unsized one would
+(see "Rounding: an overflow never costs more than not presizing"), so it never costs more than not
+presizing. That is not spare room: the rounding leaves a free slot only when the count falls between
+two growth sizes, and a count already on one (three stamped application features make seven) is full.
+A request with a body pays for the response sink, the control, the response context and the feature,
+and for that growth when the count sits on a growth size. Measured over the in-memory transport with a
+raw keep-alive client (Debug build, median of five rounds of 5,000 requests, three runs), a 3-byte
+`POST` allocated about 470 B more with no stamped application features (36,837 B against 36,308 B),
+where the host's four round up to seven slots and the feature takes a free one, and about 1,150 B more
+with three (37,512 B against 36,351 B), where the count is seven and the feature grows the collection
+to 17 slots. A plain `GET` stayed within the run-to-run noise in both. On HTTP/2 a `GET` ends its
+stream with its head, so it keeps the fast path as on HTTP/1.1. On HTTP/3 it does only when the
+transport has already seen the request stream's FIN: the in-memory driver reports it, but the QUIC
+driver's input sees the end only on a read that returns nothing, so over QUIC most HTTP/3 requests
+report that they can have a body, and the interceptor takes the response phase for them. That costs an
+HTTP/3 `GET` the sink, the control, the response context and the feature until the driver reports a FIN
+it already holds (core Http DESIGN, "The body signal").
 
 **Clearing the defaults removes WebSockets.** A `UseServer` callback that clears
 `HttpConnectionListenerOptions.Interceptors` removes both transition interceptors: HTTP/1.1 upgrades

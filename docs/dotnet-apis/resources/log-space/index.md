@@ -11,6 +11,11 @@ The enabled host receives authenticated OTLP/HTTP JSON logs over HTTPS, persists
 segments under its data mount, and serves bounded authenticated NDJSON queries. Retention, archival
 and `Database.Embedded` consumption are deferred.
 
+Without a gateway identity, query and management under `/cohesion/v1` accept only transport peers
+at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
+headers do not change this decision. Bare health probes remain open. This tightens standalone
+behavior from 10.0.0-preview.1.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -82,6 +87,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/LogSpace/README.md`.
+- **Source** — `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Refs/src/Assimalign.Cohesion.LogSpace.Refs.csproj` and `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Runtime/Directory.Build.props`.

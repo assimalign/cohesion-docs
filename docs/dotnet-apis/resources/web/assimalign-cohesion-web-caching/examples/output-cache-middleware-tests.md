@@ -11,20 +11,23 @@ Use it in the source project’s test context, with its test dependencies and su
 
 ## Behavior exercised
 
-- **Case 1** — Middleware: A second request is served from cache without invoking downstream.
-- **Case 2** — Middleware: An authenticated request bypasses the cache by default.
-- **Case 3** — Middleware: A response with Set-Cookie is not stored.
-- **Case 4** — Middleware: CacheAuthenticated stores the response but never replays its Set-Cookie.
-- **Case 5** — Middleware: A request no-store directive bypasses the cache.
-- **Case 6** — Middleware: A non-200 response is not stored.
-- **Case 7** — Middleware: A response above the per-entry cap is streamed but not cached.
-- **Case 8** — Middleware: A non-cacheable method is not cached.
-- **Case 9** — Middleware: A WebSocket handshake is never answered from the cache.
-- **Case 10** — Middleware: An exchange taken over by a protocol switch is not stored.
-- **Case 11** — Middleware: An extended CONNECT is neither served from nor stored to the cache.
-- **Case 12** — Middleware: The published endpoint's metadata should decide without running the route matcher.
-- **Case 13** — Middleware: Disabled metadata on the published endpoint should bypass the base policy.
-- **Case 14** — Middleware: The published endpoint's route values should partition VaryByRouteValue.
+- **Case 1** — Middleware: A cache entry is invisible until successful response completion.
+- **Case 2** — Middleware: A server without completion notification never stores a miss.
+- **Case 3** — Middleware: A second request is served from cache without invoking downstream.
+- **Case 4** — Middleware: Projected zero and empty query values keep separate responses.
+- **Case 5** — Middleware: An authenticated request bypasses the cache by default.
+- **Case 6** — Middleware: A response with Set-Cookie is not stored.
+- **Case 7** — Middleware: CacheAuthenticated stores the response but never replays its Set-Cookie.
+- **Case 8** — Middleware: A request no-store directive bypasses the cache.
+- **Case 9** — Middleware: A non-200 response is not stored.
+- **Case 10** — Middleware: A response above the per-entry cap is streamed but not cached.
+- **Case 11** — Middleware: A non-cacheable method is not cached.
+- **Case 12** — Middleware: A WebSocket handshake is never answered from the cache.
+- **Case 13** — Middleware: An exchange taken over by a protocol switch is not stored.
+- **Case 14** — Middleware: An extended CONNECT is neither served from nor stored to the cache.
+- **Case 15** — Middleware: The published endpoint's metadata should decide without running the route matcher.
+- **Case 16** — Middleware: Disabled metadata on the published endpoint should bypass the base policy.
+- **Case 17** — Middleware: The published endpoint's route values should partition VaryByRouteValue.
 
 ## Source example
 
@@ -32,12 +35,15 @@ Use it in the source project’s test context, with its test dependencies and su
 using System;
 using System.Text;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Caching.Internal;
 using Assimalign.Cohesion.Web.Caching.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.Caching.Tests;
 
@@ -62,7 +68,10 @@ public class OutputCacheMiddlewareTests
 
     private static async Task<string> RunAsync(OutputCacheMiddleware middleware, OutputCacheTestContext context, WebApplicationMiddleware downstream)
     {
+        OutputCacheCompletionFeature completion = new();
+        context.Features.Set<IWebResponseCompletionFeature>(completion);
         await middleware.InvokeAsync(context, downstream);
+        await completion.CompleteAsync();
         context.Response.Body.Position = 0;
         using System.IO.StreamReader reader = new(context.Response.Body, Encoding.UTF8, leaveOpen: true);
         return await reader.ReadToEndAsync();
@@ -83,6 +92,46 @@ public class OutputCacheMiddlewareTests
         public int Count;
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Caching] - Middleware: A cache entry is invisible until successful response completion")]
+    public async Task Invoke_BeforeSuccessfulCompletion_ShouldNotPublishEntry()
+    {
+        // Arrange
+        OutputCacheMiddleware middleware = CreateMiddleware(out InMemoryOutputCacheStore store);
+        using InMemoryOutputCacheStore ownedStore = store;
+        OutputCacheTestContext context = new();
+        OutputCacheCompletionFeature completion = new();
+        context.Features.Set<IWebResponseCompletionFeature>(completion);
+        Counter counter = new();
+
+        // Act
+        await middleware.InvokeAsync(context, Handler(counter, "first"));
+        string pending = await RunAsync(middleware, new OutputCacheTestContext(), Handler(counter, "pending"));
+        await completion.CompleteAsync();
+        string completed = await RunAsync(middleware, new OutputCacheTestContext(), Handler(counter, "unexpected"));
+
+        // Assert
+        pending.ShouldBe("pending");
+        completed.ShouldBe("first");
+        counter.Count.ShouldBe(2);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Caching] - Middleware: A server without completion notification never stores a miss")]
+    public async Task Invoke_NoCompletionFeature_ShouldNotStore()
+    {
+        // Arrange
+        OutputCacheMiddleware middleware = CreateMiddleware(out InMemoryOutputCacheStore store);
+        using InMemoryOutputCacheStore ownedStore = store;
+        Counter counter = new();
+
+        // Act
+        await middleware.InvokeAsync(new OutputCacheTestContext(), Handler(counter, "unconfirmed"));
+        string confirmed = await RunAsync(middleware, new OutputCacheTestContext(), Handler(counter, "confirmed"));
+
+        // Assert
+        confirmed.ShouldBe("confirmed");
+        counter.Count.ShouldBe(2);
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Caching] - Middleware: A second request is served from cache without invoking downstream")]
     public async Task Invoke_SecondRequest_ShouldServeFromCacheAndSkipDownstream()
     {
@@ -100,6 +149,52 @@ public class OutputCacheMiddlewareTests
         second.ShouldBe("payload");
         counter.Count.ShouldBe(1);
         secondContext.Response.Headers.ContainsKey(HttpHeaderKey.Age).ShouldBeTrue();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Caching] - Middleware: Projected zero and empty query values keep separate responses")]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Invoke_ProjectedZeroQueryOccurrences_ShouldNotServeEmptyOccurrence(bool selectKey, bool emptyFirst)
+    {
+        // Arrange
+        OutputCacheMiddleware middleware = CreateMiddleware(out InMemoryOutputCacheStore store, options =>
+        {
+            if (selectKey)
+            {
+                options.BasePolicy!.VaryByQuery("tag");
+            }
+        });
+        using InMemoryOutputCacheStore ownedStore = store;
+        Counter counter = new();
+        WebApplicationMiddleware handler = async context =>
+        {
+            counter.Count++;
+            string body = context.Request.Query["tag"].Count == 0 ? "zero" : "empty";
+            await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(body), context.RequestCancelled);
+        };
+
+        static OutputCacheTestContext Project(bool empty)
+        {
+            OutputCacheTestContext context = new() { Request = { Path = new HttpPath("/list") } };
+            // A rewrite can project a missing source key into a present key with no occurrences.
+            context.Request.QueryCollection["tag"] = new HttpQuery(empty ? "tag=" : string.Empty).Parse()["tag"];
+            return context;
+        }
+
+        // Act
+        string first = await RunAsync(middleware, Project(emptyFirst), handler);
+        string second = await RunAsync(middleware, Project(!emptyFirst), handler);
+        string firstHit = await RunAsync(middleware, Project(emptyFirst), handler);
+        string secondHit = await RunAsync(middleware, Project(!emptyFirst), handler);
+
+        // Assert
+        first.ShouldBe(emptyFirst ? "empty" : "zero");
+        second.ShouldBe(emptyFirst ? "zero" : "empty");
+        firstHit.ShouldBe(first);
+        secondHit.ShouldBe(second);
+        counter.Count.ShouldBe(2);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Caching] - Middleware: An authenticated request bypasses the cache by default")]

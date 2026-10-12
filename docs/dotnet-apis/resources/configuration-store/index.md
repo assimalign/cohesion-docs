@@ -8,6 +8,10 @@ ConfigurationStore is the L3 resource area for durable, named configuration name
 host serves namespace snapshots and declarative mutations over the resource control-plane endpoint;
 values are configuration rather than secrets and are stored as plain JSON beneath the `data` volume.
 
+Without a gateway identity, `/cohesion/v1` accepts only transport peers at `127.0.0.1`, `::1`,
+or IPv4-mapped `127.0.0.1`; other peers receive 403, regardless of forwarded headers.
+Bare `/healthz`, `/readyz`, and `/livez` stay open. Gateway-managed authentication is unchanged.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -80,6 +84,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/ConfigurationStore/README.md`.
+- **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Refs/src/Assimalign.Cohesion.ConfigurationStore.Refs.csproj` and `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Runtime/Directory.Build.props`.

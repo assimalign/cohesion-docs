@@ -38,11 +38,11 @@ the sink — that path must be handed off, not corrupted.
 
 ## The deferred-first-write wrapper
 
-There is no `OnStarting` hook and no header-commit callback a middleware can register to decide
-compression once the response shape is known. The media type, the status, and any handler-set
-`Content-Encoding` only exist once the handler starts writing the body. So the middleware wraps
-`IHttpResponse.Body` in `CompressionBodyStream` and **defers the whole decision to the first
-write**:
+`Web.Server` exposes `IWebResponseStartingFeature.OnStarting` for final status and header changes
+immediately before the head is serialized (#1156). Those callbacks cannot write the response body.
+Compression continues to wrap `IHttpResponse.Body` in `CompressionBodyStream` and **defers the whole
+decision to the first write**, when the media type, status, and handler-set `Content-Encoding` are
+available and the body can still be encoded:
 
 1. **At entry** it negotiates the coding from `Accept-Encoding` (via the shared Http primitive) and
    installs the wrapper and the opt-out feature. No headers are touched yet.
@@ -256,3 +256,4 @@ Nothing in the package or its tests needs dynamic code. `IsAotCompatible=true` h
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/src/Assimalign.Cohesion.Web.Compression.csproj`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebResponseStartingFeature.cs`.

@@ -23,15 +23,26 @@ from the request by convention or by explicit attribute:
 | Source | Attribute | Notes |
 | --- | --- | --- |
 | Route value | `[FromRoute]` | Inferred when the name matches a `{token}` in the pattern |
-| Query string | `[FromQuery]` | Default for scalar parameters |
+| Query string | `[FromQuery]` | Default for scalars and sequences of scalar values |
 | Header | `[FromHeader]` | Explicit only |
 | Body | `[FromBody]` | Default for complex parameters; one per handler |
-| Form field | `[FromForm]` | Per-field scalars |
+| Form field | `[FromForm]` | Per-field scalars; the first value when a field repeats in either encoding |
 | Uploaded file | `[FromForm]` (optional) | `IHttpFormFile` (by field name), `IHttpFormFile[]` / `IReadOnlyList<IHttpFormFile>` / `IReadOnlyCollection<IHttpFormFile>` / `IEnumerable<IHttpFormFile>` (every file under the name), `IHttpFormFileCollection` (every file) |
 | `IHttpContext` | — | Injected directly |
 | `IHttpRequest` / `IHttpResponse` | — | Injected as `context.Request` / `context.Response` |
 | `CancellationToken` | — | Bound from `RequestCancelled` |
 | `IHttpFeature` types | — | Resolved from `context.Features` |
+
+A repeated query key supplies every value in order to `T[]`, `List<T>`, `IEnumerable<T>`,
+`IReadOnlyList<T>`, `IReadOnlyCollection<T>`, `IList<T>` or `ICollection<T>` when `T` is a supported
+scalar. For example, `(string[] tag)` receives `["one", "", "two"]` from
+`?tag=one&tag=&tag=two`, while `(string tag)` reads `"one"`. Missing collections are empty;
+invalid elements produce 400, and empty nullable value-type elements become null. Write `[FromBody]`
+when a collection should be read from the request body.
+
+Repeated form fields also bind their first value for scalar `[FromForm]` parameters, whether the
+body is multipart or urlencoded. For example, `qty=5&qty=7` binds `int qty` as `5`; a multipart body
+with the same two `qty` fields does too. Read the parsed form collection to access every occurrence.
 
 Unparseable or missing-required scalars, and a missing required file, produce a 400 problem+json
 (with an `errors` extension naming the parameter); a form over an Http.Forms size limit produces 413

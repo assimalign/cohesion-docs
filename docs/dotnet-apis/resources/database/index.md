@@ -10,6 +10,11 @@ The multi-model OLTP database engine family for Cohesion: five independent datab
 customer-owned `Sdk.Database` executable whose `Program.cs` composes its engines, code-first schema,
 servers, and provisioning.
 
+An enabled resource's standalone `admin` control plane accepts `/cohesion/v1` only from transport
+peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
+forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
+Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior is unchanged.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -179,6 +184,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/README.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Refs/src/Assimalign.Cohesion.Database.Refs.csproj` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Runtime/Directory.Build.props`.

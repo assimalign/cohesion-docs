@@ -12,14 +12,15 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Server/Diagnostics: A bind failure is logged as Critical with its cause before startup fails.
-- **Case 2** — Server/Diagnostics: An accept-loop fault is logged as Critical.
-- **Case 3** — Server/Diagnostics: A cancellation the server did not request is logged as an accept-loop fault.
-- **Case 4** — Server/Diagnostics: A connection fault is logged as Error with the connection's id, endpoints and protocol only.
-- **Case 5** — Server/Diagnostics: A connection the peer or the network ended is logged at Debug only.
-- **Case 6** — Server/Diagnostics: A drain the budget cut short is logged as Warning with the connections and exchanges still in flight.
-- **Case 7** — Server/Diagnostics: A connection fault on a real exchange is logged without its header values or bodies.
-- **Case 8** — Server/Diagnostics: The default server logs through the application's logger factory.
+- **Case 1** — Server/Diagnostics: Each completion callback failure is reported without skipping later callbacks.
+- **Case 2** — Server/Diagnostics: A bind failure is logged as Critical with its cause before startup fails.
+- **Case 3** — Server/Diagnostics: An accept-loop fault is logged as Critical.
+- **Case 4** — Server/Diagnostics: A cancellation the server did not request is logged as an accept-loop fault.
+- **Case 5** — Server/Diagnostics: A connection fault is logged as Error with the connection's id, endpoints and protocol only.
+- **Case 6** — Server/Diagnostics: A connection the peer or the network ended is logged at Debug only.
+- **Case 7** — Server/Diagnostics: A drain the budget cut short is logged as Warning with the connections and exchanges still in flight.
+- **Case 8** — Server/Diagnostics: A connection fault on a real exchange is logged without its header values or bodies.
+- **Case 9** — Server/Diagnostics: The default server logs through the application's logger factory.
 
 ## Source example
 
@@ -33,17 +34,23 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using HttpVersion = Assimalign.Cohesion.Http.HttpVersion;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Connections.Tcp;
 using Assimalign.Cohesion.Hosting;
+using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Testing;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using HttpVersion = Assimalign.Cohesion.Http.HttpVersion;
+using HttpMethod = System.Net.Http.HttpMethod;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
@@ -55,6 +62,45 @@ namespace Assimalign.Cohesion.Web.Hosting.Tests;
 public class WebApplicationServerDiagnosticsTests
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
+
+    [Fact(DisplayName = "Cohesion Test [Web Hosting] - Server/Diagnostics: Each completion callback failure is reported without skipping later callbacks")]
+    public async Task ServeExchange_WhenCompletionCallbacksThrow_ShouldReportEveryFailure()
+    {
+        // Arrange
+        RecordingLoggerProvider recorded = new();
+        using ILoggerFactory loggerFactory = CreateLoggerFactory(recorded);
+        InvalidOperationException first = new("first callback");
+        AggregateException second = new("second callback", new InvalidOperationException("nested"));
+        bool lastRan = false;
+        FakeHttpConnection connection = new(new FakeHttpConnectionContext(new[] { new FakeHttpContext() }));
+        FakePipeline pipeline = new((context, _) =>
+        {
+            IWebResponseCompletionFeature completion = context.Features.Get<IWebResponseCompletionFeature>()!;
+            completion.Register(() => throw first);
+            completion.Register(() => ValueTask.FromException(second));
+            completion.Register(() => { lastRan = true; return ValueTask.CompletedTask; });
+            return Task.CompletedTask;
+        });
+        WebApplicationServer server = CreateServer(pipeline, new FakeHttpConnectionListener(connection), loggerFactory);
+
+        // Act
+        try
+        {
+            await server.StartAsync(CancellationToken.None);
+            await connection.Disposed.Task.WaitAsync(_timeout);
+
+            // Assert
+            lastRan.ShouldBeTrue();
+            recorded.Entries.Select(entry => entry.Exception).ShouldBe(new Exception[] { first, second });
+            recorded.Entries.ShouldAllBe(entry => entry.Level == LogLevel.Error &&
+                entry.Category == WebApplicationServerLog.Category);
+            connection.AbortCount.ShouldBe(0);
+        }
+        finally
+        {
+            await server.StopAsync(CancellationToken.None);
+        }
+    }
 
     [Fact(DisplayName = "Cohesion Test [Web Hosting] - Server/Diagnostics: A bind failure is logged as Critical with its cause before startup fails")]
     public async Task StartAsync_WhenBindFails_ShouldLogCriticalWithTheCause()

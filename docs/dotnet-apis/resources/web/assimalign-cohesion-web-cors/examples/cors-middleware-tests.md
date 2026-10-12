@@ -5,66 +5,72 @@ This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located tes
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/tests/CorsMiddlewareTests.cs`. It retains the
-test class and assertions so the setup, operation, and expected outcome stay together. Use it in the
-source project’s test context, with its test dependencies and supporting test objects.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/tests/CorsMiddlewareTests.cs`. It
+retains the test class and assertions so the setup, operation, and expected outcome stay together.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
 - **Case 1** — UseCors: Should throw on a null pipeline builder.
-- **Case 2** — Actual: An allowed origin should be echoed, with Vary: Origin.
-- **Case 3** — Actual: An any-origin policy should answer '*' without Vary.
-- **Case 4** — Actual: A credentialed policy should echo the origin, never '*', and allow credentials.
-- **Case 5** — Actual: A denied origin should get no CORS header but still Vary: Origin, and the request should continue.
-- **Case 6** — Actual: Exposed headers should be listed on an allowed response.
-- **Case 7** — Actual: A request without Origin to an origin-dependent policy should only get Vary: Origin.
-- **Case 8** — Actual: A request without Origin to an any-origin policy should still carry '*'.
-- **Case 9** — Actual: More than one Origin value should be denied.
-- **Case 10** — Actual: Vary: Origin should be appended to existing tokens, never duplicated, and never added to Vary: *.
-- **Case 11** — Actual: Headers reset downstream should be written again before the response starts.
-- **Case 12** — Actual: Headers should not be written again once the response has started.
-- **Case 13** — Actual: CORS headers the policy does not grant should be removed, whoever set them.
-- **Case 14** — Actual: A handler's own CORS header should not survive a policy that denies the origin.
-- **Case 15** — Actual: With no policy the request should pass through untouched.
-- **Case 16** — Selection: An endpoint's inline policy should replace the default policy.
-- **Case 17** — Selection: An endpoint's named policy should resolve against the registered policies.
-- **Case 18** — Selection: An unknown policy name should throw InvalidOperationException.
-- **Case 19** — Selection: A disabled endpoint should get no CORS header even under an any-origin default.
-- **Case 20** — Selection: The last CORS metadata item should decide.
-- **Case 21** — Preflight: An allowed preflight should be answered 204 with the full grant, without continuing.
-- **Case 22** — Preflight: A preflight from a denied origin should be answered 204 without any CORS header.
-- **Case 23** — Preflight: A denied preflight should carry no CORS header, even one set before UseCors.
-- **Case 24** — Preflight: A method the policy does not allow should get no CORS header.
-- **Case 25** — Preflight: Methods should compare byte for byte, as Fetch compares them.
-- **Case 26** — Preflight: A CORS-safelisted method should be allowed without being listed, byte for byte.
-- **Case 27** — Preflight: Requested header names should match case-insensitively.
-- **Case 28** — Preflight: A requested header the policy does not allow, or a malformed one, should get no CORS header.
-- **Case 29** — Preflight: Empty list elements in the requested headers should be ignored.
-- **Case 30** — Preflight: Any header should echo the requested names, Authorization included, never '*'.
-- **Case 31** — Preflight: Any method should echo the requested method, never '*'.
-- **Case 32** — Preflight: An any-origin preflight should answer '*' without Vary, and omit an unset max age.
-- **Case 33** — Preflight: A fractional max age should be sent as whole seconds.
-- **Case 34** — Preflight: OPTIONS with Origin but no Access-Control-Request-Method should be an actual request.
-- **Case 35** — Preflight: A malformed or overlong requested method should not make a preflight, as in routing.
-- **Case 36** — Preflight source: A preflight with no endpoint should be answered with the default policy.
-- **Case 37** — Preflight source: A preflight with no endpoint and no default policy should continue unanswered.
-- **Case 38** — Preflight source: The candidate endpoint's policy should answer the preflight.
-- **Case 39** — Preflight source: A candidate that disables CORS should leave the preflight unanswered.
-- **Case 40** — Preflight source: An OPTIONS-only route should own its path's preflights.
-- **Case 41** — Preflight source: A route that serves both OPTIONS and the requested method should answer with its policy.
-- **Case 42** — Preflight source: A route serves the requested method only byte for byte (RFC 9110 §9.1).
-- **Case 43** — Preflight source: A route that accepts any method should answer with its policy.
+- **Case 2** — Actual: A custom server without the starting feature should fail explicitly.
+- **Case 3** — Actual: An allowed origin should be echoed, with Vary: Origin.
+- **Case 4** — Actual: An any-origin policy should answer '*' without Vary.
+- **Case 5** — Actual: A credentialed policy should echo the origin, never '*', and allow credentials.
+- **Case 6** — Actual: A denied origin should get no CORS header but still Vary: Origin, and the request should continue.
+- **Case 7** — Actual: Exposed headers should be listed on an allowed response.
+- **Case 8** — Actual: A request without Origin to an origin-dependent policy should only get Vary: Origin.
+- **Case 9** — Actual: A request without Origin to an any-origin policy should still carry '*'.
+- **Case 10** — Actual: More than one Origin value should be denied.
+- **Case 11** — Actual: Vary: Origin should be appended to existing tokens, never duplicated, and never added to Vary: *.
+- **Case 12** — Actual: Cache partitioning should be visible before commit while the grant is deferred.
+- **Case 13** — Actual: Headers reset downstream should be staged when the response starts.
+- **Case 14** — Actual: Headers should not be written again once the response has started.
+- **Case 15** — Actual: CORS headers the policy does not grant should be removed, whoever set them.
+- **Case 16** — Actual: A handler's own CORS header should not survive a policy that denies the origin.
+- **Case 17** — Actual: With no policy the request should pass through untouched.
+- **Case 18** — Selection: An endpoint's inline policy should replace the default policy.
+- **Case 19** — Selection: An endpoint's named policy should resolve against the registered policies.
+- **Case 20** — Selection: An unknown policy name should throw InvalidOperationException.
+- **Case 21** — Selection: A disabled endpoint should get no CORS header even under an any-origin default.
+- **Case 22** — Selection: The last CORS metadata item should decide.
+- **Case 23** — Preflight: An allowed preflight should be answered 204 with the full grant, without continuing.
+- **Case 24** — Preflight: A preflight from a denied origin should be answered 204 without any CORS header.
+- **Case 25** — Preflight: A denied preflight should carry no CORS header, even one set before UseCors.
+- **Case 26** — Preflight: A method the policy does not allow should get no CORS header.
+- **Case 27** — Preflight: Methods should compare byte for byte, as Fetch compares them.
+- **Case 28** — Preflight: A CORS-safelisted method should be allowed without being listed, byte for byte.
+- **Case 29** — Preflight: Requested header names should match case-insensitively.
+- **Case 30** — Preflight: A requested header the policy does not allow, or a malformed one, should get no CORS header.
+- **Case 31** — Preflight: Empty list elements in the requested headers should be ignored.
+- **Case 32** — Preflight: Any header should echo the requested names, Authorization included, never '*'.
+- **Case 33** — Preflight: Any method should echo the requested method, never '*'.
+- **Case 34** — Preflight: An any-origin preflight should answer '*' without Vary, and omit an unset max age.
+- **Case 35** — Preflight: A fractional max age should be sent as whole seconds.
+- **Case 36** — Preflight: OPTIONS with Origin but no Access-Control-Request-Method should be an actual request.
+- **Case 37** — Preflight: A malformed or overlong requested method should not make a preflight, as in routing.
+- **Case 38** — Preflight source: A preflight with no endpoint should be answered with the default policy.
+- **Case 39** — Preflight source: A preflight with no endpoint and no default policy should continue unanswered.
+- **Case 40** — Preflight source: The candidate endpoint's policy should answer the preflight.
+- **Case 41** — Preflight source: A candidate that disables CORS should leave the preflight unanswered.
+- **Case 42** — Preflight source: An OPTIONS-only route should own its path's preflights.
+- **Case 43** — Preflight source: A route that serves both OPTIONS and the requested method should answer with its policy.
+- **Case 44** — Preflight source: A route serves the requested method only byte for byte (RFC 9110 §9.1).
+- **Case 45** — Preflight source: A route that accepts any method should answer with its policy.
 
 ## Source example
 
 ```csharp
 using System;
 using System.Threading.Tasks;
-using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Routing;
+
+using Shouldly;
+
+using Xunit;
+
+using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 
 namespace Assimalign.Cohesion.Web.Cors.Tests;
 
@@ -73,8 +79,8 @@ namespace Assimalign.Cohesion.Web.Cors.Tests;
 /// wildcard, credentialed, denied, exposed, <c>Vary: Origin</c>), preflight evaluation (origin, byte-exact
 /// methods with the safelisted ones always allowed, case-insensitive headers, any-method and any-header
 /// echoes, max age), policy selection (default, named, inline, disabled, last-wins), the preflight policy
-/// source when routing published a candidate, an explicit route, or nothing, and the re-application of the
-/// headers after a downstream reset.
+/// source when routing published a candidate, an explicit route, or nothing, and response-start staging
+/// after a downstream reset.
 /// </summary>
 public class CorsMiddlewareTests
 {
@@ -94,6 +100,23 @@ public class CorsMiddlewareTests
 
         // Assert
         act.ShouldThrow<ArgumentNullException>();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Cors] - Actual: A custom server without the starting feature should fail explicitly")]
+    public async Task InvokeAsync_MissingStartingFeature_ShouldExplainRequiredServerContract()
+    {
+        // Arrange
+        await using CorsTestContext context = new(HttpMethod.Get, origin: App);
+        context.Features.Remove(nameof(IWebResponseStartingFeature));
+
+        // Act
+        Func<Task> act = () => CorsPipeline.InvokeAsync(context,
+            options => options.AddDefaultPolicy(policy => policy.WithOrigins(App)));
+
+        // Assert
+        InvalidOperationException exception = await act.ShouldThrowAsync<InvalidOperationException>();
+        exception.Message.ShouldContain(nameof(IWebResponseStartingFeature), Case.Sensitive);
+        exception.Message.ShouldContain("custom server", Case.Sensitive);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Cors] - Actual: An allowed origin should be echoed, with Vary: Origin")]
@@ -244,8 +267,32 @@ public class CorsMiddlewareTests
         context.ResponseHeader(HttpHeaderKey.Vary).ShouldBe(expected);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Cors] - Actual: Headers reset downstream should be written again before the response starts")]
-    public async Task InvokeAsync_DownstreamResetsResponse_ShouldReapplyHeaders()
+    [Fact(DisplayName = "Cohesion Test [Web.Cors] - Actual: Cache partitioning should be visible before commit while the grant is deferred")]
+    public async Task InvokeAsync_BeforeCommit_ShouldPublishVaryWithoutGrantHeaders()
+    {
+        // Arrange
+        await using CorsTestContext context = new(HttpMethod.Get, origin: App);
+        string? varyBeforeCommit = null;
+        string? originBeforeCommit = null;
+
+        // Act
+        await CorsPipeline.InvokeAsync(context,
+            options => options.AddDefaultPolicy(policy => policy.WithOrigins(App)),
+            downstream: ctx =>
+            {
+                varyBeforeCommit = context.ResponseHeader(HttpHeaderKey.Vary);
+                originBeforeCommit = context.ResponseHeader(HttpHeaderKey.AccessControlAllowOrigin);
+                return Task.CompletedTask;
+            });
+
+        // Assert
+        varyBeforeCommit.ShouldBe("Origin");
+        originBeforeCommit.ShouldBeNull();
+        context.ResponseHeader(HttpHeaderKey.AccessControlAllowOrigin).ShouldBe(App);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Cors] - Actual: Headers reset downstream should be staged when the response starts")]
+    public async Task InvokeAsync_DownstreamResetsResponse_ShouldStageHeadersAtCommit()
     {
         // Arrange — the shape an exception boundary or a request timeout registered after UseCors produces.
         await using CorsTestContext context = new(HttpMethod.Get, origin: App);
@@ -279,11 +326,10 @@ public class CorsMiddlewareTests
         await CorsPipeline.InvokeAsync(
             context,
             options => options.AddDefaultPolicy(policy => policy.WithOrigins(App)),
-            downstream: ctx =>
+            downstream: async ctx =>
             {
+                await ((FakeResponseStartingFeature)ctx.Features.Get<IWebResponseStartingFeature>()!).CommitAsync();
                 ctx.Response.Headers.Clear();
-                ctx.Features.Set<IHttpResponseStreamingFeature>(new FakeResponseStreamingFeature(hasStarted: true));
-                return Task.CompletedTask;
             });
 
         // Assert — the head is on the wire; a write now would have no effect, so none is made.

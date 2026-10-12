@@ -35,29 +35,41 @@ a listener that cannot bind, a connection fault, a drain the budget cut short â€
 `builder.Logging`, never with request content. Disposing the application disposes the service
 provider and every factory-created service.
 
-Every listener the default server composes gets four interceptors before any of the application's
-own: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3 extended CONNECT, and
-the client fault. The first surfaces the body-size cap and the minimum request-body and response
-data rates per request (`context.MaxRequestBodySize`, `context.MinRequestBodyDataRate`,
+Register middleware with `Use` before starting the application or explicitly building its
+pipeline. A later `Use` throws `InvalidOperationException` because the pipeline is already built.
+
+Every listener the default server composes gets five interceptors before any of the application's
+own: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3 extended
+CONNECT, the client fault, and response starting. The first surfaces the body-size cap and the minimum request-body and
+response data rates per request (`context.MaxRequestBodySize`, `context.MinRequestBodyDataRate`,
 `context.MinResponseDataRate`), so an endpoint whose body legitimately idles can disable the request
 rate before it reads (#1383), and one whose reader pauses can disable the slow-read check before its
 response starts (#1384). A client that grants no flow-control credit or stops reading is otherwise
-reclaimed on every protocol, and its exchange is recorded as cancelled. The next two make
-`context.Upgrade`, `context.ExtendedConnect` and a WebSocket handshake (`context.WebSockets`) work
-on every protocol without listener configuration. A request no handler accepts is served as before.
-The last publishes `IWebClientFaultFeature` on a request that can have a body, on every version:
-when the body breaks its framing or a limit while it is read, the transport answers `400`, `413`,
-`408` or `431` itself (on HTTP/2 and HTTP/3 it resets the stream for a malformed body instead,
-reported as `400`), and the HTTP logging middleware and the exception boundary treat the read's
-exception as the client's fault, not an application defect (#1340, #1378). A `UseServer` callback
-that clears `options.Interceptors` removes them, and with them WebSockets on every protocol (the
-HTTP/2 and HTTP/3 transports keep advertising extended CONNECT, but nothing surfaces it) and the
-client-fault classification. See [Design](design.md#default-interceptors).
+reclaimed on every protocol, and its exchange is recorded as cancelled. The
+next two make `context.Upgrade`, `context.ExtendedConnect` and a
+WebSocket handshake (`context.WebSockets`) work on every protocol without listener configuration. A
+request no handler accepts is served as before. The fourth publishes `IWebClientFaultFeature` on a
+request that can have a body, on every version: when the body breaks its framing or a limit while it is
+read, the transport answers `400`, `413`, `408` or `431` itself (on HTTP/2 and HTTP/3 it resets the
+stream for a malformed body instead, reported as `400`), and the HTTP logging middleware and the
+exception boundary treat the read's exception as the client's fault, not an application defect
+(#1340, #1378). A `UseServer` callback that clears `options.Interceptors` removes them, and with them
+WebSockets on every protocol (the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT, but
+nothing surfaces it) and the client-fault classification. See [Design](design.md#default-interceptors).
 
 A handler that throws before its response starts is answered with a bare `500`. So is a response
 the transport refuses to send because a header or trailer name is not a token or a value holds CR,
 LF, NUL, or another control character but HTAB â€” typically request text copied into a header
 unvalidated, which would otherwise split the response.
+
+Cleartext HTTP/2 rejects `:scheme https` with `421` before dispatch. A trusted gateway that
+forwards that scheme to an h2c backend can opt in with `options.AllowAlternateSchemes = true`
+inside `Server.UseServer`, or with `Http:AllowAlternateSchemes` through `UseConfiguration`.
+The opt-out preserves the gateway's scheme in `Request.Scheme`.
+
+Every final response carries an automatic `Date` unless the application supplied one. To let a
+proxy add its own, set `options.AddDateHeader = false` in `Server.UseServer`, or configure
+`Http:AddDateHeader` through `UseConfiguration`. Interim responses carry no `Date`.
 
 ## Telemetry
 
@@ -102,6 +114,17 @@ terminal.
 
 All public composition is explicit and AOT-compatible. See [Design](design.md) for listener
 ownership, cancellation, failure isolation, and control-plane behavior.
+
+## Response-starting callbacks
+
+Read `context.Features.Get<IWebResponseStartingFeature>()` and call `OnStarting(callback, state)`
+to stage headers at the final commit point. Callbacks run once, in reverse registration order, for
+buffered and streamed responses on every protocol. Do not write the response from a callback.
+A callback failure aborts before the head is written. Callback header edits survive a refused head's
+buffered replacement without callbacks running again. Pass optional `preservedHeaders` keys to also
+retain policy fields accepted unchanged; their final values or absence are captured after callbacks.
+The default interceptor supplies this feature;
+clearing the interceptors removes it. SecurityHeaders and CORS require it, including on custom servers.
 
 ## Project references
 

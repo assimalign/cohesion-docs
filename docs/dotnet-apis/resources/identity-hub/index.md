@@ -12,6 +12,11 @@ keys, client credentials, a loopback Local device-authorization flow, and a Cohe
 control plane. Production HTTPS consumes a gateway-materialized `tls` Secret mount; the self-signed
 fallback is Local-only.
 
+Without a gateway identity, the `/cohesion/v1` control plane accepts only transport peers at
+`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
+headers do not change this decision. Bare health probes remain open. This tightens standalone
+behavior from 10.0.0-preview.1.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -88,6 +93,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/IdentityHub/README.md`.
+- **Source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Refs/src/Assimalign.Cohesion.IdentityHub.Refs.csproj` and `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Runtime/Directory.Build.props`.

@@ -40,6 +40,11 @@ Endpoint precedence is registered-control-plane observation, ambient `api`, `--e
 `https://127.0.0.1:8443`. Data-path precedence is ambient `data` mount, `--data`, then
 `<content-root>/data`. Plaintext HTTP is permitted only on loopback in `Local`. A standalone host
 has no bootstrap credential and therefore may bind only to loopback, including when it uses HTTPS.
+Its `/cohesion/v1` and `/cohesion/v1/*` routes accept only
+transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive
+`403`. Forwarded headers do not affect this check. Bare `/healthz`, `/readyz`, and `/livez` remain
+open for probes. This tightens standalone request authorization from 10.0.0-preview.1;
+gateway-managed authentication is unchanged.
 
 Builder-declared secrets seed missing durable entries. `AddCertificateAuthority` controls the
 standalone root common name, initial certificate/key material, pending Platform enrollment, Platform
@@ -70,21 +75,33 @@ by this host. See [DESIGN.md](design.md) for the exact routes and bootstrap boun
 | `secretstore.add-secret` | `AddSecret` | secret path |
 | `secretstore.issue-certificate` | `IssueCertificate` | certificate name |
 
-`AddSecret` declarations carry only a source reference. `parameter:<name>` resolves through the
-gateway's existing parameter provider before delivery. `<resource>:<key>` uses the existing store
-resolver and requires a declared dependency and an available source endpoint. `literal:<value>` is
-rejected during declaration construction: literal secret material never enters the desired model,
-deterministic id or manifest. Only the transient delivery envelope contains resolved bytes; the
-protected repository stores the value and source together. An unresolved source is a named Rejected
-result. Original source-only commands remain the gateway's declaration ledger.
+`AddSecret` declarations carry only a source reference. The gateway resolves it before delivery only
+through a registered `secretstore.add-secret` input resolver, normally the one `UseSecretStore(...)`
+registers (`SecretStore.ApplicationModel.Orchestration`): `parameter:<name>` from the application's
+parameter bindings, `<resource>:<key>` through the source provider registered for that store, which
+requires a declared dependency and an available source endpoint. `literal:<value>` is rejected during
+declaration construction: literal secret material never enters the desired model, deterministic id
+or manifest. Only the transient delivery envelope contains resolved bytes; the protected repository
+stores the value and source together. An unresolved source is a named Rejected result. Original
+source-only commands remain the gateway's declaration ledger.
+
+The SDK manifest marks `secretstore.add-secret` as requiring an input resolver
+(`{ "kind": "secretstore.add-secret", "requiresInputResolver": true }`), so an application that
+declares `AddSecret` without `UseSecretStore(...)` fails `Build()` (a set member fails at set start)
+naming that package and verb, before anything is delivered. This host still rejects an add-secret
+whose payload has no string `resolvedValue`, as defense in depth for any sender that bypasses that
+validation. `IssueCertificate` is not flagged and is still delivered as declared when no resolver is
+registered.
 
 `IssueCertificate` honors the supplied subject and SAN set. An existing certificate with different
 identity is rejected until deleted; renewal preserves its identity. Private key and leaf storage
 reuse the existing protected CA repository.
 
 The control plane also accepts `cohesion.trust.add`, which the SDK manifest deliberately does not
-advertise. It is the gateway-owned trust channel through IGatewayStoreClient, never a `Build`-declared
-application command. Trust keeps owner `issuer@subject`, POST-only behavior, empty 204 success,
+advertise. It is the gateway's trust-store channel, sent only by the `SecretStoreTrustedIssuerStore`
+provider a gateway registers with `builder.UseSecretStore(store).AsTrustStore()`
+(`SecretStore.ApplicationModel.Orchestration`), never a `Build`-declared application command. Trust
+keeps owner `issuer@subject`, POST-only behavior, empty 204 success,
 empty 409 conflict and existing 403 authorization refusals. `New` commands use owner `issuer`, accept
 POST and DELETE, return 200 application/octet-stream on success, and JSON `{status,detail}`
 refusals. Malformed command envelopes return 400 with that JSON refusal shape, including invalid
@@ -118,6 +135,14 @@ area-owned service abstraction is introduced.
 The base host owns the already-cancelled run semantic: one complete start and graceful stop with
 fresh lifecycle tokens, normal run-observer notifications, and a final Stopped state. The concrete
 application and IHost route share it. Startup failures still roll back and propagate.
+
+## Dependency injection composition
+
+`SecretStoreApplicationBuilder.Services` holds every registration the application runs with.
+`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the lifecycle
+in the same order. `Build` closes registration and resolves the services once. Disposing the
+application disposes every factory-created service. See
+[DESIGN.md](design.md#dependency-injection-composition).
 
 ## Project references
 
