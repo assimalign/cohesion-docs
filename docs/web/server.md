@@ -11,7 +11,7 @@ The Web host composes listeners and drives each accepted connection through the 
 any server. Reverse shutdown drains servers before stopping application services.
 
 `WebApplicationServer` binds its listeners before reporting successful startup. A bind failure
-becomes a `HostStartupException` retaining the transport cause, and the server logs it first (see
+becomes a `HostStartupException` retaining the transport cause, and the server reports it first (see
 [Diagnostics](#diagnostics)). Accepted connections have separate tracked tasks; middleware faults
 are contained rather than escaping the accept loop.
 
@@ -57,7 +57,9 @@ states a length only when the handler staged a non-empty body or set one.
 Every final response carries a cached `Date` unless the application supplied one. Interim responses
 carry no automatic `Date`. To let a proxy supply it, set `options.AddDateHeader = false` in
 `Server.UseServer`, or `Http:AddDateHeader` through `UseConfiguration`. Static-file date validators
-require a valid response `Date` before file selection; entity tags work without it.
+keep working: a valid response `Date` is their reference; when it is absent, invalid or repeated,
+one `TimeProvider.System.GetUtcNow()` read supplies the clamp and date validation without adding
+or replacing `Date` (#1449).
 
 `KeepAliveTimeout`, `RequestHeadersTimeout` and the minimum request-body data rate apply to every
 version. Before #1085 only HTTP/1.1 enforced them, so an HTTP/2 or HTTP/3 client could hold a
@@ -98,14 +100,21 @@ the origin policy, and the drain close. The client-fault interceptor joins only 
 have a body, on every version (see
 [Client faults and refused responses](#client-faults-and-refused-responses)).
 
+HTTP/3 recognizes a clean request-stream FIN without another read through
+`IMultiplexedStream.IsInputCompleted` (#1427). With no buffered body bytes and no positive declared
+content length, it skips the request-body fault gate. A buffered body or an empty stream declaring
+content keeps that gate; the unconditional response-starting interceptor still joins the response.
+
 A `UseServer` callback that clears `options.Interceptors` removes the defaults, and with them
 WebSockets on every protocol: the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT,
 so browsers keep sending their handshakes that way, but nothing surfaces them. A host that clears
 the list and still serves WebSockets adds the two transition interceptors back. Clearing it also
-removes the client-fault classification: a malformed or over-limit body is then logged at `Error`
+removes the request client-fault classification: a malformed or over-limit body is then logged at `Error`
 and observed by `OnException` again, while the transport still answers it with its own status.
 It also removes `IWebResponseStartingFeature`, which CORS and SecurityHeaders require; both fail
-explicitly when that feature is absent.
+explicitly when that feature is absent. The same response-starting object publishes
+`IWebResponseClientFaultFeature` on every exchange, including a bodyless request, so clearing it
+also removes the response-side client-fault report.
 
 Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
 has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
@@ -154,13 +163,13 @@ the replacement's.
 
 Completion callbacks run in registration order only after the application's own response reaches
 the transport. Every callback is attempted even if an earlier one throws; failures are collected
-in an `AggregateException` and logged individually without changing the response already sent.
+in an `AggregateException` and reported individually through the server's event source without
+changing the response already sent.
 They do not run after a replacement `500`, a reset, or a cancelled exchange, including a boundary
 that aborts a started response and returns normally.
 
 A request body that breaks its framing or a limit while a handler reads it is a client fault.
-On HTTP/1.1, this also includes a body cut short by the client cleanly closing the connection. The read still
-throws, and the transport answers the exchange with its own status in place of the server's `500`:
+The read still throws, and the transport answers the exchange with its own status in place of the server's `500`:
 `400`, `413`, `408` or `431`. On a request that can have a body, on every version, the
 client-fault interceptor publishes that status as `IWebClientFaultFeature`, a
 [`Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) contract
@@ -176,9 +185,21 @@ pipeline that meets the cancellation rather than the read's failure ends as a ca
 client that resets its own request is not at fault on either version: the pipeline ends as
 cancelled and the server resets the exchange instead of staging a `500`.
 
-HTTP/3 connection loss after dispatch also cancels every affected exchange. A body read throws
-`OperationCanceledException` with `RequestCancelled`, without a client-fault status, `OnException`,
-or a staged `500`. Telemetry records `request_canceled`.
+Connection loss during an upload cancels every affected exchange on every protocol (#1439).
+A pending body read throws `OperationCanceledException` with the already-fired `RequestCancelled`
+token, even if the handler passed no read token. HTTP/1.1 includes an incomplete body ended by EOF
+as well as a reset; HTTP/2 includes connection loss and a peer's `RST_STREAM`. There is no
+client-fault status, `OnException`, Error log, or staged `500`. Telemetry records `request_canceled`
+and no response status before a response starts.
+
+A client that abandons an ongoing response, or reads so slowly that the response rate reclaims
+it, latches `IHttpExchangeControl.ResponseAbortedByClient` before the write failure reaches the
+pipeline. The server publishes that live report as `IWebResponseClientFaultFeature` (#1432).
+`UseErrorHandling` checks it before inspecting the exception, so even a writer that wraps the
+transport failure ends in cancellation with the exchange token, without `OnException`, `OnError`,
+or a replacement response. The host also checks it when there is no exception middleware. Local
+cancellation and application failures leave the latch false. Telemetry retains a started response's
+status and records `request_canceled`; completion callbacks do not run.
 
 ## Application configuration
 
@@ -273,8 +294,12 @@ connection is lost, and the endpoint keeps accepting. A handshake fails for any 
 (512 by default). Above the cap, new clients wait in the TCP backlog. An endpoint that expects many
 slow handshakes at once raises the cap or shortens the timeout.
 
-HTTP/3 behaves the same way for QUIC's own handshakes. It uses `System.Net.Quic`'s 10-second
-timeout and the listener's backlog.
+HTTP/3 exposes `QuicConnectionListenerOptions.HandshakeTimeout`, defaulting to 10 seconds, and
+uses the listener's backlog. The `UseHttp3(configure, tlsOptions)` overload applies
+`TlsServerOptions.HandshakeTimeout` after the callback, so it wins over a conflicting QUIC value.
+A non-positive TLS timeout disables the deadline; raw QUIC options use `Timeout.InfiniteTimeSpan`
+to disable it, while raw zero is passed to the runtime and may expire immediately. Configuration
+uses `Http:Endpoints:<name>:HandshakeTimeout` for every TLS endpoint (#1311).
 
 Below TLS, a client that connects and resets before the server accepts it costs only that
 connection too, as does a socket that fails to be set up right after the accept. When an accept
@@ -282,8 +307,8 @@ fails for want of file descriptors or socket buffers, or on Unix for an error .N
 the TCP listener waits and retries the accept, from 5 ms doubling to at most 1 second, instead of
 stopping the endpoint (#1312); it recovers once connections close.
 
-None of these reach the server's log. Each one is reported by an event source, which a tool enables
-by name:
+Each one is reported by its connection driver's event source, which a tool enables by name.
+These sources are outside the default Web forwarding selection:
 
 | What happened | Event source | Event |
 |---|---|---|
@@ -332,9 +357,22 @@ A handler reads the session as `context.TlsConnection`: `ClientCertificate`, `Pr
 cleartext exchange. The accessor ships in
 [`Http.Tls`](../dotnet-apis/libraries/http/assimalign-cohesion-http-tls/index.md), an `App.Web`
 member, and builds the session on first read from the handshake facts the transport publishes on
-the exchange's connection info. Every exchange on a connection shares the session, and the
-connection owns the certificate, so copy it to keep it beyond the exchange. Mapping a certificate to
-a principal under an authentication scheme is not provided yet.
+the exchange's connection info. The connection's exchanges share its handshake facts, and the
+connection owns the certificate, so copy it to keep it beyond the exchange. The transport reads
+these facts through the live connection's `Tls` feature, owned by `Connections.Tls`, and copies
+them into HTTP's connection-info snapshot. HTTP/3 reads its parent multiplexed connection's TLS
+feature; stream features do not inherit the parent's collection.
+
+[`Web.Authentication.Certificate`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-certificate/index.md)
+maps the accepted certificate to a principal. Register `auth.AddCertificate()` through
+`builder.Services.AddAuthentication`, choose the `Certificate` scheme, and compose
+`UseAuthentication` and `UseAuthorization`. The default principal carries the subject, issuer,
+thumbprint and serial number; `OnCertificateValidated` can map it to an account or reject it.
+The callback borrows the connection's certificate and must not dispose it. The listener still owns
+requesting certificates and TLS trust: registering the scheme alone requests no certificate.
+A missing certificate gives `NoResult`; a protected endpoint challenges with `401` and
+`WWW-Authenticate: Certificate`, preserving other schemes' challenges. This cannot acquire a
+certificate after the handshake.
 
 ## Configuration-bound endpoints
 
@@ -385,6 +423,7 @@ instead.
 | `Endpoints:<name>:Port` | required, 0 to 65535 |
 | `Endpoints:<name>:Certificate` | TLS endpoints: the name of a Secret mount (when absent, the endpoint's registered mount, or `tls`), or a section with `Path` (a PEM or PFX file), `KeyPath` (a separate PEM key file), and `Password` (an encrypted PEM key or a protected PFX) |
 | `Endpoints:<name>:ClientCertificateMode` | TLS endpoints: `NoCertificate` (the default), `AllowCertificate`, or `RequireCertificate` |
+| `Endpoints:<name>:HandshakeTimeout` | TLS endpoints, HTTP/3 included: 10 seconds by default; a `TimeSpan` or whole seconds, with `infinite`, `-1`, zero or another non-positive duration disabling it; malformed or unrepresentable values fail with the endpoint and key |
 | `Limits:MaxConcurrentConnections` | a positive cap on the connections served at once; a cap set in code with `LimitConcurrentConnections` wins |
 | `Limits:MaxRequestLineSize`, `Limits:MaxRequestHeaderCount`, `Limits:MaxRequestHeadersTotalSize`, `Limits:MaxChunkFramingLineSize` | HTTP/1.1 request limits |
 | `Limits:MaxRequestBodySize` | bytes, or `unbounded` / `none` for no cap |
@@ -469,7 +508,7 @@ budget, and cancels only what outlives it.
   that would otherwise run until the budget cuts it off can end its own work in time.
   `UseWebSockets` closes each open socket with `1001 Going Away` there (see
   [WebSockets](websockets.md#shutdown-the-drain-close)).
-- **When the budget runs out** — the server logs a warning with what is still in flight, every
+- **When the budget runs out** — the server reports `DrainTimedOut` at Warning with what is still in flight, every
   request still running observes `RequestCancelled`, and every connection still open is aborted.
   The stop waits up to one second for them to unwind, releases the listener, and completes
   normally; the host reports the cut-short stop itself. A handler that ignores `RequestCancelled`
@@ -480,37 +519,58 @@ test whose requests must finish calls `StopAsync` first (see [Testing](testing.m
 
 ## Diagnostics
 
-The default server logs its own failures through the application's logging, `builder.Logging`,
-under the category `Assimalign.Cohesion.Web.Hosting.WebApplicationServer`. With no logging provider
-registered, nothing is written.
+The default server reports lifecycle and failures through `WebServerEventSource`, named
+`Assimalign.Cohesion.Web.Hosting` (#1398). It replaces the former
+`Assimalign.Cohesion.Web.Hosting.WebApplicationServer` logger category; the server has no second
+logging path. Its same-named `ActivitySource` and `Meter` own request spans and HTTP metrics.
 
-| Event | Level |
-|---|---|
-| A listener cannot be bound; logged before `HostStartupException` propagates | `Critical` |
-| The accept loop faults, a cancellation the server did not request included; the server keeps running but accepts nothing more | `Critical` |
-| A connection fault the server cannot blame on the peer, such as a response that could not be framed | `Error` |
-| A connection the peer or the network ended (`IOException`, `SocketException`, `ConnectionException`), or a fault after the server aborted its drain | `Debug` |
-| A response-completion callback failed; one entry per failure after every callback was attempted | `Error` |
-| A stop's budget ran out with work in flight; logged before the abort | `Warning` |
+| Event | Level | Meaning |
+|---|---|---|
+| `ServerBound` | Informational | Listeners bound, with protocols, actual bound endpoints and the connection cap |
+| `BindFailed` | Critical | A listener cannot bind; reported before `HostStartupException` propagates |
+| `AcceptLoopFaulted` | Error | The server accepts nothing more, but existing connections can still drain |
+| `ConnectionFaulted` | Error | A connection failed for a reason not attributed to its peer |
+| `ConnectionEndedByPeer` | Verbose | An `IOException`, `SocketException`, `ConnectionException`, or a fault after an aborted drain |
+| `ServerDraining`, `ServerStopped` | Informational | Drain begins or server stop completes |
+| `DrainTimedOut`, `AbortGraceExpired` | Warning | Work outlived the shutdown budget or the final abort-unwind allowance |
+| `ResponseHeadRefused` | Error | The transport refused the application's response head |
+| `CompletionCallbackFailed` | Error | One event per failed callback after every callback was attempted |
+| `ExchangeIsolationEscaped` | Error | A failure escaped stream isolation |
+| `ConnectionCapReached` | Verbose | Accepting waits for the configured connection cap |
+| `ControlPlaneDisabled` | Warning | The enabled-resource listener port could not be identified |
+| `TelemetryListenerFaulted` | Warning | An application telemetry listener failed |
 
-Entries carry structured attributes: the listener's protocols (`http.server.listener.protocols`);
-the connection's id, endpoints, and protocol version (`connection.id`, `network.local.address`,
-`network.local.port`, `network.peer.address`, `network.peer.port`, `network.protocol.version`); and
-the connections, exchanges, and time a cut-short drain left (`http.server.drain.connections`,
-`http.server.drain.exchanges`, `http.server.drain.duration`). No request or response content is
-ever logged: no header value, body, path, or query. An exception the application's pipeline throws
-is not logged here; the server answers it with a 500 or a reset, and reporting it belongs to the
-application's error handling and to request telemetry.
+Each server has a process-unique `serverId`; connection events also carry the connection id,
+endpoints and protocol version. Request-related events read `IWebRequestIdFeature` and use a route
+template. `ServerBound` reports the actual addresses of Web.Hosting-composed listeners, including
+ports selected for port-zero endpoints; opaque custom listeners have no invented address.
 
-The logger factory's default minimum level is `Information`, so the `Debug` entries need a rule for
-the server's category:
+The `connection-faults`, `connection-cap-waits` and `refused-response-heads` polling counters keep
+exact backing totals even without a listener. Peer-ended connections and response-side client
+cancellations do not increment `connection-faults`. `ResponseHeadRefused` and
+`TelemetryListenerFaulted` each throttle delivery to once per second and include the suppressed
+count in the next event; refused heads are counted even when their event is suppressed.
+
+Payloads omit request paths, queries, headers and bodies. Application exception types and messages
+remain visible, but stack traces do not; a refused response head uses a fixed description rather
+than echoing its header name. Pipeline faults belong to `Web.ErrorHandling`, and transport
+rejections and protocol errors to `Assimalign.Cohesion.Http.Connections`.
+
+`WebApplication.CreateBuilder(args)` forwards the `Assimalign.Cohesion.Web.` prefix and exact
+`Assimalign.Cohesion.Http.Connections` source into configured logging providers by default
+(#1399). It adds no provider or filter rule. Set `builder.EnableEventSourceForwarding = false` to
+opt out, or register `builder.Logging.AddEventSourceForwarding(options)` before `Build` to select
+your own sources. Explicit/options-based builders used for nested hosts add no automatic forwarder.
+
+Forwarded Verbose events map to `Debug`, below the default minimum of `Information`. To see peer
+disconnects, add a rule for the new source category:
 
 ```csharp
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.Hosting;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.Logging.AddRule("Assimalign.Cohesion.Web.Hosting.WebApplicationServer", LogLevel.Debug);
+builder.Logging.AddRule("Assimalign.Cohesion.Web.Hosting", LogLevel.Debug);
 ```
 
 Request spans, HTTP server metrics, and the request id are covered in
@@ -530,6 +590,11 @@ are unchanged.
 Graceful stop returns HTTP 202 before invoking the shutdown signal through a response-completion
 hook. This lets the acknowledgement reach the caller before the server's stop begins.
 
+The root's optional `IWebApplicationLifetime` seam lets control-plane middleware transfer its
+bootstrap verifier lease to the application. A normal stop preserves it for restart; final
+application disposal releases owned resources once, in reverse registration order, after service
+provider disposal. Every release is attempted even if shutdown or another release fails (#1412).
+
 Return to [Web](index.md).
 
 ## Sources
@@ -537,13 +602,13 @@ Return to [Web](index.md).
 - **Runtime** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **TLS registrations** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Extensions/WebHostingExtensions.cs`.
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
-- **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/src/Abstractions/IHttpTlsConnectionFeature.cs`.
-- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerLog.cs`.
+- **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Certificate/docs/OVERVIEW.md`.
+- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/EventSource/WebServerEventSource.cs`.
 - **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebServerDrainFeature.cs`.
 - **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/docs/OVERVIEW.md`.
 - **Accept back-off** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
-- **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md`.
+- **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/docs/DESIGN.md`.
 - **Certificate carrier** — `cohesion/docs/RUNTIME_CONTRACT.md`.

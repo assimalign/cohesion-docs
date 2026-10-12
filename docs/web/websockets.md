@@ -221,6 +221,21 @@ drain close. On a bare listener outside the Web host, register the interceptors 
 `HttpProtocolUpgrade.CreateInterceptor()` for HTTP/1.1 and `HttpExtendedConnect.CreateInterceptor()`
 for HTTP/2 and HTTP/3, and check `Origin` before accepting a socket that serves browsers.
 
+## Diagnostics
+
+`Assimalign.Cohesion.Web.WebSockets` reports `HandshakeRejected`, `WebSocketOpened`,
+`WebSocketClosed` and `DrainCloseFailed` at Verbose. Request ids come from
+`IWebRequestIdFeature`, and a rejected handshake can carry the configured route template.
+Origin rejections report a bounded normalized origin only when it was parsed and not allowed;
+raw Origin fields, paths, queries, cookies and message bodies are omitted.
+
+`current-websockets`, `total-websockets` and `rejected-handshakes` counters retain exact values
+without an event listener. The current-socket gauge counts successful accepts until their
+pipeline ends, including on a custom server without the drain feature. Nested policies attribute
+the socket lifetime only to the innermost policy, and repeated release cannot decrement twice.
+`WebSocketClosed` reports `closeStatus` as `-1` when no close code is available and identifies
+whether drain owned the close output. See [Observability](observability.md) for event forwarding.
+
 For the server's listeners, TLS and shutdown, see [Server and TLS](server.md). Return to
 [Web](index.md).
 

@@ -192,7 +192,10 @@ app.MapPost("/profiles/{id:long}/media", (long id, IHttpFormFile avatar, IReadOn
 - **`IHttpFormFileCollection`** is every uploaded file, whatever its field name.
 - **Limits** — the form is read once, for every field and file, under the Http.Forms limits of the
   exchange's form feature (`HttpFormOptions`). A form over a limit is answered
-  `413 Content Too Large`, and any other unreadable form `400`. Install
+  `413 Content Too Large`, and a malformed form `400`. `ValueCountLimit` also caps all multipart
+  sections, including files, repeated fields and unnamed sections, at 1,024 by default (#1435).
+  `HttpFormLimitExceededException.Limit` identifies the exceeded `HttpFormLimit` without parsing
+  an exception message. Transport faults and cancellation remain the transport's outcomes. Install
   `new HttpFormFeature(context.Request, options)` in a middleware ahead of the endpoint to change the
   limits.
 - **Antiforgery** — a file endpoint requires antiforgery, like a form-field endpoint.
@@ -269,10 +272,11 @@ resolved, and `context.Response.WriteStreamAsync(stream, contentType, entityTag,
 a stream with the validators the caller supplies. See
 [Web.StaticFiles](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md).
 
-Derived `Last-Modified` values are clamped to the response's valid `Date`. When automatic dates are
-disabled with `AddDateHeader = false`, set `Date` before file selection to retain modification-date
-validators. Without it, date conditions are ignored and date-form `If-Range` serves the full
-representation; entity tags and their conditions still work.
+Derived `Last-Modified` values are clamped to the response's valid `Date`. When `Date` is absent,
+invalid or repeated, a single `TimeProvider.System.GetUtcNow()` read supplies the reference for
+clamping, date conditions and date-form `If-Range` (#1449). Disabling automatic dates with
+`AddDateHeader = false` therefore leaves modification-date validators working; StaticFiles does
+not add or replace the header.
 
 ## Faults and problem payloads
 
@@ -280,15 +284,34 @@ representation; entity tags and their conditions still work.
 and `WriteProblemDetailsAsync`. The writer is reflection-free. This library defines the payload;
 it does not decide which application outcomes are errors.
 
+`HttpStatusCode` accepts every numeric code from 100 through 599, including unregistered codes
+(#1414). `ProblemDetails.FromStatus(new HttpStatusCode(499))` uses title `Error`; an unregistered
+5xx code uses `Internal Server Error`. Registered codes use their reason phrase. The response
+helper preserves the numeric status, and an explicit `ProblemDetails.Title` is written unchanged.
+
 `Web.ErrorHandling` supplies `builder.Services.AddErrorHandling(errors => errors.OnError(...))` and
 `UseErrorHandling`.
 The middleware captures faults in `IHttpExceptionFeature`, dispatches an ordered handler chain,
 and provides a terminal problem response. It avoids clobbering an already committed response.
-`UseStatusCodePages` can upgrade an otherwise bodyless 404. A request body the client broke, or
-cut short, while a handler read it is not treated as a fault: on every HTTP version the boundary
+`UseStatusCodePages` can upgrade an otherwise bodyless 404. A request body that breaks its framing
+or a limit while a handler reads it is not treated as an application fault: on every HTTP version the boundary
 skips `OnException` and the `OnError` chain and stages the `400`, `413`, `408` or `431` the
 transport answers with; on HTTP/2 and HTTP/3 a malformed body resets the stream, and the `400` is
 what the server records (see [Client faults](server.md#client-faults-and-refused-responses)).
+
+Connection loss during an upload cancels the exchange without a client-fault status on every
+protocol. A response the peer abandons, or that response-rate enforcement reclaims, is reported
+through `IWebResponseClientFaultFeature`: the boundary cancels without `OnException`, `OnError`,
+or a replacement response even when another writer wraps the transport failure.
+
+The boundary reports application faults through `Assimalign.Cohesion.Web.ErrorHandling` events.
+`SuppressDiagnosticsCallback` moves expected faults from Error to Verbose and still suppresses
+`OnException`. Request-cancellation exceptions and latched client faults stay out of application-fault
+events and totals; peer-abandoned responses are Verbose only. An original application fault remains
+reported and counted in `total-faults` if the boundary later aborts a started response or an error
+handler encounters peer loss; `aborted-responses` independently counts the boundary's abort.
+An `OnException` callback that logs can duplicate a fault already
+forwarded by the application; see [Observability](observability.md).
 
 Return to [Web](index.md).
 

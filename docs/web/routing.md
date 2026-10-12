@@ -135,6 +135,9 @@ app.MapFallbackToFile("index.html");
 An omitted catch-all segment matches: `/files/{**path}` matches `/files`, and a fallback answers
 `/` as well.
 
+The `cohesion-spa` template composes this fallback by default (#1092): `GET` and `HEAD` requests
+to `/settings` serve `wwwroot/index.html`, while `/assets/missing.js` still returns `404`.
+
 Return to [Web](index.md).
 
 ## Sources
@@ -142,6 +145,7 @@ Return to [Web](index.md).
 - **Routing contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Endpoint integration** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/OVERVIEW.md`.
 - **Single-page fallback** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
+- **SPA template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-spa/README.md`.
 - **Policy order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Policy verbs and combination** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/DESIGN.md`.
 - **Description and validation verbs** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Validation/docs/DESIGN.md`.

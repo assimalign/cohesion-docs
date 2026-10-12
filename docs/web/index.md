@@ -18,7 +18,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 ## Guides
 
 - **[Server and TLS](server.md)** — Listeners, HTTPS with ALPN, client certificates, configuration keys, graceful shutdown, and diagnostics.
-- **[Observability](observability.md)** — Request spans, HTTP server metrics, the request id, and how to subscribe to them.
+- **[Observability](observability.md)** — Request spans, HTTP server metrics, event sources, the request id, and default diagnostic forwarding.
 - **[Routing](routing.md)** — Route matching, precedence, groups, metadata, and generated links.
 - **[URL rewriting](rewrite.md)** — Rewrite and redirect rules, canonical URLs, the request view, and where `UseRewrite` goes.
 - **[Endpoints and responses](endpoints.md)** — Typed parameter binding, return values, validation, file uploads, and errors.
@@ -32,9 +32,9 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 | Assembly | Responsibility |
 |---|---|
-| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
-| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, server activity, response starting, response completion, the drain signal, and the client-fault report. |
-| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; the server's request spans, HTTP metrics, and request id. |
+| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, the optional `IWebApplicationLifetime` ownership seam, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
+| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, server activity, response starting, response completion, the drain signal, and request- and response-side client-fault reports. |
+| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; request spans, HTTP metrics, request ids, server events and default EventSource forwarding. |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
@@ -56,6 +56,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.Authentication`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication/index.md) | Named authentication schemes, principal feature, and handler dispatch. |
 | [`Assimalign.Cohesion.Web.Authentication.Cookie`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-cookie/index.md) | Protected cookie tickets and sign-in/out behavior. |
 | [`Assimalign.Cohesion.Web.Authentication.Bearer`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-bearer/index.md) | Bearer token validation and principal creation. |
+| [`Assimalign.Cohesion.Web.Authentication.Certificate`](../dotnet-apis/resources/web/assimalign-cohesion-web-authentication-certificate/index.md) | Authentication from a TLS client certificate accepted by the connection's handshake policy, with optional account mapping. |
 | [`Assimalign.Cohesion.Web.Authorization`](../dotnet-apis/resources/web/assimalign-cohesion-web-authorization/index.md) | Endpoint policies over `ClaimsPrincipal`, `RequireAuthorization` and `AllowAnonymous`, default and fallback policies, per-endpoint schemes, and each endpoint's effective policy readable for describers. |
 | [`Assimalign.Cohesion.Web.ForwardedHeaders`](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/index.md) | Trusted-proxy processing and effective request identity. |
 | [`Assimalign.Cohesion.Web.Sessions`](../dotnet-apis/resources/web/assimalign-cohesion-web-sessions/index.md) | Cookie-backed session identity over asynchronous session stores. |
@@ -107,6 +108,8 @@ or a platform gateway. Platform-specific ingress and certificate resolution rema
 references it (see [OpenAPI](openapi.md)).
 
 The SDK also supplies the Web source generator for typed endpoint binding.
+It enables `EventSourceSupport` when unset so NativeAOT applications deliver framework events;
+an explicit `<EventSourceSupport>false</EventSourceSupport>` disables delivery.
 See the [Web SDK reference](../dotnet-apis/sdks/sdk-web/index.md).
 
 ## Getting started
@@ -145,6 +148,10 @@ endpoint. Set `Http:Endpoints` in `appsettings.json`, for example
 `--Http:Endpoints:Main:Port=8080` on the command line. The Web SDK copies `appsettings*.json` and
 `wwwroot/**` to the build and publish output.
 
+The `cohesion-spa` template also maps `MapFallbackToFile("index.html")`. `GET` and `HEAD` requests
+for client routes such as `/settings` serve `wwwroot/index.html`; a missing file such as
+`/assets/missing.js` still returns `404` (see [Fallback routes](routing.md#fallback-routes)).
+
 Return to [Cohesion Documentation](../index.md).
 
 ## Sources
@@ -155,4 +162,5 @@ Return to [Cohesion Documentation](../index.md).
 - **Declarative plane** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ApplicationModel/docs/OVERVIEW.md`.
 - **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/Program.cs` and `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/README.md`.
+- **SPA template and NativeAOT events** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-spa/README.md` and `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/OVERVIEW.md`.
 - **Program scope** — `cohesion/docs/programs/HTTP_WEB_PROGRAM_PLAN.md` and `cohesion/docs/programs/SERVICE_STORY_REQUIREMENTS.md`.

@@ -45,6 +45,7 @@ routing's pipeline terminal, so they and the path base ship in `Web.Routing` and
 | `Web.Authentication` | Named schemes, default selection, principal feature, and request dispatch. |
 | `Web.Authentication.Cookie` | Protected tickets, sign-in/out, and sliding expiration. |
 | `Web.Authentication.Bearer` | Bearer token validation and principal construction using IdentityModel. |
+| `Web.Authentication.Certificate` | A principal from the TLS client certificate accepted by the handshake policy, with an asynchronous account-mapping or rejection callback. |
 | `Web.Authorization` | Policies over `ClaimsPrincipal`, `RequireAuthorization`/`AllowAnonymous` metadata, default, fallback and named policies, per-endpoint schemes, and challenge or forbid through the schemes. |
 | `Web.Cors` | Validated CORS policies, preflight answers, actual-response headers with `Vary: Origin`, and per-endpoint policy selection. |
 | `Web.CookiePolicy` | Consent gating for non-essential cookies, `Secure`/`HttpOnly`/`SameSite` floors, RFC 6265bis prefix rules, and the 400-day cap, applied as each cookie is appended. |
@@ -105,13 +106,33 @@ endpoints, the WebSocket policy.
   antiforgery cookie token are essential by default, so a consent requirement does not drop them;
   the session cookie is not, unless `HttpSessionOptions.CookieIsEssential` is set. Cookie
   authentication protects tickets through `IDataProtector`. Sessions lazily acquire state and
-  persist changes or slide expiration after downstream execution.
+  persist changes or slide expiration after downstream execution. `IHttpStoredSession.IsModified`
+  reports whether a built-in session needs a payload write; read-only sessions still refresh their
+  idle timeout. A custom implementation defaults to `true`, preserving its existing commits.
+  Establish new sessions before the response starts so their cookies can be delivered. A modified
+  session first accessed after the head starts is discarded and reports `SessionStateLost` at
+  Warning; a read-only orphan reports only Verbose `SessionOrphaned`.
 - **Health integration** — `Web.Health` owns the Web model. `Web.Hosting.Health` is the optional
   adapter for shared hosting contributors; the feature itself has no hosting-library dependency.
 
 Response compression supports gzip and Brotli and is off for HTTPS by default under its security
 policy. Request decompression supports gzip, Brotli, and deflate, returns 413 when the decompressed
 size limit is exceeded, and 415 for unsupported codings.
+
+`UseForms` honors the form feature's `HttpFormOptions`. `ValueCountLimit` now caps every multipart
+section at 1,024 by default, including files, repeated names and unnamed sections. A form limit
+reports its category through `HttpFormLimitExceededException.Limit`. A transport-classified body
+failure passes to the transport boundary without a second form rejection or diagnostic count.
+
+Bearer and Certificate challenges preserve existing challenges from other schemes. Certificate
+authentication does not request or validate TLS trust itself: configure the listener's client
+certificate policy first, then compose the scheme (see [Server and TLS](server.md#client-certificates)).
+
+Feature-owned event sources report rejection reasons and attribution counters separately from the
+HTTP access log and server request metrics. Entry-point applications forward Web events and
+`Http.Connections` events to configured logging sinks by default; [Observability](observability.md)
+describes signal ownership, filtering and the opt-out. Session store failures belong to
+`Assimalign.Cohesion.Http.Sessions`, outside that default selection.
 
 Output caching bypasses responses with prohibitive cache directives, `Set-Cookie`, non-200 status,
 or authenticated requests under its default rules, and never answers or stores a protocol switch,
@@ -131,7 +152,9 @@ Return to [Web](index.md).
 - **Endpoint selection and ordering** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Pipeline branching** — `cohesion/resources/Web/Assimalign.Cohesion.Web/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Cache and compression order** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/docs/DESIGN.md`.
-- **Authentication** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Cookie/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Bearer/docs/DESIGN.md`.
+- **Authentication** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Cookie/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Bearer/docs/DESIGN.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Certificate/docs/OVERVIEW.md`.
+- **Sessions** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Sessions/docs/OVERVIEW.md`.
+- **Diagnostic ownership** — `cohesion/docs/resources/Web/DESIGN.md`.
 - **Forms and health** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Forms/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/docs/DESIGN.md`.
 - **Security families** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authorization/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/OVERVIEW.md`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/OVERVIEW.md`.
 - **Cookie defaults** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/docs/DESIGN.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Sessions/src/HttpSessionOptions.cs`.
