@@ -33,7 +33,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | Assembly | Responsibility |
 |---|---|
 | [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
-| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, response completion, the drain signal, and the client-fault report. |
+| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, server activity, response starting, response completion, the drain signal, and the client-fault report. |
 | [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; the server's request spans, HTTP metrics, and request id. |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
 | [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
@@ -44,7 +44,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 | [`Assimalign.Cohesion.Web.WebSockets`](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) | `MapWebSocket` endpoints for every handshake shape (`GET` on HTTP/1.1, extended `CONNECT` on HTTP/2 and HTTP/3) and the `UseWebSockets` policy: the cross-site origin check, keep-alive and compression defaults, and the `1001` drain close. |
 | [`Assimalign.Cohesion.Web.Serialization`](../dotnet-apis/resources/web/assimalign-cohesion-web-serialization/index.md) | Media-type-keyed request readers and response writers, and the read-only JSON contract lookup describers use. |
 | [`Assimalign.Cohesion.Web.OpenApi`](../dotnet-apis/resources/web/assimalign-cohesion-web-openapi/index.md) | OpenAPI 3.0, 3.1 and 3.2 documents from endpoint metadata, served as JSON or YAML; a NuGet package outside the shared framework. |
-| [`Assimalign.Cohesion.Web.Validation`](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md) | Request-body validation for typed endpoints over ObjectValidation, answered with 400 and an `errors` map keyed by member path. |
+| [`Assimalign.Cohesion.Web.Validation`](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md) | Request-body validation for typed endpoints over ObjectValidation, answered with 400 and an `errors` map keyed by JSON member names and collection indexes, with CLR names as fallback. |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](../dotnet-apis/resources/web/assimalign-cohesion-web-problemdetails/index.md) | Problem payload model and reflection-free JSON writer. |
 | [`Assimalign.Cohesion.Web.ErrorHandling`](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | Exception boundary, error-handler chain, and status-code pages. |
 | [`Assimalign.Cohesion.Web.Query`](../dotnet-apis/resources/web/assimalign-cohesion-web-query/index.md) | QUERY method content negotiation, conditionals, and redirect helpers. |

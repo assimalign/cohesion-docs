@@ -126,6 +126,7 @@ ran. Its end time is set from the duration measurement, so the span and
 | The request body contradicted its content-length or carried a malformed trailer section, and the HTTP/2 or HTTP/3 transport reset its stream before a response started (#1378) | `400`, the client fault the transport reports; nothing reached the wire | none |
 | A `5xx` response, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | Cancelled — a peer reset or closed connection, the server stopping, `IHttpContext.Cancel` — and reset | only when a streamed response had started | `request_canceled` |
+| The exception boundary aborted a started response and returned normally | the started response's status | `request_canceled` |
 | Cancelled by the HTTP/2 or HTTP/3 transport's answer to, or reset for, a client fault it reported, before the application's response started (#1378) | the transport's `400`, `408` or `413` | none |
 | Cancelled by that answer or reset after a streamed response had started (#1378) | the started response's status | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset | only when the response had started | `client_fault` |
@@ -142,6 +143,10 @@ defect, and `request_canceled` a cancellation that was not the transport's answe
 answer can cancel the exchange rather than fail its read, and an exchange cancelled that way before
 its response started reports the transport's status with no error, as if the read had met the
 fault. A client that resets its own request mid-body is reported as `request_canceled`.
+HTTP/3 connection loss after dispatch is also cancellation: the body read throws with
+`RequestCancelled`, there is no client-fault status, and an unstarted response has no status on
+the span. Completion callbacks do not run for a cancelled exchange, including a boundary abort
+followed by a normal pipeline return.
 
 **Known methods** are the OpenTelemetry convention's: RFC 9110's eight methods, `PATCH`, and
 `QUERY`. `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` replaces the list with a comma-separated,
@@ -171,9 +176,9 @@ builder.Server.AllowQueryValuesInTelemetry("page", "sort");
 - **Names are treated as the application's schema**: a secret put in a parameter's name, such as a
   bare `?<token>`, is reported.
 - **Rebuilt from the parsed query.** Names and shown values are percent-encoded again, a parameter
-  with an empty name is left out, and a repeated name appears once, with the value the query
-  collection kept. The server reads the query before the pipeline runs, so it reports what the
-  client sent, not a `Web.Rewrite` rewrite of it.
+  with an empty name is left out, and a repeated name appears once, with its first value even
+  though the collection retains every occurrence. The server reads the query before the pipeline
+  runs, so it reports what the client sent, not a `Web.Rewrite` rewrite of it.
 - **Cost.** The value is built once per request while an `ActivityListener` subscribes, before the
   sampler runs, so a sampler can read it. Without a span listener the server never reads the query,
   and the metrics never carry `url.query`.
@@ -228,6 +233,59 @@ app.Use(async (context, next) =>
 });
 ```
 
+## HTTP logging correlation and capture
+
+With `HttpLoggingFields.TraceContext` enabled, `UseHttpLogging` reads `trace.id` from
+`IWebRequestIdFeature.RequestId`, including requests with no inbound `traceparent`. Its `span.id`
+comes from this exchange's server span through `IWebRequestActivityFeature`; it is absent when no
+server span exists, including when nobody listens for spans. The server owns the activity, and the
+feature remains available through completion callbacks. Logging never uses an unrelated or child
+`Activity.Current`. Custom servers may omit these features, leaving the corresponding attributes
+absent. The logged span id now identifies the server span, rather than the inbound parent.
+
+Request-body capture and byte counting work through request views, including decompression,
+rewrite and request timeouts. Logging after decompression sees decoded bytes. Capture retains only
+the configured prefix of allowed content types, while byte counts include all bytes consumed
+downstream. Logging leaves the original request body in place. Headers and bodies remain opt-in.
+See [Web.Diagnostics](../dotnet-apis/resources/web/assimalign-cohesion-web-diagnostics/index.md).
+
+## Event-source scope
+
+Stage 13 records the Web event-source rules without adding sources or default forwarding. The
+approved rules require bounded payloads, type-only exceptions where messages echo request input,
+and separate operator events from request spans and metrics. Application exceptions outside those
+carve-outs retain their type and message. Default forwarding gated by the application entry point
+and an `Sdk.Web` NativeAOT default are later implementation work (#1399), not behavior added by
+this amendment.
+
+These assemblies are deliberately left without an event source:
+
+| Assembly | Reason |
+|---|---|
+| `Assimalign.Cohesion.Web` | Contracts and pure pipeline helpers have no runtime state, loop or swallowed failure. |
+| `Assimalign.Cohesion.Web.Server` | Contracts only; Web.Hosting implements and reports them. |
+| `Assimalign.Cohesion.Web.Hosting.Health` | Stateless adapter whose runtime failures throw; Web.Health reports contributor faults and timeouts. |
+| `Assimalign.Cohesion.Web.Testing` | Shipped test harness, rather than a runtime component. |
+| `Assimalign.Cohesion.Web.ApplicationModel` | Invalid plans throw; runtime control-plane outcomes belong to Hosting.Resources. |
+| `Assimalign.Cohesion.Web.Routing` | Failures throw at startup or reach the boundary; statuses and the span's route template already describe request outcomes. |
+| `Assimalign.Cohesion.Web.Api` | Binding failures are client-driven 400s visible in access logs and request metrics. |
+| `Assimalign.Cohesion.Web.OpenApi` | Build failures reach the boundary and are not cached; first-route-wins is documented. |
+| `Assimalign.Cohesion.Web.Validation` | A 400 is the intended client outcome, and errors echo user input. |
+| `Assimalign.Cohesion.Web.Serialization` | Registry without lifecycle: faults throw and failed negotiation returns false for the caller's 406. |
+| `Assimalign.Cohesion.Web.Query` | Outcomes are visible protocol statuses, with nothing swallowed. |
+| `Assimalign.Cohesion.Web.ProblemDetails` | Payload library without lifecycle; deterministic degradation serves last-chance error handling. |
+| `Assimalign.Cohesion.Web.Authentication` | Handlers own failure decisions; dispatcher counts would be inexact because authorization re-enters per scheme. |
+| `Assimalign.Cohesion.Web.Rewrite` | Loops and regex timeouts throw to the boundary; redirects are configured answers. |
+| `Assimalign.Cohesion.Web.HttpsPolicy` | Redirect rates are visible in request metrics; a source cannot reliably diagnose missing forwarded-header middleware. |
+| `Assimalign.Cohesion.Web.CookiePolicy` | Applications observe drops through `OnRejected`; consent drops and default repairs are intended outcomes. |
+| `Assimalign.Cohesion.Web.Refs` / `Assimalign.Cohesion.Web.Runtime` | Framework producer shells that compile nothing. |
+
+Event-source tests link the canonical test-only `EventSourceRecorder.cs` from
+`Assimalign.Cohesion.DependencyInjection` with
+`<CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests" />`. The recorder is
+an `EventListener` local to each test assembly, not a process-global provider. Tests disable
+parallelization and assert counters by delta and events by identifier.
+
 ## What is deliberately not emitted
 
 - **Query values the application has not declared safe** — see [The query](#the-query).
@@ -254,4 +312,6 @@ Return to [Web](index.md).
 - **Subscription** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/GuardSmoke.cs` and `cohesion/docs/EVENT_SOURCES.md`.
 - **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Abstractions/IWebEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Client faults** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebClientFaultFeature.cs`.
+- **HTTP logging and request views** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/DESIGN.md`.
+- **Event-source scope and test recorder** — `cohesion/docs/EVENT_SOURCES.md`, `cohesion/.claude/rules/event-source.md`, `cohesion/.claude/rules/testing.md`, and `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
 - **Tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebServerTelemetryTests.cs`.

@@ -15,12 +15,17 @@ becomes a `HostStartupException` retaining the transport cause, and the server l
 [Diagnostics](#diagnostics)). Accepted connections have separate tracked tasks; middleware faults
 are contained rather than escaping the accept loop.
 
+Startup failures leave the host `Failed` and preserve the original exception even if rollback
+service resolution also throws. Retrying starts a fresh attempt. Register middleware with `Use`
+before starting the application or explicitly building its pipeline; later registration throws
+`InvalidOperationException` because the pipeline is already built.
+
 The server owns accepted connections, exchanges, and contexts, and tracks in-flight work for
 shutdown, which lets the requests in flight finish before the connections close (see
 [Graceful shutdown](#graceful-shutdown)).
 
 Each exchange's feature collection is sized for the features the server knows it carries: the
-application features the pipeline stamps plus the host's own four (#1381), rounded up to a size an
+application features the pipeline stamps plus the host's own five (#1381), rounded up to a size an
 unsized collection grows through, so an exchange that carries more never costs more than an unsized
 one. Middleware install features of their own as an exchange passes through them. A host whose
 middleware put one on every exchange adds a slot for each in a `UseServer` configuration, for
@@ -49,6 +54,11 @@ trailers staged for a `HEAD` response, a `204` or a `304` are discarded, not ref
 carries `Content-Length`, a `304` gets none synthesized from its empty body, and a `HEAD` response
 states a length only when the handler staged a non-empty body or set one.
 
+Every final response carries a cached `Date` unless the application supplied one. Interim responses
+carry no automatic `Date`. To let a proxy supply it, set `options.AddDateHeader = false` in
+`Server.UseServer`, or `Http:AddDateHeader` through `UseConfiguration`. Static-file date validators
+require a valid response `Date` before file selection; entity tags work without it.
+
 `KeepAliveTimeout`, `RequestHeadersTimeout` and the minimum request-body data rate apply to every
 version. Before #1085 only HTTP/1.1 enforced them, so an HTTP/2 or HTTP/3 client could hold a
 connection or a stream open by sending nothing. A body that falls below the rate is answered `408`.
@@ -71,10 +81,10 @@ timeout.
 
 ## Upgrades, WebSockets, and trailers
 
-Every listener the default server composes gets four interceptors before any the application
+Every listener the default server composes gets five interceptors before any the application
 registers: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3
-extended CONNECT (RFC 8441, RFC 9220), and the client fault. The first surfaces the body-size cap
-and the minimum request-body and response data rates per request (`context.MaxRequestBodySize`,
+extended CONNECT (RFC 8441, RFC 9220), the client fault, and response starting. The first surfaces
+the body-size cap and the minimum request-body and response data rates per request (`context.MaxRequestBodySize`,
 `context.MinRequestBodyDataRate`, `context.MinResponseDataRate`; see
 [Configuration-bound endpoints](#configuration-bound-endpoints)). So `context.Upgrade`,
 `context.ExtendedConnect`, and a WebSocket handshake work on every protocol without listener
@@ -94,6 +104,8 @@ so browsers keep sending their handshakes that way, but nothing surfaces them. A
 the list and still serves WebSockets adds the two transition interceptors back. Clearing it also
 removes the client-fault classification: a malformed or over-limit body is then logged at `Error`
 and observed by `OnException` again, while the transport still answers it with its own status.
+It also removes `IWebResponseStartingFeature`, which CORS and SecurityHeaders require; both fail
+explicitly when that feature is absent.
 
 Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
 has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
@@ -118,9 +130,16 @@ response to `HEAD` sends no trailers. See
 
 ## Client faults and refused responses
 
+`IWebResponseStartingFeature.OnStarting(callback, state)` stages final headers before a buffered or
+streamed head is committed. Callbacks run once, in reverse registration order, and must not write
+the response. A callback failure aborts before the head is written. CORS and SecurityHeaders use
+this hook, so their policies survive an error response from a boundary on either side once the
+middleware has processed the request.
+
 A handler that throws before its response starts is answered with a bodyless `500`; the staged
-headers, trailers and body are dropped. So is a response the transport refuses to send. Every
-protocol refuses a header or trailer whose name is not a token, or whose value holds CR, LF, NUL, or
+headers, trailers and body are dropped, then starting-callback policy header changes are restored.
+So is a response the transport refuses to send. Every protocol refuses a header or trailer whose
+name is not a token, or whose value holds CR, LF, NUL, or
 another control character but HTAB, before it writes any of the head (#1183). Such a value is
 typically request text copied into a header unvalidated, which would otherwise split an HTTP/1.1
 response (CWE-113). The `500` replaces the refused response, its completion callbacks do not run,
@@ -128,8 +147,19 @@ and an HTTP/1.1 connection stays usable. A refused trailer section on a response
 cannot be replaced, so the transport resets that stream. HTTP/2 and HTTP/3 also send every value
 without leading or trailing spaces and tabs, which those versions do not allow.
 
-A request body that breaks its framing or a limit while a handler reads it, or that the client cuts
-short by closing the connection, is the client's fault, not the application's. The read still
+A streamed head refused before any bytes are committed stays unstarted and can be retried or
+replaced with a buffered response. Successful starting callbacks do not run again; their policy
+header edits survive the replacement, while its status, body and representation metadata remain
+the replacement's.
+
+Completion callbacks run in registration order only after the application's own response reaches
+the transport. Every callback is attempted even if an earlier one throws; failures are collected
+in an `AggregateException` and logged individually without changing the response already sent.
+They do not run after a replacement `500`, a reset, or a cancelled exchange, including a boundary
+that aborts a started response and returns normally.
+
+A request body that breaks its framing or a limit while a handler reads it is a client fault.
+On HTTP/1.1, this also includes a body cut short by the client cleanly closing the connection. The read still
 throws, and the transport answers the exchange with its own status in place of the server's `500`:
 `400`, `413`, `408` or `431`. On a request that can have a body, on every version, the
 client-fault interceptor publishes that status as `IWebClientFaultFeature`, a
@@ -145,6 +175,10 @@ gets no status, the feature reports `400`, and the reset also fires `RequestCanc
 pipeline that meets the cancellation rather than the read's failure ends as a cancelled request. A
 client that resets its own request is not at fault on either version: the pipeline ends as
 cancelled and the server resets the exchange instead of staging a `500`.
+
+HTTP/3 connection loss after dispatch also cancels every affected exchange. A body read throws
+`OperationCanceledException` with `RequestCancelled`, without a client-fault status, `OnException`,
+or a staged `500`. Telemetry records `request_canceled`.
 
 ## Application configuration
 
@@ -173,10 +207,12 @@ Transport Layer Security (TLS) is composed beneath Hypertext Transfer Protocol (
 registrations on `HttpConnectionListenerOptions` take a transport configuration callback and
 `TlsServerOptions`, compose the secure transport, and then register the HTTP listener; the
 connection's security capability gives each request its `https` scheme. A request-target cannot
-claim it on a cleartext connection, so `https` on `Request.Scheme` means a secured connection on
-every version (#1324): HTTP/1.1 answers an `https` absolute-form target on a cleartext connection
-with `421 Misdirected Request` and closes the connection, and an h2c stream whose `:scheme` is
-`https` is given the connection's `http`.
+claim it on a cleartext connection by default: HTTP/1.1 answers an `https` absolute-form target on
+a cleartext connection with `421 Misdirected Request` and closes the connection, and an h2c stream whose `:scheme` is
+`https` is answered `421` before dispatch. A trusted gateway forwarding that scheme to an h2c
+backend can opt in with `options.AllowAlternateSchemes = true` inside `Server.UseServer`, or
+`Http:AllowAlternateSchemes` through `UseConfiguration`. This preserves the gateway's scheme in
+`Request.Scheme`; the default is `false`.
 
 A registration names what it serves, and the configuration's `Protocol` values are the registration
 names without `Use`:
@@ -342,6 +378,8 @@ instead.
 
 | Key under `Http` | Value |
 |---|---|
+| `AllowAlternateSchemes` | `false` by default; `true` lets a trusted gateway forward `:scheme https` to an h2c backend and preserves it in `Request.Scheme` |
+| `AddDateHeader` | `true` by default; `false` disables automatic final-response dates so a proxy can supply them |
 | `Endpoints:<name>:Protocol` | `Http1` (the default), `Http2`, `Https`, `Http1s`, `Http2s`, or `Http3`; `Http/1.1`, `Http1.1`, `h1`, `Http/2`, `Http2.0`, `h2`, `Http/3`, `Http3.0` and `h3` are accepted too, and anything else fails |
 | `Endpoints:<name>:Host` | a literal IP address; `localhost` or no value for loopback; `*`, `+` or `0.0.0.0` for any address; `[::]` or `::` for any IPv6 address. Host names are not resolved |
 | `Endpoints:<name>:Port` | required, 0 to 65535 |
@@ -423,6 +461,9 @@ budget, and cancels only what outlives it.
   client can retry it elsewhere (#1306).
 - **The requests in flight** — nothing is cancelled while the budget lasts: a running request
   finishes, and its response is delivered.
+- **QUIC delivery** — completed streams' delivery wait shares the remaining host stop budget and
+  QUIC's `CloseDeliveryTimeout` (five seconds by default), whichever expires first. The host keeps
+  its one-second abort-unwind allowance when its budget expires.
 - **Long-lived exchanges** — every exchange carries `IWebServerDrainFeature`, a `Web.Server`
   contract, whose `Draining` token fires when the stop begins and cancels nothing, so an exchange
   that would otherwise run until the budget cuts it off can end its own work in time.
@@ -449,6 +490,7 @@ registered, nothing is written.
 | The accept loop faults, a cancellation the server did not request included; the server keeps running but accepts nothing more | `Critical` |
 | A connection fault the server cannot blame on the peer, such as a response that could not be framed | `Error` |
 | A connection the peer or the network ended (`IOException`, `SocketException`, `ConnectionException`), or a fault after the server aborted its drain | `Debug` |
+| A response-completion callback failed; one entry per failure after every callback was attempted | `Error` |
 | A stop's budget ran out with work in flight; logged before the abort | `Warning` |
 
 Entries carry structured attributes: the listener's protocols (`http.server.listener.protocols`);
@@ -480,6 +522,10 @@ The host discovers its entry assembly's generated `ResourceRuntime` registration
 binding tries endpoint name `http`, then `https`, and accepts the corresponding URI schemes. An
 ambient `https` endpoint is registered through `UseHttps`, so it serves HTTP/2 and HTTP/1.1.
 The shared `Web.Hosting.Resources` terminal authenticates namespaced management requests.
+Without a gateway name, `/cohesion/v1` and every path beneath it accept only transport peers at
+`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive `403`. Forwarded
+headers cannot grant access. Bare probes remain public, and gateway-managed credential checks
+are unchanged.
 
 Graceful stop returns HTTP 202 before invoking the shutdown signal through a response-completion
 hook. This lets the acknowledgement reach the caller before the server's stop begins.

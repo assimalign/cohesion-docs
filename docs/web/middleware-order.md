@@ -13,36 +13,39 @@ registers its middleware in this order.
 ## The order
 
 An application registers the middleware it uses in this order and leaves out the rest. In the
-diagram an arrow reads "runs before"; the table gives the reason for each position.
+diagrams an arrow reads "runs before"; follow the diagrams in order. The table gives the reason
+for each position.
+
+The outer wrappers, client identity and transport policy run before the exception boundary:
 
 ```mermaid
 flowchart TD
-    subgraph Outer["Wrappers that write no response of their own"]
-        Logging["UseHttpLogging"] --> Headers["UseSecurityHeaders"]
-    end
-    subgraph Identity["Client identity and transport policy"]
-        Forwarded["UseForwardedHeaders"] --> Hosts["UseHostFiltering"] --> Https["UseHttpsRedirection"] --> Hsts["UseHsts"]
-    end
-    subgraph Shaping["Exception boundary and request shaping"]
-        Errors["UseErrorHandling"] --> Pages["UseStatusCodePages"] --> Rewrite["UseRewrite"] --> Cookies["UseCookiePolicy"] --> Compress["UseResponseCompression"] --> Decompress["UseRequestDecompression"] --> Static["UseStaticFiles"] --> Authn["UseAuthentication"] --> Sessions["UseSessions"]
-    end
-    subgraph Policy["Endpoint policy: reads the endpoint UseRouting published"]
-        Routing["UseRouting"] --> Cors["UseCors"] --> Authz["UseAuthorization"] --> Timeouts["UseRequestTimeouts"] --> Limits["UseRateLimiting"] --> Forms["UseForms"] --> Csrf["UseAntiforgery"] --> Cache["UseOutputCache"] --> Sockets["UseWebSockets"] --> Endpoint["Endpoint, run by the pipeline terminal"]
-    end
-    Headers --> Forwarded
-    Hsts --> Errors
-    Sessions --> Routing
+    Logging["UseHttpLogging"] --> Headers["UseSecurityHeaders"] --> Forwarded["UseForwardedHeaders"] --> Hosts["UseHostFiltering"] --> Https["UseHttpsRedirection"] --> Hsts["UseHsts"] --> Errors["UseErrorHandling"]
+```
+
+The boundary wraps request shaping and identity before routing:
+
+```mermaid
+flowchart TD
+    Errors["UseErrorHandling"] --> Pages["UseStatusCodePages"] --> Rewrite["UseRewrite"] --> Cookies["UseCookiePolicy"] --> Compress["UseResponseCompression"] --> Decompress["UseRequestDecompression"] --> Static["UseStaticFiles"] --> Authn["UseAuthentication"] --> Sessions["UseSessions"] --> Routing["UseRouting"]
+```
+
+The endpoint policies read the endpoint that routing published:
+
+```mermaid
+flowchart TD
+    Routing["UseRouting"] --> Cors["UseCors"] --> Authz["UseAuthorization"] --> Timeouts["UseRequestTimeouts"] --> Limits["UseRateLimiting"] --> Forms["UseForms"] --> Csrf["UseAntiforgery"] --> Cache["UseOutputCache"] --> Sockets["UseWebSockets"] --> Endpoint["Endpoint, run by the pipeline terminal"]
 ```
 
 | # | Verb | Package | Why it goes here |
 |---:|---|---|---|
 | 1 | `UseHttpLogging` | [Web.Diagnostics](../dotnet-apis/resources/web/assimalign-cohesion-web-diagnostics/index.md) | First, so the exchanges every later middleware rejects are logged too. It writes its entry after the pipeline unwinds, when `UseForwardedHeaders` has already attached the forwarded identity, so running ahead of that middleware loses nothing. |
-| 2 | `UseSecurityHeaders` | [Web.SecurityHeaders](../dotnet-apis/resources/web/assimalign-cohesion-web-securityheaders/index.md) | Ahead of every middleware that writes a response, so rejections, redirects and the boundary's error page all carry the fields. It reads no client identity, so it may run ahead of `UseForwardedHeaders`. |
+| 2 | `UseSecurityHeaders` | [Web.SecurityHeaders](../dotnet-apis/resources/web/assimalign-cohesion-web-securityheaders/index.md) | Early enough to cover rejections and redirects from later middleware. Once registered, its starting callback also covers an error page from a boundary on either side. It reads no client identity, so it may run ahead of `UseForwardedHeaders`. |
 | 3 | `UseForwardedHeaders` | [Web.ForwardedHeaders](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/index.md) | Ahead of every middleware that reads the effective scheme, host or client address on the way in. Leave it out when no proxy sits in front of the application. |
 | 4 | `UseHostFiltering` | [Web.HostFiltering](../dotnet-apis/resources/web/assimalign-cohesion-web-hostfiltering/index.md) | Validates the effective host, so it follows `UseForwardedHeaders`. It runs ahead of everything that uses the host: the redirect `Location`, absolute URLs, cache keys. |
 | 5 | `UseHttpsRedirection` | [Web.HttpsPolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-httpspolicy/index.md) | Redirects a plaintext request before anything does work for it, building the `Location` from the validated host. |
 | 6 | `UseHsts` | [Web.HttpsPolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-httpspolicy/index.md) | Ahead of the exception boundary, so the header survives a reset error response. |
-| 7 | `UseErrorHandling` | [Web.ErrorHandling](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | The exception boundary: a fault anywhere after it becomes a problem-details response. See [the CORS trade-off](#the-cors-trade-off). |
+| 7 | `UseErrorHandling` | [Web.ErrorHandling](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | The exception boundary: a fault anywhere after it becomes a problem-details response. |
 | 8 | `UseStatusCodePages` | [Web.ErrorHandling](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/index.md) | Inside the boundary and ahead of the middleware whose bodyless `4xx`/`5xx` responses it fills in, including the `404` and `405` from routing. |
 | 9 | `UseRewrite` | [Web.Rewrite](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ahead of everything that reads the path (static files, routing, the endpoint), so they all see the rewritten URL; middleware ahead of it, and the server's request telemetry, keep the client's. Inside the boundary and after status-code pages, so a fault in a rule becomes a problem-details response and its `400` gets a body. After `UseForwardedHeaders` and `UseHostFiltering`, so its canonicalization redirects read the client's scheme and a validated host. Inside it, register redirects ahead of internal rewrites. |
 | 10 | `UseCookiePolicy` | [Web.CookiePolicy](../dotnet-apis/resources/web/assimalign-cohesion-web-cookiepolicy/index.md) | Ahead of every middleware that writes a cookie: sessions, the authentication cookie, antiforgery. Its `Secure` decision reads the effective scheme. |
@@ -136,17 +139,19 @@ Nothing checks the order of any other two middleware. A `UseCookiePolicy` regist
 `UseSessions`, or a `UseHostFiltering` registered ahead of `UseForwardedHeaders`, runs without error
 and quietly weakens what it protects. Enforced ordering is the open #26/#145 work.
 
-## The CORS trade-off
+## Response-starting headers
 
-A fault that propagates through `UseCors` to a boundary registered earlier (row 7) becomes an error
-page without CORS headers. A browser then hides the response from a cross-origin caller. An API
-whose cross-origin callers must read error responses registers `UseErrorHandling` directly after
-`UseCors` instead, which keeps the CORS headers on the error page
-(`UseCors_ExceptionBoundaryBehindCors_ShouldKeepCorsHeadersOnFault` in the
-[CORS end-to-end tests](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/examples/cors-end-to-end-tests.md)).
-The cost: middleware registered ahead of `UseCors` is then outside the boundary. A response-start
-hook in the Web root would remove the trade-off (the known limit in
-[Web.Cors's design](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/design.md#written-before-and-after-the-rest-of-the-pipeline)).
+`UseSecurityHeaders` and `UseCors` register callbacks on Web.Server's `IWebResponseStartingFeature`.
+The server applies them before committing a buffered or streamed head, after any boundary has replaced
+an error response. A boundary ahead of `UseCors` therefore keeps CORS headers on a fault response once
+CORS has processed that request. Responses that short-circuit before reaching either middleware do not
+register its callback. CORS stages `Vary: Origin` before `next` and merges it again when the response
+starts. Output caching captures the final `Vary` and headers, including CORS grants, only after successful
+response completion. `UseCors` still precedes `UseOutputCache` so cache hits register the current
+request's starting callback and apply its CORS policy.
+
+See [Web.Cors's design](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/design.md#written-when-the-response-starts)
+and the [CORS end-to-end tests](../dotnet-apis/resources/web/assimalign-cohesion-web-cors/examples/cors-end-to-end-tests.md).
 
 ## Outside this order
 
@@ -167,5 +172,6 @@ For what each feature family does, see [Middleware](middleware.md). Return to [W
 - **Merged order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Guard registration** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.
 - **Fail-closed dispatch** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
-- **CORS trade-off** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/tests/CorsEndToEndTests.cs`.
+- **Response-starting headers** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.SecurityHeaders/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/tests/CorsEndToEndTests.cs`.
+- **Completion-time cache storage** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/src/Internal/OutputCacheMiddleware.cs`.
 - **Verb signatures** — the `src/Extensions/` sources of each package in the table, and `cohesion/resources/Web/Assimalign.Cohesion.Web.ForwardedHeaders/src/ForwardedHeadersOptions.cs`.

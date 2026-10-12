@@ -180,6 +180,11 @@ HttpPath clientPath = context.Features.Get<IWebRewriteFeature>()?.OriginalPath ?
 - **`context.Response.HttpContext`** is the original context, because the response is shared rather
   than wrapped. Reach the request through the context you were handed.
 
+`UseHttpLogging` captures the request body through its own `IHttpContext`/`IHttpRequest` view, wrapping
+the body exposed by the request it receives. Capture works after `UseRewrite` and request decompression;
+registered after decompression, it observes decoded bytes. Capture remains opt-in, content-type gated
+and bounded, and observes only bytes consumed downstream.
+
 ## Path branches
 
 Inside `Map(path)`, the rules work on the branch's terms. They see the path below the branch's

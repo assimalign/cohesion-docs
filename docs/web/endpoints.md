@@ -43,15 +43,25 @@ application endpoint, and the group's prefix, metadata and policies apply to it.
 |---|---|---|
 | Route value | Matching parameter name or `[FromRoute]` | Bind from the matched route token. |
 | Route or query value | A scalar the call site cannot place: on a group endpoint, or with a non-literal pattern | Bind from the route value when the matched route captured one, else from the query string. |
-| Query value | Scalar default or `[FromQuery]` | Parse the query-string value. |
+| Query value | Scalar or scalar-sequence default, or `[FromQuery]` | Parse the first value for a scalar, or every occurrence for a sequence. |
 | Header | `[FromHeader]` | Explicit header binding. |
 | Request body | Complex default or `[FromBody]` | One body parameter, read through the serialization registry. |
-| Form field | `[FromForm]` | Bind individual scalar fields; the endpoint requires antiforgery validation. |
+| Form field | `[FromForm]` | Bind the first value of an individual scalar field in either encoding; the endpoint requires antiforgery validation. |
 | Uploaded file | `IHttpFormFile`, a file sequence, or `IHttpFormFileCollection`, with or without `[FromForm]` | Bind from the `multipart/form-data` body; the endpoint requires antiforgery validation. See [File uploads](#file-uploads). |
 | `IHttpContext` | Parameter type | Inject the current exchange. |
 | `IHttpRequest` / `IHttpResponse` | Parameter type | Inject `context.Request` / `context.Response`. |
 | `CancellationToken` | Parameter type | Supply `RequestCancelled`. |
 | `IHttpFeature` implementation | Parameter type | Resolve the typed context feature. |
+
+Repeated query values retain arrival order, including empty occurrences. A supported scalar `T`
+binds as `T[]`, `List<T>`, `IEnumerable<T>`, `IReadOnlyList<T>`, `IReadOnlyCollection<T>`, `IList<T>`
+or `ICollection<T>`: `?tag=one&tag=&tag=two` binds `(string[] tag)` as `["one", "", "two"]`, while
+`(string tag)` reads `"one"`. Missing collections are empty, invalid elements produce `400`, and
+empty nullable value-type elements become null. Use `[FromBody]` for a collection read from the
+request body.
+
+Repeated form fields also retain every occurrence in both multipart and urlencoded bodies.
+Scalar `[FromForm]` parameters read the first; read the parsed form collection for all values.
 
 Missing required or invalid scalar inputs, and a missing required file, produce Hypertext Transfer
 Protocol (HTTP) 400 problem responses with an `errors` extension naming the parameter. A form over an
@@ -133,10 +143,14 @@ internal sealed class CustomerProfile : ValidationProfile<Customer>
 ```
 
 An invalid model is answered `400` `application/problem+json` with the `detail` "One or more
-validation errors occurred." and an `errors` map from member path to messages, the shape binding
-failures use: `Name`, and `Address.City` for the nested profile's rule. The map lists members in
+validation errors occurred." and an `errors` map from JSON member path to messages, the shape binding
+failures use: `name` and `address.city` with a camelCase contract, or `items[2].quantity` for a
+collection element. Keys use registered JSON names, falling back to CLR names when unresolved;
+indexes are zero-based and explicit error sources stay unchanged. The map lists members in
 the order the profile declares them, and each member's messages in the order its rules are chained.
-A validator that throws, such as a nested profile's rule or a custom rule, is a fault rather than a
+A validator configured with `ThrowExceptionOnFailure` retains its errors in
+`ValidationFailureException.Errors`; these produce the same populated `400` map. Any other
+exception, such as one from a nested profile's rule or a custom rule, is a fault rather than a
 verdict: the request reaches the exception boundary and the handler does not run. A binding failure
 is answered first. A body type with no registered validator, and a `null` body, are not validated;
 until `AddValidation` is called nothing is. `validation.Options.Enabled = false` turns validation
@@ -144,6 +158,14 @@ off by default, and `RequireValidation()` / `DisableValidation()` turn it on or 
 group, the most specific declaration winning. A handler that binds a value itself validates it with
 `if (!await context.ValidateAsync(order, context.RequestCancelled)) return;`. See
 [Web.Validation](../dotnet-apis/resources/web/assimalign-cohesion-web-validation/index.md).
+
+The Web source generator supplies reflection-free CLR member identities for source-declared partial
+`JsonSerializerContext` classes, including `[JsonPropertyName]` renames. `Sdk.Web` includes it;
+package-only applications add `Assimalign.Cohesion.SourceGeneration.Web` as an analyzer. Custom
+resolvers that rename final contract properties beyond policies and attributes implement
+`IValidationJsonPropertyResolver`. Returning null lets lookup continue through the originating
+resolver and constructor-name/naming-policy fallback. Precompiled contexts without this metadata
+fall back to CLR names for renamed mutable members.
 
 ## File uploads
 
@@ -246,6 +268,11 @@ unsafe, missing, or directory path is answered `404`) or `SendFileAsync(file)` a
 resolved, and `context.Response.WriteStreamAsync(stream, contentType, entityTag, lastModified)` sends
 a stream with the validators the caller supplies. See
 [Web.StaticFiles](../dotnet-apis/resources/web/assimalign-cohesion-web-staticfiles/index.md).
+
+Derived `Last-Modified` values are clamped to the response's valid `Date`. When automatic dates are
+disabled with `AddDateHeader = false`, set `Date` before file selection to retain modification-date
+validators. Without it, date conditions are ignored and date-form `If-Range` serves the full
+representation; entity tags and their conditions still work.
 
 ## Faults and problem payloads
 

@@ -79,8 +79,10 @@ endpoints, the WebSocket policy.
   HSTS, host filtering, the cookie policy, sessions, cookie authentication, the antiforgery cookie
   token, compression and logging all read the forwarded (effective) scheme, host and client
   address.
-- **Security headers and the exception boundary** — `UseSecurityHeaders` and `UseHsts` go ahead of
-  `UseErrorHandling`, so the boundary's error page carries their fields.
+- **Security headers and the exception boundary** — `UseSecurityHeaders` goes near the front to cover
+  later rejections and redirects. Its response-starting callback preserves the fields on an error
+  response from a boundary on either side once the middleware has run. `UseHsts` still goes ahead of
+  `UseErrorHandling`, so the boundary's error page carries its field.
 - **Endpoint policies** — `UseCors`, `UseAuthorization`, `UseRequestTimeouts`, `UseRateLimiting`,
   `UseAntiforgery` and `UseOutputCache` read the endpoint `UseRouting` published, so they go after
   it, in that order. `UseCors` comes first because a preflight carries no credentials, and anything
@@ -88,9 +90,9 @@ endpoints, the WebSocket policy.
   rate limit or antiforgery fails its endpoint's requests, and output caching keeps only its base
   policy: it never stores a response from an endpoint that carries cache metadata. The global rate
   limiter and the default timeout still work in either position.
-- **CORS and error responses** — A fault that reaches an exception boundary registered ahead of
-  `UseCors` becomes an error page without CORS headers, which a browser hides from a cross-origin
-  caller. See [the CORS trade-off](middleware-order.md#the-cors-trade-off).
+- **CORS and error responses** — Once `UseCors` has processed a request, its response-starting callback
+  applies the selected grant to the final response, including an error page from an exception boundary
+  registered ahead of it. See [response-starting headers](middleware-order.md#response-starting-headers).
 - **Output cache and compression** — Register `UseOutputCache` ahead of `UseResponseCompression`
   so cached variants are not confused across `Accept-Encoding` values. In an application that
   caches, compression therefore also follows `UseRouting`, and a middleware that answers before
@@ -113,8 +115,11 @@ size limit is exceeded, and 415 for unsupported codings.
 
 Output caching bypasses responses with prohibitive cache directives, `Set-Cookie`, non-200 status,
 or authenticated requests under its default rules, and never answers or stores a protocol switch,
-so a cached page and a WebSocket can share a URL. Distributed cache and session backends remain
-adapter work through `IOutputCacheStore` and `IHttpSessionStore`.
+so a cached page and a WebSocket can share a URL. It stores only after successful response completion,
+using the final status and headers after response-starting callbacks. A starting failure, cancellation
+or transport failure stores nothing; custom servers without `IWebResponseCompletionFeature` can serve
+existing entries but do not populate the cache. Distributed cache and session backends remain adapter
+work through `IOutputCacheStore` and `IHttpSessionStore`.
 
 For fault handling and content writers, see [Endpoints and responses](endpoints.md).
 Return to [Web](index.md).
