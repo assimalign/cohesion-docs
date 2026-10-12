@@ -33,14 +33,19 @@ that installs the features.
   lame-duck drain, so a long-lived exchange can end itself within the stop's budget. It cancels
   nothing. `Web.WebSockets` closes open sockets with `1001 Going Away` on it.
 - **Client fault** — `IWebClientFaultFeature.StatusCode` is the `4xx` the transport answers the
-  exchange with because the request body broke its framing or a configured limit while it was
-  read, or the client cut it short by closing the connection (`400`, `413`, `408` or `431`), or
-  `null`. On HTTP/2 and HTTP/3 a malformed body resets the stream instead and is reported as `400`.
-  The read still throws; this tells the code that sees the exception it was the client's fault, not
-  an application defect (#1340, #1378). The default server installs it on a request that can have a
-  body, on every version. `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read it.
+  exchange with because the request body broke its framing or a configured limit while it was read
+  (`400`, `413`, `408` or `431`), or `null`. A connection lost mid-body instead fires `RequestCancelled`
+  and throws `OperationCanceledException` carrying that token, with no client-fault status (#1439). On
+  HTTP/2 and HTTP/3 a malformed body resets the stream instead and is reported as `400`. The read still
+  throws; this tells the code that sees the exception it was the client's fault, not an application
+  defect (#1340, #1378). The default server installs it on a request that can have a body, on every
+  version. `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read it.
+- **Response client fault** — `IWebResponseClientFaultFeature.ResponseAbortedByClient` reports that
+  the peer abandoned the response or could not receive it at the configured minimum rate. The
+  default host publishes it even for bodyless requests. `Web.ErrorHandling` uses this report to
+  cancel without fault observation, including when middleware wraps the transport exception (#1432).
 
-A custom `IWebApplicationServer` may omit any of the six, so every reader handles an absent
+A custom `IWebApplicationServer` may omit any of the seven, so every reader handles an absent
 feature. SecurityHeaders and CORS require starting callbacks and throw if the feature is absent.
 
 ## Namespace
@@ -78,6 +83,9 @@ CancellationToken draining = context.Features.Get<IWebServerDrainFeature>()?.Dra
 
 // After a body read threw: was it the client's fault, and which status does the transport send?
 HttpStatusCode? clientFault = context.Features.Get<IWebClientFaultFeature>()?.StatusCode;
+
+// After a response write failed: did the transport end it because of the client?
+bool responseAbandoned = context.Features.Get<IWebResponseClientFaultFeature>()?.ResponseAbortedByClient == true;
 ```
 
 `Sdk.Web` applications get the package through the `App.Web` shared framework. A library that
@@ -94,6 +102,7 @@ reads one of these features references the package directly. Design detail:
 | `IWebResponseCompletionFeature` | `void Register(Func<ValueTask> callback)` | `src/Abstractions/IWebResponseCompletionFeature.cs` |
 | `IWebServerDrainFeature` | `CancellationToken Draining` | `src/Abstractions/IWebServerDrainFeature.cs` |
 | `IWebClientFaultFeature` | `HttpStatusCode? StatusCode` | `src/Abstractions/IWebClientFaultFeature.cs` |
+| `IWebResponseClientFaultFeature` | `bool ResponseAbortedByClient` | `src/Abstractions/IWebResponseClientFaultFeature.cs` |
 
 Each contract extends `IHttpFeature`.
 

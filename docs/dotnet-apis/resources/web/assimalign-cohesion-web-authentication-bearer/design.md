@@ -108,6 +108,12 @@ after a failed authenticate, `error="invalid_token"` with a sanitized `error_des
 quotes and CR/LF so they cannot break the quoted-string grammar. The bearer scheme never redirects,
 so it needs no endpoint-metadata check.
 
+Both paths append their challenge, preserving challenges already added by other schemes
+(RFC 9110 §11.6.1, #1450). This is a behavior change from 10.0.0-preview.1, which
+replaced earlier challenges: multi-scheme policies now advertise every alternative on
+401 and preserve other challenges on 403. Authentication decisions and public APIs
+are unchanged; this corrects challenge discovery, not an authentication bypass.
+
 ## AOT posture
 
 `<IsAotCompatible>true</IsAotCompatible>` is inherited. No reflection: JSON parsing and asymmetric
@@ -125,11 +131,43 @@ verification uses BCL one-shot APIs, and base64url is `System.Buffers.Text.Base6
   a later addition on the same seam.
 - **`Token` encryption (JWE).** Only signed (JWS) compact tokens are handled.
 
+## Diagnostics
+
+The internal `JwtBearerEventSource` provider is named
+`Assimalign.Cohesion.Web.Authentication.Bearer`. It references the contracts-only
+`Web.Server` package for request correlation; the authentication dispatcher owns no source.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | TokenRejected | Verbose | scheme, reason, algorithm (32 characters), keyId (128 characters), validationCode, requestId |
+
+Reasons are EmptyCredential, Malformed, NotCompactJws, UnsecuredAlgorithm,
+SignatureEncoding, NoMatchingKey, SignatureInvalid, ValidationFailed, IssuerRejected
+and AudienceRejected. NoMatchingKey means no configured verifier accepts the
+algorithm/key id; SignatureInvalid means an eligible verifier rejected the signature.
+The authentication result and challenge text retain their existing semantics.
+
+The lazily published PollingCounter `rejected-tokens` counts once per request and
+scheme, including when no listener is attached. The per-scheme handler/result cache
+prevents Authorization re-authentication and a subsequent challenge from counting again.
+Missing/non-Bearer credentials and successful authentication produce neither event nor count.
+
+All allocating payload work and request-id reads occur inside the Verbose enable check.
+The request id comes from `IWebRequestIdFeature`, never an ambient Activity. Tokens,
+Authorization headers, claim values and validation diagnostic messages never enter payloads.
+The scope table's issuer field is deliberately omitted: JWT issuer is a claim and conflicts
+with #1403's explicit no-claim-value acceptance criterion. Attacker-selected algorithm and
+key id are untrusted text, truncated only when the event is enabled.
+
+This adds diagnostics without changing public APIs or authentication decisions relative
+to 10.0.0-preview.1. The separate #1450 challenge behavior change is described above.
+
 ## Declared dependencies
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Authentication` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
 

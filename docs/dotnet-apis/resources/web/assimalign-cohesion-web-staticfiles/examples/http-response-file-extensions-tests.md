@@ -55,8 +55,8 @@ test objects.
 - **Case 41** — WriteStreamAsync: If-Range should honor the range only for a date equal to a strong Last-Modified.
 - **Case 42** — SendFileAsync: a file dated in the future should send the response time as Last-Modified.
 - **Case 43** — SendFileAsync: a 304 for a file dated in the future should send the response time as Last-Modified.
-- **Case 44** — WriteStreamAsync: Missing or invalid response Date withholds Last-Modified and its conditions.
-- **Case 45** — WriteStreamAsync: A repeated Date cannot provide the response's origination time.
+- **Case 44** — WriteStreamAsync: Missing or invalid response Date uses the clock for Last-Modified and its conditions.
+- **Case 45** — WriteStreamAsync: A repeated Date falls back to the clock.
 - **Case 46** — WriteStreamAsync: Missing or invalid response Date keeps entity-tag conditions and ranges.
 - **Case 47** — WriteStreamAsync: a stream of unknown length should be sent whole, without length or range support.
 - **Case 48** — WriteStreamAsync: HEAD should emit the header section without reading the stream.
@@ -1009,17 +1009,16 @@ public class HttpResponseFileExtensionsTests
         sent.ShouldBe(responseDate);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: Missing or invalid response Date withholds Last-Modified and its conditions")]
+    [Theory(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: Missing or invalid response Date uses the clock for Last-Modified and its conditions")]
     [InlineData(null, "If-Range")]
     [InlineData(null, "If-Modified-Since")]
     [InlineData(null, "If-Unmodified-Since")]
     [InlineData("invalid", "If-Range")]
     [InlineData("invalid", "If-Modified-Since")]
     [InlineData("invalid", "If-Unmodified-Since")]
-    public async Task WriteStreamAsync_UnusableResponseDate_ShouldWithholdDateValidators(string? responseDate, string condition)
+    public async Task WriteStreamAsync_UnusableResponseDate_ShouldUseClockForDateValidators(string? responseDate, string condition)
     {
-        // Arrange — without the response's origination time, a date cannot be clamped or
-        // classified as a strong validator. Entity tags remain available.
+        // Arrange — an old modification time is a settled validator under the fallback clock.
         DateTimeOffset lastModified = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
         using MemoryStream content = Content("0123456789");
 
@@ -1039,15 +1038,23 @@ public class HttpResponseFileExtensionsTests
             });
 
         // Assert
-        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
-        context.ReadResponseBody().ShouldBe("0123456789");
-        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
-        Header(context, HttpHeaderKey.ETag).ShouldBe("\"v1\"");
+        context.Response.StatusCode.ShouldBe(condition switch
+        {
+            "If-Range" => HttpStatusCode.PartialContent,
+            "If-Modified-Since" => HttpStatusCode.NotModified,
+            _ => HttpStatusCode.PreconditionFailed,
+        });
+        context.ReadResponseBody().ShouldBe(condition == "If-Range" ? "012" : string.Empty);
+        if (condition != "If-Unmodified-Since")
+        {
+            Header(context, HttpHeaderKey.LastModified).ShouldBe(HttpDate.Format(lastModified));
+            Header(context, HttpHeaderKey.ETag).ShouldBe("\"v1\"");
+        }
         Header(context, HttpHeaderKey.Date).ShouldBe(responseDate ?? string.Empty);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: A repeated Date cannot provide the response's origination time")]
-    public async Task WriteStreamAsync_RepeatedResponseDate_ShouldWithholdDateValidators()
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - WriteStreamAsync: A repeated Date falls back to the clock")]
+    public async Task WriteStreamAsync_RepeatedResponseDate_ShouldUseClockForDateValidators()
     {
         // Arrange
         DateTimeOffset lastModified = new(1994, 11, 6, 8, 49, 37, TimeSpan.Zero);
@@ -1066,9 +1073,9 @@ public class HttpResponseFileExtensionsTests
             });
 
         // Assert
-        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
-        context.ReadResponseBody().ShouldBe("0123456789");
-        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.PartialContent);
+        context.ReadResponseBody().ShouldBe("012");
+        Header(context, HttpHeaderKey.LastModified).ShouldBe(HttpDate.Format(lastModified));
         context.Response.Headers[HttpHeaderKey.Date].Count.ShouldBe(2);
     }
 
@@ -1096,7 +1103,7 @@ public class HttpResponseFileExtensionsTests
         // Assert
         context.Response.StatusCode.Value.ShouldBe(expectedStatus);
         context.ReadResponseBody().ShouldBe(revalidate ? string.Empty : "012");
-        context.Response.Headers.ContainsKey(HttpHeaderKey.LastModified).ShouldBeFalse();
+        Header(context, HttpHeaderKey.LastModified).ShouldBe(HttpDate.Format(TestHttpResponse.DefaultDate.AddDays(-1)));
         Header(context, HttpHeaderKey.ETag).ShouldBe("\"v1\"");
         Header(context, HttpHeaderKey.Date).ShouldBe(responseDate ?? string.Empty);
     }

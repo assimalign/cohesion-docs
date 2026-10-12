@@ -18,19 +18,20 @@ test objects.
 - **Case 4** — Boundary: Should publish the caught fault as an IHttpExceptionFeature.
 - **Case 5** — Boundary: Should render an escaped fault as problem+json without leaking internals.
 - **Case 6** — Boundary: Should let a registered OnError handler own the fault response.
-- **Case 7** — Boundary: Should consult OnError handlers in registration order, first-true wins.
-- **Case 8** — Boundary: Should render the terminal default when every handler passes.
-- **Case 9** — Boundary: Should propagate a fault thrown by an OnError handler.
-- **Case 10** — Boundary: Should abort the exchange when the response has already started.
-- **Case 11** — Boundary: Should reset a partial response before rendering the error.
-- **Case 12** — Boundary: Should include exception detail when developer details are enabled.
-- **Case 13** — Boundary: Should omit exception detail by default.
-- **Case 14** — Boundary: Should invoke the diagnostics observer for an unsuppressed fault.
-- **Case 15** — Boundary: Should skip the diagnostics observer when suppression marks the fault expected.
-- **Case 16** — Boundary: A throwing diagnostics observer should not defeat response rendering.
-- **Case 17** — Boundary: A cancelled request should propagate as a clean drain, not a fault.
-- **Case 18** — Boundary: Should pass a fault-free request straight through.
-- **Case 19** — UseErrorHandling: Should reject a null pipeline builder.
+- **Case 7** — Boundary: An unregistered problem status should retain its generic title.
+- **Case 8** — Boundary: Should consult OnError handlers in registration order, first-true wins.
+- **Case 9** — Boundary: Should render the terminal default when every handler passes.
+- **Case 10** — Boundary: Should propagate a fault thrown by an OnError handler.
+- **Case 11** — Boundary: Should abort the exchange when the response has already started.
+- **Case 12** — Boundary: Should reset a partial response before rendering the error.
+- **Case 13** — Boundary: Should include exception detail when developer details are enabled.
+- **Case 14** — Boundary: Should omit exception detail by default.
+- **Case 15** — Boundary: Should invoke the diagnostics observer for an unsuppressed fault.
+- **Case 16** — Boundary: Should skip the diagnostics observer when suppression marks the fault expected.
+- **Case 17** — Boundary: A throwing diagnostics observer should not defeat response rendering.
+- **Case 18** — Boundary: A cancelled request should propagate as a clean drain, not a fault.
+- **Case 19** — Boundary: Should pass a fault-free request straight through.
+- **Case 20** — UseErrorHandling: Should reject a null pipeline builder.
 
 ## Source example
 
@@ -229,6 +230,37 @@ public class ExceptionBoundaryMiddlewareTests
         // Assert
         context.Response.StatusCode.ShouldBe((HttpStatusCode)503);
         context.ResponseBodyText().ShouldBe("owned");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.ErrorHandling] - Boundary: An unregistered problem status should retain its generic title")]
+    [InlineData(499, "Error")]
+    [InlineData(599, "Internal Server Error")]
+    public async Task InvokeAsync_HandlerWritesUnregisteredProblemStatus_ShouldPreserveStatusAndGenericTitle(int status, string expectedTitle)
+    {
+        // Arrange — integration characterization of #1414's existing title fallback through the boundary.
+        InvalidOperationException fault = new("Application failure.");
+        IErrorHandlingFeature hook = Hook(composition => composition.OnError(async (context, exception, token) =>
+        {
+            await context.Response.WriteProblemDetailsAsync(ProblemDetails.FromStatus(new HttpStatusCode(status)), token);
+            return true;
+        }));
+
+        // Act
+        TestHttpContext context = await RunAsync(null, ctx =>
+        {
+            ctx.Response.Body.Write("partial-body"u8);
+            throw fault;
+        }, hook);
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(status);
+        context.Response.Headers[HttpHeaderKey.ContentType].Value.ShouldBe("application/problem+json");
+        context.CancelRequested.ShouldBeFalse();
+        context.Features.Get<IHttpExceptionFeature>().ShouldNotBeNull().Error.ShouldBeSameAs(fault);
+        using JsonDocument document = JsonDocument.Parse(context.ResponseBodyText());
+        document.RootElement.GetProperty("type").GetString().ShouldBe("about:blank");
+        document.RootElement.GetProperty("status").GetInt32().ShouldBe(status);
+        document.RootElement.GetProperty("title").GetString().ShouldBe(expectedTitle);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.ErrorHandling] - Boundary: Should consult OnError handlers in registration order, first-true wins")]

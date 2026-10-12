@@ -17,6 +17,16 @@ is answered there and the rest of the pipeline does not run (#1210): `413 Conten
 body exceeds a configured `HttpFormOptions` limit, and `400 Bad Request` when it is malformed, both as
 `application/problem+json` with the payload a form-bound endpoint writes for the same failure.
 
+The two form-error classifications apply only when the transport has reported no
+client-fault status. An absent feature or a feature whose `StatusCode` is `null`
+still allows normal form rejection handling.
+
+`ValueCountLimit` also bounds every multipart section (#1435), including files, repeated fields and
+unnamed parts that the parser skips. Exceeding the default 1,024 sections now answers `413`; this is a
+behavior break from 10.0.0-preview.1, which did not enforce a section count. Diagnostics can read the
+cause’s `HttpFormLimitExceededException.Limit` enum instead of parsing or logging an exception message
+that may echo input.
+
 Parsing is eager for every request; bodies with a non-form media type produce an empty collection.
 Handlers needing form data only on selected routes can call `ReadFormAsync` lazily instead. The
 source currently exposes no options overload.

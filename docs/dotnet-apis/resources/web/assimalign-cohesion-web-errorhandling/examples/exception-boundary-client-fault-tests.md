@@ -13,7 +13,7 @@ test objects.
 ## Behavior exercised
 
 - **Case 1** — Boundary E2E: A client fault found reading the body should reach the client as the transport's status without `OnException`.
-- **Case 2** — Boundary E2E: A body the client cuts short by closing its side should reach the client as the transport's 400 without `OnException`.
+- **Case 2** — Boundary E2E: A body the client cuts short should cancel with the exchange token without OnException.
 - **Case 3** — Boundary E2E: An application fault reading a well-formed body should still be observed and answered 500.
 
 ## Source example
@@ -24,8 +24,11 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http;
@@ -86,16 +89,18 @@ public class ExceptionBoundaryClientFaultTests
         observed.ShouldBe(0);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.ErrorHandling] - Boundary E2E: A body the client cuts short by closing its side should reach the client as the transport's 400 without OnException")]
+    [Theory(DisplayName = "Cohesion Test [Web.ErrorHandling] - Boundary E2E: A body the client cuts short should cancel with the exchange token without OnException")]
     [InlineData("Content-Length: 100\r\n\r\n{")]
     [InlineData("Transfer-Encoding: chunked\r\n\r\n10\r\nshort")]
-    public async Task Boundary_BodyCutShortByTheClient_ShouldAnswerTheTransport400WithoutObserving(string framingAndBody)
+    public async Task Boundary_BodyCutShortByTheClient_ShouldCancelWithoutObserving(string framingAndBody)
     {
         // Arrange — the client writes part of the body its framing declares, then closes its sending side,
-        // so the read throws EndOfStreamException: the cheapest way to make a read fail on demand.
+        // so the incomplete body ends as a cancellation under owner decision 45 (#1439).
         using CancellationTokenSource cancellation = new(_testTimeout);
         CancellationToken cancellationToken = cancellation.Token;
         int observed = 0;
+        TaskCompletionSource<(Exception Failure, CancellationToken RequestToken, HttpStatusCode? ClientFault)> readCancelled =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await using InMemoryConnectionListener transport = new();
         await using WebApplicationTestFactory factory = new();
@@ -109,8 +114,17 @@ public class ExceptionBoundaryClientFaultTests
         {
             byte[] buffer = new byte[256];
 
-            while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+            try
             {
+                while (await context.Request.Body.ReadAsync(buffer, context.RequestCancelled) > 0)
+                {
+                }
+            }
+            catch (Exception exception) when (exception is IOException or OperationCanceledException)
+            {
+                readCancelled.TrySetResult((exception, context.RequestCancelled,
+                    context.Features.Get<IWebClientFaultFeature>()?.StatusCode));
+                throw;
             }
 
             context.Response.StatusCode = HttpStatusCode.NoContent;
@@ -126,10 +140,11 @@ public class ExceptionBoundaryClientFaultTests
             closeSendingSide: true);
 
         // Assert
-        response.ShouldStartWith("HTTP/1.1 400");
-        response.ShouldContain("Connection: close");
-        response.ShouldNotContain("application/problem+json");
-        response.ShouldNotContain("500");
+        var cancelled = await readCancelled.Task.WaitAsync(cancellationToken);
+        cancelled.RequestToken.IsCancellationRequested.ShouldBeTrue();
+        cancelled.Failure.ShouldBeAssignableTo<OperationCanceledException>().CancellationToken.ShouldBe(cancelled.RequestToken);
+        cancelled.ClientFault.ShouldBeNull();
+        response.ShouldBeEmpty();
         observed.ShouldBe(0);
     }
 

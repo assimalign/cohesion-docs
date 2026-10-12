@@ -16,6 +16,14 @@ composed from the shared `Assimalign.Cohesion.Http` protocol primitives rather t
 RFC semantics locally. Handlers get the same behavior for a file or a stream of their own through the
 `SendFileAsync` and `WriteStreamAsync` response helpers.
 
+## Diagnostics
+
+The `Assimalign.Cohesion.Web.StaticFiles` EventSource reports web-root mounts once when the pipeline
+is built, including branches and fallback routes. It also reports traversal rejections and throttled
+mount lookup failures, with exact `traversal-rejections` and `mount-lookup-failures` counters. Configured
+root/prefix identifiers may be reported; request paths and exception messages are never written.
+See [Diagnostics in the design](design.md#diagnostics) for events and payloads.
+
 ## Scope
 
 - **Content root = an `IFileSystem` mount.** Any implementation works: `PhysicalFileSystem`,
@@ -89,7 +97,7 @@ the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061)
 
 | Concern | Behavior |
 |---|---|
-| Validators | Strong `ETag` derived from `Size` + `UpdatedOn`; `Last-Modified` (HTTP-date), clamped to the response's `Date` when `UpdatedOn` is later (RFC 9110 §8.8.2.1). Without a valid response `Date`, no derived `Last-Modified` is emitted and date conditions are ignored; date-form `If-Range` serves the full representation. |
+| Validators | Strong `ETag` derived from `Size` + `UpdatedOn`; a future `Last-Modified` is clamped to the response's valid `Date`, or one clock read when `Date` is absent, invalid, or repeated (RFC 9110 §8.8.2.1). The same instant governs date conditions and date-form `If-Range`. |
 | Conditional GET | `If-None-Match` / `If-Modified-Since` → `304`; `If-Match` / `If-Unmodified-Since` → `412` (RFC 9110 §13.2.2 via `HttpConditionalRequest`). |
 | Ranges | `Accept-Ranges: bytes`; single satisfiable byte range → `206` + `Content-Range`; multi-range set → full `200` fallback; unsatisfiable → `416` + `bytes */N` (via `HttpRangeSelector`); `If-Range` gates application: the current strong `ETag`, or a date equal to a `Last-Modified` at least one second old (RFC 9110 §13.1.5), else the full `200`. |
 | Content types | File-name lookup via `HttpContentTypes` with builder-time overlays; a name whose extension is unmapped, or that has none (`html`, the dotfile `.json`), passes through by default or serves the configured fallback type. |
@@ -100,9 +108,11 @@ the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061)
 The response helpers produce the same columns for a handler's file or stream, minus precompression
 and default documents.
 
-The transports supply `Date` before dispatch. If automatic dates are disabled for a proxy that
-adds them (`AddDateHeader = false`), set a valid response `Date` before static-file selection to
-retain modification-date validators. Entity tags and their conditions remain available without it.
+The transports supply `Date` before dispatch. Disabling automatic dates for a proxy that adds
+its own (`AddDateHeader = false`) removes only that automatic header: `Last-Modified`,
+`If-Modified-Since`, `If-Unmodified-Since`, and date-form `If-Range` keep working. A single valid
+response `Date` remains the reference; otherwise StaticFiles reads `TimeProvider.System.GetUtcNow()`
+once for clamping and date validation. It does not add or replace the `Date` header.
 
 ## Dependencies
 
@@ -127,6 +137,7 @@ parity note.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem` | `CohesionProjectReference` |

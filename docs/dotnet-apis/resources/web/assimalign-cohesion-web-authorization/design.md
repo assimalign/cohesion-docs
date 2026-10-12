@@ -296,8 +296,9 @@ order, or once with the default challenge or forbid scheme when the policy names
 write the response: JWT Bearer answers `401` with a `WWW-Authenticate` challenge and `403` with
 `insufficient_scope` (RFC 6750 §3.1); Cookie redirects a browser endpoint to its login or
 access-denied page and answers an endpoint marked `IApiEndpointMetadata` with a bare `401` or `403`.
-When several schemes answer, each writes in turn; a handler that sets a header outright (Bearer's
-`WWW-Authenticate`) leaves the last value.
+When several schemes answer, each writes in turn. Bearer and Certificate append `WWW-Authenticate`,
+preserving every earlier challenge. Bearer's append behavior corrects 10.0.0-preview.1,
+which replaced earlier schemes' challenges (#1450); custom handlers must also append.
 
 A failure is a response, not an exception, so no exception boundary can turn it into a `500`. A
 missing authentication registration is the exception: with no `AddAuthentication`, or no default
@@ -389,6 +390,36 @@ Today the two claim models meet only in the Bearer handler's mapper, which proje
 token onto a `ClaimsPrincipal`; an adapter that needs canonical provenance may need the mapper to
 carry it.
 
+## Diagnostics
+
+The internal `AuthorizationEventSource` is named `Assimalign.Cohesion.Web.Authorization`.
+It records the middleware's denial decision before the selected handlers write their challenge or
+forbid, so a cookie login redirect can be distinguished from an ordinary application redirect.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `RequestDenied` | Verbose | `outcome` (`Challenge` or `Forbid`), `routeTemplate`, `policySource` (`Endpoint` or `Fallback`), `failedRequirement`, `schemes`, `requestId` |
+
+The `challenged-requests` and `forbidden-requests` polling counters are lifetime totals. Each denial
+increments exactly one counter at the middleware decision, regardless of how many authentication
+schemes the policy evaluates or challenges, and even when no listener is enabled. Counters are created
+only when the source is enabled. Successful authorization emits no event and changes neither counter.
+
+An internal policy evaluation returns the first failing requirement's index, preserving evaluation
+order and the synchronous fast path. Public `EvaluateAsync` keeps its `ValueTask<bool>` contract and
+behavior. The requirement's type name, joined policy scheme names, endpoint template, and request id
+are read only inside the Verbose `IsEnabled` guard. An empty `schemes` field means that the policy
+uses the authentication defaults. The request id comes from `IWebRequestIdFeature` in the contracts-only
+Web.Server dependency; an absent feature produces an empty string. No ambient activity is consulted.
+The source never writes users, claims, role names, route values, request paths or queries.
+
+`AuthorizationEventSourceTests` validates the source name, strict manifest, both denial outcomes and
+their exact payloads, counter publication and listener-independent totals, fallback attribution,
+synchronous and asynchronous failure indices, and request-id correlation. Its real-host tests exercise
+Bearer and Cookie authentication again through Authorization and verify one rejection per request and
+scheme, alongside one authorization denial. Tests link the shared test-only `EventSourceRecorder`
+and run without parallelization. The own-test-only internals grant adds no shipped public API.
+
 ## AOT posture
 
 No reflection, no attribute discovery, no type activation, no runtime code generation. Requirements
@@ -448,6 +479,7 @@ scheme accepted.
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Authentication` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 

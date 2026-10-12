@@ -5,9 +5,10 @@ This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/HttpServerConfigurationTests.cs`. It
-retains the test class and assertions so the setup, operation, and expected outcome stay together.
-Use it in the source project’s test context, with its test dependencies and supporting test objects.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/HttpServerConfigurationTests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
+test objects.
 
 ## Behavior exercised
 
@@ -47,8 +48,9 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 34** — HttpServerConfiguration: Should reject a connection cap that is not a positive integer.
 - **Case 35** — UseConfiguration: Should cap the default server with the configured connection limit.
 - **Case 36** — UseConfiguration: An explicit LimitConcurrentConnections takes precedence over the configured cap.
-- **Case 37** — HTTPS configuration: An unsupported ClientCertificateMode names the endpoint.
-- **Case 38** — HTTP configuration: A ClientCertificateMode on a cleartext endpoint is refused.
+- **Case 37** — HTTPS configuration: An invalid handshake timeout should name the endpoint and key.
+- **Case 38** — HTTPS configuration: An unsupported ClientCertificateMode names the endpoint.
+- **Case 39** — HTTP configuration: A ClientCertificateMode on a cleartext endpoint is refused.
 
 ## Source example
 
@@ -855,6 +857,30 @@ public class HttpServerConfigurationTests
 
         // Assert
         server.ShouldBeOfType<WebApplicationServer>().MaxConcurrentConnections.ShouldBe(3);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - HTTPS configuration: An invalid handshake timeout should name the endpoint and key")]
+    [InlineData("forever")]
+    [InlineData("")]
+    [InlineData("9223372036854775807")]
+    public void Bind_OnInvalidHandshakeTimeout_ShouldThrowNamingEndpoint(string value)
+    {
+        // Arrange — validation precedes certificate loading, so a malformed timeout fails on its own key.
+        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["Http:Endpoints:Secure:Protocol"] = "Https",
+            ["Http:Endpoints:Secure:Port"] = "0",
+            ["Http:Endpoints:Secure:HandshakeTimeout"] = value,
+        });
+
+        // Act
+        InvalidOperationException error = Should.Throw<InvalidOperationException>(
+            () => HttpServerConfiguration.Bind(configuration, "Http", new HttpConnectionListenerOptions()));
+
+        // Assert
+        error.Message.ShouldContain("Secure");
+        error.Message.ShouldContain("HandshakeTimeout");
+        error.Message.ShouldContain(value);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - HTTPS configuration: An unsupported ClientCertificateMode names the endpoint")]

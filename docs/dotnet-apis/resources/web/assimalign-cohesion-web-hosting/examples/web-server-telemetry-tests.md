@@ -5,9 +5,10 @@ This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebServerTelemetryTests.cs`. It
-retains the test class and assertions so the setup, operation, and expected outcome stay together.
-Use it in the source project’s test context, with its test dependencies and supporting test objects.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebServerTelemetryTests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
+test objects.
 
 ## Behavior exercised
 
@@ -791,7 +792,7 @@ public class WebServerTelemetryTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act
-        Connection stream = await client.SendRequestAsync(
+        MultiplexedStream stream = await client.SendRequestAsync(
             "POST",
             path,
             [("content-length", "100")],
@@ -845,7 +846,7 @@ public class WebServerTelemetryTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act
-        Connection stream = await client.SendRequestAsync(
+        MultiplexedStream stream = await client.SendRequestAsync(
             "POST",
             path,
             [],
@@ -853,7 +854,7 @@ public class WebServerTelemetryTests
             endStream: false,
             cancellationToken);
         await firstRead.Task.WaitAsync(cancellationToken);
-        ((IMultiplexedStreamAbort)stream).AbortWrite(0x10c);
+        stream!.DirectionalAbort!.AbortWrite(0x10c);
         Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
 
         // Assert
@@ -902,7 +903,7 @@ public class WebServerTelemetryTests
         await factory.StartAsync(cancellationToken);
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
         await using Connection controlStream = await client.OpenControlStreamAsync(cancellationToken);
-        await using Connection requestStream = await client.SendRequestAsync(
+        await using MultiplexedStream requestStream = await client.SendRequestAsync(
             "POST",
             path,
             [],

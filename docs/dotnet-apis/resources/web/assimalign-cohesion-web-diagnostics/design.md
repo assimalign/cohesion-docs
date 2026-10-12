@@ -69,7 +69,7 @@ entry correlates via `ILoggerEntry.ParentId` — the Logging library's own corre
 - **Allowlist redaction, not a denylist.** A denylist fails open: every new sensitive header
   leaks until someone remembers to add it. The allowlist fails closed — a header's value logs
   only when explicitly allowed, and `Authorization`/`Proxy-Authorization`/`Cookie`/`Set-Cookie`
-  are simply never in the defaults. `Header` *names* still log, preserving diagnostic signal
+  are simply never in the defaults. Header *names* still log, preserving diagnostic signal
   (presence/absence) without the values. `RequestQuery` is likewise excluded from
   `HttpLoggingFields.Default` — query strings carry tokens; ASP.NET made the same call.
 - **Tee-capture streams, never buffering.** Body capture wraps the body streams and copies the
@@ -140,32 +140,49 @@ One entry per completed exchange, emitted in the middleware's `finally`:
 
 - **Level** — `Options.Level` (default `Information`); escalated to `Error` with the exception
   attached when the downstream pipeline throws (the exception is rethrown — observing is this
-  package's job, the exception *boundary* is #881's), unless the exchange is a client fault (below).
+  package's job, the exception *boundary* is #881's), except for client faults and exchange
+  cancellation (below).
 - **Message** — `"GET /orders -> 200 in 12.345 ms"`, composed only from enabled fields
-  (invariant culture, `string.Create`); `"(faulted)"` appended on exceptions, `"(client fault)"` on
-  a client fault.
-- **Client faults (#1340).** A request body that breaks its framing or a configured limit, or that
-  the client cuts short by closing the connection, fails the application's read, and the transport
-  answers the exchange itself with `400`, `413`, `408` or `431`. Any client can cause that, so it is
-  not an application defect, and escalating it filled the log with `Error` entries on demand. The
-  server reports it through `IWebClientFaultFeature` (`Web.Server`, installed by the default Web
-  server on a request that can have a body, on every version since #1378; on HTTP/2 and HTTP/3 a
-  malformed body resets the stream and is reported as `400`). When the feature reports a status, the
-  entry stays at `Options.Level`, carries no exception, is marked `http.client_fault = true`
-  (`HttpLoggingAttributes.ClientFault`), and logs the status that reaches the wire: the
-  transport's, unless the response had already started (`IHttpResponseStreamingFeature.HasStarted`,
-  from `Http.Streaming`), in which case the transport ends that response as it stands and its own
-  status is logged. That holds whether the read's exception reaches the middleware or a binder or
-  the exception boundary answered it first. Under a server that does not install the feature, the
-  entry is escalated as before. #1340's first acceptance criterion asked for these entries at
-  `Debug`, like other peer faults. They stay at `Options.Level` instead, deliberately: this is an
-  access log, one entry per exchange at one level, and a client fault is an exchange the server
-  answered. At `Debug` a `400` would rank below an ordinary `200` and vanish from a log configured
-  at the default `Information`, the opposite of what an access log is for. What the criterion was
-  after, not escalating to `Error` and not attaching the exception, holds, and `http.client_fault`
-  lets a reader filter the entries out or route them elsewhere. The server's own diagnostics
-  (`Web.Hosting`'s `WebApplicationServerLog`) write no entry per exchange, a client fault included,
-  so this entry is the one place it is logged.
+  (invariant culture, `string.Create`); `"(faulted)"` appended on application faults, `"(client fault)"` on a
+  client fault.
+- **Client faults (#1340).** A request body that breaks its framing or a configured limit
+  fails the application's read, and the transport answers
+  the exchange itself with `400`, `413`, `408` or `431`.
+  Any client can cause that, so it is not an application defect, and escalating it filled the log with
+  `Error` entries on demand. The server reports it through `IWebClientFaultFeature` (`Web.Server`,
+  installed by the default Web server on a request that can have a body, on every version since #1378;
+  on HTTP/2 and HTTP/3 a malformed body resets the stream and is reported as `400`). When the feature
+  reports a status, the entry stays at `Options.Level`, carries no exception, is marked
+  `http.client_fault = true` (`HttpLoggingAttributes.ClientFault`), and logs the status that reaches
+  the wire: the transport's, unless the response had already started
+  (`IHttpResponseStreamingFeature.HasStarted`, from `Http.Streaming`), in which case the transport ends
+  that response as it stands and its own status is logged. That holds whether the read's exception
+  reaches the middleware or a binder or the exception boundary answered it first. Under a server that
+  does not install the feature, the entry is escalated as before.
+  #1340's first acceptance criterion asked for these entries at `Debug`, like other peer faults. They
+  stay at `Options.Level` instead, deliberately: this is an access log, one entry per exchange at one
+  level, and a client fault is an exchange the server answered. At `Debug` a `400` would rank below an
+  ordinary `200` and vanish from a log configured at the default `Information`, the opposite of what an
+  access log is for. What the criterion was after, not escalating to `Error` and not attaching the
+  exception, holds, and `http.client_fault` lets a reader filter the entries out or route them
+  elsewhere. The server's own diagnostics (`Web.Hosting`'s `WebServerEventSource`) report server
+  lifecycle and failures. This middleware owns the per-exchange access-log entry;
+  `Http.Connections` separately reports transport rejections and protocol/client
+  faults through its `HttpTransportEventSource`, EventSource counters and `Meter`.
+- **Exchange cancellation (#1439 integration).** When downstream throws `OperationCanceledException`
+  after `RequestCancelled` is canceled, the entry stays at the configured level, carries no exception
+  and is not marked `(faulted)`. Cancellation alone adds no `http.client_fault` attribute. This
+  matches the server's cancellation boundary and does not require the exception's token to equal
+  the request token. An unrelated cancellation exception with a live request, or any ordinary
+  application exception even after request cancellation, remains an application fault.
+  The logged status is the response value visible during unwinding: a peer that abandons a body
+  before the response starts can therefore leave a staged `200` in the entry while the transport
+  sends no response. It is not evidence that a 200 reached the peer.
+  **Behavior change from 10.0.0-preview.1:** request-cancellation exceptions now stay at the
+  configured level instead of Error. Following #1439, peer-truncated HTTP/1.1 bodies cancel the
+  exchange without a response or client-fault marker; this replaces the sent-400 behavior
+  introduced during the HTTP/Web program. The temporary Error classification introduced by
+  #1439's new cancellation path is corrected here.
 - **Attributes** — per the `HttpLoggingAttributes` contract, only for enabled fields.
 - **Never throws.** Attribute building is guarded; a logging failure cannot fail an exchange or
   mask an application exception mid-unwind. Sink failures are already isolated by the logging
@@ -173,8 +190,9 @@ One entry per completed exchange, emitted in the middleware's `finally`:
 - **Fast off-switch:** when the composed logger reports `Options.Level` disabled, the
   middleware is a pure pass-through — no timestamps, no wrappers, no allocation.
 
-Duration comes from `TimeProvider.GetTimestamp()` /`GetElapsedTime` and entry timestamps from
-`TimeProvider.GetUtcNow()`, so tests can substitute a fake `TimeProvider` for deterministic output.
+Duration comes from `TimeProvider.GetTimestamp()`/`GetElapsedTime` and entry timestamps from
+`TimeProvider.GetUtcNow()`, so tests can substitute a fake `TimeProvider` for deterministic
+output.
 
 ## Behind a proxy — effective identity, peer kept beside it
 
@@ -245,8 +263,8 @@ and routing — so rejected and unrouted exchanges are still logged. Behind a pr
 after the pipeline unwinds (see "Behind a proxy"). Per-endpoint overrides are read at the same
 point, so they need no position relative to `UseRouting`. Two consequences to be aware of:
 
-- **Anything registered *before* it** — is invisible to the access log.
-- **Captured bodies are whatever crosses the wire at its position** — place it after a
+- Anything registered *before* it is invisible to the access log.
+- Captured bodies are whatever crosses the wire at its position: place it after a
   decompression middleware to capture decoded payloads, before it to capture the raw ones.
 
 **Behavior break from 10.0.0-preview.1 (#1325, decision 15).** The former `HttpRequest`
@@ -260,11 +278,61 @@ interface contract.
 
 ## AOT posture
 
-No reflection anywhere: field selection is a flags enum, per-endpoint discovery is the `is`
--test-based metadata bag, header allowlists are `FrozenSet<HttpHeaderKey>`, and all numeric/date
-rendering goes through invariant `TryFormat` into stack buffers. Body capture decodes UTF-8 into a
-string only at emission. The package carries the repo-wide `IsAotCompatible=true` with nothing to
-suppress.
+No reflection anywhere: field selection is a flags enum, per-endpoint discovery is the
+`is`-test-based metadata bag, header allowlists are `FrozenSet<HttpHeaderKey>`, and all
+numeric/date rendering goes through invariant `TryFormat` into stack buffers. Body capture
+decodes UTF-8 into a string only at emission. The package carries the repo-wide
+`IsAotCompatible=true` with nothing to suppress.
+
+## Diagnostics
+
+The internal `HttpLoggingEventSource`, named `Assimalign.Cohesion.Web.Diagnostics`, reports the
+package's own sink and log-construction failures. The HTTP access log remains the package's
+`ILogger` product. No request paths, headers, bodies or trace/span data are copied into these
+operator events; the existing request-feature correlation and request-view capture are unchanged.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | AccessLogFileOpened | Informational | path, sequence:int, existingBytes:long |
+| 2 | AccessLogWriteFailed | Error | operation (Write, Flush, Close), exceptionType, exceptionMessage, suppressedCount:int |
+| 3 | AccessLogRetentionFailed | Warning | exceptionType, exceptionMessage, suppressedCount:int |
+| 4 | HttpLogEntryDropped | Warning | exceptionType, suppressedCount:int |
+| 5 | ClientAddressResolverFailed | Warning | exceptionType, suppressedCount:int |
+
+Event 1's `path` is the operator-configured local access-log file, never a request URL. File
+failures include the exception type and Message, never a stack trace. Application-delegate
+failures in events 4 and 5 include only the type: their messages can echo request input.
+
+Every Warning/Error is throttled to one event per second per event id across this process.
+`suppressedCount` reports enabled attempts suppressed since the previous emission. Write, Flush
+and Close share event 2's throttle. The lazy PollingCounters remain exact with listeners disabled
+and while events are suppressed:
+
+- `failed-access-log-writes`: one increment for each `W3CAccessLogWriter.Write` call that throws,
+  including immediate flush failure or a failing close during rolling. Standalone explicit/timer
+  flush and close operations do not increment it.
+- `dropped-http-log-entries`: one increment each time the middleware's guarded `Emit` fails.
+  A resolver failure falls back to the effective client address and does not itself drop an entry.
+
+The first counter counts calls, **not lost entries**. With buffering, a successful Write can lose
+its output on a later flush or close. `StreamWriter` can discard a buffer before the underlying
+write fails, so retrying cannot guarantee recovery; flush and close failures are Error events.
+Retention remains best effort and Warning. Write and explicit Flush preserve their exceptions;
+`CompositeLogger` continues isolating a provider's Write failure. Timer and close-flush failures
+remain swallowed; a failing disposal still propagates, after clearing the closed writer state.
+
+All writer events are emitted after leaving the writer's lock, including failures collected during
+rolling, retention and disposal. Listeners run synchronously, so raising inside that lock could
+deadlock a forwarding sink. `W3CAccessLogProvider` accepts only `http.event = "exchange"` entries;
+forwarded Web.Diagnostics events never enter its file and cannot recursively fail the access sink.
+
+**Logger category overlap.** The source's category `Assimalign.Cohesion.Web.Diagnostics` is a
+prefix of the HTTP log's default `Assimalign.Cohesion.Web.Diagnostics.HttpLogging`. A filter rule
+on the source category also tunes the HTTP log. No default category filter is added.
+
+**Behavior change from 10.0.0-preview.1 (#1407, decision 15).** Previously silent file, retention,
+entry-construction and resolver failures are now visible to enabled listeners and configured
+forwarding sinks, with the payload rules above. No public API or HTTP access-log format changes.
 
 ## Non-goals
 
@@ -276,8 +344,9 @@ suppress.
   convention and never re-parses forwarding headers.
 - **No error handling.** The middleware observes exceptions and rethrows; status-code pages and
   the exception boundary are #881 (over the #864 `OnError` hook).
-- **No push/export telemetry.** OTLP export, metrics, and `EventSource` counters are the
-  OpenTelemetry epic (#317). The attribute contract is the handoff point.
+- **No push/export telemetry.** OTLP export and per-feature Meter instruments belong to the
+  OpenTelemetry epic (#317). The attribute contract is the handoff point; the internal EventSource
+  above owns operator events and exact sink-failure attribution counters.
 - **No per-request configuration surface.** Everything is builder-time; the only per-request
   variance is the endpoint metadata override, itself attached at map time.
 
@@ -297,4 +366,6 @@ suppress.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/src/Assimalign.Cohesion.Web.Diagnostics.csproj`.

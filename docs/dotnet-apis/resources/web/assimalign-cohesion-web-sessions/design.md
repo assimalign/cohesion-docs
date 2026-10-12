@@ -151,6 +151,12 @@ reject it during composition, before registering middleware. Applications must c
 RFC 6265 `token` name. Defaults and other valid names are unchanged; applications that supplied an
 invalid name now fail at composition instead of failing cookie-establishing requests.
 
+Since #1405, a new session first accessed after the response head starts reports a throttled
+Warning `SessionStateLost` when `IHttpStoredSession.IsModified` is true. This is a diagnostic
+behavior change from 10.0.0-preview.1 under decision 15: warning-level monitoring now observes
+discarded modifications. Read-only orphans remain Verbose-only; cookies, persistence, and public
+contracts are unchanged.
+
 ## AOT posture
 
 No reflection, no dynamic serialization, no runtime code generation. Ids use `RandomNumberGenerator`
@@ -203,11 +209,52 @@ cookie-name check: null, empty, whitespace, separators, control and non-ASCII ch
 registration, and names containing all token punctuation pass. The errors name the option, preserve the
 cookie constructor's exception, and do not echo the value.
 
+## Store failure ownership (#1436)
+
+`Assimalign.Cohesion.Http.Sessions` owns store load and commit failure reporting through
+its internal same-named EventSource. Web.Sessions deliberately does not repeat those reports.
+The HTTP source reports exception types only because store messages can contain session ids
+or values. It also reports failures of the idle refresh performed instead of an unchanged
+payload commit. The original exception continues to propagate to the caller.
+
+`IHttpStoredSession.IsModified` now exposes the built-in modification flag. Its default
+interface implementation returns `true`, preserving custom implementations that commit every
+time. Built-in sessions keep skipping unchanged payload writes while renewing the idle window;
+this property does not change read-only expiration behavior.
+
+## Diagnostics
+
+The internal `WebSessionEventSource` is named `Assimalign.Cohesion.Web.Sessions`.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | SessionOrphaned | Verbose | reason (`ResponseStarted`), requestId |
+| 2 | SessionStateLost | Warning (throttled) | reason (`ResponseStarted`), requestId, suppressedCount:int |
+
+`orphaned-sessions` and `lost-sessions` are exact PollingCounter totals, maintained even when
+nobody listens. Every orphan increments `orphaned-sessions` once at the middleware's post-pipeline
+commit check and emits `SessionOrphaned` when Verbose is enabled. If the managed session's
+`IHttpStoredSession.IsModified` is true, the same check also increments `lost-sessions` and reports
+`SessionStateLost`. Reading `context.Session` materializes an empty new session, so a cookieless
+read after the head commits is an orphan without lost state: it remains Verbose-only and does not
+increment `lost-sessions`.
+
+The loss Warning is limited to once per second across the process; the next emitted Warning's
+`suppressedCount` reports the losses suppressed by that throttle. The loss counter still counts
+every modified orphan. No session id, cookie, key, or value is written. The request id comes from
+`IWebRequestIdFeature` inside the enabled check and, for the Warning, after the throttle admits it.
+Http.Sessions owns load/commit failures (see above), with no duplicate report here.
+
+Since 10.0.0-preview.1, diagnostics become observable but cookie and persistence behavior are
+unchanged. The new contracts-only Web.Server dependency provides request correlation and adds
+no hosting dependency or framework member.
+
 ## Declared dependencies
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Sessions` | `CohesionProjectReference` |

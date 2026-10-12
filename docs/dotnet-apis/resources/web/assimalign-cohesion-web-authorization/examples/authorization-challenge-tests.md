@@ -19,12 +19,14 @@ test objects.
 - **Case 5** — Cookie: An anonymous API request should be answered with a bare 401.
 - **Case 6** — Cookie: A signed-in user without the required role should be redirected to the access-denied page.
 - **Case 7** — Schemes: An endpoint that selects Bearer should ignore the cookie the default scheme accepted.
+- **Case 8** — Multiple schemes preserve challenges before and after Bearer.
 
 ## Source example
 
 ```csharp
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
@@ -32,9 +34,11 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Security.DataProtection;
 using Assimalign.Cohesion.Web.Authentication;
@@ -43,8 +47,10 @@ using Assimalign.Cohesion.Web.Authentication.Cookie;
 using Assimalign.Cohesion.Web.Authorization.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Authorization.Tests;
 
@@ -244,6 +250,42 @@ public sealed class AuthorizationChallengeTests : IDisposable
         cookieOnly.Headers.WwwAuthenticate.ShouldHaveSingleItem().Scheme.ShouldBe("Bearer");
         bearer.StatusCode.ShouldBe(NetHttpStatusCode.OK);
         (await bearer.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("ok:bob");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authorization] - Multiple schemes preserve challenges before and after Bearer")]
+    public async Task UseAuthorization_MultipleSchemesIncludingBearer_ChallengesEveryScheme()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddAuthentication(authentication =>
+        {
+            authentication.Options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            authentication.AddScheme(TestEndpoints.Scheme(TestEndpoints.Primary));
+            authentication.AddScheme(TestEndpoints.Scheme(TestEndpoints.Secondary));
+            authentication.AddJwtBearer(options =>
+            {
+                options.SigningKeys.Add(JwtSignatureVerifier.CreateHmac(_signingKey));
+                options.ValidIssuers.Add(TestJwt.Issuer);
+                options.ValidAudiences.Add(TestJwt.Audience);
+            });
+        });
+        factory.Builder.Services.AddAuthorization();
+        IRouterBuilder routes = UseAuthorizedRouting(factory);
+        routes.Map(CohesionHttpMethod.Get, "/multi-scheme", TestEndpoints.Ok())
+            .RequireAuthorization(policy => policy
+                .AddAuthenticationSchemes(TestEndpoints.Primary, JwtBearerDefaults.AuthenticationScheme, TestEndpoints.Secondary)
+                .RequireAuthenticatedUser());
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/multi-scheme", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.Unauthorized);
+        response.Headers.WwwAuthenticate.Select(challenge => challenge.Scheme)
+            .ShouldBe(new[] { TestEndpoints.Primary, "Bearer", TestEndpoints.Secondary });
     }
 
     private WebApplicationTestFactory CreateFactory(string defaultScheme)

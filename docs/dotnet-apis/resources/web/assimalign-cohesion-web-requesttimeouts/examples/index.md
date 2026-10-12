@@ -10,6 +10,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Request Timeout End To End Tests](request-timeout-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RequestTimeouts` through its co-located test source.
 - **[Request Timeout Policy Tests](request-timeout-policy-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RequestTimeouts` through its co-located test source.
 - **[Request Timeout Route Convention Tests](request-timeout-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RequestTimeouts` through its co-located test source.
+- **[Request Timeout Event Source Tests](request-timeout-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.RequestTimeouts` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

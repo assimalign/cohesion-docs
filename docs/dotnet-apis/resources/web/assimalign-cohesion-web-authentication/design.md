@@ -24,6 +24,44 @@ The README and `docs/DESIGN.md` still use the older implementation name
 `HttpAuthenticationFeature`. This reference uses the current source names `IAuthenticationFeature`
 and the internal `AuthenticationFeature` implementation.
 
+The concrete Cookie, Bearer and Certificate handlers live in their own packages. Each handler
+package grafts its own scheme verb onto `AuthenticationBuilder`: `AddCookie`, `AddJwtBearer` and
+`AddCertificate`. The service reads `AuthenticationOptions` live, so schemes registered by these
+chained calls after the service is created are still resolved. The public handler factories
+(`CookieAuthentication.CreateHandler`, `JwtBearerAuthentication.CreateHandler` and
+`CertificateAuthentication.CreateHandler`) remain the seams the verbs use while the concrete
+handlers stay internal.
+
+## Family map
+
+The scheme packages reference the shared authentication model; Certificate also reads the TLS
+feature from `Http.Tls`. Arrows show dependencies.
+
+```mermaid
+flowchart LR
+    Bearer["Web.Authentication.Bearer"] --> Auth["Web.Authentication"]
+    Certificate["Web.Authentication.Certificate"] --> Auth
+    Cookie["Web.Authentication.Cookie"] --> Auth
+    Certificate --> Tls["Http.Tls"]
+    Auth --> Http["Http"]
+    Auth --> Web["Web"]
+    Auth --> Protection["Security.DataProtection"]
+```
+
+| Package | Role | Dependencies |
+|---------|------|---------------|
+| `Assimalign.Cohesion.Web.Authentication` | Principal feature + scheme model (handler contract, scheme registry, dispatch service, result types) + builder-time registration (the `builder.Services.AddAuthentication` component integration over `AuthenticationBuilder`, and `UseAuthentication`) | `Assimalign.Cohesion.Http`, `Assimalign.Cohesion.Web`, `Security.DataProtection` |
+| `…Web.Authentication.Bearer` | Bearer-token scheme handler (JWT validation + signature seam) + the grafted `AddJwtBearer` verb | This package, `IdentityModel.Token.JsonWebToken` |
+| `…Web.Authentication.Certificate` | Validated TLS client-certificate principal, application mapping and validation + the grafted `AddCertificate` verb | This package, `Http.Tls` |
+| `…Web.Authentication.Cookie` | Cookie-scheme handler (protected ticket, sliding expiration, login/logout) + the grafted `AddCookie` verb | This package, `Http.Cookies`, `Web.Routing`, `Security.DataProtection` |
+
+Dependency direction is one-way: scheme handlers depend on this
+package; this package depends on the protocol core and the root Web
+composition abstractions. The protocol core never gains a
+back-reference, and `Web.Hosting` references none of these packages —
+the `App.Web` shared framework delivers the family to applications
+(see the [Web area map](../index.md)).
+
 ## Declared dependencies
 
 | Reference | Kind |

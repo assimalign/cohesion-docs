@@ -8,9 +8,10 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 `Assimalign.Cohesion.Web.Server` holds the per-exchange contracts the Web server publishes:
 `IWebRequestIdFeature`, `IWebRequestActivityFeature`, `IWebResponseCompletionFeature`,
-`IWebServerDrainFeature`, `IWebClientFaultFeature` and `IWebResponseStartingFeature`. It is a
+`IWebServerDrainFeature`, `IWebClientFaultFeature`, `IWebResponseClientFaultFeature` and
+`IWebResponseStartingFeature`. It is a
 contracts-only feature package. The default server in `Web.Hosting` implements and installs all
-six; feature libraries and applications read them.
+seven; feature libraries and applications read them.
 
 The package exists because of two rules that point in opposite directions:
 
@@ -32,7 +33,7 @@ The packages that publish, declare and read the contracts, with every arrow mean
 flowchart LR
     Server["Assimalign.Cohesion.Web.Server"] --> Root["Assimalign.Cohesion.Web"]
     Server --> Http["Assimalign.Cohesion.Http"]
-    Hosting["Web.Hosting — publishes all six"] --> Server
+    Hosting["Web.Hosting — publishes all seven"] --> Server
     WebSockets["Web.WebSockets — reads the drain"] --> Server
     Resources["Web.Hosting.Resources — reads completion"] --> Server
     Caching["Web.Caching — stores after completion"] --> Server
@@ -44,8 +45,8 @@ flowchart LR
 
 | Package | Role | Reference to `Web.Server` |
 |---|---|---|
-| `Assimalign.Cohesion.Web.Server` | declares the six contracts | — |
-| [`Assimalign.Cohesion.Web.Hosting`](../assimalign-cohesion-web-hosting/index.md) | runtime module: implements and installs all six (the client fault on a request that can have a body, on every version) | project reference (COHRES002, relaxed by decision 32) |
+| `Assimalign.Cohesion.Web.Server` | declares the seven contracts | — |
+| [`Assimalign.Cohesion.Web.Hosting`](../assimalign-cohesion-web-hosting/index.md) | runtime module: implements and installs all seven (the request client fault on a request that can have a body, on every version) | project reference (COHRES002, relaxed by decision 32) |
 | [`Assimalign.Cohesion.Web.WebSockets`](../assimalign-cohesion-web-websockets/index.md) | closes open sockets with `1001 Going Away` when `Draining` fires | project reference |
 | [`Assimalign.Cohesion.Web.Hosting.Resources`](../assimalign-cohesion-web-hosting-resources/index.md) | defers a control-plane stop until its `202` is written | project reference |
 | [`Assimalign.Cohesion.Web.Caching`](../assimalign-cohesion-web-caching/index.md) | stores the final response only after successful completion | project reference |
@@ -152,8 +153,8 @@ exchange's features and not the server.
 
 **`IWebClientFaultFeature`** is the client-fault seam (#1340, owner decision 28). Its `StatusCode`
 is the `4xx` the transport answers an exchange with because the client's request was at fault while
-the application read its body: `400` for a malformed body or one the client cut short by closing the
-connection, `413` over the body-size cap, `408` below the minimum data rate, `431` for a trailer
+the application read its body: `400` for a malformed body, `413` over the body-size cap,
+`408` below the minimum data rate, `431` for a trailer
 section over its bounds. The read throws as any stream read does; this feature is how the code that
 sees the exception learns it was not an application defect. `Web.Diagnostics` then logs the
 exchange at its configured level with the status sent, `Web.ErrorHandling` skips `OnException` and
@@ -164,11 +165,41 @@ the exchange's response phase, and the default server publishes it from an inter
 transport's fast path, the server installs the feature only on a request that can have a body, as
 the transport reports it (`HttpExchangeInterceptorRequestContext.CanHaveBody`): on HTTP/1.1 one that
 declares a body, on HTTP/2 one whose head did not end the stream, on HTTP/3 one whose request stream
-had not ended with its head (#1378), which over the QUIC driver is nearly every request, since the
-transport sees the stream's end only on a read. It reads `null` until a fault is latched. On HTTP/2
+had not ended with its head or whose positive declared content length still needs validation
+(#1378). The QUIC driver's input-completion property exposes an end already received, so a bodiless
+head followed by FIN skips the client-fault feature even before its input pipe reads zero bytes
+(#1427). It reads `null` until a fault is latched. On HTTP/2
 and HTTP/3 a body that contradicts its content-length, or a malformed trailer section, resets the
 stream rather than drawing a status, and the feature reports `400` for it. The value is read through
 on each access, because the fault is latched while the pipeline runs.
+
+A connection lost before the body completes is cancellation, including an HTTP/1.1 body cut short
+by EOF (#1439, owner decision 45). The read throws `OperationCanceledException` with the exchange's
+`RequestCancelled` token, and the client-fault feature remains `null`. This replaces #1340's
+incomplete-body `400` and changes the transport exception observable in 10.0.0-preview.1 on the
+terms of decision 15; malformed syntax and configured limits still report their status.
+
+**`IWebResponseClientFaultFeature`** reports `ResponseAbortedByClient` (#1432): the transport ended
+the response because the peer abandoned it or failed the minimum response data rate. The value
+reads through to `IHttpExchangeControl.ResponseAbortedByClient` and stays true once latched.
+The default host's existing response-starting object implements both interfaces; the feature
+collection resolves the new interface from that object, so there is no extra per-exchange object,
+feature entry or interceptor. Every exchange receives it, including a bodyless GET. The request
+client-fault interceptor remains conditional because only request bodies need its status report.
+
+`Web.ErrorHandling` reads the response report before classifying an exception by its type. A
+content adapter can wrap a failed write in an unrelated exception and the boundary still cancels
+with the exchange token, skipping `OnException`, `OnError` and the error response. The host's
+last-resort pipeline boundary makes the same classification without ErrorHandling installed.
+Local application cancellation does not set this report. An absent feature means no response
+client fault was reported; the existing cancellation and application-fault paths remain in place.
+
+**Compatibility with 10.0.0-preview.1.** This Web contract is additive and changes no existing Web
+interface. A response abandoned by the peer now avoids fault observation even when its transport
+exception was wrapped; preview.1 relied on an `OperationCanceledException` and the request token.
+HTTP/1.1 already enforced its configured response rate in preview.1; HTTP/2 and HTTP/3 rate
+reclamation arrived later in #1384. The generic default member on the transport control is the
+public-interface addition sanctioned by #1432; no Web-root contract or dependency is added.
 
 **A custom server chooses which contracts it supports.** A custom `IWebApplicationServer` may omit
 any of them, so each reader handles an absent feature (SecurityHeaders and CORS require starting

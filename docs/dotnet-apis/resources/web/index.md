@@ -19,6 +19,7 @@ framework.
 | [`Assimalign.Cohesion.Web.ApplicationModel`](assimalign-cohesion-web-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.Authentication`](assimalign-cohesion-web-authentication/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Authentication.Bearer`](assimalign-cohesion-web-authentication-bearer/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.Authentication.Certificate`](assimalign-cohesion-web-authentication-certificate/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Authentication.Cookie`](assimalign-cohesion-web-authentication-cookie/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Authorization`](assimalign-cohesion-web-authorization/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Caching`](assimalign-cohesion-web-caching/index.md) | Feature library | Public reference and runtime |
@@ -85,8 +86,32 @@ final-head commit), `IWebResponseCompletionFeature` (callbacks after the respons
 transport), `IWebServerDrainFeature` (the lame-duck drain signal) and `IWebClientFaultFeature` (the
 `4xx` the transport answers a request body that broke its framing or a limit with, which
 `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read so a client fault is not handled
-as an application defect, #1340). `Web.Hosting` installs all six; namespace
+as an application defect, #1340), plus `IWebResponseClientFaultFeature` (the response was abandoned
+by the peer or failed its minimum data rate, #1432). `Web.Hosting` installs all seven; namespace
 `Assimalign.Cohesion.Web`, moved from the root (#1379).
+
+Connection loss mid-upload or mid-response cancels the exchange on every protocol. An incomplete
+HTTP/1.1 body ended by EOF no longer reports `400`; malformed framing and configured limits keep
+their client-fault statuses. The response report also lets error handling recognize a transport
+write failure wrapped in another exception.
+
+The root's optional `IWebApplicationLifetime` composition capability lets middleware transfer
+disposable resources to the application context for final teardown after requests drain. Stops
+and restarts keep those resources alive; it is not a per-exchange feature.
+
+## Diagnostics
+
+The [observability guide](../../../web/observability.md#diagnostic-signal-ownership) maps request
+spans, metrics, operator events and access logs to their Web or transport owner, and lists all
+22 Web event sources. `Web.Hosting` reports server diagnostics through `WebServerEventSource`;
+`Http.Connections` reports transport rejections and protocol errors, including requests that
+never reach Web dispatch.
+
+Entry-point `WebApplication.CreateBuilder(args)` applications forward the `Assimalign.Cohesion.Web.`
+prefix and `Assimalign.Cohesion.Http.Connections` into configured logging sinks by default.
+Nested/options builders do not. Application-selected forwarding or
+`EnableEventSourceForwarding = false` takes precedence; no provider or filter rule is added.
+`Sdk.Web` defaults `EventSourceSupport` to `true` when unset, retaining event delivery under NativeAOT.
 
 ## Feature registration
 
@@ -162,6 +187,7 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.Api` |
 | `Assimalign.Cohesion.Web.Authentication` |
 | `Assimalign.Cohesion.Web.Authentication.Bearer` |
+| `Assimalign.Cohesion.Web.Authentication.Certificate` |
 | `Assimalign.Cohesion.Web.Authentication.Cookie` |
 | `Assimalign.Cohesion.Web.Authorization` |
 | `Assimalign.Cohesion.Web.Caching` |
@@ -222,14 +248,19 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 are excluded from the area shared framework. The package table distinguishes assemblies present in
 the source tree from those included by the current framework inventory.
 
+The shared `App` kernel supplies `Assimalign.Cohesion.Logging.EventSource` and the connection
+feature packages `Assimalign.Cohesion.Connections.Tls`, `.StreamAbort` and `.StreamLimits`.
+They are shared kernel members rather than additions to the App.Web-specific inventory above.
+
 ## Related documentation
 
 - **Product** — [Web](../../../web/index.md).
 - **Middleware order** — [the registration order for every Web middleware](../../../web/middleware-order.md).
 - **OpenAPI** — [serving and describing an API with Web.OpenApi](../../../web/openapi.md).
+- **Routing** — [route-table registration, endpoint selection and pipeline ordering](assimalign-cohesion-web-routing/index.md).
 - **WebSockets** — [socket endpoints on every protocol, the origin policy, and the drain close](../../../web/websockets.md).
 - **URL rewriting** — [rewrite and redirect rules ahead of routing](../../../web/rewrite.md).
-- **Observability** — [the server's request spans, HTTP metrics, and request id](../../../web/observability.md).
+- **Observability** — [request spans, HTTP metrics, event sources, default forwarding and request ids](../../../web/observability.md).
 - **SDK** — [`Assimalign.Cohesion.Sdk.Web`](../../sdks/sdk-web/index.md).
 - **Parent** — [Resources](../index.md).
 
@@ -240,4 +271,5 @@ the source tree from those included by the current framework inventory.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Refs/src/Assimalign.Cohesion.Web.Refs.csproj` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.
 - **Architecture source** — `cohesion/docs/resources/Web/DESIGN.md`.
+- **Diagnostic catalog** — `cohesion/docs/EVENT_SOURCES.md`.
 - **Architecture overview** — `cohesion/docs/resources/Web/OVERVIEW.md`.

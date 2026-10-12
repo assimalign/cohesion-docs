@@ -13,6 +13,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Security Headers End To End Tests](security-headers-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.SecurityHeaders` through its co-located test source.
 - **[Security Headers Feature Tests](security-headers-feature-tests.md)** — This example exercises `Assimalign.Cohesion.Web.SecurityHeaders` through its co-located test source.
 - **[Security Headers Route Convention Tests](security-headers-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.SecurityHeaders` through its co-located test source.
+- **[Security Headers Event Source Tests](security-headers-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.SecurityHeaders` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

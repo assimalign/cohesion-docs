@@ -13,6 +13,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Web Socket Middleware Tests](web-socket-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.WebSockets` through its co-located test source.
 - **[Web Socket Options Tests](web-socket-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.WebSockets` through its co-located test source.
 - **[Web Socket Origin Tests](web-socket-origin-tests.md)** — This example exercises `Assimalign.Cohesion.Web.WebSockets` through its co-located test source.
+- **[Web Socket Event Source Tests](web-socket-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.WebSockets` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

@@ -13,6 +13,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Cors Output Cache Tests](cors-output-cache-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Policy Builder Tests](cors-policy-builder-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 - **[Cors Route Convention Tests](cors-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
+- **[Cors Event Source Tests](cors-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Cors` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

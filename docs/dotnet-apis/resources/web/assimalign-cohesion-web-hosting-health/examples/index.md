@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Health Checks Builder Tests](health-checks-builder-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting.Health` through its co-located test source.
+- **[Health Contributor Event Source Tests](health-contributor-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting.Health` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

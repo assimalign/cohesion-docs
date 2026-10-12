@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Http Response Problem Details Extensions Tests](http-response-problem-details-extensions-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ProblemDetails` through its co-located test source.
+- **[Problem Details Writer Tests](problem-details-writer-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ProblemDetails` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

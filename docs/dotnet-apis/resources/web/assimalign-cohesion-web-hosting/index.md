@@ -30,10 +30,15 @@ server drains lame-duck style: it accepts nothing new, tells every peer the conn
 (`Connection: close` or `GOAWAY`), lets the requests in flight finish within the host's shutdown
 budget, and cancels only what outlives it. Each exchange sees the drain begin through
 `IWebServerDrainFeature` (a [`Web.Server`](../assimalign-cohesion-web-server/index.md) contract), so
-a long-lived one, such as a WebSocket, can end itself inside the budget. It logs its own failures —
-a listener that cannot bind, a connection fault, a drain the budget cut short — through
-`builder.Logging`, never with request content. Disposing the application disposes the service
-provider and every factory-created service.
+a long-lived one, such as a WebSocket, can end itself inside the budget. The internal `Assimalign.Cohesion.Web.Hosting` EventSource
+reports lifecycle and failures, with `serverId` identifying each server in the process and no
+request content in its payloads. See [Diagnostics](design.md#diagnostics-147-1398). Disposing the application
+disposes the service provider and every factory-created service.
+
+Pipeline composition can use `IWebApplicationLifetime` on the application context to register
+disposable resources. Final application disposal releases them after the service provider, in
+reverse registration order; a stop followed by restart keeps them alive. The control-plane
+middleware uses this owner for its retained bootstrap verification handle (#1412).
 
 Register middleware with `Use` before starting the application or explicitly building its
 pipeline. A later `Use` throws `InvalidOperationException` because the pipeline is already built.
@@ -69,7 +74,31 @@ The opt-out preserves the gateway's scheme in `Request.Scheme`.
 
 Every final response carries an automatic `Date` unless the application supplied one. To let a
 proxy add its own, set `options.AddDateHeader = false` in `Server.UseServer`, or configure
-`Http:AddDateHeader` through `UseConfiguration`. Interim responses carry no `Date`.
+`Http:AddDateHeader` through `UseConfiguration`. Disabling it suppresses only the automatic
+header; StaticFiles retains `Last-Modified` and date validators. It uses a valid response `Date`,
+or one clock read when that field is absent, invalid, or repeated, without adding or replacing
+`Date`. Interim responses carry no `Date`.
+
+TLS endpoints, including HTTP/3, default to a 10-second handshake timeout. Set
+`Http:Endpoints:<name>:HandshakeTimeout` through `UseConfiguration` to a `TimeSpan` string or
+whole seconds; `"infinite"`, `"-1"`, and non-positive durations disable it. The programmatic
+HTTP/3 TLS overload uses the same setting as the TCP TLS listeners:
+
+```csharp
+builder.Server.UseServer(options => options.UseHttp3(
+    quic => quic.EndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Any, 443),
+    new TlsServerOptions
+    {
+        AuthenticationOptions = { ServerCertificate = certificate },
+        HandshakeTimeout = TimeSpan.FromSeconds(5)
+    }));
+```
+
+`TlsServerOptions` comes from `Assimalign.Cohesion.Connections.Security`. Its timeout overrides
+the QUIC callback's value; any non-positive value disables it. With the raw QUIC overload, set
+`quic.HandshakeTimeout` directly and use `Timeout.InfiniteTimeSpan` to disable it. Raw QUIC zero
+is passed to the runtime and may expire immediately. Non-default TLS and configuration values
+now affect HTTP/3 where 10.0.0-preview.1 ignored them; the default stays 10 seconds.
 
 ## Telemetry
 
@@ -126,6 +155,28 @@ retain policy fields accepted unchanged; their final values or absence are captu
 The default interceptor supplies this feature;
 clearing the interceptors removes it. SecurityHeaders and CORS require it, including on custom servers.
 
+## Default EventSource forwarding
+
+`WebApplication.CreateBuilder(args)` forwards `Assimalign.Cohesion.Web.` sources and
+`Assimalign.Cohesion.Http.Connections` into the application's configured log providers. It adds no
+provider or filter rule. Set `builder.EnableEventSourceForwarding = false` to opt out, or register
+`builder.Logging.AddEventSourceForwarding(options)` before Build to choose your own sources. Any
+application forwarder registration takes precedence. Explicit/options-based builders used for nested
+Web hosts register no automatic forwarder.
+
+Listeners observe the entire process. Concurrent entry-point applications can forward the same event;
+use `serverId` payloads for server identity and opt out in secondary hosts that share sinks. Forwarding
+ends when the application disposes its logger factory, after shutdown diagnostics. HTTP access logs
+remain Information-level ILogger entries from Web.Diagnostics, independent of this forwarding.
+
+Sdk.Web enables EventSource support for NativeAOT when unset. An explicit
+`<EventSourceSupport>false</EventSourceSupport>` disables delivery. See the
+[SDK design](../../../sdks/sdk-web/assimalign-cohesion-sdk-web-tasks/design.md) for size measurements.
+
+Compared with 10.0.0-preview.1, entry-point applications now forward these framework events into
+their existing sinks. The built application owns its logger factory and disposes its providers and
+forwarders at final teardown; a factory obtained from its service provider cannot outlive the app.
+
 ## Project references
 
 | Reference | Kind |
@@ -139,6 +190,7 @@ clearing the interceptors removes it. SecurityHeaders and CORS require it, inclu
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Logging.EventSource` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Configuration` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Configuration.CommandLine` | `CohesionProjectReference` |

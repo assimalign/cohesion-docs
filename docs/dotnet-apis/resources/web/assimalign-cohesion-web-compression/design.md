@@ -73,9 +73,12 @@ A handler that writes through `context.Response.Streaming` commits its own head 
 and bypasses `IHttpResponse.Body` entirely. The compression wrapper on `IHttpResponse.Body` is
 simply never written to, and `SendAsync` short-circuits to the sink — so the streamed response is
 **left untouched**, never corrupted. Compressing the streaming-sink path would require a transport
-response interceptor wired at server-composition time, which crosses the Web-area hosting-isolation
-boundary; it is a deliberate non-goal (see below). "Composes with the streaming write path" here
-means *does not break it*.
+response interceptor wired at server-composition time, inside `Web.Hosting`. This package may not
+reach into `Web.Hosting` (COHRES001). The other direction, `Web.Hosting` referencing this package,
+was forbidden by COHRES002 when this was designed; since the rule's 2026-10-09 relaxation it is
+permitted, but it would make the runtime compose a pipeline feature and ship this package in every
+framework that carries `Web.Hosting`. It stays a deliberate non-goal (see below). "Composes with the
+streaming write path" here means *does not break it*.
 
 ### Composition with the exception boundary (#864/#881)
 
@@ -221,6 +224,39 @@ No reflection anywhere: negotiation is the span-based Http primitive, the media-
 precompiled hash-set lookup, codings are string constants, and compression rides the BCL codecs.
 Nothing in the package or its tests needs dynamic code. `IsAotCompatible=true` holds.
 
+## Diagnostics
+
+The internal `CompressionEventSource` is enabled as `Assimalign.Cohesion.Web.Compression`. It
+reports request decompression failures; successful decompression and response compression raise
+no events.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `DecompressionRejected` | Verbose | `reason` (`UnsupportedCoding` or `MalformedContent`), `codings`, `exceptionType`, `requestId` |
+| 2 | `DecompressionLimitExceeded` | Warning | `limitBytes`, `codings`, `suppressedCount`, `requestId` |
+| 3 | `RejectionAborted` | Warning | `statusCode`, `suppressedCount`, `requestId` |
+
+`codings` contains only the recognized `gzip`, `br` and `deflate` tokens encountered before a
+rejected token, normalized to a fixed-order set. Each token appears at most once, so even a long
+repeated chain produces a bounded payload. Raw `Content-Encoding` values and unsupported tokens
+never reach diagnostics. Malformed content writes only the underlying decoder exception's type,
+never its message or stack trace. A transport framing fault or application exception is not
+reported as malformed coded content. Request ids come from `IWebRequestIdFeature` inside the
+enabled branch; no ambient activity is consulted.
+
+Warnings are throttled independently to one per second per event id, with `suppressedCount`
+reporting the omitted occurrences on the next emitted event. The `decompression-limit-rejections`
+PollingCounter remains exact while warnings are suppressed and while no listener is enabled.
+Its increment occurs in the middleware catch, once per rejected exchange, rather than in the
+stream's throw path: an application can catch a failed read and retry it. It distinguishes this
+package's decompressed-size `413` from a transport body-cap `413` without duplicating request
+metrics. Counters are created lazily when a listener enables the source.
+
+Compared with `10.0.0-preview.1`, this is an additive diagnostics change: the provider now exposes
+rejection events and a counter. On program decision 15's terms, the new entries are a diagnostic
+behavior break for applications forwarding the Web provider prefix into configured sinks.
+It changes no public API, rejection status, or compression behavior.
+
 ## Non-goals
 
 - **No zstd.** The BCL ships no zstd codec; adding one would mean an external dependency, which the
@@ -229,7 +265,8 @@ Nothing in the package or its tests needs dynamic code. `IsAotCompatible=true` h
   Out of scope for a first body-compression pass.
 - **No compression of the streaming-sink path.** A handler that streams via
   `IHttpResponseStreamingFeature` is handed off untouched; compressing it needs a transport
-  interceptor across the hosting-isolation boundary.
+  interceptor that `Web.Hosting` wires at server-composition time (see "Composition with streamed
+  responses").
 - **No raw-deflate (RFC 1951) request bodies.** `deflate` is the RFC 9110 zlib format; a bare-deflate
   sender gets a `400`.
 - **No HEAD length mirroring.** A bodyless HEAD is left alone; precisely mirroring the coded

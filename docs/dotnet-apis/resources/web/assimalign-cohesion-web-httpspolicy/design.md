@@ -102,6 +102,21 @@ returns, so it honors the forwarded identity wherever `UseForwardedHeaders` sits
 `HttpsRedirectionOptions.HttpsPort` is the port the *client* should use. Behind a TLS-terminating
 proxy that is the proxy's public HTTPS port, not a port the application itself binds.
 
+#### Recognizing a redirect loop
+
+A sustained `307` or `308` rate on every route, with HTTPS clients repeatedly
+redirected and never reaching the page, is the proxy-loop symptom. Check the
+status breakdown in `http.server.request.duration` and the HTTP access logs.
+**No event reports this loop when `UseForwardedHeaders` is missing**: HttpsPolicy
+has no event source, and absent middleware cannot emit a forwarding diagnostic.
+When forwarded-headers middleware is present and receives forwarding headers,
+its `ForwardingStopped(UntrustedPeer)` signal identifies a proxy whose assertions
+were refused because the peer is not trusted. It diagnoses the trust failure,
+not the loop itself; absence of that signal does not rule out a loop. Check that
+`UseForwardedHeaders` runs before `UseHttpsRedirection`, that the proxy sends the
+original scheme, and that its address is in the configured trusted proxies or
+networks. Trust only the actual proxy peers.
+
 ## Redirection
 
 ### `Location` composition
@@ -271,24 +286,17 @@ forwarded-headers middleware resolves the client-facing scheme first, so redirec
 and passes the request on, and HSTS stamps the policy on the way back out.
 
 ```mermaid
-sequenceDiagram
-    participant Client
-    participant Proxy as TLS-terminating proxy
-    participant Fwd as UseForwardedHeaders
-    participant Hsts as UseHsts
-    participant Redirect as UseHttpsRedirection
-    participant App as Rest of the pipeline
-    Client->>Proxy: GET https://public.example/page
-    Proxy->>Fwd: GET /page over plaintext, X-Forwarded-Proto https
-    Note over Fwd: trusted peer, so EffectiveScheme is https
-    Fwd->>Hsts: next
-    Hsts->>Redirect: next
-    Redirect->>App: already secure, no redirect
-    App-->>Redirect: 200
-    Redirect-->>Hsts: 200
-    Hsts-->>Fwd: 200 plus Strict-Transport-Security
-    Fwd-->>Proxy: 200 plus Strict-Transport-Security
-    Proxy-->>Client: 200 over TLS
+flowchart TD
+    Client["Client"] -->|"GET https://public.example/page"| Proxy["TLS-terminating proxy"]
+    Proxy -->|"GET /page over plaintext; X-Forwarded-Proto: https"| Fwd["UseForwardedHeaders: trusted peer, EffectiveScheme is https"]
+    Fwd -->|"next"| Hsts["UseHsts"]
+    Hsts -->|"next"| Redirect["UseHttpsRedirection"]
+    Redirect -->|"Already secure; no redirect"| App["Rest of the pipeline"]
+    App -->|"200"| ReturnRedirect["Return through UseHttpsRedirection"]
+    ReturnRedirect -->|"200"| ReturnHsts["UseHsts adds Strict-Transport-Security"]
+    ReturnHsts -->|"200 plus Strict-Transport-Security"| ReturnFwd["Return through UseForwardedHeaders"]
+    ReturnFwd -->|"200 plus Strict-Transport-Security"| ReturnProxy["Return through proxy"]
+    ReturnProxy -->|"200 over TLS"| ReturnClient["Response reaches client"]
 ```
 
 - **`UseForwardedHeaders` before `UseHttpsRedirection`** whenever TLS terminates

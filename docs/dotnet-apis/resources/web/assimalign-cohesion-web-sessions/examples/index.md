@@ -11,6 +11,8 @@ examples require their original test project’s dependencies and supporting obj
 - **[Session End To End Tests](session-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Sessions` through its co-located test source.
 - **[Session Pipeline Extensions Tests](session-pipeline-extensions-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Sessions` through its co-located test source.
 - **[Session Cookie Name Tests](session-cookie-name-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Sessions` through its co-located test source.
+- **[Stored Session Compatibility Tests](stored-session-compatibility-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Sessions` through its co-located test source.
+- **[Web Session Event Source Tests](web-session-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Sessions` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

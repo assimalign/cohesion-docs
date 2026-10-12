@@ -13,6 +13,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Authorization Metadata Tests](authorization-metadata-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 - **[Authorization Options Tests](authorization-options-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 - **[Authorization Policy Tests](authorization-policy-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
+- **[Authorization Event Source Tests](authorization-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authorization` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

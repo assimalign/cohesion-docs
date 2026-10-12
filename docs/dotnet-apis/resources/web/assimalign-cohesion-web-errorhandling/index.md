@@ -30,11 +30,15 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
   an unstarted response (aborting the exchange when it has already started), and dispatches through
   the `OnError` chain. A developer-detail toggle enriches the terminal payload; a diagnostics
   observer (`OnException`) and its suppression predicate provide the fault-observation seam. A
-  request body that broke its framing or a limit while it was read, or that the client cut short by
-  closing the connection, is the client's fault, which the default Web server reports through
+  request body that broke its framing or a limit while it was read is the client's fault, which
+  the default Web server reports through
   `IWebClientFaultFeature` on every version: the boundary skips `OnException` and the `OnError` chain
   for it and stages the transport's `400`/`413`/`408`/`431` instead of a `500` (#1340, #1378). On
   HTTP/2 and HTTP/3 a malformed body resets the stream, and the `400` is what the server records.
+  A connection lost mid-body cancels the exchange without a client-fault status (#1439).
+  A response abandoned by the client or reclaimed for a slow reader is reported through
+  `IWebResponseClientFaultFeature`; it cancels without `OnException`, `OnError` or a replacement
+  response, even when another writer wraps the transport failure (#1432).
 - **Status-code pages** — `UseStatusCodePages()` upgrades a bodyless `4xx`/`5xx` terminal response
   (such as the pipeline's bodyless 404) into problem+json, or a custom responder body.
 
@@ -42,7 +46,7 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
 
 See the [source-backed usage examples](examples/index.md).
 
-Install the boundary (and, optionally, status-code pages) on the pipeline. `Register`
+Install the boundary (and, optionally, status-code pages) on the pipeline. Register
 `UseErrorHandling()` first so it wraps everything downstream:
 
 See the [source-backed usage examples](examples/index.md).
@@ -51,6 +55,19 @@ The boundary resolves the hook from the exchange and delegates to it — the man
 inline `try/catch` around `next(context)`) is:
 
 See the [source-backed usage examples](examples/index.md).
+
+## Observing faults
+
+`UseErrorHandling()` reports application faults through the internal event source named
+`Assimalign.Cohesion.Web.ErrorHandling`. Enable it with `dotnet-trace` or forward it through
+`Assimalign.Cohesion.Logging.EventSource`. It writes exception types and messages, with request ids
+from the server feature; it writes no request paths, headers or bodies. `SuppressDiagnosticsCallback`
+routes expected faults from Error to Verbose and still suppresses `OnException`.
+
+Client-caused and cancelled exchanges are excluded from application-fault events and totals.
+Peer-abandoned responses are Verbose only. A boundary abort after the response starts increments
+only `aborted-responses`. If `OnException` logs and forwarding is also enabled, ordinary faults
+are logged twice. See [Diagnostics](design.md#diagnostics) for events, counters and compatibility.
 
 ## Scope boundaries
 
@@ -63,7 +80,7 @@ See the [source-backed usage examples](examples/index.md).
   `UseStatusCodePages()` here is what upgrades it to problem+json.
 - **The payload** is `Web.ProblemDetails`' scope; this package renders it.
 
-Design rationale lives in [DESIGN.md](design.md) .
+Design rationale lives in [DESIGN.md](design.md).
 
 ## Project references
 

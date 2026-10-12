@@ -329,7 +329,7 @@ how its pipeline ended:
   run only after the application's own response was sent — never after a replacement
   `500` or a reset. Each callback runs in registration order even if a previous one throws
   (#1410). Completion collects all failures in an `AggregateException`; the server reports each
-  callback's exception separately through its existing logger, without changing the sent response.
+  callback's exception separately through its event source, without changing the sent response.
   This is a behavioral break from 10.0.0-preview.1, which skipped the remaining callbacks; in
   particular, an earlier failure can no longer suppress the control plane's deferred stop.
 - **The connection-level catch remains** for what is left: a receive-side failure the
@@ -351,12 +351,12 @@ rate with `408` (#1085), on their own stream, and they too set the exchange's st
 answered with, so the server's telemetry reports that status rather than the `500` it staged.
 
 **A client fault is not an application fault (#1340).** The read above throws an
-`InvalidDataException` or an `IOException`, and so does a read the client cuts short by closing the
-connection before the body is complete (an `EndOfStreamException`, which the HTTP/1.1 transport also
-answers `400`, RFC 9112 §8). Before #1340 everything in the pipeline that observed it treated it as
-an application defect: the HTTP logging middleware logged it at `Error`, the exception boundary ran
-`OnException` and rendered a `500` problem, and the request decompression middleware relabeled a
-framing failure under its decoders as malformed content. Any client could trigger that at will. The
+`InvalidDataException` or an `IOException` for malformed framing or a body-limit violation.
+Connection loss while the handler reads the body cancels the exchange instead (#1439; see below).
+Before #1340 everything in the pipeline that
+observed it treated it as an application defect: the HTTP logging middleware logged it at
+`Error`, the exception boundary ran `OnException` and rendered a `500` problem, and the request
+decompression middleware relabeled a framing failure under its decoders as malformed content. Any client could trigger that at will. The
 server now publishes the transport's report, `IHttpExchangeControl.ClientFaultStatusCode`, as
 `IWebClientFaultFeature` ([`Web.Server`](../assimalign-cohesion-web-server/index.md)), which those
 consumers read; see [Default interceptors](#default-interceptors) for how it is installed. The
@@ -399,9 +399,40 @@ log, `OnException`, or staged `500`; an unstarted response has no status on the 
 transport's former `IOException` made this an application fault. That streaming-body behavior was
 introduced after 10.0.0-preview.1, which buffered the HTTP/3 body before dispatch.
 
-Catching bare `Exception` at each of these points is a deliberate, documented departure from the
-"catch specific exceptions" rule. This is a **fault-isolation boundary around arbitrary user code**
-— middleware, completion callbacks, application bodies and features — the same pattern the
+**HTTP/1.1 and HTTP/2 connection loss (#1439, owner decision 45).** Both follow the same
+exchange-cancellation contract. A pending body read throws `OperationCanceledException` carrying
+the exchange's `RequestCancelled` token, already fired, even if the handler passed no read token.
+HTTP/1.1 includes incomplete EOF after dispatch as well as a reset; HTTP/2 includes connection loss
+and a peer's `RST_STREAM`. Neither latches a client-fault status. `UseErrorHandling()` lets the
+cancellation reach the host, which reports `request_canceled` without an Error log, `OnException`,
+or a staged `500`; no response status is reported before a response starts. This is a behavioral
+break from 10.0.0-preview.1: HTTP/1.1 could surface an I/O failure and run the exception hook, and
+HTTP/2 reported the stream token instead of the exchange token. It also changes the later
+HTTP/1.1 `400` handling for an incomplete body ended by EOF into cancellation. Invalid framing and
+body-limit violations retain their client-fault statuses.
+
+**Response-side client faults (#1432).** The host publishes the transport's
+`IHttpExchangeControl.ResponseAbortedByClient` latch as `IWebResponseClientFaultFeature` in
+`Web.Server`. The existing `ResponseStartingFeature` implements the report and reads the control
+on every access, adding no object, collection entry or interceptor. Its unconditional response
+interceptor supplies the report even on a bodyless GET; the conditional request client-fault
+interceptor continues to report only request-body faults. A slow reader reclaimed by the response
+rate, or a peer that resets or abandons an ongoing response, latches the report before its write
+failure reaches the pipeline. Local cancellation and application failures leave it false.
+
+`UseErrorHandling()` reads this report before inspecting cancellation exceptions, so an adapter
+that wraps a transport write failure still ends in cancellation with the exchange token, no
+`OnException` or `OnError`, no replacement response and no Error log. The host's last-resort
+pipeline boundary also reads the report when the application uses no exception middleware.
+Telemetry records `request_canceled` with the started response's status, and completion callbacks
+do not run. Compared with 10.0.0-preview.1, a peer-abandoned response whose exception is wrapped
+no longer runs the application's fault observer. HTTP/1.1 already enforced its configured response
+rate in preview.1; HTTP/2 and HTTP/3 response-rate reclamation arrived later in #1384. The additive
+Web.Server feature leaves existing Web interfaces unchanged.
+
+Catching bare `Exception` at each of these points is a deliberate, documented
+departure from the "catch specific exceptions" rule. This is a **fault-isolation
+boundary around arbitrary user code** — middleware, completion callbacks, application bodies and features — the same pattern the
 transport's accept loop uses (`HttpConnectionListener.RunStreamAcceptLoopAsync`). The alternative —
 letting an unknown exception propagate out of a background task — is precisely the process-crash
 hazard this component exists to remove. Each catch is annotated in source so future readers do not
@@ -728,29 +759,30 @@ Rejected:
 - **A process-wide environment variable,** as `OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS` is. Which
   parameters are safe is the application's knowledge, so the application declares them in code.
 
-**Outcomes and `error.type`.** The server reports how it finalized the exchange; the exception
-itself stays with the error boundary, which does not keep it, and with the hosting logs (#147).
+**Outcomes and `error.type`.** The server reports how it finalized the exchange. Application faults
+are reported by the error boundary; operator events carry exception type/message under their
+package's payload policy, without an exception object or stack trace.
 
 | How the exchange ended | `http.response.status_code` | `error.type` |
 | --- | --- | --- |
 | A response was sent with a status below 500 | the status | none |
-| The request body broke its framing or a limit while it was read, or the client cut it short, and the HTTP/1.1 transport answered it in place of the staged response (#1333, #1339, #1340) | the transport's `400`, `413`, `408` or `431`, which it also sets on the exchange | none |
+| The request body broke its framing or a limit while it was read, and the HTTP/1.1 transport answered it in place of the staged response (#1333, #1339, #1340) | the transport's `400`, `413`, `408` or `431`, which it also sets on the exchange | none |
 | The request body fell below the minimum data rate while it was read, and the HTTP/2 or HTTP/3 transport answered its stream with `408` before the server's replacement `500` (#1085) | `408`, which the transport also sets on the exchange | none |
 | The request body contradicted its content-length or carried a malformed trailer section, and the HTTP/2 or HTTP/3 transport reset its stream before a response started (#1378) | `400`, the client fault the transport reports and sets on the exchange; nothing reached the wire | none |
 | A response was sent with a 5xx status, including the server's replacement `500` after a fault | the status | the status, for example `500` |
 | The exchange was cancelled (a peer reset or closed connection, the server stopping, `IHttpContext.Cancel`) and reset | only when a streamed response had started | `request_canceled` |
+| The peer abandoned the response or failed its minimum data rate, reported by `IWebResponseClientFaultFeature`, including a wrapped write failure (#1432) | only when a streamed response had started | `request_canceled` |
 | The exchange was cancelled by the HTTP/2 or HTTP/3 transport's answer to, or reset for, a client fault it reported (`IWebClientFaultFeature`, #1378), before the application's response started | the transport's `400`, `408` or `413`, which it sets on the exchange when the server's reset sends into the stream | none |
 | The exchange was cancelled by that answer or reset after a streamed response had started (#1378) | the started response's status | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, after the transport reported a client fault (`IWebClientFaultFeature`), and the exchange was reset (#1340) | only when the response had started | `client_fault` |
 | The pipeline threw after its response started, or its response could not be replaced, and the exchange was reset | only when the response had started | `unhandled_exception` |
-| The response could not be put on the wire (a body or lifecycle hook threw, the write was cut off) | none: the transport marks the head committed before it writes it, so whether it went out is unknown | `response_send_failed` |
+| The response could not be put on the wire because of a non-client failure, such as a body or lifecycle hook throwing | none: the transport marks the head committed before it writes it, so whether it went out is unknown | `response_send_failed` |
 
 **A client fault after the response started (#1340).** An endpoint that starts a streamed response
-and then reads a malformed, over-limit or cut-short body throws after its response started, so the
+and then reads a malformed or over-limit body throws after its response started, so the
 transport's status cannot replace it and the server resets the exchange. Before, that was
 `unhandled_exception`, while the HTTP access log recorded the same exchange as a client fault at its
-configured level; any client could raise it on such an endpoint. `WebExchangeTelemetry.Stop` now
-reads `IWebClientFaultFeature` for a faulted exchange, and since #1378 for a cancelled one, and
+configured level; any client could raise it on such an endpoint. `WebExchangeTelemetry.Stop` now reads `IWebClientFaultFeature` for a faulted exchange, and since #1378 for a cancelled one, and
 reports `client_fault`, so `unhandled_exception` means the application's own defect again and
 `request_canceled` a cancellation that was not the transport's answer to a client fault. A cancelled
 exchange whose response had not started is the exception: the transport's answer is then the whole
@@ -828,9 +860,9 @@ response. This is the isolation boundary the server keeps around application cod
 - `server.address` and `server.port` on the metrics. They are opt-in there because they come from
   request headers, which makes them a cardinality attack vector.
 - Requests the transport rejects before dispatch (400, 408, 413, 414, 421, 431 and 501 answered by
-  `Http.Connections`; the 421 and 501 are HTTP/1.1-only). They never reach the server, so they have
-  no span or measurement, and the transport does not report them yet either (Http.Connections
-  DESIGN, "Diagnostics").
+  `Http.Connections`). They never reach the server, so they have no Web span or request-duration
+  measurement. The transport reports them through its own EventSource and Meter; see the
+  [Http.Connections diagnostics design](../../../libraries/http/assimalign-cohesion-http-connections/design.md#diagnostics).
 - W3C `baggage`.
 
 **AOT.** `ActivitySource`, `Meter`, `TagList`, `ActivityContext.TryParse`, `FrozenSet`,
@@ -841,63 +873,80 @@ NativeAOT application; tools that read meters out of process through EventPipe (
 do, as they do for event sources.
 
 
-## Diagnostics (#147)
+## Diagnostics (#147, #1398)
 
-The default server writes its own diagnostics through the application's logging. The default
-server factory creates its logger, once, from the `ILoggerFactory` that
-`WebApplicationBuilder.Build` registers from `builder.Logging`, under the category
-`Assimalign.Cohesion.Web.Hosting.WebApplicationServer`, and hands it to the server through
-`WebApplicationServerOptions.Logger`. Composition stays builder-time; nothing resolves per request.
-The events, their levels, and their attribute names live in `Internal/WebApplicationServerLog`, and
-a logger that throws never changes what the server does. There is no `Microsoft.Extensions.*`
-dependency and no `EventSource`: these are discrete events an operator acts on, while counters and
-traces are the telemetry work (#1064).
+The internal sealed `WebServerEventSource`, named `Assimalign.Cohesion.Web.Hosting`,
+reports server lifecycle and failures. It replaces `WebApplicationServerLog` and the internal
+`WebApplicationServerOptions.Logger`; the server has no second logging path. The same-named
+ActivitySource owns request spans and the Meter owns `http.server.request.duration` and
+`http.server.active_requests`. EventSource owns operator events and attribution counters,
+with no request counts, per-request Start/Stop, pipeline exception, or transport rejection events.
 
-| Event | Level | When | Content |
+Each server receives a process-unique monotonic `serverId`. Connection events also carry the
+transport connection id. Request-related failures read `IWebRequestIdFeature`, never ambient
+`Activity.Current`, and use a route template rather than the raw path. All formatting and
+feature reads for payloads happen only while the corresponding event level is enabled.
+
+| Id | Event | Level | Payload |
 | --- | --- | --- | --- |
-| Bind failure | `Critical` | `StartAsync` cannot bind the listener; logged before `HostStartupException` propagates | the transport's exception; `http.server.listener.protocols` |
-| Accept-loop fault | `Critical` | accepting faults; the server keeps running but accepts nothing more. Only the drain's own cancellation ends the loop quietly; a cancellation the server did not request is the listener's fault and is logged here (#1310) | the exception |
-| Connection fault, a defect | `Error` | the connection-level isolation boundary caught a failure not attributable to the peer: an unexpected receive-side failure, an HTTP/1.1 response that could not be framed, a teardown failure | the exception; `connection.id`, `network.local.address`/`.port`, `network.peer.address`/`.port`, `network.protocol.version` |
-| Connection fault, the peer or the network | `Debug` | the same boundary, for an `IOException`, `SocketException`, or `ConnectionException`, or any fault after the server aborted its drain | as above |
-| Completion callback failure | `Error` | after every callback has been attempted; one entry per failing callback (#1410) | the callback's exception |
-| Drain cut short | `Warning` | a stop's budget ran out with work in flight; logged before the abort | `http.server.drain.connections`, `.exchanges`, `.duration` |
+| 1 | ServerBound | Informational | serverId:long, protocols, endPoints, maxConcurrentConnections:int |
+| 2 | BindFailed | Critical | serverId:long, protocols, exceptionType, exceptionMessage |
+| 3 | AcceptLoopFaulted | Error | serverId:long, exceptionType, exceptionMessage |
+| 4 | ConnectionFaulted | Error | serverId:long, connectionId, localEndPoint, remoteEndPoint, protocolVersion, exceptionType, exceptionMessage |
+| 5 | ConnectionEndedByPeer | Verbose | serverId:long, connectionId, localEndPoint, remoteEndPoint, protocolVersion, exceptionType, exceptionMessage |
+| 6 | ServerDraining | Informational | serverId:long, connections:int, exchanges:int |
+| 7 | DrainTimedOut | Warning | serverId:long, connections:int, exchanges:int, elapsedMilliseconds:double |
+| 8 | AbortGraceExpired | Warning | serverId:long, exchanges:int, gracePeriodMilliseconds:double |
+| 9 | ServerStopped | Informational | serverId:long, elapsedMilliseconds:double, aborted:bool |
+| 10 | ResponseHeadRefused | Error | serverId:long, requestId, protocolVersion, routeTemplate, exceptionMessage, suppressedCount:int |
+| 11 | CompletionCallbackFailed | Error | serverId:long, requestId, routeTemplate, exceptionType, exceptionMessage |
+| 12 | ExchangeIsolationEscaped | Error | exceptionType, exceptionMessage |
+| 13 | ConnectionCapReached | Verbose | serverId:long, maxConcurrentConnections:int |
+| 14 | ControlPlaneDisabled | Warning | resourceName, observedEndpoints |
+| 15 | TelemetryListenerFaulted | Warning | exceptionType, exceptionMessage, suppressedCount:int |
 
-Why these levels:
+`endPoints` comma-joins the actual bound addresses of the TCP, TLS and QUIC listeners composed
+by Web.Hosting, including configuration-bound and development-default endpoints. Internal
+`WebServerEndPoints` associates endpoint readers with each listener-options instance during
+composition. The default server snapshots those readers after the transport materializes its
+listeners, then reads and formats them only inside `ServerBound`'s enabled branch after binding.
+Port-zero listeners therefore report the ports the operating system assigned. Two servers in one
+process retain independent reader snapshots, letting operators map each `serverId` to its addresses.
 
-- **`Critical` for a bind or accept-loop failure.** After either, the server cannot serve: the host
-  fails to start (exit 70, or 64/69 for a classified cause), or the server runs on without
-  accepting anything. Kestrel logs its own startup failure at the same level.
-- **`Error` for a connection fault the server cannot blame on the peer.** It is a defect — in the
-  transport, an interceptor, or the application's response — that cost a connection. The server
-  isolated it and keeps serving, so it is not `Critical`.
-- **`Debug` for a connection the peer or the network ended.** That is routine on any reachable
-  endpoint and not actionable, and it is frequent enough to flood a log at a higher level. The
-  classification is by exception type, so an application stream that throws an `IOException` is
-  reported at `Debug` too. A fault after the drain was aborted is the server's own doing, and the
-  drain warning already reports it.
-- **`Warning` for a drain cut short.** The requests in flight got no response, which an operator
-  should see, but it is the outcome of a budget, not a defect; the host reports the same stop as
-  `DrainAborted` (exit 130/143 for an orchestrated resource).
+The aggregate `IHttpConnectionListener` exposes no endpoints. Raw instance/factory registrations
+made directly through Http.Connections remain outside this host-owned capture, so a composition
+that mixes registration styles reports only its Web.Hosting-created listeners. No address is
+invented for an opaque custom listener, and no public transport member, reflection, or cross-library
+internal grant is added. Connection-fault endpoints still come from the opened context.
 
-What is never logged is request or response content. A connection is identified by its id, its
-endpoints, and the version of the exchanges it carried (absent when it faulted before its first
-exchange); no header value, body, path, or query reaches an entry. An exception's message is the
-faulting component's own.
+The three lazily created PollingCounters are `connection-faults`, `connection-cap-waits`, and
+`refused-response-heads`. Their backing values stay exact with no listener. A local per-connection
+flag counts faults once even if serving and teardown both fail. An IOException, SocketException,
+ConnectionException, or failure after an aborted drain is `ConnectionEndedByPeer` at Verbose,
+and never increments `connection-faults`; response-side client-fault cancellations likewise stay
+out of it. The connection cap counts every failed immediate semaphore probe, before waiting.
 
-The peer's address is logged even though server telemetry leaves it out of spans and metrics (see
-"Deliberately not emitted" under [Server telemetry](#server-telemetry-1064)). The two go to
-different sinks under different policies:
-- **Logs.** A connection-fault entry is an operator's lead when investigating a failing or abusive
-  peer, and logs stay under the application's own retention and access control.
-- **Spans and metrics.** Their attributes flow to telemetry backends. There a client address is
-  personal data, a cardinality risk on metrics, and ambiguous until forwarded headers are trusted.
+`ResponseHeadRefused` and `TelemetryListenerFaulted` each use an independent process-wide
+one-second throttle. Their next delivered event carries `suppressedCount`; refused heads are
+counted even when suppressed or disabled. Telemetry reporting is never latched once per process.
+Other server events are unthrottled: lifecycle events fire once per lifecycle transition, and
+application callback/fault events preserve each failure. Accept-loop failures are Error because
+existing connections still drain; bind failures remain Critical.
 
-The logged address is the transport's peer, which behind a proxy is the proxy.
+Payloads contain no request path, query, headers, body, cookie, token or user identity. Application
+exception type and Message remain visible, including completion callbacks. No stack trace is
+written. ResponseHeadRefused uses a fixed refusal description in exceptionMessage because the
+transport exception can echo an unbounded response header name; header identifiers do not belong
+at Error. A connection's transport peer address is personal data in the diagnostic sink; behind
+a proxy it is the proxy. Pipeline failures belong to
+[ErrorHandling](../assimalign-cohesion-web-errorhandling/design.md#diagnostics), while
+pre-dispatch rejections and protocol/client-fault classifications belong to Http.Connections.
 
-Not logged here: an exception the application's pipeline throws. The server isolates it to its
-exchange (a `500`, or a reset), and reporting it belongs to the application's error handling
-(`Web.ErrorHandling`'s `OnException` hook) and to request telemetry, so the server does not add a
-second report of the same failure.
+**Compatibility:** preview.1 had no server EventSource. Compared with the interim #147 logger,
+the category changes from `Assimalign.Cohesion.Web.Hosting.WebApplicationServer` to
+`Assimalign.Cohesion.Web.Hosting`, dotted attributes become the camelCase payload names above,
+and exception stacks and per-host logger attribution are lost. Decision 49 accepts this preview
+behavior change together with #1399's entry-point default forwarding in the same integration.
 
 ## AOT posture
 
@@ -1238,18 +1287,20 @@ HTTP/3, DATA after the trailer section is reported as `400` too, and a client's 
 mid-body reaches the pipeline as the exchange's cancellation, with no fault reported, and ends in a
 reset rather than a `500`. `WebServerTelemetryTests` pins that the same faults end the span with the
 transport's status (the `400` a reset records, on HTTP/2 and HTTP/3), no `error.type` and an unset
-status, that an HTTP/2 exchange the fault's reset or the transport's `413` cancels before its
-response started reports that `400` or `413` the same way, and that an HTTP/3 request the client
-resets mid-body reports `request_canceled`.
+status, that an HTTP/2 exchange the fault's reset or the transport's `413` cancels before its response started reports that `400` or `413` the same way, and that an HTTP/3 request
+the client resets mid-body reports `request_canceled`.
 
-The diagnostics (#147) are pinned by `WebApplicationServerDiagnosticsTests`, which records the
-entries through a real `LoggerFactoryBuilder`: a bind failure (`Critical`, with its cause), an
-accept-loop fault (`Critical`), a connection fault the server cannot blame on the peer (`Error`,
-whose attributes are exactly the connection id, both endpoints, and the protocol version), one the
-peer caused (`Debug`), and a drain cut short (`Warning`, two connections and three exchanges in
-flight across HTTP/1.1 and HTTP/2). End to end, a real exchange carrying a secret header and body
-whose response cannot be framed is logged without either, and an application built through
-`WebApplicationBuilder` reports a real port conflict through its own `builder.Logging`.
+`RequestBodyCancellationTests` covers a real HTTP/1.1 TCP reset and HTTP/2 connection EOF and
+`RST_STREAM` while a tokenless body read is pending under `UseErrorHandling()`: the exact exchange
+token is already cancelled when the read throws, the client-fault status remains null, the span
+reports `request_canceled` without a response status, and neither an Error log nor `OnException`
+runs. `WebApplicationServerClientFaultTests` also covers incomplete HTTP/1.1 EOF for fixed-length
+and chunked bodies: both cancel without a response or client-fault status.
+
+The diagnostics are pinned by `WebApplicationServerDiagnosticsTests` under the shared
+EventSource recorder, including real TCP bind and response failures. `WebServerEventSourceTests`
+checks the name, strict manifest, server lifecycle and counter publication. Serial collections,
+server/connection identifiers and counter deltas isolate process-wide observation.
 
 ## Non-goals
 
@@ -1312,8 +1363,23 @@ management previously worked. See the Web.Hosting.Resources DESIGN for the peer-
 `Build` validates managed identity and the public P-256 trust key only when an ambient http/https
 listener is bound. A managed control plane without a listener still builds. The pipeline factory
 captures the observed http/https port lazily once; if it is unknown, the wrapper forwards to user
-dispatch without calling the terminal. The shared terminal itself treats null as no port gate, which
-preserves filler behavior. A known port gates all paths, including bare probes.
+dispatch without calling the terminal. The shared terminal itself treats null as no port gate,
+which preserves filler behavior. A known port gates all paths, including bare probes.
+
+The enabled pipeline holds an explicit control-plane verifier lifetime lease (#1412), retaining
+the ECDSA verification handle until the service provider disposes the pipeline after host shutdown.
+An unknown listener port acquires no lease. The `UseResourceControlPlane` composition path transfers
+its lease through the root's optional `IWebApplicationLifetime` seam, implemented by
+`WebApplicationContext`. That context releases registered objects once by reference identity, in
+reverse registration order, after service-provider disposal, including build rollback. It attempts
+every release even when the provider or another resource throws and then aggregates failures.
+Registration after teardown begins fails. A normal stop leaves these resources alive for restart;
+only final application disposal releases them. Final teardown attempts provider, middleware and
+endpoint-certificate disposal even when host shutdown fails. It preserves a lone failure's identity
+and stack and aggregates multiple failures. The host becomes terminal even when disposal reports a
+failure, so a later start cannot use disposed services or middleware. **Breaking behavior change from 10.0.0-preview.1
+(#1412, decision 15's preview terms):** a service stop failure no longer skips these final releases.
+Existing public interfaces and borrowed instance ownership are unchanged.
 
 This module consumes the plain `Hosting` lifecycle plus the opt-in `Hosting.Resources`
 runtime/control-plane and `Hosting.Health` contribution contracts. It never references
@@ -1371,6 +1437,7 @@ adds no reflection binder or `Microsoft.Extensions.*` dependency.
     "Public":   { "Protocol": "Https", "Host": "0.0.0.0", "Port": 443,
                   "Certificate": { "Path": "certs/site.pem", "KeyPath": "certs/site.key" } },
     "Quic":     { "Protocol": "Http3", "Host": "0.0.0.0", "Port": 443,
+                  "HandshakeTimeout": "00:00:10",
                   "Certificate": { "Path": "certs/site.pfx", "Password": "…" } },
     "Internal": { "Protocol": "Http1", "Host": "localhost", "Port": 8080 }
   },
@@ -1453,9 +1520,13 @@ It defaults to `true`: HTTP/1.1, HTTP/2, and HTTP/3 add IMF-fixdate `Date` to ev
 including `5xx`, while interim responses carry none. An application-provided date is preserved.
 The cached default is visible before dispatch so static-file validators use the response's own
 origination time. A deployment whose proxy adds dates can set `Http:AddDateHeader` to `false`;
-that suppresses only the automatic value. Both binding paths parse it as a boolean and reject an
-invalid value. This changes 10.0.0-preview.1's response header set, which contained no automatic
-`Date`. See `Http.Connections` DESIGN for the process-wide, once-per-second formatting cache.
+that suppresses only the automatic value. StaticFiles keeps `Last-Modified` and date validators
+working (#1449). A valid response `Date` remains its reference; when absent, invalid, or repeated,
+one `TimeProvider.System.GetUtcNow()` read supplies its clamp and date validation, including the
+`If-Range` strength check, without adding or replacing `Date`. Both binding paths parse the option
+as a boolean and reject an invalid value. Automatic dates change 10.0.0-preview.1's response
+header set, which contained no automatic `Date`. See `Http.Connections` DESIGN for the
+process-wide, once-per-second formatting cache.
 
 ### Why explicit, hand-rolled binding
 
@@ -1478,6 +1549,13 @@ The binding is deliberately **not** reflection-based:
   non-negative integer.
 - **Timeouts.** A `TimeSpan` string (`"00:00:30"`), a bare whole number of
   seconds, or `"infinite"` / `"-1"` for `Timeout.InfiniteTimeSpan`.
+- **Endpoint handshake timeout.** `Http:Endpoints:<name>:HandshakeTimeout` applies to
+  `Https`, `Http1s`, `Http2s`, and `Http3` and defaults to 10 seconds (#1311). It accepts a
+  `TimeSpan` string or whole seconds (a bare `"3"` means three seconds), with `"infinite"`,
+  `"-1"`, zero, or another non-positive duration disabling it. Malformed or unrepresentable
+  values fail with an error naming the endpoint and key. The setting flows through
+  `TlsServerOptions.HandshakeTimeout`; HTTP/3 maps a disabled value to QUIC's explicit
+  `Timeout.InfiniteTimeSpan`; raw QUIC zero is passed to the runtime and may expire immediately.
 - **Endpoint host.** Literal IP addresses, `localhost` (→ loopback), and the
   wildcards `*` / `+` / `0.0.0.0` (→ any) / `[::]` / `::` (→ IPv6 any). DNS is
   **not** resolved at bind time — a hostname that is not one of those is an
@@ -1537,7 +1615,7 @@ is an unknown mode.
 ### Scope boundary
 
 `UseConfiguration` binds HTTP, HTTPS, and HTTP/3 endpoints, their protocol-specific server
-limits, their client-certificate mode, the connection cap, `AllowAlternateSchemes`, and `AddDateHeader`.
+limits, their handshake timeout and client-certificate mode, the connection cap, `AllowAlternateSchemes`, and `AddDateHeader`.
 Not bound: the HTTP/3
 `MaxRequestHeadersFrameSize` and QPACK options, QUIC stream limits, and a client-certificate
 validation callback. The minimum request-body and response data rates are bound
@@ -1654,6 +1732,8 @@ There are five, in this order:
    interceptors above, it joins every response, including plain GETs. This adds a response sink and
    control to each exchange; the earlier fast-path measurements below describe the first four defaults
    without this fifth interceptor.
+   The same object also publishes `IWebResponseClientFaultFeature` (#1432), reading the transport's
+   response-side client-fault latch without another allocation or conditional request-body check.
 
 `Web.Hosting` references `Http.ProtocolUpgrade` and `Http.ExtendedConnect` for this, references
 outside the Web area (COHRES002 is about same-area references); both are private members of every
@@ -1699,11 +1779,18 @@ where the host's four round up to seven slots and the feature takes a free one, 
 with three (37,512 B against 36,351 B), where the count is seven and the feature grows the collection
 to 17 slots. A plain `GET` stayed within the run-to-run noise in both. On HTTP/2 a `GET` ends its
 stream with its head, so it keeps the fast path as on HTTP/1.1. On HTTP/3 it does only when the
-transport has already seen the request stream's FIN: the in-memory driver reports it, but the QUIC
-driver's input sees the end only on a read that returns nothing, so over QUIC most HTTP/3 requests
-report that they can have a body, and the interceptor takes the response phase for them. That costs an
-HTTP/3 `GET` the sink, the control, the response context and the feature until the driver reports a FIN
-it already holds (core Http DESIGN, "The body signal").
+transport has already seen the request stream's FIN: the in-memory pipe reports it directly, and
+the QUIC driver's `IMultiplexedStream.IsInputCompleted` exposes it without a further read (#1427). The
+transport also checks for unread pipe bytes, so DATA followed by FIN still gets the fault gate.
+A positive declared content length retains the gate even with an empty, ended stream, so the
+pipeline can observe the truncation fault raised by a body read.
+Allocation coverage compares the actual defaults over stream-backed requests with the FIN visible
+and hidden: a bodiless request saves the client-fault registration and feature. On Windows x64
+.NET 10.0.12 Debug, the warmed 16-request comparison saved 3,840 B (240 B per request);
+the test asserts a conservative minimum instead of pinning runtime object sizes. Since #1156, the
+default response-starting interceptor independently requires a response sink, control and context;
+FIN detection does not remove that response phase. Relative to 10.0.0-preview.1 this changes no
+public contract; the body gate was added after that release (core Http DESIGN, "The body signal").
 
 **Clearing the defaults removes WebSockets.** A `UseServer` callback that clears
 `HttpConnectionListenerOptions.Interceptors` removes both transition interceptors: HTTP/1.1 upgrades
@@ -1868,9 +1955,11 @@ negotiated application protocol on HTTP/1.1, HTTP/2, and HTTP/3 alike. The acces
 the transport publishes on each exchange's connection info (`Http.Connections` DESIGN, "The TLS
 session on every exchange"). This module does not reference `Http.Tls`; the framework delivers it.
 
-This module stops at exposing the certificate. Authenticating a request from it — mapping a
-certificate to a `ClaimsPrincipal` under an authentication scheme — is a handler for
-`Web.Authentication`, not yet written.
+This module stops at exposing the certificate.
+[`Web.Authentication.Certificate`](../assimalign-cohesion-web-authentication-certificate/index.md)
+maps it to a `ClaimsPrincipal` under the `Certificate` scheme, with `AddCertificate` and an optional
+`OnCertificateValidated` application callback. The handler borrows the certificate and does not
+request certificates or validate TLS trust; those remain the listener's handshake policy.
 
 ### Scope boundary
 
@@ -1905,21 +1994,35 @@ Two overloads, one for each certificate-configuration ergonomic:
 - **`UseHttp3(Action<QuicConnectionListenerOptions>)`** — the QUIC-native form. The
   callback configures the endpoint, the certificate (through
   `ServerAuthenticationOptions.ServerCertificate` — the QUIC equivalent of the
-  `TlsServerOptions` surface), stream limits, and error codes in one place,
+  `TlsServerOptions` surface), `HandshakeTimeout`, stream limits, and error codes in one place,
   mirroring the `Http.Connections` HTTP/3 example.
 - **`UseHttp3(Action<QuicConnectionListenerOptions>, TlsServerOptions)`** — the
   cross-protocol-consistent form. The certificate flows through the *same*
   `TlsServerOptions` type as `UseHttp1s` / `UseHttp2s`; its `AuthenticationOptions`
-  becomes the QUIC listener's `ServerAuthenticationOptions`, leaving the callback for
-  the endpoint and QUIC tunables. This is the exact ergonomic mirror of
+  becomes the QUIC listener's `ServerAuthenticationOptions`, and its `HandshakeTimeout`
+  becomes the QUIC handshake timeout after the callback. These TLS settings override any
+  conflicting values in that callback, leaving it for the endpoint and QUIC tunables.
+  This is the exact ergonomic mirror of
   `UseHttp2s(configure, tlsOptions)`.
 
 Both default the ALPN application-protocol list to `h3` and the enabled TLS protocols to TLS 1.3
 when the caller leaves them unset (a caller-supplied list is preserved unmodified); the
 `TlsServerOptions` overload applies those defaults eagerly to the passed options so a later read
 observes them, matching `UseHttp2s`. A third overload,
-`UseHttp3(configure, tlsOptions, configureHttp)`, also takes the `Http3ConnectionListenerOptions`
-(limits, QPACK); the configuration binder uses it for an `Http3` endpoint.
+`UseHttp3(configure, tlsOptions, configureHttp)`, also takes the `Http3ConnectionListenerOptions` (limits, QPACK); the configuration binder uses it for
+an `Http3` endpoint.
+
+The handshake timeout defaults to 10 seconds, preserving `System.Net.Quic`'s default (#1311).
+The TLS overload keeps TCP's disabling semantics: any non-positive `TlsServerOptions.HandshakeTimeout`
+maps to `Timeout.InfiniteTimeSpan`. The raw QUIC overload follows the native options instead:
+zero is passed to the runtime and may expire immediately, while `Timeout.InfiniteTimeSpan`
+disables the timeout (see the QUIC driver's DESIGN for the .NET 10 server-path behavior). The
+configuration key is `Http:Endpoints:<name>:HandshakeTimeout` (see "Binding specifics").
+Tests capture the QUIC options when the deferred listener is materialized, without binding or
+requiring msquic, and pin the configuration-to-TLS-to-QUIC flow and TLS precedence.
+Relative to 10.0.0-preview.1, non-default TLS options and endpoint configuration now affect the
+HTTP/3 handshake timeout where they were previously ignored. This changes behavior for callers
+that supplied those values; the default remains 10 seconds.
 
 ### Async binding without sync-over-async
 
@@ -2009,9 +2112,31 @@ The root contracts and feature libraries reference no `Assimalign.Cohesion.Hosti
 `Web.Hosting.Resources` and `Web.Hosting.Health` own reusable hosting integration. They never
 reference this runtime module. COHRES002 permits this module to reference any Web library except
 `Web.Testing`, `Web.ApplicationModel`, the `App.Web` producers, and harnesses (owner decision
-2026-10-09). It references the Web root, `Web.Routing` and `Web.Server` (#1379), and its own hosting
-family, and it consumes `Web.Hosting.Resources` for the enabled resource's control-plane terminal
+2026-10-09). It references the Web root, `Web.Routing` and `Web.Server` (#1379), and its own hosting family, and it consumes
+`Web.Hosting.Resources` for the enabled resource's control-plane terminal
 (`Internal/EnabledResourcePipeline.cs`).
+
+## Default EventSource forwarding
+
+`WebApplication.CreateBuilder(args)` forwards `Assimalign.Cohesion.Web.` sources and
+`Assimalign.Cohesion.Http.Connections` into the application's configured log providers. It adds no
+provider or filter rule. Set `builder.EnableEventSourceForwarding = false` to opt out, or register
+`builder.Logging.AddEventSourceForwarding(options)` before Build to choose your own sources. Any
+application forwarder registration takes precedence. Explicit/options-based builders used for nested
+Web hosts register no automatic forwarder.
+
+Listeners observe the entire process. Concurrent entry-point applications can forward the same event;
+use `serverId` payloads for server identity and opt out in secondary hosts that share sinks. Forwarding
+ends when the application disposes its logger factory, after shutdown diagnostics. HTTP access logs
+remain Information-level ILogger entries from Web.Diagnostics, independent of this forwarding.
+
+Sdk.Web enables EventSource support for NativeAOT when unset. An explicit
+`<EventSourceSupport>false</EventSourceSupport>` disables delivery. See the
+[SDK design](../../../sdks/sdk-web/assimalign-cohesion-sdk-web-tasks/design.md) for size measurements.
+
+Compared with 10.0.0-preview.1, entry-point applications now forward these framework events into
+their existing sinks. The built application owns its logger factory and disposes its providers and
+forwarders at final teardown; a factory obtained from its service provider cannot outlive the app.
 
 ## Declared dependencies
 
@@ -2026,6 +2151,7 @@ family, and it consumes `Web.Hosting.Resources` for the enabled resource's contr
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Logging.EventSource` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Configuration` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Configuration.CommandLine` | `CohesionProjectReference` |

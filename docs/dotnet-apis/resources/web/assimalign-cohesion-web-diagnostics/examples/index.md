@@ -12,6 +12,9 @@ examples require their original test project’s dependencies and supporting obj
 - **[Http Logging Request Capture Tests](http-logging-request-capture-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
 - **[Http Logging Request View Tests](http-logging-request-view-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
 - **[Http Logging Trace Context Tests](http-logging-trace-context-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
+- **[Http Logging Cancellation Tests](http-logging-cancellation-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
+- **[Http Logging Event Source Tests](http-logging-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
+- **[W3 C Access Log Writer Event Source Tests](w3-c-access-log-writer-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Diagnostics` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

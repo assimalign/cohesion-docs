@@ -13,8 +13,8 @@ test objects.
 ## Behavior exercised
 
 - **Case 1** — A valid HS256 token authenticates the principal.
-- **Case 2** — A missing Authorization header yields `NoResult`.
-- **Case 3** — A non-Bearer Authorization header yields `NoResult`.
+- **Case 2** — A missing Authorization header yields NoResult.
+- **Case 3** — A non-Bearer Authorization header yields NoResult.
 - **Case 4** — A malformed token fails.
 - **Case 5** — A token signed with the wrong key fails.
 - **Case 6** — An expired token fails.
@@ -27,13 +27,14 @@ test objects.
 - **Case 13** — Challenge emits a 401 Bearer WWW-Authenticate header.
 - **Case 14** — Challenge after a failed authenticate advertises invalid_token.
 - **Case 15** — Forbid emits a 403 insufficient_scope challenge.
-- **Case 16** — CreateHandler requires a signing key when signatures are required.
-- **Case 17** — CreateHandler fails closed when no issuer is configured.
-- **Case 18** — CreateHandler fails closed when no audience is configured.
-- **Case 19** — Turning issuer validation off accepts any issuer a key verifies.
-- **Case 20** — Turning audience validation off accepts any audience.
-- **Case 21** — Issuer validation still applies with audience validation off.
-- **Case 22** — An RS256 token is rejected when only an HMAC key is configured.
+- **Case 16** — Challenges preserve all schemes in either order on 401 and 403.
+- **Case 17** — CreateHandler requires a signing key when signatures are required.
+- **Case 18** — CreateHandler fails closed when no issuer is configured.
+- **Case 19** — CreateHandler fails closed when no audience is configured.
+- **Case 20** — Turning issuer validation off accepts any issuer a key verifies.
+- **Case 21** — Turning audience validation off accepts any audience.
+- **Case 22** — Issuer validation still applies with audience validation off.
+- **Case 23** — An RS256 token is rejected when only an HMAC key is configured.
 
 ## Source example
 
@@ -42,10 +43,13 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Authentication.Bearer.Tests.TestObjects;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.Authentication.Bearer.Tests;
 
@@ -343,6 +347,46 @@ public class JwtBearerHandlerTests
         // Assert
         context.Response.StatusCode.Value.ShouldBe(403);
         context.Response.Headers.GetValue(HttpHeaderKey.WWWAuthenticate)!.ShouldContain("insufficient_scope");
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Authentication.Bearer] - Challenges preserve all schemes in either order on 401 and 403")]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Challenge_WithOtherSchemesInEitherOrder_PreservesEveryChallenge(bool forbid, bool bearerFirst)
+    {
+        // Arrange — a prior scheme has challenged; another runs before or after Bearer.
+        TestHttpContext context = TestHttpContext.Create();
+        context.Response.Headers.AppendValue(HttpHeaderKey.WWWAuthenticate, "Negotiate");
+        IAuthenticationHandler handler = await InitializeAsync(HmacOptions(), context);
+        string bearer = forbid ? "Bearer error=\"insufficient_scope\"" : "Bearer";
+
+        // Act
+        if (!bearerFirst)
+        {
+            context.Response.Headers.AppendValue(HttpHeaderKey.WWWAuthenticate, "Custom");
+        }
+
+        if (forbid)
+        {
+            await handler.ForbidAsync(null);
+        }
+        else
+        {
+            await handler.ChallengeAsync(null);
+        }
+
+        if (bearerFirst)
+        {
+            context.Response.Headers.AppendValue(HttpHeaderKey.WWWAuthenticate, "Custom");
+        }
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(forbid ? 403 : 401);
+        context.Response.Headers.GetValue(HttpHeaderKey.WWWAuthenticate).ShouldBe(bearerFirst
+            ? "Negotiate," + bearer + ",Custom"
+            : "Negotiate,Custom," + bearer);
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Authentication.Bearer] - CreateHandler requires a signing key when signatures are required")]

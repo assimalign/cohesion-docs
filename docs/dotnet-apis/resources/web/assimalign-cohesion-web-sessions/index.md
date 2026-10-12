@@ -36,6 +36,7 @@ first access, and commits it after the pipeline unwinds. Concrete distributed ba
 
 ## Dependencies
 
+- **`Assimalign.Cohesion.Web.Server`** — request-id correlation for orphan diagnostics.
 - **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions the verb and middleware build on.
 - **`Assimalign.Cohesion.Http`** — the HTTP context, feature collection, and transport-derived scheme.
 - **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveScheme` read behind the `Secure` decision, which
@@ -57,11 +58,26 @@ See the [source-backed usage examples](examples/index.md).
 
 See the [source-backed usage examples](examples/index.md).
 
+## Stored-session modification tracking
+
+`IHttpStoredSession.IsModified` reports whether the built-in session needs a payload write.
+It returns `true` by default for custom implementations that do not track changes, so existing
+stores keep committing. Read-only built-in sessions still refresh their idle timeout.
+Store failures can be observed through the `Assimalign.Cohesion.Http.Sessions` EventSource;
+see the [design](design.md#store-failure-ownership-1436) for payload and ownership details.
+
+Establish a new session before starting the response so its cookie can be delivered. If first
+access occurs after the head starts, the session is discarded after the request. The
+`Assimalign.Cohesion.Web.Sessions` EventSource reports a modified orphan with the throttled
+Warning `SessionStateLost` and the exact `lost-sessions` counter; a read-only orphan emits only
+Verbose `SessionOrphaned`. See [diagnostics](design.md#diagnostics) for event payloads and counters.
+
 ## Project references
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Sessions` | `CohesionProjectReference` |

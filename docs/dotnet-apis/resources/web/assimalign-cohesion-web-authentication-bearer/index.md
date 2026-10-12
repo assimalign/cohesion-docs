@@ -35,7 +35,7 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
   document validation (issuer / audience / lifetime / algorithm) and asymmetric signature
   verification. The public Bearer seam remains stable, and headless callers can use the lower
   JWT verifier without referencing the Web area.
-- **Emits RFC 6750 `WWW-Authenticate** — Bearer` challenges.
+- **Emits RFC 6750 `WWW-Authenticate: Bearer` challenges.**
 
 `Register` it at the composition root, not here:
 
@@ -49,6 +49,7 @@ algorithm-confusion defense, and the JWT→`ClaimsPrincipal` mapping.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Authentication` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
 

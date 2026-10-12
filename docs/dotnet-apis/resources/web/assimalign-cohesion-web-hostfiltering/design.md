@@ -129,11 +129,50 @@ the one allowlist covers both cases.
 Options → precompiled matcher at registration; request-time span comparisons only. No reflection, no
 configuration binding, no service location.
 
+## Diagnostics
+
+The internal `HostFilteringEventSource` is named
+`Assimalign.Cohesion.Web.HostFiltering`. It reports only rejected requests, at the
+middleware's single rejection branch after the effective-host allowlist decision.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `RequestRejected` | Verbose | `reason` (`EmptyHost` or `HostNotAllowed`), `host`, `forwarded:bool`, `requestId` |
+
+`host` is the untrusted host component, structurally separated from its port by
+`HttpHost.TrySplitHostPort` after trimming HTTP optional whitespace (SP and HTAB).
+The split does not validate the port: `denied.example:999999` and
+`denied.example:invalid` both report `denied.example`, and `[::1]:999999` reports
+`::1`. `HttpHost.Host` is unsuitable here because a malformed port makes it return
+the raw authority. Splitting, truncation to 253 characters and string allocation
+all happen inside `IsEnabled`. The payload is empty for `EmptyHost` or when the
+authority cannot be structurally split, such as `denied.example:` or `[::1`.
+`forwarded` means the forwarded feature accepted at least one hop. No path, query,
+raw header value or
+route template is written. The request id is read from `IWebRequestIdFeature`
+inside `IsEnabled`, with an empty string when a custom server omits the feature.
+`Activity.Current` is never used. The contracts-only `Web.Server` reference supplies
+that feature and is already part of App.Web's closure.
+
+The `rejected-requests` total is a lazily created `PollingCounter`, backed by an
+interlocked increment for every rejection even without a listener. Accepted requests
+raise nothing and do not change the counter. No throttling is needed for Verbose
+events. The serial `HostFilteringEventSourceTests` verify the strict manifest,
+request correlation, empty and forwarded hosts, truncation, malformed ports and
+unsplittable authorities over raw HTTP/1.1, counter publication, and zero allocation
+for disabled diagnostics. Trusted-forwarding tests also cover malformed ports.
+
+Compared with 10.0.0-preview.1, this adds an opt-in diagnostic signal and exact
+counter, with no public API or host-acceptance change. Preview.1's rejection branch
+was silent; this observability gap does not itself bypass host validation.
+The malformed-port correction changes only the unreleased event payload; the source
+did not exist in 10.0.0-preview.1, so it adds no breaking change against that release.
+
 ## Non-goals
 
-- **No hosting integration.** The package must not (and cannot, per the
-  build-enforced hosting-isolation rule) be referenced by `Web.Hosting`;
-  front-of-pipeline placement is the application's registration-order
+- **No hosting integration.** `Web.Hosting` does not reference the package
+  (the build-enforced hosting-isolation rule forbade it until its 2026-10-09
+  relaxation); front-of-pipeline placement is the application's registration-order
   responsibility, not a hosting guarantee.
 - **No port-aware allowlisting** — host validation is host-identity; which
   ports are served is a listener/binding concern.
@@ -166,6 +205,7 @@ headers are ignored.
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 

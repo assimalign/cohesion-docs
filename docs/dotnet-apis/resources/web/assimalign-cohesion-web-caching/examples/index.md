@@ -14,6 +14,8 @@ examples require their original test project’s dependencies and supporting obj
 - **[Output Cache Route Convention Tests](output-cache-route-convention-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 - **[Output Cache Starting Tests](output-cache-starting-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 - **[Output Cache Web Socket Tests](output-cache-web-socket-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
+- **[Output Cache Counter Benchmark Tests](output-cache-counter-benchmark-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
+- **[Output Cache Event Source Tests](output-cache-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

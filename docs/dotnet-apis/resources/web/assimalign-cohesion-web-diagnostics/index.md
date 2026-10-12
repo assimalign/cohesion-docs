@@ -38,10 +38,11 @@ exchanges are logged too. Behind a proxy, `UseForwardedHeaders` follows it, afte
 ## Field selection and redaction
 
 `HttpLoggingFields` selects what is captured. The default set carries the request line, headers,
-status, duration, client address, byte counts, and trace correlation; the **query string and bodies
-are opt-in** because they routinely carry secrets. `Header` redaction is **allowlist-based**: names
-always log, values log only for allowlisted headers, and `Authorization`, `Proxy-Authorization`,
-`Cookie`, and `Set-Cookie` are never in the default allowlists.
+status, duration, client address, byte counts, and trace correlation; the **query string and
+bodies are opt-in** because they routinely carry secrets. Header redaction is
+**allowlist-based**: names always log, values log only for allowlisted headers, and
+`Authorization`, `Proxy-Authorization`, `Cookie`, and `Set-Cookie` are never in the default
+allowlists.
 
 Request capture and byte counting work through request views, including decompression,
 rewrite and request timeouts. Logging after decompression observes decoded bytes. Capture
@@ -64,7 +65,7 @@ logged with the configured fields.
 | `Assimalign.Cohesion.Web.Routing` | reads the endpoint metadata bag for per-endpoint overrides |
 | `Assimalign.Cohesion.Http.Forwarded` | the effective scheme, host, and client address (`Effective*`), resolved by `UseForwardedHeaders` behind a trusted proxy |
 | `Assimalign.Cohesion.Logging` | the emission model (`ILogger`, `LoggerEntry`, `LoggerProvider`) |
-| `Assimalign.Cohesion.Web.Server` | request-id and server-activity features for trace correlation (#1297); `IWebClientFaultFeature` for logging malformed, over-limit or cut-short bodies at the configured level with the transport's status (#1340, #1378) |
+| `Assimalign.Cohesion.Web.Server` | request-id and server-activity features for trace correlation (#1297); `IWebClientFaultFeature` for logging malformed or over-limit bodies at the configured level with the transport's status (#1340, #1378) |
 | `Assimalign.Cohesion.Http.Streaming` | whether the response had started, so a client fault logs the status that reached the wire |
 
 With `HttpLoggingFields.TraceContext` enabled, `trace.id` comes from
@@ -80,6 +81,23 @@ fault the default Web server reports, on any version: an entry marked `http.clie
 the configured level, without the exception, whose `http.response.status` is the `400`, `413`, `408`
 or `431` the transport answered with. On HTTP/2 and HTTP/3 a malformed body resets the stream instead
 of drawing a status, and is logged as the `400` the transport reports for it (#1378).
+
+An `OperationCanceledException` after the exchange's cancellation token fires also stays at the
+configured level without an exception; cancellation alone adds no client-fault marker. A peer
+disconnect before the response starts sends no response, even when the entry still shows the
+staged default status of 200. An unrelated cancellation exception on a live exchange remains Error.
+
+## Sink diagnostics
+
+Observe `Assimalign.Cohesion.Web.Diagnostics` through `dotnet-trace`, `dotnet-counters`, or the
+event-source logging forwarder for file-open events and throttled sink, retention, entry-building
+and client-address-resolver failures. `failed-access-log-writes` counts failed Write calls,
+not lost buffered entries; `dropped-http-log-entries` counts failed entry emission.
+
+The source category is a prefix of the HTTP log's default category,
+`Assimalign.Cohesion.Web.Diagnostics.HttpLogging`, so a category filter on the source also
+affects HTTP entries. Forwarded diagnostics are excluded from the W3C file by its exchange-only
+filter. See [Diagnostics](design.md#diagnostics) for payload and failure semantics.
 
 See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 

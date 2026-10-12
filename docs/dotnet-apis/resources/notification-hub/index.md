@@ -50,6 +50,12 @@ hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs p
 `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
 `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
+The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
+reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
+`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
+`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
+inventory below.
+
 | Public reference-pack assembly |
 |---|
 | `Assimalign.Cohesion.App.NotificationHub` |

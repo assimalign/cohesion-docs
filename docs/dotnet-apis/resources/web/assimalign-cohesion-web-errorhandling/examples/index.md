@@ -11,6 +11,8 @@ examples require their original test project’s dependencies and supporting obj
 - **[Error Handling Pipeline Tests](error-handling-pipeline-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-located test source.
 - **[Exception Boundary Client Fault Tests](exception-boundary-client-fault-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-located test source.
 - **[Exception Boundary Middleware Tests](exception-boundary-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-located test source.
+- **[Error Handling Event Source Tests](error-handling-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-located test source.
+- **[Response Client Fault Tests](response-client-fault-tests.md)** — This example exercises `Assimalign.Cohesion.Web.ErrorHandling` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

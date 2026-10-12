@@ -87,7 +87,7 @@ middleware sits between the two and decides, per request:
    `OPTIONS` or `TRACE`:** acknowledge `UseAntiforgery` and call `next`.
 3. **No token header and a form body:** read and cache the form. A malformed body is rejected with
    `400` problem+json, and a body over a configured Http.Forms limit with `413` problem+json; the
-   endpoint does not run.
+   endpoint does not run. A latched transport fault propagates to transport / `UseErrorHandling`.
 4. **Validate the cookie and request tokens.** Invalid: `400` problem+json, and the endpoint does
    not run. Valid: acknowledge `UseAntiforgery` and call `next`.
 
@@ -107,7 +107,9 @@ middleware sits between the two and decides, per request:
   token header (`HttpAntiforgeryOptions.HeaderName`) and has a `application/x-www-form-urlencoded`
   or `multipart/form-data` body. A client that sends the token in the header therefore keeps its
   body unread, which an endpoint streaming a large upload depends on. This is the order ASP.NET
-  Core's token store uses for the same reason.
+  Core's token store uses for the same reason. If an earlier middleware such as `UseForms` already
+  parsed the body, the validator prefers a nonempty configured form token over the header. Reading
+  the cached `request.Form` does not consume the body.
 - **The form is parsed once.** `context.ReadFormAsync` caches the parse on the exchange's
   `IHttpFormFeature`, so a form-bound typed endpoint binds from the same parse instead of a consumed
   body. A malformed body the form reader rejects (`InvalidDataException`) carries no token the server
@@ -116,6 +118,11 @@ middleware sits between the two and decides, per request:
   `413 Content Too Large` instead (RFC 9110 §15.5.14, #1061): the client must send less whatever its
   token, and the endpoint's own form binding answers the same body the same way, so the status does
   not depend on whether the token travels in the header or the form.
+- **Transport faults keep their owner.** Both form-error catches require
+  `IWebClientFaultFeature.StatusCode` to be null (or the feature to be absent).
+  A latched fault, such as invalid chunk framing, propagates to transport /
+  `UseErrorHandling` without an antiforgery response or rejection diagnostic
+  (#1300 integration repair). The endpoint remains unexecuted.
 - **Validation** is `IHttpAntiforgery.IsRequestValidAsync` on the exchange's service
   (`context.Antiforgery`): the one `AddAntiforgery` registered, unless a middleware replaced it for
   the exchange. The service that validates is therefore always the one handlers mint with.
@@ -302,6 +309,7 @@ endpoint. The area's [middleware order](../../../../web/middleware-order.md) pla
 | Missing, malformed, forged, or unbound token on a protected unsafe request | `400` `application/problem+json`; the endpoint does not run |
 | Malformed form body, with no token header | `400` `application/problem+json` |
 | Form body over a configured Http.Forms limit, with no token header | `413` `application/problem+json` |
+| Form read fails with `IWebClientFaultFeature.StatusCode` already latched | Propagates to transport / `UseErrorHandling`; no antiforgery rejection |
 | Rejection after the response head was committed | The exchange is aborted |
 | A protected endpoint dispatched without `UseAntiforgery` having processed it | `InvalidOperationException` at dispatch |
 | `UseAntiforgery` without `AddAntiforgery` | `InvalidOperationException` when the pipeline is built |
@@ -316,6 +324,62 @@ creation and failed only when a request stored a cookie token. Since #1416 it re
 composition, so `AddAntiforgery` inherits the earlier failure. This Web package did not ship in
 10.0.0-preview.1. Defaults and other valid token names are unchanged; configurations with an invalid
 name must be corrected before the application can register antiforgery.
+
+The #1300 integration repair adds no break against 10.0.0-preview.1, which did
+not contain this package. Relative to integrated Stage 14, transport-classified
+form failures propagate instead of producing a second rejection. Transport still
+owns the client response; normal form and token rejections retain their behavior.
+
+## Diagnostics
+
+The internal `AntiforgeryEventSource` uses the provider name
+`Assimalign.Cohesion.Web.Antiforgery`. Its events explain rejection and recovery decisions without
+reporting successful requests or duplicating server spans. Enable Verbose to investigate rejected
+tokens; Warning reports that an already committed response forced the middleware to abort.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `RequestRejected` | Verbose | `reason` (`TokenInvalid`, `FormMalformed`, `FormTooLarge`), `statusCode:int`, `tokenLocation` (`Header`, `Form`, `None`), `routeTemplate`, `requestId` |
+| 2 | `RejectionAborted` | Warning | `reason`, `routeTemplate`, `suppressedCount:int`, `requestId` |
+| 3 | `TokenUnprotectFailed` | Verbose | `exceptionType`, `exceptionMessage`, `innerExceptionType` |
+
+`RequestRejected.tokenLocation` follows the validator's parsed-form-first precedence: a nonempty
+configured token field already in `request.Form` is `Form`, even when a token header is also present.
+An empty or missing field falls back to the header. The middleware still reads the body only when no
+token header is present and the content type is a form; a failed form read is also classified as `Form`.
+The #1403 review correction changes only diagnostic attribution, preserves validation and streaming
+behavior, and introduces no break against `10.0.0-preview.1`, which did not contain this package.
+
+`rejected-requests` is a lazily published `PollingCounter` backed by an exact total maintained without
+listeners. An internal exchange feature marks a request after its first rejection, so re-entering the
+middleware counts it once. The counter includes every rejected exchange, including those whose abort
+warning is suppressed. `RejectionAborted` is limited to one event per second across the process; the
+next event reports the number suppressed. There is no unprotect-attempt counter because one request
+can require two unprotect operations.
+
+Transport-classified form failures belong exclusively to
+`Assimalign.Cohesion.Http.Connections` and produce no antiforgery event or counter
+increment. The combined-source `Web.Hosting` tests verify invalid chunk framing
+on a protected form-token endpoint, with and without `UseErrorHandling`.
+
+The two middleware events read `IWebRequestIdFeature` and `IWebEndpointFeature.RouteTemplate` only
+inside `IsEnabled`. They never use ambient activities. The protector seam has no request context:
+`TokenUnprotectFailed` is the context-free attempt event specified by the scope, and has no fabricated
+request id. In contrast, `RejectionAborted` includes the available request id in addition to the scope's
+listed payload so an abort can be joined to the request's rejection.
+
+`FormMalformed` includes no exception text: multipart-parser errors can quote the client's header
+line. No event reports a header value, form field, cookie, token, body, claim, user, or request path.
+Data-protection text is restricted to an allowlist of its six fixed verification and key-lifecycle
+messages; custom protector messages become empty. `innerExceptionType` is set only for the fixed
+key-repository-read failure, and never includes its message. This keeps custom-provider exceptions
+from disclosing tokens or repository paths while retaining the built-in diagnosis.
+
+These diagnostics add no public API or request-processing behavior change. This package did not
+exist in `10.0.0-preview.1`. `AntiforgeryEventSourceTests` validates the strict manifest, all event
+payloads, counter publication and exact deltas, malformed-form hygiene, custom-provider hygiene,
+disabled-listener feature reads, abort throttling, and parsed-form precedence with both tokens present
+for default and custom form-field names without additional body reads.
 
 ## AOT posture
 
@@ -333,9 +397,9 @@ emitted code is a static property read inside the interceptor it already generat
   every unsafe request" switch. Unrouted requests have no endpoint to protect.
 - **Tokens in the query string.** Only the header and the form field are read; a token in a URL
   leaks through logs and `Referer`.
-- **Automatic pipeline placement.** `Web.Hosting` may not reference feature packages (COHRES002), so
-  the application registers `UseAntiforgery` itself; routing's fail-closed check catches a missing
-  one.
+- **Automatic pipeline placement.** `Web.Hosting` references no feature package (COHRES002 forbade it
+  until 2026-10-09), so the application registers `UseAntiforgery` itself; routing's fail-closed check
+  catches a missing one.
 - **Key storage.** Where keys live and how they are shared is `Security.DataProtection`'s and the
   deployment's concern (#806–#808).
 
@@ -378,6 +442,7 @@ that does not reach the endpoint, and no requirement on endpoints that bind no f
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Antiforgery` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forms` | `CohesionProjectReference` |

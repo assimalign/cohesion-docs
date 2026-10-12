@@ -14,7 +14,7 @@ test objects.
 
 - **Case 1** — Client fault: A malformed chunked body should be reported to the pipeline as the 400 the transport sends.
 - **Case 2** — Client fault: A body over the size cap should be reported to the pipeline as the 413 the transport sends.
-- **Case 3** — Client fault: A body the client cuts short by closing its side should be reported to the pipeline as the 400 the transport sends.
+- **Case 3** — Client fault: A body the client cuts short by closing its side should cancel the exchange without a client fault.
 - **Case 4** — Client fault: A well-formed body should report no client fault.
 - **Case 5** — Client fault: A request without a body should keep the fast path and carry no client-fault feature.
 - **Case 6** — Client fault: A malformed HTTP/2 body should be reported to the pipeline as a 400 client fault while the stream is reset.
@@ -103,13 +103,13 @@ public class WebApplicationServerClientFaultTests
         response.ShouldStartWith("HTTP/1.1 413");
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Client fault: A body the client cuts short by closing its side should be reported to the pipeline as the 400 the transport sends")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Client fault: A body the client cuts short by closing its side should cancel the exchange without a client fault")]
     [InlineData("Content-Length: 100\r\n\r\n{")]
     [InlineData("Transfer-Encoding: chunked\r\n\r\n10\r\nshort")]
-    public async Task ClientFault_OnBodyCutShortByTheClient_ShouldReportTheTransportStatus(string framingAndBody)
+    public async Task ClientFault_OnBodyCutShortByTheClient_ShouldCancelWithoutAClientFault(string framingAndBody)
     {
         // Arrange — the client writes part of the body its framing declares, then closes its sending
-        // side. RFC 9112 §8 lets the server answer the incomplete request before it closes the connection.
+        // side. Connection loss after dispatch cancels the exchange, including incomplete EOF (#1439).
         Observed observed = new();
 
         // Act
@@ -122,9 +122,11 @@ public class WebApplicationServerClientFaultTests
         // Assert
         observed.FeaturePresent.ShouldBeTrue();
         observed.BeforeRead.ShouldBeNull();
-        observed.ReadFailure.ShouldBeOfType<EndOfStreamException>();
-        observed.AfterRead.ShouldBe(CohesionHttpStatusCode.BadRequest);
-        response.ShouldStartWith("HTTP/1.1 400");
+        OperationCanceledException canceled = observed.ReadFailure.ShouldBeAssignableTo<OperationCanceledException>()!;
+        observed.RequestCancelled.IsCancellationRequested.ShouldBeTrue();
+        canceled.CancellationToken.ShouldBe(observed.RequestCancelled);
+        observed.AfterRead.ShouldBeNull();
+        response.ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Client fault: A well-formed body should report no client fault")]
@@ -289,7 +291,7 @@ public class WebApplicationServerClientFaultTests
 
         // Act — the stream ends after 16 of the 100 octets it declares (RFC 9114 §4.1.2), or a trailer
         // section carries a field no trailer may.
-        Connection stream = fault == "content-length"
+        MultiplexedStream stream = fault == "content-length"
             ? await client.SendRequestAsync("POST", "/upload", [("content-length", "100")], [Http3RawClient.Data(json)], endStream: true, cancellationToken)
             : await client.SendRequestAsync("POST", "/upload", [], [Http3RawClient.Data(json), Http3RawClient.Trailers(("content-length", "5"))], endStream: true, cancellationToken);
         (IReadOnlyList<int> statuses, long? resetCode) = await Http3RawClient.ReadResponseAsync(stream, cancellationToken);
@@ -320,7 +322,7 @@ public class WebApplicationServerClientFaultTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act — no Content-Length, so only the DATA frame crosses the cap.
-        Connection stream = await client.SendRequestAsync("POST", "/upload", [], [Http3RawClient.Data(new byte[32])], endStream: false, cancellationToken);
+        MultiplexedStream stream = await client.SendRequestAsync("POST", "/upload", [], [Http3RawClient.Data(new byte[32])], endStream: false, cancellationToken);
         (IReadOnlyList<int> statuses, long? resetCode) = await Http3RawClient.ReadResponseAsync(stream, cancellationToken);
         await observed.Recorded.Task.WaitAsync(cancellationToken);
 
@@ -406,7 +408,7 @@ public class WebApplicationServerClientFaultTests
 
         // Act — RESET_STREAM(H3_REQUEST_CANCELLED) once the server has read the first DATA frame: the client
         // cancels its own request (RFC 9114 §4.1.1).
-        Connection stream = await client.SendRequestAsync(
+        MultiplexedStream stream = await client.SendRequestAsync(
             "POST",
             "/upload",
             [],
@@ -414,7 +416,7 @@ public class WebApplicationServerClientFaultTests
             endStream: false,
             cancellationToken);
         await firstRead.Task.WaitAsync(cancellationToken);
-        ((IMultiplexedStreamAbort)stream).AbortWrite(0x10c);
+        stream!.DirectionalAbort!.AbortWrite(0x10c);
         (Exception failure, bool cancelled, CohesionHttpStatusCode? fault) = await failed.Task.WaitAsync(cancellationToken);
         (IReadOnlyList<int> statuses, long? resetCode) = await Http3RawClient.ReadResponseAsync(stream, cancellationToken);
 
@@ -443,9 +445,9 @@ public class WebApplicationServerClientFaultTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act — the GET's FIN goes out with its HEADERS frame. The in-memory driver reports it with the head;
-        // the QUIC driver does not until a read, so there the same GET takes the response phase
-        // (Http.Connections' HttpRequestCanHaveBodyTests pins that over a stream-backed input).
-        Connection stream = await client.SendRequestAsync("GET", "/plain", [], [], endStream: true, cancellationToken);
+        // the QUIC driver's completion facet exposes its observed FIN before the input pipe reads zero
+        // (Http.Connections' HttpRequestCanHaveBodyTests pins the same gate over a stream-backed input).
+        MultiplexedStream stream = await client.SendRequestAsync("GET", "/plain", [], [], endStream: true, cancellationToken);
         (IReadOnlyList<int> statuses, _) = await Http3RawClient.ReadResponseAsync(stream, cancellationToken);
         await observed.Recorded.Task.WaitAsync(cancellationToken);
 
@@ -457,7 +459,7 @@ public class WebApplicationServerClientFaultTests
     /// <summary>
     /// Serves <paramref name="request"/> on one raw connection to a default Web server whose pipeline reads
     /// the request body to its end, recording the client-fault feature's report before and after the read
-    /// and the read's failure, then answers <c>204</c>. With <paramref name="closeSendingSide"/> the client
+    /// and the read's failure, then stages <c>204</c>. With <paramref name="closeSendingSide"/> the client
     /// closes its sending side after the request, as a peer that cuts the body short does. Reads until the
     /// server closes the connection and returns everything it wrote.
     /// </summary>
@@ -506,7 +508,7 @@ public class WebApplicationServerClientFaultTests
 
     /// <summary>
     /// Composes a pipeline that reads the request body to its end, recording the client-fault feature's
-    /// report before and after the read and the read's failure, then answers <c>204</c>.
+    /// report before and after the read and the read's failure, then stages <c>204</c>.
     /// </summary>
     private static void UseObservingPipeline(WebApplicationTestFactory factory, Observed observed)
     {
@@ -514,6 +516,7 @@ public class WebApplicationServerClientFaultTests
         {
             IWebClientFaultFeature? feature = context.Features.Get<IWebClientFaultFeature>();
             observed.FeaturePresent = feature is not null;
+            observed.RequestCancelled = context.RequestCancelled;
             observed.BeforeRead = feature?.StatusCode;
             observed.BeforeReadRecorded.TrySetResult();
 
@@ -525,7 +528,7 @@ public class WebApplicationServerClientFaultTests
                 {
                 }
             }
-            catch (Exception exception) when (exception is IOException or InvalidDataException)
+            catch (Exception exception) when (exception is IOException or InvalidDataException or OperationCanceledException)
             {
                 observed.ReadFailure = exception;
             }
@@ -540,6 +543,8 @@ public class WebApplicationServerClientFaultTests
     {
         public bool FeaturePresent { get; set; }
 
+        public CancellationToken RequestCancelled { get; set; }
+
         public CohesionHttpStatusCode? BeforeRead { get; set; }
 
         public Exception? ReadFailure { get; set; }
@@ -553,7 +558,6 @@ public class WebApplicationServerClientFaultTests
         public TaskCompletionSource Recorded { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }
-
 ```
 
 [All examples](index.md) · [Assembly overview](../index.md)

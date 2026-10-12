@@ -19,6 +19,7 @@ the source project’s test context, with its test dependencies and supporting t
 - **Case 6** — `UseForms`: an empty optional file input should reach downstream with no file.
 - **Case 7** — `UseForms`: a rejection after the head was committed should abort the exchange.
 - **Case 8** — `UseForms`: a body read failure that is not a form error should propagate.
+- **Case 9** — UseForms: multipart section overflow answers 413 and short-circuits.
 
 ## Source example
 
@@ -30,9 +31,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.Forms.Tests;
 
@@ -233,6 +237,39 @@ public class UseFormsMiddlewareTests
         context.ResponseBody.Length.ShouldBe(0);
     }
 
+    [Theory(DisplayName = "Cohesion Test [Web.Forms] - UseForms: multipart section overflow answers 413 and short-circuits")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UseForms_MultipartSectionCountOverLimit_ShouldAnswer413AndShortCircuit(bool useInstalledFeature)
+    {
+        // Arrange — repeated names must count as sections, not as distinct collection keys.
+        int limit = useInstalledFeature ? 2 : new HttpFormOptions().ValueCountLimit;
+        var content = new StringBuilder();
+        for (int i = 0; i <= limit; i++)
+        {
+            content.Append("--B\r\nContent-Disposition: form-data; name=\"same\"\r\n\r\nv\r\n");
+        }
+        content.Append("--B--\r\n");
+        using MemoryStream body = BodyOf(content.ToString());
+        var context = new TestHttpContext("multipart/form-data; boundary=B", body);
+        if (useInstalledFeature)
+        {
+            context.Features.Set<IHttpFormFeature>(new HttpFormFeature(context.Request, new HttpFormOptions { ValueCountLimit = limit }));
+        }
+        int downstream = 0;
+        IWebApplicationPipeline pipeline = BuildPipeline(() => downstream++);
+
+        // Act
+        await pipeline.ExecuteAsync(context, CancellationToken.None);
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        downstream.ShouldBe(0);
+        using JsonDocument problem = context.ReadProblem();
+        problem.RootElement.GetProperty("status").GetInt32().ShouldBe(413);
+        problem.RootElement.GetProperty("detail").GetString().ShouldBe("The request form exceeds a configured size limit.");
+    }
+
     private static IWebApplicationPipeline BuildPipeline(Action onDownstream)
     {
         TestPipelineBuilder builder = new();
@@ -321,7 +358,7 @@ public class UseFormsMiddlewareTests
     /// A response-streaming feature reporting a committed head, as the streaming package would after a
     /// streamed write by a middleware ahead of <c>UseForms</c>.
     /// </summary>
-    private sealed class StartedResponseStreamingFeature : IHttpResponseStreamingFeature
+    internal sealed class StartedResponseStreamingFeature : IHttpResponseStreamingFeature
     {
         public string Name => nameof(IHttpResponseStreamingFeature);
         public bool HasStarted => true;
@@ -331,7 +368,7 @@ public class UseFormsMiddlewareTests
         public ValueTask CompleteAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class TestHttpContext : IHttpContext
+    internal sealed class TestHttpContext : IHttpContext
     {
         private readonly TestHttpResponse _response;
 

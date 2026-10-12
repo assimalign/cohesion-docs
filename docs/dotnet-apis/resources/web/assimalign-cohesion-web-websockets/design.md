@@ -115,23 +115,17 @@ The default server installs `IWebServerDrainFeature` on every exchange (a
 [`Web.Server`](../assimalign-cohesion-web-server/design.md) contract); its token fires when the stop
 begins, before anything is cancelled. When the feature is present, the accepted socket is
 wrapped in `DrainAwareWebSocket`, which registers on the token and, when it fires, starts the close
-handshake with `1001 Going Away`. The sequence shows a stop that drains a socket within its budget.
+handshake with `1001 Going Away`. The flow shows a stop that drains a socket within its budget.
 
 ```mermaid
-sequenceDiagram
-    participant Host as Host stop
-    participant Server as Default server
-    participant Socket as DrainAwareWebSocket
-    participant Client
-    participant App as Endpoint
-    Host->>Server: StopAsync(budget)
-    Server->>Socket: Draining fires
-    Socket->>Client: Close 1001 Going Away
-    Client->>Socket: Close (echo)
-    Socket-->>App: ReceiveAsync returns Close
-    App->>Socket: CloseAsync (completes, nothing more to send)
-    App-->>Server: endpoint returns, exchange ends
-    Server-->>Host: drained within the budget
+flowchart TD
+    Stop["Host calls StopAsync(budget)"] --> Drain["Default server fires Draining"]
+    Drain --> Close["DrainAwareWebSocket sends Close 1001 Going Away to the client"]
+    Close --> Echo["Client echoes Close to the socket"]
+    Echo --> Receive["Socket ReceiveAsync returns Close to the endpoint"]
+    Receive --> Complete["Endpoint calls CloseAsync: completes with nothing more to send"]
+    Complete --> End["Endpoint returns; the exchange ends"]
+    End --> Drained["Default server returns to the host: drained within the budget"]
 ```
 
 The wrapper exists because closing a socket behind the application's back breaks the application's
@@ -257,6 +251,62 @@ No reflection and no runtime code generation: span parsing for origins, delegate
 the middleware and the endpoint, and a `WebSocket` subclass that forwards to the BCL socket. The Web
 NativeAOT guard publishes the middleware and a `MapWebSocket` endpoint, and runs its echo over
 HTTP/1.1 and over HTTP/2, its `400` for a plain `GET`, and a refused cross-site handshake.
+
+## Diagnostics
+
+The internal `WebSocketEventSource` is named `Assimalign.Cohesion.Web.WebSockets`. It reports
+the policy's rejections and accepted socket lifetimes; it adds no public diagnostics API and
+does not depend on logging. All events are Verbose because a socket belongs to one request.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `HandshakeRejected` | Verbose | `reason`, `origin`, `routeTemplate`, `requestId` |
+| 2 | `WebSocketOpened` | Verbose | `requestId`, `subProtocol` |
+| 3 | `WebSocketClosed` | Verbose | `requestId`, `closeStatus:int`, `closedByDrain:bool` |
+| 4 | `DrainCloseFailed` | Verbose | `requestId`, `exceptionType`, `exceptionMessage` |
+
+Protocol rejection reasons are the handshake status names (`Invalid`, `UnsupportedVersion`,
+and `None` for a plain request to `MapWebSocket`). Origin policy reasons are `OriginMultiple`,
+`OriginUnparseable`, and `OriginNotAllowed`. Only `OriginNotAllowed` includes an origin: the
+already normalized `scheme://host[:port]`, truncated to 256 characters inside `IsEnabled` and
+treated as untrusted text. No request path, query, raw Origin field, cookie, or message body is
+written. The application's selected subprotocol is bounded to 128 characters at Verbose.
+Drain-close failures retain the exception type and `Message`, following the standard rule for
+exceptions outside the type-only carve-outs; they do not write a stack trace.
+
+`requestId` comes from `IWebRequestIdFeature`, and `routeTemplate` comes from
+`IWebEndpointFeature`. Missing features yield empty strings. Their reads, exception formatting,
+status formatting, and payload truncation happen only while the event is enabled. Ambient
+activities never supply correlation.
+
+Three lazily created `PollingCounter`s retain exact backing values even without a listener:
+
+| Counter | Kind | Transition |
+| --- | --- | --- |
+| `current-websockets` | Gauge | Successful accept adds one; the middleware's final release removes one. |
+| `total-websockets` | Total | Successful accept adds one; failed accepts add nothing. |
+| `rejected-handshakes` | Total | Each policy or socket-endpoint rejection adds one. |
+
+The accepted socket is tracked independently of the optional server drain feature. Release
+atomically exchanges that socket with null, so repeated release, an aborted/disposed socket,
+and a throwing handler cannot decrement twice. The gauge describes accepted exchanges until
+their pipeline ends; it returns to its previous value for custom servers without a drain
+signal as well. Nested `UseWebSockets` policies retain their behavior, with the innermost policy
+alone reporting the socket lifetime so counters and events are not duplicated.
+`closeStatus` is `-1` if no close code is available, and `closedByDrain` records
+whether the drain won ownership of the close output. A failed drain write is reported once by
+the existing catch and remains best effort.
+
+The source's tests cover real loopback close handshakes with and without drain, failure and
+abort paths, request correlation, normalized origin payloads, listener-free counters, strict
+manifest generation, and counter publication. The linked recorder is the repository's shared
+test-only `build/TestSupport/EventSourceRecorder.cs`.
+
+### Compatibility with 10.0.0-preview.1
+
+This package did not exist in the `v10.0.0-preview.1` tree. Diagnostics add no public members or
+wire behavior changes; no preview.1 compatibility break or security advisory applies to this
+package's addition under #1405.
 
 ## Non-goals
 

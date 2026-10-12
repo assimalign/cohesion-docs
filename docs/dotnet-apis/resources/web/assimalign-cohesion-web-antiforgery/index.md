@@ -97,6 +97,7 @@ fail-closed rule, and the non-goals.
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Antiforgery` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forms` | `CohesionProjectReference` |
