@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.ObjectValidation`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Validator Factory Builder behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise validator construction, retained exception errors, indexed collection sources, evaluation order, and member failures using the original repository tests.
 
 ## Sources
 

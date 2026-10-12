@@ -15,8 +15,8 @@ Provides message-oriented User Datagram Protocol (UDP) connections.
 ## Scope
 
 The factory creates `IDatagramConnection` instances rather than pretending datagrams are ordered
-streams. The project references the connection contracts and Core. There is no separate project
-design document; the factory and datagram implementation define the current behavior.
+streams. The project references the connection contracts and Core. Its internal event source
+reports connection lifecycle events and counters; individual datagrams are not events.
 
 ## Dependencies
 
@@ -32,7 +32,6 @@ design document; the factory and datagram implementation define the current beha
 | `UdpBindOptions` | `src/UdpBindOptions.cs` |
 | `UdpConnectionFactory` | `src/UdpConnectionFactory.cs` |
 | `UdpConnectOptions` | `src/UdpConnectOptions.cs` |
-| `UdpTraceCode` | `src/UdpTraceCode.cs` |
 
 ## Sources
 
@@ -50,4 +49,4 @@ design document; the factory and datagram implementation define the current beha
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/src/UdpConnectOptions.cs`.
 
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/src/UdpTraceCode.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/docs/DESIGN.md`.

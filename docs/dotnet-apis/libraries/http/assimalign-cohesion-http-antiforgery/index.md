@@ -1,6 +1,10 @@
 # Assimalign.Cohesion.Http.Antiforgery
 
-Protects HTTP requests with paired antiforgery cookie and request tokens.
+`Assimalign.Cohesion.Http.Antiforgery` creates and validates signed cookie and
+request-token pairs for cross-site request forgery protection. Create an
+`IHttpAntiforgery` service with `HttpAntiforgery.Create(options)` and share it
+across the application's requests. `GetAndStoreTokens(context)` issues the
+pair; `IsRequestValidAsync(context)` checks a submitted pair.
 
 ## Reference
 
@@ -14,26 +18,19 @@ Protects HTTP requests with paired antiforgery cookie and request tokens.
 
 ## Scope
 
-The signed double-submit model protects both halves so an injected cookie alone cannot authenticate
-a request token. Antiforgery composes protocol, cookie, form, and forwarded-identity contracts
-without adding these concerns to the HTTP root. Validation is an explicit server-side operation; in
-a Web application, `Assimalign.Cohesion.Web.Antiforgery` registers the service with
-`AddAntiforgery` and validates protected endpoints with `UseAntiforgery`.
+The package reads the cookie through Http.Cookies and the request token from
+the already-parsed Http.Forms collection. The first occurrence of the
+configured form-token field is used. If it is absent or empty, the configured
+request header supplies the token. An invalid nonempty first form token fails
+validation; later form values are not tried. Form parsing must happen before
+validation when using the form-token path.
 
-The cookie token is `Secure` whenever the request's effective scheme is HTTPS: `EffectiveScheme`
-from `Http.Forwarded`, so TLS terminated at a trusted proxy counts once the forwarded-headers
-middleware runs before the token is stored. `CookieSecure = true` forces the flag on plain HTTP
-too. The cookie token is essential by default (`CookieIsEssential`), so a cookie-consent policy
-emits it before the user consents. The default protector signs with a per-process random key, which
-is for development only; deployed applications set a ring-backed `Protector`, which a Web
-application does with `AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)`. Every
-`IHttpAntiforgeryFeature` reports `nameof(IHttpAntiforgeryFeature)` as its name, so an exchange
-carries one antiforgery service and assigning `context.Antiforgery` replaces a registered one.
+This changes repeated-field behavior from 10.0.0-preview.1: multipart formerly
+selected the last value, and urlencoded forms comma-joined the values. Both
+encodings now select the first token.
 
-`CookiePath` must be an RFC 6265 `path-value`: US-ASCII with no `;` and no control characters, as
-`HttpCookieOptions.Path` requires (#1153). Both `HttpAntiforgery.Create` overloads refuse any other
-value with `ArgumentException` when they create the service, not when a token is stored, so a bad
-path fails the application at composition. See the [design](design.md#design-and-boundaries).
+See [Design](design.md) for token protection, dependency direction, and Web
+pipeline integration.
 
 ## Dependencies
 
@@ -58,6 +55,8 @@ path fails the application at composition. See the [design](design.md#design-and
 | `IHttpAntiforgeryProtector` | `src/Abstractions/IHttpAntiforgeryProtector.cs` |
 
 ## Sources
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/docs/OVERVIEW.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/src/Assimalign.Cohesion.Http.Antiforgery.csproj`.
 

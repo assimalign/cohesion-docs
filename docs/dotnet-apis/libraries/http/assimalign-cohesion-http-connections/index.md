@@ -14,6 +14,9 @@ Carries HTTP exchanges over Cohesion stream and multiplexed connections.
 
 ## Scope
 
+The transport adapts connection listeners to HTTP/1.1, HTTP/2 and HTTP/3 exchanges.
+Configure registrations and shared policies through `HttpConnectionListenerOptions`.
+
 The package consumes `IConnection` and `IMultiplexedConnection` rather than owning a second
 transport stack. Protocol handling uses the core feature and interceptor seams, allowing optional
 concerns to attach without reverse references from the transport.
@@ -100,14 +103,35 @@ Request heads are held to one target rule on every version (#1334): a classic CO
 token of at most 32 characters (HTTP/1.1 answers `400` or `501`). HPACK decodes obs-text as Latin-1
 like QPACK and HTTP/1.1, and `:path`, `:authority` and `Host` hold only VCHAR (#1387). An
 absolute-form target decodes like origin-form, an `https` one on a cleartext HTTP/1.1 connection is
-answered `421`, and h2c keeps the connection's `http` scheme (#1324). No version sends content, or a
-synthesized `Content-Length`, on a `204` or `304`, nor `Content-Length: 0` for an empty HEAD
-(#1073). See the [design](design.md#http2-request-heads-rfc-9113-83).
+answered `421` (#1324). No version sends content, or a synthesized `Content-Length`, on a `204` or
+`304`, nor `Content-Length: 0` for an empty HEAD (#1073). See the [design](design.md#http2-request-heads-rfc-9113-83).
 
 HTTP/3 holds the peer's control and QPACK streams to their critical-stream rules as connection
 errors and bounds its priority map (#1083), resets a request stream opened after its `GOAWAY` with
 `H3_REQUEST_REJECTED` (#1306), and half-closes an extended CONNECT tunnel over QUIC (#1330). See the
 [design](design.md#http3-critical-streams-1083).
+
+Cleartext HTTP/2 rejects `:scheme https` with 421 before dispatch. A trusted gateway
+that terminates TLS may set `AllowAlternateSchemes = true` to preserve its forwarded
+scheme. Connection security still reflects the backend connection. See the
+[design](design.md#the-request-scheme-and-an-https-target-on-cleartext-1324).
+
+Final responses include a cached IMF-fixdate `Date` by default. The timestamp is
+available before dispatch and preserves an application override. Set
+`AddDateHeader = false` behind a proxy that adds Date; 1xx responses omit it. See the
+[design](design.md#automatic-date-on-final-responses-1417).
+
+HTTP/3 validates the QPACK encoder stream even with the dynamic table disabled: only a
+zero-capacity instruction is accepted, and forbidden instructions close the connection with
+`QPACK_ENCODER_STREAM_ERROR` (#1423). Application interim responses, automatic `100 Continue`
+and the final head share a writer claim, so an interim finishes before the final head starts
+(#1428). See the [design](design.md#application-interim-responses-and-the-final-head-1428).
+
+An HTTP/3 connection lost after an exchange exists fires `RequestCancelled`; a body read throws
+that exchange's cancellation, and `ClientFaultStatusCode` remains `null` unless a body fault was
+already latched (#1430). Completed request streams are released by the QUIC driver after both
+halves complete, within the connection's bounded delivery wait (#1424). See the
+[design](design.md#http3-releasing-completed-request-streams-1424).
 
 ## Dependencies
 
@@ -183,3 +207,5 @@ errors and bounds its priority map (#1083), resets a request stream opened after
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpExchangeInterceptorRequestContext.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/OVERVIEW.md`.

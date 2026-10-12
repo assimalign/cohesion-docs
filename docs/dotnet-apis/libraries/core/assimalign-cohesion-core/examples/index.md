@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Core`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Tests File Name behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise file-name and file-system-path behavior, including extended-length paths, using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,4 @@ Source-backed examples for `Assimalign.Cohesion.Core`.
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Core/README.md`.
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src`.
+- **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/tests/System/IO/Tests.FileSystemPath.cs`.

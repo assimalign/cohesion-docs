@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Connection Direction behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise connection direction and layered-listener diagnostics using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,5 @@ Source-backed examples for `Assimalign.Cohesion.Connections`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Connections/README.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/tests/ConnectionLayerEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.

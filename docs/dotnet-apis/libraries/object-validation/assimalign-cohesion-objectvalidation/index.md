@@ -23,6 +23,10 @@ failing rule: `ValidationMode.Stop` stops at the first failing member, and
 `ContinueThroughValidationChain` runs every rule of a member. See
 [which failures are reported](design.md#which-failures-are-reported).
 
+`RuleForEach` error sources include zero-based element indices, including nested collections:
+`model => model.Groups[1].Items[2].Quantity`. Explicit error source names remain as written. See
+[error sources](design.md#error-sources).
+
 The pattern rules bound what a request body can cost. `EmailAddress` runs in linear time and fails
 an address over the RFC 5321 sizes. `Matches` runs the caller's pattern in linear time when the
 non-backtracking engine supports it. Otherwise each match gets one second, per element under
@@ -49,6 +53,9 @@ The project file declares no explicit Cohesion project or external package refer
 
 ## Principal public types
 
+When `ThrowExceptionOnFailure` is enabled, catch `ValidationFailureException` and inspect its `Errors`
+read-only list for the failures, in the order supplied when the exception was constructed.
+
 | Type | Source file |
 |---|---|
 | `IValidationCondition` | `src/Abstractions/IValidationCondition.cs` |
@@ -67,6 +74,7 @@ The project file declares no explicit Cohesion project or external package refer
 | `ValidationError` | `src/ValidationError.cs` |
 | `ValidationItemQueue` | `src/ValidationItemQueue.cs` |
 | `ValidationOptions` | `src/ValidationOptions.cs` |
+| `ValidationFailureException` | `src/Exceptions/ValidationFailureException.cs` |
 
 ## Sources
 
@@ -107,3 +115,5 @@ The project file declares no explicit Cohesion project or external package refer
 - **Source** — `cohesion/libraries/ObjectValidation/Assimalign.Cohesion.ObjectValidation/src/ValidationResult.cs`.
 
 - **Source** — `cohesion/libraries/ObjectValidation/Assimalign.Cohesion.ObjectValidation/src/ValidationInvocation.cs`.
+
+- **Source** — `cohesion/libraries/ObjectValidation/Assimalign.Cohesion.ObjectValidation/src/Exceptions/ValidationFailureException.cs`.

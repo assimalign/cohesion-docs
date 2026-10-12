@@ -1,6 +1,11 @@
 # Assimalign.Cohesion.Http.Forms
 
-Parses URL-encoded and multipart form bodies into typed collections.
+Streaming parsers and collections for `application/x-www-form-urlencoded`
+and `multipart/form-data`, layered on the core Http contracts. Form feature
+state lives on `IHttpContext.Features`. Read it with
+`await context.ReadFormAsync(cancellationToken)`; a parsed or pre-attached
+form is available through `request.Form`. Web.Forms provides the pipeline
+middleware that parses eagerly and maps parsing failures to HTTP responses.
 
 ## Reference
 
@@ -12,27 +17,19 @@ Parses URL-encoded and multipart form bodies into typed collections.
 
 [Http](../index.md)
 
-## Scope
+## Repeated fields
 
-Form parsing is an opt-in application concern above the raw protocol body. The feature owns parsing,
-limits, and temporary-file spill behavior. Keeping these operations out of the protocol core avoids
-imposing form lifecycle costs on clients and proxies.
+For `tag=first&tag=&tag=last`, or three multipart scalar parts named `tag`,
+`form["tag"]` contains `"first"`, `""`, and `"last"` in that order.
+Enumerate it or use its integer indexer and `Count` for every occurrence.
+`form["tag"].Value` reads `"first"`. A comma in one value is not a separator.
+Collection `Count` counts distinct scalar keys, and `Files` is separate.
+`HttpFormCollection.Add` appends all supplied values to the named field.
 
-Every parse failure surfaces as `System.IO.InvalidDataException`. When the body exceeds one of the
-configured `HttpFormOptions` limits, that exception's `InnerException` is an
-`HttpFormLimitExceededException` carrying the same message; a malformed body has no inner
-exception. A caller answering the request tells the two apart by type: a body over a limit is
-`413 Content Too Large`, and a malformed one `400 Bad Request`. The source-generated typed-endpoint
-binding, `UseAntiforgery`, and `UseForms()` (`Assimalign.Cohesion.Web.Forms`) answer that way;
-`UseForms()` answers as problem+json, and the rest of the pipeline does not run (#1210).
-
-`HttpFormFileCollection` keeps every uploaded file part, in arrival order. The files of a
-multiple-file field (`<input type="file" multiple>`) arrive as separate parts with the same name
-(RFC 7578 §4.3), so enumerating the collection yields them all, and `TryGetValue(name, ...)` returns
-the first with that name (names compare case-insensitively). A part is a file part only when its
-`filename` is non-empty: a browser sends an optional `<input type="file">` left empty as
-`filename=""` with no content, and that part is read as an empty value. See the
-[design](design.md#an-empty-file-input-is-a-value).
+Both encodings now follow the same first-scalar and multi-value rules
+(decision 31). This changes preview.1's multipart last-value and urlencoded
+comma-joined scalar behavior. See [Design](design.md) for compatibility,
+consumer effects, parsing limits, uploaded file ownership, and AOT posture.
 
 ## Dependencies
 
@@ -57,6 +54,8 @@ the first with that name (names compare case-insensitively). A part is a file pa
 | `IHttpFormFileCollection` | `src/Abstractions/IHttpFormFileCollection.cs` |
 
 ## Sources
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/docs/OVERVIEW.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/src/Assimalign.Cohesion.Http.Forms.csproj`.
 

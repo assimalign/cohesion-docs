@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Tcp`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise File Handle End Point behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise file-handle endpoints and TCP diagnostics using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,5 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Tcp`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Connections/README.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/src`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/TcpConnectionEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.

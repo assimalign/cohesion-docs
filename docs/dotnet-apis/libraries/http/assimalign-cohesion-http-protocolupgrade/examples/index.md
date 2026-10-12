@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Http.ProtocolUpgrade`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Http Protocol Upgrade Interceptor behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise protocol upgrade and CONNECT transitions, including Date header handling, using the original repository tests.
 
 ## Sources
 

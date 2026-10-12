@@ -117,6 +117,25 @@ Pure managed code with no reflection, dynamic code generation, or runtime type i
 is token scanning over parsed headers, and the accept path is string and buffer work over the
 surrendered stream.
 
+## Date on transition responses (#1417)
+
+The transport seeds its cached response `Date` before the response interceptor materializes the
+transition. The `101` writer excludes that field, including one the application supplied, because
+Cohesion emits no `Date` on informational responses. Exclusion still validates the field value
+before takeover; malformed values remain rejected under #1183. The live response headers lose the
+field once takeover succeeds, matching the wire.
+
+A CONNECT `200` retains the application's `Date`. The transition also captures the initial date
+from the response headers, so clearing the collection before acceptance restores that origination
+time when no replacement date was set. This uses the existing generic interceptor materials;
+the package neither obtains a clock nor references the transport. A transport configured not to
+generate `Date` supplies no initial field, so the transition synthesizes none. The capture and
+restoration reuse the original header value without formatting another date.
+
+Compared with `10.0.0-preview.1`, omitting an application-set `Date` from a `101` and retaining the
+transport's automatic date on a CONNECT `200` are observable header changes, accepted under the
+preview breaking-change policy. The response status and takeover ownership are unchanged.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Http`. The [overview](index.md#dependencies)

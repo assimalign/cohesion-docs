@@ -1,6 +1,9 @@
 # Assimalign.Cohesion.Http
 
-Defines Hypertext Transfer Protocol (HTTP) messages, fields, features, and exchange contracts.
+The transport-independent HTTP contracts and protocol value objects used by
+Cohesion clients, transports, and Web features. The package depends on Core;
+feature-specific contracts live in the corresponding Http feature packages.
+See [Design](design.md) for protocol semantics and compatibility decisions.
 
 ## Reference
 
@@ -109,6 +112,26 @@ in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
 `Features.Get<TFeature>()` allocates nothing on an `HttpFeatureCollection`. See the
 [design](design.md#repeated-fields-combine-in-linear-time).
 
+The first field in a parameterless `HttpHeaderCollection` stays inline, so seeding a response with
+a process-cached `Date` allocates nothing and consumes none of the dictionary capacity needed by
+application fields (#1417). The core owns only the collection storage; the transport owns the Date
+policy and clock. See the [design](design.md#small-header-collections-and-cached-fields-1417).
+
+## Query values
+
+Parse with `new HttpQuery("?tag=first&tag=&tag=last").Parse()`.
+The collection has one key and its `query["tag"]` value contains three ordered
+strings: `"first"`, `""`, and `"last"`. Enumerate that value or use its
+integer indexer and `Count` to read all occurrences. Its `Value`, `ToString()`,
+and typed scalar getters return the first occurrence (decision 31).
+
+`HttpQueryCollection.Add` appends occurrences; assigning its key indexer
+replaces all values for that key. `HttpQuery.Create(query)` encodes every
+occurrence for a redirect or rewritten URL. Collection `Count` counts keys.
+These behaviors replace preview.1's last-value parsing; see the compatibility
+and caller audit in the [design](design.md#repeated-values-1335-decision-31)
+before upgrading code that sends duplicate keys.
+
 ## Dependencies
 
 | Reference | Build item |
@@ -143,6 +166,8 @@ in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/docs/OVERVIEW.md`.
 
 - **Source** — `cohesion/libraries/Http/README.md`.
 
@@ -213,3 +238,11 @@ in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpIfRange.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpStatusCode.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpHeaderCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpQueryCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpQueryValue.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpQueryCollection.cs`.

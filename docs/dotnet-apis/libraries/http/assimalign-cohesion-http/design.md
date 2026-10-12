@@ -10,6 +10,32 @@ Headers and trailers are distinct ordered field sections using compatible collec
 Optional concerns attach through feature and interceptor seams rather than widening the protocol
 root. The core remains independent of hosting and resource platforms.
 
+## Small header collections and cached fields (#1417)
+
+A parameterless `HttpHeaderCollection` holds its first field in the collection
+itself. Subsequent distinct fields use a lazy dictionary, while the first field
+remains inline. Seeding a response with a process-cached `Date` therefore allocates
+nothing and consumes none of the dictionary capacity needed by application
+fields. The core knows no Date policy or clock; this is generic collection
+storage, and the transport owns the default field and its lifetime.
+
+The capacity constructor retains a preallocated dictionary. A constructor passed
+a dictionary retains that exact live store, including a caller's comparer and
+later external mutations. `AsReadOnly` points at the original collection, so a
+view created while it is empty follows later inline insertion, dictionary growth,
+removal and reuse. Mutations through the view still fail. `Add` retains an empty
+value as a present field; assigning an empty value through the indexer removes
+it. Enumeration visits the inline field and then the dictionary. Field-name order
+after removals and reinsertions is unspecified, as it was for dictionary storage;
+repeated values within a field retain their order.
+
+This changes no public contract from 10.0.0-preview.1. It removes the eager empty
+dictionary allocation and the first field's bucket/entry allocations. The
+collection itself carries the inline key/value and the live-view reference;
+larger collections still allocate their ordinary dictionary. The alternative,
+putting the first field into that dictionary when the second arrives, would make
+a default Date trigger an extra resize at ordinary field capacity boundaries.
+
 ## Trailers
 
 `IHttpRequest.Trailers` and `IHttpResponse.Trailers` are the trailer sections of RFC 9110 §6.5,
@@ -192,6 +218,60 @@ could fail its own connection or stream, and have the server log the failure as 
 `=`. A rewrite target is held to a stricter rule: `Web.Rewrite` still refuses a query entry without
 a name, at registration for a target's literal text and with `400` when a capture produces one.
 
+### Repeated values (#1335, decision 31)
+
+A key maps to an ordered `HttpQueryValue` list. `HttpQuery.Parse` appends
+instead of replacing, including empty and interleaved occurrences. `Count`
+on the collection still counts distinct keys; `Count` on a value counts its
+occurrences. Existing case-insensitive key matching is unchanged. The values
+follow the ordered name/value model in the [WHATWG URL parser](https://url.spec.whatwg.org/#urlencoded-parsing);
+this change does not alter the existing plus-sign or empty-name parsing rules.
+
+`Value`, `ToString`, conversion to string, and typed scalar getters read the
+**first** occurrence. Enumerating or indexing the value reads every occurrence,
+without comma joining. `HttpQueryValue.Empty` has zero occurrences and a scalar
+empty string; `new HttpQueryValue("")` has one empty occurrence. Equality and
+hashing compare the whole ordered list. `HttpQueryCollection.Add` appends;
+its setter replaces the whole list, and removal removes the key and all values.
+The existing dictionary constructor still wraps its store.
+
+The value privately reuses `HttpHeaderValue`'s immutable geometric append
+storage, avoiding quadratic copies for attacker-controlled repeats without
+adopting header comma-folding. No collection interface gains a member, no
+reflection is introduced, and the value remains one reference wide. The Web
+endpoint generator emits loops over this list for supported query sequences;
+scalar bindings still use `Value`.
+
+**Breaking changes from 10.0.0-preview.1**, accepted during previews on decision
+15's terms: parsed duplicates select the first scalar instead of the last;
+`Add` appends duplicates instead of throwing; value equality observes all
+occurrences; a missing value is distinct from one explicitly empty occurrence.
+Serialization now includes every value. Supported scalar sequence parameters
+in generated endpoints infer query binding; an explicit `[FromBody]` retains
+body binding (see [Web.Api's design](../../../resources/web/assimalign-cohesion-web-api/design.md)).
+
+**In-repository caller audit.** No caller or existing test explicitly requires
+last-wins. The following scalar readers now observe the first occurrence:
+
+- `ConfigurationEndpointService` (ConfigurationStore.Hosting): `name`.
+- `SecretsEndpointService` (SecretStore.Hosting): `path`, `name`,
+  `application`, and `resource` through its query helper.
+- `LogSpaceHttp`: `limit`, `since`, `resource`, and `cursor`.
+- `EndpointBindingGenerator`: explicit scalar query binding and scalar
+  route-to-query fallback; Http.Connections' HTTP/1, HTTP/2 and HTTP/3 examples:
+  `name`.
+- `HttpLoggingMiddleware.SerializeQuery` and
+  `WebServerTelemetry.GetQueryAttribute`: their existing scalar projection
+  records the first occurrence once per key. Their disclosure/redaction scope
+  is unchanged.
+
+Non-scalar consumers were checked too. `OutputCacheKeyBuilder` now includes
+all occurrences in order for both all-key and selected-key variation, with
+escaped components so decoded separators cannot collide. `HttpQuery.Create`
+now writes every occurrence, covering HTTPS and directory redirects and
+`RewriteContext` serialization. `RewriteUrl` parses replacements through the
+same parser. Request wrappers retain the complete collection by reference.
+
 ## Writing a path and a query back out (`ToUriComponent`, `HttpQuery.Create`)
 
 Every transport hands middleware a **decoded** request: `HttpPath.FromUriComponent` decodes the
@@ -211,8 +291,9 @@ writer sends as `/caf?`, and `/100%25` became `/100%`, which is not a URI refere
   - A sequence that is not valid UTF-8: an invalid or lone byte (the Latin-1 `/caf%E9`, a stray
     continuation `%A9`), a truncated sequence (`/%C3` at the end), an overlong one (`%C0%AE`) or an
     encoded surrogate (`%ED%A0%80`).
-- **`HttpQuery.Create(IHttpQueryCollection)`** joins the entries with `&` in enumeration order,
-  percent-encodes each name and value except for the unreserved characters, so an `&`, `=` or `+`
+- **`HttpQuery.Create(IHttpQueryCollection)`** joins the entries with `&` in key enumeration order
+  and each key's values in arrival order, percent-encodes each name and value except for the
+  unreserved characters, so an `&`, `=` or `+`
   inside one cannot split or change it, and writes an empty value as the bare name. `Parse` reads it
   back as the same collection. It is not the query the request carried: only the parsed collection
   survives the transport, so order and percent-encoding are rebuilt.
@@ -738,3 +819,11 @@ distinguishes project references, package references, shared source, and analyze
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpHeaderCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/HttpQueryCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpQueryValue.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpQueryCollection.cs`.

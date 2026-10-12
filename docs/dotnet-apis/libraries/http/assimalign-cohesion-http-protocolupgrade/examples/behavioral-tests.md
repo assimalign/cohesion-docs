@@ -18,10 +18,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http.ProtocolUpgrade.Tests.TestObjects;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Http.ProtocolUpgrade.Tests;
 
@@ -252,6 +256,62 @@ public class HttpProtocolUpgradeInterceptorTests
         response.ShouldNotContain("Content-Length");
         response.ShouldNotContain("Transfer-Encoding");
         response.ShouldNotContain("Connection:");
+        // A transport with automatic Date disabled supplied none; this package invents no clock value.
+        response.ShouldNotContain("Date:", Case.Insensitive);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A 101 should omit the transport or application Date")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AcceptAsync_OnUpgradeWithDate_ShouldOmitDate(bool applicationDate)
+    {
+        // Arrange
+        using MemoryStream wire = new();
+        HttpHeaderCollection headers = new()
+        {
+            [HttpHeaderKey.Connection] = "Upgrade",
+            [HttpHeaderKey.Upgrade] = "websocket",
+        };
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Get, headers, new FakeExchangeControl(wire),
+            out HttpHeaderCollection responseHeaders, initialDate: "Thu, 01 Jan 2026 00:00:00 GMT");
+        if (applicationDate)
+        {
+            responseHeaders[HttpHeaderKey.Date] = "Sun, 06 Nov 1994 08:49:37 GMT";
+        }
+
+        // Act
+        await context.Upgrade!.AcceptAsync(CancellationToken.None);
+
+        // Assert
+        Encoding.ASCII.GetString(wire.ToArray()).ShouldNotContain("Date:", Case.Insensitive);
+        responseHeaders.ContainsKey(HttpHeaderKey.Date).ShouldBeFalse();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: CONNECT should restore the transport Date after Clear and preserve an application Date")]
+    [InlineData(null)]
+    [InlineData("Sun, 06 Nov 1994 08:49:37 GMT")]
+    public async Task AcceptAsync_OnConnectAfterHeadersCleared_ShouldKeepOriginationDate(string? applicationDate)
+    {
+        // Arrange
+        const string initialDate = "Thu, 01 Jan 2026 00:00:00 GMT";
+        using MemoryStream wire = new();
+        FakeHttpContext context = new();
+        RunInterceptors(context, HttpVersion.Http11, HttpMethod.Connect, new HttpHeaderCollection(), new FakeExchangeControl(wire),
+            out HttpHeaderCollection responseHeaders, initialDate);
+        responseHeaders.Clear();
+        if (applicationDate is not null)
+        {
+            responseHeaders[HttpHeaderKey.Date] = applicationDate;
+        }
+
+        // Act
+        await context.Upgrade!.AcceptAsync(CancellationToken.None);
+
+        // Assert
+        string expected = applicationDate ?? initialDate;
+        Encoding.ASCII.GetString(wire.ToArray()).ShouldContain($"\r\nDate: {expected}\r\n", Case.Sensitive);
+        responseHeaders[HttpHeaderKey.Date].Value.ShouldBe(expected);
     }
 
     [Fact(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: Application response headers set before accepting ride the 101")]
@@ -296,6 +356,7 @@ public class HttpProtocolUpgradeInterceptorTests
 
     [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Accept: A response field the 101 cannot carry is refused before the connection is claimed")]
     [InlineData("x-echo", "a\r\nSet-Cookie: injected=1")]
+    [InlineData("Date", "a\r\nSet-Cookie: injected=1")]
     [InlineData("x-echo", "a\nb")]
     [InlineData("x-echo", "a\0b")]
     [InlineData("x-echo", "a\u0001b")]
@@ -521,13 +582,19 @@ public class HttpProtocolUpgradeInterceptorTests
         HttpMethod method,
         HttpHeaderCollection requestHeaders,
         IHttpExchangeControl? control,
-        out HttpHeaderCollection responseHeaders)
+        out HttpHeaderCollection responseHeaders,
+        string? initialDate = null)
     {
         HttpExchangeInterceptorRequestContext headContext = CreateHeadContext(context, version, method, requestHeaders);
         IHttpExchangeInterceptor interceptor = HttpProtocolUpgrade.CreateInterceptor();
         interceptor.AfterRequestHead(headContext);
 
         responseHeaders = new HttpHeaderCollection();
+        if (initialDate is not null)
+        {
+            responseHeaders[HttpHeaderKey.Date] = initialDate;
+        }
+
         HttpExchangeInterceptorResponseContext responseContext = new()
         {
             Version = version,
@@ -607,8 +674,8 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Interceptor: A CONNECT request installs the feature with Kind=Connect and no protocol.
 - **Covered behavior** — Interceptor: A bare Upgrade header without the Connection token is not a transition.
 - **Covered behavior** — Interceptor: The upgrade token is found inside a Connection token list.
-- **Covered behavior** — Interceptor: A Connection option padded with obs-text whitespace is not the upgrade token.
-- **Covered behavior** — Interceptor: The Upgrade protocol keeps obs-text whitespace and loses only SP and HTAB.
+- **Covered behavior** — Interceptor: A Connection option padded with obs-text whitespace is not the upgrade token. The theory runs with `"upgrade\u00A0"`, `"\u0085upgrade"`, `"keep-alive, upgrade\u00A0"`.
+- **Covered behavior** — Interceptor: The Upgrade protocol keeps obs-text whitespace and loses only SP and HTAB. The theory runs with `" \twebsocket\t , h2c", "websocket"`, `"websocket\u00A0", "websocket\u00A0"`, `"\u0085websocket", "\u0085websocket"`.
 - **Covered behavior** — Interceptor: HTTP/2 exchanges are never transitions, even with upgrade-shaped headers.
 - **Covered behavior** — Interceptor: No transport takeover capability degrades to a null upgrade.
 - **Covered behavior** — Interceptor: A control that cannot take over degrades to a null upgrade.
@@ -616,9 +683,11 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Upgrade: A null context throws.
 - **Covered behavior** — Accept: Upgrade claims the connection, writes 101 without framing headers, and returns the raw stream.
 - **Covered behavior** — Accept: CONNECT writes 200 without framing or Connection headers.
+- **Covered behavior** — Accept: A 101 should omit the transport or application Date. The theory runs with `false`, `true`.
+- **Covered behavior** — Accept: CONNECT should restore the transport Date after Clear and preserve an application Date. The theory runs with `null`, `"Sun, 06 Nov 1994 08:49:37 GMT"`.
 - **Covered behavior** — Accept: Application response headers set before accepting ride the 101.
 - **Covered behavior** — Accept: A second accept throws without writing a second response.
-- **Covered behavior** — Accept: A response field the 101 cannot carry is refused before the connection is claimed.
+- **Covered behavior** — Accept: A response field the 101 cannot carry is refused before the connection is claimed. The theory runs with `"x-echo", "a\r\nSet-Cookie: injected=1"`, `"Date", "a\r\nSet-Cookie: injected=1"`, `"x-echo", "a\nb"`, `"x-echo", "a\0b"`, `"x-echo", "a\u0001b"`, `"x-echo\r\nSet-Cookie", "injected=1"`, `"x echo", "value"`.
 - **Covered behavior** — Accept: A Set-Cookie value the 101 cannot carry is refused before the connection is claimed.
 - **Covered behavior** — Accept: Each Set-Cookie value rides the 101 on a field line of its own.
 - **Covered behavior** — Accept: Cookies appended through the cookie feature ride the 101 exactly once.
@@ -626,8 +695,8 @@ public class HttpProtocolUpgradeInterceptorTests
 - **Covered behavior** — Accept: A response field with HTAB inside its value rides the 101.
 - **Covered behavior** — Upgrade: Repeated accessor reads return the same single-shot instance.
 - **Covered behavior** — Interceptor: It declares the request scope only, so it is never in every exchange's response phase.
-- **Covered behavior** — Interceptor: An h1 upgrade or CONNECT joins that exchange's response phase.
-- **Covered behavior** — Interceptor: An ordinary h1 request, and any h2 or h3 request, stays out of the response phase.
+- **Covered behavior** — Interceptor: An h1 upgrade or CONNECT joins that exchange's response phase. The theory runs with `"GET", true`, `"CONNECT", false`.
+- **Covered behavior** — Interceptor: An ordinary h1 request, and any h2 or h3 request, stays out of the response phase. The theory runs with `HttpVersion.Http11, "GET"`, `HttpVersion.Http11, "POST"`, `HttpVersion.Http20, "GET"`, `HttpVersion.Http20, "CONNECT"`, `HttpVersion.Http30, "CONNECT"`.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.

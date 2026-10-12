@@ -85,16 +85,48 @@ an internal constructor replaces the accept so tests can fail it with errors a r
 made to report on demand. Every other accept error leaves the listening socket unable to accept, and
 escapes.
 
-## Accept events
+## Diagnostics
 
-The driver's event source, `Assimalign.Cohesion.Connections.Tcp`, reports what happened to an
-accept:
+The diagnostics tests link the canonical test-only `EventSourceRecorder` through
+`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`; it records
+events and counter publication without adding a shipped dependency.
+
+The driver reports through its own internal event source, named for the assembly:
+`Assimalign.Cohesion.Connections.Tcp` (`Internal/EventSource/TcpConnectionEventSource.cs`), per the
+repository EventSource convention (`cohesion/.claude/rules/event-source.md`). Nothing about it is public: tools
+enable it by name (`dotnet-trace collect --providers Assimalign.Cohesion.Connections.Tcp`,
+`dotnet-counters monitor --counters Assimalign.Cohesion.Connections.Tcp`), and an application forwards
+it into its logging with `Assimalign.Cohesion.Logging.EventSource`
+(`AddEventSourceForwarding()` on the logger factory builder), where the source name becomes the log
+category.
 
 | Id | Event | Level | Payload |
 |---|---|---|---|
+| 1 | `ListenerBound` | Informational | `listenerId`, `protocol`, `endPoint` |
+| 2 | `ListenerClosed` | Informational | `listenerId` |
+| 3 | `ConnectionOpened` | Informational | `connectionId`, `listenerId` (empty when dialed), `protocol`, `localEndPoint`, `remoteEndPoint` |
+| 4 | `ConnectionClosed` | Informational | `connectionId` |
+| 5 | `ConnectionFinished` | Verbose | `connectionId` — the peer finished sending (end of stream) |
+| 6 | `ConnectionPaused` | Verbose | `connectionId` — receiving paused under application back-pressure |
+| 7 | `ConnectionResumed` | Verbose | `connectionId` |
+| 8 | `ConnectionReset` | Verbose | `connectionId` |
+| 9 | `ConnectionError` | Error | `connectionId`, `operation` (`receiving`/`sending`), `exceptionType`, `exceptionMessage` |
 | 10 | `AcceptSkipped` | Verbose | `listenerId`, `socketError` (`ConnectionReset`/`ConnectionAborted`, and on Linux a pending network error): a queued connection that failed before the accept |
 | 11 | `AcceptBackoff` | Warning | `listenerId`, `socketError`, `delayMilliseconds`, `unreportedBackoffs`: an accept failed and is retried after the delay. `socketError` names the cause: `TooManyOpenSockets` (out of descriptors), `NoBufferSpaceAvailable` (out of buffers), or, on Unix, `SocketError`, an `errno` .NET does not name, which is `ENOMEM`, `ENOSR`, `EPROTO` or `ENONET`; the message names no cause of its own. At most one per listener per second; `unreportedBackoffs` counts the waits held back since the previous report |
 | 12 | `AcceptedConnectionDropped` | Verbose | `listenerId`, `socketError`: the listener closed a socket it had accepted because setting it up failed, typically because the client reset it right after the accept |
+
+Counters: `current-connections`, `total-connections`, and `connections-per-second`.
+
+Ordering and pairing are guaranteed, which is what keeps `current-connections` exact:
+
+- `ConnectionOpened` is raised in the constructor **before** the pump loops start, so no loop event can
+  precede it.
+- `ConnectionClosed` is raised exactly once, from the receive loop's close path (the one place the
+  connection-closed signal is scheduled), and **before** that signal completes — so `DisposeAsync` never
+  returns ahead of it. The driver previously raised no close event at all.
+- Lifetimes use `Bound`/`Opened`/`Closed` names, not `Start`/`Stop`: a connection opens on the accept
+  loop's flow and closes on the receive loop's, and EventSource's activity tracking would otherwise
+  nest every connection under the previous one.
 
 ## Dependency boundary
 

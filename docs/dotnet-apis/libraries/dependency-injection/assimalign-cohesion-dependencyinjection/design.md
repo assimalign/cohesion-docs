@@ -39,6 +39,17 @@ the call-site factory selects survive trimming. The remaining `MakeGenericType` 
 modules register factories and instances only, so none relies on those shapes; for code that does,
 the checks turn a latent native crash into a descriptive startup failure.
 
+## Shared diagnostic test recorder
+
+`shared/EventSourceRecorder.cs` is the canonical test-only `EventListener` used by this
+project and the Connections root, Tcp, Quic, NamedPipes and Udp test projects. Each names
+`Assimalign.Cohesion.DependencyInjection.Tests` in its own `CohesionSharedSource` item;
+the existing resolver supports test project names and links the sibling `shared/` folder.
+The recorder preserves event payloads and optionally waits for named counters to publish.
+Its state belongs to each listener instance and never crosses an assembly boundary. No
+shipped project compiles this folder or references the test assembly. Keeping one file
+prevents the event and counter helpers from drifting across source test suites.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`. The [overview](index.md#dependencies)
@@ -55,3 +66,5 @@ distinguishes project references, package references, shared source, and analyze
 - **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/src`.
+
+- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.

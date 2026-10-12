@@ -149,6 +149,10 @@ or the caller canceled. A consumer such as the HTTP listener treats it as fatal.
   listener disposes a connection it accepted, and the layered factory a connection it dialed
   (#1309).
 
+The diagnostics tests link the canonical test-only `EventSourceRecorder` through
+`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`; it records
+events and counter publication without adding a shipped dependency.
+
 The layered listener reports through this library's one internal event source,
 `Assimalign.Cohesion.Connections`:
 

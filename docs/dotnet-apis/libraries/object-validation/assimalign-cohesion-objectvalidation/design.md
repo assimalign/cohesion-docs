@@ -64,6 +64,14 @@ Web.Validation's `errors` map listed members in reverse declaration order.
 
 ## A rule that throws
 
+`ValidationFailureException.Errors` retains the failures supplied to either internal constructor (a
+context or an enumerable). It snapshots the sequence into a read-only list in enumeration order,
+preserving the error objects, so later additions to a context or changes to the input collection do not
+change which failures the exception exposes. `ThrowExceptionOnFailure` callers can inspect that list.
+This adds a public property without changing an interface. Compared with 10.0.0-preview.1, which
+discarded both constructors' errors, retaining and exposing them is an observable behavior change
+recorded on HTTP/Web decision 15's preview breaking-change terms (#1208).
+
 A rule reports a failure by adding errors to its context; an exception is a fault, not a failure. A
 nested profile's rules (`ChildRules`, `UseProfile`) and a custom rule's delegate (`Custom`) run
 arbitrary code, and an exception from either propagates out of `Validate` and `ValidateAsync`:
@@ -158,13 +166,24 @@ error's default source under it, so the error reads `p => p.Address.City`; two l
 `p => p.Order.Address.City`. Only the default member-selector form is composed: a source the nested
 rule set explicitly is kept as written. Before this, a nested error carried only the nested selector,
 and errors on equally named members of different nested objects (`Shipping.City`, `Billing.City`)
-could not be told apart. Under `RuleForEach`, nested sources name the collection member
-(`p => p.Addresses.City`) without an element index: the collection item evaluates its rules per
-element without passing the index to them.
+could not be told apart.
+
+**Collection sources include the element's zero-based index.** `RuleForEach` reports scalar failures
+as `p => p.Names[2]`, nested failures as `p => p.Addresses[2].City`, and nested collections as
+`p => p.Groups[1].Items[2].Quantity`. `ValidationItemCollection` adds the index while forwarding each
+element's errors, after a nested rule has composed the member path. The index is local to that rule's
+enumeration, and the source is set on an error copy; neither the shared rule nor its error template
+holds an index. Explicit source names are kept as written. This uses the existing `Source` contract,
+with no public-surface addition.
+
+Compared with 10.0.0-preview.1, which omitted collection indices, indexed `Source` values are an
+observable breaking change on HTTP/Web decision 15's preview terms (#1209).
 
 Web request validation
 ([`Assimalign.Cohesion.Web.Validation`](../../../resources/web/assimalign-cohesion-web-validation/index.md))
-reports these sources to clients as the member path after the selector parameter (`Address.City`).
+reports these sources to clients as the member path after the selector parameter, mapping it through
+the application's registered JSON contract (`address.city`, `items[2].quantity`) and retaining CLR
+names without a contract.
 
 ## Dependency boundary
 

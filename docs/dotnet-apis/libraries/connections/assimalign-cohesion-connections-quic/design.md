@@ -58,6 +58,36 @@ during the wait closes it at once too. Before #1330 the wait happened on the exc
 inside the blocking disposal of the `QuicStream`; the bound was added with the half-close, which
 moved it into this phase.
 
+All remaining disposals start together and share a second `CloseDeliveryTimeout` bound, including
+bidirectional streams still delivering and streams accepted after the first snapshot. Repeated
+disposal waits for the same native release, so no separate unbounded sweep retries that wait
+afterward; native connection disposal finishes teardown (#1424).
+
+## Completed and aborted streams are released
+
+Stream and connection dispose are idempotent. Once the background
+`QuicStream` release finishes, the driver untracks its wrapper and reports
+`StreamClosed` exactly once (#1424), whether it was released by completing
+both usable halves or by explicit disposal. Until that release finishes it
+stays tracked, so connection teardown still waits for delivery within
+`CloseDeliveryTimeout`. Completing just one half neither untracks the stream
+nor changes its state or cancellation signal; completing both halves still
+leaves those signals alone. Explicit abort/disposal retains its existing
+state and cancellation behavior. Aborting a stream also starts its pipe and native
+cleanup, so reset requests do not retain wrappers either. Concurrent disposals
+wait for the same native release instead of skipping a delivery already in progress.
+
+The driver owns this transition rather than asking HTTP/3 to await stream
+disposal: every protocol that completes both halves needs the same release,
+and waiting in an exchange would bypass the connection's delivery bound.
+This fixes preview.1's retention of one wrapper (pipes, CTS and TCS) per
+request until connection teardown. A remote unauthenticated client can
+retain managed memory by repeatedly requesting on one opt-in HTTP/3
+connection (CWE-401; availability impact). The current-streams gauge now
+falls at release instead of remaining inflated until connection teardown;
+that diagnostic behavior change is recorded against preview.1 on decision
+15's terms.
+
 ## Handshake facts
 
 QUIC runs a TLS 1.3 handshake inside its own (RFC 9001), so a QUIC connection is a TLS-terminating
@@ -153,6 +183,46 @@ gives no code: the stream default on a stream's `Abort(Exception?)`, its disposa
 its `Input`, and the completion of its `Output` with an error; the close default on the connection's
 `Abort(Exception?)` and disposal. A listener or factory serving a different ALPN protocol overrides
 the codes alongside `ApplicationProtocols`.
+
+## Diagnostics
+
+The diagnostics tests link the canonical test-only `EventSourceRecorder` through
+`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`; it records
+events and counter publication without adding a shipped dependency.
+
+The driver reports through its own internal event source, named for the assembly:
+`Assimalign.Cohesion.Connections.Quic` (`Internal/EventSource/QuicConnectionEventSource.cs`), per the
+repository EventSource convention (`.claude/rules/event-source.md`). Tools enable it by name
+(`dotnet-trace`, `dotnet-counters`); an application forwards it into its logging with
+`Assimalign.Cohesion.Logging.EventSource`, where the source name becomes the log category.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | `ListenerBound` | Informational | `listenerId`, `endPoint` |
+| 2 | `ListenerClosed` | Informational | `listenerId` |
+| 3 | `ConnectionOpened` | Informational | `connectionId`, `listenerId` (empty when dialed), `localEndPoint`, `remoteEndPoint` |
+| 4 | `ConnectionClosed` | Informational | `connectionId` |
+| 5 | `StreamOpened` | Verbose | `streamId`, `connectionId`, `direction` |
+| 6 | `StreamClosed` | Verbose | `streamId` |
+| 7 | `HandshakeFailed` | Warning | `listenerId`, `exceptionType`, `exceptionMessage` — an inbound connection whose handshake failed, which the listener dropped |
+
+Counters: `current-connections`, `total-connections`, `connections-per-second`, `current-streams`,
+and `streams-per-second`.
+
+- Streams report at Verbose and apart from connections: HTTP/3 opens one per request, and folding them
+  into the connection events (as the retired shared forwarder did) made every stream look like a
+  connection.
+- `Abort` and `DisposeAsync` both end a connection or stream; whichever runs first reports the close,
+  once, behind an `Interlocked` flag, so the `current-*` gauges stay exact when an aborted object is
+  disposed later — or never.
+- Lifetimes use `Opened`/`Closed`/`Bound` names rather than `Start`/`Stop`: they begin and end on
+  different async flows, which EventSource's activity tracking would mis-nest.
+- TLS handshake events come from the runtime's own `System.Net.Security` and `System.Net.Quic`
+  sources; forward them by adding those prefixes to the forwarder.
+- `HandshakeFailed` is the one handshake event this driver raises, because dropping the connection
+  is its decision. It is a warning (the connection is lost, the listener recovered) and carries the
+  exception's type and message, never a certificate or key material. A dropped connection never
+  reports `ConnectionOpened`: `System.Net.Quic` disposed it before this driver wrapped it.
 
 ## Breaking changes
 

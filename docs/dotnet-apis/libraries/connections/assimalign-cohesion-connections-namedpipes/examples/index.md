@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections.NamedPipes`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Named Pipe End Point behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise named-pipe endpoints and diagnostics using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,5 @@ Source-backed examples for `Assimalign.Cohesion.Connections.NamedPipes`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Connections/README.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/src`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeConnectionEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.

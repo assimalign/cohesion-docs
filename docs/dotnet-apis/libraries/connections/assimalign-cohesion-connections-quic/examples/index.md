@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Quic`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Quic Connection Options behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise QUIC options, diagnostics, listener lifecycle, and stream release using the original repository tests.
 
 ## Sources
 

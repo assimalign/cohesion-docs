@@ -9,8 +9,115 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Core`.
 ## Design and boundaries
 
 Core stays free of hosting, configuration, logging, and dependency-injection references. The frozen
-resource environment contract belongs here so gateways and resources share one vocabulary. Its
-project also delivers the component-integration analyzer to package consumers.
+runtime contract belongs to `AppEnvironment.Variables` so gateways and resources share one vocabulary.
+Its project also delivers the component-integration analyzer to package consumers.
+
+## Frozen runtime contract
+
+`AppEnvironment.Variables` is the only .NET home of the version 1 gateway-to-resource contract
+documented in `docs/RUNTIME_CONTRACT.md`. Its fixed names and parameterized patterns are
+`public const string` values. Constants are inlined into consuming assemblies, so changing any
+value is a breaking wire-contract change rather than an ordinary implementation change. The Core
+runtime-contract guard tests pin `AppEnvironment.Variables.cs`: its public string constants must
+equal the document's variable table exactly, in order, and no line containing `COHESION_` (code,
+string literal, or comment) may appear in the `src/` C# files of `libraries/Core`,
+`libraries/Hosting`, or `libraries/ApplicationModel` outside that file; XML docs name a
+variable with `<see cref="AppEnvironment.Variables.X"/>` instead.
+Future `AppEnvironment` work must leave `Variables` where it is and as it is.
+
+The contract lives on `AppEnvironment` because that type was always meant to hold it: it has been
+Cohesion's process-environment reader since the initial push, `ResourceEnvironment` was created
+beside it in `a60c3c4a` (runtime-contract item L01.01.10.03), and owner decision R9 (2026-09-26)
+folded it back, moving its readers onto `AppEnvironment` and its constants and builders onto
+`AppEnvironment.Variables`. `AppEnvironment.Keys.EnvironmentKey` is `Variables.Environment`, so
+the environment-name rule and the contract share one literal.
+
+The `Variables` name builders (`Endpoint`, `Dependency`, `Mount`) apply one ordinal ASCII
+normalization rule to endpoint, resource, and mount components: lowercase ASCII is uppercased,
+ASCII letters and digits are retained, and each other character becomes one underscore.
+`Configuration` inserts its section and key verbatim. `AppEnvironment`'s readers
+(`TryGetEndpoint`, `TryGetDependency`, `TryGetMount`) compose every name they read through those
+builders, and the gateways write names with the same builders, so the two sides cannot normalize
+differently. Typed endpoint readers return `System.Uri`: the BCL type already owns scheme, host,
+port, path, parsing, and equality, so Core does not duplicate that state in a framework-specific
+address type. A declared endpoint's HOST/PORT/SCHEME values describe its bind address; its
+separately advertised PUBLIC_URL remains available through the URI reader. Dependency URLs may
+carry an optional path.
+
+The default application-key credential profile constants are not in Core. They are
+`Assimalign.Cohesion.Hosting.Resources.ResourceCredentialProfile`, beside the resource credential
+verifier seam, because every gateway and hosting module that mints or verifies the default
+credential already references Hosting.Resources; the base ApplicationModel and the platform
+gateways never use them.
+
+`UriExtensions` is a single C# 14 extension block in the `System` namespace for the endpoint
+behavior the BCL does not supply directly: `CreateEndpoint`, `TryCreateEndpoint`,
+`TryParseEndpoint`, `ThrowIfNotEndpoint`, `IsEndpoint`, `EndpointPath`, and
+`ToEndpointString()`. An endpoint is absolute, has a host and an explicit port from 1 through
+65535, and has no user information, query, or fragment. `ToEndpointString()` is the sole writer
+for runtime-contract URL values: `scheme://host:port[/path]`, with an escaped path and no trailing
+slash for the root. Code crossing into socket APIs uses `Uri.IdnHost` by convention so IPv6
+literals are unbracketed and internationalized hosts use their ASCII-compatible form.
+
+`AppEnvironment` owns the single environment-name rule:
+`COHESION_ENVIRONMENT ?? DOTNET_ENVIRONMENT ?? "Production"`. ApplicationModel delegates to this
+Core rule rather than parsing process variables itself. Every `AppEnvironment` reader has a
+process-environment and a dictionary overload so the ambient
+`Assimalign.Cohesion.Hosting.Resources.ResourceContext` can carry the same keys without duplicating
+their parsing rules.
+
+`ResourceContext` and `ResourceRuntime` live in `Assimalign.Cohesion.Hosting.Resources`, not
+Core; they are the in-process carrier delivered by runtime-contract item 12.
+
+## `FileSystemPath.Merge` navigates; it does not confine
+
+`FileSystemPath` (namespace `System.IO`) is the path type of the FileSystem family. Its `Merge`
+joins a relative path onto a base, returns a path that already lies under the base, and applies
+leading `..` segments, which may climb above the base. It is not a containment check, and the
+FileSystem providers do not use it as one: each resolves incoming paths and refuses anything
+outside its root itself (`libraries/FileSystem/Assimalign.Cohesion.FileSystem/docs/DESIGN.md`,
+"Root containment", which records why the check is not a `FileSystemPath` API).
+
+Its rules since #1180: the prefix match is ordinal (ignore-case when asked) and needs a segment
+boundary, so `/srv/public2` is not under `/srv/public`; only an exact `..` segment is a parent
+reference; `..` stops at the base's root — the drive, leading `/`, or UNC share — and throws
+there instead of producing a relative or `//`-prefixed result; and the `CultureInfo` parameter no
+longer takes part in the match, because a culture-aware match cannot decide a segment boundary.
+
+## FileSystemPath and Win32 device paths
+
+`FileSystemPath.Parse` normalizes a Win32 extended-length (`\\?\`) or device (`\\.\`) prefix
+away when the prefix names a drive or a UNC share, rather than preserving it:
+
+| Input | Parsed value |
+| --- | --- |
+| `\\?\C:\a\b`, `\\.\C:\a\b` | `C:/a/b` |
+| `\\?\UNC\server\share\a`, `\\.\UNC\server\share\a` | `//server/share/a` |
+| `\\?\Volume{guid}\a`, `\\.\pipe\name`, `\\?\GLOBALROOT\...` | `ArgumentException` |
+
+Why it matters: the .NET host fully qualifies an application path at or past `MAX_PATH` (260)
+with `\\?\`, so `AppContext.BaseDirectory`, and `ResourceContext.ContentRootPath` derived from
+it, arrive prefixed. Every area hosting module parses one of them at startup, so rejecting the
+`?` stopped every Cohesion application installed under a deep directory.
+
+Why normalize rather than preserve:
+
+- **One spelling per location.** `FileSystemPath` equality, hashing, and
+  `FileSystemPathComparer` are plain string comparisons, so `\\?\C:\a` and `C:\a` would otherwise
+  be two different keys for one directory. `HasDrive`, `HasShare`, `HasRoot`, `GetSegments`,
+  `Join`, and `Merge` also keep working unchanged on the normalized form.
+- **Nothing is lost for long paths.** .NET file APIs add `\\?\` themselves to a path at or past
+  `MAX_PATH` after normalizing it, so `PhysicalFileSystem` opens a normalized `C:/...` path past
+  260 characters (covered by a Physical test and checked by hand through `dotnet <app>.dll` from a
+  279-character directory).
+
+Known costs: `\\?\` also suppresses Win32 normalization, so a component that only that form can
+name, such as a trailing dot or space, loses that meaning once the prefix is stripped.
+`FileSystemPath` treats both separators alike on every platform, so the same normalization
+applies off Windows. A device target that is neither a drive nor `UNC\` has no ordinary spelling,
+so it is rejected rather than silently turned into a share named `.` or `?`. `?` stays illegal
+everywhere except the prefix, and the NT `\??\` prefix is still rejected. Error indexes refer to
+the caller's original string.
 
 ## Dependency boundary
 

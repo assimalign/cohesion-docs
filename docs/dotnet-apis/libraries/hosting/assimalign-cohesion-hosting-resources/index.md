@@ -27,6 +27,13 @@ publish the report on the unauthenticated `/healthz`, `/readyz` and `/livez` pro
 exception message routinely names hosts, databases, users and ports. A contributor that wants its
 failure diagnosed records it itself. See the [design](design.md#health-reports-withhold-exceptions).
 
+Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
+only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
+receive 403. Forwarded headers cannot grant access. Bare `/healthz`, `/readyz`, and `/livez` probes
+stay public. Gateway-managed credential checks are unchanged. This restricts remote standalone
+management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
+gateway identity with credentials for remote management.
+
 ## Dependencies
 
 | Reference | Build item |

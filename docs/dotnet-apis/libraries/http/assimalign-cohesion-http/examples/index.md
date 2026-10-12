@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Http`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Http Connection Info behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise Http Query behavior using the original repository tests.
 
 ## Sources
 

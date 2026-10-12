@@ -11,6 +11,31 @@ The listener binds a pipe name before accepting clients, and the factory dials a
 connection capabilities used by socket listeners, so protocol layers need no named-pipe-specific
 branch.
 
+## Diagnostics
+
+The diagnostics tests link the canonical test-only `EventSourceRecorder` through
+`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`; it records
+events and counter publication without adding a shipped dependency.
+
+The driver reports through its own internal event source, named for the assembly:
+`Assimalign.Cohesion.Connections.NamedPipes` (`Internal/EventSource/NamedPipeConnectionEventSource.cs`),
+per the repository EventSource convention (`cohesion/.claude/rules/event-source.md`). Tools enable it by name;
+an application forwards it into its logging with `Assimalign.Cohesion.Logging.EventSource`, where the
+source name becomes the log category.
+
+| Id | Event | Level | Payload |
+|---|---|---|---|
+| 1 | `ListenerBound` | Informational | `listenerId`, `endPoint` |
+| 2 | `ListenerClosed` | Informational | `listenerId` |
+| 3 | `ConnectionOpened` | Informational | `connectionId`, `listenerId` (empty when dialed), `localEndPoint`, `remoteEndPoint` |
+| 4 | `ConnectionClosed` | Informational | `connectionId` |
+
+Counters: `current-connections`, `total-connections`, and `connections-per-second`.
+
+The connection, not the listener, reports its own lifecycle, so dialed connections are counted too
+(the listener used to report only accepted ones, and nothing reported a close). `Abort` and
+`DisposeAsync` both end a connection; whichever runs first reports the close, once.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`. The
