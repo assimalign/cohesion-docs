@@ -6,6 +6,7 @@ Deterministic, standards-aware HTTP route matching for the Cohesion Web stack.
 
 ## Reference pages
 
+- **[Overview](https://github.com/assimalign/cohesion/blob/main/resources/Web/Assimalign.Cohesion.Web.Routing/docs/OVERVIEW.md)** — Purpose, scope, dependencies, and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
@@ -129,5 +130,6 @@ model, the HEAD→GET fallback, AOT posture, and the routing features delivered 
 
 ## Sources
 
+- **Overview** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/OVERVIEW.md`.
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/README.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Assimalign.Cohesion.Web.Routing.csproj`.
