@@ -14,4 +14,4 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Udp`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/src`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionEventSourceTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

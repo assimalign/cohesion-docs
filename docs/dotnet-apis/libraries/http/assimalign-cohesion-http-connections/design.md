@@ -10,6 +10,10 @@ The package consumes `IConnection` and `IMultiplexedConnection` rather than owni
 transport stack. Protocol handling uses the core feature and interceptor seams, allowing optional
 concerns to attach without reverse references from the transport.
 
+`IMultiplexedConnectionListener` produces `IMultiplexedConnection`s whose accepted/opened streams
+are `IMultiplexedStream`s with a per-stream `Direction`, whole-stream coded abort and observable
+clean input completion.
+
 A host drives each connection context in a loop and finalizes every exchange exactly once through
 `SendAsync`: HTTP/1.1 exchanges one at a time, HTTP/2 and HTTP/3 exchanges concurrently, bounded by
 stream admission. After an application fault, `HttpContextTransportExtensions.HasResponseStarted`
@@ -23,6 +27,30 @@ since #1384 `MinResponseDataRate` on every response, buffered and streamed (see
 [minimum response data rate](#minimum-response-data-rate-1384)). A request can change either rate for
 itself until its body's first read or its response's first write (see
 [per-request data rates](#per-request-data-rates-1383)).
+
+## Optional connection features (#1452)
+
+The transport references `Connections.Tls`, `Connections.StreamAbort` and
+`Connections.StreamLimits` explicitly. It reads `Tls`, `DirectionalAbort` and
+`StreamLimits` from each connection's feature collection. Wrapping connections
+pass features through with `InnerFeatures`; replacing or removing a named feature
+is deliberate. A stream never inherits its multiplexed connection's features.
+
+The request-body reader resolves its directional abort feature at the first operation
+that needs it, caches both presence and absence, and reuses it for later reads and
+end probes. Before resolving the feature, response completion checks for a known FIN
+at a safe frame boundary: no read is active, no partial DATA or skipped payload remains,
+and the pipe contains no unread bytes. This includes a transport-reported FIN that the
+stream-backed pipe has not yet observed through a zero-byte read. It records the clean
+end without creating a stream feature collection; unread DATA, trailer bytes, partial
+frame headers, cancelled input and failed input keep the existing probe/abort path.
+Content-Length validation on body reads is unchanged. Since Part 2 of decision 56 (#1453),
+HTTP/3 calls coded connection close and whole-stream reset on the multiplexed roots, and
+reads `IMultiplexedStream.IsInputCompleted` directly. A whole reset is one
+`Abort(code, reason)` call that ends both directions and the lifecycle. Directional
+abort stays optional, and the request-body reader keeps its fallback when that feature
+is absent. The root return-type and coded-abort changes are the Connections package's
+accepted source/binary breaks against 10.0.0-preview.1; HTTP's public API is unchanged.
 
 ## Graceful close: the host contract
 
@@ -78,14 +106,14 @@ is constructed. Each protocol keeps its own options, captured at registration li
 one capability: ALPN is a TLS extension, so the listener must report `Security == Tls`, else an
 `ArgumentException` names the mismatch.
 
-Each connection is dispatched by the protocol its handshake negotiated, read through the contracts
-library's `ITlsConnectionInfo`:
+Each connection is dispatched by the protocol its handshake negotiated, read through
+`connection.Tls`:
 
 | Negotiated | Served |
 |---|---|
 | `h2` | HTTP/2 |
 | `http/1.1` | HTTP/1.1 |
-| none: the client sent no ALPN extension, or the connection does not implement `ITlsConnectionInfo` | HTTP/1.1, what a client that does not negotiate expects of an `https` origin |
+| none: the client sent no ALPN extension, or the connection has no `Tls` feature | HTTP/1.1, what a client that does not negotiate expects of an `https` origin |
 | anything else, which the server offered through an application-supplied list (`acme-tls/1`, say) | the connection is closed; the listener keeps serving other connections |
 
 The registration carries an internal `HttpAlpnConnectionFactory` in place of a single protocol's
@@ -155,56 +183,62 @@ handshake knows which failure it was, so it decides.
 
 ## The TLS session on every exchange
 
-Every exchange that arrived over TLS has a connection info that also implements the contracts
-library's `ITlsConnectionInfo`: the client certificate, the TLS protocol version, the cipher suite,
+### What it is
+
+Every exchange that arrived over TLS has a connection info that also implements
+`Connections.Tls`'s `ITlsConnectionInfo`: the client certificate, the TLS protocol version, the cipher suite,
 and the application protocol ALPN selected. The transport does not run TLS, so it copies these from
-the connection that did, through that same interface; a connection that does not implement it
-(cleartext, or secured by a layer that does not report its handshake) gives its exchanges a plain
-`HttpConnectionInfo`.
+the connection that did, through its `Tls` feature:
 
 | Version | Source of the handshake facts |
 |---|---|
 | HTTP/1.1, HTTP/2 | the accepted `IConnection`, which the TLS layer secured |
 | HTTP/3 | the accepted `IMultiplexedConnection`: QUIC's own TLS 1.3 handshake (RFC 9001) |
 
-The transport installs no HTTP TLS feature. It depends only on `Assimalign.Cohesion.Connections`
-and core Http, and references neither the TLS layer nor the HTTP TLS feature package
-(`Assimalign.Cohesion.Http.Tls`). Applications read the session as `context.TlsConnection` from
-`Http.Tls`, which builds its `IHttpTlsConnectionFeature` from this facet on first read. Code that
-needs only the raw facts reads `context.ConnectionInfo is ITlsConnectionInfo`.
+A connection without a registered `Tls` feature (cleartext, or secured by a layer that
+does not report its handshake) gives its exchanges a plain `HttpConnectionInfo`.
 
-**Where it is published.** The internal `HttpTlsConnectionInfo` derives from `HttpConnectionInfo`
-and implements `ITlsConnectionInfo`. `HttpTlsConnectionInfo.Create` returns it when the accepted
-connection reports a handshake and a plain `HttpConnectionInfo` otherwise, and it is called wherever
-the transport builds a connection info:
+The transport installs no HTTP TLS feature and references no package that declares one.
+Applications read the session as `context.TlsConnection` from `Assimalign.Cohesion.Http.Tls`, which
+builds its `IHttpTlsConnectionFeature` from this facet on first read (that package's DESIGN). Code
+that needs only the raw facts reads `context.ConnectionInfo is ITlsConnectionInfo`.
+
+### Where it is published
+
+The internal `HttpTlsConnectionInfo` derives from `HttpConnectionInfo` and implements
+`ITlsConnectionInfo`. `HttpTlsConnectionInfo.Create` returns it when the accepted connection reports
+a handshake and a plain `HttpConnectionInfo` otherwise, and it is called wherever the transport
+builds a connection info:
 
 - **HTTP/1.1 and HTTP/2** build one when the connection context opens
   (`HttpStreamConnectionContext`). Every exchange on the connection shares it.
-- **HTTP/3** builds one per request stream, because each carries the stream's endpoints. The facet's
-  values come from the multiplexed connection, captured once when `Http3ConnectionContext` opens.
+- **HTTP/3** builds one per request stream, because each carries the stream's endpoints. The
+  facet's values come from the multiplexed connection, captured once when `Http3ConnectionContext`
+  opens.
 
 The same instance goes to the request-parse interceptors' context, the exchange, and the response
 interceptors' context. Request-parse hooks therefore see the session from `AfterRequestHead`
 onward, through their context's `ConnectionInfo`. When the transport attached a feature instead,
 those hooks could not see it, because they run before the exchange exists.
 
-**Why a facet and not a feature.** Core Http holds base contracts only, and a concern-specific
-feature lives in its own package (owner decision 20, 2026-10-09). The transport could install a
-feature only by referencing the package that declares it. `Http.Connections` is a member of every
-area's framework, so that reference would add the package to 18 framework lists, and it would make
-the transport reference a feature package. A facet needs neither: the contracts library already
-declares `ITlsConnectionInfo`, and the transport already references it. The per-exchange
-`Features.Set` the transport used to make is gone too, so an exchange that never reads the session
-pays nothing for it.
+### Why a facet and not a feature
 
-**Sharing and ownership.** The snapshot is immutable, which is safe for concurrent HTTP/2 and HTTP/3
-streams. It copies the four values and never references the connection that ran the handshake:
-`QuicMultiplexedConnection` is public, and a handler that could cast the connection info back to it
-could open streams. The certificate is the connection's own instance, which the connection disposes
-when it is disposed, so code that keeps it beyond the exchange copies it. A context wrapper that
-returns a new connection info object hides the facet; the shipped wrappers forward the inner
-context's object. The session is fixed at the handshake; there is no renegotiation or
-post-handshake client authentication, which HTTP/2 forbids anyway (RFC 9113 §9.2.1, §9.2.3).
+Core Http holds base contracts only, and the application-facing HTTP TLS feature lives in its own
+package (owner decision 20, 2026-10-09). The transport references `Connections.Tls` for the handshake
+facts and snapshots them onto HTTP's connection-info object. `Http.Tls` keeps reading that object;
+it does not need the live connection. Owner decision 56 moves the connection contract into its own
+package and makes it an App kernel root, so this adds no repeated area-framework entries. The
+transport never installs an HTTP TLS feature: an exchange that never reads `context.TlsConnection`
+pays for no HTTP TLS feature object.
+
+### Sharing and ownership
+
+The snapshot is immutable, which is safe for concurrent HTTP/2 and HTTP/3 streams. It copies the
+four values and never references the connection that ran the handshake: `QuicMultiplexedConnection`
+is public, and a handler that could cast the connection info back to it could open streams. The
+certificate is the connection's own instance, which the connection disposes when it is disposed, so
+code that keeps it beyond the exchange copies it. A context wrapper that returns a new connection
+info object hides the facet. The shipped wrappers forward the inner context's object.
 
 ## Response interceptors per exchange: the fast path
 
@@ -223,6 +257,57 @@ extended CONNECT (see [the tunnel](#extended-connect-the-tunnel)).
 `HttpExchangeResponseInterceptorTests` pins the fast path for an ordinary request on all three
 versions under the Web host's three default interceptors, and pins that an HTTP/2 and HTTP/3
 extended CONNECT joins the response phase.
+
+## One added response interceptor (#1389)
+
+A request-parse hook that adds one response interceptor now stores it in a singleton array.
+When no listener response interceptors are registered, `ResolveResponseInterceptors` retains
+that array directly. The path creates no intermediate list, backing array, enumeration object,
+or final copy. A second distinct addition promotes parse-side storage to a list; listener-first
+ordering and equality-based deduplication still use the existing merge path. An exchange with
+no added interceptor still reuses the listener's array.
+
+This is shared setup for HTTP/1.1, HTTP/2 and HTTP/3. It changes no public contract, hook order,
+or feature behavior. The per-exchange response-joining API did not exist in 10.0.0-preview.1,
+so this optimization introduces no behavior break against that release. Protocol upgrade,
+extended CONNECT and Web.Hosting's body-specific client-fault interceptor use this seam.
+The current Web host also registers response lifecycle interceptors, so its ordinary body
+request uses the mixed merge path and benefits from the smaller first-add storage; it does
+not have the no-listener-response configuration required for direct array reuse.
+
+`HttpResponseInterceptorAllocationTests.ResolveResponseInterceptors_WithOneAddedAndNoneRegistered_ShouldAllocateOnlyOneArray`
+pins the combined add-and-resolve allocation against a separately allocated singleton array,
+with context construction, assertions and disposal outside the sample. Reverting both production
+changes to `d47169452` made this regression fail: add allocated 64 B and resolution 136 B, or
+200 B per exchange. With the fix, add allocates 32 B and resolution 0 B: 168 B (84%) less.
+The test calibrates the expected array size so it does not assume a particular object header.
+The equality guard in core Http pins existing behavior and passes with the fix reverted too.
+
+The body measurement uses
+`ReceiveAndSend_WithBodyAndOneAddedInterceptor_ShouldReportBytesPerRequest`: one preloaded
+HTTP/1.1 keep-alive connection, `POST /` with `Content-Length: 3`, the consumed body `abc`,
+a 204 response, and one request-scoped interceptor adding one response interceptor only when
+`CanHaveBody` is true. Every receive, body read, send and exchange disposal must complete
+synchronously, keeping `GC.GetAllocatedBytesForCurrentThread` valid. Listener/payload setup,
+the reused body buffer and reporting are excluded. Request/response rates, header/keep-alive
+timeouts and automatic Date are disabled. These are transport measurements, not full Web host
+or network throughput measurements.
+
+Measured on Windows ARM64, .NET SDK 10.0.401, Debug builds, with
+`DOTNET_TieredCompilation=0` for both runs (to keep changing tiered optimizations out of the
+comparison). After 1,000 warmup requests, each result is the median of five rounds of 5,000:
+
+| Listener response interceptors | Before (`d47169452`), B/request | After, B/request | Saved, B/request |
+|---|---:|---:|---:|
+| None: singleton fast path | 32,112.63 | 31,944.63 | 168.00 |
+| One: mixed merge path | 32,128.63 | 32,088.63 | 40.00 |
+
+Run the Connections tests with the filter
+`FullyQualifiedName~HttpResponseInterceptorAllocationTests` to print all samples. The complete
+request cost is reported rather than pinned: unrelated transport changes may alter it. Only the
+single-interceptor storage/resolution cost is an allocation regression assertion. The mixed-path
+saving includes the smaller first-add storage and the array enumerator replacing the boxed list
+enumerator; its registered-before-added merge still builds the existing effective list and array.
 
 ## Sizing the feature collection: `ExchangeFeatureCapacity` (#1381)
 
@@ -330,6 +415,38 @@ intentional scheme tests retain `https`.
 TLS-terminating gateways forwarding that scheme must enable the option or send
 `http` and use trusted forwarded headers. No existing public interface changes.
 
+## Extensible status codes (#1414)
+
+Core `HttpStatusCode` accepts every integer from 100 through 599 (RFC 9110
+§15), including values absent from its reason-phrase table. These values carry
+an empty phrase; the transport preserves their numeric identity rather than
+substituting their class's `x00` code. Interpreting an unknown status as its
+class default is the recipient's responsibility.
+
+- **HTTP/1.1** writes `HTTP/1.1 299 ` followed by CRLF for an unregistered
+  `299`: the SP after the status code remains present even though the phrase is
+  empty, as RFC 9112 §4 requires. Buffered, streamed, interim and transport-built
+  heads share this status-line writer.
+- **HTTP/2 and HTTP/3** encode only the three decimal digits in `:status`,
+  such as `299`. Neither HPACK nor QPACK carries a reason phrase.
+- **Informational codes** remain 100–199. Unregistered values such as `104`
+  and `199` can be emitted through the interim-response seam; every protocol
+  continues to reject them as final responses. `101` remains exclusive to the
+  HTTP/1.1 protocol-upgrade path. Accepting a numeric value does not recommend
+  emitting a reserved status: `306` retains its legacy `(Unused)` phrase and
+  obsolete accessor; `418` has an empty phrase.
+
+`HttpUnregisteredStatusCodeTests` exercises real buffered exchanges carrying
+`299`, `418` and `599` on all three protocols, each protocol's streamed `299`
+head, all interim writers with `104` and `199`, and the existing numeric final
+response guard. Invalid values below 100 or above 599 are rejected by the core
+value type before reaching a writer.
+
+**Breaking behavior against 10.0.0-preview.1 (decision 15).** Application code
+can now assign and send an unregistered in-range response status where the
+`HttpStatusCode` constructor and implicit conversion previously threw. No
+transport interface or framing rule changes; registered phrases stay intact.
+
 ## Automatic Date on final responses (#1417)
 
 The listener defaults `HttpConnectionListenerOptions.AddDateHeader` to true.
@@ -374,9 +491,11 @@ applies. The matching cached value takes the pre-encoded path.
 
 Set `AddDateHeader = false`, or `Http:AddDateHeader = false` in Web.Hosting
 configuration, behind a proxy that supplies its own Date. This disables automatic
-generation only; an application Date still goes out on a final response. With no
-valid Date visible, StaticFiles conservatively omits its derived Last-Modified
-and cannot use a date-form If-Range; entity-tag conditions remain available.
+generation only; an application Date still goes out on a final response. StaticFiles keeps
+Last-Modified and date validators enabled (#1449): when Date is absent, invalid, or repeated,
+it reads `TimeProvider.System.GetUtcNow()` once for the future-date clamp and all date
+validation, including the date-form If-Range strength check. A single valid response Date
+remains its reference. This fallback does not add or rewrite the Date header.
 
 **Breaking behavior against 10.0.0-preview.1 (decision 15).** Final responses now
 carry an additional Date field by default, and the application sees it before
@@ -722,8 +841,9 @@ over. The cost is one pooled buffer and one copy per frame.
 connection fires the stream's abort first and then fails the body pipe with an `IOException`.
 Completing the pipe first used to wake a parked reader with a clean end of the body, so a truncated
 upload, with or without a `content-length`, read as complete. A reader now sees an
-`OperationCanceledException` or the pipe's `IOException`, never a clean end, and the request's
-trailer section is published only at a clean end. HTTP/3 needed no change: its body reads the
+`OperationCanceledException` carrying the exchange token even when the pipe failure wins the race
+(#1439); an already latched client fault still surfaces as its own failure. The request's trailer
+section is published only at a clean end. HTTP/3 needed no change: its body reads the
 request stream directly, and a reset or a closed connection fails that read.
 
 **A cancelled send resets the stream (#1075).** Cancelling the `SendAsync` token cancels the wait
@@ -777,6 +897,65 @@ stream answered by the transport, before it returns without writing, as HTTP/1.1
 they replace a staged response with their own. Without it a host reported whatever the exchange held
 instead: a Web host whose pipeline faulted on the failed read had staged its `500`, so a slow HTTP/2
 upload answered `408` on the wire was recorded as a `500` server error in its telemetry.
+
+## HTTP/2: the write scheduler (#1455)
+
+`Http2WriteScheduler` replaces the plain FIFO write semaphore. It preserves the
+non-interleaving invariant (RFC 9113 §4.1 — exactly one writer holds the gate at a
+time) and, when writers contend, grants the gate in RFC 9218 §10 order instead of
+first-come-first-served:
+
+1. connection-control frames first (a sentinel urgency below 0, so ACKs / window
+   updates / GOAWAY are never starved behind response data);
+2. then response writes by ascending urgency;
+3. non-incremental before incremental at the same urgency;
+4. round-robin by stream id among same-urgency incremental streams.
+
+The ordering policy is a pure, synchronous function (`SelectNextWaiterIndex`) so
+it is unit-tested in isolation, separate from the async gate. Both response write
+paths go through it:
+
+- The **buffered** path (`SendAsync`) holds the gate for the contiguous
+  HEADERS [+ CONTINUATION…] [+ DATA…] sequence for as long as the peer's
+  flow-control windows cover it, so the scheduler orders **which stream's queued
+  response proceeds next** under contention. When credit runs out the writer
+  releases the gate before it waits for `WINDOW_UPDATE` and re-queues at its
+  priority for the rest (see "HTTP/2 response flow control, HEAD, and the
+  request-body cap").
+- The **streaming** path acquires the gate **per DATA frame** — and only after
+  the send-window credit for that frame has been granted, so a writer parked on
+  flow control never holds the gate. This is what delivers real frame-level
+  interleaving: same-urgency incremental streams round-robin DATA frame by DATA
+  frame, and a newly-arrived lower-urgency (more urgent) response preempts
+  between frames of a less urgent one.
+
+**Lock and cancellation rule (#1455).** `_sync` protects the queue and gate ownership.
+Code holding it must never dispose or wait for a cancellation registration or run
+user code. Both `Waiter.Grant` and `Waiter.Cancel` use the nonblocking
+`CancellationTokenRegistration.Unregister()`. A callback already running may still
+enter `CancelWaiter` afterward; registration cleanup must not wait for that callback
+because it takes the same lock. Waiter completions use
+`RunContinuationsAsynchronously`, so completing them under the lock cannot invoke
+the writer's continuation inline. The registration callback itself only withdraws
+a queued waiter and completes its task; synchronous registration on an already
+cancelled token can safely reenter the monitor without invoking application code.
+
+Removing the waiter under `_sync` decides the race. If cancellation removes it
+first, the acquisition observes cancellation and never owns the gate. If granting
+removes it first, its task succeeds and a late cancellation callback leaves the
+grant intact. The granted writer owns the gate and must release it exactly once
+in `finally`, including when its write then observes cancellation. Scheduler
+disposal cancels queued acquisitions under the same nonblocking rule.
+
+**Breaking behavior against 10.0.0-preview.1 (#1455).** A concurrent cancellation
+and grant or scheduler disposal now finish instead of deadlocking the frame pump,
+the canceller and later writes such as GOAWAY. This is the preview behavior change
+recorded on decision 15's terms; public contracts and priority ordering are unchanged.
+The released scheduler contains both blocking disposals. An unauthenticated peer
+can reach cancellation through a reset of a stream whose writer uses its request
+cancellation token; exploitation also requires concurrent write contention and
+the grant/cancellation race (CWE-833, proposed medium severity for race-dependent
+denial of service).
 
 ## HTTP/2 request heads (RFC 9113 §8.3)
 
@@ -1513,52 +1692,124 @@ with a heartbeat. HTTP/3 encodes each frame header into the request stream's own
 helpers pass their arguments through static lambdas and value tuples, and a write that completes
 synchronously completes its async helpers synchronously too.
 
+## Response-side client-fault reporting (#1432)
+
+### The fact the boundary needs
+
+The minimum response data rate already cancels slow readers (#1384), and a peer may reset a stream
+or send HTTP/3 `STOP_SENDING` while a handler streams its response. Previously a fault boundary had
+only the response exception's type and cancellation token to distinguish those outcomes from an
+application defect. A middleware wrapper could change the exception type and make an expected
+cancellation reach `OnException` as an application fault.
+
+Every protocol's exchange control now implements `IHttpExchangeControl.ResponseAbortedByClient`.
+The member defaults to `false` for other control implementations and latches `true` for this exchange
+when the transport abandons its response on the client's account. It is separate from the request's
+`ClientFaultStatusCode`, implies no status, and remains readable after the response write fails.
+`TransportHttpContext` owns the common latch and cancellation helpers. A transport-initiated slow-read
+abort latches before resetting the stream or connection, so the cancellation it fires cannot wake a
+handler ahead of the reason. A peer's driver-level stream-closure notification can arrive first; its
+failed response operation latches before surfacing the failure to the handler.
+
+### Protocol paths
+
+| Version | Where the outcome is latched |
+|---|---|
+| HTTP/1.1 | A minimum-rate failure latches before aborting the connection. Buffered and streamed raw response writes classify connection I/O failures and closure-backed cancellation, fire the exchange token, and fail as cancellation. |
+| HTTP/2 | A slow response latches before its `RST_STREAM`; a connection-wide output or credit stall marks every application response still in flight before teardown. Inbound `RST_STREAM` marks the active application response before cancelling the stream. Peer connection loss marks active responses and cancels exchanges before output failures escape or credit waiters resume. Raw output observes connection closure even without a caller token. The control reads both the exchange and stream latches. |
+| HTTP/3 | A minimum-rate failure latches before `H3_REQUEST_CANCELLED`. Final frame writes and flushes observe exchange cancellation even with no caller token. Active interims preserve caller cancellation and also observe stream and parent closure; peer `RESET_STREAM`, `STOP_SENDING`, or parent connection loss is latched before the operation throws with the exchange token. Native peer failures are recognized even before the driver signals closure, using the driver's exclusion of local `OperationAborted`. |
+
+HTTP/2 preserves its existing response-write behavior on peer reset: a writer awaiting flow-control
+credit may return after discarding the unwritten remainder, while `RequestCancelled` and the latch
+report why the response ended. A thrown failure is not needed to retain the transport's fact.
+
+HTTP/3 extended CONNECT acceptance HEADERS and tunnel DATA use the same peer-abort classifier and
+exchange cancellation as ordinary responses. They retain their direct pipe writer and minimum-rate
+exemption. A tokenless tunnel flush ends on peer reset or `STOP_SENDING`, and the response latch is
+visible before the failure escapes. Classification sees the original driver exception before tunnel
+compatibility wrapping: DATA retains its `IOException` contract, while a peer failure accepting the
+HEADERS carries the exchange's cancellation token.
+
+Application cancellation, application header or callback failures, and server resets caused by
+request-body rejection do not alone set the response latch. HTTP/3 excludes its local request reset
+and explicitly initiated local connection closure from the peer classifier. Ending stream acceptance
+does not imply local connection closure: peer loss remains reportable after a graceful GOAWAY or
+receive-enumeration teardown. HTTP/2 keeps a plain input FIN distinct from loss of the whole connection,
+so a fully received request can still be answered when output remains usable. Request framing and limit failures continue
+to use `ClientFaultStatusCode`; losing a request connection mid-body remains the cancellation behavior
+of #1430 and #1439.
+
+### Projection and compatibility
+
+This is the generic exchange-control seam of owner decision 20. #1432 sanctions the new default
+interface member; the addition is recorded for the owner's stage review. No feature contract or Web
+reference enters the transport. Web.Hosting projects the control through `IWebResponseClientFaultFeature`
+in Web.Server, implemented by its existing response-starting feature, so bodiless streamed requests
+are covered without a new feature allocation or response interceptor. Web.ErrorHandling reads that
+projection before its application-fault boundary, including when middleware wraps the transport's
+exception, and ends the exchange as `request_canceled` without an Error log or `OnException`.
+
+Against 10.0.0-preview.1 this is an observable classification change on decision 15's terms: a peer
+reset or connection loss during response writing, or a configured HTTP/1.1 slow streamed response, no longer invokes the
+application fault observer. HTTP/2 and HTTP/3 minimum-rate reclamation arrived later in #1384. The
+latch changes no rate default or wire reset code and keeps existing control implementations source
+compatible through its default `false`.
+
+The HTTP/3 extended CONNECT transport path did not exist in 10.0.0-preview.1. Its HEADERS and DATA
+classification now follows the same behavior as ordinary responses without changing tunnel rate policy.
+
+The implementation remains AOT compatible: interface dispatch, static delegates and value tuples,
+with no reflection. HTTP/1.1 and HTTP/3 final writes reuse the exchange token when the caller passes
+it or no token. HTTP/2 output combines caller, connection and response cancellation, so a read failure
+can release a pending response flush before the driver's closure callback. HTTP/3 active interims
+combine caller, stream and parent closure without observing local exchange cancellation. Temporary
+linked sources are disposed with each write. The rate gate's reusable deadline still avoids a timer
+for synchronous writes.
+
 ## Automatic `Expect: 100-continue` on HTTP/2 and HTTP/3 (#1385)
 
-A client that sends `Expect: 100-continue` withholds the body until it sees `100 Continue`. HTTP/1.1
-had the automatic answer first: the parser decides at head-parse time whether to solicit the body,
-and `Http1RequestBodyStream` sends `100 Continue` at the **first body read**, so a handler can
-inspect the head and decline (`401` / `417`) without the body ever being solicited. A declaration
-over the body-size cap is refused (`413`) before soliciting, and no `100` follows a final response
-that has started (RFC 9110 §15.2).
+**The gap.** Only HTTP/1.1 answered the expectation. A client that sent
+`expect: 100-continue` over HTTP/2 or HTTP/3 and waited for `100 Continue` before
+sending a large body stalled until its own timeout (about a second for `curl` and
+`HttpClient`) and then sent the body anyway; a client that waited longer met the
+minimum request-body data rate first and got `408`. RFC 9110 §10.1.1 applies to every
+version, and RFC 9113 §8.1 and RFC 9114 §4.1 both let interim responses precede the
+final one.
 
-**The gap.** Only HTTP/1.1 answered the expectation. A client that sent `expect: 100-continue` over
-HTTP/2 or HTTP/3 and waited for `100 Continue` before sending a large body stalled until its own
-timeout (about a second for `curl` and `HttpClient`) and then sent the body anyway; a client that
-waited longer met the minimum request-body data rate first and got `408`. RFC 9110 §10.1.1 applies
-to every version, and RFC 9113 §8.1 and RFC 9114 §4.1 both let interim responses precede the final
-one.
-
-**The same lazy model.** The decision is made when the request is dispatched and the `100` is sent
-at the **first body read**, through the interim-response path the exchange control's
-`WriteInterimResponseAsync` already uses — so the HTTP/1.1 rules hold on all three versions, and a
-handler that answers `401` or `417` from the head never invites the body:
+**The same lazy model.** The decision is made when the request is dispatched and the
+`100` is sent at the **first body read**, through the interim-response path the
+exchange control's `WriteInterimResponseAsync` already uses — so the rules above hold
+on all three versions, and a handler that answers `401` or `417` from the head never
+invites the body:
 
 - **Which requests.** The request carries `Expect: 100-continue`
-  (`HttpInterimResponseRules.ExpectsContinue`, shared with HTTP/1.1's `ShouldSolicitContinue`: an
-  element of the `Expect` list, compared case-insensitively, trimmed of SP and HTAB only), it is not
-  a CONNECT, and it still has content to solicit. On HTTP/2 that is a head without `END_STREAM`. On
-  HTTP/3 it is a request stream whose FIN was not already buffered behind its HEADERS frame
-  (`Http3RequestStreamReader.IsEndBuffered`, the probe `CanHaveBody` uses); a stream whose end the
-  transport has not seen yet is solicited, which costs nothing if the content turns out to be empty.
-  Over the QUIC driver the probe sees a FIN only on a read, so every request there that carries the
-  expectation is solicited, one whose FIN came with its head included. RFC 9110 §10.1.1 forbids a
-  client to send the expectation without content and lets a server send the `100` anyway, so such a
-  client gets an interim response it does not need, and nothing else changes.
-- **HTTP/2.** `Http2RequestBodyStream` sends it after resolving the rate at its first read, through
-  `Http2ConnectionContext.WriteInterimResponseAsync` on the exchange
-  `Http2Stream.CreateContextAsync` attaches (`AttachExchange`): a HEADERS block without
-  `END_STREAM`, under the connection write gate. It skips the write when the final response has
-  started, the exchange was cancelled, or the stream was reset, and the interim path itself discards
-  it when the stream's final response is claimed or the stream reset before it gets the gate, so a
-  response that wins the race is never preceded by a `100`.
-- **HTTP/3.** `Http3RequestBodyStream` sends it after `EnsureStarted` at its first read, so a
-  Content-Length over the cap is refused (`413`) rather than invited, through the request-stream
-  overload of `Http3ConnectionContext.WriteInterimResponseAsync`: an interim HEADERS frame on the
-  request stream, handed to the stream's writer whole and then flushed, so a cancelled flush never
-  leaves part of a frame behind. It skips the write when the final response has started, the
-  exchange was cancelled, or the stream was reset or stopped. A request hook that reads the body
-  before dispatch solicits it too, as on HTTP/1.1.
+  (`HttpInterimResponseRules.ExpectsContinue`, shared with HTTP/1.1's
+  `ShouldSolicitContinue`: an element of the `Expect` list, compared
+  case-insensitively, trimmed of SP and HTAB only), it is not a CONNECT, and it still
+  has content to solicit. On HTTP/2 that is a head without `END_STREAM`. On HTTP/3 it
+  is a request stream whose FIN was not already buffered behind its HEADERS frame
+  (`Http3RequestStreamReader.IsEndBuffered`, the probe `CanHaveBody` uses); a stream
+  whose end the transport has not seen yet is solicited, which costs nothing if the
+  content turns out to be empty. The QUIC driver's generic input-completion facet
+  also exposes an already-observed FIN before the pipe reads zero (#1427). A known
+  end suppresses solicitation even if a positive declared content length still
+  requires the client-fault gate for a truncated body.
+- **HTTP/2.** `Http2RequestBodyStream` sends it after resolving the rate at its first
+  read, through `Http2ConnectionContext.WriteInterimResponseAsync` on the exchange
+  `Http2Stream.CreateContextAsync` attaches (`AttachExchange`): a HEADERS block
+  without `END_STREAM`, under the connection write gate. It skips the write when the
+  final response has started, the exchange was cancelled, or the stream was reset, and
+  the interim path itself discards it when the stream's final response is claimed or
+  the stream reset before it gets the gate, so a response that wins the race is never
+  preceded by a `100`.
+- **HTTP/3.** `Http3RequestBodyStream` sends it after `EnsureStarted` at its first
+  read, so a Content-Length over the cap is refused (`413`) rather than invited, through
+  the request-stream overload of `Http3ConnectionContext.WriteInterimResponseAsync`: an
+  interim HEADERS frame on the request stream, handed to the stream's writer whole and
+  then flushed, so a cancelled flush never leaves part of a frame behind. It skips the
+  write when the final response has started, the exchange was cancelled, or the stream
+  was reset or stopped. A request hook that reads the body before dispatch solicits it
+  too, as on HTTP/1.1.
 - **HTTP/3 has no connection write gate, so the `100` and the final head take turns.** A
   full-duplex handler reads the body on one task while another starts the streamed
   response, and both write the same request stream's `PipeWriter`, which allows one
@@ -1571,51 +1822,51 @@ handler that answers `401` or `417` from the head never invites the body:
   before its HEADERS frame and waits for a `100` still being written. The `100` goes out
   whole and first, and the two never share the writer. Application interim responses
   through `Http.InterimResponses` share this claim (#1428).
-- **HTTP/3 holds the `100` to the response's minimum data rate (#1384).** Once the exchange exists,
-  `Http3ConnectionContext.WriteContinueAsync` hands the frame over and runs its flush through
-  `MinDataRateWait.TryRunAsync`, crediting the frame's octets first. The rate is the one the
-  response is held to: the request's own knob
-  (`HttpExchangeInterceptorRequestContext.MinResponseDataRate`), else the listener's. It is read
-  through `TransportHttpContext.PeekResponseDataRate`, which does not freeze it, so the request may
-  still change its response's rate until the response's first write, as on HTTP/1.1 and HTTP/2,
-  whose `100` freezes nothing either. The `100` gets a `MinDataRateGate` of its own; its allowance,
-  including the interim frame's byte credit, bounds the final head's claim wait (#1428). After the
-  handoff, the final response resolves its own rate gate at its first write and credits its own
-  bytes; the interim's wait is not charged again. When the allowance runs out, `FailSlowResponse`
-  resets the request stream with `H3_REQUEST_CANCELLED` and trips the exchange's `RequestCancelled`,
-  and the read throws that cancellation. The bound is needed because the request-body rate does not cover the `100`: on a
-  driver that implements `IMultiplexedStreamAbort` (QUIC and in-memory) its deadline stops the
-  receiving direction with `STOP_SENDING(H3_NO_ERROR)` and is left out of the read's token, so a
-  client that granted no stream credit for the `100` held the handler's first read with nothing to
-  reclaim it. The final head does not impose a separate zero-byte rate gate while it waits for the
-  `100`. Caller and exchange cancellation still end the claim wait, and an interim that exceeds its
-  allowance resets the request stream and cancels the waiting head. With the rate disabled, the
-  claim waits until the interim finishes or cancellation occurs. Before dispatch (a request hook
-  reading the body) there is no exchange and no response rate, and only the read's token bounds the
-  `100`.
-- **Its failures are the read's.** The `100` is written inside the read's error handling and under
-  the read's token (the caller's, the exchange's abort, the connection's closure), so a write the
-  client's `STOP_SENDING` fails reaches the application as the exchange's cancellation, exactly as a
-  read meeting its `RESET_STREAM` does (see
-  [client faults on HTTP/2 and HTTP/3](#client-faults-on-http2-and-http3-1378)), never as a raw
-  driver exception the read never maps.
-- **Once.** The first read clears the decision, so a later read sends nothing. As on HTTP/1.1, an
-  explicit `100` the application sent through `Http.InterimResponses` before its first read is not
-  remembered, so the automatic one may follow it: a second interim response is legal (RFC 9110
-  §15.2), and every version behaves alike.
+- **HTTP/3 holds the `100` to the response's minimum data rate (#1384).** Once the
+  exchange exists, `Http3ConnectionContext.WriteContinueAsync` hands the frame over and
+  runs its flush through `MinDataRateWait.TryRunAsync`, crediting the frame's octets
+  first. The rate is the one the response is held to: the request's own knob
+  (`HttpExchangeInterceptorRequestContext.MinResponseDataRate`), else the listener's. It
+  is read through `TransportHttpContext.PeekResponseDataRate`, which does not freeze it,
+  so the request may still change its response's rate until the response's first write,
+  as on HTTP/1.1 and HTTP/2, whose `100` freezes nothing either. The `100` gets a
+  `MinDataRateGate` of its own, so a stall that the final head's wait for it also sits
+  through is charged to the response's gate once, by the head's wait. When the allowance
+  runs out, `FailSlowResponse` resets the request stream with `H3_REQUEST_CANCELLED`
+  and trips the exchange's `RequestCancelled`, and the read throws that cancellation.
+  The bound is needed because the request-body rate does not cover the `100`: on a
+  driver that registers `DirectionalAbort` (QUIC and in-memory) its deadline
+  stops the receiving direction with `STOP_SENDING(H3_NO_ERROR)` and is left out of the
+  read's token, so a client that granted no stream credit for the `100` held the handler's
+  first read with nothing to reclaim it. A final head waiting for the `100` is held to the
+  rate too (`ClaimFinalResponseHeadAsync`, against the response's own gate). The `100`'s
+  allowance started first, so it is normally the `100` that resets the stream; the head's
+  wait then ends, finds the stream reset, and throws the same cancellation. Before
+  dispatch (a request hook reading the body) there is no exchange and no response rate,
+  and only the read's token bounds the `100`.
+- **Its failures are the read's.** The `100` is written inside the read's error handling
+  and under the read's token (the caller's, the exchange's abort, the connection's
+  closure), so a write the client's `STOP_SENDING` fails reaches the application as the
+  exchange's cancellation, exactly as a read meeting its `RESET_STREAM` does (see "Client
+  faults on HTTP/2 and HTTP/3"), never as a raw driver exception the read never maps.
+- **Once.** The first read clears the decision, so a later read sends nothing. As on
+  HTTP/1.1, an explicit `100` the application sent through `Http.InterimResponses`
+  before its first read is not remembered, so the automatic one may follow it: a
+  second interim response is legal (RFC 9110 §15.2), and every version behaves alike.
 
 **Behavior changes.**
 
-- *Observable by clients.* An HTTP/2 or HTTP/3 request that carries `Expect: 100-continue` and can
-  still carry content receives an interim `100 Continue` at the application's first body read, ahead
-  of the final response; it used to receive none, so a client that waited for it stalled until its
-  own timeout. Over the QUIC driver a request with the expectation and no content receives one too
-  (see "Which requests").
-- *Observable by applications.* On HTTP/3, the head of a streamed response started while the first
-  read writes the `100` waits for it, within the response's minimum data rate; a first read whose
-  `100` meets the client's `STOP_SENDING` throws the exchange's cancellation; and so does a first
-  read whose `100` the client grants no stream credit for past the response's allowance, after the
-  request stream is reset with `H3_REQUEST_CANCELLED`.
+- *Observable by clients.* An HTTP/2 or HTTP/3 request that carries `Expect: 100-continue`
+  and can still carry content receives an interim `100 Continue` at the application's
+  first body read, ahead of the final response; it used to receive none, so a client that
+  waited for it stalled until its own timeout. Over the QUIC driver a request with the
+  expectation whose end is not yet known receives one too (see "Which requests").
+- *Observable by applications.* On HTTP/3, the head of a streamed response started while
+  the first read writes the `100` waits for it, within the response's minimum data rate;
+  a first read whose `100` meets the client's `STOP_SENDING` throws the exchange's
+  cancellation; and so does a first read whose `100` the client grants no stream credit
+  for past the response's allowance, after the request stream is reset with
+  `H3_REQUEST_CANCELLED`.
 
 ### Application interim responses and the final head (#1428)
 
@@ -1851,63 +2102,57 @@ resumes that one.
 
 ## HTTP/1.1: reporting the client fault (#1340)
 
-The `400`, `408`, `413` and `431` above reach the wire, but the read that found them only throws: an
-`InvalidDataException` for a malformed body, an `IOException` (`Http1LimitExceededException`) for a
-broken limit. Code that observes that exception, such as a host's fault boundary, its access log or
-its telemetry, could not tell the client's fault from the application's, so a Web host logged it at
-`Error`, ran the application's fault observer and staged a `500` that the transport then replaced.
-Any client could cause that at will.
+The `400`, `408`, `413` and `431` above reach the wire, but the read that found
+them only throws: an `InvalidDataException` for a malformed body, an
+`IOException` (`Http1LimitExceededException`) for a broken limit. Code that
+observes that exception, such as a host's fault boundary, its access log or its
+telemetry, could not tell the client's fault from the application's, so a Web host
+logged it at `Error`, ran the application's fault observer and staged a `500` that
+the transport then replaced. Any client could cause that at will.
 
 `Http1ExchangeControl.ClientFaultStatusCode` reports the latched status, the same
-`Http1Context.RequestBodyRejectedStatusCode` that `SendAsync` answers with. It is the core
-report-don't-throw member `IHttpExchangeControl.ClientFaultStatusCode` (owner decision 28, after
-decision 20's seam rule; see the core's
-[client-fault report](../assimalign-cohesion-http/design.md#the-client-fault-report)), so a feature
-package reads it from the control its response interceptor captures, as it reads the other probes.
-The exception types are unchanged: the body is a `Stream`, and a reader that catches
-`InvalidDataException` or `IOException` keeps working.
+`Http1Context.RequestBodyRejectedStatusCode` that `SendAsync` answers with. It is
+the core report-don't-throw member `IHttpExchangeControl.ClientFaultStatusCode`
+(owner decision 28, after decision 20's seam rule), so a feature package reads it
+from the control its response interceptor captures, as it reads the other probes.
+Malformed-body and limit exception types are unchanged: the body is a `Stream`, and a reader that
+catches `InvalidDataException` or `IOException` keeps working.
 
-- **A body cut short is a client fault too.** A peer that closes the connection before the body its
-  framing declared is complete (a `Content-Length` body short of its length, or a chunked body cut
-  off inside a chunk or a framing line, before its last chunk) fails the read with an
-  `EndOfStreamException` and latches `Http1RequestBodyStream.IsIncomplete`, which
-  `RequestBodyRejectedStatusCode` maps to `400`. Without it nothing was latched, so the cheapest way
-  around the report was `Content-Length: 100`, one octet and a half-close: the host logged the
-  exchange at `Error`, ran its fault observer, and wrote its `500` onto the half-closed connection.
-  RFC 9112 §8 lets a server answer an incomplete request with an error before it closes the
-  connection, Kestrel's `UnexpectedEndOfRequestContent` answers `400` the same way, and the peer that
-  closed only its sending side can still read the answer. The exception type stays
-  `EndOfStreamException`, and the body is not read or drained again.
-- **When it reports.** `null` until a read fails on the client's side, then the latched status for
-  the rest of the exchange. A read cancelled by the application, or one that stopped inside the
-  framing because of it, is not a client fault and reports nothing. A body the application never
-  read is found malformed, over its limit or cut short only by the drain, after the response, so its
-  report comes too late for the pipeline; the connection still closes.
-- **The other versions.** `Http2ExchangeControl` and `Http3ExchangeControl` report it too since
-  #1378: see [client faults on HTTP/2 and HTTP/3](#client-faults-on-http2-and-http3-1378).
-- **Who reads it.** `Web.Hosting` installs a request-scoped interceptor that adds itself to the
-  response phase of a request that can have a body
-  (`HttpExchangeInterceptorRequestContext.CanHaveBody`, which this transport sets from the framing
-  it decides before the head hooks run) and publishes the report as `IWebClientFaultFeature`
-  ([`Web.Server`](../../../resources/web/assimalign-cohesion-web-server/index.md)). Every other
-  HTTP/1.1 exchange keeps this transport's fast path, and so does an HTTP/2 one whose head ended its
-  stream. HTTP/3 over the QUIC driver does not: its probe sees a FIN only on a read, so nearly every
-  request reports a body and takes the response phase (see
-  [the body signal for a host's gate](#the-body-signal-for-a-hosts-gate)).
-  [Web.Hosting's design](../../../resources/web/assimalign-cohesion-web-hosting/design.md) carries
-  the consumers.
+- **A body cut short cancels the exchange (#1439).** A fixed-length or chunked body that ends
+  before its framing is complete fires `RequestCancelled` and throws `OperationCanceledException`
+  carrying that token. No client-fault status is latched and no response is attempted. This replaces
+  #1340's incomplete-body `400` mapping under owner decision 45; drivers cannot reliably distinguish
+  a reset from an orderly EOF before their closure signal arrives.
+- **When it reports.** `null` until a read fails on the client's side, then the
+  latched status for the rest of the exchange. A read cancelled by the
+  application, or one that stopped inside the framing because of it, is not a
+  client fault and reports nothing. A body the application never read is found
+  malformed or over its limit only by the drain, after the response, so
+  its report comes too late for the pipeline; the connection still closes.
+- **The other versions.** `Http2ExchangeControl` and `Http3ExchangeControl` report
+  it too since #1378: see "Client faults on HTTP/2 and HTTP/3".
+- **Who reads it.** `Web.Hosting` installs a request-scoped interceptor that adds
+  itself to the response phase of a request that can have a body
+  (`HttpExchangeInterceptorRequestContext.CanHaveBody`, which this transport sets
+  from the framing it decides before the head hooks run) and publishes the report
+  as `IWebClientFaultFeature` (`Web.Server`). Every other HTTP/1.1 exchange keeps
+  this transport's fast path, and so does an HTTP/2 one whose head ended its stream.
+  HTTP/3 also omits this feature when its pipe or the QUIC driver's completion
+  facet reports an empty, ended request (see "The body signal for a host's gate").
+  A positive declared length retains the gate for truncation validation.
+  Web.Hosting's DESIGN carries the consumers.
 
 ## Client faults on HTTP/2 and HTTP/3 (#1378)
 
 ### The defect this closes
 
-Issue #1340 gave `IHttpExchangeControl` its client-fault report and filled it on HTTP/1.1. HTTP/2
-and HTTP/3 kept the interface's `null`, yet both reject a request body while the application reads
-it: over the size cap (`413`), below the minimum data rate (`408`, #1085), with an HTTP/3 trailer
-section over `SETTINGS_MAX_FIELD_SECTION_SIZE` (`431`), or malformed. A host that saw the read's
-exception could not tell any of these from an application defect, so a Web host logged them at
-`Error`, ran the application's fault observer, and recorded a `500` on the server span for a stream
-that carried a `4xx` or a reset. Any client could cause it at will.
+#1340 gave `IHttpExchangeControl` its client-fault report and filled it on HTTP/1.1. HTTP/2 and
+HTTP/3 kept the interface's `null`, yet both reject a request body while the application reads it: over
+the size cap (`413`), below the minimum data rate (`408`, #1085), with an HTTP/3 trailer section over
+`SETTINGS_MAX_FIELD_SECTION_SIZE` (`431`), or malformed. A host that saw the read's exception could not
+tell any of these from an application defect, so a Web host logged them at `Error`, ran the
+application's fault observer, and recorded a `500` on the server span for a stream that carried a
+`4xx` or a reset. Any client could cause it at will.
 
 ### What each control reports
 
@@ -1928,25 +2173,25 @@ that carried a `4xx` or a reset. Any client could cause it at will.
 - **HTTP/3.** `Http3RequestBodyStream` latches `ClientFaultStatusCode` where it records a rejection
   (`RejectedStatusCode`), where it resets the stream for a stream error the body found, and where it
   aborts the connection for a connection error the body found (`FailConnection`). Every stream or
-  connection error the body can find is in the client's octets.
-  `Http3ExchangeControl.ClientFaultStatusCode` reads it.
+  connection error the body can find is in the client's octets. `Http3ExchangeControl.ClientFaultStatusCode`
+  reads it.
 - **A malformed body is reported as `400`.** These versions frame the request themselves, so the
-  transport resets the stream rather than answering it (RFC 9113 §8.1.1, RFC 9114 §4.1.2), and no
-  status reaches the wire. `400` is what HTTP/1.1 answers a malformed body with, so a host
-  classifies the exchange the same on every version.
+  transport resets the stream rather than answering it (RFC 9113 §8.1.1, RFC 9114 §4.1.2), and no status
+  reaches the wire. `400` is what HTTP/1.1 answers a malformed body with, so a host classifies the
+  exchange the same on every version.
 - **A connection error the HTTP/3 read finds is reported as `400`.** An invalid frame sequence (DATA
-  after the trailer section, a second trailer section), a frame type a request stream may not carry,
-  a truncated frame, or a trailer section that corrupts the QPACK state closes the connection (RFC
-  9114 §7.1, §4.1, RFC 9204 §2.2), but the exchange whose read found it saw the client's octets: its
-  read latches `400` before the abort, and the stream counts as reset, so `SendAsync` writes nothing
-  on the dead connection and adopts the `400`. Without it, that read's `IOException` reached the
-  host as an application fault: an `Error` log, `OnException`, and a `500` the send could not
-  deliver. Every other exchange on the connection observes the loss of the connection, not a fault.
-- **Not reported on HTTP/2:** a connection error in a request's frames — a trailer block HPACK
-  cannot decode or over `SETTINGS_MAX_HEADER_LIST_SIZE` among them. The frame pump, not a body read,
-  finds it, and the pump's shutdown fires the cancellation of every request still arriving
-  (`AbortPendingRequests`), that one's included, so it ends as cancelled rather than as an
-  application fault.
+  after the trailer section, a second trailer section), a frame type a request stream may not carry, a
+  truncated frame, or a trailer section that corrupts the QPACK state closes the connection (RFC 9114
+  §7.1, §4.1, RFC 9204 §2.2), but the exchange whose read found it saw the client's octets: its read
+  latches `400` before the abort, and the stream counts as reset, so `SendAsync` writes nothing on the
+  dead connection and adopts the `400`. Without it, that read's `IOException` reached the host as an
+  application fault: an `Error` log, `OnException`, and a `500` the send could not deliver. Every other
+  exchange on the connection observes the loss of the connection, not a fault.
+- **Not reported on HTTP/2:** a connection error in a request's frames — a trailer block HPACK cannot
+  decode or over `SETTINGS_MAX_HEADER_LIST_SIZE` among them. The frame pump, not a body read, finds it,
+  and the pump's shutdown fires the cancellation of every request still arriving
+  (`AbortPendingRequests`), that one's included, so it ends as cancelled rather than as an application
+  fault.
 - **A client that resets its own request is not at fault.** It cancels the request (RFC 9113 §8.1,
   RFC 9114 §4.1.1). See the next section.
 - **Connection loss is cancellation (owner decision 45, #1430).** An HTTP/3 connection lost after
@@ -1966,14 +2211,29 @@ HTTP/3 body before publishing an exchange. On the current streaming implementati
 peer could cause incorrect fault logs and error handling (CWE-755, low severity). There is no public
 signature change or new dependency.
 
-**Source-review findings across HTTP versions (#1430).** HTTP/1.1 still passes the receive-loop token to the exchange and
-body without linking the connection's closure; a reset can surface as raw I/O failure. Clean truncated
-HTTP/1.1 framing remains its separate `400` client-fault contract. HTTP/2 normally cancels a pending
-body before failing its channel, but the exception carries the stream token rather than the exchange's
-linked token; a channel completion racing cancellation can also escape as `IOException`. These
-remaining parity differences are recorded for follow-up; this change is scoped to HTTP/3.
-The HTTP/1.1 reset path and HTTP/2 channel-completion race are source-derived findings, not runtime
-reproductions in this session.
+**Connection loss on HTTP/1.1 and HTTP/2 (#1439, owner decision 45).** Both versions now expose
+`OperationCanceledException` carrying the exchange's exact `RequestCancelled` token. HTTP/1.1 links
+the driver's closure token for the exchange's lifetime, and normalizes transport read failures that
+arrive before that signal. An incomplete body EOF also cancels: TCP can expose a reset as EOF before
+its queued closure signal, so FIN and reset cannot be distinguished reliably here. HTTP/2 attaches
+the exchange token to its body reader and normalizes both cancelled waits and DATA-channel failures
+racing cancellation. Previously latched malformed-body and limit faults retain their precedence.
+`ClientFaultStatusCode` stays null on connection loss. Pending, later, rate-gated and ungated reads
+are covered, including tokenless application reads. The first read's lazy `100 Continue` solicitation
+also observes exchange cancellation on both protocols. A failed interim flush cancels with the exact
+exchange token, including failures preceding the driver's closure signal. A latched body rejection
+keeps precedence; cancellation by only the caller retains that caller's token. Web.Hosting records `request_canceled` through
+`UseErrorHandling()`, with no Error log, `OnException`, or replacement `500`.
+
+**Breaking behavior and advisory triage (#1439).** Against 10.0.0-preview.1, dispatched HTTP/1.1 body
+EOF/transport failures now cancel instead of exposing an I/O failure; incomplete EOF no longer
+latches the later #1340 `400`. HTTP/2 cancellation now carries the exchange token instead of its
+stream token. Malformed framing bytes and pre-dispatch head truncation retain their behavior. The
+released code has both cancellation gaps, reachable by unauthenticated peers on body-reading
+endpoints (CWE-755, low severity: incorrect cancellation and application fault handling). Preview.1
+had no current server Error telemetry; its exception boundary could nevertheless invoke `OnException`
+and attempt a `500`. The HTTP/1.1 lazy-interim bypass was present in preview.1; HTTP/2 lazy solicitation
+arrived later in #1385. No new public signature or dependency is introduced.
 
 ### The read reports the fault, not the reset
 
@@ -1982,113 +2242,127 @@ A fault that resets the stream also fires the exchange's cancellation, and on HT
 checked the abort first, so a read that met the end of the request after the reset threw an
 `OperationCanceledException`, and one that met it before threw the `IOException`: the same fault
 surfaced either way, by timing. The reader now throws the latched fault's `IOException` whenever the
-abort fired after a client fault, at a read's start and from a wait, so the exchange always learns
-the client's fault from its read; a peer reset with no fault still surfaces as the cancellation.
-HTTP/3 already rethrew its recorded failure from every read.
+abort fired after a client fault, at a read's start and from a wait, so the exchange always learns the
+client's fault from its read; a peer reset with no fault still surfaces as the cancellation. HTTP/3
+already rethrew its recorded failure from every read.
 
-The other direction matters as much: a client that resets its own request is not at fault, and a
-host must not see an application fault for it. An HTTP/2 `RST_STREAM` fires the stream's abort
-before it fails the body pipe, so the read throws `OperationCanceledException` and the exchange ends
-as `request_canceled`. An HTTP/3 `RESET_STREAM` reached the read as a failed stream instead —
-`QuicException` (`StreamAborted`) on the QUIC driver, `ConnectionResetException` on the in-memory
-one — which the body wrapped in an `IOException`, and the stream's closure fires `RequestCancelled`
-only later on the QUIC driver, from a thread-pool continuation. A Web host then ran `OnException`,
-logged at `Error`, staged a `500` and sent it on the response direction the client had not reset.
-`Http3RequestBodyStream` now recognizes the peer's abort (`IsPeerAbort`: those two reports, on a
-stream this server has neither reset nor stopped reading, with no client fault latched and the
-connection still up) and, once the exchange exists, trips `RequestCancelled` itself
-(`TransportHttpContext.AbortRequestForPeer`, which, like `AbortSlowResponse`, does not record an
-application cancel) and throws the `OperationCanceledException`, which every later read rethrows. A
-request hook that reads the body before dispatch still sees the stream failure: there is no exchange
-to cancel, and the head path resets the stream as incomplete.
+The other direction matters as much: a client that resets its own request is not at fault, and a host must
+not see an application fault for it. An HTTP/2 `RST_STREAM` fires the stream's abort before it fails the
+body pipe, so the read throws `OperationCanceledException` and the exchange ends as `request_canceled`. An
+HTTP/3 `RESET_STREAM` reached the read as a failed stream instead — `QuicException` (`StreamAborted`) on
+the QUIC driver, `ConnectionResetException` on the in-memory one — which the body wrapped in an
+`IOException`, and the stream's closure fires `RequestCancelled` only later on the QUIC driver, from a
+thread-pool continuation. A Web host then ran `OnException`, logged at `Error`, staged a `500` and sent it
+on the response direction the client had not reset. `Http3RequestBodyStream` now recognizes the peer's
+abort (`IsPeerAbort`: those two reports, on a stream this server has neither reset nor stopped reading,
+with no client fault latched and the connection still up) and, once the exchange exists, trips
+`RequestCancelled` itself (`TransportHttpContext.AbortRequestForPeer`, which, like `AbortSlowResponse`, does
+not record an application cancel) and throws the `OperationCanceledException`, which every later read
+rethrows. A request hook that reads the body before dispatch still sees the stream failure: there is no
+exchange to cancel, and the head path resets the stream as incomplete.
 
 ### The exchange's status after a reset
 
 A stream the transport reset for a malformed body before any response started carries no status. The
-send path finds it reset and writes nothing; it now sets the exchange's status to the reported
-`400`, as it already set the transport's own `413` or `408` (HTTP/2's
-`AdoptTransportResponseStatus`, HTTP/3's `SendCoreAsync`). A host's fault boundary stages a `500`
-for the failed read, and its telemetry and access log read the exchange's status after the send, so
-without it they recorded a `500` for a request the client got wrong.
+send path finds it reset and writes nothing; it now sets the exchange's status to the reported `400`, as
+it already set the transport's own `413` or `408` (HTTP/2's `AdoptTransportResponseStatus`, HTTP/3's
+`SendCoreAsync`). A host's fault boundary stages a `500` for the failed read, and its telemetry and
+access log read the exchange's status after the send, so without it they recorded a `500` for a request
+the client got wrong.
 
 On HTTP/2 the frame pump finds the malformed body, fails the body pipe, and only then writes the
-`RST_STREAM`; the stream counts as reset once that write is done. Failing the pipe wakes the reader
-on another thread, so the application's failed read could unwind, and its host's `500` reach
-`SendAsync`, while the reset still waited for the write gate: the send claimed the stream and wrote
-the `500`, and the reset followed it. The Web host's end-to-end test caught a `500` head on the wire
-about one run in three. The pump now takes the stream's final response before it fails the pipe
-(`FailMalformedBody`, through `TryClaimResponseForRejection` with `400`): `SendAsync` finds the
-stream answered by the transport, writes nothing, and adopts the `400`. An application response
-already under way keeps its claim, and the reset cuts it off.
+`RST_STREAM`; the stream counts as reset once that write is done. Failing the pipe wakes the reader on
+another thread, so the application's failed read could unwind, and its host's `500` reach `SendAsync`,
+while the reset still waited for the write gate: the send claimed the stream and wrote the `500`, and the
+reset followed it. The Web host's end-to-end test caught a `500` head on the wire about one run in
+three. The pump now takes the stream's final response before it fails the pipe (`FailMalformedBody`,
+through `TryClaimResponseForRejection` with `400`): `SendAsync` finds the stream answered by the transport,
+writes nothing, and adopts the `400`. An application response already under way keeps its claim, and the
+reset cuts it off.
 
 The pump's own `413` had the same order: `Http2Stream.ReceiveData` failed the pipe, and the caller's
-`RejectRequestBodyAsync` claimed the response only after it returned. No write stood between the
-two, so the window was far narrower, but a host's `500` that won it was written in place of the
-`413`, and the claim the pump then lost left the `413` unsent. `ReceiveData` now takes the claim for
-the `413` before it fails the pipe and reports whether it got it, and the pump writes the `413` only
-when it did (`AnswerRequestBodyRejectionAsync`), so the cap's answer and the malformed body's reset
-follow one order. The `408` needs no change: the body reader latches it and has the connection
-answer the stream before its own read throws. The narrower window has no deterministic test —
-nothing runs on the pump's thread between the two steps — so the order itself, and the existing
-`413` tests, are what pin it.
+`RejectRequestBodyAsync` claimed the response only after it returned. No write stood between the two, so
+the window was far narrower, but a host's `500` that won it was written in place of the `413`, and the
+claim the pump then lost left the `413` unsent. `ReceiveData` now takes the claim for the `413` before it
+fails the pipe and reports whether it got it, and the pump writes the `413` only when it did
+(`AnswerRequestBodyRejectionAsync`), so the cap's answer and the malformed body's reset follow one order.
+The `408` needs no change: the body reader latches it and has the connection answer the stream before its
+own read throws. The narrower window has no deterministic test — nothing runs on the pump's thread between
+the two steps — so the order itself, and the existing `413` tests, are what pin it.
 
-HTTP/3 needs no claim for this: its body is read on the application's own read, which resets the
-stream before it throws.
+HTTP/3 needs no claim for this: its body is read on the application's own read, which resets the stream
+before it throws.
 
 ### The body signal for a host's gate
 
 The control exists only in the response phase. `HttpExchangeInterceptorRequestContext.CanHaveBody`
-(the core's
-[body signal](../assimalign-cohesion-http/design.md#the-body-signal-httpexchangeinterceptorrequestcontextcanhavebody-1378))
-lets a request-scoped interceptor join it only for a request whose body can fault, which an HTTP/2
-or HTTP/3 request need not declare:
+(core Http DESIGN, "The body signal") lets a request-scoped interceptor join it only for a request whose
+body can fault, which an HTTP/2 or HTTP/3 request need not declare:
 
-- **HTTP/1.1** sets it from the framing: chunked, or a `Content-Length` above zero. The framing is
-  now decided before the head hooks run, so a request whose framing cannot be read is refused before
-  any hook sees it; it used to be refused after them.
-- **HTTP/2** sets it when the head's HEADERS frame did not carry `END_STREAM`, whatever
-  `content-length` it declares, since DATA or a trailer section may still follow. A CONNECT never
-  has one.
+- **HTTP/1.1** sets it from the framing: chunked, or a `Content-Length` above zero. The framing is now
+  decided before the head hooks run, so a request whose framing cannot be read is refused before any
+  hook sees it; it used to be refused after them.
+- **HTTP/2** sets it when the head's HEADERS frame did not carry `END_STREAM`, whatever `content-length`
+  it declares, since DATA or a trailer section may still follow. A CONNECT never has one.
 - **HTTP/3** sets it unless the request stream's FIN is already buffered behind its HEADERS frame
   (`Http3RequestStreamReader.IsEndBuffered`, a `TryRead` that consumes nothing), and only when a
-  request hook is registered. Over the QUIC driver the end is seen only by a read that returns no
-  octets, so there a request without a body usually reports `true`. The driver's input is
-  `PipeReader.Create` over the `QuicStream`, which learns of a FIN only when a `ReadAsync` of the
-  stream returns no octets, and `TryRead` never reads the stream. The in-memory driver completes its
-  pipe with the FIN, so the in-memory tests see it; `HttpRequestCanHaveBodyTests` pins the QUIC
-  behavior over a stream-backed input (`StreamInputMultiplexedConnection`): the probe misses the end
-  until a read, and a `GET` whose FIN came with its head reports a body. Closing the gap is the
-  driver's work: it holds the FIN already, and can report it through a connection facet the probe
-  consults (tracked as a follow-up, not in #1378).
+  request hook is registered (or an `Expect: 100-continue` needs the signal). The QUIC driver's
+  `IMultiplexedStream.IsInputCompleted` exposes a clean FIN already observed by the runtime (#1427, #1453),
+  even before its stream-backed pipe reads zero bytes. The probe requires an empty, uncancelled
+  pipe as well; buffered DATA followed by FIN still reports a body. A positive declared content
+  length also retains the gate: an empty stream then faults when its body is validated. It never
+  waits for a late FIN or overrides a reset. Streams reporting no known completion keep the conservative pipe-only probe.
+
+  A bodiless GET or POST whose head ends the QUIC stream now skips body-gated response interceptors
+  and does not arm automatic `100 Continue`. Real-QUIC tests pin both empty and DATA-bearing
+  requests. Web.Hosting allocation coverage measures the saved client-fault registration and
+  feature; its always-registered response-starting interceptor still needs the response phase.
+  There is no source break from 10.0.0-preview.1: this body signal and incremental reader were
+  introduced after that release. Compared with intervening builds, hooks now observe `false`
+  when the driver already knows there are no bytes after the head.
+
+  Part 2 validation (#1453, #1451) keeps the input-completion allocation test and its
+  assertion unchanged and measures 3,200 B saved across 16 requests (200 B/request).
+  An isolated rerun at base `03207dd6d` measures the same 200 B/request, confirming that
+  the root migration preserves this saving. The historical #1427 report recorded 240 B/request. The independently developed
+  #1389 interceptor optimization is already present in base commit `03207dd6d`:
+  commit `0cdeaa019` records a 40 B/request reduction on the mixed
+  response-interceptor path (see "One added response interceptor"). The default
+  response-starting interceptor keeps Web.Hosting on that path. Singleton-array storage
+  for the client-fault registration and its smaller enumerator account for the reduction;
+  the multiplexed-root migration changes neither that storage nor the allocation assertion.
+
+  The completion-race regression uses a delegating pipe reader that publishes DATA and FIN
+  immediately after an empty probe. Its explicit constructor stores the inner reader in a
+  readonly field and the one-shot completion callback in a separate mutable field, following
+  the same constructor convention as production code.
 
 ### Behavior changes
 
 - *Observable by applications.* On HTTP/2, a read of a body the transport rejected now throws the
   rejection's `IOException` even after the stream's reset fired `RequestCancelled`; it used to throw
   `OperationCanceledException` when the reset came first.
-- *Observable by hosts.* After a malformed HTTP/2 or HTTP/3 body reset the stream, `SendAsync`
-  leaves the exchange's status at `400` instead of whatever was staged.
+- *Observable by hosts.* After a malformed HTTP/2 or HTTP/3 body reset the stream, `SendAsync` leaves
+  the exchange's status at `400` instead of whatever was staged.
 - *Observable by applications.* An HTTP/3 body read that meets the client's `RESET_STREAM` throws an
-  `OperationCanceledException` with `RequestCancelled` already fired; it used to throw an
-  `IOException`. An HTTP/3 body read that finds a connection error now reports a `400` client fault,
-  and `SendAsync` writes nothing for that exchange and adopts the `400`; it used to try to send the
-  staged response on the aborted connection.
-- *Performance (HTTP/3 over the QUIC driver).* The default Web server's client-fault gate joins the
-  response phase of every request that reports a body, and over the QUIC driver nearly every request
-  does, a `GET` whose FIN came with its head included (see
-  [the body signal for a host's gate](#the-body-signal-for-a-hosts-gate)). Each such exchange now
-  pays for a response sink, an exchange control, a response context and the feature; before #1378 no
-  HTTP/3 exchange did. HTTP/1.1, HTTP/2 and the in-memory HTTP/3 driver keep the fast path for a
-  request without a body.
-- *Observable by clients.* An HTTP/1.1 request whose framing cannot be read (both `Content-Length`
-  and `Transfer-Encoding`, a malformed `Content-Length`, a `Transfer-Encoding` that does not end in
-  `chunked`) is refused before any head hook runs, so a hook can no longer answer it first with its
-  own rejection, a `403` or a `429`; it used to be refused after the head hooks.
-- *Public API.* `HttpExchangeInterceptorRequestContext.CanHaveBody` (core
-  `Assimalign.Cohesion.Http`): an optional `init` property, `true` when a context built outside a
-  transport does not set it, which every version of this transport sets from the framing it sees.
-- *Internal.* `Http2RequestBodyStream` takes its `Http2Stream` instead of a stream id, an abort
-  token and a trailer-publishing delegate, which also saves the delegate it allocated per request.
+  `OperationCanceledException` with `RequestCancelled` already fired; it used to throw an `IOException`.
+  An HTTP/3 body read that finds a connection error now reports a `400` client fault, and `SendAsync`
+  writes nothing for that exchange and adopts the `400`; it used to try to send the staged response on the
+  aborted connection.
+- *Performance (HTTP/3 over the QUIC driver).* Since #1427 the default Web server's client-fault gate
+  omits its response registration and feature for a bodiless request whose FIN the driver already
+  observed. Like the in-memory driver, it retains the gate for buffered body bytes or a positive
+  declared length. Independent response interceptors can still require a response sink, exchange
+  control and response context (see "The body signal for a host's gate").
+- *Observable by clients.* An HTTP/1.1 request whose framing cannot be read (both `Content-Length` and
+  `Transfer-Encoding`, a malformed `Content-Length`, a `Transfer-Encoding` that does not end in `chunked`)
+  is refused before any head hook runs, so a hook can no longer answer it first with its own rejection, a
+  `403` or a `429`; it used to be refused after the head hooks.
+- *Public API.* `HttpExchangeInterceptorRequestContext.CanHaveBody` (core `Assimalign.Cohesion.Http`): an
+  optional `init` property, `true` when a context built outside a transport does not set it, which every
+  version of this transport sets from the framing it sees (see "The body signal for a host's gate").
+- *Internal.* `Http2RequestBodyStream` takes its `Http2Stream` instead of a stream id, an abort token and
+  a trailer-publishing delegate, which also saves the delegate it allocated per request.
   `Http2Stream.ReceiveData` takes the claim for the `413` itself and reports it.
 
 ## Query parameters with an empty name
@@ -2097,6 +2371,36 @@ All three versions parse a request's query through the core's `HttpQuery.Parse`,
 parameter with an empty name (`?=1`, a bare `=`) instead of throwing (#1323). The throw happened
 while the transport read the request head, so one `=` failed the client's connection or stream and
 was logged as a server defect. The parameter stays visible in the raw query.
+
+## HTTP/3: request streams and inline parse hooks (#1338)
+
+HTTP/3 runs CPU-only parse hooks inline, as HTTP/2 does on its frame pump. The default
+Web.Hosting interceptors complete synchronously, so registering them adds no
+thread-pool dispatch. A hook with long-running work must explicitly offload that
+work before blocking; the transport cannot infer which arbitrary hook will block.
+Request hooks can install a lazy body wrapper; long work belongs in asynchronous
+body reads or response callbacks, where the hook can explicitly yield or offload it.
+
+**Acceptance is concurrent.** The accept loop (`RunAcceptLoopAsync`) accepts a
+stream, derives its wire ID (the GOAWAY boundary and the QPACK stream key, see
+"Graceful GOAWAY"), and starts its processing **without awaiting it**; the
+processing runs synchronously only until it needs octets that have not arrived,
+then continues on its own. Finished request heads are published to a
+ready-context channel, which `ReceiveAsync` yields from, in the order heads
+become ready. A request whose HEADERS (or whose QPACK insertions) are still in
+flight, or whose body is still arriving, holds back no other stream. Request
+interceptor hooks run inline under the CPU-only parse-hook contract, matching
+HTTP/2. A blocking synchronous hook can stall acceptance (#1338); long work
+belongs in a lazy body wrapper or asynchronous response callback that explicitly
+offloads it. The post-preview.1 thread-isolation behavior is removed; the CPU-only
+hook contract and public surface shipped in 10.0.0-preview.1 are unchanged.
+The channel is unbounded because QUIC's
+concurrent-stream limit already bounds it, and it holds request heads, never
+bodies. When acceptance stops, the loop waits for every started stream to finish
+its head processing before completing the channel, so no context is published
+after the enumeration ends. When the consumer stops enumerating early, requests
+that were assembled but never handed over are reset with `H3_REQUEST_REJECTED`
+(never processed, so the peer may retry them), as is any head still being read.
 
 ## HTTP/3: releasing completed request streams (#1424)
 
@@ -2115,9 +2419,8 @@ Preview.1 retained each wrapper until the connection closed, even after both pip
 completed. Repeated unauthenticated requests on a long-lived opt-in HTTP/3 connection
 could therefore grow retained managed memory (CWE-401). The driver's current-streams
 gauge now falls as requests are released; this diagnostic behavior change against
-preview.1 follows decision 15. The in-memory driver already keeps no collection of
-accepted streams; tests pin HTTP/3's half completion there and verify real QUIC
-request-stream release and the gauge separately.
+preview.1 follows decision 15. Tests pin HTTP/3's half completion over the in-memory
+driver and verify real QUIC request-stream release and the gauge separately.
 
 ## HTTP/3: a client's cancellation fires `RequestCancelled` (#1329)
 
@@ -2143,25 +2446,32 @@ receive token and the multiplexed connection's closure token into the source beh
   fault already latched still wins over cancellation (see
   [client faults on HTTP/2 and HTTP/3](#client-faults-on-http2-and-http3-1378)).
 
+Since #1451 the in-memory multiplexed driver propagates parent abort and disposal to its peer too:
+the peer's `ConnectionClosed` fires, its accept loop ends, and open streams fail with
+`ConnectionResetException.ApplicationErrorCode` carrying the close code. HTTP/3 peer-loss tests rely
+on this driver notification instead of aborting both ends by hand.
+
 ## HTTP/3: error codes on the wire (#1080)
 
-The transport decides every RFC 9114 §8.1 code, and the codes reach the wire through the connection
-contracts' code-carrying aborts. The QUIC and in-memory drivers implement both facets, and the
-transport finds them with a type test:
+**The codes reach the wire through the multiplexed roots (#1080, #1453).**
+QUIC and in-memory streams also register the `DirectionalAbort` feature from
+`Connections.StreamAbort`, for operations that end only one direction:
 
-- **`STOP_SENDING`** is `IMultiplexedStreamAbort.AbortRead(code)` on the request stream.
-- **A reset** is `AbortWrite(code)` and `AbortRead(code)`, then
-  `IConnection.Abort(Http3StreamException)`. The abort keeps its job of ending the stream's
-  lifecycle and firing the exchange's `RequestCancelled`, and the directions already carry the code,
-  so the driver's default never reaches the wire (`Http3ConnectionContext.ResetStream`).
-- **A connection error** is `IMultiplexedConnectionAbort.Abort(code, Http3ConnectionException)`, so
-  the QUIC `CONNECTION_CLOSE` carries the error's code (`AbortConnection`).
+- **`STOP_SENDING`** is `DirectionalAbort.AbortRead(code)` on the request stream.
+- **A reset** is `IMultiplexedStream.Abort(code, Http3StreamException)`. The
+  driver ends both directions with the code where carried, preserving any direction
+  already ended, then ends the lifecycle and fires the exchange's `RequestCancelled`
+  (`Http3ConnectionContext.ResetStream`).
+- **A connection error** is `IMultiplexedConnection.Abort(code, Http3ConnectionException)`, so the QUIC `CONNECTION_CLOSE` carries the error's
+  code (`AbortConnection`).
 
-On a stream or connection without the facets, such as a test double or a third-party transport, the
-code travels only as the reason, and the driver sends its own default. The in-memory driver reports a
-code to the peer as `ConnectionResetException.ApplicationErrorCode`, which is how the in-memory tests
-assert codes. A real QUIC peer sees `QuicException.ApplicationErrorCode`, which
-`Http3ErrorCodeRoundTripTests` asserts.
+A transport without wire codes still resets or closes through the same roots.
+A stream without directional abort keeps the request reader's no-code fallback.
+The in-memory
+driver reports a code to the peer as `ConnectionResetException.ApplicationErrorCode`,
+which is how the in-memory tests assert codes. A real QUIC peer sees
+`QuicException.ApplicationErrorCode`, which `Http3ErrorCodeRoundTripTests`
+asserts.
 
 Before #1080 the contract could not carry a code, so the QUIC driver sent its configured defaults:
 `H3_REQUEST_CANCELLED` on every reset and `STOP_SENDING`, and `H3_NO_ERROR` on every connection
@@ -2180,6 +2490,12 @@ response — fails instead of waiting for octets the client will no longer send.
 a streamed response (`CompleteFramedAsync`), a transport-written rejection, and the end of an
 extended CONNECT tunnel all refuse before their FIN.
 
+The request-body reader resolves its directional abort feature at the first operation that needs
+it and caches presence and absence. Before resolving it, response completion checks for a known FIN
+at a safe frame boundary: no read is active, no partial DATA or skipped payload remains, and no
+unread bytes remain in the pipe. A transport-reported FIN can complete this path without creating a
+stream feature collection (#1452).
+
 A request the handler never read may still have ended. A GET's FIN usually arrives with its HEADERS
 frame, and nothing reads past HEADERS for a bodiless request. So when no read is in flight and the
 stream sits on a frame boundary, `RefuseRemainder` first reads one frame header without waiting. If
@@ -2187,7 +2503,7 @@ the FIN is already buffered, the read completes at once with no frame and the re
 cleanly. Nothing is refused then: no `STOP_SENDING`, and with the QPACK dynamic table enabled no
 Stream Cancellation (RFC 9204 §4.4.2), which would otherwise cost every GET a write on the
 connection-wide decoder stream. A probe that would have to wait is failed by the stop itself. On a
-stream without the code-carrying facet it is cancelled instead, so it never waits for the peer.
+stream without the `DirectionalAbort` feature it is cancelled instead, so it never waits for the peer.
 
 **Order.** RFC 9114 §4.1 permits stopping the request before the response completes: abort reading,
 finish the response, then end the sending direction cleanly. So the refusal goes out after the
@@ -2317,7 +2633,7 @@ closes the connection — so it ends only when the connection closes, or with on
 | Ends inside a frame | `H3_FRAME_ERROR` | §7.1 |
 | Carries `DATA`, `HEADERS`, `PUSH_PROMISE`, a second `SETTINGS`, or a reserved HTTP/2 type | `H3_FRAME_UNEXPECTED` | §7.2.1, §7.2.2, §7.2.4, §7.2.5, §7.2.8 |
 | Carries a push `PRIORITY_UPDATE` (`0xF0701`) or a `CANCEL_PUSH` | `H3_ID_ERROR` | RFC 9218 §7.2, RFC 9114 §7.2.3: the server promises no pushes, so every push ID is one it never sent |
-| Carries a request `PRIORITY_UPDATE` that names no client-initiated bidirectional stream | `H3_ID_ERROR` | RFC 9218 §7.2 |
+| Carries a request `PRIORITY_UPDATE` that names no client-initiated bidirectional stream, or an ID at or beyond the transport's published stream allowance | `H3_ID_ERROR` | RFC 9218 §7.2 (#1425) |
 | Carries a request `PRIORITY_UPDATE` cut short inside its element ID | `H3_FRAME_ERROR` | §7.1 |
 | Carries a `GOAWAY` or `MAX_PUSH_ID` whose payload is not exactly one variable-length integer | `H3_FRAME_ERROR` | §7.1, §7.2.6, §7.2.7 |
 | Carries a `GOAWAY` with a larger identifier than an earlier one | `H3_ID_ERROR` | §5.2 |
@@ -2326,7 +2642,8 @@ closes the connection — so it ends only when the connection closes, or with on
 A request `PRIORITY_UPDATE` otherwise sets the referenced stream's effective priority, or is
 buffered for a stream not yet opened, within a bound (below); one whose Priority Field Value does
 not parse, whose payload is over the 16 KiB the drain buffers, or that names a stream that has
-ended, is skipped and has no effect. A valid peer `GOAWAY` (§7.2.6) is otherwise not acted on (the
+ended, is skipped and has no effect. The element ID is still validated before skipping an oversized
+field value. A valid peer `GOAWAY` (§7.2.6) is otherwise not acted on (the
 server does not implement the *client* role of graceful shutdown — reacting to a peer's `GOAWAY` —
 only the server role of *emitting* one), and a valid `MAX_PUSH_ID` (§7.2.7) is inert because the
 server never pushes; the drain keeps only their last identifiers, for the ordering rules above.
@@ -2388,9 +2705,11 @@ stream, for at most 128 streams (RFC 9218 §7 leaves that bound to local policy)
 bound is dropped. A stream's entry goes when the stream ends, and an update naming a stream that has
 ended is discarded: it has nothing left to prioritize. Before, every update naming a fresh ID added
 an entry for the connection's lifetime, so a client could grow the map without limit with frames of
-about nine octets. RFC 9218 §7.2 also says an ID beyond the stream limits SHOULD be `H3_ID_ERROR`;
-the HTTP/3 layer does not see QUIC's concurrent-stream limit, which the RFC names as the reason that
-error is not mandatory, so it relies on the bound instead.
+about nine octets. The 128-stream buffered cap remains a backstop even when the transport publishes
+a limit, and is the only limit for drivers without the feature. A request `PRIORITY_UPDATE` whose
+stream ordinal (`ID / 4`) is at or beyond `StreamLimits.InboundBidirectionalStreamLimit` closes the
+connection with `H3_ID_ERROR` (#1425); see
+[extensible priorities and stream allowance](#http3-extensible-priorities-and-stream-allowance-1425).
 
 **Breaking changes (#1083).** These are behavior breaks against 10.0.0-preview.1, accepted on
 decision 15's terms. A client that did any of the following was tolerated, and now has its
@@ -2406,6 +2725,53 @@ connection closed with the code above:
 
 A client that names many unopened streams in `PRIORITY_UPDATE` frames also has updates past the
 first 128 dropped, where every one was kept before.
+
+## HTTP/3: extensible priorities and stream allowance (#1425)
+
+HTTP/3 multiplexes streams at the QUIC layer, so there is no shared connection
+write gate to schedule — response ordering across streams is delegated to the QUIC
+transport. What the HTTP/3 engine owns is the **priority signal as observable
+state**:
+
+- The peer's control-stream drain now parses post-SETTINGS `PRIORITY_UPDATE`
+  frames instead of discarding them: a request-stream update (`0xF0700`) records
+  the referenced stream's effective priority in the connection's priority map;
+  the request `Priority` header sets the per-request effective priority on the
+  context. Both are observable to the engine.
+- A push `PRIORITY_UPDATE` (`0xF0701`) references a push id that cannot exist (the
+  server issues no pushes — see the server-push scope decision below), so it closes
+  the connection with `H3_ID_ERROR` (RFC 9218 §7.2, #1083). So does a request
+  `PRIORITY_UPDATE` whose Prioritized Element ID is not a client-initiated
+  bidirectional stream, or whose stream ordinal (`ID / 4`) is at or beyond the
+  optional `StreamLimits.InboundBidirectionalStreamLimit` feature
+  published by its transport (#1425). Division avoids overflow at the maximum QUIC
+  ID. The ID is checked even when an oversized Priority Field Value will be skipped.
+  Until #1083 the push frame was only recorded and the drain
+  stopped, leaving the rest of the control stream unread (see "The peer control
+  stream and SETTINGS").
+- **The priority map is bounded.** It holds an entry for each live request
+  stream — accepted, its head or exchange not yet ended — and for updates
+  buffered for streams not yet opened, the most recent per stream, for at most
+  128 streams (RFC 9218 §7 leaves that bound to local policy); an update past
+  the bound is dropped. A stream's entry goes when the stream ends, and an update
+  naming a stream that has ended is discarded: it has nothing left to prioritize.
+  Before, every update naming a fresh ID added an entry for the connection's
+  lifetime, so a client could grow the map without limit with frames of about
+  nine octets. The 128-stream buffered cap from #1083 remains a backstop even when
+  the transport publishes a limit, and is the only limit for drivers without the facet.
+- **The stream allowance is cumulative.** The QUIC driver starts with the listener's
+  bound-time inbound bidirectional limit and accounts for credit released by disposing
+  inbound bidirectional streams. A fixed initial concurrent limit would reject legal
+  later stream IDs. System.Net.Quic does not expose its current native MAX_STREAMS;
+  the generic facet conservatively includes credit whose native disposal has started
+  but may not yet have been advertised (see the QUIC DESIGN). HTTP/3 rejects IDs at
+  or beyond that bound without treating it as permission to open a stream. This keeps
+  transport facts in Connections and HTTP validation here (decision 20).
+
+**Breaking behavior against 10.0.0-preview.1 (#1425).** A request PRIORITY_UPDATE
+whose ID exceeds the transport's published allowance now closes the connection with
+`H3_ID_ERROR` (RFC 9218 §7.2); that release accepted such IDs. The optional facet is
+additive and requires no change to existing multiplexed connection implementations.
 
 ## HTTP/3: requests after the GOAWAY (#1306)
 
@@ -2571,28 +2937,120 @@ close handshake, was unaffected.
 
 ## Diagnostics
 
-This package raises no events and has no event source. Until #1039 it carried an empty placeholder,
-`HttpTransportEventSource`: the right name, but no singleton and no events. It was deleted rather
-than filled, because what an HTTP-level source could report is either reported elsewhere already or
-needs a design of its own:
+The internal sealed `HttpTransportEventSource` and its BCL `Meter` are both named exactly
+`Assimalign.Cohesion.Http.Connections` (#1300, decisions 31 and 49). This name is final: #1399's
+Web default forwarder enables this exact source, not the `Assimalign.Cohesion.Connections.`
+driver prefix. Subscribe with `EventListener` / `MeterListener`, an OpenTelemetry meter
+subscription, or the .NET diagnostic tools. NativeAOT applications need
+`EventSourceSupport=true` for events; transport behavior and metrics do not depend on event delivery.
 
-| What an operator wants | Where it comes from |
+### Events and attribution
+
+All five events are Warning, without keywords. Each event id is emitted at most once per second
+across the process; its next emission carries the number suppressed since the preceding emission.
+`suppressedCount` saturates at `Int32.MaxValue`; independent occurrence counters remain exact.
+Disabled events do not advance the throttle. A quiet interval does not emit a synthetic summary.
+
+| Id | Event | Payload (in order) |
+| --- | --- | --- |
+| 1 | `RequestRejected` | `connectionId:string, protocol:string, streamId:long, statusCode:int, suppressedCount:int` |
+| 2 | `ConnectionError` | `connectionId:string, protocol:string, errorCode:long, suppressedCount:int` |
+| 3 | `StreamReset` | `connectionId:string, protocol:string, streamId:long, errorCode:long, suppressedCount:int` |
+| 4 | `ResponseRateAborted` | `connectionId:string, protocol:string, streamId:long, suppressedCount:int` |
+| 5 | `ResponseAbortedByClient` | `connectionId:string, protocol:string, streamId:long, suppressedCount:int` |
+
+`protocol` is `1.1`, `2` or `3`; `streamId=-1` means that no request stream applies
+(HTTP/1.1 or an HTTP/2 connection-output stall). IDs identify the driver's connection and the
+multiplexed request stream. These transport events can precede an HTTP exchange and never depend
+on Web.Server's request-id feature or `Activity.Current`. They report no target, path, query,
+header name or value, body, exception message, peer text, route, or peer address.
+
+The raising sites describe decisions, not successful wire delivery:
+
+- HTTP/1.1 reports a pre-dispatch answer before its best-effort error write, and reports a body's
+  first 400/408/413/431 fault at the latch. A fault caught by an interceptor before the context
+  exists is reported when that context attaches. If malformed framing escapes a body hook instead,
+  pre-dispatch cleanup reports the pending 400 before disposing wrappers, without needing an
+  exchange. A body-local atomic claim prevents replay from recounting the fault. Explicit hook
+  rejections and limit exceptions remain owned by the pre-dispatch error-response path. Final send
+  and repeated reads do not recount it.
+- HTTP/2 reports a first rejection at its stream fault latch or transport response claim, whichever
+  wins. Non-`NO_ERROR` GOAWAY and RST_STREAM decisions report their numeric RFC 9113 codes;
+  only the first connection-error decision counts. Flood guards therefore expose
+  `ENHANCE_YOUR_CALM`. Graceful close and successful unread-body cleanup are not errors.
+- HTTP/3 reports connection errors exactly at `AbortConnection` and whole-stream resets exactly
+  at `ResetStream`, including critical-stream errors and numeric RFC 9114/QPACK codes. Those
+  methods use the multiplexed root coded abort members; no driver raises HTTP events. A per-request
+  atomic reset claim exists before the head is read and is shared by head failures, interceptor body
+  reads, and response cleanup. The first claimant owns reporting and the coded abort, so concurrent
+  malformed-body and response-rate failures cannot double-count a reset or replace its winning code.
+  Only that cleanup path emits any required QPACK Stream Cancellation, including when the peer has
+  already ended the stream. Request fault latches and pre-dispatch answers report once. An interceptor
+  refusal reports its rejection
+  status even when HTTP/3 resets the stream instead of writing that status.
+- Minimum request-body rates report their 408 outcomes; slow-response enforcement reports its
+  rate abort and the client's response-abort outcome. The latter's first latch also covers peer
+  loss/reset while a response is outstanding (#1432). The two counters intentionally measure
+  different facts: request-attributed rate-aborts are the reason-specific subset. HTTP/2 can
+  additionally report a connection-output rate abort with no active response (for example a
+  stalled SETTINGS write); that abort has `streamId=-1` and need not increment response-aborts.
+  Cancellation by the application is not a client-abort
+  outcome; normal keep-alive expiry is not a rejected request.
+
+Each backing count is updated with Interlocked, even with no listener. Five lazy
+`IncrementingPollingCounter` instances publish rates per second from those exact totals:
+`rejected-requests`, `connection-errors`, `stream-resets`, `response-rate-aborts`, and
+`response-aborts`. They are created only on the first EventSource enable command. Internal
+read-only total properties support delta assertions; there are no connection gauges here.
+
+### Meter instruments
+
+The [OpenTelemetry HTTP metrics conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/)
+define request duration, active requests and body sizes, but no rejection, protocol-error or
+response-abort count. These four custom `Counter<long>` instruments therefore use a Cohesion
+prefix. Their attribute names reuse the semantic conventions where applicable.
+
+| Instrument | Unit | Tags |
+| --- | --- | --- |
+| `cohesion.http.server.rejected_requests` | `{request}` | `network.protocol.version:string`, `cohesion.http.rejection.status_code:int` |
+| `cohesion.http.server.protocol_errors` | `{error}` | `network.protocol.version:string`, `error.type:string`, `cohesion.http.error.scope:string` |
+| `cohesion.http.server.response_rate_aborts` | `{abort}` | `network.protocol.version:string` |
+| `cohesion.http.server.response_aborts` | `{response}` | `network.protocol.version:string` |
+
+`error.type` is the server-selected protocol code in invariant decimal notation; interpret it
+with the version. `cohesion.http.error.scope` is `connection` or `stream`. No connection or
+request identifier becomes a metric tag. Rejection statuses include 400, 408, 413, 414, 421, 431
+and 501, plus explicit request-interceptor refusal statuses. After dispatch, a rejection code
+records the client-fault outcome even when a response already started and cannot be replaced.
+That is why the status tag is custom: `http.response.status_code` would incorrectly claim that
+the rejection status was sent on the wire, including interceptor refusals handled by a reset.
+Meter observations are exact while subscribed and independent of EventSource throttling.
+
+The disabled reporting path allocates nothing after initialization: string conversion and event
+payload construction sit inside `IsEnabled`, metric tag boxing and error-code formatting inside
+`Instrument.Enabled`. Tests measure all five reporting methods with neither listener attached,
+and verify real protocol decisions under both listeners by delta and connection/stream identity.
+
+| What an operator wants | Owner |
 | --- | --- |
-| Per-request latency, status, route, errors and trace context | The Web server's `ActivitySource` and `Meter`, `Assimalign.Cohesion.Web.Hosting` (#1064). The host sees the whole exchange and how its pipeline ended; the transport sees neither. |
-| Connection lifetimes and counts | Each connection driver's event source (`Assimalign.Cohesion.Connections.Tcp`, `.Quic`, `.NamedPipes`). An HTTP/1.1 or HTTP/2 connection is one driver connection and an HTTP/3 connection is one QUIC connection, so an HTTP-level `Opened`/`Closed` pair and a second `current-connections` counter would count the same connections twice under two names. |
-| TLS handshakes | The runtime's `System.Net.Security` source. A handshake that failed or timed out, and the connection closed for it: `Assimalign.Cohesion.Connections` (`UpgradeFailed`) for TCP endpoints, `Assimalign.Cohesion.Connections.Quic` (`HandshakeFailed`) for HTTP/3. |
-| Requests this package answers itself before dispatch (400, 408, 413, 414, 421, 431, 501), and protocol errors (HTTP/2 `GOAWAY` and `RST_STREAM` codes, the flood guards' `ENHANCE_YOUR_CALM`, HTTP/3 error codes) | Not reported yet. |
+| Per-request spans, latency, route and pipeline outcome | Web.Hosting's `ActivitySource` and `Meter`; application responses are not counted here. |
+| Driver connection lifetimes and counts | Each Connections driver's EventSource. |
+| TLS handshakes | Runtime `System.Net.Security`, plus the listener/QUIC driver's failures. |
+| Transport rejections, client-fault outcomes and protocol codes | This source and Meter; Web sources never report them. |
 
-The last row is the remaining gap, and filling a placeholder would not close it. It needs an error
-vocabulary per protocol, a choice between events and metric instruments, and hooks in all three
-transports. If that work lands as events, it adds a source named
-`Assimalign.Cohesion.Http.Connections` that follows the repository's event-source rule. Until then
-an assembly that raises nothing has no event source, so no empty provider advertises a name that
-tools can enable and that never reports anything.
+### Compatibility with 10.0.0-preview.1
+
+Preview.1 contained only an empty event-source placeholder and emitted none of these diagnostics.
+This adds opt-in events and metrics without public API or wire-behavior changes. A consumer already
+forwarding the assembly prefix can now receive throttled Warning entries: that operational behavior
+change is recorded against preview.1 on decision 15's terms. No logging dependency, framework member,
+or public contract is added.
 
 ## Dependency boundary
 
-The declared build inputs are `Assimalign.Cohesion.Connections`, `Assimalign.Cohesion.Http`. The
+The declared build inputs are `Assimalign.Cohesion.Connections`, `Assimalign.Cohesion.Connections.Tls`,
+`Assimalign.Cohesion.Connections.StreamAbort`, `Assimalign.Cohesion.Connections.StreamLimits` and
+`Assimalign.Cohesion.Http`. The
 [overview](index.md#dependencies) distinguishes project references, package references, shared
 source, and analyzer inputs.
 
@@ -2631,3 +3089,11 @@ source, and analyzer inputs.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/ValueObjects/HttpMinDataRate.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Internal/EventSource/HttpTransportEventSource.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Internal/EventSource/HttpTransportEventThrottle.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Internal/TransportHttpContext.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Internal/Http2/Http2WriteScheduler.cs`.

@@ -11,20 +11,80 @@ Listeners bind explicitly and factories establish outbound connections. Capabili
 delivery and security; connection layers transform connections at establishment without introducing
 a parallel transport abstraction.
 
+## Connection features
+
+`IConnection`, `IMultiplexedConnection`, and `IDatagramConnection` expose an
+`IConnectionFeatureCollection` through `Features`. A feature implements `IConnectionFeature` and
+has one stable, non-empty `Name`. `Set<TFeature>` installs it in that named slot, replacing any
+feature with the same ordinal, case-sensitive name; null features and null or empty names throw.
+An object fills one slot, so a driver offering two named capabilities registers two feature objects.
+
+The public `ConnectionFeatureCollection(inner)` exposes the wrapped connection's effective set.
+A lookup checks the layer's own names first, then its inner collection. `Remove(name)` leaves a
+local tombstone: it hides both today's inner value and future registrations of that name, and
+returns whether a visible feature was removed. `Set` can replace that tombstone. Enumeration yields
+own features first and then inner features whose names are neither replaced nor hidden. Typed
+`Get<TFeature>()` follows the same order; replacing a name with a different type still hides the
+inner feature of the requested type. Exact built-in collections are scanned without allocating;
+custom collections and subclasses retain their own enumeration semantics.
+
+Collections serialize mutations and publish immutable arrays. Named and typed reads require no
+lock, and an enumerator retains the local snapshot it started with. Concurrent changes never
+invalidate a reader; a traversal across independently changing layers is not one atomic snapshot.
+Features themselves own the thread safety of their values.
+
+`Connection`, `MultiplexedConnection`, and `DatagramConnection` create no collection until the
+first `Features` access. They resolve protected `InnerFeatures`, construct the collection, and call
+protected `ConfigureFeatures` exactly once before publishing it with `Interlocked.CompareExchange`.
+Concurrent first readers wait for the configured collection; a failed configuration is remembered
+and rethrown rather than retried or partially published. The bases do not implement the collection.
+A driver's configuration uses its supplied collection; it must not recursively access `Features`.
+A layer overrides `InnerFeatures` to return its wrapped connection's `Features`. A multiplexed
+stream retains its own collection and does not inherit features from its parent connection.
+
+Optional contracts belong to their feature packages, all with the family namespace
+`Assimalign.Cohesion.Connections`. The driver registers a feature and consumers reference only the
+package that describes it. The package dependency direction is:
+
+```mermaid
+flowchart LR
+    Tls["Connections.Tls"] --> Root["Connections"]
+    Abort["Connections.StreamAbort"] --> Root
+    Limits["Connections.StreamLimits"] --> Root
+```
+
+| Package | Contract and pinned name | Access |
+|---|---|---|
+| `Assimalign.Cohesion.Connections.Tls` | `ITlsConnectionInfo`, `"Tls"` | `Tls` on a stream or multiplexed connection |
+| `Assimalign.Cohesion.Connections.StreamAbort` | `IMultiplexedStreamAbort`, `"StreamAbort"` | `DirectionalAbort` on `IMultiplexedStream` |
+| `Assimalign.Cohesion.Connections.StreamLimits` | `IMultiplexedConnectionStreamLimits`, `"StreamLimits"` | `StreamLimits` on a multiplexed connection |
+
+A byte-rewriting layer removes any inherited capability whose behavior it invalidates. TLS facts
+remain valid through accounting or compression above TLS. Hot-path consumers resolve a feature
+once per connection or stream and cache it. `ConnectionCapabilities` remains the pre-connection
+description of a transport class and does not move into this collection.
+
+**Breaking change against 10.0.0-preview.1 (owner decisions 15 and 56, #1452):** adding `Features`
+to the three root interfaces breaks direct implementers. Deriving from the guided bases supplies
+the implementation. The three optional contracts were added after preview.1, so moving them into
+feature packages breaks no released API. The multiplexed root changes below complete the migration.
+
 ## Handshake facts: `ITlsConnectionInfo`
 
 `ConnectionSecurity.Tls` says a connection is secured; it cannot say what the handshake agreed,
-because capabilities describe a transport class and the handshake is per connection. An application
-protocol needs that agreement: HTTP chooses between HTTP/2 and HTTP/1.1 from the application
-protocol ALPN selected (RFC 7301), and shows its handlers the client certificate, TLS version, and
-cipher suite. `ITlsConnectionInfo` is the typed facet that carries it. A connection that terminates
-TLS implements it beside its connection contract, and a consumer finds it with a type test on the
-connection it holds:
+because capabilities describe a transport class and the handshake is per connection. An
+application protocol needs that agreement: HTTP chooses between HTTP/2 and HTTP/1.1 from the
+application protocol ALPN selected (RFC 7301), and shows its handlers the client certificate,
+TLS version, and cipher suite. `ITlsConnectionInfo`, owned by
+[Connections.Tls](../assimalign-cohesion-connections-tls/design.md), is the typed feature
+that carries it. A connection that terminates TLS registers it under `ITlsConnectionInfo.FeatureName`,
+and a consumer reads the `Tls` extension property on the connection it holds:
 
-- **The secured `IConnection`** the TLS layer returns (`Assimalign.Cohesion.Connections.Security`).
-- **A multiplexed connection** whose transport is TLS itself (QUIC, RFC 9001).
+- the secured `IConnection` the TLS layer returns (`Assimalign.Cohesion.Connections.Security`),
+  which captures the values once its handshake completes;
+- a multiplexed connection whose transport is TLS itself (QUIC, RFC 9001).
 
-The facet reports four values, all fixed once the handshake completes:
+The feature reports four values, all fixed once the handshake completes:
 
 | Member | Meaning |
 |---|---|
@@ -35,92 +95,135 @@ The facet reports four values, all fixed once the handshake completes:
 
 The connection owns `RemoteCertificate` and disposes it with itself. Both platform stacks hand
 ownership of the peer certificate to whoever reads it (`SslStream.RemoteCertificate`,
-`QuicConnection.RemoteCertificate`), so an implementation that reads it to report it must release
-it; a consumer that keeps the certificate past the connection copies it.
+`QuicConnection.RemoteCertificate`), so an implementation that reads it to report it must
+release it; a consumer that keeps the certificate past the connection copies it.
 
 Why this shape:
 
-- **It lives in the contracts library** so the TLS layer and the QUIC driver can each implement it
-  without a new reference, and a consumer reads it while depending on the contracts alone. HTTP
-  never references the TLS layer. The HTTP server transport carries the facet one hop further: it
-  republishes the values on each exchange's connection info, where `Assimalign.Cohesion.Http.Tls`
-  reads them, so neither HTTP package references the other.
-- **Not an `Items` bag**: the facts are few, typed, and fixed at handshake time, which is exactly
-  what a typed contract is for.
-- **Not a member of `IConnection` or `IMultiplexedConnection`**: every driver and test double would
-  have to answer a question only TLS-terminating connections can, and a QUIC stream would answer
-  for its whole connection.
-- **A facet, not a base type**: `IConnection` and `IMultiplexedConnection` are different shapes, and
-  both have TLS-terminating implementations, so the facet extends neither.
+- **The feature package owns the contract.** The TLS layer, QUIC driver, and consumers reference
+  `Connections.Tls`; HTTP never references the TLS layer. HTTP republishes the handshake values on
+  its own connection-info object, which `Assimalign.Cohesion.Http.Tls` keeps reading.
+- **The facts stay typed and fixed at handshake time.** Public feature registration does not change
+  the certificate ownership or handshake semantics.
+- **The capability stays optional.** Cleartext connections and individual QUIC streams do not
+  claim connection-level handshake facts.
+- **Layers preserve visibility.** An outer layer supplies `InnerFeatures`, so it need not implement
+  TLS's contract or forward its individual members.
 
-The cost is the usual one for decorators. A layer composed above TLS that returns a new connection
-hides the facet unless it implements the facet too and forwards it. A pass-through layer, which
-returns the connection it was given, keeps it visible.
+## What every multiplexed transport supports, and what only some do (#1453)
 
-## Application error codes: `IMultiplexedStreamAbort` and `IMultiplexedConnectionAbort`
+Owner decision 56 follows the approved transport survey. A root member must have semantics every
+byte-stream multiplexer can honor. Optional capabilities stay named features; a root member cannot
+require most transports to do nothing or contradict its documentation.
 
-`Abort(Exception?)` ends a whole stream or connection and says nothing on the wire about why. A
-multiplexed transport can: QUIC's `RESET_STREAM`, `STOP_SENDING`, and `CONNECTION_CLOSE` frames each
-carry an application error code (RFC 9000 §19.4, §19.5, §19.19). Until #1080 the QUIC driver sent its
-configured defaults in all three, so an HTTP/3 server could not send what RFC 9114 §8.1 asks of it:
+| | QUIC | WebTransport (H3/H2) | HTTP/2 streams | SSH channels | yamux | mplex |
+|---|---|---|---|---|---|---|
+| Half-close | FIN | FIN | END_STREAM | CHANNEL_EOF | FIN | Close |
+| Whole-stream reset | RESET_STREAM + STOP_SENDING | both directions | RST_STREAM | CHANNEL_CLOSE | RST | Reset |
+| Stream reset code | 62-bit | 32-bit | 32-bit | none | none | none |
+| Independent directional abort | yes | yes | no | no | no | no |
+| Connection close code | 62-bit | 32-bit plus message | 32-bit | 32-bit plus description | three fixed values | none |
+| Cumulative inbound stream allowance | MAX_STREAMS | WT_MAX_STREAMS | none | none | none | none |
+| Unidirectional streams | yes | yes | no | no | no | no |
 
-- After a complete response, the server stops an unread request with `H3_NO_ERROR`. The default,
-  `H3_REQUEST_CANCELLED`, made .NET's `HttpClient` fail a request whose response had arrived, and the
-  HTTP/3 transport drained up to 64 KiB of upload for up to 5 seconds to avoid sending it.
-- A rejected or malformed request is reset with `H3_REQUEST_REJECTED` or `H3_MESSAGE_ERROR`, so a
-  client can tell a request it may retry from one it must not.
-- A connection error closes with its own code, such as `H3_FRAME_UNEXPECTED`, not `H3_NO_ERROR`.
+SCTP's message streams have no individual close and belong to the datagram shape.
 
-Two facets carry the code. A consumer finds each with a type test and falls back to `Abort` without
-it:
+`IMultiplexedConnection.Abort(code, reason)` closes the connection; its first abort or disposal
+wins. Drivers validate their own code range, always rejecting negative codes. QUIC accepts 0 through
+2^62 - 1; a transport without close codes closes as `Abort(reason)` does.
 
-| Facet | Member | QUIC frame | Implemented by |
-|---|---|---|---|
-| `IMultiplexedStreamAbort` | `AbortRead(errorCode)` | `STOP_SENDING` | the QUIC driver's streams, the in-memory driver's stream ends |
-| `IMultiplexedStreamAbort` | `AbortWrite(errorCode)` | `RESET_STREAM` | the same |
-| `IMultiplexedConnectionAbort` | `Abort(errorCode, reason)` | `CONNECTION_CLOSE` | `QuicMultiplexedConnection` |
+`IMultiplexedStream : IConnection` owns the whole-stream `Abort(code, reason)` and
+`IsInputCompleted`. The reset ends both directions, carrying the code where supported, and then ends
+the lifecycle. Each direction preserves its first end signal. HTTP/3 resets a stream with one root
+call. Per-direction aborts remain `DirectionalAbort` on `IMultiplexedStream`; cumulative stream
+allowance remains `StreamLimits` on `IMultiplexedConnection`.
 
-The rules:
+**Breaking changes against 10.0.0-preview.1 (owner decisions 15 and 56):**
 
-- **One direction at a time.** A stream's directions end separately, so a server stops the request
-  direction and still ends its response with a FIN.
-- **The first signal for a direction wins.** A later `Abort` or `DisposeAsync` does not signal a
-  direction again. A reset with a code is therefore both `AbortWrite` and `AbortRead`, then
-  `Abort(reason)`, which keeps the lifecycle (`State`, `ConnectionClosed`) on the member that already
-  owns it. The same holds for the connection: the first `Abort` or disposal decides the close code.
-- **A half abort leaves the holder's lifecycle alone.** It changes no `State` and does not signal the
-  holder's `ConnectionClosed`. The peer's stream reports an abandoned stream, as for any reset
-  (#1329).
-- **After `AbortRead`, every read fails**, a read in flight included, even one that octets the
-  transport has already buffered would satisfy. Both drivers fail such a read (the in-memory driver
-  with `ConnectionAbortedException`, QUIC with `QuicException(OperationAborted)`), so a consumer
-  tested over the in-memory driver cannot come to depend on reading data the abort discarded.
-- **Codes range from 0 to 2^62 - 1**, the values a QUIC variable-length integer carries (RFC 9000
-  §16). Anything else throws `ArgumentOutOfRangeException`. The in-memory driver enforces the same
-  range, so a test over it fails where QUIC would.
-- **The peer sees the code** as `QuicException.ApplicationErrorCode` on QUIC, and as
-  `ConnectionResetException.ApplicationErrorCode` on the in-memory driver.
+- `AcceptStreamAsync` and `OpenStreamAsync` now return `ValueTask<IMultiplexedStream>` instead of
+  `ValueTask<IConnection>`. Implementers and binaries break; a caller awaiting and assigning to
+  `IConnection` still compiles.
+- The guided base returns `ValueTask<MultiplexedStream>` instead of `ValueTask<Connection>`.
+- `Abort(long, Exception?)` is required on `IMultiplexedConnection` and abstract on its guided base,
+  breaking implementers and subclasses.
+- The removed coded-close and input-completion facets, and the narrowed `DirectionalAbort`
+  accessor, postdate preview.1 and break no released API.
 
-Why this shape:
+## Observed input completion: `IMultiplexedStream.IsInputCompleted` (#1427, #1453)
 
-- **Facets, not members of `IConnection` or `IMultiplexedConnection`.** A new member breaks every
-  implementation outside this repository (the contracts shipped in 10.0.0-preview.1), and only a
-  transport with codes can honor it: a TCP connection has none to send. `ITlsConnectionInfo` is a
-  facet for the same reason.
-- **Not a code carried on the reason exception.** The reason types belong to the protocol (HTTP/3's
-  are internal to it), so a driver would have to recognize them, or the protocol would have to throw
-  this area's exceptions at its own application. The code is wire data, so it is an argument.
-- **Two named members, not a direction enum.** Each direction has its own frame and fails something
-  different on the peer, its reads or its writes. `ConnectionDirection` says which halves a stream
-  has, not which to abort.
-- **The half-close of #1330 builds on it.** The QUIC driver maps `Output` completion to the FIN
-  alone (`RESET_STREAM` with the default code when `Output` is completed with an error) and `Input`
-  completion to a read-direction abort with the default code, and disposes the QUIC stream once both
-  are done: the `IConnection` half-close the contract always described. A consumer that needs
-  another code for an unread direction calls `AbortRead` first, and the first signal wins, as the
-  HTTP/3 transport does after a complete response. Before #1330 the driver's stream pipes were
-  created with `leaveOpen: false`, so completing either one disposed the QUIC stream: ending one
-  direction ended both.
+Every surveyed byte-stream multiplexer has a half-close. The root reports a clean transport end
+once every received byte has been delivered to `Input`; it neither reads nor waits. A conservative
+`false` means the end is not known yet. The pipe may still buffer bytes, so consumers combine the
+property with their empty-buffer check. Aborts and failed reads never count as a clean end.
+
+QUIC reads its existing `ReadsClosed` task, excluding a locally aborted read. In-memory streams
+observe their peer's clean output completion. A buffering layer preserves the distinction between
+transport completion and buffered bytes. No HTTP contracts or interpretation enter Connections.
+
+## Cumulative stream allowance: `IMultiplexedConnectionStreamLimits` (#1425)
+
+The optional `InboundBidirectionalStreamLimit` feature in `Connections.StreamLimits` reports a
+conservative upper bound on how
+many peer-initiated bidirectional streams the transport may have allowed over the connection's
+lifetime. It is cumulative, not the number that may be open concurrently, and never decreases.
+Protocols can reject a referenced stream ordinal at or beyond that bound; they still own the
+mapping between their identifiers and stream ordinals. No application-protocol types enter the
+Connections contracts.
+
+A conservative bound may include credit whose release has started but is not advertised yet.
+Consumers must retain their own state limits; this facet is not a replacement for flow control.
+Drivers without the feature remain valid. Consumers use `connection.StreamLimits`, and decorators
+preserve it through `InnerFeatures`. Its feature contract postdates 10.0.0-preview.1; the root
+`Features` addition is the breaking change recorded above.
+
+## Application error codes and directional aborts (#1080, #1453)
+
+The root coded aborts communicate a protocol's reason directly. For HTTP/3 that distinguishes
+`H3_REQUEST_REJECTED` from `H3_MESSAGE_ERROR`, and a connection error such as
+`H3_FRAME_UNEXPECTED` from `H3_NO_ERROR`. The error code is wire data, independent of the optional
+reason exception, whose type belongs to the caller.
+
+| Contract | Member | QUIC frame |
+|---|---|---|
+| `IMultiplexedStream` | `Abort(errorCode, reason)` | RESET_STREAM and STOP_SENDING |
+| `IMultiplexedConnection` | `Abort(errorCode, reason)` | CONNECTION_CLOSE |
+| `IMultiplexedStreamAbort` feature | `AbortRead(errorCode)` | STOP_SENDING |
+| `IMultiplexedStreamAbort` feature | `AbortWrite(errorCode)` | RESET_STREAM |
+
+Only a transport that can end directions independently offers the `Connections.StreamAbort`
+feature. QUIC, WebTransport and the in-memory model can; HTTP/2, SSH, yamux and mplex cannot.
+HTTP/3 keeps its no-code fallback keyed on `stream.DirectionalAbort`. It uses the feature to stop
+an unread request with `H3_NO_ERROR` while completing its response with FIN.
+
+- The first signal for each direction wins. Whole-stream reset, later abort and disposal retain
+  a direction's earlier code. The first abort or disposal likewise decides the connection close.
+- A directional abort leaves the holder's lifecycle alone: it changes neither `State` nor
+  `ConnectionClosed`. A whole-stream reset ends the lifecycle. The peer observes an abandoned
+  stream in either case.
+- After `AbortRead`, every read fails, including pending reads and buffered bytes. In-memory
+  throws `ConnectionAbortedException`; QUIC throws `QuicException(OperationAborted)`.
+- Root code ranges are transport-specific. The directional feature retains its 0 through
+  2^62 - 1 contract; QUIC and its in-memory model validate that range and throw
+  `ArgumentOutOfRangeException` outside it.
+- The peer sees a carried code in `QuicException.ApplicationErrorCode` on QUIC or
+  `ConnectionResetException.ApplicationErrorCode` on in-memory streams.
+
+Completing `Output` cleanly sends FIN without closing input. Completing it with an error resets
+output with the configured default code; completing `Input` aborts reading with its default code.
+A consumer needing another code ends that direction through the feature first.
+
+## Guided Abstract Bases
+
+Per the repository's interface-first-with-a-guided-abstract-base rule, each contract ships a
+public abstract base (`Connection`, `ConnectionListener`, `ConnectionFactory`,
+`MultiplexedConnection` and its listener/factory, `MultiplexedStream`, `DatagramConnection`). Where the base exposes a
+concrete-typed member — a listener's `AcceptAsync` returning `Connection` rather than
+`IConnection` — the typed member is declared `public` (so holders of the concrete type get the
+richer signature without casting) and the interface member is implemented explicitly, forwarding
+to it. Multiplexed stream accept/open members return `ValueTask<MultiplexedStream>` on the base
+and `ValueTask<IMultiplexedStream>` on the interface. `MultiplexedStream` inherits `Connection`
+(including its lazy features) and makes coded whole-stream abort and input completion abstract.
+The interface remains the canonical surface consumers depend on.
 
 ## A listener contains each connection's failure
 
@@ -149,9 +252,9 @@ or the caller canceled. A consumer such as the HTTP listener treats it as fatal.
   listener disposes a connection it accepted, and the layered factory a connection it dialed
   (#1309).
 
-The diagnostics tests link the canonical test-only `EventSourceRecorder` through
-`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`; it records
-events and counter publication without adding a shipped dependency.
+The diagnostics tests link the canonical test-only `build/TestSupport/EventSourceRecorder.cs`
+with MSBuild `Compile`/`Link`; it records events and counter publication without adding a shipped
+dependency.
 
 The layered listener reports through this library's one internal event source,
 `Assimalign.Cohesion.Connections`:
@@ -165,6 +268,7 @@ message, never the peer's bytes, a certificate, or key material. An upgrade canc
 listener is being disposed is not reported.
 
 The alternatives were rejected for these reasons:
+
 - **Upgrading inside `AcceptAsync`**, the shape before #1304, serialized handshakes on the accept
   loop and turned one peer's failure into the listener's.
 - **Containing the failure in the consumer** cannot work by exception type. A handshake timeout
@@ -177,9 +281,9 @@ The alternatives were rejected for these reasons:
 
 A connection has three teardown paths: complete `Output` for a graceful half-close,
 `DisposeAsync()` to close, and `Abort(Exception?)` to tear down at once, discarding in-flight data.
-A multiplexed transport's streams and connections can also abort with an application error code, one
-stream direction at a time (see
-[Application error codes](#application-error-codes-imultiplexedstreamabort-and-imultiplexedconnectionabort)).
+A multiplexed transport's streams and connections can also abort with a transport-specific
+application error code. Optional directional aborts end one stream direction at a time (see
+[Application error codes](#application-error-codes-and-directional-aborts-1080-1453)).
 `ConnectionClosed` is signaled on closure, and `ConnectionState` tracks
 `Idle → Opening → Open → Closing → Closed`, or `Aborted`.
 

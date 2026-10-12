@@ -31,6 +31,24 @@ Both encodings now follow the same first-scalar and multi-value rules
 comma-joined scalar behavior. See [Design](design.md) for compatibility,
 consumer effects, parsing limits, uploaded file ownership, and AOT posture.
 
+## Form limits
+
+Set `HttpFormOptions` when constructing `HttpFormFeature`. `ValueCountLimit`
+defaults to 1024 and limits urlencoded values or multipart sections. Every
+multipart section counts, including files, repeated fields, and unnamed
+sections. The first excess section is rejected before its body is consumed.
+This multipart enforcement changes preview.1 behavior, which applied that
+limit only to urlencoded forms; raise the option for intentionally larger forms.
+
+Continue catching `InvalidDataException` for parsing failures. A limit failure
+has an inner `HttpFormLimitExceededException`; its read-only `Limit` property
+returns the `HttpFormLimit` category without request input or message parsing.
+Use that category for diagnostics. Malformed form messages can contain request
+input and should not be logged as a limit name. The existing message-only
+exception constructor reports `Unspecified`; parsers always report a specific
+category. See [the error model](design.md#error-model) for every category and its
+corresponding option.
+
 ## Dependencies
 
 | Reference | Build item |
@@ -46,6 +64,7 @@ consumer effects, parsing limits, uploaded file ownership, and AOT posture.
 | `HttpFormFeature` | `src/HttpFormFeature.cs` |
 | `HttpFormFile` | `src/HttpFormFile.cs` |
 | `HttpFormFileCollection` | `src/HttpFormFileCollection.cs` |
+| `HttpFormLimit` | `src/HttpFormLimit.cs` |
 | `HttpFormLimitExceededException` | `src/Exceptions/HttpFormLimitExceededException.cs` |
 | `HttpFormOptions` | `src/HttpFormOptions.cs` |
 | `IHttpFormCollection` | `src/Abstractions/IHttpFormCollection.cs` |
@@ -76,6 +95,8 @@ consumer effects, parsing limits, uploaded file ownership, and AOT posture.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/src/HttpFormFile.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/src/HttpFormFileCollection.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/src/HttpFormLimit.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Forms/src/Exceptions/HttpFormLimitExceededException.cs`.
 

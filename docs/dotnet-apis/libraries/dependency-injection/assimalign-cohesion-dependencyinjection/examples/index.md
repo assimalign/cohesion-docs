@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.DependencyInjection`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Service Provider Builder behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise service provider builder behavior and event-source diagnostics using the original repository tests.
 
 ## Sources
 

@@ -22,7 +22,7 @@ release or completeness guarantee.
 |---|---|
 | `Assimalign.Cohesion.Hosting` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Hosting.Health` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Hosting.Resources` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Hosting` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Health` (CohesionProjectReference), `System.Security.Cryptography.ProtectedData` (CohesionPackageReference) |
+| `Assimalign.Cohesion.Hosting.Resources` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Hosting` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Health` (CohesionProjectReference), `System.Security.Cryptography.ProtectedData` (CohesionPackageReference), `Assimalign.Cohesion.Hosting.Resources` (CohesionSharedSource) |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `Assimalign.Cohesion.Hosting` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Resources` (CohesionProjectReference), `Assimalign.Cohesion.Logging` (CohesionProjectReference), `Assimalign.Cohesion.Logging.Console` (CohesionProjectReference), `Assimalign.Cohesion.OpenTelemetry` (CohesionProjectReference) |
 
 ## Sources

@@ -25,11 +25,12 @@ The core holds base contracts only: no transport-produced feature contract is de
 transport publishes further facts about a connection as *facets* on `IHttpConnectionInfo`:
 additional interfaces the object it hands out also implements, found with a type test. The server
 transport (`Assimalign.Cohesion.Http.Connections`) publishes what a TLS handshake negotiated as the
-Connections library's `ITlsConnectionInfo`, which `context.TlsConnection` in
+`Connections.Tls` package's `ITlsConnectionInfo`, which `context.TlsConnection` in
 `Assimalign.Cohesion.Http.Tls` reads; `IHttpTlsConnectionFeature` and its accessor moved there
 (#1367). `HttpConnectionInfo` is unsealed so a transport can publish a facet on a subclass, and code
 that wraps an `IHttpContext` forwards the inner context's connection info rather than building a new
-object, which would hide the facets.
+object, which would hide the facets. The transport obtains TLS facts through the underlying
+connection's `Tls` feature; connection decorators forward `InnerFeatures` (#1452).
 
 For the HTTP/2 and HTTP/3 extended CONNECT (RFC 8441, RFC 9220) the core carries two generic seam
 members (#1368): `HttpExchangeInterceptorRequestContext.Protocol`, the `:protocol` the transport
@@ -53,8 +54,10 @@ name (`?=1`) rather than failing the request as its head is read (#1323). See th
 
 A request-parse hook can add an interceptor to its own exchange's response phase
 (`HttpExchangeInterceptorRequestContext.AddResponseInterceptor`), so an interceptor that needs the
-response phase for a few exchanges keeps every other exchange on the transport's fast path. See the
-[design](design.md#per-exchange-response-interceptors).
+response phase for a few exchanges keeps every other exchange on the transport's fast path. Its first
+added interceptor is held in one singleton array, retained by the transport when the listener has no
+response interceptors; a second distinct addition promotes the parse-side storage to a list (#1389).
+See the [design](design.md#per-exchange-response-interceptors).
 
 `HttpFieldNormalization` states the one field-syntax rule every reader and writer applies
 (`IsValidFieldName`, `IsValidFieldValue`, `IndexOfInvalidControlCharacter`; #1341): a name is a
@@ -80,6 +83,14 @@ and HTTP/3 since #1378, which report `400` for a malformed body they reset.
 `HttpExchangeInterceptorRequestContext.CanHaveBody` tells a host's gate whether content may follow
 the head, which an HTTP/2 or HTTP/3 request need not declare. See the
 [design](design.md#the-client-fault-report).
+
+Connection loss before the dispatched body completes cancels the exchange on every protocol
+(#1430, #1439): `RequestCancelled` fires, the read throws `OperationCanceledException` with that
+exchange token, and `ClientFaultStatusCode` remains `null`.
+`IHttpExchangeControl.ResponseAbortedByClient` separately latches a response the client abandoned,
+including a minimum-response-rate abort, without implying an HTTP status (#1432). Its default
+implementation returns `false`. See the
+[design](design.md#a-response-abandoned-by-its-client-1432).
 
 `HttpMinDataRate` moved here from `Assimalign.Cohesion.Http.Connections` (#1383), a source and
 binary break: code that names it with only `using Assimalign.Cohesion.Http.Connections;` adds
@@ -109,13 +120,25 @@ reserved `Unused` (`306`) obsolete (#1204). See the
 
 `HttpHeaderValue.Concat` appends in amortized constant time, so a field repeated `n` times combines
 in time linear in `n` (#1082); `HttpHost` trims SP and HTAB only (#1341); and
-`Features.Get<TFeature>()` allocates nothing on an `HttpFeatureCollection`. See the
-[design](design.md#repeated-fields-combine-in-linear-time).
+`Features.Get<TFeature>()` and typed removal allocate nothing even on a fresh populated
+`HttpFeatureCollection` (#1337). See the design for
+[repeated fields](design.md#repeated-fields-combine-in-linear-time) and
+[feature lookup](design.md#feature-lookup-by-contract).
 
 The first field in a parameterless `HttpHeaderCollection` stays inline, so seeding a response with
 a process-cached `Date` allocates nothing and consumes none of the dictionary capacity needed by
 application fields (#1417). The core owns only the collection storage; the transport owns the Date
 policy and clock. See the [design](design.md#small-header-collections-and-cached-fields-1417).
+
+## Status codes
+
+Construct `new HttpStatusCode(299)` or assign `HttpStatusCode status = 299` for
+any integer from 100 through 599. `IsValid` checks that numeric range, not registry
+membership. A code absent from the reason-phrase table has an empty
+`ReasonPhrase`; `ToString()` renders `"299 "` for an HTTP/1.1 status line.
+HTTP/2 and HTTP/3 send only the digits. Out-of-range values still throw.
+This broadens preview.1's registered-only acceptance; see the
+[design](design.md#status-codes-and-reason-phrases-rfc-9110-15) for the reserved-code and interim-response rules.
 
 ## Query values
 

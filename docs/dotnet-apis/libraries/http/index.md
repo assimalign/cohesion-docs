@@ -31,12 +31,18 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 The repository places this area in delivery wave 3. The wave is a dependency-ordering guide, not a
 release or completeness guarantee.
 
+`Http.Connections` depends on `Assimalign.Cohesion.Connections` and its feature packages, and
+`Http.Tls` depends on `Assimalign.Cohesion.Connections.Tls`. The transport reads the connection's
+`Tls` feature and publishes an `ITlsConnectionInfo` snapshot on HTTP connection info. `Http.Tls`
+reads it, so neither of the two references the other. The
+[Http.Connections overview](assimalign-cohesion-http-connections/index.md) introduces the server transport.
+
 | Assembly | Declared dependencies |
 |---|---|
 | `Assimalign.Cohesion.Http` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Antiforgery` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Cookies` (CohesionProjectReference), `Assimalign.Cohesion.Http.Forms` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.ClientFactory` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Http.Connections` | `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Http` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.Connections` | `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections.Tls` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamAbort` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamLimits` (CohesionProjectReference), `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Cookies` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.DigestFields` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.ExtendedConnect` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
@@ -48,7 +54,7 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.Http.ServerSentEvents` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Streaming` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Sessions` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.Streaming` | `Assimalign.Cohesion.Http` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Http.Tls` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Http.Tls` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Connections.Tls` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Http.WebSockets` | `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.ProtocolUpgrade` (CohesionProjectReference), `Assimalign.Cohesion.Http.ExtendedConnect` (CohesionProjectReference) |
 
 ## Sources
@@ -84,6 +90,8 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ClientFactory/src`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/src/Assimalign.Cohesion.Http.Connections.csproj`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/OVERVIEW.md`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 

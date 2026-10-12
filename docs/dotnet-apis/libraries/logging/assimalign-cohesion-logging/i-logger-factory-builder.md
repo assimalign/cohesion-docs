@@ -13,6 +13,16 @@ Assembly: `Assimalign.Cohesion.Logging`.
 Fluent registration surface for `ILoggerFactory`. Build the factory in a single thread, then
 publish the resulting (thread-safe) factory.
 
+## Properties
+
+| Property | Description |
+| --- | --- |
+| `bool HasForwarders` | Gets whether at least one forwarder has been registered with this builder, without creating it. |
+
+Hosting defaults use this probe to preserve application-selected forwarding. The interface defaults
+to `false` for compatibility with existing implementations; an implementation that records forwarder
+registrations should override it. `LoggerFactoryBuilder` reads its registration count.
+
 ## Methods
 
 | Method | Description |
@@ -22,6 +32,7 @@ publish the resulting (thread-safe) factory.
 | `AddRule(LoggerFilterRule rule)` | Adds a rule to the filter ruleset. Rules are evaluated per (provider, category) pair via the selection algorithm documented on `LoggerFilterRule`. |
 | `AddRule(string categoryPrefix, LogLevel minimumLevel)` | Convenience overload that constructs and adds a `LoggerFilterRule { Category = categoryPrefix, Level = minimumLevel }`. |
 | `AddEnricher(ILoggerEnricher enricher)` | Adds an enricher to the pipeline. Enrichers run in registration order. |
+| `AddForwarder(Func<ILoggerFactory, ILoggerForwarder> create)` | Registers a component that writes entries into the built factory. The factory creates it once during construction and disposes it before its providers. Forwarder names must be unique. |
 | `Build()` | Materializes the factory. The builder is single-use; subsequent operations throw `InvalidOperationException`. |
 
 ## Exceptions
@@ -40,3 +51,7 @@ them as scratch space scoped to a single setup routine.
 ## Sources
 
 - **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging/docs/Assembly/Assimalign.Cohesion.Logging/ILoggerFactoryBuilder/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging/src/Abstractions/ILoggerFactoryBuilder.cs`.
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging/src/LoggerFactoryBuilder.cs`.

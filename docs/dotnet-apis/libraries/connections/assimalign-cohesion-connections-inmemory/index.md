@@ -21,11 +21,19 @@ moves bytes; application protocol behavior belongs to its consumers.
 An end of a multiplexed stream that aborts, or whose holder completes either pipe half with an error
 (the in-memory `RESET_STREAM` and `STOP_SENDING`), fires the other end's `ConnectionClosed` at once,
 as the QUIC driver does for a peer that abandons a stream (#1329). See the
-[design](design.md#teardown-and-an-abandoned-stream).
+[design](design.md#multiplexed-variant).
 
-Each opened stream of the multiplexed variant can abandon either direction with an application error
-code (`IMultiplexedStreamAbort`); the other end observes the code on a `ConnectionResetException`
-(#1080). See the [design](design.md#application-error-codes-on-a-stream-end).
+Each opened stream is an in-memory `MultiplexedStream` with whole-stream `Abort(code, reason)` and
+`IsInputCompleted`. It can also abandon either direction with an application error code
+(`stream.DirectionalAbort`, from
+[Connections.StreamAbort](../assimalign-cohesion-connections-streamabort/index.md)); the other end
+observes the code on a `ConnectionResetException`. Both stream ends register that feature;
+byte-stream pairs have no directional-abort feature. See the
+[design](design.md#multiplexed-variant).
+
+Closing or aborting either multiplexed parent notifies both ends and completes both accept loops.
+Active streams fail with `ConnectionResetException.ApplicationErrorCode`: the selected close code,
+or 0 for disposal and no-code abort. The first pair close wins.
 
 ## Dependencies
 
@@ -33,6 +41,7 @@ code (`IMultiplexedStreamAbort`); the other end observes the code on a `Connecti
 |---|---|
 | [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Connections`](../../connections/assimalign-cohesion-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Connections.StreamAbort`](../assimalign-cohesion-connections-streamabort/index.md) | `CohesionProjectReference` |
 
 ## Principal public types
 

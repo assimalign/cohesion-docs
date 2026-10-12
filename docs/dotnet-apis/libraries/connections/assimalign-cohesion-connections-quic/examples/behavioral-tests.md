@@ -1,6 +1,6 @@
 # Example: QUIC Behavioral Tests
 
-Exercise QUIC options, diagnostics, listener lifecycle, and stream release using the original repository tests.
+Exercise QUIC handshake options, diagnostics, listener lifecycle, connection features, and multiplexed stream behavior using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
@@ -11,14 +11,19 @@ These are the complete `QuicConnectionOptionsTests.cs`, `QuicConnectionEventSour
 test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The options listing makes the test-framework
 import explicit where the original project supplies it globally. The diagnostics and listener
-tests use the canonical test-only `EventSourceRecorder`, linked through
-`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`.
+tests use the canonical test-only `build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild
+`Compile`/`Link`. The multiplexed tests use the project's `QuicTheoryAttribute` to skip unsupported
+platforms at discovery; the feature registration case requires real QUIC support.
 
 ## Code
 
 ```csharp
+using System;
+using System.Net.Quic;
 using System.Runtime.Versioning;
+
 using Shouldly;
+
 using Xunit;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
@@ -28,6 +33,61 @@ namespace Assimalign.Cohesion.Connections.Quic.Tests;
 [SupportedOSPlatform("macos")]
 public class QuicConnectionOptionsTests
 {
+    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Handshake timeout: Listener options should preserve the System.Net.Quic ten-second default")]
+    public void HandshakeTimeout_OnDefaultListenerOptions_ShouldMatchQuicDefault()
+    {
+        // Arrange
+        QuicConnectionListenerOptions options = new();
+
+        // Act — this is the same options factory used by the listener's handshake callback.
+        QuicServerConnectionOptions connectionOptions = options.CreateConnectionOptions(options.MaxBidirectionalStreamCount);
+
+        // Assert — no native provider is needed to construct or inspect these options.
+        options.HandshakeTimeout.ShouldBe(TimeSpan.FromSeconds(10));
+        connectionOptions.HandshakeTimeout.ShouldBe(new QuicServerConnectionOptions().HandshakeTimeout);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Handshake timeout: The listener callback options should carry finite, zero, and infinite timeouts")]
+    [InlineData(2750)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void HandshakeTimeout_OnConnectionOptions_ShouldFlowConfiguredTimeout(int milliseconds)
+    {
+        // Arrange — the argument is the bind-time stream limit, even if the original option changes.
+        TimeSpan timeout = TimeSpan.FromMilliseconds(milliseconds);
+        QuicConnectionListenerOptions options = new()
+        {
+            HandshakeTimeout = timeout,
+            MaxBidirectionalStreamCount = 99
+        };
+
+        // Act
+        QuicServerConnectionOptions connectionOptions = options.CreateConnectionOptions(maxInboundBidirectionalStreams: 7);
+
+        // Assert
+        connectionOptions.HandshakeTimeout.ShouldBe(timeout);
+        connectionOptions.MaxInboundBidirectionalStreams.ShouldBe(7);
+        connectionOptions.ServerAuthenticationOptions.ShouldBeSameAs(options.ServerAuthenticationOptions);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Handshake timeout: Negative values other than infinite should be rejected")]
+    [InlineData(-1L)]
+    [InlineData(-9999L)]
+    [InlineData(-10001L)]
+    public void HandshakeTimeout_WhenNegativeAndNotInfinite_ShouldThrow(long ticks)
+    {
+        // Arrange
+        QuicConnectionListenerOptions options = new();
+
+        // Act
+        ArgumentOutOfRangeException exception = Should.Throw<ArgumentOutOfRangeException>(
+            () => options.HandshakeTimeout = TimeSpan.FromTicks(ticks));
+
+        // Assert
+        exception.ParamName.ShouldBe("value");
+        options.HandshakeTimeout.ShouldBe(TimeSpan.FromSeconds(10));
+    }
+
     [Fact]
     public void DefaultErrorCodes_OnListenerOptions_ShouldMatchHttp3Codes()
     {
@@ -58,6 +118,9 @@ public class QuicConnectionOptionsTests
 
 ## Walkthrough
 
+- **Test entry point** — `HandshakeTimeout_OnDefaultListenerOptions_ShouldMatchQuicDefault` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `HandshakeTimeout_OnConnectionOptions_ShouldFlowConfiguredTimeout` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `HandshakeTimeout_WhenNegativeAndNotInfinite_ShouldThrow` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `DefaultErrorCodes_OnListenerOptions_ShouldMatchHttp3Codes` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `DefaultErrorCodes_OnFactoryOptions_ShouldMatchHttp3Codes` contains the setup, invocation, and assertions for this case.
 
@@ -88,7 +151,7 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Quic.Internal;
-using Assimalign.Cohesion.DependencyInjection.Tests;
+using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
@@ -281,9 +344,6 @@ public class QuicConnectionEventSourceTests
 - **Test entry point** — `HandshakeFailed_OnClientRefusedByCertificatePolicy_ShouldReportOnce` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `Counters_EnabledWithInterval_ShouldPublishConnectionAndStreamCounters` contains the setup, invocation, and assertions for this case.
 
-The assertions define the expected result or failure boundary. Test-only doubles supply controlled
-inputs; they are not additional shipped APIs.
-
 ## Quic Connection Listener Tests
 
 ### Code
@@ -307,7 +367,7 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Quic.Internal;
-using Assimalign.Cohesion.DependencyInjection.Tests;
+using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
@@ -420,7 +480,7 @@ public class QuicConnectionListenerTests
 
         // Assert — the accept that was pending when the refusal happened returned the second client.
         acceptEndedByRefusal.ShouldBeFalse();
-        server.ShouldBeAssignableTo<ITlsConnectionInfo>()!.RemoteCertificate!.Thumbprint.ShouldBe(clientCertificate.Thumbprint);
+        server.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(clientCertificate.Thumbprint);
     }
 
     [Fact]
@@ -583,9 +643,6 @@ public class QuicConnectionListenerTests
 - **Test entry point** — `CreateAsync_WithNullOptions_ShouldThrowArgumentNullException` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `Capabilities_OnCreatedListener_ShouldDescribeMultiplexedTlsQuicStream` contains the setup, invocation, and assertions for this case.
 
-The assertions define the expected result or failure boundary. Test-only doubles supply controlled
-inputs; they are not additional shipped APIs.
-
 ## Quic Multiplexed Connection Tests
 
 ### Code
@@ -608,11 +665,12 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Quic.Internal;
+using Assimalign.Cohesion.Connections.Quic.Tests.TestObjects;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
-// Every test gates on QuicListener.IsSupported and no-ops where the platform lacks a QUIC
-// implementation (for example, a missing libmsquic); xunit 2.x has no runtime skip.
+// Existing facts gate on QuicListener.IsSupported; QuicTheory cases report a discovery-time skip
+// where the platform lacks a QUIC implementation (for example, a missing libmsquic).
 [Collection(nameof(EventSourceCollection))]
 [SupportedOSPlatform("windows")]
 [SupportedOSPlatform("linux")]
@@ -620,6 +678,139 @@ namespace Assimalign.Cohesion.Connections.Quic.Tests;
 public class QuicMultiplexedConnectionTests
 {
     private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(10);
+
+    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Features: Registers distinct connection features and isolated stream abort features over real QUIC")]
+    public async Task Features_OnRealQuic_ShouldRegisterNamedFeaturesWithoutParentFallback()
+    {
+        // Arrange — this gate must execute against QUIC rather than silently return when unsupported.
+        QuicListener.IsSupported.ShouldBeTrue();
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
+
+        // Act
+        ITlsConnectionInfo tls = pair.Server.Tls.ShouldNotBeNull();
+        IMultiplexedConnectionStreamLimits limits = pair.Server.StreamLimits.ShouldNotBeNull();
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        await using (clientStream)
+        await using (serverStream)
+        {
+            // Assert
+            tls.ShouldNotBeSameAs(limits);
+            tls.Name.ShouldBe(ITlsConnectionInfo.FeatureName);
+            limits.Name.ShouldBe(IMultiplexedConnectionStreamLimits.FeatureName);
+            pair.Server.Features.Get(ITlsConnectionInfo.FeatureName).ShouldBeSameAs(tls);
+            pair.Server.Features.Get(IMultiplexedConnectionStreamLimits.FeatureName).ShouldBeSameAs(limits);
+            pair.Client.Tls.ShouldNotBeNull().Name.ShouldBe(ITlsConnectionInfo.FeatureName);
+            pair.Client.StreamLimits.ShouldNotBeNull().Name.ShouldBe(IMultiplexedConnectionStreamLimits.FeatureName);
+            clientStream.DirectionalAbort.ShouldNotBeNull().Name.ShouldBe(IMultiplexedStreamAbort.FeatureName);
+            serverStream.DirectionalAbort.ShouldNotBeNull().Name.ShouldBe(IMultiplexedStreamAbort.FeatureName);
+            clientStream.Features.Get(IMultiplexedStreamAbort.FeatureName).ShouldBeSameAs(clientStream.DirectionalAbort);
+            serverStream.Features.Get(IMultiplexedStreamAbort.FeatureName).ShouldBeSameAs(serverStream.DirectionalAbort);
+            clientStream.Tls.ShouldBeNull();
+            serverStream.Tls.ShouldBeNull();
+            clientStream.Features.Get(IMultiplexedConnectionStreamLimits.FeatureName).ShouldBeNull();
+            serverStream.Features.Get(IMultiplexedConnectionStreamLimits.FeatureName).ShouldBeNull();
+            clientStream.Abort();
+            serverStream.Abort();
+        }
+    }
+
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream limits: Releasing inbound bidirectional streams should advance the cumulative allowance once")]
+    [InlineData(1)]
+    public async Task InboundBidirectionalStreamLimit_OnSuccessiveDisposals_ShouldReplenishOnce(int initialLimit)
+    {
+        // Arrange — one concurrent stream still permits many sequential streams on a live connection.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        await using LoopbackPair pair = await LoopbackPair.CreateAsync(
+            certificate,
+            cancellation.Token,
+            configureListener: options => options.MaxBidirectionalStreamCount = initialLimit);
+        IMultiplexedConnectionStreamLimits limits = pair.Server.StreamLimits.ShouldNotBeNull();
+        limits.InboundBidirectionalStreamLimit.ShouldBe(initialLimit);
+
+        for (int index = 0; index < 3; index++)
+        {
+            (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+            await using (clientStream)
+            await using (serverStream)
+            {
+                // Act — Abort starts native release; repeated disposal must not release credit twice.
+                serverStream.Abort();
+                limits.InboundBidirectionalStreamLimit.ShouldBe(initialLimit + index + 1L);
+                await serverStream.DisposeAsync();
+                await serverStream.DisposeAsync();
+
+                // Assert — the next loop's stream crosses the previous limit without closing the connection.
+                limits.InboundBidirectionalStreamLimit.ShouldBe(initialLimit + index + 1L);
+                pair.Server.State.ShouldBe(ConnectionState.Open);
+            }
+        }
+    }
+
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream limits: Only inbound bidirectional disposal should replenish the bound")]
+    [InlineData(ConnectionDirection.Bidirectional)]
+    [InlineData(ConnectionDirection.WriteOnly)]
+    public async Task InboundBidirectionalStreamLimit_OnStreamDisposal_ShouldExcludeOutboundAndUnidirectionalStreams(ConnectionDirection direction)
+    {
+        // Arrange — the factory currently advertises zero inbound bidirectional streams.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        await using LoopbackPair pair = await LoopbackPair.CreateAsync(
+            certificate,
+            cancellation.Token,
+            configureListener: options => options.MaxBidirectionalStreamCount = 1);
+        IMultiplexedConnectionStreamLimits clientLimits = pair.Client.StreamLimits.ShouldNotBeNull();
+        IMultiplexedConnectionStreamLimits serverLimits = pair.Server.StreamLimits.ShouldNotBeNull();
+        clientLimits.InboundBidirectionalStreamLimit.ShouldBe(0);
+        serverLimits.InboundBidirectionalStreamLimit.ShouldBe(1);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(direction, cancellation.Token);
+        await clientStream.Output.WriteAsync(new byte[] { 1 }, cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await ReadBytesAsync(serverStream.Input, 1, cancellation.Token);
+
+        // Act
+        clientStream.Abort();
+        serverStream.Abort();
+        await clientStream.DisposeAsync();
+        await serverStream.DisposeAsync();
+
+        // Assert — outbound streams never replenish this peer's inbound allowance, nor do inbound uni streams.
+        clientLimits.InboundBidirectionalStreamLimit.ShouldBe(0);
+        serverLimits.InboundBidirectionalStreamLimit.ShouldBe(direction == ConnectionDirection.Bidirectional ? 2L : 1L);
+    }
+
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream limits: Binding should freeze the same allowance for handshakes and accepted wrappers")]
+    [InlineData(1)]
+    public async Task InboundBidirectionalStreamLimit_WhenOptionsChangeAfterBind_ShouldKeepTheNegotiatedSnapshot(int initialLimit)
+    {
+        // Arrange — changing the original options after binding must change neither the wire allowance
+        // nor the facet. A live read in either place would change the allowance to zero.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        QuicConnectionListenerOptions? listenerOptions = null;
+        await using LoopbackPair pair = await LoopbackPair.CreateAsync(
+            certificate,
+            cancellation.Token,
+            configureListener: options =>
+            {
+                options.MaxBidirectionalStreamCount = initialLimit;
+                listenerOptions = options;
+            },
+            afterBind: () => listenerOptions!.MaxBidirectionalStreamCount = 0);
+
+        // Act — opening a request also proves the handshake advertised the frozen nonzero allowance.
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        await using (clientStream)
+        await using (serverStream)
+        {
+            // Assert
+            pair.Server.StreamLimits.ShouldNotBeNull().InboundBidirectionalStreamLimit.ShouldBe(initialLimit);
+            clientStream.Abort();
+            serverStream.Abort();
+        }
+    }
 
     [Fact]
     public async Task ConnectAsync_WithAcceptingListener_ShouldEstablishConnectedPair()
@@ -668,8 +859,8 @@ public class QuicMultiplexedConnectionTests
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
 
         // Assert — the QUIC handshake is a TLS 1.3 handshake (RFC 9001), so both peers expose it.
-        pair.Server.ShouldBeAssignableTo<ITlsConnectionInfo>()!.ApplicationProtocol.ShouldBe(new SslApplicationProtocol("cohesion-test"));
-        pair.Client.ShouldBeAssignableTo<ITlsConnectionInfo>()!.ApplicationProtocol.ShouldBe(new SslApplicationProtocol("cohesion-test"));
+        pair.Server.Tls.ShouldNotBeNull().ApplicationProtocol.ShouldBe(new SslApplicationProtocol("cohesion-test"));
+        pair.Client.Tls.ShouldNotBeNull().ApplicationProtocol.ShouldBe(new SslApplicationProtocol("cohesion-test"));
     }
 
     [Fact(DisplayName = "Cohesion Test [Connections.Quic] - TlsProtocol and CipherSuite: Should report the TLS 1.3 session on both peers")]
@@ -686,8 +877,8 @@ public class QuicMultiplexedConnectionTests
 
         // Act
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
-        ITlsConnectionInfo server = pair.Server.ShouldBeAssignableTo<ITlsConnectionInfo>()!;
-        ITlsConnectionInfo client = pair.Client.ShouldBeAssignableTo<ITlsConnectionInfo>()!;
+        ITlsConnectionInfo server = pair.Server.Tls.ShouldNotBeNull();
+        ITlsConnectionInfo client = pair.Client.Tls.ShouldNotBeNull();
 
         // Assert
         server.TlsProtocol.ShouldBe(SslProtocols.Tls13);
@@ -725,8 +916,8 @@ public class QuicMultiplexedConnectionTests
             });
 
         // Assert
-        pair.Server.ShouldBeAssignableTo<ITlsConnectionInfo>()!.RemoteCertificate!.Thumbprint.ShouldBe(clientCertificate.Thumbprint);
-        pair.Client.ShouldBeAssignableTo<ITlsConnectionInfo>()!.RemoteCertificate!.Thumbprint.ShouldBe(certificate.Thumbprint);
+        pair.Server.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(clientCertificate.Thumbprint);
+        pair.Client.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(certificate.Thumbprint);
     }
 
     [Fact(DisplayName = "Cohesion Test [Connections.Quic] - RemoteCertificate: Should be null on the server when the client presents none")]
@@ -745,7 +936,7 @@ public class QuicMultiplexedConnectionTests
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
 
         // Assert
-        pair.Server.ShouldBeAssignableTo<ITlsConnectionInfo>()!.RemoteCertificate.ShouldBeNull();
+        pair.Server.Tls.ShouldNotBeNull().RemoteCertificate.ShouldBeNull();
     }
 
     [Fact]
@@ -765,13 +956,13 @@ public class QuicMultiplexedConnectionTests
         byte[] payload = [1, 2, 3, 4, 5];
 
         // Act
-        await using Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
 
         // A freshly opened QUIC stream is not visible to the peer until data is flushed on it,
         // so write before accepting on the server side.
         await clientStream.Output.WriteAsync(payload, cancellation.Token);
 
-        await using Connection serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
 
         byte[] received = await ReadBytesAsync(serverStream.Input, payload.Length, cancellation.Token);
 
@@ -803,7 +994,7 @@ public class QuicMultiplexedConnectionTests
         byte[] payload = [9, 8, 7, 6];
 
         // Act
-        await using Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.WriteOnly, cancellation.Token);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.WriteOnly, cancellation.Token);
 
         // The outbound unidirectional stream has no readable half: its input is pre-completed.
         ReadResult inputResult = await clientStream.Input.ReadAsync(cancellation.Token);
@@ -814,7 +1005,7 @@ public class QuicMultiplexedConnectionTests
         // so write before accepting on the server side.
         await clientStream.Output.WriteAsync(payload, cancellation.Token);
 
-        await using Connection serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
 
         byte[] received = await ReadBytesAsync(serverStream.Input, payload.Length, cancellation.Token);
 
@@ -902,11 +1093,11 @@ public class QuicMultiplexedConnectionTests
         // (the HTTP/3 control and QPACK streams): the client holds it open for the
         // connection's lifetime and must never see it terminate ahead of the connection close
         // (RFC 9114 §6.2.1 — H3_CLOSED_CRITICAL_STREAM).
-        await using Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.WriteOnly, cancellation.Token);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.WriteOnly, cancellation.Token);
 
         await clientStream.Output.WriteAsync(new byte[] { 1 }, cancellation.Token);
 
-        await using Connection serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
 
         // Act
         await pair.Server.DisposeAsync();
@@ -936,11 +1127,11 @@ public class QuicMultiplexedConnectionTests
 
         byte[] payload = [1, 2, 3, 4, 5];
 
-        await using Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
 
         await clientStream.Output.WriteAsync(payload, cancellation.Token);
 
-        await using Connection serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
 
         byte[] received = await ReadBytesAsync(serverStream.Input, payload.Length, cancellation.Token);
 
@@ -1028,12 +1219,12 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
-        await using Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
+        await using MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellation.Token);
 
         // A freshly opened QUIC stream is not visible to the peer until data is flushed on it.
         await clientStream.Output.WriteAsync(new byte[] { 1 }, cancellation.Token);
 
-        await using Connection serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
+        await using MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellation.Token);
         await ReadBytesAsync(serverStream.Input, 1, cancellation.Token);
 
         TaskCompletionSource closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1071,13 +1262,13 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
         {
             // Act
-            serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!.AbortRead(0x42);
+            serverStream.DirectionalAbort.ShouldNotBeNull().AbortRead(0x42);
 
             // Assert — the client's sending direction is stopped with the code, and the server's own
             // stream keeps its lifecycle: aborting one direction is not the stream ending.
@@ -1104,7 +1295,7 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
@@ -1113,7 +1304,7 @@ public class QuicMultiplexedConnectionTests
             await BufferWithoutExaminingAsync(serverStream.Input, 4, cancellation.Token);
 
             // Act
-            serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!.AbortRead(0x42);
+            serverStream.DirectionalAbort.ShouldNotBeNull().AbortRead(0x42);
 
             // Assert — the contract: every later read fails, buffered octets included, as on the in-memory driver.
             QuicException read = await Should.ThrowAsync<QuicException>(
@@ -1136,13 +1327,13 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
         {
             // Act
-            serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!.AbortWrite(0x43);
+            serverStream.DirectionalAbort.ShouldNotBeNull().AbortWrite(0x43);
 
             // Assert — the client's read sees the server's sending direction reset with the code.
             QuicException exception = await Should.ThrowAsync<QuicException>(
@@ -1150,6 +1341,38 @@ public class QuicMultiplexedConnectionTests
 
             exception.QuicError.ShouldBe(QuicError.StreamAborted);
             exception.ApplicationErrorCode.ShouldBe(0x43);
+        }
+    }
+
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream Abort: The root reset should end both directions with the caller's code")]
+    [InlineData(0L)]
+    [InlineData((1L << 62) - 1)]
+    public async Task Abort_WithStreamErrorCode_ShouldResetBothDirectionsAndEndLifecycle(long errorCode)
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+
+        await using (clientStream)
+        await using (serverStream)
+        {
+            IMultiplexedStream stream = serverStream;
+
+            // Act
+            stream.Abort(errorCode, new InvalidOperationException("reset stream"));
+
+            // Assert — the root alone sends RESET_STREAM and STOP_SENDING, then ends the lifecycle.
+            QuicException read = await Should.ThrowAsync<QuicException>(
+                async () => await clientStream.Input.ReadAsync(cancellation.Token));
+            QuicException write = await WaitForClientWriteFailureAsync(clientStream, cancellation.Token);
+            read.QuicError.ShouldBe(QuicError.StreamAborted);
+            write.QuicError.ShouldBe(QuicError.StreamAborted);
+            read.ApplicationErrorCode.ShouldBe(errorCode);
+            write.ApplicationErrorCode.ShouldBe(errorCode);
+            stream.State.ShouldBe(ConnectionState.Aborted);
+            stream.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
         }
     }
 
@@ -1166,23 +1389,23 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
         {
-            // Act — the reset an HTTP/3 server sends: both directions with the code, then the lifecycle abort.
-            IMultiplexedStreamAbort abort = serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!;
-            abort.AbortWrite(0x10e);
-            abort.AbortRead(0x10e);
-            serverStream.Abort();
+            // Arrange — the receiving direction already has its first code.
+            serverStream.DirectionalAbort.ShouldNotBeNull().AbortRead(0x10e);
 
-            // Assert — both directions carry the code; the default never reaches the wire.
+            // Act — the root reset must preserve it while resetting the sending direction.
+            serverStream.Abort(0x42);
+
+            // Assert — each direction keeps its first code; the root reset ends the lifecycle.
             QuicException read = await Should.ThrowAsync<QuicException>(
                 async () => await clientStream.Input.ReadAsync(cancellation.Token));
             QuicException write = await WaitForClientWriteFailureAsync(clientStream, cancellation.Token);
 
-            read.ApplicationErrorCode.ShouldBe(0x10e);
+            read.ApplicationErrorCode.ShouldBe(0x42);
             write.ApplicationErrorCode.ShouldBe(0x10e);
             serverStream.State.ShouldBe(ConnectionState.Aborted);
         }
@@ -1202,14 +1425,14 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
         byte[] response = [9, 8, 7];
 
         await using (clientStream)
         await using (serverStream)
         {
             // Act
-            serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!.AbortRead(0x100);
+            serverStream.DirectionalAbort.ShouldNotBeNull().AbortRead(0x100);
             await serverStream.Output.WriteAsync(response, cancellation.Token);
             await serverStream.Output.CompleteAsync();
 
@@ -1240,7 +1463,7 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
         byte[] response = [9, 8, 7];
         byte[] upload = new byte[512 * 1024];
         Random.Shared.NextBytes(upload);
@@ -1295,7 +1518,7 @@ public class QuicMultiplexedConnectionTests
 
         for (int exchange = 0; exchange < 6; exchange++)
         {
-            (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+            (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
             try
             {
@@ -1304,9 +1527,7 @@ public class QuicMultiplexedConnectionTests
                 if (codedReset)
                 {
                     errorCode = 0x10c;
-                    IMultiplexedStreamAbort abort = serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>();
-                    abort.AbortRead(errorCode);
-                    abort.AbortWrite(errorCode);
+                    serverStream.Abort(errorCode);
                 }
 
                 serverStream.Abort();
@@ -1358,7 +1579,7 @@ public class QuicMultiplexedConnectionTests
 
         for (int exchange = 0; exchange < 6; exchange++)
         {
-            (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+            (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
             try
             {
@@ -1428,7 +1649,7 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
         byte[] response = [6, 5, 4];
 
         await using (clientStream)
@@ -1466,7 +1687,7 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
@@ -1510,7 +1731,7 @@ public class QuicMultiplexedConnectionTests
         }
         else
         {
-            pair.ServerStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!.AbortWrite(0x42);
+            pair.ServerStream.DirectionalAbort.ShouldNotBeNull().AbortWrite(0x42);
         }
 
         // Assert — the client reads the whole response and its FIN, never a RESET_STREAM.
@@ -1589,17 +1810,18 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
         {
-            IMultiplexedStreamAbort abort = serverStream.ShouldBeAssignableTo<IMultiplexedStreamAbort>()!;
+            IMultiplexedStreamAbort abort = serverStream.DirectionalAbort.ShouldNotBeNull();
 
             // Act / Assert
             Should.Throw<ArgumentOutOfRangeException>(() => abort.AbortRead(errorCode));
             Should.Throw<ArgumentOutOfRangeException>(() => abort.AbortWrite(errorCode));
-            Should.Throw<ArgumentOutOfRangeException>(() => pair.Server.ShouldBeAssignableTo<IMultiplexedConnectionAbort>()!.Abort(errorCode));
+            Should.Throw<ArgumentOutOfRangeException>(() => serverStream.Abort(errorCode));
+            Should.Throw<ArgumentOutOfRangeException>(() => pair.Server.Abort(errorCode));
         }
     }
 
@@ -1616,13 +1838,13 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
         {
             // Act — an HTTP/3 connection error, H3_FRAME_UNEXPECTED; the later disposal must not replace it.
-            pair.Server.ShouldBeAssignableTo<IMultiplexedConnectionAbort>()!.Abort(0x105, new InvalidOperationException("frame unexpected"));
+            pair.Server.Abort(0x105, new InvalidOperationException("frame unexpected"));
             await pair.Server.DisposeAsync();
 
             // Assert
@@ -1648,7 +1870,7 @@ public class QuicMultiplexedConnectionTests
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token, WithSentinelCodes);
-        (Connection clientStream, Connection serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
+        (MultiplexedStream clientStream, MultiplexedStream serverStream) = await OpenAcceptedStreamAsync(pair, cancellation.Token);
 
         await using (clientStream)
         await using (serverStream)
@@ -1664,6 +1886,43 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Connection Abort: Abort should end pending delivery with disposal's chosen close code")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Abort_AfterDisposalStarts_ShouldEndDeliveryWithTheFirstCloseCode(bool codedAbort)
+    {
+        // Arrange — the peer withholds stream credit so disposal pauses before sending CONNECTION_CLOSE.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        using X509Certificate2 certificate = QuicTestCertificate.Create();
+        await using WithheldCreditPair pair = await WithheldCreditPair.CreateAsync(
+            certificate,
+            options => options.CloseDeliveryTimeout = Timeout.InfiniteTimeSpan,
+            cancellation.Token);
+        Task disposal = pair.Server.DisposeAsync().AsTask();
+        disposal.IsCompleted.ShouldBeFalse();
+        pair.Server.State.ShouldBe(ConnectionState.Closing);
+
+        // Act — a host's shorter stop budget must interrupt the delivery wait without replacing
+        // the close code disposal already selected. Both root overloads honor that first choice.
+        if (codedAbort)
+        {
+            pair.Server.Abort(0x42);
+        }
+        else
+        {
+            pair.Server.Abort();
+        }
+
+        await disposal.WaitAsync(TimeSpan.FromSeconds(2), cancellation.Token);
+
+        // Assert
+        QuicException closed = await Should.ThrowAsync<QuicException>(
+            async () => await pair.ReadToEndAsync(cancellation.Token));
+        closed.QuicError.ShouldBe(QuicError.ConnectionAborted);
+        closed.ApplicationErrorCode.ShouldBe(sentinelCloseErrorCode);
+        pair.Server.State.ShouldBe(ConnectionState.Aborted);
+    }
+
     private static void WithSentinelCodes(QuicConnectionListenerOptions options)
     {
         options.DefaultStreamErrorCode = sentinelStreamErrorCode;
@@ -1674,12 +1933,12 @@ public class QuicMultiplexedConnectionTests
     /// Opens a bidirectional stream from the client and accepts it on the server, which sees a QUIC stream only
     /// once data is flushed on it; the server has read the one octet that announced it.
     /// </summary>
-    private static async Task<(Connection Client, Connection Server)> OpenAcceptedStreamAsync(LoopbackPair pair, CancellationToken cancellationToken)
+    private static async Task<(MultiplexedStream Client, MultiplexedStream Server)> OpenAcceptedStreamAsync(LoopbackPair pair, CancellationToken cancellationToken)
     {
-        Connection clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellationToken);
+        MultiplexedStream clientStream = await pair.Client.OpenStreamAsync(ConnectionDirection.Bidirectional, cancellationToken);
         await clientStream.Output.WriteAsync(new byte[] { 1 }, cancellationToken);
 
-        Connection serverStream = await pair.Server.AcceptStreamAsync(cancellationToken);
+        MultiplexedStream serverStream = await pair.Server.AcceptStreamAsync(cancellationToken);
         await ReadBytesAsync(serverStream.Input, 1, cancellationToken);
 
         return (clientStream, serverStream);
@@ -1689,7 +1948,7 @@ public class QuicMultiplexedConnectionTests
     /// Writes <paramref name="payload"/> in 16 KiB pieces, each flushed, then ends the stream's sending
     /// direction with its FIN.
     /// </summary>
-    private static async Task SendAndFinishAsync(Connection stream, byte[] payload, CancellationToken cancellationToken)
+    private static async Task SendAndFinishAsync(MultiplexedStream stream, byte[] payload, CancellationToken cancellationToken)
     {
         const int piece = 16 * 1024;
 
@@ -1705,7 +1964,7 @@ public class QuicMultiplexedConnectionTests
     /// Writes on the supplied stream until the peer's teardown signal surfaces, returning the
     /// <see cref="QuicException"/> that carries it.
     /// </summary>
-    private static async Task<QuicException> WaitForClientWriteFailureAsync(Connection clientStream, CancellationToken cancellationToken)
+    private static async Task<QuicException> WaitForClientWriteFailureAsync(MultiplexedStream clientStream, CancellationToken cancellationToken)
     {
         while (true)
         {
@@ -1782,7 +2041,7 @@ public class QuicMultiplexedConnectionTests
         // read (64 KiB); the rest stays queued at the server, well inside what MsQuic buffers for its writes.
         public const int ResponseLength = 160 * 1024;
 
-        private WithheldCreditPair(QuicConnectionListener listener, QuicConnection client, QuicStream clientStream, MultiplexedConnection server, Connection serverStream)
+        private WithheldCreditPair(QuicConnectionListener listener, QuicConnection client, QuicStream clientStream, MultiplexedConnection server, MultiplexedStream serverStream)
         {
             Listener = listener;
             Client = client;
@@ -1799,7 +2058,7 @@ public class QuicMultiplexedConnectionTests
 
         public MultiplexedConnection Server { get; }
 
-        public Connection ServerStream { get; }
+        public MultiplexedStream ServerStream { get; }
 
         public static async Task<WithheldCreditPair> CreateAsync(
             X509Certificate2 certificate,
@@ -1853,7 +2112,7 @@ public class QuicMultiplexedConnectionTests
                 QuicStream clientStream = await client.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken);
                 await clientStream.WriteAsync(new byte[] { 1 }, completeWrites: true, cancellationToken);
 
-                Connection serverStream = await server.AcceptStreamAsync(cancellationToken);
+                MultiplexedStream serverStream = await server.AcceptStreamAsync(cancellationToken);
                 await ReadBytesAsync(serverStream.Input, 1, cancellationToken);
 
                 byte[] response = new byte[ResponseLength];
@@ -1906,7 +2165,7 @@ public class QuicMultiplexedConnectionTests
             await Listener.DisposeAsync();
         }
 
-        private static async Task SendAsync(Connection stream, byte[] payload, CancellationToken cancellationToken)
+        private static async Task SendAsync(MultiplexedStream stream, byte[] payload, CancellationToken cancellationToken)
         {
             const int piece = 16 * 1024;
 
@@ -1936,7 +2195,8 @@ public class QuicMultiplexedConnectionTests
             X509Certificate2 certificate,
             CancellationToken cancellationToken,
             Action<QuicConnectionListenerOptions>? configureListener = null,
-            Action<QuicConnectionFactoryOptions>? configureClient = null)
+            Action<QuicConnectionFactoryOptions>? configureClient = null,
+            Action? afterBind = null)
         {
             SslApplicationProtocol applicationProtocol = new("cohesion-test");
 
@@ -1955,6 +2215,7 @@ public class QuicMultiplexedConnectionTests
 
             try
             {
+                afterBind?.Invoke();
                 ValueTask<MultiplexedConnection> acceptTask = listener.AcceptAsync(cancellationToken);
 
                 QuicConnectionFactory factory = QuicConnectionFactory.Create(options =>
@@ -1994,6 +2255,10 @@ public class QuicMultiplexedConnectionTests
 
 ### Walkthrough
 
+- **Test entry point** — `Features_OnRealQuic_ShouldRegisterNamedFeaturesWithoutParentFallback` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `InboundBidirectionalStreamLimit_OnSuccessiveDisposals_ShouldReplenishOnce` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `InboundBidirectionalStreamLimit_OnStreamDisposal_ShouldExcludeOutboundAndUnidirectionalStreams` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `InboundBidirectionalStreamLimit_WhenOptionsChangeAfterBind_ShouldKeepTheNegotiatedSnapshot` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `ConnectAsync_WithAcceptingListener_ShouldEstablishConnectedPair` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `ApplicationProtocol_OnEstablishedPair_ShouldReportNegotiatedProtocol` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `TlsProtocolAndCipherSuite_OnEstablishedPair_ShouldReportTls13Session` contains the setup, invocation, and assertions for this case.
@@ -2011,22 +2276,21 @@ public class QuicMultiplexedConnectionTests
 - **Test entry point** — `AbortRead_WithErrorCode_ShouldSendStopSendingWithTheCode` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `AbortRead_WithBufferedOctets_ShouldFailLaterReads` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `AbortWrite_WithErrorCode_ShouldSendResetStreamWithTheCode` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `Abort_WithStreamErrorCode_ShouldResetBothDirectionsAndEndLifecycle` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `Abort_AfterAbortRead_ShouldKeepTheReadDirectionCode` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `AbortRead_ThenCompleteOutput_ShouldDeliverTheResponseAndItsFin` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CompleteOutput_WhilePeerStillSends_ShouldSendFinAndKeepReading` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Abort_RepeatedResetExchanges_ShouldReleaseTrackedStreams` contains the setup, invocation, and assertions for this case. The theory runs with `false` and `true`.
+- **Test entry point** — `Abort_RepeatedResetExchanges_ShouldReleaseTrackedStreams` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CompleteHalves_RepeatedExchanges_ShouldReleaseTrackedStreamsAndRestoreGauge` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CompleteInput_WhilePeerStillReads_ShouldStopReadingAndKeepWriting` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CompleteOutput_WithError_ShouldResetTheSendingDirection` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Abort_AfterCompletingOutput_ShouldKeepTheFin` contains the setup, invocation, and assertions for this case. The theory runs with `false` and `true`.
+- **Test entry point** — `Abort_AfterCompletingOutput_ShouldKeepTheFin` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CompleteOutput_WhenFinalFlushFails_ShouldResetTheSendingDirection` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `CreateStreamOptions_ShouldLeaveTheStreamOpen` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `AbortReadAndWrite_WithCodeOutOfRange_ShouldThrowArgumentOutOfRange` contains the setup, invocation, and assertions for this case. The theory runs with `-1L` and `1L << 62`.
+- **Test entry point** — `AbortReadAndWrite_WithCodeOutOfRange_ShouldThrowArgumentOutOfRange` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `Abort_WithErrorCode_ShouldCloseTheConnectionWithTheCode` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `Abort_WithoutErrorCode_ShouldCloseWithTheDefaultCode` contains the setup, invocation, and assertions for this case.
-
-The assertions define the expected result or failure boundary. Test-only doubles supply controlled
-inputs; they are not additional shipped APIs.
+- **Test entry point** — `Abort_AfterDisposalStarts_ShouldEndDeliveryWithTheFirstCloseCode` contains the setup, invocation, and assertions for this case.
 
 ## Sources
 
@@ -2035,4 +2299,5 @@ inputs; they are not additional shipped APIs.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicConnectionEventSourceTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicConnectionListenerTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicMultiplexedConnectionTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/TestObjects/QuicTheoryAttribute.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

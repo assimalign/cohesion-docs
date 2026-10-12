@@ -12,13 +12,20 @@ Client and server authentication settings and handshake timeouts are explicit op
 
 ## Handshake facts
 
-The secured connection implements the contracts' `ITlsConnectionInfo`, so an application protocol
-can read what the handshake negotiated without referencing this library: the ALPN application
-protocol, the TLS version, the cipher suite, and the peer's certificate
-(`SslStream.NegotiatedApplicationProtocol`, `SslProtocol`, `NegotiatedCipherSuite`,
-`RemoteCertificate`), captured once when the handshake completes. HTTP reads them to serve HTTP/2
-or HTTP/1.1 on one listener and to show its handlers the session. This holds on the server and the
-client side alike.
+The secured connection registers itself as `ITlsConnectionInfo` from `Connections.Tls` in
+`ConfigureFeatures`, with
+`Name = ITlsConnectionInfo.FeatureName` (`Tls`). Its `InnerFeatures` returns `_inner.Features`, so
+features registered beneath TLS remain visible unless TLS hides them. It removes
+`IMultiplexedStreamAbort.FeatureName` (`StreamAbort`): aborting the inner transport cannot invalidate
+plaintext already buffered in TLS's outer `PipeReader`, so the inner feature cannot guarantee that
+every later read fails. `connection.Features.Get<IMultiplexedStreamAbort>()` therefore returns
+`null` through TLS; the inner connection's collection is unchanged. The TLS result remains an
+`IConnection`; `DirectionalAbort` is an accessor on `IMultiplexedStream` after #1453. An application
+protocol reads `connection.Tls` without referencing this library: the ALPN application protocol, the TLS
+version, the cipher suite, and the peer's certificate (`SslStream.NegotiatedApplicationProtocol`,
+`SslProtocol`, `NegotiatedCipherSuite`, `RemoteCertificate`), captured once when the handshake
+completes. HTTP reads them to serve HTTP/2 or HTTP/1.1 on one listener and to show its handlers
+the session. This holds on the server and the client side alike.
 
 Reading `SslStream.RemoteCertificate` hands the certificate's ownership to the reader (an
 `SslStream` no longer disposes a certificate it has exposed), so the secured connection disposes
@@ -57,9 +64,9 @@ needs a callback.
   replaces the earlier policy. Assigning a new `AuthenticationOptions` after calling them drops the
   policy, so they are called last.
 
-Reading the certificate after the handshake is the application's job (`ITlsConnectionInfo`, and over
-HTTP `context.TlsConnection` from `Assimalign.Cohesion.Http.Tls`); authenticating a user from it is
-out of scope here.
+Reading the certificate after the handshake is the application's job (`connection.Tls` from
+`Connections.Tls`, and over HTTP `context.TlsConnection` from `Assimalign.Cohesion.Http.Tls`);
+authenticating a user from it is out of scope here.
 
 ## Handshakes on a TLS-layered listener
 
@@ -96,9 +103,41 @@ When `UpgradeAsync` fails, the exception propagates and the caller still owns th
 
 The layered listener and the layered factory both dispose it.
 
+## Relationships
+
+The TLS layer references the contracts whose features it registers or hides:
+
+```mermaid
+flowchart LR
+    TLS["Connections.Security"] --> CONNECTIONS["Connections"]
+    TLS --> FACTS["Connections.Tls"]
+    TLS --> ABORT["Connections.StreamAbort"]
+    TLS --> CORE["Core"]
+```
+
+- **`Assimalign.Cohesion.Connections`** — the `IConnection` / `IConnectionLayer` contracts, the
+  `UseTls` composition points (`IConnectionListener` / `IConnectionFactory`), and the
+  `DuplexPipeStream` adapter.
+- **`Assimalign.Cohesion.Connections.Tls`** — the optional handshake-facts contract and accessors.
+- **`Assimalign.Cohesion.Connections.StreamAbort`** — the directional-abort feature name that TLS
+  hides because the inner implementation does not govern its outer pipes.
+- **`Assimalign.Cohesion.Core`** — foundational library support.
+- **Security area (certificate management)** — supplies certificates for the TLS options. The
+  platform-agnostic certificate manager is owned by the Security area and is intentionally not a
+  dependency of this layer.
+
+## Compatibility with 10.0.0-preview.1
+
+Hiding `StreamAbort` corrects the unreleased #1452 feature propagation behavior. It adds no break
+against 10.0.0-preview.1: that release had neither connection features nor directional aborts.
+Consumers of the unreleased behavior must treat a missing `StreamAbort` feature as unsupported on
+the TLS connection. The #1453 multiplexed root changes do not widen the TLS layer's `IConnection`
+result to a multiplexed stream. Other inner features and TLS handshake facts remain discoverable.
+
 ## Dependency boundary
 
-The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`. The
+The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`,
+`Assimalign.Cohesion.Connections.Tls`, and `Assimalign.Cohesion.Connections.StreamAbort`. The
 [overview](index.md#dependencies) distinguishes project references, package references, shared
 source, and analyzer inputs.
 

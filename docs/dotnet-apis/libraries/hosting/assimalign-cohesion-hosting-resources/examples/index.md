@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Hosting.Resources`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Resource Command Dispatch behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise resource command dispatch, diagnostic failure hand-off, contributor diagnostics, and command outcome reporting using the original repository tests.
 
 ## Sources
 

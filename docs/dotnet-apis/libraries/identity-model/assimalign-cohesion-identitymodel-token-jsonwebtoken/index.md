@@ -24,6 +24,7 @@ verification.
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.IdentityModel.Token`](../../identity-model/assimalign-cohesion-identitymodel-token/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.IdentityModel.Token.JsonWebToken`](index.md) | `CohesionSharedSource` |
 
 ## Principal public types
 
@@ -88,3 +89,5 @@ verification.
 - **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/src/JoseHeaderDescriptor.cs`.
 
 - **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/src/JsonWebTokenParts.cs`.
+
+- **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/shared/Es256JsonWebTokenValidation.cs`.

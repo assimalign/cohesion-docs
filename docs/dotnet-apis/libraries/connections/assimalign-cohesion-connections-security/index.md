@@ -22,8 +22,9 @@ Client and server authentication settings and handshake timeouts are explicit op
 policy, each with an optional validation callback: both request a client certificate in the
 handshake, `RequireClientCertificate` refuses a client without one, and a presented certificate must
 pass the callback or, without one, the platform's chain validation. The secured connection
-implements the contracts' `ITlsConnectionInfo`: the ALPN protocol, the TLS version, the cipher
-suite, and the peer's certificate, which the connection disposes with itself. See the
+registers `ITlsConnectionInfo` from `Connections.Tls` under its pinned `Tls` name: the ALPN
+protocol, the TLS version, the cipher suite, and the peer's certificate, which the connection
+disposes with itself. Read it with `connection.Tls`. See the
 [design](design.md#client-certificates).
 
 On a TLS-layered listener each handshake runs on its own task, and
@@ -31,12 +32,19 @@ On a TLS-layered listener each handshake runs on its own task, and
 that fails or times out closes only its connection. See the
 [design](design.md#handshakes-on-a-tls-layered-listener).
 
+Features registered below the TLS layer pass through automatically except `StreamAbort`: its
+inner implementation cannot invalidate plaintext buffered by TLS's outer pipes, so
+`connection.Features.Get<IMultiplexedStreamAbort>()` returns `null`. The TLS layer returns an
+`IConnection`; the `DirectionalAbort` accessor is available only on `IMultiplexedStream`.
+
 ## Dependencies
 
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Connections`](../../connections/assimalign-cohesion-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Connections.Tls`](../assimalign-cohesion-connections-tls/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Connections.StreamAbort`](../assimalign-cohesion-connections-streamabort/index.md) | `CohesionProjectReference` |
 
 ## Principal public types
 

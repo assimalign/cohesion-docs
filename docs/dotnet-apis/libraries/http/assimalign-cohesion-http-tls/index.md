@@ -55,18 +55,19 @@ endpoint's TLS options (`TlsServerOptions.RequireClientCertificate` or `AllowCli
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.Http`](../../http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Connections`](../../connections/assimalign-cohesion-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Connections.Tls`](../../connections/assimalign-cohesion-connections-tls/index.md) | `CohesionProjectReference` |
 
-The core supplies `IHttpContext` and the feature collection; the Connections contracts library
-supplies `ITlsConnectionInfo`, the handshake facet.
+The core supplies `IHttpContext` and the feature collection; `Assimalign.Cohesion.Connections.Tls`
+supplies `ITlsConnectionInfo`, the connection feature contract also carried by HTTP's connection-info
+snapshot.
 
 The server transport
 ([`Assimalign.Cohesion.Http.Connections`](../assimalign-cohesion-http-connections/index.md)) does not
-reference this package. It publishes the handshake as the `ITlsConnectionInfo` facet of each
-exchange's `ConnectionInfo`, and the accessor builds the feature from that facet on first read. A
-request-parse interceptor, which runs before the exchange exists, reads the facet directly from its
-context's `ConnectionInfo`. The `App.Web` shared framework delivers this package to web
-applications.
+reference this package. It reads the connection's `Tls` feature, publishes the handshake as the
+`ITlsConnectionInfo` facet of each exchange's `ConnectionInfo`, and the accessor builds the feature
+from that facet on first read. A request-parse interceptor, which runs before the exchange exists,
+reads the facet directly from its context's `ConnectionInfo`. The `App.Web` shared framework
+delivers this package to web applications.
 
 ## Principal public types
 

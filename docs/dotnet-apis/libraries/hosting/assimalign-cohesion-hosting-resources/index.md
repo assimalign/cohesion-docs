@@ -24,8 +24,9 @@ contributor that throws becomes an `Unhealthy` contribution described by the fix
 `The contributor threw an exception.`, and an `Exception` value a contributor places in
 `HealthContribution.Data` is replaced by `The contributor reported an exception.`. Area hosts
 publish the report on the unauthenticated `/healthz`, `/readyz` and `/livez` probes, and an
-exception message routinely names hosts, databases, users and ports. A contributor that wants its
-failure diagnosed records it itself. See the [design](design.md#health-reports-withhold-exceptions).
+exception message routinely names hosts, databases, users and ports. The aggregation catch records
+the failure through the internal `HostingResourceEventSource` before returning the fixed report.
+See the [design](design.md#health-reports-withhold-exceptions) and [diagnostics](design.md#diagnostics).
 
 Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
 only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
@@ -42,6 +43,7 @@ gateway identity with credentials for remote management.
 | [`Assimalign.Cohesion.Hosting`](../../hosting/assimalign-cohesion-hosting/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Hosting.Health`](../../hosting/assimalign-cohesion-hosting-health/index.md) | `CohesionProjectReference` |
 | `System.Security.Cryptography.ProtectedData` | `CohesionPackageReference` |
+| [`Assimalign.Cohesion.Hosting.Resources`](index.md) | `CohesionSharedSource` |
 
 ## Principal public types
 
@@ -89,3 +91,5 @@ gateway identity with credentials for remote management.
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceRuntime.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/Exceptions/ResourceCommandRejectedException.cs`.
+
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/shared/CommandFailureDiagnostics.cs`.

@@ -15,4 +15,4 @@ Source-backed examples for `Assimalign.Cohesion.Connections.NamedPipes`.
 - **Source** — `cohesion/libraries/Connections/README.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/src`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeConnectionEventSourceTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

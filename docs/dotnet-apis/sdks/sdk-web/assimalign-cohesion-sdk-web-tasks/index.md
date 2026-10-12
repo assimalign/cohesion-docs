@@ -11,10 +11,14 @@ There are no task implementation classes in this project. Its references to `Mic
 `Microsoft.Build.Framework`, and `Microsoft.Build.Utilities.Core` support the packaging project;
 they do not establish an area task API.
 
-- **Design** — [Packaging and shared-task boundary](design.md).
+- **Design** — [SDK composition and NativeAOT event delivery](design.md).
+- **Examples** — [EventSource support evaluation](examples/index.md).
 - **SDK** — [SDK home](../index.md) and [task reference](../msbuild/tasks.md).
 
 ## Sources
+
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/OVERVIEW.md`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/DESIGN.md`
 
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/src/Assimalign.Cohesion.Sdk.Web.Tasks.csproj`
 - **Source** — `cohesion/sdks/Directory.Build.props`

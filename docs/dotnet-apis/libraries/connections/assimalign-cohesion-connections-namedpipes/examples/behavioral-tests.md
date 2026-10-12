@@ -10,8 +10,7 @@ These are the complete `NamedPipeEndPointTests.cs` and `NamedPipeConnectionEvent
 package test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The first listing makes the test-framework import
 explicit where the original project supplies it globally. The diagnostics tests use the canonical
-test-only `EventSourceRecorder`, linked through
-`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`.
+test-only `build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild `Compile`/`Link`.
 
 ## Code
 
@@ -108,7 +107,7 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.NamedPipes.Internal;
-using Assimalign.Cohesion.DependencyInjection.Tests;
+using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.NamedPipes.Tests;
 
@@ -223,4 +222,4 @@ inputs; they are not additional shipped APIs.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeEndPointTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/Assimalign.Cohesion.Connections.NamedPipes.Tests.csproj`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeConnectionEventSourceTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

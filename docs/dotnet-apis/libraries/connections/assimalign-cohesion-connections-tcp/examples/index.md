@@ -15,4 +15,4 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Tcp`.
 - **Source** — `cohesion/libraries/Connections/README.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/src`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/TcpConnectionEventSourceTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

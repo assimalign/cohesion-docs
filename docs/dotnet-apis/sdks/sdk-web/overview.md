@@ -6,10 +6,9 @@ The Web SDK inherits shared build behavior and adds area-specific defaults.
 
 ## Chaining and overrides
 
-The [base overview](../sdk/overview.md) is the inherited property, item, artifact, and diagnostic
-contract.
-The area layer does not replace settings generation, pin validation, resource packaging, or image
-targets.
+The [base overview](../sdk/overview.md) describes shared build defaults, settings generation, and
+pin validation. Enabled Web resources import `Assimalign.Cohesion.Sdk.ApplicationModel` for
+resource manifests, generated resource APIs, packaging, and image targets.
 
 Properties conditioned on an empty value apply before the consumer project body. Later project
 assignments can override them. Default items use `Include` so consumers can use `Update` or `Remove`
@@ -27,7 +26,7 @@ by identity.
 
 | Property | Default | Effect | Defined in |
 |---|---|---|---|
-| `CohesionApplicationModel` | `disabled` | Opt in to manifest generation with enabled. | `base Targets/Sdk.Resource.props` |
+| `CohesionApplicationModel` | `disabled` | Opt in to manifest generation with enabled. | `base Targets/Assimalign.Cohesion.Sdk.Common.props` |
 | `CohesionAutoIncludeAppFramework` | `Unset; inclusion enabled` | Set false before the props include to suppress both frameworks. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
 | `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by the base and area framework packs. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
 | `CohesionSkipSdkPinCheck` | `Unset` | Tooling-only escape for pin validation. | `base Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` |
@@ -36,13 +35,20 @@ by identity.
 
 | Name | Default or assignment | Effect | Where defined and condition |
 |---|---|---|---|
+| `EventSourceSupport` | `true` | Preserve NativeAOT EventSource delivery and forwarding to configured sinks. | `Targets/Sdk.Web.props`; when `'$(EventSourceSupport)' == ''` |
 | `CohesionResourceApplicationModel` | `Assimalign.Cohesion.Web.ApplicationModel` | Application-model assembly/package selected for an enabled resource. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceApplicationModel)' == ''` |
-| `CohesionResourceControlPlaneType` | `Assimalign.Cohesion.Web.ApplicationModel.WebResourceControlPlane` | Fully qualified control-plane type used by generated registration. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceControlPlaneType)' == ''` |
+| `CohesionResourceControlPlaneType` | `Assimalign.Cohesion.ApplicationModel.WebResourceControlPlane` | Fully qualified control-plane type used by generated registration. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceControlPlaneType)' == ''` |
 | `CohesionResourceKind` | `Web` | Resource kind recorded in the manifest. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceKind)' == ''` |
 | `CohesionControlPlaneEndpoint` | `http` | Endpoint used for the default control plane. | `Targets/Sdk.Web.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
 | `CohesionControlPlanePath` | `/cohesion/v1` | Absolute control-plane route prefix. | `Targets/Sdk.Web.props`; when `'$(CohesionControlPlanePath)' == ''` |
 | `CohesionWorkloadKind` | `Deployment` | Workload lifecycle kind written to the manifest. | `Targets/Sdk.Web.props`; when `'$(CohesionWorkloadKind)' == ''` |
 | `InterceptorsNamespaces` | `$(InterceptorsNamespaces);Assimalign.Cohesion.Web.Api.Generated` | Adds the namespace used by generated Web API interceptors. | `Targets/Sdk.Web.props`; unconditional |
+
+`EventSourceSupport` defaults to `true` only when unset. Explicit values before the import are
+preserved; later project-body assignments override the default, and command-line global properties
+win over both. The default is Web-specific. Setting it to `false` disables EventSource delivery,
+in-process listeners, and forwarding in a native application, while server behavior and internal
+counter maintenance remain unchanged. See the [NativeAOT design](assimalign-cohesion-sdk-web-tasks/design.md#nativeaot-event-delivery).
 
 ## Area items
 
@@ -63,7 +69,7 @@ props file.
 
 ## Artifacts and validation
 
-When enabled, the inherited targets generate `cohesion/resource.json`, `Resource.g.cs`, and
+When enabled, the ApplicationModel SDK targets generate `cohesion/resource.json`, `Resource.g.cs`, and
 `ResourceControlPlane.g.cs` beneath `IntermediateOutputPath`. The application-model package is
 injected at `CohesionVersion` unless suppressed; generated registration uses the area type listed
 above.
@@ -78,14 +84,15 @@ target or generated artifact of its own.
 
 ## Sources
 
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/DESIGN.md`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Sdk/Sdk.props`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Sdk/Sdk.targets`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Targets/Sdk.Web.props`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Targets/Sdk.Web.targets`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.props`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Sdk.Resource.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Sdk.Resource.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.targets`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Defaults.props`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`

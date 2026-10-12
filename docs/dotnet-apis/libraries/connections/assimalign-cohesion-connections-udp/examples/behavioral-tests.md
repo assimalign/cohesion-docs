@@ -10,8 +10,7 @@ These are the complete `UdpConnectionFactoryTests.cs` and `UdpConnectionEventSou
 package test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The first listing makes the test-framework import
 explicit where the original project supplies it globally. The diagnostics tests use the canonical
-test-only `EventSourceRecorder`, linked through
-`CohesionSharedSource Include="Assimalign.Cohesion.DependencyInjection.Tests"`.
+test-only `build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild `Compile`/`Link`.
 
 ## Code
 
@@ -192,7 +191,7 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Udp.Internal;
-using Assimalign.Cohesion.DependencyInjection.Tests;
+using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.Udp.Tests;
 
@@ -299,4 +298,4 @@ inputs; they are not additional shipped APIs.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionFactoryTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/Assimalign.Cohesion.Connections.Udp.Tests.csproj`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionEventSourceTests.cs`.
-- **Source** — `cohesion/libraries/DependencyInjection/Assimalign.Cohesion.DependencyInjection/shared/EventSourceRecorder.cs`.
+- **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

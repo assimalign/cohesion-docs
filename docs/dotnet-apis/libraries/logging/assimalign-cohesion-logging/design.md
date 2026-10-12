@@ -4,11 +4,337 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Logging`.
 
 [Overview](index.md) · [Examples](examples/index.md)
 
-## Design and boundaries
+## Design Intent
 
-Providers consume one immutable entry model and concrete sinks remain separate. Factory filtering is
-evaluated per provider. Scope entries correlate identifiers rather than creating an implicit ambient
-stack, so adapters must preserve the actual correlation contract.
+The foundation package is a contract-and-composition layer, not a transport. It defines what a
+log event looks like, how loggers are created and cached, how scopes nest, how enrichers
+contribute attributes, and how an optional per-entry filter gates fan-out. Transports
+(console, debug, file, structured collectors) live in sibling packages.
+
+## Architecture
+
+```text
+caller -> ILogger.Log(ILoggerEntry)
+                                   |
+                                   v
+                  CompositeLogger (per category, cached by LoggerFactory)
+                  |   filter gate (ILoggerFilter, optional)
+                  |   enrichment pipeline (ILoggerEnricher, ordered)
+                  |   per-sink fan-out (failures isolated)
+                    |   |   |
+                    v   v   v
+        ILogger (provider 1)   ...   ILogger (provider N)
+```
+
+`CompositeLogger` is the only logger callers normally see. It owns:
+
+1. The factory minimum level check (`LoggerFactoryOptions.MinimumLevel`); entries below the
+   factory floor never reach the filter.
+2. The optional per-entry filter (`ILoggerFilter`) gate; the filter receives the full
+   `ILoggerEntry` so it can branch on category, level, attributes, exception, or any
+   combination of them. A throwing filter is treated as `true` (admit) so a bad filter never
+   silently drops entries.
+3. The enrichment pipeline; enrichers run in registration order. Enrichers may add new
+   attribute keys but cannot overwrite caller-supplied attributes.
+4. Fan-out to every registered provider, with per-provider failure isolation: an exception
+   from one sink never aborts fan-out to the others.
+
+## Log Entry Contract
+
+`ILoggerEntry` is immutable and carries:
+
+| Property | Type | Purpose |
+| --- | --- | --- |
+| `Id` | `LogId` | Unique entry id, generated as a `Ulid`. |
+| `ParentId` | `LogId?` | Optional parent (scoped logger). |
+| `Timestamp` | `DateTimeOffset` | UTC wall-clock at construction. |
+| `Level` | `LogLevel` | Severity. |
+| `Category` | `string` | Logger category (typically a fully qualified type name). |
+| `Message` | `string` | Human-readable message; never null, may be empty. |
+| `Exception` | `Exception?` | Optional captured exception. |
+| `Attributes` | `IReadOnlyDictionary<string, object?>` | Structured key-value payload. |
+
+Build entries through `LoggerEntryBuilder` for full control or through `LoggerExtensions`
+helpers (`LogTrace`, `LogInformation`, `LogError`, ...) for the common shapes.
+
+### `LoggerEntry` is a class, not a struct
+
+The entry crosses the `ILoggerEntry` interface boundary multiple times in the pipeline
+(extension method -> composite logger -> enrichment view -> underlying providers). Each cast
+through the interface would box a struct, allocating a fresh heap object per boundary -
+strictly worse than the single class allocation the current design produces. The class shape
+also keeps the entry copy-by-reference, which matters for the enrichment pipeline that
+re-emits enriched copies.
+
+## Levels and Filtering
+
+`LogLevel` ordering: `Trace < Debug < Information < Warning < Error < Critical < Event`,
+plus `None` (which always returns `false` from `IsEnabled`).
+
+Filtering is rule-based and applied **per provider**. `LoggerFactoryOptions.FilterRules` is
+an ordered list of `LoggerFilterRule` instances. Each rule has four optional fields:
+
+- `ProviderType` - the provider type the rule targets, or `null` for "any provider that has
+  no type-specific rule."
+- `Category` - the category prefix the rule targets, or `null` for "any category in the
+  candidate set."
+- `Level` - the minimum log level required for the rule to admit an entry, or `null` for "no
+  level constraint."
+- `Filter` - an `ILoggerFilter` predicate that further screens entries already accepted by
+  the rule's `Level`, or `null` for "no extra filter."
+
+When the factory creates a composite logger for a category, it resolves ONE winning rule per
+registered provider using the following algorithm (see `LoggerFilterRule.md`):
+
+1. Rules with `ProviderType == provider.GetType()` win; if none, rules with `ProviderType == null` form the candidate set.
+2. Within the candidates, the rules whose `Category` is the longest matching prefix of the
+   category are kept.
+3. If no rule matched by category, rules with `Category == null` (within the same candidate
+   set) are kept.
+4. If exactly one rule remains, it wins.
+5. If multiple remain, the last one registered wins.
+6. If no rule applies at all, `LoggerFactoryOptions.MinimumLevel` is used as the gate.
+
+The resolved level and filter are stored alongside each underlying logger so fan-out at
+`Log()` time is O(providers): per provider, compare `entry.Level` to the resolved level,
+optionally consult the filter, then log. No per-entry rule lookup.
+
+A throwing filter is treated as admit; the composite swallows the exception so a bad filter
+cannot silently drop entries.
+
+## Factory Lifecycle
+
+`LoggerFactory`:
+
+1. Caches composite loggers per category (`ConcurrentDictionary` keyed
+   case-insensitively).
+2. Owns its providers and forwarders: disposing the factory disposes its forwarders, newest first,
+   and then every provider it was built with (see *Forwarders*).
+3. After `Dispose`, every other operation throws `ObjectDisposedException`.
+4. `Create(string category)` returns the concrete `Logger` via covariant return so
+   callers holding the strongly typed `LoggerFactory` reference avoid the interface cast.
+   The interface bridge (`ILoggerFactory.Create`) returns the same instance through
+   `ILogger`.
+5. Exposes its composition: `Providers`, `Enrichers`, `Rules`, and `Forwarders`, each a read-only view
+   over the snapshot the factory runs on, in registration order. Views rather than the arrays, because
+   composite loggers hold those arrays: a caller that cast one back could change what running loggers
+   do. The factory exposes filter **rules**, not filters. A filter exists only as
+   `LoggerFilterRule.Filter`, beside the category, provider type, and level that decide when it runs;
+   a flat filter list would lose that context, repeat a filter shared by two rules, and skip rules
+   without one.
+
+Every registered component carries a `Name` (`ILoggerProvider`, `ILoggerEnricher`, `ILoggerFilter`,
+`ILoggerForwarder`) so the composition can be read. Names are compared case-insensitively and a
+`null` name counts as empty.
+
+| Component | Unique? | Checked by |
+| --- | --- | --- |
+| Provider | Yes | `AddProvider` |
+| Enricher | Yes | `AddEnricher` |
+| Forwarder | Yes | Factory construction. Forwarders exist, and have names, only once the factory creates them. |
+| Filter | No | Not checked, because one filter instance may sit on several rules. |
+
+`LoggerFactoryBuilder` is single-use: once `Build` has been called the builder is locked.
+Duplicate provider names are rejected.
+
+`LoggerFactoryOptions` exposes its provider and enricher lists as mutable `IList<>`
+collections so callers may populate the options directly when bypassing the builder. The
+factory snapshots both lists at construction time; mutating the options after the factory
+has been constructed has no effect on already-cached loggers.
+
+## Base Abstractions
+
+Three abstract base classes implement the boilerplate so concrete providers stay thin:
+
+- `Logger` - non-virtual `Log` and `BeginScope` that do null guards and (for `Log`) the
+  `IsEnabled` short-circuit, then dispatch to a single virtual method (`WriteCore` /
+  `BeginScopeCore`). Derived classes that want seed-entry emission on `BeginScope` call
+  `WriteCore` themselves inside `BeginScopeCore` - the base does not auto-emit so a fan-out
+  logger (composite) can keep seed emission to its underlying providers without double-writing.
+- `ScopedLogger : Logger, IScopedLogger` - adds `ParentId`, an idempotent `Dispose`, and the
+  convention that `IsEnabled` returns false after disposal. Disposed scopes silently drop log
+  writes through the `IsEnabled` short-circuit.
+- `LoggerProvider : ILoggerProvider` - owns the disposed flag, category validation, and the
+  covariant-return `Create(string)` method. `ILoggerProvider.Create` is implemented as an
+  explicit bridge so callers holding the concrete provider type get a `Logger` directly.
+
+The hot path of `Logger.Log` is a single non-virtual method that makes one virtual call
+to `WriteCore`. Sealed concrete loggers (`CompositeLogger`, `ConsoleLogger`,
+`ConsoleScopedLogger`, `DebugLogger`, `DebugScopedLogger`, `NoopScopedLogger`,
+`ScopedCompositeLogger`) give the JIT the best chance of devirtualizing when callers hold a
+typed reference.
+
+## Scopes
+
+`ILogger.BeginScope(seed)` returns an `IScopedLogger`. Entries written through the scope
+inherit `seed.Id` as their `ParentId` unless the entry already carries a `ParentId`. Scopes
+nest: opening a scope on a scoped logger uses the inner scope's seed as the parent of any
+further nested scopes. Scopes are disposable; double-dispose is a no-op.
+
+If a provider throws while opening a scope, the composite substitutes a `NoopScopedLogger`
+so the composite stays stable.
+
+## Forwarders
+
+A provider is a sink the factory writes *to*. A forwarder (`ILoggerForwarder`) is the reverse: a
+component that writes entries *into* the factory from outside the logging pipeline. Runtime event sources
+are the first case (`Assimalign.Cohesion.Logging.EventSource`); `DiagnosticListener` and `Trace` fit the
+same shape. A forwarder writes through `factory.Create(category)`, so filter rules, enrichers, and
+providers apply to its entries exactly as they do to any other.
+
+The factory owns its forwarders:
+
+1. **Registration.** `ILoggerFactoryBuilder.AddForwarder(Func<ILoggerFactory, ILoggerForwarder>)`
+   appends to `LoggerFactoryOptions.Forwarders`. The registration is a delegate over the built factory,
+   not a service lookup: registration stays dependency-free.
+2. **Creation.** Each registration is invoked once, in order, as the *last* step of the factory's
+   constructor, after every snapshot is taken, so a forwarder can create loggers immediately.
+   Forwarding therefore begins before any application code runs against the factory. In a host, that
+   means before the host starts, so the events raised while listeners bind are not lost.
+3. **Failed construction.** If a registration throws, returns `null`, or produces a forwarder whose
+   name another forwarder already has:
+   - the factory marks itself disposed;
+   - it disposes the forwarders it already created, newest first, and then its providers;
+   - it rethrows.
+
+   A factory that fails to construct is never returned, so nothing else could release them.
+4. **Visibility.** `Forwarders` lists what the factory owns. It is empty while the forwarders are
+   being created. A forwarder a caller creates against the factory, rather than registers with it,
+   is the caller's and is not listed.
+5. **Disposal.** `Dispose` disposes forwarders newest first, then providers. A forwarder writes through
+   the providers, so it must stop before they go away. As with providers, a component that throws while
+   being disposed does not stop the rest of teardown.
+
+There is deliberately no start or stop. Forwarding is active for the forwarder's whole lifetime.
+
+`ILoggerFactoryBuilder.HasForwarders` lets a hosting composition preserve an application's own
+forwarding before adding a default. It reports whether any registration exists, without invoking
+the registration or building the factory. `LoggerFactoryBuilder` reads its registration count.
+The interface supplies a default `false` implementation so existing custom builders remain source
+compatible; a custom builder that supports forwarders should override the probe. This additive
+surface follows owner decision 49 (#1399), rather than exposing the builder's mutable registrations.
+
+An asynchronous `StartAsync`/`StopAsync` contract was considered and rejected (#1036), for four reasons:
+
+- Enabling a listener is synchronous and nothing is queued, so the tasks would always complete at once.
+- The shape duplicates Hosting's `IHostService`, which this L1 library cannot reference.
+- A forwarder started as one host service among others would miss events raised by services started
+  before it.
+- An `IAsyncDisposable` forwarder owned by an `IDisposable` factory would force sync-over-async
+  disposal.
+
+## Enrichment
+
+`ILoggerEnricher.Enrich(entry, attributes)` runs once per entry per fan-out. The mutable
+dictionary handed to the enricher prevents overwrites: if the entry already carries a key,
+the enricher's add is dropped. Enricher exceptions are swallowed and the entry still ships.
+
+## Transactional Logging - De-scoped
+
+Earlier scaffolding defined an `ITransactionLogger` contract intended for buffered "commit"
+flows. The contract was never implemented and there is no Cohesion consumer that requires
+transactional log semantics today. The contract has been removed for this iteration.
+
+If a transactional log surface becomes necessary (for example, to coalesce a burst of
+diagnostics into a single audit event), it should be reintroduced as a separate package
+(`Assimalign.Cohesion.Logging.Transactional` or similar) so the foundation stays narrow.
+
+## Concurrency
+
+- The factory cache uses `ConcurrentDictionary` for lock-free read paths.
+- `LoggerFactoryBuilder` is **not** thread-safe; configure it on a single thread, then
+  publish the resulting factory.
+- Providers must be thread-safe. The console provider serializes writes through an internal
+  lock so concurrent log calls do not interleave output.
+
+## AOT and Trimming
+
+- No reflection.
+- No emit / dynamic codegen.
+- `Dictionary<string, object?>` for attribute payloads is AOT-safe.
+- The `LogId` source generator runs at build time and emits regular C# - it does not require
+  runtime trimming roots.
+
+## Layout
+
+```text
+Assimalign.Cohesion.Logging/
+  src/
+    Assimalign.Cohesion.Logging.csproj
+    Abstractions/
+      ILoggerEntry.cs
+      ILogger.cs
+      ILogger.Scoped.cs
+      ILoggerProvider.cs
+      ILoggerFactory.cs
+      ILoggerFactoryBuilder.cs
+      ILoggerEnricher.cs
+      ILoggerFilter.cs
+      ILoggerForwarder.cs
+    Extensions/
+      LoggerExtensions.cs
+    Internal/
+      CompositeLogger.cs
+      ScopedCompositeLogger.cs
+      NoopScopedLogger.cs
+      LoggerFilterRuleSelector.cs
+    Logger.cs
+    LoggerEntry.cs
+    LoggerEntryBuilder.cs
+    LogLevel.cs
+    LoggerFactory.cs
+    LoggerFactoryBuilder.cs
+    LoggerFactoryOptions.cs
+    LoggerFilterRule.cs
+    LoggerProvider.cs
+    ScopedLogger.cs
+    ValueTypes/
+      LogId.cs           (source-generator spec)
+    Properties/
+      AssemblyInfo.cs
+  tests/
+  docs/
+    OVERVIEW.md
+    DESIGN.md
+    Assembly/
+```
+
+## Example: minimal setup
+
+```csharp
+ILoggerFactory factory = new LoggerFactoryBuilder()
+    .AddProvider(new ConsoleLoggerProvider())
+    .AddProvider(new DebugLoggerProvider())
+    .SetMinimumLevel(LogLevel.Information)
+    .AddRule("App.Network", LogLevel.Debug) // Network category lowered to Debug+
+    .AddRule(new LoggerFilterRule(
+        providerType: typeof(DebugLoggerProvider),
+        level: LogLevel.Trace))     // The Debug sink only catches Trace+
+    .AddEnricher(new ProcessEnricher())
+    .Build();
+
+ILogger logger = factory.Create("App.Network.Http");
+logger.LogInformation("App.Network.Http", "Request {Method} {Url}",
+    attributes: new Dictionary<string, object?> { ["Method"] = "GET", ["Url"] = url });
+
+using IScopedLogger scope = logger.BeginScope("App.Network.Http", "request scope");
+scope.LogDebug("App.Network.Http", "response {Status}",
+    attributes: new Dictionary<string, object?> { ["Status"] = 200 });
+```
+
+## Example: custom filter via rule
+
+```csharp
+internal sealed class AuditOnlyFilter : ILoggerFilter
+{
+    public bool ShouldLog(ILoggerEntry entry) => entry.Attributes.ContainsKey("audit");
+}
+
+ILoggerFactory auditOnly = new LoggerFactoryBuilder()
+    .AddProvider(new ConsoleLoggerProvider())
+    .AddRule(new LoggerFilterRule(filter: new AuditOnlyFilter()))
+    .Build();
+```
 
 ## Dependency boundary
 

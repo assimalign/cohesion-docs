@@ -1,6 +1,6 @@
 # Logging
 
-Structured logging contracts, factory composition, and console and debug sinks.
+Structured logging contracts, factory composition, console and debug sinks, and EventSource forwarding.
 
 [Libraries](../index.md)
 
@@ -11,6 +11,7 @@ Structured logging contracts, factory composition, and console and debug sinks.
 | `Assimalign.Cohesion.Logging` | Defines structured log entries, provider composition, filtering, enrichment, and scopes. | [Overview](assimalign-cohesion-logging/index.md) |
 | `Assimalign.Cohesion.Logging.Console` | Writes structured log entries to configurable output and error writers. | [Overview](assimalign-cohesion-logging-console/index.md) |
 | `Assimalign.Cohesion.Logging.Debug` | Writes structured log entries to diagnostic debug output. | [Overview](assimalign-cohesion-logging-debug/index.md) |
+| `Assimalign.Cohesion.Logging.EventSource` | Forwards `System.Diagnostics.Tracing` events into an `ILoggerFactory`. | [Overview](assimalign-cohesion-logging-eventsource/index.md) |
 
 ## Dependencies and delivery
 
@@ -22,6 +23,11 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.Logging` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Logging.Console` | `Assimalign.Cohesion.Logging` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Logging.Debug` | `Assimalign.Cohesion.Logging` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Logging.EventSource` | `Assimalign.Cohesion.Logging` (CohesionProjectReference) |
+
+The App hosting kernel carries the root, `Logging.Console`, and `Logging.EventSource`;
+`Logging.Debug` remains an ordinary NuGet package. Web entry-point builders forward Web and HTTP
+transport events by default.
 
 ## Sources
 
@@ -56,3 +62,11 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging.Debug/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging.Debug/src`.
+
+- **Source** — `cohesion/libraries/Logging/README.md`.
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging.EventSource/src/Assimalign.Cohesion.Logging.EventSource.csproj`.
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging.EventSource/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Logging/Assimalign.Cohesion.Logging.EventSource/docs/DESIGN.md`.
