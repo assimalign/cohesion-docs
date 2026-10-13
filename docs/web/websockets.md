@@ -219,7 +219,7 @@ the `400` or `426` a refused handshake gets. Such code has to be reached by both
 Under `UseWebSockets` it is guarded too: the middleware refuses a cross-site or malformed handshake
 before the code runs, and decorates the feature, so every accept takes the policy's defaults and the
 drain close. On a bare listener outside the Web host, register the interceptors yourself,
-`HttpProtocolUpgrade.CreateInterceptor()` for HTTP/1.1 and `HttpExtendedConnect.CreateInterceptor()`
+`HttpProtocolUpgradeInterceptor.Create()` for HTTP/1.1 and `HttpExtendedConnectInterceptor.Create()`
 for HTTP/2 and HTTP/3, and check `Origin` before accepting a socket that serves browsers.
 
 ## Diagnostics
@@ -244,7 +244,7 @@ For the server's listeners, TLS and shutdown, see [Server and TLS](server.md). R
 
 - **Packages** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/DESIGN.md`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/docs/DESIGN.md`.
 - **Verbs and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketEndpointExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/WebSocketOptions.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.WebSockets/src/HttpWebSocketAcceptOptions.cs`.
-- **Default interceptors** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs`.
+- **Default interceptors** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnectInterceptor.cs`.
 - **Decision record** — `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 1).
 - **Half-close over QUIC** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndpointTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/tests/WebSocketEndToEndTests.cs`.
