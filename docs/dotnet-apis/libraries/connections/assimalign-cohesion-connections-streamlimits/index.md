@@ -2,6 +2,8 @@
 
 Read the cumulative inbound bidirectional stream allowance of a multiplexed transport. The package owns `IMultiplexedConnectionStreamLimits` and the `StreamLimits` extension property on `IMultiplexedConnection` in the `Assimalign.Cohesion.Connections` namespace.
 
+`IMultiplexedConnection` inherits the common `IConnection` lifecycle and features.
+
 ## Reference
 
 - **[Overview](index.md)** — purpose, dependencies, and principal types.

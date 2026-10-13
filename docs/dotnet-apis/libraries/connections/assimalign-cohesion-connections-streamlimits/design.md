@@ -4,6 +4,7 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Connections.S
 
 [Overview](index.md) · [Examples](examples/index.md)
 
+
 ## Design intent
 
 Read the cumulative inbound bidirectional stream allowance of a multiplexed transport. Owner decision 56 (#1452) places this optional capability in its own package, keeping the Connections core limited to shared contracts and generic feature discovery. Consumers read `StreamLimits` instead of testing a connection's runtime type.
@@ -34,6 +35,10 @@ The accessor uses `Features.Get<IMultiplexedConnectionStreamLimits>()`. The conn
 `InboundBidirectionalStreamLimit` is a nonnegative, nondecreasing conservative upper bound on the number of bidirectional streams the peer may have been allowed to initiate over the connection lifetime. It includes credit whose release has begun but may not yet have been advertised. It is not a concurrent-stream count or permission to open an outbound stream. The multiplexed root migration (#1453) retains this optional feature: QUIC and WebTransport have cumulative allowances; HTTP/2's concurrent-stream limit is a different quantity.
 
 The collection does not own or dispose feature objects. Features that delegate to a driver share the driver's lifetime. QUIC registers distinct objects for TLS and stream limits; its stream registers itself for directional abort, as does the in-memory multiplexed stream.
+
+The multiplexed connection now inherits identity, features and lifecycle from `IConnection` (#1459).
+The accessor remains declared only on `IMultiplexedConnection`; ordinary duplex connections do not
+acquire stream-limit semantics.
 
 ## Compatibility and AOT
 

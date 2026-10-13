@@ -49,6 +49,11 @@ exception constructor reports `Unspecified`; parsers always report a specific
 category. See [the error model](design.md#error-model) for every category and its
 corresponding option.
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Dependencies
 
 | Reference | Build item |

@@ -20,10 +20,13 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections.Tcp;
 using Assimalign.Cohesion.Http.Connections;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Http.WebSockets.Tests;
 
@@ -77,7 +80,7 @@ public class HttpWebSocketTransportTests
     /// </summary>
     private static async Task<string?> ServeOneSocketAsync(HttpConnectionListener listener, CancellationToken cancellationToken)
     {
-        await using IHttpConnection connection = await listener.AcceptOrListenAsync(cancellationToken);
+        await using IHttpConnection connection = await listener.AcceptAsync(cancellationToken);
         IHttpConnectionContext connectionContext = await connection.OpenAsync(cancellationToken);
         string? message = null;
 

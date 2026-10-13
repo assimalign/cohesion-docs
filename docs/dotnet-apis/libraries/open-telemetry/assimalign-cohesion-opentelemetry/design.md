@@ -13,7 +13,7 @@ retry, and bounded shutdown prevent a collector outage from owning host startup.
 gRPC, and binary protobuf export remain deferred.
 
 Emitters of traces and metrics use the BCL `ActivitySource` and `Meter`, starting with the Web
-server's (`Assimalign.Cohesion.Web.Hosting`, #1064), so a trace or metric exporter would subscribe
+server's (`Assimalign.Cohesion.Web.Server`, #1064), so a trace or metric exporter would subscribe
 through `ActivityListener` and `MeterListener` (#317).
 
 ## gRPC deferral

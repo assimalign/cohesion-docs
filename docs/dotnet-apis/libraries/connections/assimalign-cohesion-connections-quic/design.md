@@ -4,11 +4,38 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Connections.Q
 
 [Overview](index.md) · [Examples](examples/index.md)
 
-## Design and boundaries
+## Design intent
 
-Each QUIC stream surfaces as a `MultiplexedStream` with an explicit direction. The driver owns
-connection and stream lifecycle, while stream typing and HTTP settings belong above it. Availability follows
-`System.Net.Quic`, so callers must account for platform support.
+This library is the QUIC **driver** for the Connections contracts in
+`Assimalign.Cohesion.Connections`: it adapts `System.Net.Quic` to the
+`MultiplexedConnection` / `MultiplexedConnectionListener` /
+`MultiplexedConnectionFactory` shapes and nothing more. It carries no
+application-protocol semantics — no HTTP/3 framing, no ALPN-specific
+behavior switches, no stream-type interpretation. Protocols (HTTP/3 in
+`Assimalign.Cohesion.Http.Connections`, and any future QUIC-borne
+protocol) consume the contracts by capability and own their own wire
+rules.
+
+The one place protocol reality deliberately shapes this driver is
+**teardown ordering** (see "Lifecycle and teardown"): how a multiplexed
+connection announces its death to the peer is wire-visible and must be
+correct for the protocols that run over it.
+
+## Family map
+
+| Type | Visibility | Role |
+| --- | --- | --- |
+| `QuicConnectionListener` | `public sealed` | Constructed unbound from options; async `BindAsync` acquires the endpoint and `AcceptAsync` yields server-side connections. `CreateAsync` remains the construct-and-bind convenience. |
+| `QuicConnectionFactory` | `public sealed` | Dials outbound connections; `ConnectAsync` yields client-side connections. |
+| `QuicConnectionListenerOptions` / `QuicConnectionFactoryOptions` | `public sealed` | Endpoint, TLS/ALPN, stream limits, pipe buffer sizes, default error codes, and the bound on disposal's wait for stream delivery (`CloseDeliveryTimeout`, see "Lifecycle and teardown"). The listener also exposes `HandshakeTimeout`. Both default ALPN to HTTP/3 (see "Error model"). |
+| `QuicMultiplexedConnection` | `public sealed` | One QUIC connection; `AcceptStreamAsync` / `OpenStreamAsync` surface streams as `MultiplexedConnectionStream`s and track them for teardown. Registers `Tls` and `StreamLimits` feature objects (see below), and implements the root coded connection close (see "Application error codes"). |
+| `QuicStreamConnection` | `internal` | One QUIC stream as a `MultiplexedConnectionStream`: pipes over the stream, direction from the stream's readable/writable halves, whole-stream reset and input completion on the root. Registers itself as the `DirectionalAbort` feature. |
+
+`QuicMultiplexedConnection` and the listener/factory are `public sealed`
+concretes (not interface-first `internal` implementations) because they
+*are* the driver's surface: consumers select the driver by constructing
+it, then immediately fall back to the `IMultiplexedConnection` /
+`IMultiplexedConnectionStream` contracts. This mirrors the Tcp/Udp sibling drivers.
 
 ## Connection features (#1452)
 
@@ -33,38 +60,58 @@ is an additional public-surface change required by the one-object, one-name rule
 owner review under escalations. These implementations also postdate preview.1; existing public
 facts properties remain available, while consumers discover the contracts through the features.
 
-## Each stream half ends on its own
+## Stream surfacing
 
-The stream pipes are created with `leaveOpen: true` (#1330), and the halves a holder sees end only
-their own direction:
+- Direction is derived once at wrap time from `(CanRead, CanWrite)`:
+  bidirectional, `ReadOnly` (peer-initiated unidirectional), or
+  `WriteOnly` (locally opened unidirectional). A peer cannot open a
+  stream that only the remote side writes to, so `OpenStreamAsync`
+  rejects `ReadOnly`.
+- Unidirectional streams surface honest halves rather than throwing
+  lazily: a `WriteOnly` stream's `Input` is a pre-completed reader; a
+  `ReadOnly` stream's `Output` is an `UnwritablePipeWriter` whose writes
+  throw `InvalidOperationException`.
+- Every stream of one connection draws from a **single shared**
+  `StreamPipeOptionsContext` (one adaptive memory pool per connection,
+  not per stream), owned by the connection and disposed last, after all
+  streams and the QUIC connection have released their buffers.
+- **Each half ends on its own (#1330).** The stream pipes are created with
+  `leaveOpen: true`, and the halves a holder sees end only their own
+  direction:
+  - completing `Output` flushes what the pipe holds and sends the FIN
+    (`QuicStream.CompleteWrites`), and the stream stays readable until the
+    peer ends its side. Completing it with an error sends `RESET_STREAM`
+    with `DefaultStreamErrorCode` instead, so an abnormal end never looks
+    like a complete one, and so does a completion whose own final flush
+    fails — a write still in flight on the stream, for instance — which
+    would otherwise put a FIN after partial data. The completion is the
+    first signal for the sending direction, so a later `AbortWrite` does
+    nothing and `Abort` stops only the receiving direction:
+    `QuicStream` keeps the direction open until the peer acknowledges the
+    FIN, and would put `RESET_STREAM` on the wire after it, letting the
+    peer discard data it was told was complete (an HTTP/3 tunnel or
+    request body that fails after the response's FIN reaches this);
+  - completing `Input` stops the receiving direction with
+    `DefaultStreamErrorCode` (`STOP_SENDING`), unless it has already
+    ended — read to its end, or stopped with a code — and leaves the
+    sending direction alone.
 
-- **Completing `Output`** flushes what the pipe holds and sends the FIN
-  (`QuicStream.CompleteWrites`), and the stream stays readable until the peer ends its side.
-  Completing it with an error sends `RESET_STREAM` with `DefaultStreamErrorCode` instead, so an
-  abnormal end never looks like a complete one, and so does a completion whose own final flush
-  fails (a write still in flight on the stream, for instance), which would otherwise put a FIN after
-  partial data. The completion is the first signal for the sending direction, so a later
-  `AbortWrite` does nothing and `Abort` stops only the receiving direction: `QuicStream` keeps the
-  direction open until the peer acknowledges the FIN, and would put `RESET_STREAM` on the wire after
-  it, letting the peer discard data it was told was complete (an HTTP/3 tunnel or request body that
-  fails after the response's FIN reaches this).
-- **Completing `Input`** stops the receiving direction with `DefaultStreamErrorCode`
-  (`STOP_SENDING`), unless it has already ended (read to its end, or stopped with a code), and
-  leaves the sending direction alone.
+  Once every usable half has been completed the stream is finished, so the
+  `QuicStream` is disposed in the background — it waits for the stream's
+  shutdown, which a graceful FIN reaches once the peer has the data — and
+  the stream's `DisposeAsync` waits for that same disposal. That keeps the
+  connection-first teardown below intact: a bidirectional stream disposed by
+  its connection still delivers its FIN before the `CONNECTION_CLOSE`, for
+  as long as the connection's `CloseDeliveryTimeout` allows.
+  One completed direction leaves the stream usable. Once all usable native directions
+  complete or the native stream is released, `ConnectionClosed` fires. Before
+  #1330 the pipes were created with `leaveOpen: false`, so completing either
+  one disposed the `QuicStream` synchronously, which ended both directions
+  and blocked the completing thread until the peer acknowledged the FIN.
 
-Once every usable half has been completed the stream is finished, so the `QuicStream` is disposed in
-the background (it waits for the stream's shutdown, which a graceful FIN reaches once the peer has
-the data), and the stream's `DisposeAsync` waits for that same disposal. That keeps the
-connection-first teardown intact: a bidirectional stream disposed by its connection still delivers
-its FIN before the `CONNECTION_CLOSE`, for as long as the connection's `CloseDeliveryTimeout`
-allows. Neither completion signals the stream's `ConnectionClosed` or changes its `State`: a half
-the holder ends is a half-close, not an abort. Before #1330 the pipes were created with
-`leaveOpen: false`, so completing either one disposed the `QuicStream` synchronously, which ended
-both directions and blocked the completing thread until the peer acknowledged the FIN.
+### A FIN already observed (#1427)
 
-## A FIN already observed (#1427)
-
-Each stream's root `IMultiplexedStream.IsInputCompleted` checks the existing
+Each stream's root `IMultiplexedConnectionStream.IsInputCompleted` checks the existing
 `QuicStream.ReadsClosed` task for successful completion and excludes a locally aborted read.
 .NET 10 completes that task when its final buffered bytes are copied to the caller, before
 returning that final nonzero read. Thus a stream-backed `PipeReader` can expose the fact without
@@ -77,56 +124,6 @@ late FINs remain conservative until the runtime observes them. Moving the comple
 stream root (#1453) adds no HTTP dependency: every byte-stream multiplexer supports a half-close.
 The incremental HTTP/3 body signal it improves was introduced after 10.0.0-preview.1; the root's
 stream return type changes are recorded under "Breaking changes" below.
-
-## Disposal waits for stream delivery, within a bound
-
-A graceful `DisposeAsync` completes the bidirectional streams first, because their write halves
-carry application data (an HTTP/3 response, for example) whose FIN and delivery acknowledgement must
-precede the connection close, or the tail of the data could be lost. Then it closes the connection
-(`CONNECTION_CLOSE` carrying `DefaultCloseErrorCode`), and only then releases the unidirectional
-streams, which HTTP/3 designates critical.
-
-The bidirectional streams are disposed together, and their waits for delivery share one bound,
-`CloseDeliveryTimeout` (five seconds by default, on both options types). A peer that withholds
-stream credit for a response's tail while it keeps the connection alive with PINGs never
-acknowledges the FIN, and MsQuic's send buffering has already completed every write, so nothing
-above the driver sees a stall; without the bound the disposal, and the host's connection slot, would
-wait for as long as the peer chose. When the bound runs out the connection close ends every stream
-still delivering, which completes its disposal, and the tail is lost. An abort after disposal started
-ends the delivery wait immediately with disposal's chosen default close code, so a shorter host
-shutdown budget can still force teardown. Before #1330 the wait happened on the exchange's own thread,
-inside the blocking disposal of the `QuicStream`; the bound was added with the half-close, which
-moved it into this phase.
-
-All remaining disposals start together and share a second `CloseDeliveryTimeout` bound, including
-bidirectional streams still delivering and streams accepted after the first snapshot. Repeated
-disposal waits for the same native release, so no separate unbounded sweep retries that wait
-afterward; native connection disposal finishes teardown (#1424).
-
-## Completed and aborted streams are released
-
-Stream and connection dispose are idempotent. Once the background
-`QuicStream` release finishes, the driver untracks its wrapper and reports
-`StreamClosed` exactly once (#1424), whether it was released by completing
-both usable halves or by explicit disposal. Until that release finishes it
-stays tracked, so connection teardown still waits for delivery within
-`CloseDeliveryTimeout`. Completing just one half neither untracks the stream
-nor changes its state or cancellation signal; completing both halves still
-leaves those signals alone. Explicit abort/disposal retains its existing
-state and cancellation behavior. Aborting a stream also starts its pipe and native
-cleanup, so reset requests do not retain wrappers either. Concurrent disposals
-wait for the same native release instead of skipping a delivery already in progress.
-
-The driver owns this transition rather than asking HTTP/3 to await stream
-disposal: every protocol that completes both halves needs the same release,
-and waiting in an exchange would bypass the connection's delivery bound.
-This fixes preview.1's retention of one wrapper (pipes, CTS and TCS) per
-request until connection teardown. A remote unauthenticated client can
-retain managed memory by repeatedly requesting on one opt-in HTTP/3
-connection (CWE-401; availability impact). The current-streams gauge now
-falls at release instead of remaining inflated until connection teardown;
-that diagnostic behavior change is recorded against preview.1 on decision
-15's terms.
 
 ## Inbound stream allowance (#1425)
 
@@ -160,8 +157,8 @@ or HTTP-specific semantics are added. The facet is an additive API relative to
 
 QUIC runs a TLS 1.3 handshake inside its own (RFC 9001), so a QUIC connection is a TLS-terminating
 connection in the contracts' sense. `QuicMultiplexedConnection` registers an `ITlsConnectionInfo`
-feature from `Connections.Tls`, available through `connection.Tls`, reporting what that handshake
-negotiated: the ALPN application protocol, the TLS version (always TLS 1.3), the cipher suite, and the peer's certificate (the client's on a server-side connection,
+feature from `Connections.Tls`, available through `connection.Tls`, reporting what that handshake negotiated: the ALPN application protocol, the TLS version (always
+TLS 1.3), the cipher suite, and the peer's certificate (the client's on a server-side connection,
 present when the listener's `ServerAuthenticationOptions` requested one). The values are captured
 when the connection is wrapped, after `System.Net.Quic` has completed the handshake, and are the
 same for the lifetime of the connection; streams do not inherit the connection's features. The
@@ -171,54 +168,156 @@ Reading `QuicConnection.RemoteCertificate` hands the certificate's ownership to 
 `QuicConnection` no longer disposes a certificate it has exposed), so `QuicMultiplexedConnection`
 disposes the peer certificate after it has disposed the QUIC connection.
 
-## A failed handshake never ends the accept
+## Lifecycle and teardown
 
-`System.Net.Quic` runs each inbound connection's handshake in the background. When one fails, it
-reports the failure from the next `QuicListener.AcceptConnectionAsync`, as an
-`AuthenticationException` or a `QuicException`. Causes include a client certificate the policy
-refuses, a handshake that exceeds its timeout, and an error from the connection-options callback.
-The listener stays usable.
+Connections are live when produced; there is no separate open step.
+Teardown has two paths:
 
-`QuicConnectionListener.AcceptAsync` treats each such exception as that one connection's: it
-reports `HandshakeFailed` (Warning: `listenerId`, `exceptionType`, `exceptionMessage`) and accepts
-the next connection (#1304). Only the listener's disposal and the caller's own cancellation leave
-`AcceptAsync`. Before #1304 a single client without a required certificate stopped the HTTP/3
-endpoint. Kestrel's QUIC transport makes the same call.
+The listener itself has an explicit lifecycle: construction captures configuration without opening a
+socket, `BindAsync` asynchronously acquires the endpoint and is idempotent while active, and
+`DisposeAsync` releases the endpoint terminally. Restart creates a new listener.
 
-Pending handshakes are bounded by `Backlog`, which becomes `QuicListenerOptions.ListenBacklog`: it
-counts connections whose handshake is in progress plus those waiting to be accepted;
-`System.Net.Quic` refuses new connections beyond it. `MaxConcurrentHandshakes` belongs to the
-TCP TLS layer and does not control this backlog.
+- **`DisposeAsync` (graceful)** — wire-visible ordering is load-bearing:
+  1. **Bidirectional streams complete first.** Their write halves carry
+     application data (an HTTP/3 response, for example) whose FIN and
+     delivery acknowledgement must precede the connection close, or the
+     tail of the data could be lost. The streams are disposed together,
+     and their waits for delivery share one bound, `CloseDeliveryTimeout`
+     (five seconds by default, on both options types). A peer that
+     withholds stream credit for a response's tail while it keeps the
+     connection alive with PINGs never acknowledges the FIN, and MsQuic's
+     send buffering has already completed every write, so nothing above
+     the driver sees a stall; without the bound the disposal, and the
+     host's connection slot, would wait for as long as the peer chose.
+     When the bound runs out the close in step 2 ends every stream still
+     delivering, which completes its disposal, and the tail is lost. An
+     abort after disposal started ends the delivery wait immediately with disposal's chosen
+     default close code, so a shorter host shutdown budget can still force teardown.
+     (Before #1330 the wait happened on the exchange's own thread, inside
+     the blocking disposal of the `QuicStream`; the bound was added with
+     the half-close, which moved it into this phase.)
+  2. **The connection closes** (`CONNECTION_CLOSE` carrying
+     `DefaultCloseErrorCode`).
+  3. **Unidirectional streams are released only after the close.** In
+     multiplexed protocols they are typically long-lived control
+     channels; HTTP/3 designates its control and QPACK streams
+     *critical* (RFC 9114 §6.2.1, RFC 9204 §4.2), and a peer that
+     observes one terminate — including a STOP_SENDING request, which is
+     what disposing a partially-read inbound stream emits — before the
+     connection close MUST fail the connection with
+     `H3_CLOSED_CRITICAL_STREAM`. Disposing them after `CloseAsync`
+     releases pipes and handles without putting stream-level frames on
+     the wire. All remaining disposals start together and share a second
+     `CloseDeliveryTimeout` bound, including bidirectional streams
+     still delivering and streams accepted after the first snapshot.
+     Repeated disposal waits for the same native release, so no separate
+     unbounded sweep retries that wait afterward; native connection
+     disposal finishes teardown (#1424).
+     This ordering is the driver-level guarantee that lets the
+     HTTP/3 layer tear down without a per-stream shutdown protocol.
+- **`Abort` (immediate)** — synchronous; fires the connection close
+  (fire-and-forget, observing its own faults) and cancels
+  `ConnectionClosed`. In-flight data may be discarded; that is the
+  contract of abort. `Abort(Exception?)` closes with
+  `DefaultCloseErrorCode`; `Abort(long errorCode, Exception?)`
+  on the multiplexed root closes with the caller's code. The first abort or disposal decides
+  the close code under the state lock, before any delivery wait: a later abort interrupts
+  disposal's delivery wait while retaining its default code, and disposal retains a preceding
+  abort's code even if it overtakes that abort before its asynchronous close starts. `QuicConnection` sends one
+  `CONNECTION_CLOSE`, and a later close request has no effect on the wire.
 
-## The inbound handshake timeout is configurable
+A stream's `ConnectionClosed` fires on its own `Abort` and `DisposeAsync`,
+and also when the stream ends underneath it (#1329): the stream watches
+`QuicStream.ReadsClosed` and `WritesClosed` and signals when either faults
+with anything but `QuicError.OperationAborted`, that is, a peer
+`RESET_STREAM` or `STOP_SENDING` (`StreamAborted`) or the loss of the
+connection. Faults from this end's own operations (`OperationAborted`)
+and a half that ends cleanly signal nothing. The check runs on the thread
+pool, never on the QUIC event thread that completed the task. A consumer
+learns that the peer abandoned the stream without reading or writing,
+which is how an HTTP/3 server fires `RequestCancelled` for a request the
+client cancelled.
 
-`QuicConnectionListenerOptions.HandshakeTimeout` (#1311) is copied into
-`QuicServerConnectionOptions.HandshakeTimeout` by the options factory used by the listener's
-actual connection-options callback. Its ten-second default preserves the previous
-`System.Net.Quic` default. Positive values bound each handshake, and
-`Timeout.InfiniteTimeSpan` disables that timeout. Other negative values are rejected on assignment;
-remaining runtime validation belongs to `System.Net.Quic`. The connection-options factory takes
-the frozen bidirectional stream allowance from bind time, preserving the snapshot described under
-[Inbound stream allowance](#inbound-stream-allowance-1425).
+Stream and connection dispose are idempotent. Once the background
+`QuicStream` release finishes, the driver untracks its wrapper and reports
+`StreamClosed` exactly once (#1424), whether it was released by completing
+both usable halves or by explicit disposal. Until that release finishes it
+stays tracked, so connection teardown still waits for delivery within
+`CloseDeliveryTimeout`. Completing just one half neither untracks the stream
+nor changes its state or cancellation signal. Once all usable native directions complete
+or the native stream is released, `ConnectionClosed` fires. Explicit abort/disposal retains its existing
+state and cancellation behavior. Aborting a stream also starts its pipe and native
+cleanup, so reset requests do not retain wrappers either. Concurrent disposals
+wait for the same native release instead of skipping a delivery already in progress.
 
-Zero is passed through unchanged. Although the BCL property describes zero as choosing the
-native default, [.NET 10's server path starts its managed cancellation timer with that value](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Net.Quic/src/System/Net/Quic/QuicListener.cs#L207-L223),
-so zero can expire immediately; callers should use `Timeout.InfiniteTimeSpan` to disable it.
-Web.Hosting maps `TlsServerOptions.HandshakeTimeout` into this option for its TLS-options
-overload and binds the endpoint's configured timeout. Its TLS non-positive/disabled convention
-maps to `Timeout.InfiniteTimeSpan`. A timeout still drops only the failed connection, as #1304
-requires. This option is additive relative to 10.0.0-preview.1 and leaves default behavior intact.
+The driver owns this transition rather than asking HTTP/3 to await stream
+disposal: every protocol that completes both halves needs the same release,
+and waiting in an exchange would bypass the connection's delivery bound.
+This fixes preview.1's retention of one wrapper (pipes, CTS and TCS) per
+request until connection teardown. A remote unauthenticated client can
+retain managed memory by repeatedly requesting on one opt-in HTTP/3
+connection (CWE-401; availability impact). The current-streams gauge now
+falls at release instead of remaining inflated until connection teardown;
+that diagnostic behavior change is recorded against preview.1 on decision
+15's terms.
 
-## `ConnectionClosed` on an abandoned stream
+Close failures during teardown (`QuicException` — peer already gone,
+`ObjectDisposedException` — abort raced dispose) are swallowed: teardown
+must converge, not throw. Pipe completion during stream dispose
+likewise absorbs `IOException` (`QuicException` derives from it), which
+is routine for streams released after their owning connection closed.
 
-A stream's `ConnectionClosed` fires on its own `Abort` and `DisposeAsync`, and also when the stream
-ends underneath it (#1329). The stream watches `QuicStream.ReadsClosed` and `WritesClosed` and
-signals when either faults with anything but `QuicError.OperationAborted`: a peer `RESET_STREAM` or
-`STOP_SENDING` (`StreamAborted`), or the loss of the connection. Faults from this end's own
-operations (`OperationAborted`) and a half that ends cleanly signal nothing. The check runs on the
-thread pool, never on the QUIC event thread that completed the task. A consumer learns that the peer
-abandoned the stream without reading or writing, which is how an HTTP/3 server fires
-`RequestCancelled` for a request the client cancelled.
+## Error model
+
+- **A failed inbound handshake never ends the accept (#1304).** `System.Net.Quic` runs each inbound
+  connection's handshake in the background and reports one that fails from the next
+  `QuicListener.AcceptConnectionAsync`, as an `AuthenticationException` or a `QuicException` (a client
+  certificate the policy refuses, a handshake that exceeds its timeout, an error from the
+  connection-options callback), while the listener stays usable and the failed connection is already
+  disposed. `QuicConnectionListener.AcceptAsync` treats every such exception as that one connection's:
+  it reports `HandshakeFailed` (see "Diagnostics") and accepts the next connection, as the contracts'
+  `AcceptAsync` requires. Only `ObjectDisposedException` (the listener's disposal, which every later
+  accept would report again) and the caller's own cancellation leave `AcceptAsync`. Before #1304 the
+  exception left `AcceptAsync`, so a single client without a required certificate stopped the HTTP/3
+  endpoint and, through the HTTP listener's fatal accept handling, every other endpoint of the server.
+  Kestrel's QUIC transport makes the same call.
+- **Pending handshakes are bounded by `Backlog`.** It becomes `QuicListenerOptions.ListenBacklog`,
+  which counts connections whose handshake is in progress plus those waiting to be accepted;
+  `System.Net.Quic` refuses new connections beyond it. `MaxConcurrentHandshakes` belongs to the
+  TCP TLS layer and does not control this backlog.
+- **The inbound handshake timeout is configurable (#1311).**
+  `QuicConnectionListenerOptions.HandshakeTimeout` is copied into
+  `QuicServerConnectionOptions.HandshakeTimeout` by the options factory used by the listener's
+  actual connection-options callback. Its ten-second default preserves the previous
+  `System.Net.Quic` default. Positive values bound each handshake, and
+  `Timeout.InfiniteTimeSpan` disables that timeout. Other negative values are rejected on assignment;
+  remaining runtime validation belongs to `System.Net.Quic`. The connection-options factory takes
+  the frozen bidirectional stream allowance from bind time, preserving the snapshot described above.
+
+  Zero is passed through unchanged. Although the BCL property describes zero as choosing the
+  native default, [.NET 10's server path starts its managed cancellation timer with that value](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Net.Quic/src/System/Net/Quic/QuicListener.cs#L207-L223),
+  so zero can expire immediately; callers should use `Timeout.InfiniteTimeSpan` to disable it.
+  Web.Hosting maps `TlsServerOptions.HandshakeTimeout` into this option for its TLS-options
+  overload and binds the endpoint's configured timeout. Its TLS non-positive/disabled convention
+  maps to `Timeout.InfiniteTimeSpan`. A timeout still drops only the failed connection, as #1304
+  requires. This option is additive relative to 10.0.0-preview.1 and leaves default behavior intact.
+- Contract-level failures surface through the area's
+  `ConnectionException` family where the contracts demand it; raw
+  `QuicException` / `SocketException` pass through on driver-specific
+  paths (callers at the protocol layer classify them — see the HTTP/3
+  receive loop).
+- **Default error codes are the HTTP/3 codes**: `DefaultCloseErrorCode = 0x100` (`H3_NO_ERROR`) and `DefaultStreamErrorCode = 0x10c`
+  (`H3_REQUEST_CANCELLED`), RFC 9114 §8.1. QUIC application error codes
+  are meaningless without an application protocol, and both options
+  types already default their ALPN list to HTTP/3 — the error codes
+  follow the same default so the out-of-the-box configuration is
+  self-consistent and RFC-honest on the wire. A listener or factory
+  serving a different ALPN protocol overrides the codes alongside
+  `ApplicationProtocols`. The defaults apply only where the caller gives
+  no code (see "Application error codes"): the stream default on a
+  stream's `Abort(Exception?)`, its disposal, the completion of its
+  `Input`, and the completion of its `Output` with an error; the close
+  default on the connection's `Abort(Exception?)` and disposal. The options' XML docs say the same.
 
 ## Application error codes
 
@@ -233,14 +332,6 @@ code range, 0 to 2^62 - 1; the generic roots do not impose QUIC's range on other
 | stream `AbortWrite(errorCode)` | `QuicStream.Abort(QuicAbortDirection.Write, errorCode)` | `RESET_STREAM` |
 | stream `Abort(errorCode, reason)` | Both directional aborts, then stream lifecycle teardown | `STOP_SENDING` and `RESET_STREAM` for directions still open |
 | connection `Abort(errorCode, reason)` | `QuicConnection.CloseAsync(errorCode)` | `CONNECTION_CLOSE` |
-
-`Abort(Exception?)` closes the connection with `DefaultCloseErrorCode`, and
-`Abort(long errorCode, Exception?)` on the multiplexed root closes with the caller's code.
-The first abort or disposal decides the close code under the state lock, before any delivery wait:
-a later abort interrupts disposal's delivery wait while retaining its default code, and disposal
-retains a preceding abort's code even if it overtakes that abort before its asynchronous close
-starts. `QuicConnection` sends one `CONNECTION_CLOSE`, and a later close request has no effect on
-the wire.
 
 - **A direction ends once.** `QuicStream.Abort` skips a direction that
   has already ended (read to its end, aborted, or completed and
@@ -319,6 +410,17 @@ and `streams-per-second`.
   exception's type and message, never a certificate or key material. A dropped connection never
   reports `ConnectionOpened`: `System.Net.Quic` disposed it before this driver wrapped it.
 
+## AOT posture
+
+No reflection, no runtime code generation, no serialization. The driver
+is `System.Net.Quic` calls plus pipe plumbing from the contracts
+library's `shared/` folder - `PipeOptionsFactory` and `StreamPipeOptionsContext` are compiled
+into this driver as internal types - with lifecycle reporting through its own
+internal event source (see "Diagnostics"). Fully
+NativeAOT compatible. Platform support follows `System.Net.Quic`
+(`windows` / `linux` / `macos`, gated by `QuicListener.IsSupported` at
+runtime).
+
 ## Breaking changes
 
 These are behavior breaks against 10.0.0-preview.1, which shipped this
@@ -356,8 +458,8 @@ break is accepted during the previews and recorded here.
    change the value used by subsequent handshakes. It now leaves the bound listener's
    allowance unchanged, keeping its handshake and generic limit facet consistent.
 6. **Multiplexed stream return types change (#1453).** The connection's typed accept/open
-   members now return `ValueTask<MultiplexedStream>` instead of `ValueTask<Connection>`;
-   the interface returns `ValueTask<IMultiplexedStream>`. Assigning the awaited stream to
+   members now return `ValueTask<MultiplexedConnectionStream>` instead of `ValueTask<Connection>`;
+   the interface returns `ValueTask<IMultiplexedConnectionStream>`. Assigning the awaited stream to
    `IConnection` still compiles, but existing binaries and implementations must migrate.
    `Abort(long, Exception?)` is now required on the multiplexed connection root and guided
    base. The new stream root requires whole-stream reset and `IsInputCompleted`.
@@ -370,6 +472,67 @@ break is accepted during the previews and recorded here.
 
 Completing a half also no longer blocks the completing thread until the
 peer acknowledges the FIN; that is not expected to break a consumer.
+
+## Non-goals
+
+- **No protocol semantics.** Stream-type prefixes, SETTINGS, GOAWAY,
+  and graceful drain belong to the protocol layer. (When the HTTP/3
+  layer grows GOAWAY-driven drain, it will run *before* disposal; the
+  driver's close ordering stays the final word on the wire.)
+- **No per-stream close protocol on connection teardown.** The
+  connection close supersedes stream-level signals; see "Lifecycle and
+  teardown".
+- **No QUIC datagrams, 0-RTT, or connection migration surface.** Not
+  exposed by the contracts; add a contract first, then drive it.
+- **No transport abstraction re-export.** Consumers depend on
+  `Assimalign.Cohesion.Connections` contracts; this package is a driver
+  selection.
+
+## Root lifecycle and listener ownership
+
+`QuicMultiplexedConnection` derives from the pipe-less `Connection` root; its streams derive
+from `MultiplexedConnectionStream : DuplexConnection`. The listener inherits the generic live
+connection set and exposes the same `ListenerId` its events report. Root and typed accepts consume
+one queue, and listener disposal leaves handed-out connections to their owners.
+
+One inbound-stream accept pump observes idle peer closure: `System.Net.Quic` has no public
+connection-closed task, and refuses native accept when both inbound stream allowances are zero.
+Factory connections therefore grant one concurrent inbound unidirectional stream; listeners use an
+effective native unidirectional allowance of one only when both the bound bidirectional allowance
+and `MaxUnidirectionalStreamCount` are zero. With positive bidirectional credit, a configured zero
+unidirectional allowance stays zero: native accept already observes idle closure in that case.
+The bidirectional allowance is unchanged. The all-zero fallback differs from preview.1 by
+permitting one unidirectional stream. It is the smallest local way to observe idle peer closure through
+the supported runtime API; no synthetic stream or protocol bytes are sent.
+The pending native accept sees loss, completes the application queue with
+the original failure, and signals `ConnectionClosed`. This includes a TLS certificate refusal
+arriving after the client finished its side of the handshake: stream acceptance receives the
+authentication failure, while disposal completes the normal transport cleanup. Queued wrappers retain native stream handles,
+so the negotiated concurrent inbound-stream limit bounds the queue. Native credit returns only
+when a wrapper is disposed. Connection disposal closes the native connection, awaits the pump,
+releases queued wrappers along with tracked streams, and clears the queue. No stream reads are added.
+Stream notifications observe reset, loss, and completion of every usable native direction;
+completing one direction remains a half-close. Local disposal signals closure before returning.
+
+The implementation depends on the common hierarchy as follows:
+
+```mermaid
+flowchart LR
+    Quic["QuicMultiplexedConnection"] --> Mux["MultiplexedConnection"]
+    Mux --> Root["Connection / IConnection"]
+    Stream["QuicStreamConnection"] --> StreamBase["MultiplexedConnectionStream"]
+    StreamBase --> Duplex["DuplexConnection"]
+    Duplex --> Root
+```
+
+## Connection hierarchy compatibility
+
+Decision 58 changes the hierarchy shipped in 10.0.0-preview.1 under decision 15's accepted
+preview source and binary breaks. Listener/factory results are typed interfaces; streams are named `IMultiplexedConnectionStream`
+and `MultiplexedConnectionStream`.
+Every connection shares root lifecycle and features. Accepted connections stay in the live set
+until their closed token fires; listener disposal never closes handed-out connections.
+Only the code that accepted a connection reads or writes it.
 
 ## Dependency boundary
 

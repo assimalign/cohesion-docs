@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Security`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise TLS layers, certificate policy, handshake facts, feature propagation, and handshake isolation using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise TLS layers, composition, certificate policy, handshake facts, lifecycle, options, feature propagation, and handshake isolation using the original repository tests.
 
 ## Sources
 

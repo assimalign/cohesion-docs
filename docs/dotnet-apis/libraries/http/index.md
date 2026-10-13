@@ -11,7 +11,7 @@ Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional 
 | `Assimalign.Cohesion.Http` | Defines Hypertext Transfer Protocol (HTTP) messages, fields, features, and exchange contracts. | [Overview](assimalign-cohesion-http/index.md) |
 | `Assimalign.Cohesion.Http.Antiforgery` | Protects HTTP requests with paired antiforgery cookie and request tokens. | [Overview](assimalign-cohesion-http-antiforgery/index.md) |
 | `Assimalign.Cohesion.Http.ClientFactory` | Creates named HTTP clients while pooling and rotating their message handlers. | [Overview](assimalign-cohesion-http-clientfactory/index.md) |
-| `Assimalign.Cohesion.Http.Connections` | Carries HTTP exchanges over Cohesion stream and multiplexed connections. | [Overview](assimalign-cohesion-http-connections/index.md) |
+| `Assimalign.Cohesion.Http.Connections` | Carries HTTP exchanges over Cohesion duplex and multiplexed connections. | [Overview](assimalign-cohesion-http-connections/index.md) |
 | `Assimalign.Cohesion.Http.Cookies` | Adds typed request and response cookies to the HTTP feature model. | [Overview](assimalign-cohesion-http-cookies/index.md) |
 | `Assimalign.Cohesion.Http.DigestFields` | Parses and verifies HTTP integrity digest fields. | [Overview](assimalign-cohesion-http-digestfields/index.md) |
 | `Assimalign.Cohesion.Http.ExtendedConnect` | Surfaces the HTTP/2 and HTTP/3 extended CONNECT feature on `IHttpContext`. | [Overview](assimalign-cohesion-http-extendedconnect/index.md) |
@@ -36,6 +36,11 @@ release or completeness guarantee.
 `Tls` feature and publishes an `ITlsConnectionInfo` snapshot on HTTP connection info. `Http.Tls`
 reads it, so neither of the two references the other. The
 [Http.Connections overview](assimalign-cohesion-http-connections/index.md) introduces the server transport.
+
+HTTP connections implement `IConnection` and expose their single `Protocol` and the wrapped
+transport's `Features`. HTTP/1.1 and HTTP/2 registrations accept an `IDuplexConnectionListener`;
+HTTP/3 accepts an `IMultiplexedConnectionListener`. Await `BindAsync` before reading the HTTP
+listener's `EndPoints`; `AcceptAsync` yields a connection tracked in `Connections` until it closes.
 
 | Assembly | Declared dependencies |
 |---|---|

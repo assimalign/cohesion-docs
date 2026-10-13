@@ -1,17 +1,24 @@
 # Example: TLS Behavioral Tests
 
-Exercise TLS layers, certificate policy, handshake facts, feature propagation, and handshake isolation using the original repository tests.
+Exercise TLS layers, composition, certificate policy, handshake facts, lifecycle, options, feature propagation, and handshake isolation using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-These are the complete `TlsConnectionLayerTests.cs`, `TlsClientCertificateTests.cs`,
-`TlsConnectionInfoTests.cs`, `TlsConnectionTests.cs`, and `TlsHandshakeIsolationTests.cs` listings
-from the package test project. Keep them in that project when running them: the project supplies
-its package references, generated sources, and shared fixtures, including `TestCertificateFixture`
-and `TestConnectionFeature`. The layer listing makes the test-framework import explicit where the
-original project supplies it globally.
+These are the complete listings from the package test project:
+
+- `TlsConnectionLayerTests.cs`
+- `TlsClientCertificateTests.cs`
+- `TlsConnectionInfoTests.cs`
+- `TlsConnectionTests.cs`
+- `TlsHandshakeIsolationTests.cs`
+- `TlsConnectionExtensionsTests.cs`
+- `TlsOptionsTests.cs`
+
+Keep them in that project when running them: the project supplies its package references, generated
+sources, and shared fixtures, including `TestCertificateFixture`, `TestConnectionFeature`,
+`TestConnectionListener`, `TestConnectionFactory`, and `BlockingConnectionListener`.
 
 ## Code
 
@@ -21,8 +28,11 @@ using System.Net.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 
@@ -58,7 +68,7 @@ public class TlsConnectionLayerTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         TlsConnectionLayer layer = new(new TlsServerOptions
         {
             AuthenticationOptions =
@@ -72,12 +82,12 @@ public class TlsConnectionLayerTests : IClassFixture<TestCertificateFixture>
             userCertificateValidationCallback: static (_, _, _, _) => true);
 
         // Act: drive the layer's server handshake against a raw client SslStream on the far end.
-        Task<IConnection> serverUpgrade = layer.UpgradeAsync(server, timeout.Token).AsTask();
+        Task<IDuplexConnection> serverUpgrade = layer.UpgradeAsync(server, timeout.Token).AsTask();
         Task clientHandshake = clientSsl.AuthenticateAsClientAsync(
             new SslClientAuthenticationOptions { TargetHost = "localhost" },
             timeout.Token);
         await Task.WhenAll(serverUpgrade, clientHandshake);
-        IConnection secured = await serverUpgrade;
+        IDuplexConnection secured = await serverUpgrade;
 
         // Assert
         secured.Capabilities.Security.ShouldBe(ConnectionSecurity.Tls);
@@ -200,8 +210,8 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         });
 
         // Act
-        (Task<IConnection> server, Task<IConnection> _) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
-        IConnection secured = await server;
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> _) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
+        IDuplexConnection secured = await server;
 
         // Assert
         validated.ShouldNotBeNull();
@@ -217,7 +227,7 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         TlsServerOptions serverOptions = CreateServerOptions().RequireClientCertificate(static (_, _, _) => true);
 
         // Act
-        (Task<IConnection> server, Task<IConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
 
         // Assert
         await Should.ThrowAsync<AuthenticationException>(server);
@@ -232,7 +242,7 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         TlsServerOptions serverOptions = CreateServerOptions().RequireClientCertificate(static (_, _, _) => false);
 
         // Act
-        (Task<IConnection> server, Task<IConnection> client) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> client) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
 
         // Assert
         await Should.ThrowAsync<AuthenticationException>(server);
@@ -247,8 +257,8 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         TlsServerOptions serverOptions = CreateServerOptions().AllowClientCertificate(static (_, _, _) => true);
 
         // Act
-        (Task<IConnection> server, Task<IConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
-        IConnection secured = await server;
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
+        IDuplexConnection secured = await server;
         await client;
 
         // Assert
@@ -263,7 +273,7 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         TlsServerOptions serverOptions = CreateServerOptions().AllowClientCertificate();
 
         // Act
-        (Task<IConnection> server, Task<IConnection> client) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> client) = Handshake(serverOptions, _fixture.ClientCertificate, timeout.Token);
 
         // Assert
         await Should.ThrowAsync<AuthenticationException>(server);
@@ -280,8 +290,8 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
             .AllowClientCertificate(static (_, _, _) => true);
 
         // Act — the later "allow" policy admits a client without a certificate.
-        (Task<IConnection> server, Task<IConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
-        IConnection secured = await server;
+        (Task<IDuplexConnection> server, Task<IDuplexConnection> client) = Handshake(serverOptions, clientCertificate: null, timeout.Token);
+        IDuplexConnection secured = await server;
         await client;
 
         // Assert
@@ -316,12 +326,12 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
         };
     }
 
-    private static (Task<IConnection> Server, Task<IConnection> Client) Handshake(
+    private static (Task<IDuplexConnection> Server, Task<IDuplexConnection> Client) Handshake(
         TlsServerOptions serverOptions,
         X509Certificate2? clientCertificate,
         CancellationToken cancellationToken)
     {
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         TlsClientOptions clientOptions = new()
         {
             AuthenticationOptions =
@@ -336,17 +346,17 @@ public class TlsClientCertificateTests : IClassFixture<TestCertificateFixture>
             TlsConnectionInfoTests.UseClientCertificate(clientOptions, clientCertificate);
         }
 
-        Task<IConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
-        Task<IConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
 
         return (serverUpgrade, clientUpgrade);
     }
 
-    private static async Task ObserveAsync(Task<IConnection> task)
+    private static async Task ObserveAsync(Task<IDuplexConnection> task)
     {
         try
         {
-            IConnection connection = await task;
+            IDuplexConnection connection = await task;
             await connection.DisposeAsync();
         }
         catch (Exception exception) when (exception is AuthenticationException or System.IO.IOException or OperationCanceledException)
@@ -415,7 +425,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection client, IConnection server) = await UpgradePairAsync(
+        (IDuplexConnection client, IDuplexConnection server) = await UpgradePairAsync(
             [SslApplicationProtocol.Http2, SslApplicationProtocol.Http11],
             [SslApplicationProtocol.Http2, SslApplicationProtocol.Http11],
             timeout.Token);
@@ -432,7 +442,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection _, IConnection server) = await UpgradePairAsync(
+        (IDuplexConnection _, IDuplexConnection server) = await UpgradePairAsync(
             [SslApplicationProtocol.Http2, SslApplicationProtocol.Http11],
             [SslApplicationProtocol.Http11],
             timeout.Token);
@@ -448,7 +458,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection _, IConnection server) = await UpgradePairAsync(
+        (IDuplexConnection _, IDuplexConnection server) = await UpgradePairAsync(
             [SslApplicationProtocol.Http2, SslApplicationProtocol.Http11],
             clientProtocols: null,
             timeout.Token);
@@ -464,7 +474,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection client, IConnection server) = await UpgradePairAsync(null, null, timeout.Token);
+        (IDuplexConnection client, IDuplexConnection server) = await UpgradePairAsync(null, null, timeout.Token);
         ITlsConnectionInfo serverTls = server.Tls.ShouldNotBeNull();
         ITlsConnectionInfo clientTls = client.Tls.ShouldNotBeNull();
 
@@ -482,7 +492,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection client, IConnection _) = await UpgradePairAsync(null, null, timeout.Token);
+        (IDuplexConnection client, IDuplexConnection _) = await UpgradePairAsync(null, null, timeout.Token);
 
         // Assert
         client.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(_fixture.Certificate.Thumbprint);
@@ -495,7 +505,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection _, IConnection server) = await UpgradePairAsync(null, null, timeout.Token);
+        (IDuplexConnection _, IDuplexConnection server) = await UpgradePairAsync(null, null, timeout.Token);
 
         // Assert
         server.Tls.ShouldNotBeNull().RemoteCertificate.ShouldBeNull();
@@ -508,7 +518,7 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
 
         // Act
-        (IConnection _, IConnection server) = await UpgradePairAsync(
+        (IDuplexConnection _, IDuplexConnection server) = await UpgradePairAsync(
             null,
             null,
             timeout.Token,
@@ -531,13 +541,13 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         TestConnectionFeature innerFeature = new();
 
         // Act
-        (IConnection client, IConnection server) = await UpgradePairAsync(
+        (IDuplexConnection client, IDuplexConnection server) = await UpgradePairAsync(
             null,
             null,
             timeout.Token,
             configureConnection: connection => connection.Features.Set(innerFeature));
-        await using IConnection clientLifetime = client;
-        await using IConnection serverLifetime = server;
+        await using IDuplexConnection clientLifetime = client;
+        await using IDuplexConnection serverLifetime = server;
 
         // Assert
         server.Tls.ShouldNotBeNull().Name.ShouldBe(ITlsConnectionInfo.FeatureName);
@@ -552,15 +562,15 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         options.AuthenticationOptions.LocalCertificateSelectionCallback = (_, _, _, _, _) => certificate;
     }
 
-    private async Task<(IConnection Client, IConnection Server)> UpgradePairAsync(
+    private async Task<(IDuplexConnection Client, IDuplexConnection Server)> UpgradePairAsync(
         List<SslApplicationProtocol>? serverProtocols,
         List<SslApplicationProtocol>? clientProtocols,
         CancellationToken cancellationToken,
         Action<TlsServerOptions>? configureServer = null,
         Action<TlsClientOptions>? configureClient = null,
-        Action<Connection>? configureConnection = null)
+        Action<IDuplexConnection>? configureConnection = null)
     {
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         TlsServerOptions serverOptions = new()
         {
             AuthenticationOptions =
@@ -582,8 +592,8 @@ public class TlsConnectionInfoTests : IClassFixture<TestCertificateFixture>
         configureServer?.Invoke(serverOptions);
         configureClient?.Invoke(clientOptions);
 
-        Task<IConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
-        Task<IConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
 
         await Task.WhenAll(serverUpgrade, clientUpgrade);
 
@@ -640,10 +650,10 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
 
         // Act
-        (IConnection securedClient, IConnection securedServer) = await UpgradePairAsync(client, server, timeout.Token);
+        (IDuplexConnection securedClient, IDuplexConnection securedServer) = await UpgradePairAsync(client, server, timeout.Token);
 
         // Assert: bytes written by the client arrive decrypted at the server.
         byte[] clientPayload = Encoding.UTF8.GetBytes("hello from client");
@@ -663,10 +673,10 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
 
         // Act
-        (IConnection securedClient, IConnection securedServer) = await UpgradePairAsync(client, server, timeout.Token);
+        (IDuplexConnection securedClient, IDuplexConnection securedServer) = await UpgradePairAsync(client, server, timeout.Token);
 
         // Assert
         securedClient.Capabilities.ShouldBe(client.Capabilities with { Security = ConnectionSecurity.Tls });
@@ -678,10 +688,10 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
 
         // Act
-        (IConnection securedClient, IConnection _) = await UpgradePairAsync(client, server, timeout.Token);
+        (IDuplexConnection securedClient, IDuplexConnection _) = await UpgradePairAsync(client, server, timeout.Token);
 
         // Assert
         securedClient.Id.ShouldBe(client.Id);
@@ -695,11 +705,12 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
-        (IConnection securedClient, IConnection _) = await UpgradePairAsync(client, server, timeout.Token);
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection securedClient, IDuplexConnection _) = await UpgradePairAsync(client, server, timeout.Token);
 
         // Act
         await securedClient.DisposeAsync();
+        securedClient.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
 
         // Assert
         client.State.ShouldBe(ConnectionState.Closed);
@@ -715,14 +726,14 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
         (MultiplexedConnection client, MultiplexedConnection server) = InMemoryMultiplexedConnectionPair.Create();
         await using MultiplexedConnection clientLifetime = client;
         await using MultiplexedConnection serverLifetime = server;
-        await using MultiplexedStream clientStream = await client.OpenStreamAsync(cancellationToken: timeout.Token);
-        await using MultiplexedStream serverStream = await server.AcceptStreamAsync(timeout.Token);
-        (IConnection securedClient, IConnection securedServer) = await UpgradePairAsync(clientStream, serverStream, timeout.Token);
-        await using IConnection securedClientLifetime = securedClient;
-        await using IConnection securedServerLifetime = securedServer;
-        IConnection sender = readAtServer ? securedClient : securedServer;
-        IConnection receiver = readAtServer ? securedServer : securedClient;
-        IMultiplexedStream innerReceiver = readAtServer ? serverStream : clientStream;
+        await using MultiplexedConnectionStream clientStream = await client.OpenStreamAsync(cancellationToken: timeout.Token);
+        await using MultiplexedConnectionStream serverStream = await server.AcceptStreamAsync(timeout.Token);
+        (IDuplexConnection securedClient, IDuplexConnection securedServer) = await UpgradePairAsync(clientStream, serverStream, timeout.Token);
+        await using IDuplexConnection securedClientLifetime = securedClient;
+        await using IDuplexConnection securedServerLifetime = securedServer;
+        IDuplexConnection sender = readAtServer ? securedClient : securedServer;
+        IDuplexConnection receiver = readAtServer ? securedServer : securedClient;
+        IMultiplexedConnectionStream innerReceiver = readAtServer ? serverStream : clientStream;
         IMultiplexedStreamAbort innerAbort = innerReceiver.DirectionalAbort.ShouldNotBeNull();
         byte[] payload = [1, 2, 3];
         await sender.Output.WriteAsync(payload, timeout.Token);
@@ -745,9 +756,36 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
         receiver.Tls.ShouldNotBeNull();
     }
 
-    private async Task<(IConnection Client, IConnection Server)> UpgradePairAsync(
-        Connection client,
-        Connection server,
+    [Theory(DisplayName = "Cohesion Test [Connections.Security] - ConnectionClosed: TLS preserves local and idle peer closure")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConnectionClosed_OnDisposeOrAbort_ShouldNotifyBothEnds(bool abort)
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection securedClient, IDuplexConnection securedServer) = await UpgradePairAsync(client, server, timeout.Token);
+        await using IDuplexConnection clientLifetime = securedClient;
+        await using IDuplexConnection serverLifetime = securedServer;
+
+        // Act
+        if (abort)
+        {
+            securedClient.Abort();
+            securedClient.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        }
+        await securedClient.DisposeAsync();
+
+        // Assert
+        securedClient.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        securedServer.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        await securedServer.DisposeAsync();
+        securedServer.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+    }
+
+    private async Task<(IDuplexConnection Client, IDuplexConnection Server)> UpgradePairAsync(
+        IDuplexConnection client,
+        IDuplexConnection server,
         CancellationToken cancellationToken)
     {
         TlsServerOptions serverOptions = new()
@@ -766,8 +804,8 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
             }
         };
 
-        Task<IConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
-        Task<IConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> serverUpgrade = server.UpgradeToTlsAsync(serverOptions, cancellationToken).AsTask();
+        Task<IDuplexConnection> clientUpgrade = client.UpgradeToTlsAsync(clientOptions, cancellationToken).AsTask();
 
         await Task.WhenAll(serverUpgrade, clientUpgrade);
 
@@ -782,7 +820,8 @@ public class TlsConnectionTests : IClassFixture<TestCertificateFixture>
 - **Test entry point** — `UpgradeToTlsAsync_OnSecuredConnection_ShouldReportTlsSecurityAndPreserveOtherCapabilities` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `UpgradeToTlsAsync_OnSecuredConnection_ShouldDelegateIdentityToInnerConnection` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `DisposeAsync_OnSecuredConnection_ShouldDisposeInnerConnection` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Features_WithBufferedPlaintext_ShouldHideInnerDirectionalAbort` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `Features_WithBufferedPlaintext_ShouldHideInnerDirectionalAbort` contains the setup, invocation, and assertions for this case. Theory cases: `true`, `false`.
+- **Test entry point** — `ConnectionClosed_OnDisposeOrAbort_ShouldNotifyBothEnds` contains the setup, invocation, and assertions for this case. Theory cases: `false`, `true`.
 
 ## Tls Handshake Isolation Tests
 
@@ -827,17 +866,17 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
     {
         // Arrange
         using CancellationTokenSource timeout = new(_testTimeout);
-        (Connection garbageClient, Connection garbageServer) = InMemoryConnectionPair.Create();
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection garbageClient, IDuplexConnection garbageServer) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         BlockingConnectionListener transport = new();
         transport.Enqueue(garbageServer);
         transport.Enqueue(server);
-        await using IConnectionListener listener = transport.UseTls(CreateServerOptions());
+        await using IDuplexConnectionListener listener = transport.UseTls(CreateServerOptions());
         await garbageClient.Output.WriteAsync("HELLO-1304"u8.ToArray(), timeout.Token);
 
         // Act
-        Task<IConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
-        IConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
+        Task<IDuplexConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
+        IDuplexConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
 
         // Assert
         secured.Id.ShouldBe(server.Id);
@@ -851,17 +890,17 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
         string expected = _fixture.ClientCertificate.Thumbprint;
         TlsServerOptions options = CreateServerOptions().RequireClientCertificate((presented, _, _) => presented.Thumbprint == expected);
-        (Connection refusedClient, Connection refusedServer) = InMemoryConnectionPair.Create();
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection refusedClient, IDuplexConnection refusedServer) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         BlockingConnectionListener transport = new();
         transport.Enqueue(refusedServer);
         transport.Enqueue(server);
-        await using IConnectionListener listener = transport.UseTls(options);
+        await using IDuplexConnectionListener listener = transport.UseTls(options);
         Task refusedHandshake = ObserveAsync(refusedClient.UpgradeToTlsAsync(CreateClientOptions(clientCertificate: null), timeout.Token).AsTask());
 
         // Act
-        Task<IConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
-        IConnection secured = await AcceptWithClientHandshakeAsync(accept, client, _fixture.ClientCertificate, timeout.Token);
+        Task<IDuplexConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
+        IDuplexConnection secured = await AcceptWithClientHandshakeAsync(accept, client, _fixture.ClientCertificate, timeout.Token);
 
         // Assert
         secured.Id.ShouldBe(server.Id);
@@ -877,16 +916,16 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
         TlsServerOptions options = CreateServerOptions();
         options.HandshakeTimeout = TimeSpan.FromMinutes(5);
-        (Connection _, Connection silentServer) = InMemoryConnectionPair.Create();
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (DuplexConnection _, IDuplexConnection silentServer) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         BlockingConnectionListener transport = new();
         transport.Enqueue(silentServer);
         transport.Enqueue(server);
-        IConnectionListener listener = transport.UseTls(options);
+        IDuplexConnectionListener listener = transport.UseTls(options);
 
         // Act
-        Task<IConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
-        IConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
+        Task<IDuplexConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
+        IDuplexConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
         bool silentOpenWhileServing = !silentServer.ConnectionClosed.IsCancellationRequested;
         await listener.DisposeAsync();
 
@@ -903,17 +942,17 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         using CancellationTokenSource timeout = new(_testTimeout);
         TlsServerOptions options = CreateServerOptions();
         options.HandshakeTimeout = TimeSpan.FromSeconds(2);
-        (Connection _, Connection silentServer) = InMemoryConnectionPair.Create();
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (DuplexConnection _, IDuplexConnection silentServer) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         BlockingConnectionListener transport = new();
         transport.Enqueue(silentServer);
-        await using IConnectionListener listener = transport.UseTls(options);
-        Task<IConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
+        await using IDuplexConnectionListener listener = transport.UseTls(options);
+        Task<IDuplexConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
 
         // Act — the silent client's handshake times out first; a client that arrives afterwards is served.
         await WhenClosedAsync(silentServer, timeout.Token);
         transport.Enqueue(server);
-        IConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
+        IDuplexConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
 
         // Assert
         secured.Id.ShouldBe(server.Id);
@@ -927,13 +966,13 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         TlsServerOptions options = CreateServerOptions();
         options.HandshakeTimeout = TimeSpan.FromMinutes(5);
         options.MaxConcurrentHandshakes = 1;
-        (Connection silentClient, Connection silentServer) = InMemoryConnectionPair.Create();
-        (Connection client, Connection server) = InMemoryConnectionPair.Create();
+        (IDuplexConnection silentClient, IDuplexConnection silentServer) = InMemoryConnectionPair.Create();
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
         BlockingConnectionListener transport = new();
         transport.Enqueue(silentServer);
         transport.Enqueue(server);
-        await using IConnectionListener listener = transport.UseTls(options);
-        Task<IConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
+        await using IDuplexConnectionListener listener = transport.UseTls(options);
+        Task<IDuplexConnection> accept = listener.AcceptAsync(timeout.Token).AsTask();
         await WaitUntilAsync(() => transport.AcceptCalls >= 1, timeout.Token);
 
         // Act — the pause gives a listener that ignored the limit time to take the second connection; it
@@ -942,7 +981,7 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         await Task.Delay(TimeSpan.FromMilliseconds(200), timeout.Token);
         int acceptsWhileFull = transport.AcceptCalls;
         await silentClient.DisposeAsync();
-        IConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
+        IDuplexConnection secured = await AcceptWithClientHandshakeAsync(accept, client, clientCertificate: null, timeout.Token);
 
         // Assert
         acceptsWhileFull.ShouldBe(1);
@@ -984,20 +1023,20 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
     /// Runs a well-behaved client's handshake on <paramref name="client"/> while the listener accepts, and
     /// returns the secured connection the listener produced.
     /// </summary>
-    private static async Task<IConnection> AcceptWithClientHandshakeAsync(
-        Task<IConnection> accept,
-        Connection client,
+    private static async Task<IDuplexConnection> AcceptWithClientHandshakeAsync(
+        Task<IDuplexConnection> accept,
+        IDuplexConnection client,
         X509Certificate2? clientCertificate,
         CancellationToken cancellationToken)
     {
-        Task<IConnection> clientHandshake = client.UpgradeToTlsAsync(CreateClientOptions(clientCertificate), cancellationToken).AsTask();
-        IConnection accepted = await accept;
+        Task<IDuplexConnection> clientHandshake = client.UpgradeToTlsAsync(CreateClientOptions(clientCertificate), cancellationToken).AsTask();
+        IDuplexConnection accepted = await accept;
         await clientHandshake;
 
         return accepted;
     }
 
-    private static async Task WhenClosedAsync(Connection connection, CancellationToken cancellationToken)
+    private static async Task WhenClosedAsync(IDuplexConnection connection, CancellationToken cancellationToken)
     {
         TaskCompletionSource closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         using CancellationTokenRegistration registration = connection.ConnectionClosed.Register(
@@ -1015,11 +1054,11 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
         }
     }
 
-    private static async Task ObserveAsync(Task<IConnection> handshake)
+    private static async Task ObserveAsync(Task<IDuplexConnection> handshake)
     {
         try
         {
-            IConnection connection = await handshake;
+            IDuplexConnection connection = await handshake;
             await connection.DisposeAsync();
         }
         catch (Exception exception) when (exception is AuthenticationException or System.IO.IOException or OperationCanceledException)
@@ -1039,17 +1078,338 @@ public class TlsHandshakeIsolationTests : IClassFixture<TestCertificateFixture>
 - **Test entry point** — `UseTls_WhenASilentClientExceedsTheHandshakeTimeout_ShouldCloseItAndKeepAccepting` contains the setup, invocation, and assertions for this case.
 - **Test entry point** — `UseTls_AtMaxConcurrentHandshakes_ShouldStopAcceptingFromTheTransport` contains the setup, invocation, and assertions for this case.
 
+## Tls Connection Extensions Tests
+
+### Code
+
+```csharp
+using System;
+using System.Net;
+using System.Net.Security;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+
+using Xunit;
+
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Connections.InMemory;
+
+namespace Assimalign.Cohesion.Connections.Security.Tests;
+
+public class TlsConnectionExtensionsTests : IClassFixture<TestCertificateFixture>
+{
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(5);
+
+    private readonly TestCertificateFixture _fixture;
+
+    public TlsConnectionExtensionsTests(TestCertificateFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    private TlsServerOptions CreateServerOptions() => new()
+    {
+        AuthenticationOptions =
+        {
+            ServerCertificate = _fixture.Certificate
+        }
+    };
+
+    private static TlsClientOptions CreateClientOptions() => new()
+    {
+        AuthenticationOptions =
+        {
+            TargetHost = "localhost",
+            RemoteCertificateValidationCallback = static (_, _, _, _) => true
+        }
+    };
+
+    [Fact]
+    public async Task UseTls_OnListener_ShouldSecureAcceptedConnections()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
+        TestConnectionListener listener = new();
+        listener.Enqueue(server);
+        await using SslStream clientSsl = new(
+            client.AsStream(),
+            leaveInnerStreamOpen: false,
+            userCertificateValidationCallback: static (_, _, _, _) => true);
+
+        // Act: accept through the TLS-layered listener while a raw client handshakes on the far end.
+        IDuplexConnectionListener secured = listener.UseTls(CreateServerOptions());
+        secured.Id.ShouldBe(listener.Id);
+        Task<IDuplexConnection> acceptTask = secured.AcceptAsync(timeout.Token).AsTask();
+        Task clientHandshake = clientSsl.AuthenticateAsClientAsync(
+            new SslClientAuthenticationOptions { TargetHost = "localhost" },
+            timeout.Token);
+        await Task.WhenAll(acceptTask, clientHandshake);
+        IDuplexConnection accepted = await acceptTask;
+
+        // Assert
+        accepted.Capabilities.Security.ShouldBe(ConnectionSecurity.Tls);
+
+        byte[] payload = Encoding.UTF8.GetBytes("secured accept");
+        await clientSsl.WriteAsync(payload, timeout.Token);
+        await clientSsl.FlushAsync(timeout.Token);
+        byte[] received = await accepted.Input.ReadExactlyAsync(payload.Length, timeout.Token);
+        received.ShouldBe(payload);
+    }
+
+    [Fact]
+    public void UseTls_OnListener_ShouldReportTlsCapabilities()
+    {
+        // Arrange
+        TestConnectionListener listener = new();
+
+        // Act
+        IDuplexConnectionListener secured = listener.UseTls(CreateServerOptions());
+
+        // Assert
+        secured.Capabilities.ShouldBe(listener.Capabilities with { Security = ConnectionSecurity.Tls });
+    }
+
+    [Fact]
+    public async Task UseTls_OnFactory_ShouldSecureEstablishedConnections()
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(_testTimeout);
+        (IDuplexConnection client, IDuplexConnection server) = InMemoryConnectionPair.Create();
+        TestConnectionFactory factory = new();
+        factory.Enqueue(client);
+        await using SslStream serverSsl = new(server.AsStream(), leaveInnerStreamOpen: false);
+
+        // Act: connect through the TLS-layered factory while a raw server handshakes on the far end.
+        IDuplexConnectionFactory secured = factory.UseTls(CreateClientOptions());
+        Task<IDuplexConnection> connectTask = secured.ConnectAsync(new IPEndPoint(IPAddress.Loopback, 22000), timeout.Token).AsTask();
+        Task serverHandshake = serverSsl.AuthenticateAsServerAsync(
+            new SslServerAuthenticationOptions { ServerCertificate = _fixture.Certificate },
+            timeout.Token);
+        await Task.WhenAll(connectTask, serverHandshake);
+        IDuplexConnection connected = await connectTask;
+
+        // Assert
+        connected.Capabilities.Security.ShouldBe(ConnectionSecurity.Tls);
+
+        byte[] payload = Encoding.UTF8.GetBytes("secured connect");
+        await connected.Output.WriteAsync(payload, timeout.Token);
+        byte[] received = new byte[payload.Length];
+        await serverSsl.ReadExactlyAsync(received, timeout.Token);
+        received.ShouldBe(payload);
+    }
+
+    [Fact]
+    public void UseTls_WithNullArguments_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        TestConnectionListener listener = new();
+        TestConnectionFactory factory = new();
+        (IDuplexConnection client, DuplexConnection _) = InMemoryConnectionPair.Create();
+
+        // Act & Assert
+        Should.Throw<ArgumentNullException>(() => listener.UseTls(null!));
+        Should.Throw<ArgumentNullException>(() => ((IDuplexConnectionListener)null!).UseTls(new TlsServerOptions()));
+        Should.Throw<ArgumentNullException>(() => factory.UseTls(null!));
+        Should.Throw<ArgumentNullException>(() => ((IDuplexConnectionFactory)null!).UseTls(new TlsClientOptions()));
+        Should.Throw<ArgumentNullException>(() => _ = client.UpgradeToTlsAsync((TlsServerOptions)null!));
+        Should.Throw<ArgumentNullException>(() => _ = client.UpgradeToTlsAsync((TlsClientOptions)null!));
+        Should.Throw<ArgumentNullException>(() => _ = ((IDuplexConnection)null!).UpgradeToTlsAsync(new TlsServerOptions()));
+    }
+}
+```
+
+### Walkthrough
+
+- **Test entry point** — `UseTls_OnListener_ShouldSecureAcceptedConnections` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UseTls_OnListener_ShouldReportTlsCapabilities` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UseTls_OnFactory_ShouldSecureEstablishedConnections` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UseTls_WithNullArguments_ShouldThrowArgumentNullException` contains the setup, invocation, and assertions for this case.
+
+## Tls Options Tests
+
+### Code
+
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+
+using Xunit;
+
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Connections.InMemory;
+
+namespace Assimalign.Cohesion.Connections.Security.Tests;
+
+public class TlsOptionsTests : IClassFixture<TestCertificateFixture>
+{
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(5);
+
+    private readonly TestCertificateFixture _fixture;
+
+    public TlsOptionsTests(TestCertificateFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    [Fact]
+    public void Ctor_OnTlsServerOptions_ShouldDefaultToTenSecondTimeoutAndAuthenticationOptions()
+    {
+        // Arrange & Act
+        TlsServerOptions options = new();
+
+        // Assert
+        options.HandshakeTimeout.ShouldBe(TimeSpan.FromSeconds(10));
+        options.AuthenticationOptions.ShouldNotBeNull();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Connections.Security] - TlsServerOptions: MaxConcurrentHandshakes should default to 512")]
+    public void MaxConcurrentHandshakes_ByDefault_ShouldBe512()
+    {
+        // Arrange & Act
+        TlsServerOptions options = new();
+
+        // Assert
+        options.MaxConcurrentHandshakes.ShouldBe(512);
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Connections.Security] - TlsServerOptions: MaxConcurrentHandshakes should reject a value below one")]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void MaxConcurrentHandshakes_WithNonPositiveValue_ShouldThrowArgumentOutOfRangeException(int value)
+    {
+        // Arrange
+        TlsServerOptions options = new();
+
+        // Act / Assert
+        Should.Throw<ArgumentOutOfRangeException>(() => options.MaxConcurrentHandshakes = value);
+        options.MaxConcurrentHandshakes.ShouldBe(512);
+    }
+
+    [Fact]
+    public void Ctor_OnTlsClientOptions_ShouldDefaultToTenSecondTimeoutAndAuthenticationOptions()
+    {
+        // Arrange & Act
+        TlsClientOptions options = new();
+
+        // Assert
+        options.HandshakeTimeout.ShouldBe(TimeSpan.FromSeconds(10));
+        options.AuthenticationOptions.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task UpgradeToTlsAsync_AsClientAgainstSilentPeer_ShouldCancelAfterHandshakeTimeout()
+    {
+        // Arrange: the server end never participates, so the client handshake can only time out.
+        (IDuplexConnection client, DuplexConnection _) = InMemoryConnectionPair.Create();
+        TlsClientOptions options = new()
+        {
+            HandshakeTimeout = TimeSpan.FromMilliseconds(100),
+            AuthenticationOptions =
+            {
+                TargetHost = "localhost",
+                RemoteCertificateValidationCallback = static (_, _, _, _) => true
+            }
+        };
+
+        // Act
+        Exception? exception = await RecordWithinTestTimeoutAsync(() => client.UpgradeToTlsAsync(options).AsTask());
+
+        // Assert
+        exception.ShouldNotBeNull();
+        exception.ShouldBeAssignableTo<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task UpgradeToTlsAsync_AsServerAgainstSilentPeer_ShouldCancelAfterHandshakeTimeout()
+    {
+        // Arrange: no client hello ever arrives, so the server handshake can only time out.
+        (DuplexConnection _, IDuplexConnection server) = InMemoryConnectionPair.Create();
+        TlsServerOptions options = new()
+        {
+            HandshakeTimeout = TimeSpan.FromMilliseconds(100),
+            AuthenticationOptions =
+            {
+                ServerCertificate = _fixture.Certificate
+            }
+        };
+
+        // Act
+        Exception? exception = await RecordWithinTestTimeoutAsync(() => server.UpgradeToTlsAsync(options).AsTask());
+
+        // Assert
+        exception.ShouldNotBeNull();
+        exception.ShouldBeAssignableTo<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task UpgradeToTlsAsync_WithAlreadyCanceledToken_ShouldThrowOperationCanceledException()
+    {
+        // Arrange
+        (IDuplexConnection client, DuplexConnection _) = InMemoryConnectionPair.Create();
+        TlsClientOptions options = new()
+        {
+            AuthenticationOptions =
+            {
+                TargetHost = "localhost",
+                RemoteCertificateValidationCallback = static (_, _, _, _) => true
+            }
+        };
+        using CancellationTokenSource canceled = new();
+        canceled.Cancel();
+
+        // Act
+        Exception? exception = await RecordWithinTestTimeoutAsync(() => client.UpgradeToTlsAsync(options, canceled.Token).AsTask());
+
+        // Assert
+        exception.ShouldNotBeNull();
+        exception.ShouldBeAssignableTo<OperationCanceledException>();
+    }
+
+    /// <summary>
+    /// Records the exception thrown by <paramref name="action"/>, failing fast if it neither
+    /// completes nor faults within the test timeout (so a broken timeout cannot hang the run).
+    /// </summary>
+    private static async Task<Exception?> RecordWithinTestTimeoutAsync(Func<Task> action)
+    {
+        Task<Exception?> record = Record.ExceptionAsync(action);
+        Task completed = await Task.WhenAny(record, Task.Delay(_testTimeout));
+
+        completed.ShouldBeSameAs(record, "The TLS handshake neither completed nor faulted within the test timeout.");
+
+        return await record;
+    }
+}
+```
+
+### Walkthrough
+
+- **Test entry point** — `Ctor_OnTlsServerOptions_ShouldDefaultToTenSecondTimeoutAndAuthenticationOptions` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `MaxConcurrentHandshakes_ByDefault_ShouldBe512` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `MaxConcurrentHandshakes_WithNonPositiveValue_ShouldThrowArgumentOutOfRangeException` contains the setup, invocation, and assertions for this case. Theory cases: `0`, `-1`.
+- **Test entry point** — `Ctor_OnTlsClientOptions_ShouldDefaultToTenSecondTimeoutAndAuthenticationOptions` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UpgradeToTlsAsync_AsClientAgainstSilentPeer_ShouldCancelAfterHandshakeTimeout` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UpgradeToTlsAsync_AsServerAgainstSilentPeer_ShouldCancelAfterHandshakeTimeout` contains the setup, invocation, and assertions for this case.
+- **Test entry point** — `UpgradeToTlsAsync_WithAlreadyCanceledToken_ShouldThrowOperationCanceledException` contains the setup, invocation, and assertions for this case.
+
 ## Sources
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsConnectionLayerTests.cs`.
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/Assimalign.Cohesion.Connections.Security.Tests.csproj`.
-
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsClientCertificateTests.cs`.
-
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsConnectionInfoTests.cs`.
-
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsConnectionTests.cs`.
-
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsHandshakeIsolationTests.cs`.
-
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsConnectionExtensionsTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TlsOptionsTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/Assimalign.Cohesion.Connections.Security.Tests.csproj`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TestObjects/TestCertificateFixture.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TestObjects/TestConnectionFeature.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TestObjects/TestConnectionListener.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TestObjects/TestConnectionFactory.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/tests/TestObjects/BlockingConnectionListener.cs`.

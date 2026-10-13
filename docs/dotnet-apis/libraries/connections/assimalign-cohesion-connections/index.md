@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.Connections
 
-Defines byte-stream, multiplexed, and datagram connection contracts.
+Defines a shared connection lifecycle with duplex, multiplexed, and datagram data planes.
 
 ## Reference
 
@@ -14,44 +14,49 @@ Defines byte-stream, multiplexed, and datagram connection contracts.
 
 ## Scope
 
-A stream connection is itself an `IDuplexPipe`, with input and output anchored to its holder.
-Listeners bind explicitly and factories establish outbound connections. Capabilities describe
-delivery and security; connection layers transform connections at establishment without introducing
-a parallel transport abstraction.
+Connection, listener, factory, and layer contracts shared by Cohesion network transports and the
+application protocols built on top of them. This is the lowest layer of the networking stack:
+concrete transports implement it, application protocols consume it, and connection
+transformations (such as TLS) compose over it.
 
-`ITlsConnectionInfo`, owned by [Connections.Tls](../assimalign-cohesion-connections-tls/index.md),
-reports what a TLS handshake negotiated: the ALPN application protocol, the TLS version, the cipher
-suite, and the peer's certificate. Connections that terminate TLS register it as a feature, and a
-consumer reads the `Tls` extension property. See the
-[design](design.md#handshake-facts-itlsconnectioninfo).
+## Key Types
 
-`IMultiplexedConnection` / `MultiplexedConnection` carries multiple `IMultiplexedStream` streams;
-`OpenStreamAsync(ConnectionDirection, ...)` opens bidirectional or supported unidirectional streams,
-and `Abort(code, reason)` performs a transport-specific coded connection close.
-`IMultiplexedStream` / `MultiplexedStream` is an `IConnection` with coded whole-stream reset
-(`Abort(code, reason)`) and clean input completion (`IsInputCompleted`).
+- `IConnection` / `Connection` — shared identity, endpoints, capabilities, features, state, and lifetime.
+- `IDuplexConnection` / `DuplexConnection` — a live byte channel with `Input`, `Output`, and `Direction`.
+- `IConnectionListener` / `ConnectionListener<TConnection>` — explicitly binds and accepts inbound connections
+  (server side).
+- `IConnectionFactory` / `ConnectionFactory<TConnection>` — establishes outbound connections (client side).
+- `IMultiplexedConnection` / `MultiplexedConnection` — carries multiple `IMultiplexedConnectionStream` streams;
+  `OpenStreamAsync(ConnectionDirection, ...)` for bidirectional or supported unidirectional streams,
+  and `Abort(code, reason)` for a transport-specific coded connection close.
+- `IMultiplexedConnectionStream` / `MultiplexedConnectionStream` — an `IDuplexConnection` with coded whole-stream reset
+  (`Abort(code, reason)`) and clean input completion (`IsInputCompleted`).
+- `IMultiplexedConnectionListener` / `IMultiplexedConnectionFactory` (+ bases).
+- `IConnectionFeature` / `IConnectionFeatureCollection` / `ConnectionFeatureCollection` — typed,
+  named optional capabilities on all three connection shapes, with own features before wrapped
+  features, replacement by name, and removal that hides the wrapped name.
+- `IDatagramConnection` / `DatagramConnection` — message-oriented send/receive (e.g., UDP).
+- `IConnectionLayer` — duplex-to-duplex transformation; composed via
+  `listener.Use(layer)` / `factory.Use(layer)`. A layered listener upgrades each accepted connection
+  on its own task, at most 512 at a time (`listener.Use(layer, maxConcurrentUpgrades)`), and a failed
+  or timed-out upgrade closes only that connection.
+- Optional packages keep the family namespace: `Connections.Tls` owns `ITlsConnectionInfo`
+  (`connection.Tls`); `Connections.StreamAbort` owns `IMultiplexedStreamAbort`
+  (`stream.DirectionalAbort`); `Connections.StreamLimits` owns
+  `IMultiplexedConnectionStreamLimits` (`connection.StreamLimits`).
+- `ConnectionCapabilities`, `ConnectionProtocol`, `ConnectionDelivery`, `ConnectionSecurity`,
+  `ConnectionDirection`, `ConnectionState`, `ConnectionId`, `DatagramReceiveResult`.
+- `DuplexPipeStream`, `ConnectionExtensions.AsStream()` — lazy pipe-to-stream adaptation.
+- `ConnectionException`, `ConnectionAbortedException`, `ConnectionResetException` (which carries the
+  peer's `ApplicationErrorCode` when a driver reports a coded stream reset through it).
 
-`IConnectionFeature` / `IConnectionFeatureCollection` / `ConnectionFeatureCollection` provides
-typed, named optional capabilities on all three connection shapes, with own features before wrapped
-features, replacement by name, and removal that hides the wrapped name. Optional packages keep the
-family namespace: [Connections.Tls](../assimalign-cohesion-connections-tls/index.md) owns
-`ITlsConnectionInfo` (`connection.Tls`);
-[Connections.StreamAbort](../assimalign-cohesion-connections-streamabort/index.md) owns
-`IMultiplexedStreamAbort` (`stream.DirectionalAbort`);
-[Connections.StreamLimits](../assimalign-cohesion-connections-streamlimits/index.md) owns
-`IMultiplexedConnectionStreamLimits` (`connection.StreamLimits`). See the
-[design](design.md#connection-features).
+## Accepting and observing connections
 
-A listener contains each connection's failure: what escapes `AcceptAsync` is the listener's own.
-A layered listener (`listener.Use(layer)`) upgrades each accepted connection on its own task, at
-most 512 at a time (`listener.Use(layer, maxConcurrentUpgrades)`). A failed or timed-out upgrade
-closes only that connection, and the library's internal event source, `Assimalign.Cohesion.Connections`,
-reports it. See the [design](design.md#a-listener-contains-each-connections-failure).
-
-`ConnectionClosed` fires when a connection is closed or aborted. A stream of a multiplexed connection
-also fires it when its peer abandons the stream (a QUIC `RESET_STREAM` or `STOP_SENDING`, or the
-in-memory equivalents), so a consumer such as an HTTP/3 request learns of it without reading or
-writing (#1329). See the [design](design.md#when-connectionclosed-fires).
+Use `IDuplexConnectionListener` for byte protocols and `IMultiplexedConnectionListener` for
+stream multiplexers. Both also implement `IConnectionListener`; its `AcceptAsync` drains the
+same queue. `Connections` is one live, concurrently enumerable collection, removed by each
+connection's closure token. Only the accepting owner performs I/O and disposes the connection;
+disposing its listener leaves it open. See [design](design.md) for retention and allocation costs.
 
 ## Registering and reading features
 
@@ -78,9 +83,19 @@ Per-direction aborts remain the optional `stream.DirectionalAbort` feature.
 
 A bidirectional-only transport rejects `OpenStreamAsync(WriteOnly)` with `NotSupportedException`
 and never accepts a `ReadOnly` stream. Accept/open return types changed from `IConnection` to
-`IMultiplexedStream` (from `Connection` to `MultiplexedStream` on the guided base), and coded
+`IMultiplexedConnectionStream` (from `Connection` to `MultiplexedConnectionStream` on the guided base), and coded
 connection abort is now required. These break preview.1 implementers and existing binaries under
 decisions 15 and 56; see [design](design.md).
+
+## Source Layout
+
+- `src/Abstractions` — interfaces (connection shapes, listeners/factories, the layer arrow).
+- `src/` — guided abstract base classes and `DuplexPipeStream`.
+- `src/Extensions` — layer composition (`Use`) and connection conveniences (`AsStream`).
+- `src/Internal` — layered listener/factory decorators, and the layered listener's internal event
+  source (`Assimalign.Cohesion.Connections`).
+- `src/ValueObjects` — value types and enums.
+- `src/Exceptions` — area exception root and specific exceptions.
 
 ## Dependencies
 
@@ -99,23 +114,40 @@ decisions 15 and 56; see [design](design.md).
 | `ConnectionDirection` | `src/ValueObjects/ConnectionDirection.cs` |
 | `ConnectionException` | `src/Exceptions/ConnectionException.cs` |
 | `ConnectionExtensions` | `src/Extensions/ConnectionExtensions.cs` |
-| `ConnectionFactory` | `src/ConnectionFactory.cs` |
+| `ConnectionFactory<TConnection>` | `src/ConnectionFactory.cs` |
 | `ConnectionFeatureCollection` | `src/ConnectionFeatureCollection.cs` |
 | `ConnectionFeatureCollectionExtensions` | `src/Extensions/ConnectionFeatureCollectionExtensions.cs` |
-| `ConnectionListener` | `src/ConnectionListener.cs` |
+| `ConnectionListener<TConnection>` | `src/ConnectionListener.cs` |
 | `ConnectionProtocol` | `src/ValueObjects/ConnectionProtocol.cs` |
 | `ConnectionResetException` | `src/Exceptions/ConnectionResetException.cs` |
 | `ConnectionSecurity` | `src/ValueObjects/ConnectionSecurity.cs` |
 | `ConnectionState` | `src/ValueObjects/ConnectionState.cs` |
 | `DatagramConnection` | `src/DatagramConnection.cs` |
 | `DatagramReceiveResult` | `src/ValueObjects/DatagramReceiveResult.cs` |
+| `DuplexConnection` | `src/DuplexConnection.cs` |
+| `DuplexConnectionFactory` | `src/DuplexConnectionFactory.cs` |
+| `DuplexConnectionListener` | `src/DuplexConnectionListener.cs` |
 | `DuplexPipeStream` | `src/DuplexPipeStream.cs` |
+| `IConnection` | `src/Abstractions/IConnection.cs` |
+| `IConnectionFactory` | `src/Abstractions/IConnectionFactory.cs` |
+| `IConnectionFactory<TConnection>` | `src/Abstractions/IConnectionFactory.Generic.cs` |
 | `IConnectionFeature` | `src/Abstractions/IConnectionFeature.cs` |
 | `IConnectionFeatureCollection` | `src/Abstractions/IConnectionFeatureCollection.cs` |
+| `IConnectionLayer` | `src/Abstractions/IConnectionLayer.cs` |
+| `IConnectionListener` | `src/Abstractions/IConnectionListener.cs` |
+| `IConnectionListener<TConnection>` | `src/Abstractions/IConnectionListener.Generic.cs` |
+| `IDatagramConnection` | `src/Abstractions/IDatagramConnection.cs` |
+| `IDuplexConnection` | `src/Abstractions/IDuplexConnection.cs` |
+| `IDuplexConnectionFactory` | `src/Abstractions/IDuplexConnectionFactory.cs` |
+| `IDuplexConnectionListener` | `src/Abstractions/IDuplexConnectionListener.cs` |
 | `IMultiplexedConnection` | `src/Abstractions/IMultiplexedConnection.cs` |
-| `IMultiplexedStream` | `src/Abstractions/IMultiplexedStream.cs` |
+| `IMultiplexedConnectionFactory` | `src/Abstractions/IMultiplexedConnectionFactory.cs` |
+| `IMultiplexedConnectionListener` | `src/Abstractions/IMultiplexedConnectionListener.cs` |
+| `IMultiplexedConnectionStream` | `src/Abstractions/IMultiplexedConnectionStream.cs` |
 | `MultiplexedConnection` | `src/MultiplexedConnection.cs` |
-| `MultiplexedStream` | `src/MultiplexedStream.cs` |
+| `MultiplexedConnectionFactory` | `src/MultiplexedConnectionFactory.cs` |
+| `MultiplexedConnectionListener` | `src/MultiplexedConnectionListener.cs` |
+| `MultiplexedConnectionStream` | `src/MultiplexedConnectionStream.cs` |
 
 ## Sources
 
@@ -173,8 +205,42 @@ decisions 15 and 56; see [design](design.md).
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedConnection.cs`.
 
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedStream.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedConnectionStream.cs`.
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/MultiplexedConnection.cs`.
 
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/MultiplexedStream.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/MultiplexedConnectionStream.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/DuplexConnection.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/DuplexConnectionFactory.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/DuplexConnectionListener.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnection.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnectionFactory.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnectionFactory.Generic.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnectionLayer.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnectionListener.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IConnectionListener.Generic.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IDatagramConnection.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IDuplexConnection.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IDuplexConnectionFactory.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IDuplexConnectionListener.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedConnectionFactory.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/Abstractions/IMultiplexedConnectionListener.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/MultiplexedConnectionFactory.cs`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections/src/MultiplexedConnectionListener.cs`.

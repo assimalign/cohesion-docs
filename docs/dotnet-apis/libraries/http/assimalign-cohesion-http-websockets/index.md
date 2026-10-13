@@ -70,7 +70,7 @@ listener's interceptors loses WebSockets on the protocols whose interceptor it r
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 
-// tlsListener is a TLS IConnectionListener; ALPN picks HTTP/1.1 or HTTP/2 per connection.
+// tlsListener is a TLS IDuplexConnectionListener; ALPN picks HTTP/1.1 or HTTP/2 per connection.
 HttpConnectionListener listener = HttpConnectionListener.Create(options =>
 {
     options.UseHttp1AndHttp2(tlsListener);
@@ -82,6 +82,11 @@ HttpConnectionListener listener = HttpConnectionListener.Create(options =>
 Compression is off unless the accept enables it
 (`new HttpWebSocketAcceptOptions { DangerousEnableCompression = true }`): compressing secrets
 alongside attacker-controlled data leaks them through the compressed size.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Dependencies
 

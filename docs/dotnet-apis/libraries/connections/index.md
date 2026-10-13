@@ -8,10 +8,10 @@ Connection contracts and concrete stream, multiplexed, datagram, and security dr
 
 | Package | Responsibility | Reference |
 |---|---|---|
-| `Assimalign.Cohesion.Connections` | Defines byte-stream, multiplexed, and datagram connection contracts, named features, coded multiplexed close, and stream reset and input completion. | [Overview](assimalign-cohesion-connections/index.md) |
+| `Assimalign.Cohesion.Connections` | Defines the shared `IConnection` lifecycle, duplex, multiplexed, and datagram data planes, typed listeners and factories, and live connection collections. | [Overview](assimalign-cohesion-connections/index.md) |
 | `Assimalign.Cohesion.Connections.InMemory` | Provides socketless stream and multiplexed connections for live protocol tests. | [Overview](assimalign-cohesion-connections-inmemory/index.md) |
 | `Assimalign.Cohesion.Connections.NamedPipes` | Carries ordered byte streams over named pipes for local inter-process communication. | [Overview](assimalign-cohesion-connections-namedpipes/index.md) |
-| `Assimalign.Cohesion.Connections.Quic` | Adapts QUIC connections and streams to `IMultiplexedConnection` and `IMultiplexedStream`. | [Overview](assimalign-cohesion-connections-quic/index.md) |
+| `Assimalign.Cohesion.Connections.Quic` | Adapts QUIC connections and streams to `IMultiplexedConnection` and `IMultiplexedConnectionStream`. | [Overview](assimalign-cohesion-connections-quic/index.md) |
 | `Assimalign.Cohesion.Connections.Security` | Applies Transport Layer Security (TLS), registers TLS facts, and passes through inner features except directional abort. | [Overview](assimalign-cohesion-connections-security/index.md) |
 | `Assimalign.Cohesion.Connections.StreamAbort` | Exposes optional coded per-direction stream aborts through `stream.DirectionalAbort`. | [Overview](assimalign-cohesion-connections-streamabort/index.md) |
 | `Assimalign.Cohesion.Connections.StreamLimits` | Exposes the optional cumulative inbound stream allowance through `connection.StreamLimits`. | [Overview](assimalign-cohesion-connections-streamlimits/index.md) |

@@ -6,13 +6,74 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Http.Connecti
 
 ## Design and boundaries
 
-The package consumes `IConnection` and `IMultiplexedConnection` rather than owning a second
-transport stack. Protocol handling uses the core feature and interceptor seams, allowing optional
-concerns to attach without reverse references from the transport.
+This package delegates transport I/O and resource acquisition to Connections drivers.
+The deleted `Assimalign.Cohesion.Transports` stack
+(`ITransport`, `ITransportConnection`, `ITransportConnectionContext`,
+`TransportConnectionPipe`, `ServerTransport<T>`, the `Items`/`IsSecure`
+extensions) has been replaced by consumption of the
+`Assimalign.Cohesion.Connections` contracts:
 
-`IMultiplexedConnectionListener` produces `IMultiplexedConnection`s whose accepted/opened streams
-are `IMultiplexedStream`s with a per-stream `Direction`, whole-stream coded abort and observable
-clean input completion.
+- `IDuplexConnectionListener` produces live `IDuplexConnection`s — the connection
+  **is** the duplex pipe (`Input`/`Output` directly on it; there is no
+  separate "context" and no `OpenAsync` step on the transport).
+- `IMultiplexedConnectionListener` produces `IMultiplexedConnection`s
+  whose accepted/opened streams are `IMultiplexedConnectionStream`s with a per-stream
+  `Direction`, whole-stream coded abort and observable clean input completion.
+
+`IHttpConnection` derives from `IConnection`: identity, endpoints, capabilities,
+state, cancellation and abort belong to the same connection hierarchy. Its
+`Protocol` is the one HTTP version the connection speaks, including when ALPN
+selects it from a listener's combined `Protocols`. `Features` is the wrapped
+transport's exact collection, so `Tls` can be read through `IHttpConnection`.
+`IHttpConnectionContext` remains the separate HTTP request/response projection.
+
+`IHttpConnectionListener` derives from `IConnectionListener<IHttpConnection>`.
+`HttpConnectionListener` uses the generic listener base for both accept methods
+and its live collection: root and typed `AcceptAsync` calls drain one channel,
+and one covariant collection object exposes the same connections to both views.
+The listener assigns its own `ListenerId`; it is distinct from transport listener
+identities. A handed-out connection stays in `Connections` until its
+`ConnectionClosed` token fires. Disposal closes queued connections that have no
+owner yet, while connections already handed out remain their owners' responsibility.
+The collection strongly retains open connections; only the accepting owner reads
+or writes them. See the [Connections design](../../connections/assimalign-cohesion-connections/design.md)
+for tracking and abandoned-owner costs.
+
+Every HTTP wrapper forwards `ConnectionClosed` from its transport. Closing,
+aborting or a peer close signals it, no later than `DisposeAsync` completing.
+HTTP/2 and HTTP/3 dispose their transport even if their protocol cleanup fails.
+For an HTTP/3 request stream, `ConnectionClosed` also signals successful completion
+after both FINs. That lifecycle signal is broader than `RequestCancelled`: the exchange
+observes peer cancellation until its complete response has flushed, then detaches its
+stream-close registration before refusing unread input and sending the final FIN. A local
+STOP_SENDING may signal the stream token synchronously; it must follow that detachment.
+Successful buffered and streamed responses therefore retain an uncancelled request
+token, and locally abandoned body reads retain their `IOException` contract.
+
+Extended CONNECT tunnels detach at the same terminal boundary: an application close
+first ends tunnel I/O and waits for its serialized writer, then detaches before the FIN.
+Server finalization detaches before refusing unread input, whether or not the application
+already closed the tunnel. A client FIN alone does not detach observation; active tunnel
+reads and writes still observe peer resets, STOP_SENDING and connection loss. Both a clean
+EOF followed by application close and a tunnel finalized by the server therefore keep
+`RequestCancelled` unset, so Web completion callbacks remain eligible to run. This corrects
+an unreleased #1459 regression; it adds no signature or wire-format break against preview.1.
+
+The hierarchy and its transport projections are:
+
+```mermaid
+classDiagram
+    IConnection <|-- IHttpConnection
+    IConnection <|-- IDuplexConnection
+    IConnection <|-- IMultiplexedConnection
+    IHttpConnection <|.. HttpConnection
+    HttpConnection <|-- Http1Connection
+    HttpConnection <|-- Http2Connection
+    HttpConnection <|-- Http3Connection
+    Http1Connection --> IDuplexConnection : wraps
+    Http2Connection --> IDuplexConnection : wraps
+    Http3Connection --> IMultiplexedConnection : wraps
+```
 
 A host drives each connection context in a loop and finalizes every exchange exactly once through
 `SendAsync`: HTTP/1.1 exchanges one at a time, HTTP/2 and HTTP/3 exchanges concurrently, bounded by
@@ -27,6 +88,23 @@ since #1384 `MinResponseDataRate` on every response, buffered and streamed (see
 [minimum response data rate](#minimum-response-data-rate-1384)). A request can change either rate for
 itself until its body's first read or its response's first write (see
 [per-request data rates](#per-request-data-rates-1383)).
+
+## Breaking changes against 10.0.0-preview.1 (#1459)
+
+On decision 15's terms, this contract refactor accepts source and binary breaks:
+`IHttpConnection` now inherits `IConnection` and requires `Protocol`, transport
+endpoints, capabilities and features; its guided `HttpConnection` base adds the
+`LocalEndPoint`, `RemoteEndPoint`, `Capabilities`, `Features` and `Protocol` abstract
+members. `IHttpConnectionListener` inherits the typed
+listener, adding `Id`, the live `Connections` collection and `EndPoints`.
+`AcceptOrListenAsync` is replaced by `AcceptAsync`, which returns
+`ValueTask<IHttpConnection>` on the concrete listener and typed interfaces; the root
+interface returns `ValueTask<IConnection>`. HTTP/1.1,
+HTTP/2 and combined registrations now require `IDuplexConnectionListener` or
+`Func<IDuplexConnectionListener>`. HTTP/3 uses the renamed
+`IMultiplexedConnectionStream` internally and in transport-facing consumers.
+Outside implementations and callers must adopt these contracts and await the new
+accept method. No wire format changes.
 
 ## Optional connection features (#1452)
 
@@ -46,11 +124,83 @@ end without creating a stream feature collection; unread DATA, trailer bytes, pa
 frame headers, cancelled input and failed input keep the existing probe/abort path.
 Content-Length validation on body reads is unchanged. Since Part 2 of decision 56 (#1453),
 HTTP/3 calls coded connection close and whole-stream reset on the multiplexed roots, and
-reads `IMultiplexedStream.IsInputCompleted` directly. A whole reset is one
+reads `IMultiplexedConnectionStream.IsInputCompleted` directly. A whole reset is one
 `Abort(code, reason)` call that ends both directions and the lifecycle. Directional
 abort stays optional, and the request-body reader keeps its fallback when that feature
 is absent. The root return-type and coded-abort changes are the Connections package's
-accepted source/binary breaks against 10.0.0-preview.1; HTTP's public API is unchanged.
+accepted source/binary breaks against 10.0.0-preview.1; the hierarchy changes above extend that migration to HTTP.
+
+## Structural listener registration
+
+`HttpConnectionListenerOptions` binds concrete listeners to protocols
+with shape safety enforced at the seam:
+
+```csharp
+HttpConnectionListener listener = HttpConnectionListener.Create(options =>
+{
+    options.UseHttp1(tcpListener);                 // IDuplexConnectionListener
+    options.UseHttp2(tlsTcpListener, http2 =>      // IDuplexConnectionListener (TLS pre-composed)
+    {
+        http2.Limits.MaxStreamsPerConnection = 256;
+    });
+    options.UseHttp3(quicListener, http3 =>        // IMultiplexedConnectionListener
+    {
+        http3.QPack.MaxTableCapacity = 4096;
+    });
+});
+```
+
+- `UseHttp1` / `UseHttp2` accept an `IDuplexConnectionListener` (or a
+  `Func<IDuplexConnectionListener>` materialized when the
+  `HttpConnectionListener` is constructed) and **gate on capabilities,
+  never on protocol identity**: the listener's `ConnectionCapabilities`
+  must report `Delivery == Stream`, `IsReliable`, and `IsOrdered`, else
+  an `ArgumentException` describes the capability mismatch.
+  `ConnectionProtocol` is diagnostics-only and is never branched on.
+- `UseHttp3` accepts an `IMultiplexedConnectionListener` — the parameter
+  type itself is the shape gate, so no runtime capability check is
+  needed for stream multiplexing.
+- `UseHttp1AndHttp2` registers one listener for both stream protocols and
+  chooses between them per connection from the protocol ALPN selected (see
+  [Serving HTTP/1.1 and HTTP/2 on one TLS listener](#serving-http11-and-http2-on-one-tls-listener-alpn)).
+  Its gate adds one capability: ALPN is a TLS extension, so the listener must report
+  `Security == Tls`, else an `ArgumentException` names the mismatch.
+
+`BacklogCapacity` retains its bounded-channel semantics: it caps how
+many accepted HTTP connections may buffer before the per-listener accept
+loops wait for `AcceptAsync` to drain them.
+
+## Bind lifecycle, accept loops, and the live-connection model
+
+`EndPoints` reads every configured transport listener's current `EndPoint`.
+After `BindAsync` completes it contains the bound addresses, including TCP and
+QUIC ports assigned for port-zero binds. It is independent of the live connection
+collection, which can be empty when a host reports its bind. This lets any
+composition, including raw listener factories, report its endpoints without a
+separate capture mechanism.
+
+`HttpConnectionListener.BindAsync` is the explicit resource-acquisition boundary. It awaits
+`BindAsync` on every registered stream and multiplexed transport before it completes, and it does
+not start any accept loop. Binding is idempotent. If a later transport fails to bind, the aggregate
+releases every materialized listener and rethrows the original failure, so host startup cannot
+leave a partially bound endpoint set behind. `DisposeAsync` is the symmetric release boundary and
+is terminal for that listener instance; an in-process restart constructs a fresh host and listener.
+
+`AcceptAsync` retains a compatibility fallback that invokes `BindAsync` before starting the
+accept loops. Hosted servers still call `BindAsync` explicitly from their awaited `StartAsync`, so a
+resource is never reported started while its endpoint remains unbound. Alt-Svc is computed only
+after all transports bind, allowing an HTTP/3 listener configured with port zero to advertise its
+actual assigned port.
+
+`HttpConnectionListener` runs one accept loop per registered listener.
+The HTTP/1.1 and HTTP/2 loops do
+`IDuplexConnection connection = await listener.AcceptAsync(token)` and wrap the result in
+`Http1Connection`/`Http2Connection`; the HTTP/3 loop accepts an
+`IMultiplexedConnection` (with the QUIC platform guard) and wraps it in
+`Http3Connection`. Because connections are already live when produced,
+`IHttpConnection.Open()`/`OpenAsync` is a synchronous projection — it
+constructs the protocol's connection context over the wrapped
+connection; there is no transport open step to await.
 
 ## Graceful close: the host contract
 
@@ -89,7 +239,7 @@ Two version details make the contract hold:
   as HTTP/1.1 and HTTP/3 already did. The teardown (`GracefulCloseAsync`) begins the close itself
   when no host did, and its own drain stays bounded.
 
-`Web.Hosting`'s `WebApplicationServer` is the reference host: its lame-duck drain begins every
+`Web.Server`'s `WebApplicationServer` is the reference host: its lame-duck drain begins every
 connection's graceful close when a stop begins and cancels the receive token only when the stop's
 budget runs out.
 
@@ -99,7 +249,7 @@ An `https` origin is expected to answer HTTP/2 and HTTP/1.1 on one port: the cli
 protocols it speaks in the TLS handshake through ALPN (RFC 7301), the server selects one, and the
 connection speaks it (RFC 9113 §3.2 identifies HTTP/2 over TLS as `h2`).
 `UseHttp1AndHttp2(listener, configureHttp1, configureHttp2)` registers such a listener;
-`UseHttp1AndHttp2(listener)` uses default options, and both have a `Func<IConnectionListener>`
+`UseHttp1AndHttp2(listener)` uses default options, and both have a `Func<IDuplexConnectionListener>`
 form whose listener is created, and its capabilities validated, when the `HttpConnectionListener`
 is constructed. Each protocol keeps its own options, captured at registration like those of
 `UseHttp1`/`UseHttp2`, and both share the listener-wide interceptors. The registration's gate adds
@@ -122,6 +272,16 @@ cannot serve a connection returns `null`, and that one connection is disposed in
 treated as a listener fault. The `Alt-Svc` value is pushed into both inner factories, so an HTTP/1.1
 and an HTTP/2 response from the endpoint advertise the same h3 alternative, and the listener
 reports both protocols in `HttpConnectionListener.Protocols`.
+
+```mermaid
+flowchart TD
+    Accept["accept loop: listener.AcceptAsync, TLS already negotiated"] --> Read["read connection.Tls.ApplicationProtocol"]
+    Read -->|"h2"| H2["Http2ConnectionFactory: HTTP/2 connection"]
+    Read -->|"http/1.1 or none"| H1["Http1ConnectionFactory: HTTP/1.1 connection"]
+    Read -->|"another protocol"| Close["close the connection, keep accepting"]
+    H2 --> Queue["backlog channel, AcceptAsync"]
+    H1 --> Queue
+```
 
 - **The transport owns the choice.** Picking the connection parser is transport work; the host only
   exposes the surface (`Web.Hosting`'s `UseHttps`).
@@ -166,7 +326,7 @@ connection's failure, so whatever escapes it is the listener's own. The accept l
   completes the backlog channel with the listener's exception before it cancels the internal
   dispose token. It also records the exception, so accepts that begin after the cancellation
   rethrow it too. The host therefore sees the transport's root-cause exception from
-  `AcceptOrListenAsync`, never a bare `ObjectDisposedException`.
+  `AcceptAsync`, never a bare `ObjectDisposedException`.
 - **Only this listener's own cancellation ends a loop quietly.** Before #1304 any
   `OperationCanceledException` did, so a TLS handshake that timed out inside the transport's
   `AcceptAsync` silently ended that endpoint's accepts. A cancellation this listener did not request
@@ -192,7 +352,7 @@ the connection that did, through its `Tls` feature:
 
 | Version | Source of the handshake facts |
 |---|---|
-| HTTP/1.1, HTTP/2 | the accepted `IConnection`, which the TLS layer secured |
+| HTTP/1.1, HTTP/2 | the accepted `IDuplexConnection`, which the TLS layer secured |
 | HTTP/3 | the accepted `IMultiplexedConnection`: QUIC's own TLS 1.3 handshake (RFC 9001) |
 
 A connection without a registered `Tls` feature (cleartext, or secured by a layer that
@@ -897,6 +1057,19 @@ stream answered by the transport, before it returns without writing, as HTTP/1.1
 they replace a staged response with their own. Without it a host reported whatever the exchange held
 instead: a Web host whose pipeline faulted on the failed read had staged its `500`, so a slow HTTP/2
 upload answered `408` on the wire was recorded as a `500` server error in its telemetry.
+
+The ownership states, as the paragraph above describes them:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unclaimed
+    Unclaimed --> Application: application commits its response head
+    Unclaimed --> Transport: request body crosses the cap, or falls below the data rate
+    Application --> Completed: END_STREAM of the response written
+    Application --> [*]: stream reset, rest of the response discarded
+    Transport --> [*]: 413 or 408 sent, then reset NO_ERROR or removed
+    Completed --> [*]: removed, or reset NO_ERROR if the peer is still sending
+```
 
 ## HTTP/2: the write scheduler (#1455)
 
@@ -2307,7 +2480,7 @@ body can fault, which an HTTP/2 or HTTP/3 request need not declare:
 - **HTTP/3** sets it unless the request stream's FIN is already buffered behind its HEADERS frame
   (`Http3RequestStreamReader.IsEndBuffered`, a `TryRead` that consumes nothing), and only when a
   request hook is registered (or an `Expect: 100-continue` needs the signal). The QUIC driver's
-  `IMultiplexedStream.IsInputCompleted` exposes a clean FIN already observed by the runtime (#1427, #1453),
+  `IMultiplexedConnectionStream.IsInputCompleted` exposes a clean FIN already observed by the runtime (#1427, #1453),
   even before its stream-backed pipe reads zero bytes. The probe requires an empty, uncancelled
   pipe as well; buffered DATA followed by FIN still reports a body. A positive declared content
   length also retains the gate: an empty stream then faults when its body is validated. It never
@@ -2380,6 +2553,23 @@ thread-pool dispatch. A hook with long-running work must explicitly offload that
 work before blocking; the transport cannot infer which arbitrary hook will block.
 Request hooks can install a lazy body wrapper; long work belongs in asynchronous
 body reads or response callbacks, where the hook can explicitly yield or offload it.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Accept as Accept loop
+    participant Head as Request-stream processing
+    participant App as Consumer (ReceiveAsync)
+    Client->>Accept: opens a request stream
+    Accept->>Head: starts it, not awaited
+    Client->>Head: HEADERS
+    Head->>Head: QPACK decode, validate, run hooks
+    Head->>App: context with a lazy body
+    Client->>App: DATA frames, read on demand
+    App->>Client: response HEADERS and DATA
+    Note over App,Client: unread remainder refused with STOP_SENDING(H3_NO_ERROR)
+    App->>Client: FIN
+```
 
 **Acceptance is concurrent.** The accept loop (`RunAcceptLoopAsync`) accepts a
 stream, derives its wire ID (the GOAWAY boundary and the QPACK stream key, see
@@ -2458,7 +2648,7 @@ QUIC and in-memory streams also register the `DirectionalAbort` feature from
 `Connections.StreamAbort`, for operations that end only one direction:
 
 - **`STOP_SENDING`** is `DirectionalAbort.AbortRead(code)` on the request stream.
-- **A reset** is `IMultiplexedStream.Abort(code, Http3StreamException)`. The
+- **A reset** is `IMultiplexedConnectionStream.Abort(code, Http3StreamException)`. The
   driver ends both directions with the code where carried, preserving any direction
   already ended, then ends the lifecycle and fires the exchange's `RequestCancelled`
   (`Http3ConnectionContext.ResetStream`).
@@ -2867,17 +3057,28 @@ partials (`*.ExtendedConnect.cs`) and the per-version tunnel streams do the wire
 shows a tunnel's life from the request to the end of the exchange.
 
 ```mermaid
-flowchart TD
-    Request["Client sends HEADERS CONNECT + :protocol and leaves the stream open"] --> Parse["Transport calls AfterRequestHead with Protocol = websocket"]
-    Parse --> Feature["Http.ExtendedConnect installs the feature and joins the response phase"]
-    Feature --> Bind["BeforeResponse binds the feature to the exchange control"]
-    Bind --> Dispatch["Application receives the exchange carrying IHttpExtendedConnectFeature"]
-    Dispatch --> Accept["Application calls AcceptAsync; transport calls AcceptTunnelAsync"]
-    Accept --> Head["Transport sends HEADERS :status 200 and leaves the stream open"]
-    Head --> Read["Client sends DATA; application reads the tunnel"]
-    Read --> Write["Application writes the tunnel; transport sends DATA paced by flow control"]
-    Write --> Close["Application disposes the tunnel; transport sends END_STREAM or FIN"]
-    Close --> End["Handler returns; SendAsync sends RST_STREAM NO_ERROR or STOP_SENDING if the client is still sending"]
+sequenceDiagram
+    participant Client
+    participant Transport
+    participant Ext as Http.ExtendedConnect interceptor
+    participant App as Application
+    Client->>Transport: HEADERS CONNECT + :protocol, stream left open
+    Transport->>Ext: AfterRequestHead (Protocol = websocket)
+    Ext->>Transport: install the feature, join the response phase
+    Transport->>Ext: BeforeResponse (exchange control)
+    Ext->>Ext: bind the feature to the control
+    Transport->>App: exchange carrying IHttpExtendedConnectFeature
+    App->>Ext: AcceptAsync
+    Ext->>Transport: AcceptTunnelAsync
+    Transport->>Client: HEADERS :status 200, stream left open
+    Client->>Transport: DATA
+    Transport->>App: tunnel read
+    App->>Transport: tunnel write
+    Transport->>Client: DATA, paced by flow control
+    App->>Transport: dispose the tunnel
+    Transport->>Client: END_STREAM or FIN
+    App->>Transport: handler returns, SendAsync
+    Transport->>Client: RST_STREAM NO_ERROR or STOP_SENDING if still sending
 ```
 
 - **Accepting.** The guards run in a fixed order before anything is written: at most once (the
@@ -3033,7 +3234,7 @@ and verify real protocol decisions under both listeners by delta and connection/
 
 | What an operator wants | Owner |
 | --- | --- |
-| Per-request spans, latency, route and pipeline outcome | Web.Hosting's `ActivitySource` and `Meter`; application responses are not counted here. |
+| Per-request spans, latency, route and pipeline outcome | Web.Server's `ActivitySource` and `Meter`; application responses are not counted here. |
 | Driver connection lifetimes and counts | Each Connections driver's EventSource. |
 | TLS handshakes | Runtime `System.Net.Security`, plus the listener/QUIC driver's failures. |
 | Transport rejections, client-fault outcomes and protocol codes | This source and Meter; Web sources never report them. |

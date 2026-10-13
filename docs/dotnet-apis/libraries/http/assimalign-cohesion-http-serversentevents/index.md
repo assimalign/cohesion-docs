@@ -18,6 +18,11 @@ Event formatting writes UTF-8 into an `IBufferWriter<byte>` independently of a t
 extension members bridge events and keep-alives onto `IHttpResponseStreamingFeature`. Applications
 still own the long-lived response and event production.
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Dependencies
 
 | Reference | Build item |

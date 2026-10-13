@@ -50,6 +50,10 @@ Whether a client certificate is requested, required, and how it is validated is 
 endpoint's TLS options (`TlsServerOptions.RequireClientCertificate` or `AllowClientCertificate` in
 [`Assimalign.Cohesion.Connections.Security`](../../connections/assimalign-cohesion-connections-security/index.md)).
 
+Live HTTP connections expose transport TLS through `IHttpConnection.Features` and the root
+`IConnection.Tls` accessor. This package continues to project the request-facing handshake snapshot;
+an `IMultiplexedConnectionStream` does not inherit its parent connection features.
+
 ## Dependencies
 
 | Reference | Build item |

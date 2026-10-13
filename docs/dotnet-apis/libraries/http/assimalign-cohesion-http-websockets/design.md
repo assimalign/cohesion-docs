@@ -74,7 +74,7 @@ A handshake attempt is an HTTP/1.1 upgrade whose `Upgrade` token is `websocket`.
 protocol-upgrade interceptor already requires `Connection: Upgrade` and an `Upgrade` header before it
 surfaces `context.Upgrade`, and it surfaces only HTTP/1.1 exchanges whose connection can be taken
 over. Its `Protocol` is the first `Upgrade` token, the one a `101` switches to, so a request that
-prefers another protocol (`Upgrade: h2c, websocket`) is not an attempt. The sequence shows an
+prefers another protocol (`Upgrade: h2c, websocket`) is not an attempt. The numbered flow shows an
 accepted handshake.
 
 ```mermaid
@@ -292,6 +292,11 @@ extended CONNECT.
 - **A client.** `System.Net.WebSockets.ClientWebSocket` is the client.
 - **Message-size limits.** The application reads with the buffers it chooses; a per-message limit
   is recorded as "to revisit" in Http ADR 1.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Dependency boundary
 

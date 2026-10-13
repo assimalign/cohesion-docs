@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Udp`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise UDP connection factories and diagnostics using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise UDP connection factories, diagnostics, and connection lifecycle using the original repository tests.
 
 ## Sources
 
@@ -15,3 +15,5 @@ Source-backed examples for `Assimalign.Cohesion.Connections.Udp`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionEventSourceTests.cs`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionFactoryTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/ConnectionLifecycleTests.cs`.

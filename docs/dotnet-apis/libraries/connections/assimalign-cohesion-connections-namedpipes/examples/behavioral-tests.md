@@ -1,12 +1,12 @@
 # Example: Named Pipe Behavioral Tests
 
-Exercise named-pipe endpoints and diagnostics using the original repository tests.
+Exercise named-pipe endpoints, diagnostics, and connection lifecycle using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-These are the complete `NamedPipeEndPointTests.cs` and `NamedPipeConnectionEventSourceTests.cs` listings from the
+These are the complete `NamedPipeEndPointTests.cs`, `NamedPipeConnectionEventSourceTests.cs`, and `ConnectionLifecycleTests.cs` listings from the
 package test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The first listing makes the test-framework import
 explicit where the original project supplies it globally. The diagnostics tests use the canonical
@@ -15,9 +15,11 @@ test-only `build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild `Compi
 ## Code
 
 ```csharp
-using System.Net.Sockets;
 using System;
+using System.Net.Sockets;
+
 using Shouldly;
+
 using Xunit;
 
 namespace Assimalign.Cohesion.Connections.NamedPipes.Tests;
@@ -83,7 +85,8 @@ public class NamedPipeEndPointTests
 - **Covered behavior** — EndPoint: Should default the server name to the local host.
 - **Covered behavior** — EndPoint: Should format as a Windows pipe path.
 - **Covered behavior** — EndPoint: Should compare case-insensitively.
-- **Covered behavior** — EndPoint: Should reject null or empty names.
+- **Covered behavior** — EndPoint: Should reject null or empty names (`InlineData(null)`).
+- **Covered behavior** — EndPoint: Should reject null or empty names (`InlineData("")`).
 - **Covered behavior** — EndPoint: Should reject an empty server name.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
@@ -153,9 +156,9 @@ public class NamedPipeConnectionEventSourceTests
         NamedPipeConnectionListener listener = NamedPipeConnectionListener.Create(options => options.EndPoint = endPoint);
         await listener.BindAsync(cancellation.Token);
 
-        ValueTask<Connection> accept = listener.AcceptAsync(cancellation.Token);
-        Connection client = await new NamedPipeConnectionFactory().ConnectAsync(endPoint, cancellation.Token);
-        Connection server = await accept;
+        ValueTask<IDuplexConnection> accept = listener.AcceptAsync(cancellation.Token);
+        IDuplexConnection client = await new NamedPipeConnectionFactory().ConnectAsync(endPoint, cancellation.Token);
+        IDuplexConnection server = await accept;
         long currentWhileOpen = NamedPipeConnectionEventSource.Log.CurrentConnections;
 
         // Act
@@ -217,9 +220,76 @@ public class NamedPipeConnectionEventSourceTests
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
 
+## Connection Lifecycle Tests
+
+### Code
+
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Connections.NamedPipes.Tests;
+
+public class ConnectionLifecycleTests
+{
+    [Theory(DisplayName = "Cohesion Test [Connections.NamedPipes] - ConnectionClosed: Local and idle peer closure remove accepted connections")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConnectionClosed_OnDisposeOrAbort_ShouldNotifyIdlePeerAndUntrack(bool abort)
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await using NamedPipeConnectionListener listener = NamedPipeConnectionListener.Create(options => options.EndPoint = new NamedPipeEndPoint(NamedPipeTestName.Create()));
+        await listener.BindAsync(timeout.Token);
+        NamedPipeConnectionFactory factory = new();
+        ValueTask<IDuplexConnection> accepting = listener.AcceptAsync(timeout.Token);
+        await using IDuplexConnection client = await factory.ConnectAsync(listener.EndPoint, timeout.Token);
+        await using IDuplexConnection server = await accepting;
+        listener.Id.ShouldNotBe(ListenerId.Empty);
+        listener.Connections.Count.ShouldBe(1);
+        TaskCompletionSource peerClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenRegistration registration = server.ConnectionClosed.Register(() => peerClosed.TrySetResult());
+
+        // Act
+        if (abort)
+        {
+            client.Abort();
+            client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        }
+        await client.DisposeAsync();
+        client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        await peerClosed.Task.WaitAsync(timeout.Token);
+        while (listener.Connections.Count != 0)
+        {
+            await Task.Delay(1, timeout.Token);
+        }
+
+        // Assert
+        client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        server.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        listener.Connections.Count.ShouldBe(0);
+        await server.DisposeAsync();
+        server.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+    }
+}
+```
+
+### Walkthrough
+
+- **Covered behavior** — ConnectionClosed: Local and idle peer closure remove accepted connections (`InlineData(false)`).
+- **Covered behavior** — ConnectionClosed: Local and idle peer closure remove accepted connections (`InlineData(true)`).
+
+The assertions define the expected result or failure boundary. Test-only doubles supply controlled
+inputs; they are not additional shipped APIs.
+
 ## Sources
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeEndPointTests.cs`.
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/Assimalign.Cohesion.Connections.NamedPipes.Tests.csproj`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/NamedPipeConnectionEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/ConnectionLifecycleTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.NamedPipes/tests/Assimalign.Cohesion.Connections.NamedPipes.Tests.csproj`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

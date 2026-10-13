@@ -103,11 +103,16 @@ See [framework and props details](sdk/msbuild/props.md) for pack layout and impo
 ## Shared generation
 
 `CohesionApplicationModel=enabled` makes an area SDK import
-`Assimalign.Cohesion.Sdk.ApplicationModel` at its exact packaged version. That auxiliary SDK owns
+[`Assimalign.Cohesion.Sdk.ApplicationModel`](sdk-application-model/index.md) at its exact packaged version. That auxiliary SDK owns
 resource manifests, generated resource APIs, certificates, images, and orchestration targets. Area
 SDKs supply defaults; they do not author the application’s `Program.cs`. The base SDK defaults the
 property to `disabled`; a base-only project that enables it fails with `COHSDK011` and directs the
 author to an area SDK or an explicit ApplicationModel SDK import.
+
+Generated resource-reference `ConnectionFactory()` accessors return `IDuplexConnectionFactory`,
+suitable for database client options and other byte-stream consumers. See the
+[ApplicationModel design](sdk-application-model/assimalign-cohesion-sdk-applicationmodel-tasks/design.md)
+for the generated contract and import order.
 
 Set `CohesionAppSettingsClass` to opt into strongly typed `appsettings*.json` generation. The public
 generated root has an explicit `Bind(IConfiguration)` method suitable for ahead-of-time (AOT)

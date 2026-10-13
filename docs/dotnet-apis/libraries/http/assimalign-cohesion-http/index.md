@@ -155,6 +155,10 @@ These behaviors replace preview.1's last-value parsing; see the compatibility
 and caller audit in the [design](design.md#repeated-values-1335-decision-31)
 before upgrading code that sends duplicate keys.
 
+Transport integrations distinguish the `IConnection` identity/lifetime root from
+`IDuplexConnection` byte pipes and `IMultiplexedConnectionStream` streams. Core HTTP
+request/response and connection-info contracts do not acquire a transport dependency.
+
 ## Dependencies
 
 | Reference | Build item |

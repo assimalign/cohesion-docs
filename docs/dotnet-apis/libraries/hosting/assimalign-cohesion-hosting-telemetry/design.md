@@ -11,6 +11,11 @@ in-process gateways. Register the returned lifetime service before producers so 
 shutdown drains producers first. Existing logging builders are configured but never built by the
 adapter.
 
+Traces and metrics need no Logging span or instrument primitive: emitters use the BCL
+`ActivitySource` and `Meter`, starting with the Web server's (`Assimalign.Cohesion.Web.Server`, #1064),
+and exporting them through an `ActivityListener`/`MeterListener` is the OpenTelemetry foundation's
+remaining work (#317).
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Hosting`,

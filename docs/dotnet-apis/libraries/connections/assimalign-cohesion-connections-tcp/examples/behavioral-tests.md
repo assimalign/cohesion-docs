@@ -1,12 +1,12 @@
 # Example: TCP Behavioral Tests
 
-Exercise file-handle endpoints and TCP diagnostics using the original repository tests.
+Exercise file-handle endpoints, TCP diagnostics, and connection lifecycle using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-These are the complete `FileHandleEndPointTests.cs` and `TcpConnectionEventSourceTests.cs` listings from the
+These are the complete `FileHandleEndPointTests.cs`, `TcpConnectionEventSourceTests.cs`, and `ConnectionLifecycleTests.cs` listings from the
 package test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The first listing makes the test-framework import
 explicit where the original project supplies it globally. The diagnostics tests use the canonical
@@ -20,7 +20,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
 
 namespace Assimalign.Cohesion.Connections.Tcp.Tests;
@@ -50,13 +52,13 @@ public class FileHandleEndPointTests
         await using TcpConnectionListener listener = TcpConnectionListener.Create(
             options => options.EndPoint = new FileHandleEndPoint(fileHandle, FileHandleType.Tcp));
 
-        ValueTask<Connection> acceptTask = listener.AcceptAsync(cancellation.Token);
+        ValueTask<IDuplexConnection> acceptTask = listener.AcceptAsync(cancellation.Token);
 
         TcpConnectionFactory factory = new();
 
         // Act — dialing the inherited listening socket's address should be accepted by the adopting listener.
-        await using Connection client = await factory.ConnectAsync(bound, cancellation.Token);
-        await using Connection server = await acceptTask;
+        await using IDuplexConnection client = await factory.ConnectAsync(bound, cancellation.Token);
+        await using IDuplexConnection server = await acceptTask;
 
         // Assert
         server.ShouldNotBeNull();
@@ -142,9 +144,9 @@ public class TcpConnectionEventSourceTests
         TcpConnectionListener listener = TcpConnectionListener.Create(options => options.EndPoint = new IPEndPoint(IPAddress.Loopback, 0));
         await listener.BindAsync(cancellation.Token);
 
-        ValueTask<Connection> accept = listener.AcceptAsync(cancellation.Token);
-        Connection client = await new TcpConnectionFactory().ConnectAsync(listener.EndPoint, cancellation.Token);
-        Connection server = await accept;
+        ValueTask<IDuplexConnection> accept = listener.AcceptAsync(cancellation.Token);
+        IDuplexConnection client = await new TcpConnectionFactory().ConnectAsync(listener.EndPoint, cancellation.Token);
+        IDuplexConnection server = await accept;
         long currentWhileOpen = TcpConnectionEventSource.Log.CurrentConnections;
 
         // Act
@@ -205,11 +207,11 @@ public class TcpConnectionEventSourceTests
 
         // Act
         int resetConnectionsReturned = 0;
-        Connection? accepted = null;
+        IDuplexConnection? accepted = null;
 
         for (int i = 0; i <= resetClients && accepted is null; i++)
         {
-            Connection connection = await listener.AcceptAsync(cancellation.Token);
+            IDuplexConnection connection = await listener.AcceptAsync(cancellation.Token);
 
             if (connection.RemoteEndPoint is IPEndPoint remote && remote.Port == healthyPort)
             {
@@ -271,7 +273,7 @@ public class TcpConnectionEventSourceTests
         await client.ConnectAsync(listener.EndPoint, cancellation.Token);
 
         // Act
-        await using Connection server = await listener.AcceptAsync(cancellation.Token);
+        await using IDuplexConnection server = await listener.AcceptAsync(cancellation.Token);
 
         // Assert
         accept.Attempts.ShouldBe(4);
@@ -324,7 +326,7 @@ public class TcpConnectionEventSourceTests
         await client.ConnectAsync(listener.EndPoint, cancellation.Token);
 
         // Act
-        await using Connection server = await listener.AcceptAsync(cancellation.Token);
+        await using IDuplexConnection server = await listener.AcceptAsync(cancellation.Token);
 
         // Assert
         IReadOnlyList<EventWrittenEventArgs> events = recorder.Events;
@@ -379,9 +381,77 @@ public class TcpConnectionEventSourceTests
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
 
+## Connection Lifecycle Tests
+
+### Code
+
+```csharp
+using System;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Connections.Tcp.Tests;
+
+public class ConnectionLifecycleTests
+{
+    [Theory(DisplayName = "Cohesion Test [Connections.Tcp] - ConnectionClosed: Local and idle peer closure remove accepted connections")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConnectionClosed_OnDisposeOrAbort_ShouldNotifyIdlePeerAndUntrack(bool abort)
+    {
+        // Arrange
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await using TcpConnectionListener listener = TcpConnectionListener.Create(options => options.EndPoint = new IPEndPoint(IPAddress.Loopback, 0));
+        await listener.BindAsync(timeout.Token);
+        TcpConnectionFactory factory = new();
+        ValueTask<IDuplexConnection> accepting = listener.AcceptAsync(timeout.Token);
+        await using IDuplexConnection client = await factory.ConnectAsync(listener.EndPoint, timeout.Token);
+        await using IDuplexConnection server = await accepting;
+        listener.Id.ShouldNotBe(ListenerId.Empty);
+        listener.Connections.Count.ShouldBe(1);
+        TaskCompletionSource peerClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenRegistration registration = server.ConnectionClosed.Register(() => peerClosed.TrySetResult());
+
+        // Act
+        if (abort)
+        {
+            client.Abort();
+            client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        }
+        await client.DisposeAsync();
+        client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        await peerClosed.Task.WaitAsync(timeout.Token);
+        while (listener.Connections.Count != 0)
+        {
+            await Task.Delay(1, timeout.Token);
+        }
+
+        // Assert
+        client.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        server.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        listener.Connections.Count.ShouldBe(0);
+        await server.DisposeAsync();
+        server.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+    }
+}
+```
+
+### Walkthrough
+
+- **Covered behavior** — ConnectionClosed: Local and idle peer closure remove accepted connections (`InlineData(false)`).
+- **Covered behavior** — ConnectionClosed: Local and idle peer closure remove accepted connections (`InlineData(true)`).
+
+The assertions define the expected result or failure boundary. Test-only doubles supply controlled
+inputs; they are not additional shipped APIs.
+
 ## Sources
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/FileHandleEndPointTests.cs`.
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/Assimalign.Cohesion.Connections.Tcp.Tests.csproj`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/TcpConnectionEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/ConnectionLifecycleTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/tests/Assimalign.Cohesion.Connections.Tcp.Tests.csproj`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

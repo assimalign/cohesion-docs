@@ -1,12 +1,12 @@
 # Example: UDP Behavioral Tests
 
-Exercise UDP connection factories and diagnostics using the original repository tests.
+Exercise UDP connection factories, diagnostics, and connection lifecycle using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-These are the complete `UdpConnectionFactoryTests.cs` and `UdpConnectionEventSourceTests.cs` listings from the
+These are the complete `UdpConnectionFactoryTests.cs`, `UdpConnectionEventSourceTests.cs`, and `ConnectionLifecycleTests.cs` listings from the
 package test project. Keep them in that project when running them: the project supplies its package
 references, generated sources, and shared fixtures. The first listing makes the test-framework import
 explicit where the original project supplies it globally. The diagnostics tests use the canonical
@@ -20,7 +20,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
 
 namespace Assimalign.Cohesion.Connections.Udp.Tests;
@@ -55,11 +57,11 @@ public class UdpConnectionFactoryTests
         await using IDatagramConnection server = factory.Bind(new IPEndPoint(IPAddress.Loopback, 0));
 
         // Act
-        await using IDatagramConnection client = factory.Connect(server.LocalEndPoint);
+        await using IDatagramConnection client = factory.Connect(server.LocalEndPoint.ShouldNotBeNull());
 
         // Assert
         client.RemoteEndPoint.ShouldBe(server.LocalEndPoint);
-        ((IPEndPoint)client.LocalEndPoint).Port.ShouldNotBe(0);
+        client.LocalEndPoint.ShouldBeOfType<IPEndPoint>().Port.ShouldNotBe(0);
     }
 
     [Fact]
@@ -159,15 +161,15 @@ public class UdpConnectionFactoryTests
 
 ## Walkthrough
 
-- **Test entry point** — `Bind_WithEphemeralLoopbackEndPoint_ShouldPopulateLocalEndPointOnly` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Connect_ToBoundServerEndPoint_ShouldPopulateRemoteEndPoint` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Bind_WithNonIPEndPoint_ShouldThrowNotSupportedException` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Connect_WithNonIPEndPoint_ShouldThrowNotSupportedException` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Bind_WithNullArguments_ShouldThrowArgumentNullException` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Connect_WithNullArguments_ShouldThrowArgumentNullException` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Create_WithNullConfigure_ShouldThrowArgumentNullException` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `Capabilities_OnFactory_ShouldDescribeUnreliableUnorderedUdpDatagram` contains the setup, invocation, and assertions for this case.
-- **Test entry point** — `BindAsync_WithPreCanceledToken_ShouldReturnCanceledTask` contains the setup, invocation, and assertions for this case.
+- **Covered behavior** — `Bind_WithEphemeralLoopbackEndPoint_ShouldPopulateLocalEndPointOnly`.
+- **Covered behavior** — `Connect_ToBoundServerEndPoint_ShouldPopulateRemoteEndPoint`.
+- **Covered behavior** — `Bind_WithNonIPEndPoint_ShouldThrowNotSupportedException`.
+- **Covered behavior** — `Connect_WithNonIPEndPoint_ShouldThrowNotSupportedException`.
+- **Covered behavior** — `Bind_WithNullArguments_ShouldThrowArgumentNullException`.
+- **Covered behavior** — `Connect_WithNullArguments_ShouldThrowArgumentNullException`.
+- **Covered behavior** — `Create_WithNullConfigure_ShouldThrowArgumentNullException`.
+- **Covered behavior** — `Capabilities_OnFactory_ShouldDescribeUnreliableUnorderedUdpDatagram`.
+- **Covered behavior** — `BindAsync_WithPreCanceledToken_ShouldReturnCanceledTask`.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
@@ -234,7 +236,7 @@ public class UdpConnectionEventSourceTests
         UdpConnectionFactory factory = new();
 
         IDatagramConnection server = factory.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-        IDatagramConnection client = factory.Connect(server.LocalEndPoint);
+        IDatagramConnection client = factory.Connect(server.LocalEndPoint.ShouldNotBeNull());
         long currentWhileOpen = UdpConnectionEventSource.Log.CurrentConnections;
 
         // Act
@@ -293,9 +295,64 @@ public class UdpConnectionEventSourceTests
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
 
+## Connection Lifecycle Tests
+
+### Code
+
+```csharp
+using System;
+using System.Net;
+using System.Threading.Tasks;
+
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Connections.Udp.Tests;
+
+public class ConnectionLifecycleTests
+{
+    [Theory(DisplayName = "Cohesion Test [Connections.Udp] - Lifecycle: Datagram identity and closure are exposed through the root")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConnectionClosed_OnDisposeOrAbort_ShouldPublishTerminalState(bool abort)
+    {
+        // Arrange
+        UdpConnectionFactory factory = new();
+        await using IDatagramConnection connection = factory.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        IConnection root = connection;
+        root.Id.ShouldNotBe(ConnectionId.Empty);
+        root.State.ShouldBe(ConnectionState.Open);
+        root.ConnectionClosed.IsCancellationRequested.ShouldBeFalse();
+
+        // Act
+        if (abort)
+        {
+            root.Abort(new InvalidOperationException("test"));
+            root.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        }
+        await root.DisposeAsync();
+
+        // Assert
+        root.State.ShouldBe(abort ? ConnectionState.Aborted : ConnectionState.Closed);
+        root.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
+        await root.DisposeAsync();
+        root.Id.ShouldBe(connection.Id);
+    }
+}
+```
+
+### Walkthrough
+
+- **Covered behavior** — Lifecycle: Datagram identity and closure are exposed through the root (`InlineData(false)`).
+- **Covered behavior** — Lifecycle: Datagram identity and closure are exposed through the root (`InlineData(true)`).
+
+The assertions define the expected result or failure boundary. Test-only doubles supply controlled
+inputs; they are not additional shipped APIs.
+
 ## Sources
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionFactoryTests.cs`.
-- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/Assimalign.Cohesion.Connections.Udp.Tests.csproj`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/UdpConnectionEventSourceTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/ConnectionLifecycleTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/tests/Assimalign.Cohesion.Connections.Udp.Tests.csproj`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

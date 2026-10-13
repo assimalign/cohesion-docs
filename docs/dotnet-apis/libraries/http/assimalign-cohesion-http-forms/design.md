@@ -312,6 +312,11 @@ types are Cohesion-native.
 - **A model binder.** Mapping form fields onto typed objects belongs to the
   Web API / source-generation layer, not to form parsing.
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Http`. The [overview](index.md#dependencies)
