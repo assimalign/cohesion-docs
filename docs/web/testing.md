@@ -11,6 +11,11 @@ The manual factory uses in-memory connections and starts its server when the fir
 created. It supplies hosting and transport, leaving assertions and test-framework integration
 to the caller.
 
+Its socketless listener implements `IDuplexConnectionListener`, and the client uses
+`IDuplexConnection` for the input/output pipe. Identity and lifetime come from the pipe-less
+`IConnection` root. HTTP listeners accept through `AcceptAsync` and retain accepted connections
+in their live `Connections` collection until `ConnectionClosed` fires.
+
 This complete program follows the package's manual-factory example:
 
 ```csharp
@@ -87,7 +92,10 @@ server's request ids and `serverId` to correlate concurrent work.
 `WebEventSourceConformanceTests` discovers every public and private `App.Web` assembly, checks
 that each has at most one internal sealed source named for its assembly, validates strict
 manifests, and compares the Web sources with the event-source catalog and deliberate no-source
-list. The Web.Hosting acceptance tests cover server events and default forwarding. NativeAOT
+list. The Web.Server tests cover direct engine use, dispatch, drain, exchange features and server
+diagnostics. Web.Hosting tests cover the host-service wrapper, HTTP composition, health and resource
+integrations, and default forwarding; the moved health and resource suites live under its
+`tests/Health/` and `tests/Resources/` folders. NativeAOT
 delivery is exercised separately by the hosting AOT guard; a normal in-memory factory test does
 not establish that a published binary retains event support.
 
@@ -103,4 +111,5 @@ Return to [Web](index.md).
 - **Lifecycle and isolation** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/DESIGN.md`.
 - **Program marker contract and disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.
 - **Diagnostic recorder and conformance** — `cohesion/build/TestSupport/EventSourceRecorder.cs` and `cohesion/libraries/App/Assimalign.Cohesion.App.Runtime/tests/WebEventSourceConformanceTests.cs`.
-- **Server diagnostics and AOT delivery** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebServerEventSourceAcceptanceTests.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebDefaultEventSourceForwardingTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.
+- **Server engine and host service** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerDirectUseTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerHostServiceTests.cs`.
+- **Server diagnostics and AOT delivery** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebServerEventSourceAcceptanceTests.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebDefaultEventSourceForwardingTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.

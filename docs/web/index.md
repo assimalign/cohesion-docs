@@ -11,8 +11,9 @@ Web composes the Hypertext Transfer Protocol (HTTP) stack, application pipeline,
 composition at builder time. Feature packages extend the hosting-free root contracts.
 
 An application receives the family through the Web shared framework. The runtime does not need
-compile-time references to each feature: it references only `Web.Routing` and `Web.Server`, whose
-contracts it runs or publishes. See the [Web API reference](../dotnet-apis/resources/web/index.md)
+compile-time references to each feature: it references `Web.Routing` for the pipeline terminal,
+`Web.Server` for the public engine and its exchange features, and `Web.Health` for the integrated
+health adapter. See the [Web API reference](../dotnet-apis/resources/web/index.md)
 and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 ## Guides
@@ -32,11 +33,9 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 | Assembly | Responsibility |
 |---|---|
-| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, the optional `IWebApplicationLifetime` ownership seam, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
-| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | The per-exchange contracts the server publishes: the request id, server activity, response starting, response completion, the drain signal, and request- and response-side client-fault reports. |
-| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, server, configuration, logging, and transport composition; request spans, HTTP metrics, request ids, server events and default EventSource forwarding. |
-| [`Assimalign.Cohesion.Web.Hosting.Resources`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-resources/index.md) | Shared resource-management terminal, bootstrap verification, and deferred stop. |
-| [`Assimalign.Cohesion.Web.Hosting.Health`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-health/index.md) | Adapter from shared hosting health contributors to Web health checks. |
+| [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
+| [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | Public `WebApplicationServer` engine and `WebApplicationServerOptions`; dispatch, drain, request spans, HTTP metrics, server events, and the seven per-exchange features it publishes. |
+| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, non-owning `WebApplicationServerHostService`, configuration, logging, HTTP defaults, transport composition and default EventSource forwarding; the shared resource-management terminal, bootstrap verification, deferred stop, control-plane events and hosting health adapter. |
 | [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
 | [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation; the endpoint contract, the shared pipeline terminal, and the `Map` and `MapWhen` branches that end in it. |
 | [`Assimalign.Cohesion.Web.Rewrite`](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ordered rewrite and redirect rules ahead of routing, the request view and `IWebRewriteFeature`, and canonicalization redirects (HTTPS, `www`, trailing slash, lowercase). |
@@ -75,14 +74,18 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 
 `WebApplication.CreateBuilder(args)` returns `WebApplicationBuilder`; its `Build()` returns
 `WebApplication : Host<WebApplicationContext>`. Explicit `AddService` registrations start
-before servers and stop after servers drain. Request-time features use typed context features;
+before servers and stop after servers drain. Every registered server runs through a non-owning
+`WebApplicationServerHostService`, which calls its `IWebApplicationServer` lifecycle even when
+the server also implements `IHostService`. Request-time features use typed context features;
 the host does not resolve services per request.
 
 An enabled executable discovers its generated `ResourceRuntime` registration and ambient
-`ResourceContext`. `Web.Hosting.Resources` supplies the management terminal for health,
-readiness, liveness, endpoint discovery, commands, and graceful stop. Managed routes authenticate
-bootstrap credentials. `Web.Hosting.Health` adapts shared host health contributors onto the
-independent Web health model.
+`ResourceContext`. `Web.Hosting` supplies the management terminal for health, readiness, liveness,
+endpoint discovery, commands, and graceful stop, and adapts shared host health contributors onto
+the independent Web health model. Managed routes authenticate bootstrap credentials. These
+integrations ship in Web.Hosting with their existing public namespaces,
+`Assimalign.Cohesion.Web.Hosting.Resources` and `Assimalign.Cohesion.Web.Hosting.Health`;
+replace references to either former package with `Assimalign.Cohesion.Web.Hosting`.
 
 Configuration mounts and deployment settings arrive through the gateway's runtime contract.
 An HTTPS endpoint can name a Secret mount, default `tls`, carrying a PEM leaf, private key,

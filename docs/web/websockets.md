@@ -10,8 +10,9 @@ owns the opening handshake and hands the socket to the .NET runtime's RFC 6455 i
 endpoint works with an ordinary `System.Net.WebSockets.WebSocket`;
 [`Web.WebSockets`](../dotnet-apis/resources/web/assimalign-cohesion-web-websockets/index.md) maps the
 endpoints and applies the policy a browser-facing server needs. Nothing has to be registered on the
-listeners: the default server installs the HTTP/1.1 upgrade interceptor and the HTTP/2 and HTTP/3
-extended CONNECT interceptor.
+listeners on the hosted path: Web.Hosting installs the HTTP/1.1 upgrade interceptor and the
+HTTP/2 and HTTP/3 extended CONNECT interceptor. An application constructing `WebApplicationServer`
+directly adds these HTTP interceptors explicitly to its listener options.
 
 ## Map a socket endpoint
 

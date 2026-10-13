@@ -10,10 +10,20 @@ The Web host composes listeners and drives each accepted connection through the 
 `AddService` factories once at `Build()`, preserves their order, and starts those services before
 any server. Reverse shutdown drains servers before stopping application services.
 
-`WebApplicationServer` binds its listeners before reporting successful startup. A bind failure
-becomes a `HostStartupException` retaining the transport cause, and the server reports it first (see
-[Diagnostics](#diagnostics)). Accepted connections have separate tracked tasks; middleware faults
-are contained rather than escaping the accept loop.
+`WebApplicationServer` and `WebApplicationServerOptions` are public in the `Web.Server` package,
+in the `Assimalign.Cohesion.Web` namespace. The engine accepts a pipeline and listener options
+without depending on Hosting, dependency injection, configuration or a connection driver.
+It binds its listeners before reporting successful startup and propagates the original transport
+failure after reporting it (see [Diagnostics](#diagnostics)). Accepted connections have separate
+tracked tasks; middleware faults are contained rather than escaping the accept loop.
+
+Web.Hosting constructs that engine and wraps every registered `IWebApplicationServer` in a
+non-owning `WebApplicationServerHostService`, including a server that also implements `IHostService`.
+The wrapper always calls the server's `IWebApplicationServer` lifecycle; a separate `IHostService`
+implementation is no longer used for the server phase. It translates the default engine's bind
+failure to `HostStartupException`, retaining the transport cause, and forwards custom-server failures
+unchanged. Instance registrations remain caller-owned and factory registrations provider-owned.
+`UseServer<TServer>` requires only `IWebApplicationServer`.
 
 Startup failures leave the host `Failed` and preserve the original exception even if rollback
 service resolution also throws. Retrying starts a fresh attempt. Register middleware with `Use`
@@ -25,12 +35,21 @@ shutdown, which lets the requests in flight finish before the connections close 
 [Graceful shutdown](#graceful-shutdown)).
 
 Each exchange's feature collection is sized for the features the server knows it carries: the
-application features the pipeline stamps plus the host's own five (#1381), rounded up to a size an
+application features the pipeline stamps plus the server's own five (#1381), rounded up to a size an
 unsized collection grows through, so an exchange that carries more never costs more than an unsized
 one. Middleware install features of their own as an exchange passes through them. A host whose
 middleware put one on every exchange adds a slot for each in a `UseServer` configuration, for
 example `options.ExchangeFeatureCapacity += 3` for routing, `UseResponseCompression` and
-`UseSecurityHeaders`; `0` turns the sizing off.
+`UseSecurityHeaders`. The server adds its five reserved slots after configuration, including
+when the configured capacity is `0`, and restores the caller's options after snapshotting them.
+
+For direct use, construct `WebApplicationServerOptions` with the required `Pipeline` and a
+`HttpConnectionListenerOptions` in `Listener`. Register an application-selected
+`IDuplexConnectionListener` with `Listener.UseHttp1` or `UseHttp2`, or an
+`IMultiplexedConnectionListener` with `UseHttp3`. `MaxConcurrentConnections` is an optional positive
+cap; null is unlimited. `TelemetryQueryValues` is a case-insensitive set of safe query names,
+snapshotted at construction. Call `StartAsync` to bind and serve, then `StopAsync` with the drain
+budget. See the [direct server example](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md#direct-use).
 
 Within a connection, HTTP/1.1 serves one exchange at a time, in order, because its transport
 realigns on the next request only after the previous one finished. HTTP/2 and HTTP/3 run one task
@@ -83,9 +102,10 @@ timeout.
 
 ## Upgrades, WebSockets, and trailers
 
-Every listener the default server composes gets five interceptors before any the application
-registers: the request limits, the HTTP/1.1 protocol upgrade, the HTTP/2 and HTTP/3
-extended CONNECT (RFC 8441, RFC 9220), the client fault, and response starting. The first surfaces
+Every listener the hosted server composes gets five interceptors before any the application
+registers: client fault, response starting, request limits, HTTP/1.1 protocol upgrade, then HTTP/2
+and HTTP/3 extended CONNECT (RFC 8441, RFC 9220). Web.Server always prepends its first two hooks;
+Web.Hosting supplies the three HTTP policy defaults. The request-limits interceptor surfaces
 the body-size cap and the minimum request-body and response data rates per request (`context.MaxRequestBodySize`,
 `context.MinRequestBodyDataRate`, `context.MinResponseDataRate`; see
 [Configuration-bound endpoints](#configuration-bound-endpoints)). So `context.Upgrade`,
@@ -101,20 +121,18 @@ have a body, on every version (see
 [Client faults and refused responses](#client-faults-and-refused-responses)).
 
 HTTP/3 recognizes a clean request-stream FIN without another read through
-`IMultiplexedStream.IsInputCompleted` (#1427). With no buffered body bytes and no positive declared
+`IMultiplexedConnectionStream.IsInputCompleted` (#1427). With no buffered body bytes and no positive declared
 content length, it skips the request-body fault gate. A buffered body or an empty stream declaring
 content keeps that gate; the unconditional response-starting interceptor still joins the response.
 
-A `UseServer` callback that clears `options.Interceptors` removes the defaults, and with them
+A `UseServer` callback that clears `options.Interceptors` removes the three hosting defaults, and with them
 WebSockets on every protocol: the HTTP/2 and HTTP/3 transports keep advertising extended CONNECT,
 so browsers keep sending their handshakes that way, but nothing surfaces them. A host that clears
-the list and still serves WebSockets adds the two transition interceptors back. Clearing it also
-removes the request client-fault classification: a malformed or over-limit body is then logged at `Error`
-and observed by `OnException` again, while the transport still answers it with its own status.
-It also removes `IWebResponseStartingFeature`, which CORS and SecurityHeaders require; both fail
-explicitly when that feature is absent. The same response-starting object publishes
-`IWebResponseClientFaultFeature` on every exchange, including a bodyless request, so clearing it
-also removes the response-side client-fault report.
+the list and still serves WebSockets adds the two transition interceptors back. The engine's
+client-fault and response-starting hooks remain: it installs them after configuration on both
+direct and hosted paths. CORS and SecurityHeaders require `IWebResponseStartingFeature` and fail
+explicitly under a custom server that omits it. The same response-starting object publishes
+`IWebResponseClientFaultFeature` on every exchange, including a bodyless request.
 
 Trailer fields travel where the protocol can carry them. `Request.Trailers` is filled once the body
 has been read to its end: on HTTP/1.1 for a chunked request, and on HTTP/2 and HTTP/3 for every
@@ -223,6 +241,13 @@ served.
 They are distinct environments. The default remains `Production`.
 
 ## Listeners and TLS
+
+HTTP shares the connection hierarchy: `IHttpConnection` extends the pipe-less `IConnection`
+identity and lifetime root with `Protocol`. `IHttpConnectionListener` extends
+`IConnectionListener<IHttpConnection>` with `Protocols` and bound `EndPoints`; the server calls
+`BindAsync`, then `AcceptAsync`. Its live `Connections` collection retains accepted connections
+until `ConnectionClosed` fires. Duplex transports expose their pipe through `IDuplexConnection`;
+multiplexed transports use `IMultiplexedConnection` and `IMultiplexedConnectionStream`.
 
 Transport Layer Security (TLS) is composed beneath Hypertext Transfer Protocol (HTTP). The TLS
 registrations on `HttpConnectionListenerOptions` take a transport configuration callback and
@@ -520,14 +545,14 @@ test whose requests must finish calls `StopAsync` first (see [Testing](testing.m
 ## Diagnostics
 
 The default server reports lifecycle and failures through `WebServerEventSource`, named
-`Assimalign.Cohesion.Web.Hosting` (#1398). It replaces the former
+`Assimalign.Cohesion.Web.Server` (decision 57, #1458). It replaces the former
 `Assimalign.Cohesion.Web.Hosting.WebApplicationServer` logger category; the server has no second
 logging path. Its same-named `ActivitySource` and `Meter` own request spans and HTTP metrics.
 
 | Event | Level | Meaning |
 |---|---|---|
 | `ServerBound` | Informational | Listeners bound, with protocols, actual bound endpoints and the connection cap |
-| `BindFailed` | Critical | A listener cannot bind; reported before `HostStartupException` propagates |
+| `BindFailed` | Critical | A listener cannot bind; reported before the transport failure propagates to the caller or hosting wrapper |
 | `AcceptLoopFaulted` | Error | The server accepts nothing more, but existing connections can still drain |
 | `ConnectionFaulted` | Error | A connection failed for a reason not attributed to its peer |
 | `ConnectionEndedByPeer` | Verbose | An `IOException`, `SocketException`, `ConnectionException`, or a fault after an aborted drain |
@@ -537,13 +562,13 @@ logging path. Its same-named `ActivitySource` and `Meter` own request spans and 
 | `CompletionCallbackFailed` | Error | One event per failed callback after every callback was attempted |
 | `ExchangeIsolationEscaped` | Error | A failure escaped stream isolation |
 | `ConnectionCapReached` | Verbose | Accepting waits for the configured connection cap |
-| `ControlPlaneDisabled` | Warning | The enabled-resource listener port could not be identified |
 | `TelemetryListenerFaulted` | Warning | An application telemetry listener failed |
 
 Each server has a process-unique `serverId`; connection events also carry the connection id,
 endpoints and protocol version. Request-related events read `IWebRequestIdFeature` and use a route
-template. `ServerBound` reports the actual addresses of Web.Hosting-composed listeners, including
-ports selected for port-zero endpoints; opaque custom listeners have no invented address.
+template. `ServerBound` reads `IHttpConnectionListener.EndPoints` after binding, including ports
+selected for port-zero endpoints registered through raw `UseServer` or hosting helpers. Endpoint
+reads are deferred until diagnostics are enabled; opaque custom listeners have no invented address.
 
 The `connection-faults`, `connection-cap-waits` and `refused-response-heads` polling counters keep
 exact backing totals even without a listener. Peer-ended connections and response-side client
@@ -555,6 +580,12 @@ Payloads omit request paths, queries, headers and bodies. Application exception 
 remain visible, but stack traces do not; a refused response head uses a fixed description rather
 than echoing its header name. Pipeline faults belong to `Web.ErrorHandling`, and transport
 rejections and protocol errors to `Assimalign.Cohesion.Http.Connections`.
+
+Web.Hosting's `WebHostingEventSource` is named `Assimalign.Cohesion.Web.Hosting`. It reports
+`ControlPlaneDisabled` (Warning), credential or standalone loopback refusal (Warning), malformed
+commands (Warning), and accepted stop (Informational), with `resourceName` for attribution.
+Credential and malformed-command events are throttled; the `rejected-credentials` counter stays
+exact. Control-plane events share this source with no separate resource-integration provider.
 
 `WebApplication.CreateBuilder(args)` forwards the `Assimalign.Cohesion.Web.` prefix and exact
 `Assimalign.Cohesion.Http.Connections` source into configured logging providers by default
@@ -570,7 +601,7 @@ using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.Hosting;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-builder.Logging.AddRule("Assimalign.Cohesion.Web.Hosting", LogLevel.Debug);
+builder.Logging.AddRule("Assimalign.Cohesion.Web.Server", LogLevel.Debug);
 ```
 
 Request spans, HTTP server metrics, and the request id are covered in
@@ -581,7 +612,8 @@ Request spans, HTTP server metrics, and the request id are covered in
 The host discovers its entry assembly's generated `ResourceRuntime` registration. Ambient
 binding tries endpoint name `http`, then `https`, and accepts the corresponding URI schemes. An
 ambient `https` endpoint is registered through `UseHttps`, so it serves HTTP/2 and HTTP/1.1.
-The shared `Web.Hosting.Resources` terminal authenticates namespaced management requests.
+The shared terminal in `Web.Hosting`, whose public namespace remains
+`Assimalign.Cohesion.Web.Hosting.Resources`, authenticates namespaced management requests.
 Without a gateway name, `/cohesion/v1` and every path beneath it accept only transport peers at
 `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive `403`. Forwarded
 headers cannot grant access. Bare probes remain public, and gateway-managed credential checks
@@ -590,25 +622,30 @@ are unchanged.
 Graceful stop returns HTTP 202 before invoking the shutdown signal through a response-completion
 hook. This lets the acknowledgement reach the caller before the server's stop begins.
 
-The root's optional `IWebApplicationLifetime` seam lets control-plane middleware transfer its
-bootstrap verifier lease to the application. A normal stop preserves it for restart; final
+Control-plane middleware transfers its bootstrap verifier lease directly to
+`WebApplicationContext`'s internal disposal owner. A normal stop preserves it for restart; final
 application disposal releases owned resources once, in reverse registration order, after service
 provider disposal. Every release is attempted even if shutdown or another release fails (#1412).
+Managed `UseResourceControlPlane` composition requires a `WebApplicationContext`; a custom managed
+pipeline context fails composition with `InvalidOperationException`. Manual hosts retain the lease
+from `ResourceControlPlaneMiddleware.CreateLifetime(resourceContext)`, compose `InvokeAsync`, and
+dispose the lease after requests drain. Standalone composition remains supported.
 
 Return to [Web](index.md).
 
 ## Sources
 
 - **Runtime** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
+- **Public server and host wrapper** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerHostService.cs`.
 - **TLS registrations** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Extensions/WebHostingExtensions.cs`.
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
 - **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Certificate/docs/OVERVIEW.md`.
-- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/EventSource/WebServerEventSource.cs`.
+- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServer.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/EventSource/WebServerEventSource.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/EventSource/WebHostingEventSource.cs`.
 - **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebServerDrainFeature.cs`.
-- **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
+- **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/docs/OVERVIEW.md`.
 - **Accept back-off** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
-- **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/docs/DESIGN.md`.
+- **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Certificate carrier** — `cohesion/docs/RUNTIME_CONTRACT.md`.
