@@ -74,8 +74,8 @@ using Assimalign.Cohesion.Http.Connections;
 HttpConnectionListener listener = HttpConnectionListener.Create(options =>
 {
     options.UseHttp1AndHttp2(tlsListener);
-    options.Interceptors.Add(HttpProtocolUpgrade.CreateInterceptor());
-    options.Interceptors.Add(HttpExtendedConnect.CreateInterceptor());
+    options.Interceptors.Add(HttpProtocolUpgradeInterceptor.Create());
+    options.Interceptors.Add(HttpExtendedConnectInterceptor.Create());
 });
 ```
 

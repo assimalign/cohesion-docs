@@ -23,10 +23,10 @@ over the request body-size cap and the minimum request-body and response data ra
 transport enforces. Each writes through to the transport's limit state, so there is no second source
 of truth.
 
-`HttpRequestLimits.CreateInterceptor()` attaches all three on one object, on all three protocol
-parse paths; `CreateMaxRequestBodySizeInterceptor()` attaches the body-size feature alone. The two
+`HttpRequestLimitsInterceptor.Create()` attaches all three on one object, on all three protocol
+parse paths; `HttpMaxRequestBodySizeInterceptor.Create()` attaches the body-size feature alone. The two
 register under the same name, so a host registers one or the other. The Web host
-(`Web.Hosting`) installs `CreateInterceptor()` by default, ahead of all user configuration.
+(`Web.Hosting`) installs `HttpRequestLimitsInterceptor.Create()` by default, ahead of all user configuration.
 
 - **Body-size cap.** Read the effective cap any time through `context.MaxRequestBodySize`; adjust
   it until the transport starts reading the body. All three protocols enforce the wire-level cap
@@ -49,7 +49,8 @@ register under the same name, so a host registers one or the other. The Web host
 
 | Type | Source file |
 |---|---|
-| `HttpRequestLimits` | `src/HttpRequestLimits.cs` |
+| `HttpRequestLimitsInterceptor` | `src/HttpRequestLimitsInterceptor.cs` |
+| `HttpMaxRequestBodySizeInterceptor` | `src/HttpMaxRequestBodySizeInterceptor.cs` |
 | `IHttpMaxRequestBodySizeFeature` | `src/Abstractions/IHttpMaxRequestBodySizeFeature.cs` |
 | `IHttpMinRequestBodyDataRateFeature` | `src/Abstractions/IHttpMinRequestBodyDataRateFeature.cs` |
 | `IHttpMinResponseDataRateFeature` | `src/Abstractions/IHttpMinResponseDataRateFeature.cs` |
@@ -69,7 +70,9 @@ register under the same name, so a host registers one or the other. The Web host
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/src`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/src/HttpRequestLimits.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/src/HttpRequestLimitsInterceptor.cs`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/src/HttpMaxRequestBodySizeInterceptor.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/src/Abstractions/IHttpMaxRequestBodySizeFeature.cs`.
 

@@ -121,6 +121,35 @@ namespace Assimalign.Cohesion.Http.Antiforgery.Tests;
 
 public class HttpAntiforgeryTests
 {
+    [Theory(DisplayName = "Cohesion Test [Http.Antiforgery] - Create: Should return a concrete service usable through IHttpAntiforgery")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Create_OnEitherOverload_ShouldReturnHttpAntiforgeryUsableThroughInterface(bool useOptionsOverload)
+    {
+        // Arrange
+        HttpAntiforgeryOptions options = new();
+        TestHttpContext mint = new(HttpMethod.Get);
+        TestHttpContext post = new(HttpMethod.Post);
+
+        // Act
+        HttpAntiforgery service = useOptionsOverload
+            ? HttpAntiforgery.Create(options)
+            : HttpAntiforgery.Create(configure =>
+            {
+                configure.CookieName = options.CookieName;
+                configure.HeaderName = options.HeaderName;
+            });
+        IHttpAntiforgery antiforgery = service;
+        HttpAntiforgeryTokenSet tokens = antiforgery.GetAndStoreTokens(mint);
+        post.SetRequestCookie(options.CookieName, tokens.CookieToken!);
+        post.SetRequestHeader(options.HeaderName, tokens.RequestToken!);
+        bool valid = await antiforgery.IsRequestValidAsync(post);
+
+        // Assert
+        service.ShouldBeOfType<HttpAntiforgery>();
+        valid.ShouldBeTrue();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Http.Antiforgery] - Validate: Should accept a freshly minted cookie + header token pair")]
     public async Task ValidateRequest_OnValidPairViaHeader_ShouldPass()
     {
@@ -220,7 +249,7 @@ public class HttpAntiforgeryTests
     {
         // RFC 10008 registers QUERY as safe + idempotent, but it carries a request body, so its
         // CSRF exposure parallels POST. Antiforgery deliberately does NOT exempt QUERY: a QUERY
-        // request with no token is rejected (the decision recorded in HttpAntiforgeryService.IsSafeMethod).
+        // request with no token is rejected (the decision recorded in HttpAntiforgery.IsSafeMethod).
         IHttpAntiforgery antiforgery = HttpAntiforgery.Create();
         TestHttpContext queryWithoutToken = new(HttpMethod.Query);
 
@@ -650,6 +679,7 @@ public class AntiforgeryCookieNameTests
 
 ### HttpAntiforgeryTests
 
+- **Covered behavior** — Create: Should return a concrete service usable through IHttpAntiforgery.
 - **Covered behavior** — Validate: Should accept a freshly minted cookie + header token pair.
 - **Covered behavior** — Validate: Should accept a valid token pair submitted via form field.
 - **Covered behavior** — Validate: Repeated form tokens use the first value.

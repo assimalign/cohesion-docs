@@ -1,6 +1,6 @@
 # Example: Hosting Resources Behavioral Tests
 
-Exercise resource command dispatch, diagnostic failure hand-off, contributor diagnostics, and command outcome reporting using the original repository tests.
+Exercise resource control planes, command dispatch, diagnostic failure hand-off, contributor diagnostics, and command outcome reporting using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
@@ -250,7 +250,7 @@ public sealed class HostingResourceEventSourceTests
 
         // Assert
         HostingResourceEventSource.Log.ContributorFailures.ShouldBe(before + 1);
-        report.Contributions[contributorName].Description.ShouldBe(DefaultResourceControlPlane.ContributorThrewDescription);
+        report.Contributions[contributorName].Description.ShouldBe(ResourceControlPlane.ContributorThrewDescription);
         report.Contributions[contributorName].Data.ShouldBeNull();
         EventWrittenEventArgs failed = recorder.Events.Where(item => IsContributorFailure(item, contributorName)).ShouldHaveSingleItem();
         failed.EventId.ShouldBe(1);
@@ -278,7 +278,7 @@ public sealed class HostingResourceEventSourceTests
 
         // Assert
         HostingResourceEventSource.Log.ContributorFailures.ShouldBe(before + 1);
-        report.Contributions[contributorName].Description.ShouldBe(DefaultResourceControlPlane.ContributorThrewDescription);
+        report.Contributions[contributorName].Description.ShouldBe(ResourceControlPlane.ContributorThrewDescription);
         report.Contributions[contributorName].Data.ShouldBeNull();
         EventWrittenEventArgs failed = recorder.Events.Where(item => IsContributorFailure(item, contributorName)).ShouldHaveSingleItem();
         failed.Payload![1].ShouldBe(typeof(ThrowingMessageException).FullName);
@@ -661,6 +661,312 @@ public sealed class HostingResourceEventSourceTests
 }
 ```
 
+### ResourceControlPlaneTests.cs
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Assimalign.Cohesion.Hosting.Health;
+using Assimalign.Cohesion.Hosting.Resources.Internal;
+
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Hosting.Resources.Tests;
+
+public class ResourceControlPlaneTests
+{
+    private const string DisplayPrefix = "Cohesion Test [Hosting] - Resource control plane: ";
+
+    [Fact(DisplayName = DisplayPrefix + "Assembly registration creates isolated control planes and carries stop grace")]
+    public void RegisterControlPlane_ForAssembly_CreatesNewInstancesAndCarriesStopGrace()
+    {
+        // Arrange
+        Assembly assembly = typeof(ResourceControlPlaneTests).Assembly;
+        ResourceRuntime.RegisterControlPlane(
+            assembly,
+            static () => ResourceControlPlane.Create(),
+            stopGraceSeconds: 42);
+        using IDisposable scope = ResourceRuntime.CreateScope(new ResourceContext());
+
+        // Act
+        ResourceRuntime.TryCreateControlPlane(assembly, out IResourceControlPlane? first).ShouldBeTrue();
+        ResourceRuntime.TryCreateControlPlane(assembly, out IResourceControlPlane? second).ShouldBeTrue();
+
+        // Assert
+        first.ShouldNotBeNull();
+        second.ShouldNotBeNull();
+        second.ShouldNotBeSameAs(first);
+
+        var host = new TestHost(new TestHostOptions());
+        ResourceRuntime.HostBuilt(host, first);
+        ResourceHostRunner runner = host.Context.Runner.ShouldBeOfType<ResourceHostRunner>();
+        runner.Options.StopGraceSeconds.ShouldBe(42);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Health aggregation fails to the least healthy contribution")]
+    public async Task CheckHealthAsync_WithContributors_AggregatesStatus()
+    {
+        // Arrange
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new TestContributor(
+            "ready",
+            HealthContribution.Healthy("accepting work")));
+        controlPlane.AddHealthContributor(new TestContributor(
+            "dependency",
+            HealthContribution.Degraded("slow")));
+        controlPlane.ObserveEndpoint("http", new Uri("http://localhost:5080"));
+
+        // Act
+        ResourceHealthReport report = await controlPlane.CheckHealthAsync(CancellationToken.None);
+
+        // Assert
+        report.Status.ShouldBe(HealthStatus.Degraded);
+        report.Contributions.Count.ShouldBe(2);
+        controlPlane.ObservedEndpoints["http"].Port.ShouldBe(5080);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Endpoint observation rejects a null address")]
+    public void ObserveEndpoint_WithNullAddress_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+
+        // Act
+        Action action = () => controlPlane.ObserveEndpoint("http", null!);
+
+        // Assert
+        Should.Throw<ArgumentNullException>(action).ParamName.ShouldBe("address");
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Endpoint observation rejects a relative address")]
+    public void ObserveEndpoint_WithRelativeAddress_ShouldThrowArgumentException()
+    {
+        // Arrange
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+
+        // Act
+        Action action = () => controlPlane.ObserveEndpoint("http", new Uri("relative", UriKind.Relative));
+
+        // Assert
+        Should.Throw<ArgumentException>(action).ParamName.ShouldBe("address");
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A contributor failure becomes a named unhealthy result with fixed text, without stopping aggregation")]
+    public async Task CheckHealthAsync_WhenContributorThrows_RecordsFailureAndContinues()
+    {
+        // Arrange
+        int followingInvocations = 0;
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new CallbackContributor(
+            "database",
+            _ => ValueTask.FromException<HealthContribution>(
+                new InvalidOperationException("Failed to connect to db-primary.corp.internal:5432."))));
+        controlPlane.AddHealthContributor(new CallbackContributor(
+            "worker",
+            _ =>
+            {
+                followingInvocations++;
+                return ValueTask.FromResult(HealthContribution.Healthy("running"));
+            }));
+
+        // Act
+        ResourceHealthReport report = await controlPlane.CheckHealthAsync(CancellationToken.None);
+
+        // Assert
+        report.Status.ShouldBe(HealthStatus.Unhealthy);
+        report.Contributions.Count.ShouldBe(2);
+        report.Contributions["database"].ShouldBe(
+            HealthContribution.Unhealthy(ResourceControlPlane.ContributorThrewDescription));
+        report.Contributions["worker"].Status.ShouldBe(HealthStatus.Healthy);
+        followingInvocations.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "An unrelated contributor cancellation becomes an unhealthy result with fixed text")]
+    public async Task CheckHealthAsync_WhenContributorCancelsIndependently_RecordsFailure()
+    {
+        // Arrange
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new CallbackContributor(
+            "queue",
+            _ => ValueTask.FromException<HealthContribution>(
+                new OperationCanceledException("queue probe canceled"))));
+
+        // Act
+        ResourceHealthReport report = await controlPlane.CheckHealthAsync(CancellationToken.None);
+
+        // Assert
+        report.Status.ShouldBe(HealthStatus.Unhealthy);
+        report.Contributions["queue"].ShouldBe(
+            HealthContribution.Unhealthy(ResourceControlPlane.ContributorThrewDescription));
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "An exception a contributor places in its data is replaced with fixed text, keeping the other values and their order")]
+    public async Task CheckHealthAsync_WhenContributorDataHoldsException_ReplacesItWithFixedText()
+    {
+        // Arrange
+        const string hostName = "db-primary.corp.internal";
+        Exception failure;
+        try
+        {
+            throw new InvalidOperationException(
+                $"Failed to connect to {hostName}:5432.",
+                new TimeoutException($"No answer from {hostName}."));
+        }
+        catch (InvalidOperationException exception)
+        {
+            failure = exception;
+        }
+
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new TestContributor(
+            "database",
+            HealthContribution.Unhealthy(
+                "database unreachable",
+                new Dictionary<string, object>
+                {
+                    ["attempts"] = 3,
+                    ["error"] = failure,
+                    ["endpoint"] = "primary",
+                })));
+
+        // Act
+        ResourceHealthReport report = await controlPlane.CheckHealthAsync(CancellationToken.None);
+
+        // Assert
+        HealthContribution contribution = report.Contributions["database"];
+        contribution.Status.ShouldBe(HealthStatus.Unhealthy);
+        contribution.Description.ShouldBe("database unreachable");
+        IReadOnlyDictionary<string, object> data = contribution.Data.ShouldNotBeNull();
+        data.Keys.ShouldBe(new[] { "attempts", "error", "endpoint" });
+        data["attempts"].ShouldBe(3);
+        data["error"].ShouldBe(ResourceControlPlane.ContributorExceptionDataValue);
+        data["endpoint"].ShouldBe("primary");
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A contribution whose data holds no exception is reported as returned")]
+    public async Task CheckHealthAsync_WhenContributorDataHoldsNoException_ReportsDataAsReturned()
+    {
+        // Arrange
+        var data = new Dictionary<string, object> { ["queued"] = 12, ["note"] = "draining" };
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new TestContributor("queue", HealthContribution.Degraded("slow", data)));
+
+        // Act
+        ResourceHealthReport report = await controlPlane.CheckHealthAsync(CancellationToken.None);
+
+        // Assert
+        report.Contributions["queue"].Data.ShouldBeSameAs(data);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Caller cancellation propagates and stops aggregation")]
+    public async Task CheckHealthAsync_WhenCallerCancels_PropagatesCancellation()
+    {
+        // Arrange
+        using var cancellation = new CancellationTokenSource();
+        int followingInvocations = 0;
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        controlPlane.AddHealthContributor(new CallbackContributor(
+            "blocking",
+            cancellationToken =>
+            {
+                cancellation.Cancel();
+                cancellationToken.ThrowIfCancellationRequested();
+                return ValueTask.FromResult(HealthContribution.Healthy());
+            }));
+        controlPlane.AddHealthContributor(new CallbackContributor(
+            "following",
+            _ =>
+            {
+                followingInvocations++;
+                return ValueTask.FromResult(HealthContribution.Healthy());
+            }));
+
+        // Act & Assert
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await controlPlane.CheckHealthAsync(cancellation.Token));
+        followingInvocations.ShouldBe(0);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "HostBuilt attaches lifecycle options and observed endpoints")]
+    public void HostBuilt_WithAmbientContext_ConfiguresOnlyTheBuiltHost()
+    {
+        // Arrange
+        string contentRoot = Path.GetFullPath("resource-content");
+        var endpoint = new Uri("http://127.0.0.1:5081");
+        ResourceContext context = ResourceContext.FromEnvironment(
+            new Dictionary<string, string?>
+            {
+                [AppEnvironment.Variables.ContentRoot] = contentRoot,
+                [AppEnvironment.Variables.StopEvent] = "cohesion-stop-test",
+                [AppEnvironment.Variables.Endpoint("http", "HOST")] = endpoint.Host,
+                [AppEnvironment.Variables.Endpoint("http", "PORT")] = endpoint.Port.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                [AppEnvironment.Variables.Endpoint("http", "SCHEME")] = endpoint.Scheme,
+            });
+        using IDisposable scope = ResourceRuntime.CreateScope(context);
+        ResourceControlPlane controlPlane = ResourceControlPlane.Create();
+        var host = new TestHost(new TestHostOptions());
+
+        // Act
+        ResourceRuntime.HostBuilt(host, controlPlane);
+
+        // Assert
+        ResourceHostRunner runner = host.Context.Runner.ShouldBeOfType<ResourceHostRunner>();
+        ResourceHostOptions options = runner.Options;
+        options.ContentRootPath.ShouldBe(FileSystemPath.Parse(contentRoot));
+        options.StopEventName.ShouldBe("cohesion-stop-test");
+        options.RunMode.ShouldBe(ResourceHostRunMode.Process);
+        controlPlane.ObservedEndpoints["http"].ShouldBe(endpoint);
+    }
+
+    private sealed class TestContributor : IHealthContributor
+    {
+        private readonly HealthContribution _contribution;
+
+        internal TestContributor(string name, HealthContribution contribution)
+        {
+            Name = name;
+            _contribution = contribution;
+        }
+
+        public string Name { get; }
+
+        public ValueTask<HealthContribution> CheckAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(_contribution);
+        }
+    }
+
+    private sealed class CallbackContributor : IHealthContributor
+    {
+        private readonly Func<CancellationToken, ValueTask<HealthContribution>> _callback;
+
+        internal CallbackContributor(
+            string name,
+            Func<CancellationToken, ValueTask<HealthContribution>> callback)
+        {
+            Name = name;
+            _callback = callback;
+        }
+
+        public string Name { get; }
+
+        public ValueTask<HealthContribution> CheckAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return _callback.Invoke(cancellationToken);
+        }
+    }
+}
+```
+
 ## Walkthrough
 
 ### ResourceCommandDispatchTests
@@ -691,6 +997,19 @@ public sealed class HostingResourceEventSourceTests
 - **Covered behavior** — Event source: caller cancellation in a handler produces no failure outcome.
 - **Covered behavior** — Event source: handler unsupported operations and independent cancellation are failures, not unknown kinds.
 
+### ResourceControlPlaneTests
+
+- **Covered behavior** — Resource control plane: Assembly registration creates isolated control planes and carries stop grace.
+- **Covered behavior** — Resource control plane: Health aggregation fails to the least healthy contribution.
+- **Covered behavior** — Resource control plane: Endpoint observation rejects a null address.
+- **Covered behavior** — Resource control plane: Endpoint observation rejects a relative address.
+- **Covered behavior** — Resource control plane: A contributor failure becomes a named unhealthy result with fixed text, without stopping aggregation.
+- **Covered behavior** — Resource control plane: An unrelated contributor cancellation becomes an unhealthy result with fixed text.
+- **Covered behavior** — Resource control plane: An exception a contributor places in its data is replaced with fixed text, keeping the other values and their order.
+- **Covered behavior** — Resource control plane: A contribution whose data holds no exception is reported as returned.
+- **Covered behavior** — Resource control plane: Caller cancellation propagates and stops aggregation.
+- **Covered behavior** — Resource control plane: HostBuilt attaches lifecycle options and observed endpoints.
+
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
 
@@ -703,3 +1022,5 @@ inputs; they are not additional shipped APIs.
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/tests/HostingResourceEventSourceTests.cs`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/tests/Assimalign.Cohesion.Hosting.Resources.Tests.csproj`.
+
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/tests/ResourceControlPlaneTests.cs`.

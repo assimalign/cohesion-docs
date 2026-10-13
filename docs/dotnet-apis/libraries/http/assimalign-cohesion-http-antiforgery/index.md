@@ -1,10 +1,13 @@
 # Assimalign.Cohesion.Http.Antiforgery
 
 `Assimalign.Cohesion.Http.Antiforgery` creates and validates signed cookie and
-request-token pairs for cross-site request forgery protection. Create an
-`IHttpAntiforgery` service with `HttpAntiforgery.Create(options)` and share it
-across the application's requests. `GetAndStoreTokens(context)` issues the
-pair; `IsRequestValidAsync(context)` checks a submitted pair.
+request-token pairs for cross-site request forgery protection. The public sealed
+`HttpAntiforgery` implements `IHttpAntiforgery`. Create it with either
+`HttpAntiforgery.Create(options)` or `HttpAntiforgery.Create(configure)` and share
+it across the application's requests; its constructor is private. Both overloads
+return `HttpAntiforgery`, which can be used through `IHttpAntiforgery`.
+`GetAndStoreTokens(context)` issues the pair; `IsRequestValidAsync(context)`
+checks a submitted pair.
 
 ## Reference
 

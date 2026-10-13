@@ -34,7 +34,8 @@ public class HttpResponseStreamingFeatureTests
         RecordingSink sink = new();
         HttpExchangeInterceptorResponseContext context = CreateContext(sink);
 
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor interceptor = HttpResponseStreamingInterceptor.Create();
+        interceptor.BeforeResponse(context);
 
         context.Features.Get<IHttpResponseStreamingFeature>().ShouldNotBeNull();
     }
@@ -110,7 +111,7 @@ public class HttpResponseStreamingFeatureTests
         IOException expected = new("The sink refused its first operation.");
         using RecordingSink sink = new() { NextFailure = expected };
         HttpExchangeInterceptorResponseContext context = CreateContext(sink);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
         IHttpResponseStreamingFeature feature = context.Features.Get<IHttpResponseStreamingFeature>()!;
 
         // Act
@@ -140,7 +141,7 @@ public class HttpResponseStreamingFeatureTests
         // Arrange
         using RecordingSink sink = new() { NextFailure = new IOException("The sink refused completion.") };
         HttpExchangeInterceptorResponseContext context = CreateContext(sink);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
         IHttpResponseStreamingFeature feature = context.Features.Get<IHttpResponseStreamingFeature>()!;
 
         // Act
@@ -176,7 +177,7 @@ public class HttpResponseStreamingFeatureTests
             BeforeFailure = () => control.HasResponseStarted = true,
         };
         HttpExchangeInterceptorResponseContext context = CreateContext(sink, control);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
         IHttpResponseStreamingFeature feature = context.Features.Get<IHttpResponseStreamingFeature>()!;
 
         // Act
@@ -198,7 +199,7 @@ public class HttpResponseStreamingFeatureTests
         FakeExchangeControl control = new();
         using RecordingSink sink = new();
         HttpExchangeInterceptorResponseContext context = CreateContext(sink, control);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
         IHttpResponseStreamingFeature feature = context.Features.Get<IHttpResponseStreamingFeature>()!;
         feature.HasStarted.ShouldBeFalse();
 
@@ -218,7 +219,7 @@ public class HttpResponseStreamingFeatureTests
     {
         RecordingSink sink = new();
         HttpExchangeInterceptorResponseContext context = CreateContext(sink);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
 
         FakeHttpResponse response = new(context.Features);
 
@@ -239,7 +240,7 @@ public class HttpResponseStreamingFeatureTests
     {
         RecordingSink sink = new();
         HttpExchangeInterceptorResponseContext context = CreateContext(sink);
-        HttpResponseStreaming.CreateInterceptor().BeforeResponse(context);
+        HttpResponseStreamingInterceptor.Create().BeforeResponse(context);
         return (context.Features.Get<IHttpResponseStreamingFeature>()!, sink);
     }
 

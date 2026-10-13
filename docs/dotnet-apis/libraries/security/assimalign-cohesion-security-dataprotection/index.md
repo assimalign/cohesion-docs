@@ -29,6 +29,10 @@ Consumers adapt `IDataProtector` to their own seams at builder time. `Web.Antifo
 purpose chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and adapts it to
 `IHttpAntiforgeryProtector`; `Http.Antiforgery` itself takes no dependency on this library.
 
+`DataProtectionProvider` and `FileSystemKeyRepository` are public sealed implementations with
+private constructors. Their `Create` methods return the concrete type; application code can
+continue to use `IDataProtectionProvider` and `IKeyRepository` contracts.
+
 ## Dependencies
 
 The project file declares no explicit Cohesion project or external package references.
@@ -43,7 +47,7 @@ The project file declares no explicit Cohesion project or external package refer
 | `IDataProtector` | `src/Abstractions/IDataProtector.cs` |
 | `IKey` | `src/Abstractions/IKey.cs` |
 | `IKeyRepository` | `src/Abstractions/IKeyRepository.cs` |
-| `KeyRepository` | `src/KeyRepository.cs` |
+| `FileSystemKeyRepository` | `src/FileSystemKeyRepository.cs` |
 | `DataProtectionOptions` | `src/DataProtectionOptions.cs` |
 | `DataProtectionProviderExtensions` | `src/Extensions/DataProtectionProviderExtensions.cs` |
 | `KeyDocument` | `src/KeyDocument.cs` |
@@ -74,7 +78,7 @@ The project file declares no explicit Cohesion project or external package refer
 
 - **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Abstractions/IKeyRepository.cs`.
 
-- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/KeyRepository.cs`.
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/FileSystemKeyRepository.cs`.
 
 - **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/DataProtectionOptions.cs`.
 

@@ -40,7 +40,7 @@ using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 
 HttpConnectionListenerOptions options = new();
-options.Interceptors.Add(HttpExtendedConnect.CreateInterceptor());
+options.Interceptors.Add(HttpExtendedConnectInterceptor.Create());
 ```
 
 The Web host (`Assimalign.Cohesion.Web.Hosting`) registers it by default. Without it, an extended
@@ -94,7 +94,7 @@ every area framework that carries `Web.Hosting`.
 
 | Type | Source file |
 |---|---|
-| `HttpExtendedConnect` | `src/HttpExtendedConnect.cs` |
+| `HttpExtendedConnectInterceptor` | `src/HttpExtendedConnectInterceptor.cs` |
 | `HttpExtendedConnectExtensions` | `src/Extensions/HttpExtendedConnectExtensions.cs` |
 | `IHttpExtendedConnectFeature` | `src/Abstractions/IHttpExtendedConnectFeature.cs` |
 
@@ -112,7 +112,7 @@ every area framework that carries `Web.Hosting`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnect.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnectInterceptor.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/Extensions/HttpExtendedConnectExtensions.cs`.
 

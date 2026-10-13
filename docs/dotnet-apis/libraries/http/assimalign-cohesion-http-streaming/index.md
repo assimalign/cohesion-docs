@@ -24,7 +24,7 @@ depending on this package.
 
 - `IHttpResponseStreamingFeature` — the typed streaming API (`StartAsync`,
   `WriteAsync`, `FlushAsync`, `CompleteAsync`, `HasStarted`).
-- `HttpResponseStreaming.CreateInterceptor()` — the `IHttpExchangeInterceptor` a
+- `HttpResponseStreamingInterceptor.Create()` — the `IHttpExchangeInterceptor` a
   host registers to make streaming available on every exchange.
 - `Response.Streaming` / `Response.SupportsStreaming` — ergonomic accessors on
   `IHttpResponse`.
@@ -33,7 +33,7 @@ depending on this package.
 
 ```csharp
 // Host / composition root — opt into streaming:
-options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor());
+options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
 
 // Handler:
 context.Response.Headers[HttpHeaderKey.ContentType] = "text/plain";
@@ -75,7 +75,7 @@ separate package and how it plugs into the transport. Server-Sent Events
 
 | Type | Source file |
 |---|---|
-| `HttpResponseStreaming` | `src/HttpResponseStreaming.cs` |
+| `HttpResponseStreamingInterceptor` | `src/HttpResponseStreamingInterceptor.cs` |
 | `IHttpResponseStreamingFeature` | `src/Abstractions/IHttpResponseStreamingFeature.cs` |
 | `HttpResponseStreamingExtensions` | `src/Extensions/HttpResponseStreamingExtensions.cs` |
 
@@ -93,7 +93,7 @@ separate package and how it plugs into the transport. Server-Sent Events
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/HttpResponseStreaming.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/HttpResponseStreamingInterceptor.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Streaming/src/Abstractions/IHttpResponseStreamingFeature.cs`.
 

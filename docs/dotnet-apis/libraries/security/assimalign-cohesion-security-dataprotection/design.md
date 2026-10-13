@@ -18,6 +18,28 @@ adapter ships in `Web.Antiforgery`, whose
 chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and maps `DataProtectionException` to an
 invalid token.
 
+## Surface
+
+- `IDataProtectionProvider` — creates purpose-scoped protectors. The composition-root entry
+  point.
+- `IDataProtector : IDataProtectionProvider` — `Protect`/`Unprotect` over
+  `ReadOnlySpan<byte>`; because it *extends* the provider, calling `CreateProtector` on a
+  protector derives a further-scoped child, so purposes compose into a chain.
+- `DataProtectionProviderExtensions.CreateProtector(params string[])` — builds a multi-segment
+  chain in one call (an `extension(...)` member), equivalent to chaining segment by segment.
+- `IKey` — read-only key metadata (id, created/activated/expires, revoked). Never exposes
+  material.
+- `IKeyRepository` + `KeyDocument` — the persistence seam; a pure opaque-blob store.
+- `FileSystemKeyRepository.Create(path)` — the default file-system repository.
+- `DataProtectionOptions` — discriminator, key lifetime, unprotect grace period, unknown-key
+  reload interval.
+- `DataProtectionProvider.Create(...)` — creates the public sealed provider and its ring.
+- `DataProtectionException` — the area-scoped exception root.
+
+The provider and file-system repository have private constructors and creation methods that
+return their own types. Everything else (`AesGcmDataProtector`, `KeyRing`, `ManagedKey`,
+`KeySerializer`, `PurposeChain`) is `internal`.
+
 ## Reloads and the unknown-key throttle
 
 If a payload names a key not in the in-memory snapshot, the ring may reload from the repository
@@ -104,6 +126,20 @@ never reveal key material or plaintext.
 - **A repository failure on the protect path** (`GetActiveKey`'s reload, or the store of a new key)
   still propagates unchanged from `Protect`, although `IDataProtector.Protect` documents
   `DataProtectionException` for an unreadable repository. That gap predates the throttle.
+
+## Preview.1 compatibility — public implementations (#1465)
+
+On owner decisions 59 and 15's preview terms, `DataProtectionProvider` becomes the public sealed
+implementation of `IDataProtectionProvider`, with a private constructor. Both `Create` calls
+keep their parameters and spelling and now return `DataProtectionProvider`; existing calls are
+source-compatible. `KeyRepository`, which shipped in 10.0.0-preview.1, is removed: migrate
+`KeyRepository.CreateFileSystem(path)` to `FileSystemKeyRepository.Create(path)`, which returns
+the public sealed repository and retains its private constructor.
+
+Both conversions are binary-breaking: creation return types change, and the repository facade
+is removed. Recompile consumers and apply the repository rename. The interfaces, purpose
+isolation, rotation, persistence and argument validation are unchanged. No compatibility facade
+remains. Advisory: not applicable: API shape.
 
 ## Dependency boundary
 

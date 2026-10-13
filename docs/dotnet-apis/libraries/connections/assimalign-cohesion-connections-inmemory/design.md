@@ -247,6 +247,23 @@ Completing every usable holder direction, or both peers completing their outputs
 `ConnectionClosed` on both ends of an in-memory multiplexed stream. Completing only one direction
 remains a half-close and leaves both lifecycle tokens unsignaled.
 
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared MSBuild targets generate
+an internal `ErrorMessages` accessor in the project's root namespace during CLI and CI builds;
+its embedded resources are available under NativeAOT. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ...)`, preserving the existing text and arguments.
+EventSource templates and payload handling keep their existing behavior. This changes no public
+API or exception text relative to 10.0.0-preview.1.
+
+Listener-disposal and multiplexed-accept cancellation messages are cached in `static readonly`
+fields. So are the multiplexed connection-close format and directional stream abort/reset
+formats and read-aborted message: ordinary disposal and protocol cancellation can create these
+exceptions. Formatting still uses the culture current when each exception is created.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Connections`, and

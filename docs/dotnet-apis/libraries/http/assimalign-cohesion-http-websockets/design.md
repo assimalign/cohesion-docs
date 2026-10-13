@@ -171,7 +171,7 @@ cannot carry. A `426` carries `Sec-WebSocket-Version: 13` only: `Upgrade` and `C
 connection-specific, which HTTP/2 and HTTP/3 prohibit (RFC 9113 §8.2.2, RFC 9114 §4.2), and an
 HTTP/2 client treats a response that carries them as malformed.
 
-These protocols need the extended CONNECT interceptor (`HttpExtendedConnect.CreateInterceptor()`)
+These protocols need the extended CONNECT interceptor (`HttpExtendedConnectInterceptor.Create()`)
 on the listener, as HTTP/1.1 needs the protocol-upgrade interceptor; the Web host registers both by
 default. Without it the transport still advertises extended CONNECT, so a client sends the
 handshake, but no feature surfaces it: `IsWebSocketRequest` is `false` and the request is served as
@@ -297,6 +297,20 @@ Transport integration tests consume duplex byte pipes through `IDuplexConnection
 connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
 use `IMultiplexedConnectionStream`. These contract names do not alter this package's
 request/response behavior.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

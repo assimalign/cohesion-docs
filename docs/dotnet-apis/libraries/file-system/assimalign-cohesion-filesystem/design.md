@@ -101,18 +101,31 @@ raised before the backing store is touched. It was appended after `ReadOnly`, so
 keeps its numeric value, and `FileSystemExceptionTests` pins the ordinals.
 
 `[DoesNotReturn]` static helpers (`ThrowFileNotFound`, `ThrowReadOnly`, and so on) keep providers
-from constructing exceptions inline. The original helpers are declared on the exception type. New
-ones are static extension members in `FileSystemExceptionExtensions`, following the repository rule
-against throw-helper types; `ThrowPathOutsideRoot` is the first. Both are called the same way
-(`FileSystemException.ThrowPathOutsideRoot(path)`), so the older helpers can move to the extension
-container without changing callers. `ThrowPathOutsideRoot`'s message names only the caller's path,
-never the root or the resolved host location.
+from constructing exceptions inline. Reusable throw members live on the exception type they throw;
+extension members are reserved for exception types the assembly does not own.
+`ThrowPathOutsideRoot` is declared directly on `FileSystemException` and reads its
+message from `Properties/ErrorMessages.resx`, formatted with `CultureInfo.CurrentCulture`.
+Callers retain `FileSystemException.ThrowPathOutsideRoot(path)`. Its message still names
+only the caller's path, never the root or resolved host location.
+
+The retired `FileSystemExceptionExtensions` container and `ThrowPathOutsideRoot` did not
+exist in 10.0.0-preview.1. Moving the member adds no break against that release; callers
+compiled against the intervening extension container must rebuild (#1468).
 
 ## Adding a provider
 
 Route every path-taking member of a new provider through one containment check that follows the
 rule above, and test escapes against every member, as the physical and in-memory containment tests
 do.
+
+## Build-generated resources (#1467)
+
+Exception messages are held in `src/Properties/ErrorMessages.resx`. The internal `ErrorMessages` accessor is generated in the project
+root namespace by MSBuild's GenerateResource task through
+`build/Targets/Build.ErrorMessages.targets`. The generated source stays under
+`obj/`; no checked-in designer or Visual Studio custom tool is required. Ordinary
+`dotnet build`, CI and NativeAOT publication use the same embedded resources.
+Existing message text is preserved.
 
 ## Dependency boundary
 
@@ -131,7 +144,7 @@ distinguishes project references, package references, shared source, and analyze
 
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/docs/COMPATIBILITY.md`.
 
-- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Extensions/FileSystemExceptionExtensions.cs`.
+- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Exceptions/FileSystemException.cs`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/docs/DESIGN.md`.
 

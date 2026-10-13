@@ -30,13 +30,13 @@ coupling:
   the core.
 
 Streaming is therefore **opt-in**: a host enables it by registering
-`HttpResponseStreaming.CreateInterceptor()` on the transport's response
+`HttpResponseStreamingInterceptor.Create()` on the transport's response
 interceptors. Where it is not registered, the transport uses its buffered response
 path with zero streaming overhead.
 
 ## How it works
 
-1. A host adds `HttpResponseStreaming.CreateInterceptor()` to
+1. A host adds `HttpResponseStreamingInterceptor.Create()` to
    `HttpConnectionListenerOptions.Interceptors`.
 2. Per exchange, the transport creates its per-protocol raw response body sink and
    runs the registered response interceptors, exposing the sink as
@@ -85,13 +85,13 @@ has not closed the feature's write/complete guard.
 The feature observes transport commitment and advances completion only after a successful flush:
 
 ```mermaid
-flowchart TD
-    Initial["Initial state"] --> Unstarted["Unstarted"]
-    Unstarted -->|"head refused before commitment"| Unstarted
-    Unstarted -->|"transport commits the head"| Started["Started"]
-    Started -->|"later I/O failure"| Started
-    Unstarted -->|"CompleteAsync flush succeeds"| Completed["Completed"]
-    Started -->|"CompleteAsync flush succeeds"| Completed
+stateDiagram-v2
+    [*] --> Unstarted
+    Unstarted --> Unstarted: head refused before commitment
+    Unstarted --> Started: transport commits the head
+    Started --> Started: later I/O failure
+    Unstarted --> Completed: CompleteAsync flush succeeds
+    Started --> Completed: CompleteAsync flush succeeds
 ```
 
 A response-head interceptor may already have run before field validation refuses the head. Its
@@ -122,6 +122,37 @@ failure must use the corrected `HasStarted` value to decide whether a replacemen
 
 No reflection, no runtime code generation. The feature wraps a `Stream` and the optional core
 `IHttpExchangeControl`; the interceptor installs it through `Features.Set`.
+
+## Public interceptor and breaking changes since 10.0.0-preview.1 (#1465)
+
+`HttpResponseStreamingInterceptor` is the public sealed implementation of the existing
+`IHttpExchangeInterceptor` contract through `HttpExchangeInterceptor`. Its constructor is private;
+`HttpResponseStreamingInterceptor.Create()` creates a new stateless instance and returns its concrete type.
+The interface remains the contract for listener registration and custom interceptors. Feature
+implementations remain internal. This is the factory-to-implementation convention approved by
+owner decision 59.
+
+The `v10.0.0-preview.1` tag shipped `HttpResponseStreaming.CreateInterceptor()` returning
+`IHttpExchangeInterceptor`. That static factory class is removed. Consumers must replace the call
+with `HttpResponseStreamingInterceptor.Create()` and rebuild. Removing the old type and method is a
+**source- and binary-breaking change**, accepted during previews on decision 15's terms.
+Assignments to `IHttpExchangeInterceptor` continue to work after the call is renamed. The
+interceptor's registration order, scopes, feature installation, and request/response behavior
+are unchanged.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

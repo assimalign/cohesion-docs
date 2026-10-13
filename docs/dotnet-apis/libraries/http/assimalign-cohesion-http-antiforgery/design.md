@@ -98,13 +98,24 @@ antiforgery and every other protected artifact.
 ## Service shape: stateless singleton over a passed-in context
 
 `IHttpAntiforgery` methods each take the `IHttpContext` they operate on, so
-the implementation (`HttpAntiforgeryService`) is stateless aside from its
-options + engine and is safe to share across requests. `HttpAntiforgery.Create`
-is the public factory; the internal service stays hidden behind the
-interface (interface-first). The `IHttpAntiforgeryFeature` carries the shared
-service on a context so downstream handlers resolve the *same* configured
-service — and therefore the same signing key — via
-`context.Antiforgery` / `context.RequireAntiforgery`.
+the public sealed implementation, `HttpAntiforgery`, is stateless aside from
+its options + engine and is safe to share across requests. Its constructor is
+private: the static `Create(Action<HttpAntiforgeryOptions>? configure = null)`
+and `Create(HttpAntiforgeryOptions options)` overloads both return
+`HttpAntiforgery` after the existing option validation. The implementation and
+factories share one public type, as owner decision 59 (#1464) requires;
+`IHttpAntiforgery` remains the contract for consumers and custom implementations.
+Token helpers remain internal, and nested helpers remain private.
+
+All five context-taking operations reject a null `httpContext` with
+`ArgumentNullException`, including `ValidateRequestAsync` through
+`IsRequestValidAsync`. The exception is documented on `IHttpAntiforgery`,
+whose member documentation the public implementation inherits. This records
+the existing error behavior; it does not change request validation.
+
+The `IHttpAntiforgeryFeature` carries the shared service on a context so
+downstream handlers resolve the *same* configured service — and therefore the
+same signing key — via `context.Antiforgery` / `context.RequireAntiforgery`.
 
 Every `IHttpAntiforgeryFeature` reports `nameof(IHttpAntiforgeryFeature)` as its
 feature name. The feature collection is name-keyed, so an exchange carries at
@@ -200,7 +211,18 @@ token must not be cached or a shared cache could serve one user's token to
 another; `X-Frame-Options` reduces clickjacking that could drive token
 submission.
 
-## Breaking behavior since 10.0.0-preview.1
+## Breaking changes since 10.0.0-preview.1
+
+The `v10.0.0-preview.1` tag shipped `HttpAntiforgery` as a public static
+factory whose two `Create` overloads returned `IHttpAntiforgery`. Since #1464,
+it is the public sealed implementation of that interface, and both overloads
+return `HttpAntiforgery`. Replacing the static class with the sealed class and
+changing the factory return signatures is a **binary-breaking change**, accepted
+during previews on decision 15's terms and sanctioned by decision 59. Consumers
+compiled against the old factory must rebuild against the updated package.
+Existing `HttpAntiforgery.Create(...)` source call sites remain compatible,
+including assignments to `IHttpAntiforgery`; the parameters, validation, token
+format, and request behavior are unchanged.
 
 In 10.0.0-preview.1, `HttpAntiforgery.Create` accepted an invalid
 `CookieName`; `HttpCookie` rejected it only when a request stored a cookie
@@ -233,6 +255,29 @@ small and use stack buffers, so the hot paths are allocation-light.
   Pipeline enforcement is the Web layer's: `Assimalign.Cohesion.Web.Antiforgery`
   validates the unsafe requests of endpoints that declare a requirement (and
   reads the form for the form-token flow, which this package does not trigger).
+
+## Data-protection test composition (#1465)
+
+The protector-seam tests now construct their key repository with
+`FileSystemKeyRepository.Create(path)`. `DataProtectionProvider.Create(...)` keeps its spelling
+and returns the public provider. These upstream factory changes require rebuilding the tests;
+the preview.1 source and binary breaks are recorded in Security.DataProtection's DESIGN on
+decision 15's terms. This cleanup changes no Http.Antiforgery API or token behavior and adds no
+shipped data-protection dependency. Advisory: not applicable: API shape.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

@@ -510,6 +510,20 @@ method.
   comparison is safe; one forgotten case-insensitive check reopens the gap. Fixing the value type
   closes it everywhere at once.
 
+### Antiforgery: QUERY is spec-safe but stays token-required
+
+The one deliberately non-mechanical decision. `HttpAntiforgery.IsSafeMethod`
+exempts only the **bodiless** safe methods (GET/HEAD/OPTIONS/TRACE) from token
+validation. QUERY is spec-safe and idempotent — `HttpMethod.IsSafe` reports `true`
+— but it **carries a request body**, so its CSRF exposure parallels POST: a
+cross-site `<form>`/`fetch` can drive a state-influencing QUERY the same way it can
+a POST. QUERY is therefore **not** exempt (a QUERY with no valid token is
+rejected), and the antiforgery exempt set stays an explicit list rather than being
+repointed at `HttpMethod.IsSafe` — repointing would silently exempt QUERY and
+regress the protection. The rationale is recorded in code at `IsSafeMethod` and
+pinned by tests; if a caller genuinely wants read-only QUERY endpoints exempt,
+that is an explicit opt-in for that endpoint, not a change to the default.
+
 ## The extended CONNECT seam
 
 An HTTP/2 or HTTP/3 *extended CONNECT* (RFC 8441, RFC 9220) is a `CONNECT` request that carries
@@ -583,7 +597,7 @@ TLS session feature that sat beside it moved to `Assimalign.Cohesion.Http.Tls` i
 now holds no transport-produced feature contract. Two consequences follow:
 
 - **The feature depends on a registration.** It exists only on a listener that registers
-  `HttpExtendedConnect.CreateInterceptor()`; the Web host does by default. The HTTP/2 and HTTP/3
+  `HttpExtendedConnectInterceptor.Create()`; the Web host does by default. The HTTP/2 and HTTP/3
   transports advertise extended CONNECT regardless, so a listener without the interceptor surfaces a
   client's extended CONNECT as an ordinary `CONNECT`.
 - **An extended CONNECT pays for the response phase.** The interceptor reaches the control through
@@ -903,6 +917,29 @@ exceptions left: the last two transport-produced contracts moved out in #1367 (T
 Transport integrations distinguish the `IConnection` identity/lifetime root from
 `IDuplexConnection` byte pipes and `IMultiplexedConnectionStream` streams. Core HTTP
 request/response and connection-info contracts do not acquire a transport dependency.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). The rule also applies to names below that limit: never copy or truncate the message.
+These internal names are independent of the preserved message text and placeholders.
+`ItemTrailingCharacters` and `ListTrailingCharacters` name the structured-field parse failures,
+matching `DictionaryTrailingCharacters`.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
+
+The request-target and structured-field parsers also use these resources for error strings
+later passed to their throwing `Parse` entry points. `HttpMethod` and `HttpStatusCode` perform
+message formatting inside their existing failure conditions, keeping resource lookup and
+formatting allocations off successful construction. Neither their accepted values nor their
+exception text changes.
 
 ## Dependency boundary
 

@@ -9,9 +9,9 @@ Exercise QUIC handshake options, diagnostics, listener lifecycle, connection fea
 These are the complete `QuicConnectionOptionsTests.cs`, `QuicConnectionEventSourceTests.cs`, `QuicConnectionListenerTests.cs`, and `QuicMultiplexedConnectionTests.cs` listings from the package test project.
 Keep them in that project when running them: the project supplies its package references, generated
 sources, and shared fixtures. The diagnostics and listener tests use the canonical test-only
-`build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild `Compile`/`Link`. The multiplexed
-tests use the project's `QuicTheoryAttribute` to skip unsupported platforms at discovery; the
-feature registration case requires real QUIC support.
+`build/TestSupport/EventSourceRecorder.cs`, linked with MSBuild `Compile`/`Link`. Real-QUIC tests use the project's `QuicFactAttribute` or `QuicTheoryAttribute` to report a
+discovery-time skip when `QuicListener.IsSupported` is false, including a missing native msquic
+provider. On supported platforms the same cases execute all their behavior assertions.
 
 ## Code
 
@@ -146,11 +146,12 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Quic.Internal;
+using Assimalign.Cohesion.Connections.Quic.Tests.TestObjects;
 using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
-// The lifecycle test gates on QuicListener.IsSupported and no-ops where the platform lacks a QUIC
+// Lifecycle tests report a discovery-time skip where the platform lacks a QUIC
 // implementation, like the rest of this suite; the name and manifest tests need no QUIC support.
 [Collection(nameof(EventSourceCollection))]
 [SupportedOSPlatform("windows")]
@@ -184,14 +185,9 @@ public class QuicConnectionEventSourceTests
         manifest.ShouldContain("Assimalign.Cohesion.Connections.Quic", Case.Sensitive);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - QuicConnectionEventSource: Should report each listener, connection, and stream transition once and restore the gauges")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - QuicConnectionEventSource: Should report each listener, connection, and stream transition once and restore the gauges")]
     public async Task ConnectionLifecycle_LoopbackPairWithStream_ShouldReportEachTransitionOnceAndRestoreGauges()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -257,14 +253,9 @@ public class QuicConnectionEventSourceTests
         events.Where(e => e.EventName == "ListenerClosed").ShouldHaveSingleItem().Payload![0].ShouldBe(listenerId);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - QuicConnectionEventSource: Should report a handshake the listener dropped once")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - QuicConnectionEventSource: Should report a handshake the listener dropped once")]
     public async Task HandshakeFailed_OnClientRefusedByCertificatePolicy_ShouldReportOnce()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the listener requires a client certificate the first client does not have.
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -362,11 +353,12 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections.Quic.Internal;
+using Assimalign.Cohesion.Connections.Quic.Tests.TestObjects;
 using Assimalign.Cohesion.Testing;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
-// Every test gates on QuicListener.IsSupported and no-ops where the platform lacks a QUIC
+// Real-QUIC tests report a discovery-time skip where the platform lacks a QUIC
 // implementation (for example, a missing libmsquic); xunit 2.x has no runtime skip.
 [SupportedOSPlatform("windows")]
 [SupportedOSPlatform("linux")]
@@ -375,14 +367,9 @@ public class QuicConnectionListenerTests
 {
     private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(10);
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - BindAsync: Construction should remain unbound until explicit bind")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - BindAsync: Construction should remain unbound until explicit bind")]
     public async Task BindAsync_OnUnboundListener_ShouldBindConcreteEndPoint()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -401,14 +388,9 @@ public class QuicConnectionListenerTests
         listener.EndPoint.ShouldBe(firstBoundEndPoint);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - BindAsync: Dispose should release a fixed endpoint for a new listener")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - BindAsync: Dispose should release a fixed endpoint for a new listener")]
     public async Task BindAsync_AfterDisposedListenerOnSameEndPoint_ShouldSucceed()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -429,11 +411,6 @@ public class QuicConnectionListenerTests
     [Fact(DisplayName = "Cohesion Test [Connections.Quic] - BindAsync: Disposed listener should reject bind and accept")]
     public async Task BindAsync_AfterDispose_ShouldThrowObjectDisposedException()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         QuicConnectionListener listener = new(CreateOptions(certificate, new IPEndPoint(IPAddress.Loopback, 0)));
@@ -444,14 +421,9 @@ public class QuicConnectionListenerTests
         await Should.ThrowAsync<ObjectDisposedException>(async () => await listener.AcceptAsync());
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - AcceptAsync: A client the certificate policy refuses should not end the accept")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - AcceptAsync: A client the certificate policy refuses should not end the accept")]
     public async Task AcceptAsync_AfterRefusingAClientWithoutACertificate_ShouldAcceptTheNextClient()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the listener requires a client certificate, so a client without one fails its handshake,
         // which System.Net.Quic reports from the next accept while it keeps listening (#1304).
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -478,14 +450,9 @@ public class QuicConnectionListenerTests
         server.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(clientCertificate.Thumbprint);
     }
 
-    [Fact]
+    [QuicFact]
     public async Task CreateAsync_WithEphemeralEndPoint_ShouldBindConcreteEndPoint()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -509,14 +476,9 @@ public class QuicConnectionListenerTests
         boundEndPoint.Port.ShouldNotBe(0);
     }
 
-    [Fact]
+    [QuicFact]
     public async Task CreateAsync_WithoutServerCertificate_ShouldThrowInvalidOperationException()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         // The default options carry an ALPN list but no server certificate.
         QuicConnectionListenerOptions options = new()
@@ -529,14 +491,9 @@ public class QuicConnectionListenerTests
             async () => await QuicConnectionListener.CreateAsync(options));
     }
 
-    [Fact]
+    [QuicFact]
     public async Task CreateAsync_WithEmptyApplicationProtocols_ShouldThrowInvalidOperationException()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using X509Certificate2 certificate = QuicTestCertificate.Create();
 
@@ -556,24 +513,14 @@ public class QuicConnectionListenerTests
     [Fact]
     public async Task CreateAsync_WithNullOptions_ShouldThrowArgumentNullException()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange / Act / Assert
         await Should.ThrowAsync<ArgumentNullException>(
             async () => await QuicConnectionListener.CreateAsync((QuicConnectionListenerOptions)null!));
     }
 
-    [Fact]
+    [QuicFact]
     public async Task Capabilities_OnCreatedListener_ShouldDescribeMultiplexedTlsQuicStream()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -664,7 +611,7 @@ using Assimalign.Cohesion.Connections.Quic.Tests.TestObjects;
 
 namespace Assimalign.Cohesion.Connections.Quic.Tests;
 
-// Existing facts gate on QuicListener.IsSupported; QuicTheory cases report a discovery-time skip
+// Real-QUIC facts and theories report a discovery-time skip
 // where the platform lacks a QUIC implementation (for example, a missing libmsquic).
 [Collection(nameof(EventSourceCollection))]
 [SupportedOSPlatform("windows")]
@@ -674,13 +621,12 @@ public class QuicMultiplexedConnectionTests
 {
     private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(10);
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - ConnectionClosed: A closed idle peer removes its accepted connection")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - ConnectionClosed: A closed idle peer removes its accepted connection")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ConnectionClosed_OnDisposeOrAbort_ShouldNotifyIdlePeerAndUntrack(bool abort)
     {
         // Arrange
-        QuicListener.IsSupported.ShouldBeTrue();
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
@@ -712,13 +658,12 @@ public class QuicMultiplexedConnectionTests
     }
 
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - ConnectionClosed: Zero stream options and idle clients still observe peer closure")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - ConnectionClosed: Zero stream options and idle clients still observe peer closure")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ConnectionClosed_WithZeroInboundOptions_ShouldNotifyEitherIdlePeer(bool closeServer)
     {
         // Arrange
-        QuicListener.IsSupported.ShouldBeTrue();
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token,
@@ -741,13 +686,12 @@ public class QuicMultiplexedConnectionTests
         ((QuicMultiplexedConnection)observing).InboundBidirectionalStreamLimit.ShouldBe(0);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - OpenStreamAsync: Zero unidirectional credit stays blocked while idle peer closure is observed")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - OpenStreamAsync: Zero unidirectional credit stays blocked while idle peer closure is observed")]
     [InlineData(1)]
     [InlineData(100)]
     public async Task OpenStreamAsync_WithZeroUnidirectionalAndPositiveBidirectionalLimit_ShouldBlockAndObserveIdleClosure(int bidirectionalLimit)
     {
         // Arrange
-        QuicListener.IsSupported.ShouldBeTrue();
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token,
@@ -776,11 +720,10 @@ public class QuicMultiplexedConnectionTests
         ((QuicMultiplexedConnection)pair.Server).InboundBidirectionalStreamLimit.ShouldBe((long)bidirectionalLimit);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - DisposeAsync: Every completed concurrent call signals connection closure")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - DisposeAsync: Every completed concurrent call signals connection closure")]
     public async Task DisposeAsync_WhileFirstCallWaitsForDelivery_ShouldSignalBeforeSecondReturns()
     {
         // Arrange
-        QuicListener.IsSupported.ShouldBeTrue();
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using WithheldCreditPair pair = await WithheldCreditPair.CreateAsync(
@@ -796,13 +739,12 @@ public class QuicMultiplexedConnectionTests
         await first.WaitAsync(cancellation.Token);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Stream lifecycle: Disposal and abort signal both stream endpoints")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream lifecycle: Disposal and abort signal both stream endpoints")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task StreamConnectionClosed_OnDisposeOrAbort_ShouldNotifyBothEnds(bool abort)
     {
         // Arrange
-        QuicListener.IsSupported.ShouldBeTrue();
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
@@ -825,11 +767,10 @@ public class QuicMultiplexedConnectionTests
         server.ConnectionClosed.IsCancellationRequested.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Features: Registers distinct connection features and isolated stream abort features over real QUIC")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Features: Registers distinct connection features and isolated stream abort features over real QUIC")]
     public async Task Features_OnRealQuic_ShouldRegisterNamedFeaturesWithoutParentFallback()
     {
-        // Arrange — this gate must execute against QUIC rather than silently return when unsupported.
-        QuicListener.IsSupported.ShouldBeTrue();
+        // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
         await using LoopbackPair pair = await LoopbackPair.CreateAsync(certificate, cancellation.Token);
@@ -958,14 +899,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact]
+    [QuicFact]
     public async Task ConnectAsync_WithAcceptingListener_ShouldEstablishConnectedPair()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -989,14 +925,9 @@ public class QuicMultiplexedConnectionTests
             ConnectionSecurity.Tls));
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - ApplicationProtocol: Should report the protocol ALPN selected on both peers")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - ApplicationProtocol: Should report the protocol ALPN selected on both peers")]
     public async Task ApplicationProtocol_OnEstablishedPair_ShouldReportNegotiatedProtocol()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1009,14 +940,9 @@ public class QuicMultiplexedConnectionTests
         pair.Client.Tls.ShouldNotBeNull().ApplicationProtocol.ShouldBe(new SslApplicationProtocol("cohesion-test"));
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - TlsProtocol and CipherSuite: Should report the TLS 1.3 session on both peers")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - TlsProtocol and CipherSuite: Should report the TLS 1.3 session on both peers")]
     public async Task TlsProtocolAndCipherSuite_OnEstablishedPair_ShouldReportTls13Session()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1033,14 +959,9 @@ public class QuicMultiplexedConnectionTests
         server.CipherSuite.ShouldBe(client.CipherSuite);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - RemoteCertificate: Should report each peer's certificate to the other")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - RemoteCertificate: Should report each peer's certificate to the other")]
     public async Task RemoteCertificate_WithClientCertificate_ShouldReportPeerCertificates()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the server requests a client certificate and accepts the test one.
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1066,14 +987,9 @@ public class QuicMultiplexedConnectionTests
         pair.Client.Tls.ShouldNotBeNull().RemoteCertificate!.Thumbprint.ShouldBe(certificate.Thumbprint);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - RemoteCertificate: Should be null on the server when the client presents none")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - RemoteCertificate: Should be null on the server when the client presents none")]
     public async Task RemoteCertificate_WithoutClientCertificate_ShouldBeNullOnServer()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1085,14 +1001,9 @@ public class QuicMultiplexedConnectionTests
         pair.Server.Tls.ShouldNotBeNull().RemoteCertificate.ShouldBeNull();
     }
 
-    [Fact]
+    [QuicFact]
     public async Task OpenStreamAsync_Bidirectional_ShouldEchoAcrossPeers()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1123,14 +1034,9 @@ public class QuicMultiplexedConnectionTests
         echoed.ShouldBe(payload);
     }
 
-    [Fact]
+    [QuicFact]
     public async Task OpenStreamAsync_WriteOnly_ShouldSurfaceUnidirectionalHalves()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1168,14 +1074,9 @@ public class QuicMultiplexedConnectionTests
             async () => await serverStream.Output.WriteAsync(payload, cancellation.Token));
     }
 
-    [Fact]
+    [QuicFact]
     public async Task OpenStreamAsync_WithReadOnlyDirection_ShouldThrowArgumentException()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1188,14 +1089,9 @@ public class QuicMultiplexedConnectionTests
             async () => await pair.Client.OpenStreamAsync(ConnectionDirection.ReadOnly, cancellation.Token));
     }
 
-    [Fact]
+    [QuicFact]
     public async Task DisposeAsync_CalledTwice_ShouldBeIdempotent()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1212,14 +1108,9 @@ public class QuicMultiplexedConnectionTests
         pair.Client.State.ShouldBe(ConnectionState.Closed);
     }
 
-    [Fact]
+    [QuicFact]
     public async Task DisposeAsync_WithInboundUnidirectionalStream_ShouldCloseConnectionBeforeStreamSignals()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1257,14 +1148,9 @@ public class QuicMultiplexedConnectionTests
         exception.ApplicationErrorCode.ShouldBe(closeErrorCode);
     }
 
-    [Fact]
+    [QuicFact]
     public async Task DisposeAsync_WithOpenBidirectionalStream_ShouldDeliverOutboundDataBeforeClose()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1297,14 +1183,9 @@ public class QuicMultiplexedConnectionTests
         endOfStream.Buffer.IsEmpty.ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - DisposeAsync: A peer withholding stream credit should not hold the disposal beyond CloseDeliveryTimeout")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - DisposeAsync: A peer withholding stream credit should not hold the disposal beyond CloseDeliveryTimeout")]
     public async Task DisposeAsync_WhenPeerWithholdsStreamCredit_ShouldCloseWithinCloseDeliveryTimeout()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the server finished its stream, but the client never reads, so the response's tail and its
         // FIN wait for credit the client never grants while it keeps the connection alive.
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1352,14 +1233,9 @@ public class QuicMultiplexedConnectionTests
         new QuicConnectionFactoryOptions().CloseDeliveryTimeout.ShouldBe(TimeSpan.FromSeconds(5));
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream ConnectionClosed: A peer aborting the stream should signal the other end without a read or write")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream ConnectionClosed: A peer aborting the stream should signal the other end without a read or write")]
     public async Task StreamConnectionClosed_OnPeerAbort_ShouldFire()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1395,14 +1271,9 @@ public class QuicMultiplexedConnectionTests
     private const long sentinelStreamErrorCode = 0x33;
     private const long sentinelCloseErrorCode = 0x22;
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Should send STOP_SENDING with the caller's code")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Should send STOP_SENDING with the caller's code")]
     public async Task AbortRead_WithErrorCode_ShouldSendStopSendingWithTheCode()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1427,14 +1298,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Later reads should fail even when the pipe still holds received octets")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Later reads should fail even when the pipe still holds received octets")]
     public async Task AbortRead_WithBufferedOctets_ShouldFailLaterReads()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the server's pipe holds octets it received but the holder has not examined, so a read
         // could be answered from the buffer without touching the QUIC stream.
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1460,14 +1326,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortWrite: Should send RESET_STREAM with the caller's code")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortWrite: Should send RESET_STREAM with the caller's code")]
     public async Task AbortWrite_WithErrorCode_ShouldSendResetStreamWithTheCode()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1522,14 +1383,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Should keep the receiving direction's code when the stream is later aborted")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: Should keep the receiving direction's code when the stream is later aborted")]
     public async Task Abort_AfterAbortRead_ShouldKeepTheReadDirectionCode()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1557,14 +1413,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: A response completed after stopping the request should still reach the peer whole")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream AbortRead: A response completed after stopping the request should still reach the peer whole")]
     public async Task AbortRead_ThenCompleteOutput_ShouldDeliverTheResponseAndItsFin()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the RFC 9114 §4.1 pattern: the server stops the rest of the request with a code, then
         // sends its whole response and ends its side gracefully.
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1595,14 +1446,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output should send the FIN and keep reading the peer's data")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output should send the FIN and keep reading the peer's data")]
     public async Task CompleteOutput_WhilePeerStillSends_ShouldSendFinAndKeepReading()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — more than the stream's flow-control window follows the server's FIN, so the server must
         // keep reading for the client to finish (#1330).
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1644,16 +1490,11 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Stream abort: Repeated reset exchanges should release tracked streams while the connection stays open")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream abort: Repeated reset exchanges should release tracked streams while the connection stays open")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Abort_RepeatedResetExchanges_ShouldReleaseTrackedStreams(bool codedReset)
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — HTTP/3 resets both stream directions before aborting the request wrapper.
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1705,14 +1546,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream completion: Repeated exchanges should release tracked streams and restore the gauge without disposal")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream completion: Repeated exchanges should release tracked streams and restore the gauge without disposal")]
     public async Task CompleteHalves_RepeatedExchanges_ShouldReleaseTrackedStreamsAndRestoreGauge()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — each request and response uses one bidirectional stream on the same connection.
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1782,14 +1618,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Input should stop the peer with the default code and keep writing")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Input should stop the peer with the default code and keep writing")]
     public async Task CompleteInput_WhilePeerStillReads_ShouldStopReadingAndKeepWriting()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1820,14 +1651,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output with an error should reset the sending direction")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output with an error should reset the sending direction")]
     public async Task CompleteOutput_WithError_ShouldResetTheSendingDirection()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1852,16 +1678,11 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: An abort after completing Output should keep the FIN and the data before it")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: An abort after completing Output should keep the FIN and the data before it")]
     [InlineData(false)] // AbortWrite with a code
     [InlineData(true)]  // Abort of the whole stream
     public async Task Abort_AfterCompletingOutput_ShouldKeepTheFin(bool wholeStream)
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — the server ends its side while the response's tail and the FIN still wait for credit, so
         // QuicStream would still reset the direction.
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1886,14 +1707,9 @@ public class QuicMultiplexedConnectionTests
         read.ShouldBe(WithheldCreditPair.ResponseLength);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output when its final flush fails should reset the sending direction")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Stream half-close: Completing Output when its final flush fails should reset the sending direction")]
     public async Task CompleteOutput_WhenFinalFlushFails_ShouldResetTheSendingDirection()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange — MsQuic's send buffer is full, so the next write to the QUIC stream stays in flight. The pipe
         // then holds 1 MiB in several segments and flushes them one at a time: the first is in flight.
         using CancellationTokenSource cancellation = new(_testTimeout);
@@ -1941,16 +1757,11 @@ public class QuicMultiplexedConnectionTests
         client.WriterOptions.LeaveOpen.ShouldBeTrue();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Connections.Quic] - Stream abort: A code outside the QUIC range should be rejected")]
+    [QuicTheory(DisplayName = "Cohesion Test [Connections.Quic] - Stream abort: A code outside the QUIC range should be rejected")]
     [InlineData(-1L)]
     [InlineData(1L << 62)]
     public async Task AbortReadAndWrite_WithCodeOutOfRange_ShouldThrowArgumentOutOfRange(long errorCode)
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -1971,14 +1782,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Connection Abort: Should close the connection with the caller's code")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Connection Abort: Should close the connection with the caller's code")]
     public async Task Abort_WithErrorCode_ShouldCloseTheConnectionWithTheCode()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -2003,14 +1809,9 @@ public class QuicMultiplexedConnectionTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Connections.Quic] - Connection Abort: Without a code should close with the configured default")]
+    [QuicFact(DisplayName = "Cohesion Test [Connections.Quic] - Connection Abort: Without a code should close with the configured default")]
     public async Task Abort_WithoutErrorCode_ShouldCloseWithTheDefaultCode()
     {
-        if (!QuicListener.IsSupported)
-        {
-            return;
-        }
-
         // Arrange
         using CancellationTokenSource cancellation = new(_testTimeout);
         using X509Certificate2 certificate = QuicTestCertificate.Create();
@@ -2457,5 +2258,6 @@ public class QuicMultiplexedConnectionTests
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicConnectionEventSourceTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicConnectionListenerTests.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/QuicMultiplexedConnectionTests.cs`.
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/TestObjects/QuicFactAttribute.cs`.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Quic/tests/TestObjects/QuicTheoryAttribute.cs`.
 - **Source** — `cohesion/build/TestSupport/EventSourceRecorder.cs`.

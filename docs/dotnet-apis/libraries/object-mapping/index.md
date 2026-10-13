@@ -10,6 +10,12 @@ Explicit profile-based mapping between object models.
 |---|---|---|
 | `Assimalign.Cohesion.ObjectMapping` | Maps objects through explicit reusable profiles. | [Overview](assimalign-cohesion-objectmapping/index.md) |
 
+## Source generator
+
+| Compiler component | Responsibility | Reference |
+|---|---|---|
+| `Assimalign.Cohesion.SourceGeneration.ObjectMapping` | Generates delegate mappings for eligible profiles and inline registrations. | [Overview](assimalign-cohesion-sourcegeneration-objectmapping/index.md) |
+
 ## Dependencies and delivery
 
 The repository lists this area among the foundation libraries but does not assign it a named
@@ -17,7 +23,7 @@ delivery wave in the root dependency diagram.
 
 | Assembly | Declared dependencies |
 |---|---|
-| `Assimalign.Cohesion.ObjectMapping` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.SourceGeneration` (CohesionAnalyzerReference) |
+| `Assimalign.Cohesion.ObjectMapping` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.SourceGeneration.ObjectMapping` (CohesionAnalyzerReference) |
 
 ## Sources
 
@@ -36,3 +42,5 @@ delivery wave in the root dependency diagram.
 - **Source** — `cohesion/libraries/ObjectMapping/Assimalign.Cohesion.ObjectMapping/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/ObjectMapping/Assimalign.Cohesion.ObjectMapping/src`.
+
+- **Source** — `cohesion/analyzers/Assimalign.Cohesion.SourceGeneration.ObjectMapping/docs/OVERVIEW.md`.

@@ -68,7 +68,7 @@ against the contract.
 
 ## The package carries the source generator
 
-The project declares `CohesionAnalyzerReference` for `Assimalign.Cohesion.OpenApi.SourceGeneration`,
+The project declares `CohesionAnalyzerReference` for `Assimalign.Cohesion.SourceGeneration.OpenApi`,
 so the generator DLL ships in this package at `analyzers/dotnet/cs/` and runs in every project that
 references the package, directly or through `OpenApi.Generation` or `OpenApi.Integration`. Shipping
 the two together means the generator cannot version apart from what its output compiles against, the
@@ -81,10 +81,13 @@ with no registry), a package of its own (no analyzer in the repository ships alo
 generator lets a project apply the attributes and silently emit nothing), and a shared framework's
 `CohesionFrameworkAnalyzer` entry (OpenApi is in no framework).
 
+The [generator design](../assimalign-cohesion-sourcegeneration-openapi/design.md) records
+cross-assembly composition and delivery in full.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.OpenApi` and the
-`Assimalign.Cohesion.OpenApi.SourceGeneration` analyzer. The [overview](index.md#dependencies)
+`Assimalign.Cohesion.SourceGeneration.OpenApi` analyzer. The [overview](index.md#dependencies)
 distinguishes project references, package references, shared source, and analyzer inputs.
 
 ## Sources
@@ -101,4 +104,4 @@ distinguishes project references, package references, shared source, and analyze
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Attributes/src`.
 
-- **Source** — `cohesion/analyzers/Assimalign.Cohesion.OpenApi.SourceGeneration/docs/DESIGN.md`.
+- **Source** — `cohesion/analyzers/Assimalign.Cohesion.SourceGeneration.OpenApi/docs/DESIGN.md`.

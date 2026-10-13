@@ -50,6 +50,16 @@ Its state belongs to each listener instance and never crosses an assembly bounda
 shipped project compiles this folder or references the test assembly. Keeping one file
 prevents the event and counter helpers from drifting across source test suites.
 
+## Build-generated resources (#1467)
+
+Exception messages are held in `src/Properties/ErrorMessages.resx`. The internal `ErrorMessages` accessor is generated in the project
+root namespace by MSBuild's GenerateResource task through
+`build/Targets/Build.ErrorMessages.targets`. The generated source stays under
+`obj/`; no checked-in designer or Visual Studio custom tool is required. Ordinary
+`dotnet build`, CI and NativeAOT publication use the same embedded resources.
+Existing message text is preserved. Resource names describe failures in short PascalCase
+noun phrases of at most 40 characters (#1471); callers use the renamed internal accessors.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.Core`. The [overview](index.md#dependencies)

@@ -10,6 +10,12 @@ Dependency-light primitives and the shared resource environment contract.
 |---|---|---|
 | `Assimalign.Cohesion.Core` | Provides shared primitives, environment contracts, typed endpoints, and low-level utilities. | [Overview](assimalign-cohesion-core/index.md) |
 
+## Source generator
+
+| Compiler component | Responsibility | Reference |
+|---|---|---|
+| `Assimalign.Cohesion.SourceGeneration` | Generates registration verbs for Core component-integration declarations. | [Overview](assimalign-cohesion-sourcegeneration/index.md) |
+
 ## Dependencies and delivery
 
 The repository places this area in delivery wave 1. The wave is a dependency-ordering guide, not a
@@ -17,7 +23,7 @@ release or completeness guarantee.
 
 | Assembly | Declared dependencies |
 |---|---|
-| `Assimalign.Cohesion.Core` | `Assimalign.Cohesion.SourceGeneration.ComponentModel` (CohesionAnalyzerReference) |
+| `Assimalign.Cohesion.Core` | `Assimalign.Cohesion.SourceGeneration` (CohesionAnalyzerReference) |
 
 ## Sources
 
@@ -38,3 +44,5 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src`.
+
+- **Source** — `cohesion/analyzers/Assimalign.Cohesion.SourceGeneration/docs/OVERVIEW.md`.

@@ -443,6 +443,32 @@ changes to `d47169452` made this regression fail: add allocated 64 B and resolut
 The test calibrates the expected array size so it does not assume a particular object header.
 The equality guard in core Http pins existing behavior and passes with the fix reverted too.
 
+The allocation guard isolates its test-only `MeasurementContext` construction behind a
+`NoInlining` factory (#1462). Release IL leaves the ending counter subtraction on the
+evaluation stack. The [.NET 10 JIT importer](https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/jit/importer.cpp#L9054-L9063)
+can emit the raw allocation for a following `newobj` before spilling that expression.
+On x64, this places the 128-byte context allocation ahead of the preceding
+`GC.GetAllocatedBytesForCurrentThread` counter, even though the constructor stays afterward.
+Disassembly confirms this in both tier-0 and fully optimized code with tiering disabled:
+the add sample includes the 32-byte interceptor array plus the unrelated 128-byte test object.
+The factory keeps the allocation after the add sample and before the resolve sample on both
+architectures. Warming longer or disabling tiering does not establish that boundary. Product
+storage and resolution are unchanged, and the exact singleton-array assertion remains intact.
+This corrects test measurement only; it changes no behavior from 10.0.0-preview.1.
+
+Verification on Windows ARM64 with SDK 10.0.401 / runtime 10.0.12, Release builds, using
+`dotnet test --arch x64` (emulated) and `--arch arm64`, with default tiering. Each independent
+run measures 1,000 exchanges after 100 warmups; resolution is 0 B in every run:
+
+| Architecture | Add B/exchange, runs 1–5 | Calibrated singleton B |
+|---|---|---:|
+| x64 | 32, 32, 32, 32, 32 | 32 |
+| arm64 | 32, 32, 32, 32, 32 | 32 |
+
+Reverting the factory call reproduces 160 B/exchange on x64; restoring it gives 32 B.
+A separate x64 run with `DOTNET_TieredCompilation=0` also gives 32 B after the fix
+(160 B before it), confirming that the boundary is independent of tier promotion.
+
 The body measurement uses
 `ReceiveAndSend_WithBodyAndOneAddedInterceptor_ShouldReportBytesPerRequest`: one preloaded
 HTTP/1.1 keep-alive connection, `POST /` with `Content-Length: 3`, the consumed body `abc`,
@@ -1665,7 +1691,7 @@ assembly, so:
 
 An exchange with interceptors pays one more reference field on its parse context (8 B) and nothing
 else: `Http.RequestLimits` puts the rate contract on the same feature object as the body-size
-contract (`HttpRequestLimits.CreateInterceptor()`), so the web host's exchanges carry no extra
+contract (`HttpRequestLimitsInterceptor.Create()`), so the web host's exchanges carry no extra
 feature and its presized collection (#1381) keeps its size. An HTTP/2 connection allocates its rate
 policy and three delegates once, configured or not. The zero-interceptor fast path is unchanged.
 
@@ -3246,6 +3272,43 @@ This adds opt-in events and metrics without public API or wire-behavior changes.
 forwarding the assembly prefix can now receive throttled Warning entries: that operational behavior
 change is recorded against preview.1 on decision 15's terms. No logging dependency, framework member,
 or public contract is added.
+
+## Exception message resources (#1467)
+
+Resource names describe the failure in a short PascalCase noun phrase of at most 40
+characters, such as `Http2RequestBodyTooLarge` or `Http3RequestHeadersTimeout` (#1471).
+The identifier cleanup preserves message text, placeholders, ordering and cached lifecycle
+diagnostics; it adds no public API or breaking behavior against 10.0.0-preview.1.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
+
+The ordinary HTTP/3 completion path may stop an unread request body with `H3_NO_ERROR`.
+`Http3RequestBodyStream.CompleteInput` caches that exception's message in a `static readonly`
+field. `MarkReset` caches the unread-body failure used by cancellation and shutdown.
+`ReadTrailerSectionAsync` caches the failure used when the caller cancels a trailer read.
+HTTP/3 application cancellation and shutdown rejection likewise cache the reasons used by
+`CancelRequestStream` and `RejectUndispatchedAsync` (also reused when request-head reading stops).
+HTTP/2 caches the format strings passed to `CutOffBody` by `ReceiveReset`, `SendReset`,
+`AbortOnShutdown` and `AbortOnCancellation`; the stream identifier is still formatted at use.
+Extended CONNECT caches the messages for pending operations interrupted by tunnel close or abort.
+The transport context caches peer-abandoned request/response and slow-response cancellation messages.
+HTTP/2 output caches its peer-closed connection and stalled-output abort messages. Each cache belongs
+to the type constructing the exception.
+These lifecycle paths can run without a protocol defect, so they do not perform resource lookups
+for each completion or cancellation. HTTP/1.1 also caches the request-line/header subjects passed
+to its normal reader path. Listener capability validation caches its protocol descriptions.
+Truncated HTTP/3 frame subjects are cached once as fixed diagnostics.
+
+Parser errors propagated through `out` values and exception factories use the same resources as
+direct throws. Field-value diagnostics retain their existing character/index reporting and do not
+start echoing rejected values; event payloads and their type-only boundaries are unchanged.
 
 ## Dependency boundary
 

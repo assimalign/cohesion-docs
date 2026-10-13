@@ -25,6 +25,36 @@ typically by queuing into the collection of the feature it replaces, as `Web.Coo
 whatever the header holds is what every response, the `101` included, sends.
 Cookie-aware packages depend on this one, and this one depends only on the protocol core.
 
+## Parse-side size limits and lifetime cap
+
+**Configurable parse-side size limits (`HttpCookieLimits`).**
+`HttpCookieCollection` parsing enforces RFC 6265bis-aligned defaults:
+name+value ≤ 4096 octets, per-attribute value ≤ 1024 octets, and a
+bounded retained-attribute count (default 50, a DoS backstop that
+keeps a hostile `Set-Cookie` from growing the attribute/extension list
+without bound). Oversized cookies and attributes are **ignored**
+(dropped) rather than throwing, matching the RFC's parsing-robustness
+posture — a malformed inbound header must not crash the server. The
+limits are a constructor parameter (`HttpCookieLimits.Default` when
+omitted), so a host can tune or effectively disable a dimension
+(`int.MaxValue`). The outer bound on total header length stays with
+the transport's request/response header-size limits; these are the
+per-cookie inner defense.
+
+**Lifetime cap mechanism (`HttpCookie.ClampLifetime`).** The model
+supplies the RFC 6265bis §5.5 400-day constant
+(`HttpCookieLimits.DefaultMaxLifetime`) and the *pure* clamping math:
+`ClampLifetime(referenceTime[, maxLifetime])` returns a cookie whose
+`Max-Age` is reduced to the cap when longer and whose `Expires` is
+pulled back to `referenceTime + cap` when further out, while a zero or
+negative `Max-Age` (a deletion signal, RFC 6265 §5.2.2) and a
+past/near `Expires` round-trip untouched. Clamping is a pure function
+with no hidden clock: **deciding when to apply it** — at emission,
+against the current time — is an emission/policy responsibility, so
+the mechanism lives here and the "apply the cap to outbound cookies"
+trigger is left to the emitter / `Web.CookiePolicy`. Keeping the clock
+out of the model is what makes the cap deterministically testable.
+
 ## Attribute grammar
 
 `HttpCookie` validates its name against the RFC 6265 §4.1.1 `token` grammar and its value against
@@ -64,6 +94,20 @@ Applications build these values from untrusted input (a tenant segment, a forwar
 
 The grammar guard (`HttpCookieGrammar`) classifies characters with `SearchValues<char>` membership
 scans and character-range scans: no regex, no reflection.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

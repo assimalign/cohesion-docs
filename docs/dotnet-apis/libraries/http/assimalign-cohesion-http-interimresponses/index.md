@@ -14,6 +14,13 @@ Sends interim HTTP responses through the exchange interceptor seam.
 
 ## Scope
 
+- `IHttpInterimResponseFeature` — the typed interim-response API
+  (`IsInterimResponseSupported`, `SendInterimResponseAsync`).
+- `HttpInterimResponseInterceptor.Create()` — the `IHttpExchangeInterceptor` a
+  host registers to make interim responses available on every exchange.
+- `context.InterimResponse` / `context.SendEarlyHintsAsync(...)` /
+  `context.SendContinueAsync()` — ergonomic accessors on `IHttpContext`.
+
 A host registers the interceptor to attach the feature to exchanges. Interim responses precede the
 final response and use the core response seam, keeping the transport independent of this package.
 Convenience members cover Continue and Early Hints.
@@ -23,6 +30,18 @@ request that carries `Expect: 100-continue` and still has content to send, wheth
 package is registered: a large-upload client withholds its body until it is solicited. This package
 covers the application-initiated interim responses, `103 Early Hints` and an explicit,
 handler-driven `100 Continue` (`SendContinueAsync`).
+
+## Usage
+
+```csharp
+// Host / composition root — opt into interim responses:
+options.Interceptors.Add(HttpInterimResponseInterceptor.Create());
+
+// Handler — send 103 Early Hints before doing the slow work:
+await context.SendEarlyHintsAsync(["</style.css>; rel=preload; as=style"]);
+// ... compute the real response ...
+context.Response.StatusCode = HttpStatusCode.Ok;
+```
 
 ## Dependencies
 
@@ -34,7 +53,7 @@ handler-driven `100 Continue` (`SendContinueAsync`).
 
 | Type | Source file |
 |---|---|
-| `HttpInterimResponses` | `src/HttpInterimResponses.cs` |
+| `HttpInterimResponseInterceptor` | `src/HttpInterimResponseInterceptor.cs` |
 | `IHttpInterimResponseFeature` | `src/Abstractions/IHttpInterimResponseFeature.cs` |
 | `HttpInterimResponseExtensions` | `src/Extensions/HttpInterimResponseExtensions.cs` |
 
@@ -52,7 +71,7 @@ handler-driven `100 Continue` (`SendContinueAsync`).
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/HttpInterimResponses.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/HttpInterimResponseInterceptor.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.InterimResponses/src/Abstractions/IHttpInterimResponseFeature.cs`.
 

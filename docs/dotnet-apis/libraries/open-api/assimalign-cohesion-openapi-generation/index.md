@@ -24,6 +24,10 @@ each assembly and combines that assembly's metadata with every annotated assembl
 one input describes an application whose endpoints span several libraries. A parameter, request
 body, response or schema whose metadata carries a complete `Schema` is placed as it is (#152).
 
+A project inside this repository adds
+`<CohesionAnalyzerReference Include="Assimalign.Cohesion.SourceGeneration.OpenApi" />`,
+because a project reference carries no analyzer.
+
 ## Dependencies
 
 | Reference | Build item |

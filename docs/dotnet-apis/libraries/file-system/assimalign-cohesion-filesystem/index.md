@@ -61,7 +61,6 @@ leading `/`, or UNC share), so no provider uses it to resolve incoming paths.
 | `FileSystemEnumerationOptions` | `src/FileSystemEnumerationOptions.cs` |
 | `FileSystemEventType` | `src/FileSystemEventType.cs` |
 | `FileSystemExtensions` | `src/Extensions/FileSystemExtensions.cs` |
-| `FileSystemExceptionExtensions` | `src/Extensions/FileSystemExceptionExtensions.cs` |
 
 ## Sources
 
@@ -108,7 +107,5 @@ leading `/`, or UNC share), so no provider uses it to resolve incoming paths.
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/FileSystemEventType.cs`.
 
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Extensions/FileSystemExtensions.cs`.
-
-- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/src/Extensions/FileSystemExceptionExtensions.cs`.
 
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem/docs/COMPATIBILITY.md`.

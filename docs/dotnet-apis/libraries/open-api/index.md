@@ -17,6 +17,12 @@ Version-aware OpenAPI models, authoring, serialization, validation, and integrat
 | `Assimalign.Cohesion.OpenApi.Validation` | Validates OpenAPI structure, semantics, and version placement. | [Overview](assimalign-cohesion-openapi-validation/index.md) |
 | `Assimalign.Cohesion.OpenApi.Versioning` | Transforms OpenAPI documents between supported specification versions. | [Overview](assimalign-cohesion-openapi-versioning/index.md) |
 
+## Source generator
+
+| Compiler component | Responsibility | Reference |
+|---|---|---|
+| `Assimalign.Cohesion.SourceGeneration.OpenApi` | Generates attribute metadata providers and composed OpenAPI registries. | [Overview](assimalign-cohesion-sourcegeneration-openapi/index.md) |
+
 ## Dependencies and delivery
 
 The repository places this area in delivery wave 3. The wave is a dependency-ordering guide, not a
@@ -36,7 +42,7 @@ Attributes, Fluent, Generation, Integration and Versioning joined the matrix and
 #1062. No OpenApi package is a member of a shared framework, so an application, an `Sdk.Web` one
 included, references the packages it uses.
 
-`Assimalign.Cohesion.OpenApi.SourceGeneration`, the attribute source generator, has no package of
+`Assimalign.Cohesion.SourceGeneration.OpenApi`, the attribute source generator, has no package of
 its own: it ships inside `Assimalign.Cohesion.OpenApi.Attributes` at `analyzers/dotnet/cs/`, so a
 project that references Attributes, directly or through Generation or Integration, gets it. Each
 annotated assembly gets a generated provider class advertised with
@@ -52,7 +58,7 @@ System.Text.Json contracts through the metadata's optional `Schema` members.
 | Assembly | Declared dependencies |
 |---|---|
 | `Assimalign.Cohesion.OpenApi` | No explicit Cohesion or package reference in the project file |
-| `Assimalign.Cohesion.OpenApi.Attributes` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.SourceGeneration` (CohesionAnalyzerReference) |
+| `Assimalign.Cohesion.OpenApi.Attributes` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.SourceGeneration.OpenApi` (CohesionAnalyzerReference) |
 | `Assimalign.Cohesion.OpenApi.Fluent` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference) |
 | `Assimalign.Cohesion.OpenApi.Generation` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Attributes` (CohesionProjectReference) |
 | `Assimalign.Cohesion.OpenApi.Integration` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Attributes` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Generation` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Serialization` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Versioning` (CohesionProjectReference) |
@@ -137,3 +143,5 @@ System.Text.Json contracts through the metadata's optional `Schema` members.
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Versioning/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Versioning/src`.
+
+- **Source** — `cohesion/analyzers/Assimalign.Cohesion.SourceGeneration.OpenApi/README.md`.

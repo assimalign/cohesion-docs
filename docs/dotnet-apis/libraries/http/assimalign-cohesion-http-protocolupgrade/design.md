@@ -37,6 +37,14 @@ capability lives here, wired through the transport's two generic interceptor sea
    connection (`CanTakeOver`), it installs `IHttpProtocolUpgradeFeature`; otherwise `context.Upgrade`
    reads `null` rather than surfacing an upgrade whose accept could never work.
 
+One stateless class (`HttpProtocolUpgradeInterceptor`) implements both hooks; per-exchange state
+crosses seams only through the feature collection, per the interceptor contract. A host enables
+the whole capability by registering the interceptor:
+
+```csharp
+options.Interceptors.Add(HttpProtocolUpgradeInterceptor.Create());
+```
+
 The transport installs nothing: a host registers the interceptor on each listener it wants upgrades
 on. The Web host (`Web.Hosting`) registers it on every listener by default, after the request-size
 interceptor, so a WebSocket handshake works with no listener configuration (decision 16, the Http
@@ -58,6 +66,28 @@ control's `AcceptTunnelAsync`), costs one version check and, on HTTP/1.1, a meth
 `Connection` header lookup. The transport's
 `HttpExchangeResponseInterceptorTests` pin the fast path on all three versions and the takeover on an
 upgrade; `Web.Hosting`'s design records the measured allocations.
+
+## Shape
+
+- `IHttpProtocolUpgrade` — the public contract for an available transition: `Kind`
+  (`Upgrade` / `Connect`), `Protocol` (the requested `Upgrade` token, `null` for CONNECT), and
+  `AcceptAsync`.
+- `HttpProtocolUpgradeKind` — the transition discriminator (`None` / `Upgrade` / `Connect`).
+- `IHttpProtocolUpgradeFeature` — the feature slot carrying the exchange's upgrade.
+- `HttpContextProtocolUpgradeExtensions` — `context.Upgrade`, a plain nullable feature read (the
+  interceptors install the feature eagerly, so the accessor allocates nothing and never throws
+  for ordinary exchanges).
+- `HttpProtocolUpgradeInterceptor` — the public sealed implementation: `Create()` (mirrors
+  `HttpResponseStreamingInterceptor.Create()`); the one instance declares the request
+  scope (`HttpInterceptorScopes.Request`) and joins the response phase of a transition's
+  exchange only (see "The cost of a default-on interceptor").
+- Internal: `HttpProtocolUpgradeCandidate`
+  (parse-time marker), `Http1ProtocolUpgrade` (accept path), `HttpProtocolUpgradeFeature`
+  (feature holder). The interceptor is public; the per-exchange implementations remain internal.
+
+The package surfaces its types under the `Assimalign.Cohesion.Http` namespace (not the assembly
+name) so the `IHttpContext` extension members are discoverable without an extra `using` —
+recorded as a deliberate deviation in the csproj, matching `Http.ExtendedConnect`.
 
 ## The accept path
 
@@ -135,6 +165,37 @@ restoration reuse the original header value without formatting another date.
 Compared with `10.0.0-preview.1`, omitting an application-set `Date` from a `101` and retaining the
 transport's automatic date on a CONNECT `200` are observable header changes, accepted under the
 preview breaking-change policy. The response status and takeover ownership are unchanged.
+
+## Public interceptor and breaking changes since 10.0.0-preview.1 (#1465)
+
+`HttpProtocolUpgradeInterceptor` is the public sealed implementation of the existing
+`IHttpExchangeInterceptor` contract through `HttpExchangeInterceptor`. Its constructor is private;
+`HttpProtocolUpgradeInterceptor.Create()` creates a new stateless instance and returns its concrete type.
+The interface remains the contract for listener registration and custom interceptors. Feature
+implementations remain internal. This is the factory-to-implementation convention approved by
+owner decision 59.
+
+The `v10.0.0-preview.1` tag shipped `HttpProtocolUpgrade.CreateInterceptor()` returning
+`IHttpExchangeInterceptor`. That static factory class is removed. Consumers must replace the call
+with `HttpProtocolUpgradeInterceptor.Create()` and rebuild. Removing the old type and method is a
+**source- and binary-breaking change**, accepted during previews on decision 15's terms.
+Assignments to `IHttpExchangeInterceptor` continue to work after the call is renamed. The
+interceptor's registration order, scopes, feature installation, and request/response behavior
+are unchanged.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

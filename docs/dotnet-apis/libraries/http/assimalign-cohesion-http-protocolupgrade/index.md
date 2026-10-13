@@ -45,7 +45,7 @@ using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 
 HttpConnectionListenerOptions options = new();
-options.Interceptors.Add(HttpProtocolUpgrade.CreateInterceptor());
+options.Interceptors.Add(HttpProtocolUpgradeInterceptor.Create());
 ```
 
 Then, in a handler:
@@ -91,7 +91,7 @@ HTTP/1.1 exchange control offers. Neither references the other. The package is a
 
 | Type | Source file |
 |---|---|
-| `HttpProtocolUpgrade` | `src/HttpProtocolUpgrade.cs` |
+| `HttpProtocolUpgradeInterceptor` | `src/HttpProtocolUpgradeInterceptor.cs` |
 | `HttpProtocolUpgradeKind` | `src/HttpProtocolUpgradeKind.cs` |
 | `HttpContextProtocolUpgradeExtensions` | `src/Extensions/HttpContextProtocolUpgradeExtensions.cs` |
 | `IHttpProtocolUpgrade` | `src/Abstractions/IHttpProtocolUpgrade.cs` |
@@ -111,7 +111,7 @@ HTTP/1.1 exchange control offers. Neither references the other. The package is a
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ProtocolUpgrade/src`.
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ProtocolUpgrade/src/HttpProtocolUpgrade.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ProtocolUpgrade/src/HttpProtocolUpgradeInterceptor.cs`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.ProtocolUpgrade/src/HttpProtocolUpgradeKind.cs`.
 

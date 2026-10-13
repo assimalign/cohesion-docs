@@ -8,8 +8,7 @@ Exercise Http Protocol Upgrade Interceptor behavior using the original repositor
 
 This is the complete `HttpProtocolUpgradeInterceptorTests.cs` listing from the package test project.
 Keep it in that project when running it: the project supplies its package references, generated
-sources, and any shared fixtures. The using block below makes the test-framework import explicit
-where the original project supplies it globally.
+sources, and any shared fixtures. The using blocks below include the test-framework imports.
 
 ## Code
 
@@ -518,7 +517,7 @@ public class HttpProtocolUpgradeInterceptorTests
     {
         // A response-scoped interceptor makes the transport build a response sink and an exchange
         // control for every exchange; the upgrade needs them only for the exchanges that ask.
-        HttpProtocolUpgrade.CreateInterceptor().Scopes.ShouldBe(HttpInterceptorScopes.Request);
+        HttpProtocolUpgradeInterceptor.Create().Scopes.ShouldBe(HttpInterceptorScopes.Request);
     }
 
     [Theory(DisplayName = "Cohesion Test [Http.ProtocolUpgrade] - Interceptor: An h1 upgrade or CONNECT joins that exchange's response phase")]
@@ -534,7 +533,7 @@ public class HttpProtocolUpgradeInterceptorTests
             headers[HttpHeaderKey.Upgrade] = "websocket";
         }
 
-        IHttpExchangeInterceptor interceptor = HttpProtocolUpgrade.CreateInterceptor();
+        HttpProtocolUpgradeInterceptor interceptor = HttpProtocolUpgradeInterceptor.Create();
         HttpExchangeInterceptorRequestContext headContext = CreateHeadContext(new FakeHttpContext(), HttpVersion.Http11, new HttpMethod(method), headers);
 
         // Act
@@ -556,7 +555,7 @@ public class HttpProtocolUpgradeInterceptorTests
         HttpExchangeInterceptorRequestContext headContext = CreateHeadContext(new FakeHttpContext(), version, new HttpMethod(method), new HttpHeaderCollection());
 
         // Act
-        HttpProtocolUpgrade.CreateInterceptor().AfterRequestHead(headContext);
+        HttpProtocolUpgradeInterceptor.Create().AfterRequestHead(headContext);
 
         // Assert
         headContext.ResponseInterceptors.ShouldBeEmpty();
@@ -586,7 +585,7 @@ public class HttpProtocolUpgradeInterceptorTests
         string? initialDate = null)
     {
         HttpExchangeInterceptorRequestContext headContext = CreateHeadContext(context, version, method, requestHeaders);
-        IHttpExchangeInterceptor interceptor = HttpProtocolUpgrade.CreateInterceptor();
+        IHttpExchangeInterceptor interceptor = HttpProtocolUpgradeInterceptor.Create();
         interceptor.AfterRequestHead(headContext);
 
         responseHeaders = new HttpHeaderCollection();

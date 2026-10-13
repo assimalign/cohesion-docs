@@ -13,7 +13,7 @@ using System.Text;
 using Assimalign.Cohesion.Security.DataProtection;
 
 IDataProtectionProvider provider = DataProtectionProvider.Create(
-    KeyRepository.CreateFileSystem("/var/lib/myapp/keys"),
+    FileSystemKeyRepository.Create("/var/lib/myapp/keys"),
     options =>
     {
         options.ApplicationDiscriminator = "myapp";

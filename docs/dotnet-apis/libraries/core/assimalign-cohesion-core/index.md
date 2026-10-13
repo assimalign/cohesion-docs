@@ -27,7 +27,7 @@ Its project also delivers the component-integration analyzer to package consumer
 
 | Reference | Build item |
 |---|---|
-| `Assimalign.Cohesion.SourceGeneration.ComponentModel` | `CohesionAnalyzerReference` |
+| [`Assimalign.Cohesion.SourceGeneration`](../assimalign-cohesion-sourcegeneration/index.md) | `CohesionAnalyzerReference` |
 
 ## Principal public types
 

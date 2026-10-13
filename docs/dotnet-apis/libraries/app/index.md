@@ -9,7 +9,7 @@ is produced inside its own area under `resources/<Area>/`, and its members are l
 
 | Path | Role |
 | --- | --- |
-| `Assimalign.Cohesion.App.props` | App's own inputs (the kernel roots, the umbrella assembly, the ComponentModel analyzer) and the defaults every producer shares (TFM, version prefix/suffix, package description). It lists no area framework |
+| `Assimalign.Cohesion.App.props` | App's own inputs (the kernel roots, the umbrella assembly, the Core source generator) and the defaults every producer shares (TFM, version prefix/suffix, package description). It lists no area framework |
 | `Assimalign.Cohesion.App.targets` | Producer build logic: the App kernel closure, the `FrameworkList.xml`/`RuntimeList.xml` writer, and pack collection |
 | `Assimalign.Cohesion.App.Refs` | Produces the `Assimalign.Cohesion.App.Ref` targeting pack |
 | `Assimalign.Cohesion.App.Runtime` | Produces the `Assimalign.Cohesion.App.Runtime.<rid>` runtime packs. Its `tests/` check App's derived closure and each area list's coverage of its project-graph closure |
@@ -47,7 +47,7 @@ App derives its public reference and runtime inventory from these seventeen
 | `Assimalign.Cohesion.DependencyInjection` |
 | `Assimalign.Cohesion.FileSystem.Physical` |
 
-The targeting pack also carries `Assimalign.Cohesion.SourceGeneration.ComponentModel` under
+The targeting pack also carries `Assimalign.Cohesion.SourceGeneration` under
 `analyzers/dotnet/cs/`. Resource-area SDKs reference App together with their area framework; a
 direct base-SDK consumer adds an explicit `FrameworkReference`.
 

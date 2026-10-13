@@ -35,6 +35,9 @@ stay public. Gateway-managed credential checks are unchanged. This restricts rem
 management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
 gateway identity with credentials for remote management.
 
+`ResourceControlPlane` is now the public sealed `IResourceControlPlane` implementation,
+with a private constructor and its own `Create(IEnumerable<string>? acceptedCommandKinds = null)`.
+
 ## Dependencies
 
 | Reference | Build item |

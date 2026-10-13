@@ -179,9 +179,11 @@ validation useful. A complete feed turns consumer build errors into failures, ne
 
 ## CI and inventory integration
 
-`tooling-templates.yml` prepares 28 library packages: the 23-package Gateway consumer closure, the
+`tooling-templates.yml` prepares 31 library packages: the 26-package Gateway consumer closure, the
 VpnGateway ApplicationModel, and the two store Orchestration packages with their SecretStore and
-ConfigurationStore clients. Web, Web.Routing and the Database.Client closure left the list when
+ConfigurationStore clients. The Gateway closure includes `Connections.StreamAbort`,
+`Connections.StreamLimits`, and `Connections.Tls` for `Http.Connections` (#1461).
+Web, Web.Routing and the Database.Client closure left the list when
 Sdk.Gateway stopped injecting area clients. The workflow then uses the shared build action to pack
 canonical SDK/framework packages for the runner's RID and build/test this package. The action's `SkipLibraries` bootstrap preserves the prepared libraries.
 Package publication remains exclusively in the repository release workflow. Besides the template,

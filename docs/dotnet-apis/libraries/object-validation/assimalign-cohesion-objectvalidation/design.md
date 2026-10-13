@@ -185,6 +185,15 @@ reports these sources to clients as the member path after the selector parameter
 the application's registered JSON contract (`address.city`, `items[2].quantity`) and retaining CLR
 names without a contract.
 
+## Build-generated resources (#1467)
+
+Non-exception strings remain in `src/Properties/Resources.resx` (the validation-result messages). Their internal `Resources` accessor is generated in the project
+root namespace by MSBuild's GenerateResource task through
+`build/Targets/Build.ErrorMessages.targets`. The generated source stays under
+`obj/`; no checked-in designer or Visual Studio custom tool is required. Ordinary
+`dotnet build`, CI and NativeAOT publication use the same embedded resources.
+Existing message text is preserved.
+
 ## Dependency boundary
 
 The project declares no explicit Cohesion or external package references. Shared repository build

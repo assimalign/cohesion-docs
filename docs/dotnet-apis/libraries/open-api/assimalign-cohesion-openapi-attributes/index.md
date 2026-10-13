@@ -18,13 +18,13 @@ Attributes describe operations and schemas, while flat metadata records form the
 The mapper reports invalid combinations. Compile-time discovery lives in the separate analyzer
 project, keeping discovery out of the runtime model.
 
-The package carries that analyzer, `Assimalign.Cohesion.OpenApi.SourceGeneration`, under
+The package carries that analyzer, `Assimalign.Cohesion.SourceGeneration.OpenApi`, under
 `analyzers/dotnet/cs/`. It runs at build time and is not a package dependency: a project that
 references this package, directly or through `OpenApi.Generation` or `OpenApi.Integration`, gets an
 internal `OpenApiMetadataRegistry` that combines its own annotated code with every annotated
 assembly it references. A project inside the Cohesion repository references the package by project,
 which carries no analyzer, so it adds
-`<CohesionAnalyzerReference Include="Assimalign.Cohesion.OpenApi.SourceGeneration" />` itself.
+`<CohesionAnalyzerReference Include="Assimalign.Cohesion.SourceGeneration.OpenApi" />` itself.
 
 Two public types carry metadata between assemblies (#1169): `IOpenApiMetadataProvider`, the
 operations, schemas, tags and security schemes one assembly contributes, and
@@ -39,7 +39,7 @@ passes through instead of the flat fields.
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.OpenApi`](../../open-api/assimalign-cohesion-openapi/index.md) | `CohesionProjectReference` |
-| `Assimalign.Cohesion.OpenApi.SourceGeneration` | `CohesionAnalyzerReference` |
+| [`Assimalign.Cohesion.SourceGeneration.OpenApi`](../assimalign-cohesion-sourcegeneration-openapi/index.md) | `CohesionAnalyzerReference` |
 
 ## Principal public types
 
