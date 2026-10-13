@@ -66,7 +66,7 @@ flowchart LR
 | Package | Role |
 | --- | --- |
 | `Assimalign.Cohesion.Web.Antiforgery` | This package: registration, protector selection, middleware, metadata, verbs |
-| `Assimalign.Cohesion.Http.Antiforgery` | The token engine: `IHttpAntiforgery`, `HttpAntiforgeryOptions`, the protector seam, `context.Antiforgery` |
+| `Assimalign.Cohesion.Http.Antiforgery` | The public sealed `HttpAntiforgery` implementation of `IHttpAntiforgery`, its options, the protector seam, `context.Antiforgery` |
 | `Assimalign.Cohesion.Security.DataProtection` | The rotating, purpose-bound key ring the production protector derives from |
 | `Assimalign.Cohesion.Web.Routing` | The published endpoint and its metadata, the acknowledgement, `IRouterConventionBuilder` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | The `application/problem+json` rejection |
@@ -82,14 +82,24 @@ only when the consuming compilation resolves it (see "The generator integration"
 `UseRouting` selects the endpoint and calls `next`; the pipeline's terminal runs it (#1054). The
 middleware sits between the two and decides, per request:
 
-1. **No published endpoint, or a CORS preflight:** call `next`.
-2. **The last `AntiforgeryMetadata` requires no validation, or the method is `GET`, `HEAD`,
-   `OPTIONS` or `TRACE`:** acknowledge `UseAntiforgery` and call `next`.
-3. **No token header and a form body:** read and cache the form. A malformed body is rejected with
-   `400` problem+json, and a body over a configured Http.Forms limit with `413` problem+json; the
-   endpoint does not run. A latched transport fault propagates to transport / `UseErrorHandling`.
-4. **Validate the cookie and request tokens.** Invalid: `400` problem+json, and the endpoint does
-   not run. Valid: acknowledge `UseAntiforgery` and call `next`.
+```mermaid
+flowchart TD
+    Routing["UseRouting publishes the endpoint"] --> Endpoint{"Endpoint published, not a preflight?"}
+    Endpoint -->|"no"| Next["Call next"]
+    Endpoint -->|"yes"| Metadata{"Last AntiforgeryMetadata requires validation?"}
+    Metadata -->|"no"| Ack["Acknowledge UseAntiforgery; call next"]
+    Metadata -->|"yes"| Method{"GET, HEAD, OPTIONS or TRACE?"}
+    Method -->|"yes"| Ack
+    Method -->|"no"| Header{"Token header present?"}
+    Header -->|"no, and a form body"| Form["Read and cache the form"]
+    Form -->|"transport fault latched"| Transport["Propagate to transport / ErrorHandling"]
+    Form -->|"over an Http.Forms limit"| TooLarge["413 problem+json; the endpoint does not run"]
+    Form -->|"malformed"| Reject["400 problem+json; the endpoint does not run"]
+    Header -->|"otherwise"| Validate["Validate the cookie and request tokens"]
+    Form -->|"parsed"| Validate
+    Validate -->|"invalid"| Reject
+    Validate -->|"valid"| Ack
+```
 
 - **The endpoint** is the route match `UseRouting` published (`context.GetRouteMatch()`). No match
   (a 404) and a 405 publish no route match, so the middleware calls `next` and the terminal answers
@@ -209,10 +219,12 @@ static-factory overloads, `AddAntiforgery(configure)` and
 `AddAntiforgery(dataProtectionProvider, configure)`, behind a hidden `AntiforgeryComponents` type.
 
 `AntiforgeryBuilder` owns the `HttpAntiforgeryOptions` and exposes them as `Options`, as
-`AuthenticationBuilder` does. `Build` selects the protector, creates the service with
-`HttpAntiforgery.Create(options)`, and the verb registers it as an `IHttpFeature` singleton (an
-`IHttpAntiforgeryFeature`), the only lifetime `Web.Hosting` accepts (decision 35). The service reads
-its options on every request, so `Build` hands it a snapshot, as `ValidationBuilder` does: a copy of
+`AuthenticationBuilder` does. `Build` selects the protector and creates the public sealed
+`HttpAntiforgery` through `HttpAntiforgery.Create(options)`; its private constructor needs no
+cross-assembly access. The feature exposes the service as `IHttpAntiforgery`, and the verb registers
+the feature as an `IHttpFeature` singleton (an `IHttpAntiforgeryFeature`), the only lifetime
+`Web.Hosting` accepts (decision 35). The service reads its options on every request, so `Build`
+hands it a snapshot, as `ValidationBuilder` does: a copy of
 `Options`, the key bytes included, carrying the selected protector. `Build` never writes to
 `Options`, so a change made afterward, or a later `UseDataProtection` call, reaches only a later
 `Build`, never a registered service. Every `HttpAntiforgeryOptions` member is copied by hand, so a
@@ -318,6 +330,13 @@ endpoint. The area's [middleware order](../../../../web/middleware-order.md) pla
 | Key repository unreadable while a token is issued, or another infrastructure fault | Propagates |
 
 ## Breaking behavior since 10.0.0-preview.1
+
+The #1464 API shape change makes `HttpAntiforgery` the public sealed implementation and changes
+both `Create` return types from `IHttpAntiforgery` to `HttpAntiforgery`. Web composition continues
+using the same factory call and interface contract, with unchanged registration and request behavior.
+Rebuild compiled consumers of the former static factory; the binary break against preview.1 is
+recorded on decision 15's terms in
+[Http.Antiforgery's design](../../../libraries/http/assimalign-cohesion-http-antiforgery/design.md#breaking-changes-since-1000-preview1).
 
 The underlying `Http.Antiforgery` service in 10.0.0-preview.1 accepted an invalid `CookieName` at
 creation and failed only when a request stored a cookie token. Since #1416 it rejects that name during
@@ -434,6 +453,26 @@ and groups with and without the middleware. `tests/AntiforgeryTypedEndpointTests
 endpoints through the real generator and proves the attached requirement: rejection without a token,
 binding from the parsed form, a header token, a route opt-out, fail-closed dispatch, a group opt-out
 that does not reach the endpoint, and no requirement on endpoints that bind no form.
+
+## Data-protection example migration (#1465)
+
+The overview's composition example now uses `FileSystemKeyRepository.Create(path)` inside the
+existing `DataProtectionProvider.Create(...)` call. Applications following that example must
+rename the repository call and rebuild against the updated DataProtection package; its DESIGN
+records the source and binary breaks against 10.0.0-preview.1 on decision 15's terms. This
+cleanup changes no Web.Antiforgery API, protector selection, or request behavior.
+Advisory: not applicable: API shape.
+
+## Exception messages (#1467)
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
 
 ## Declared dependencies
 

@@ -12,19 +12,20 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Authenticate: No client certificate should yield no result.
-- **Case 2** — Authenticate: Validated certificate should supply the default claims.
-- **Case 3** — Authenticate: Callback should receive the request and replace the principal.
-- **Case 4** — Authenticate: Callback failure should remain a failure after principal replacement.
-- **Case 5** — Authenticate: Callback without an authenticated identity should fail closed.
-- **Case 6** — Authenticate: Pending authentication should evaluate its callback only once.
-- **Case 7** — Authenticate: Callback cancellation should propagate.
-- **Case 8** — Authenticate: Application callback exception should propagate.
-- **Case 9** — CreateHandler: Later option changes should not replace the callback.
-- **Case 10** — AddCertificate: Named registration should snapshot its options.
-- **Case 11** — Challenge: Should issue a Certificate challenge.
-- **Case 12** — Challenge: Should preserve existing challenges and their parameters.
-- **Case 13** — Forbid: Should issue a bare forbidden response.
+- **Case 1** — Create: returns the public concrete handler implementing its contract.
+- **Case 2** — Authenticate: No client certificate should yield no result.
+- **Case 3** — Authenticate: Validated certificate should supply the default claims.
+- **Case 4** — Authenticate: Callback should receive the request and replace the principal.
+- **Case 5** — Authenticate: Callback failure should remain a failure after principal replacement.
+- **Case 6** — Authenticate: Callback without an authenticated identity should fail closed.
+- **Case 7** — Authenticate: Pending authentication should evaluate its callback only once.
+- **Case 8** — Authenticate: Callback cancellation should propagate.
+- **Case 9** — Authenticate: Application callback exception should propagate.
+- **Case 10** — CreateHandler: Later option changes should not replace the callback.
+- **Case 11** — AddCertificate: Named registration should snapshot its options.
+- **Case 12** — Challenge: Should issue a Certificate challenge.
+- **Case 13** — Challenge: Should preserve existing challenges and their parameters.
+- **Case 14** — Forbid: Should issue a bare forbidden response.
 
 ## Source example
 
@@ -45,6 +46,22 @@ namespace Assimalign.Cohesion.Web.Authentication.Certificate.Tests;
 
 public class CertificateAuthenticationHandlerTests
 {
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Certificate] - Create: returns the public concrete handler implementing its contract")]
+    public async Task Create_WithOptions_ReturnsConcreteHandler()
+    {
+        // Arrange
+        TestHttpContext context = TestHttpContext.Create();
+
+        // Act
+        CertificateAuthenticationHandler handler = CertificateAuthenticationHandler.Create(new CertificateAuthenticationOptions());
+        IAuthenticationHandler contract = handler;
+        await contract.InitializeAsync(new AuthenticationScheme("Certificate", null, () => handler), context, CancellationToken.None);
+        AuthenticateResult result = await contract.AuthenticateAsync(CancellationToken.None);
+
+        // Assert
+        result.None.ShouldBeTrue();
+    }
+
     [Theory(DisplayName = "Cohesion Test [Web.Authentication.Certificate] - Authenticate: No client certificate should yield no result")]
     [InlineData(false)]
     [InlineData(true)]
@@ -350,7 +367,7 @@ public class CertificateAuthenticationHandlerTests
 
     private static async Task<IAuthenticationHandler> InitializeAsync(CertificateAuthenticationOptions options, TestHttpContext context)
     {
-        IAuthenticationHandler handler = CertificateAuthentication.CreateHandler(options);
+        IAuthenticationHandler handler = CertificateAuthenticationHandler.Create(options);
         await handler.InitializeAsync(new AuthenticationScheme(CertificateAuthenticationDefaults.AuthenticationScheme, null, () => handler), context, CancellationToken.None);
         return handler;
     }

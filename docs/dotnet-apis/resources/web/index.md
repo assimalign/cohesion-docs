@@ -148,7 +148,7 @@ an application:
   `Contract = typeof(IHttpFeature)`, and the generator projects the verb into the application, so
   neither the package nor `Web.Hosting` takes a reference for it. `Sdk.Web` applications get the
   generator from the App framework; in-repo projects add a `CohesionAnalyzerReference` to
-  `Assimalign.Cohesion.SourceGeneration.ComponentModel`.
+  `Assimalign.Cohesion.SourceGeneration`.
 - **Pipeline verbs stay `extension(...)` members** of the feature package: `Use<Feature>` on
   `IWebApplicationPipelineBuilder`, `Map*` on the pipeline and router surfaces.
 - **Every `IHttpFeature` registration is a singleton.** `Web.Hosting` rejects a scoped or transient

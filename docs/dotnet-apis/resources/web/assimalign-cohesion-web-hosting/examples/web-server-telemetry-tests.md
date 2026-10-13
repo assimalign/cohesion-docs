@@ -951,7 +951,7 @@ public class WebServerTelemetryTests
         int completionCallbacks = 0;
 
         await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions { Protocol = protocol });
-        factory.Builder.Server.UseServer(options => options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor()));
+        factory.Builder.Server.UseServer(options => options.Interceptors.Add(HttpResponseStreamingInterceptor.Create()));
         factory.Builder.Services.AddRouting();
         factory.Application.UseErrorHandling();
         factory.Application.UseRouting().Map(CohesionHttpMethod.Get, path, new RouterRouteHandler(async context =>
@@ -1012,7 +1012,7 @@ public class WebServerTelemetryTests
         string path = $"/telemetry/streamed/{Guid.NewGuid():N}";
 
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.Server.UseServer(options => options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor()));
+        factory.Builder.Server.UseServer(options => options.Interceptors.Add(HttpResponseStreamingInterceptor.Create()));
 
         factory.Application.Use(async (context, next) =>
         {
@@ -1055,7 +1055,7 @@ public class WebServerTelemetryTests
         factory.Builder.Server.UseServer(options =>
         {
             options.UseHttp1(transport);
-            options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor());
+            options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
         });
         factory.Application.Use(async (context, next) =>
         {

@@ -128,16 +128,20 @@ if (__arg0 is { } __validated0 && !await global::Assimalign.Cohesion.Web.Validat
 
 ## The per-request decision
 
-`context.ValidateAsync<T>(value, cancellationToken)` returns `true` when the request may proceed and
-`false` when it has written the `400`. It decides in this order:
-
-1. **A `null` value** is not validated: the handler runs.
-2. **No `AddValidation` feature** on the exchange: the handler runs.
-3. **The endpoint's `ValidationMetadata`, else the application's default** decides whether
-   validation is on. Off: the handler runs.
-4. **No validator registered for `typeof(T)`:** the handler runs.
-5. **`IValidator.Validate(value)`.** A valid value lets the handler run; an invalid one is written
-   as `400 application/problem+json` and the method returns `false`.
+```mermaid
+flowchart TD
+    Start["ValidateAsync(value)"] --> Null{"value is null?"}
+    Null -->|"yes"| Proceed["return true: the handler runs"]
+    Null -->|"no"| Registered{"AddValidation feature present?"}
+    Registered -->|"no"| Proceed
+    Registered -->|"yes"| Endpoint{"endpoint ValidationMetadata, else the default"}
+    Endpoint -->|"off"| Proceed
+    Endpoint -->|"on"| Validator{"validator for typeof(T)?"}
+    Validator -->|"no"| Proceed
+    Validator -->|"yes"| Validate["IValidator.Validate(value)"]
+    Validate -->|"valid"| Proceed
+    Validate -->|"invalid"| Problem["write 400 problem+json, return false"]
+```
 
 The endpoint's `ValidationMetadata` is read last-wins from the endpoint `UseRouting` published
 (`context.GetEndpointMetadata<ValidationMetadata>()`): a route's declaration overrides its group's,
@@ -243,6 +247,20 @@ payload is written by `Web.ProblemDetails`' `Utf8JsonWriter` writer.
 - **Asynchronous rules.** The engine's rules are synchronous.
 - **Describing the `400`** in the endpoint description metadata. Like the binding `400`, it is an
   outcome the thunk produces on its own; a documentation adapter adds it by policy.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
 
 ## Declared dependencies
 

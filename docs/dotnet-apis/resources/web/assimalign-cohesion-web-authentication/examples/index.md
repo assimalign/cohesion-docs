@@ -7,6 +7,8 @@ Examples for `Assimalign.Cohesion.Web.Authentication` are derived from source do
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
+- **[Authentication Composition Tests](authentication-composition-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authentication` through its co-located test source.
+- **[Authentication Service Tests](authentication-service-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authentication` through its co-located test source.
 - **[Http Context Authentication Verb Extensions Tests](http-context-authentication-verb-extensions-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Authentication` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
@@ -32,6 +34,4 @@ examples require their original test project’s dependencies and supporting obj
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Extensions/HttpContextAuthenticationVerbExtensions.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationFeature.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationResultFeature.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/DefaultAuthenticationService.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/ApiEndpointMetadata.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Abstractions/IApiEndpointMetadata.cs`.

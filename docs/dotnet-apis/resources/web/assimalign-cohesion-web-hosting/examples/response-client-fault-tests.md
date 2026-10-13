@@ -72,7 +72,7 @@ public class ResponseClientFaultTests
         factory.Builder.Services.AddErrorHandling(errors => errors.OnError((_, _, _) => ValueTask.FromResult(true)));
         factory.Builder.Server.UseServer(options =>
         {
-            options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor());
+            options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
             if (protocol == 1)
             {
                 options.UseHttp1(transport.StreamListener);
@@ -223,7 +223,7 @@ public class ResponseClientFaultTests
         }));
         factory.Builder.Server.UseServer(options =>
         {
-            options.Interceptors.Add(HttpResponseStreaming.CreateInterceptor());
+            options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
             if (protocol == 1)
             {
                 options.UseHttp1(transport.StreamListener, http => http.Limits.MinResponseDataRate = rate);

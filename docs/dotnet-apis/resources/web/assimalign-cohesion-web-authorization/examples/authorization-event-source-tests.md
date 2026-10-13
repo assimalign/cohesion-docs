@@ -284,10 +284,10 @@ public sealed class AuthorizationEventSourceTests
             factory.Builder.Services.AddAuthentication(authentication =>
             {
                 authentication.Options.DefaultScheme = defaultScheme;
-                authentication.UseDataProtection(DataProtectionProvider.Create(KeyRepository.CreateFileSystem(keysDirectory)));
+                authentication.UseDataProtection(DataProtectionProvider.Create(FileSystemKeyRepository.Create(keysDirectory)));
                 authentication.AddJwtBearer(options =>
                 {
-                    options.SigningKeys.Add(JwtSignatureVerifier.CreateHmac(new byte[32]));
+                    options.SigningKeys.Add(HmacJwtSignatureVerifier.Create(new byte[32]));
                     options.ValidIssuers.Add(TestJwt.Issuer);
                     options.ValidAudiences.Add(TestJwt.Audience);
                 });

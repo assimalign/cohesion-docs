@@ -8,8 +8,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 Turn a validated TLS client certificate into the `ClaimsPrincipal` used by Web authentication and
 authorization. Owner decision 31 places the scheme in its own package, alongside Cookie and Bearer.
-`IAuthenticationHandler` remains the public contract; `CertificateAuthenticationHandler` is internal
-and `CertificateAuthentication.CreateHandler` provides the container-free factory.
+`IAuthenticationHandler` remains the public contract; `CertificateAuthenticationHandler` is public and sealed
+with a private constructor. `CertificateAuthenticationHandler.Create(options)` provides the container-free factory.
 
 The package references the scheme model, TLS feature and Web.Server for its request-id contract.
 Web.Server also carries the server engine and Http.Connections in the package closure, with no
@@ -180,6 +180,31 @@ The package inherits `IsAotCompatible=true`. Mapping uses BCL certificate/claim 
 access and factory delegates; it uses no reflection, runtime code generation or service location.
 Certificate acquisition, storage, chain-policy configuration, proxy forwarding and account lookup
 remain application/transport responsibilities.
+
+## Public implementation compatibility (#1465)
+
+Owner decision 59 makes `CertificateAuthenticationHandler` public and sealed with a private
+constructor. `Create(options)` returns the concrete handler, keeping the options snapshot and
+null validation. `IAuthenticationHandler` remains the extension contract.
+
+This package and its static `CertificateAuthentication.CreateHandler(options)` entry point
+are absent from 10.0.0-preview.1, so there is no preview.1 consumer to migrate. Relative to
+the intervening development API, deleting the static class is source- and binary-breaking:
+use `CertificateAuthenticationHandler.Create(options)` and rebuild, on decision 15's preview
+compatibility terms. Certificate authentication behavior is unchanged.
+
+## Exception messages (#1467)
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
+The expected rejection or cancellation messages are cached in static readonly fields: `CertificatePrincipalNotAuthenticated`. Their ordinary lifecycle paths perform no resource lookup per exception.
 
 ## Declared dependencies
 

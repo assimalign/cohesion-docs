@@ -391,6 +391,28 @@ test-side parser (`TestObjects/SetCookieField.cs`), not by the model under test.
   the cookies the policy rewrote, each once on its own field line, because it reads the `Set-Cookie`
   header the policy's collection keeps and not the cookie feature (#1154).
 
+## Cookie-authentication test composition (#1465)
+
+The cookie-authentication integration tests now use `FileSystemKeyRepository.Create(path)` to
+compose their data-protection provider. Rebuild the tests against the updated DataProtection
+package; its DESIGN records the factory source and binary breaks against 10.0.0-preview.1 on
+decision 15's terms. This cleanup changes no Web.CookiePolicy API, consent or emission behavior,
+or shipped dependency. Advisory: not applicable: API shape.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
 ## Declared dependencies
 
 | Reference | Kind |

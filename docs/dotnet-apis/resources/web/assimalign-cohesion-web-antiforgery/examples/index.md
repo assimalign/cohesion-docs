@@ -7,6 +7,7 @@ Examples for `Assimalign.Cohesion.Web.Antiforgery` are derived from source docum
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
+- **[Antiforgery composition](composition.md)** — Register antiforgery with a shared data-protection key ring and declare protected endpoints.
 - **[Antiforgery End To End Tests](antiforgery-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
 - **[Antiforgery Middleware Tests](antiforgery-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.
 - **[Antiforgery Registration Tests](antiforgery-registration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Antiforgery` through its co-located test source.

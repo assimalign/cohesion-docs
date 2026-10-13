@@ -21,11 +21,12 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
   least one issuer and one audience fails unless `ValidateIssuer` or
   `ValidateAudience` is set to `false` explicitly.
 - **`JwtBearerDefaults`** — the default scheme name (`"Bearer"`).
-- **`IJwtSignatureVerifier`** — + `JwtSignatureVerifier.CreateHmac/CreateRsa/CreateEcdsa`
+- **`IJwtSignatureVerifier`** — + the public sealed `HmacJwtSignatureVerifier`,
+  `RsaJwtSignatureVerifier` and `EcdsaJwtSignatureVerifier`, each with `Create`
   — the compatibility seam: HMAC remains Web-local, while the RSA/ECDSA factories
   adapt the reusable IdentityModel JWT verifiers.
-- **`JwtBearerAuthentication.CreateHandler(options)`** — the factory the
-  composition root calls; the concrete handler stays internal.
+- **`JwtBearerHandler.Create(options)`** — the factory the
+  composition root calls; it returns the public sealed handler with private construction.
 
 ## How it fits
 

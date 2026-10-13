@@ -7,6 +7,7 @@ Examples for `Assimalign.Cohesion.Web.Hosting` are derived from source documenta
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
+- **[Bootstrap Token Verifier Tests](bootstrap-token-verifier-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Bootstrap Verifier Lifetime Tests](bootstrap-verifier-lifetime-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Bootstrap Verifier Reuse Tests](bootstrap-verifier-reuse-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Form Transport Rejection Tests](form-transport-rejection-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
@@ -36,6 +37,7 @@ examples require their original test project’s dependencies and supporting obj
 - **[Web Application Server Drain Tests](web-application-server-drain-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Extended Connect Tests](web-application-server-extended-connect-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Host Service Tests](web-application-server-host-service-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+- **[Web Application Server Http2 Integration Tests](web-application-server-http2-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Integration Tests](web-application-server-integration-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Interceptor Order Tests](web-application-server-interceptor-order-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 - **[Web Application Server Lifecycle Tests](web-application-server-lifecycle-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.

@@ -31,8 +31,11 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Security.DataProtection;
 using Assimalign.Cohesion.Web.Authentication;
@@ -58,7 +61,7 @@ public sealed class CookiePolicyCookieAuthenticationTests : IDisposable
     public CookiePolicyCookieAuthenticationTests()
     {
         _keysDirectory = Path.Combine(Path.GetTempPath(), "cohesion-cookie-policy-tests", Guid.NewGuid().ToString("N"));
-        _dataProtection = DataProtectionProvider.Create(KeyRepository.CreateFileSystem(_keysDirectory));
+        _dataProtection = DataProtectionProvider.Create(FileSystemKeyRepository.Create(_keysDirectory));
     }
 
     public void Dispose()

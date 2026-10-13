@@ -491,6 +491,29 @@ request to an endpoint with a policy; `UseCors` registered ahead of `UseRouting`
 failing closed at dispatch; the real exception boundary on either side of `UseCors` keeping the CORS
 headers on its `500`; streamed heads enforcing the policy after handler changes; and a preflight over HTTP/2.
 
+## HTTP interceptor consumer compatibility (#1465)
+
+The streamed-response test hosts now register `HttpResponseStreamingInterceptor.Create()` in place
+of `HttpResponseStreaming.CreateInterceptor()`. Applications that register this Http.Streaming
+interceptor directly make the same replacement and rebuild for its upstream source and binary
+break against `10.0.0-preview.1`, accepted on decision 15's terms and documented in
+[Http.Streaming's design](../../../libraries/http/assimalign-cohesion-http-streaming/design.md#public-interceptor-and-breaking-changes-since-1000-preview1-1465).
+This consumer update changes no API or response behavior owned by this package.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
 ## Declared dependencies
 
 | Reference | Kind |

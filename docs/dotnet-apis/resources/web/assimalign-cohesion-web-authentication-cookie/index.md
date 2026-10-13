@@ -20,8 +20,8 @@ and drives the login / logout / access-denied flow.
   and the `IDataProtector` that seals the ticket.
 - **`CookieAuthenticationDefaults`** — the default scheme name
   (`"Cookies"`) and paths.
-- **`CookieAuthentication.CreateHandler(options)`** — the factory the
-  composition root calls; the concrete handler stays internal.
+- **`CookieAuthenticationHandler.Create(options)`** — the factory the
+  composition root calls; it returns the public sealed handler with private construction.
 
 ## How it fits
 
@@ -29,8 +29,9 @@ and drives the login / logout / access-denied flow.
   `Assimalign.Cohesion.Web.Authentication` (the scheme model).
 - **Seals tickets through** — `Assimalign.Cohesion.Security.DataProtection`
   — keys are never hand-rolled.
-- **Keys its redirect-vs-`401`/`403` decision** — on the `IApiEndpointMetadata`
-  endpoint marker resolved through `Assimalign.Cohesion.Web.Routing`.
+- **Keys its redirect-vs-`401`/`403` decision** — on the sealed `ApiEndpointMetadata`
+  marker resolved through `Assimalign.Cohesion.Web.Routing`; attach `ApiEndpointMetadata.Instance`
+  to an API endpoint.
 
 `Register` it at the composition root, not here:
 

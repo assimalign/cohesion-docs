@@ -28,9 +28,10 @@ The concrete Cookie, Bearer and Certificate handlers live in their own packages.
 package grafts its own scheme verb onto `AuthenticationBuilder`: `AddCookie`, `AddJwtBearer` and
 `AddCertificate`. The service reads `AuthenticationOptions` live, so schemes registered by these
 chained calls after the service is created are still resolved. The public handler factories
-(`CookieAuthentication.CreateHandler`, `JwtBearerAuthentication.CreateHandler` and
-`CertificateAuthentication.CreateHandler`) remain the seams the verbs use while the concrete
-handlers stay internal.
+(`CookieAuthenticationHandler.Create`, `JwtBearerHandler.Create` and
+`CertificateAuthenticationHandler.Create`) remain the seams the verbs use on the public sealed
+handler and service implementations. Each `Create` returns its concrete type; construction is
+private and the existing interfaces remain the extension contracts.
 
 ## Family map
 
@@ -61,6 +62,43 @@ composition abstractions. The protocol core never gains a
 back-reference, and `Web.Hosting` references none of these packages —
 the `App.Web` shared framework delivers the family to applications
 (see the [Web area map](../index.md)).
+
+## Public implementation and preview.1 compatibility (#1465)
+
+Owner decision 59 moves the static entry point onto the public sealed
+`AuthenticationService` implementation, with a private constructor.
+`AuthenticationService.Create(options)` keeps its parameters, live-options behavior and
+validation, and now returns `AuthenticationService` instead of `IAuthenticationService`.
+
+The static entry point shipped in 10.0.0-preview.1. Existing calls keep the same spelling and
+remain source-compatible; assigning the returned value to `IAuthenticationService` still works.
+The concrete return type changes the CLR method signature, so this is binary-breaking and
+consumers must rebuild. The break is accepted during previews on decision 15's terms.
+
+## API endpoint marker and preview.1 compatibility (#1466)
+
+Owner decision 59 removes the empty `IApiEndpointMetadata` interface that shipped in
+10.0.0-preview.1. The sealed `ApiEndpointMetadata` type and its shared `Instance` remain.
+This is source- and binary-breaking for consumers of the removed interface, accepted during
+previews on decision 15's terms. Replace custom marker implementations and interface lookups
+with `ApiEndpointMetadata.Instance` and `GetEndpointMetadata<ApiEndpointMetadata>()`,
+then rebuild. Existing endpoint declarations attaching `ApiEndpointMetadata.Instance`
+keep their spelling and behavior: Cookie sends bare 401/403 for a marked endpoint and redirects
+an unmarked endpoint.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
 
 ## Declared dependencies
 
@@ -93,7 +131,5 @@ the `App.Web` shared framework delivers the family to applications
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Extensions/HttpContextAuthenticationVerbExtensions.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationFeature.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/AuthenticationResultFeature.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Internal/DefaultAuthenticationService.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Metadata/ApiEndpointMetadata.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Abstractions/IApiEndpointMetadata.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication/src/Assimalign.Cohesion.Web.Authentication.csproj`.
