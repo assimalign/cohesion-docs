@@ -1,11 +1,11 @@
 # Response Completion Feature Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Server` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/ResponseCompletionFeatureTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/ResponseCompletionFeatureTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -24,13 +24,13 @@ using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 
-using Assimalign.Cohesion.Web.Hosting.Internal;
+using Assimalign.Cohesion.Web.Internal;
 
-namespace Assimalign.Cohesion.Web.Hosting.Tests;
+namespace Assimalign.Cohesion.Web.Server.Tests;
 
 public class ResponseCompletionFeatureTests
 {
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Completion: Every callback runs in order and every failure is retained")]
+    [Fact(DisplayName = "Cohesion Test [Web.Server] - Completion: Every callback runs in order and every failure is retained")]
     public async Task CompleteAsync_WhenCallbacksThrow_ShouldRunAllAndAggregateFailures()
     {
         // Arrange
@@ -58,5 +58,5 @@ public class ResponseCompletionFeatureTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/ResponseCompletionFeatureTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/ResponseCompletionFeatureTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/Assimalign.Cohesion.Web.Server.Tests.csproj`.

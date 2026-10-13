@@ -193,7 +193,7 @@ the serializer is hand-written, the protector is BCL AEAD, base64url is
 ## Diagnostics
 
 The internal `CookieAuthenticationEventSource` provider is named
-`Assimalign.Cohesion.Web.Authentication.Cookie`. A contracts-only `Web.Server` reference
+`Assimalign.Cohesion.Web.Authentication.Cookie`. A `Web.Server` reference
 supplies request correlation; the root authentication dispatcher emits nothing.
 
 | Id | Event | Level | Payload |

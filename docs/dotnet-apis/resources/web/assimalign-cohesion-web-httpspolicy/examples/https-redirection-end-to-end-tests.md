@@ -26,13 +26,17 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Web.Hosting;
+
+using Shouldly;
+
+using Xunit;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.HttpsPolicy.Tests;
 
@@ -204,7 +208,7 @@ public class HttpsRedirectionEndToEndTests
         public async Task<string> ExchangeAsync(string request, CancellationToken cancellationToken)
         {
             InMemoryConnectionFactory connectionFactory = _listener.CreateFactory();
-            Connection connection = await connectionFactory.ConnectAsync(_listener.EndPoint, cancellationToken);
+            IDuplexConnection connection = await connectionFactory.ConnectAsync(_listener.EndPoint, cancellationToken);
 
             await using (connection.ConfigureAwait(false))
             {

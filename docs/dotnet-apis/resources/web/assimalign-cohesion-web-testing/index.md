@@ -58,7 +58,7 @@ See the [source-backed usage examples](examples/index.md).
   seams.
 - **`Assimalign.Cohesion.Connections.InMemory`** — the in-memory transport driver (listener +
   dialing factory).
-- **`Assimalign.Cohesion.Connections`** — the `Connection` contract and duplex-pipe stream
+- **`Assimalign.Cohesion.Connections`** — the `IDuplexConnection` contract and duplex-pipe stream
   adapter the client side rides.
 - **`Assimalign.Cohesion.Hosting`** — host lifecycle capture for the `Program`-backed mode.
 - **`Assimalign.Cohesion.Hosting.Resources`** — ambient resource scopes, entry registration,
@@ -70,6 +70,10 @@ The client side is otherwise pure BCL (`SocketsHttpHandler`, `HttpClient`).
 
 See [`DESIGN.md`](design.md) for the composition model, lifecycle contract, protocol scope
 (including why HTTP/3 is out), parallel-isolation guarantees, and AOT posture.
+
+The socketless client transport consumes `IDuplexConnection` for its input/output pipe.
+Identity and lifetime remain available through the shared `IConnection` root; HTTP listener
+accepts use `AcceptAsync` and retain their accepted connections until `ConnectionClosed` fires.
 
 ## Project references
 
@@ -92,3 +96,4 @@ See [`DESIGN.md`](design.md) for the composition model, lifecycle contract, prot
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Assimalign.Cohesion.Web.Testing.csproj`.
 - **Disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Abstractions/IWebApplicationTestFactory.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.
+- **Client transport contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Internal/ClientConnectionStream.cs`.

@@ -1,11 +1,11 @@
 # Health Contributor Event Source Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Health` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/HealthContributorEventSourceTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthContributorEventSourceTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -31,12 +31,15 @@ using Assimalign.Cohesion.Hosting.Health;
 using Assimalign.Cohesion.Testing;
 using Assimalign.Cohesion.Web.Health;
 
-namespace Assimalign.Cohesion.Web.Hosting.Health.Tests;
+using Assimalign.Cohesion.Web.Hosting.Health;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 [Collection(nameof(HealthContributorTelemetryCollection))]
 public sealed class HealthContributorEventSourceTests
 {
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Contributor: repeated unhealthy results report one Web.Health transition")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Contributor: repeated unhealthy results report one Web.Health transition")]
     public async Task AddContributor_WhenRepeatedlyUnhealthy_ShouldReportOneWorsenedTransition()
     {
         // Arrange
@@ -65,7 +68,7 @@ public sealed class HealthContributorEventSourceTests
         recorder.Events.ShouldNotContain(entry => entry.EventId == 0);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Contributor: each thrown probe reports once through Web.Health")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Contributor: each thrown probe reports once through Web.Health")]
     public async Task AddContributor_WhenRepeatedlyThrowing_ShouldReportOneFailurePerProbe()
     {
         // Arrange
@@ -119,5 +122,5 @@ public sealed class HealthContributorEventSourceTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/HealthContributorEventSourceTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/Assimalign.Cohesion.Web.Hosting.Health.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthContributorEventSourceTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

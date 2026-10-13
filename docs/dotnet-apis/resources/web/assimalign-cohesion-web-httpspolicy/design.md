@@ -286,17 +286,24 @@ forwarded-headers middleware resolves the client-facing scheme first, so redirec
 and passes the request on, and HSTS stamps the policy on the way back out.
 
 ```mermaid
-flowchart TD
-    Client["Client"] -->|"GET https://public.example/page"| Proxy["TLS-terminating proxy"]
-    Proxy -->|"GET /page over plaintext; X-Forwarded-Proto: https"| Fwd["UseForwardedHeaders: trusted peer, EffectiveScheme is https"]
-    Fwd -->|"next"| Hsts["UseHsts"]
-    Hsts -->|"next"| Redirect["UseHttpsRedirection"]
-    Redirect -->|"Already secure; no redirect"| App["Rest of the pipeline"]
-    App -->|"200"| ReturnRedirect["Return through UseHttpsRedirection"]
-    ReturnRedirect -->|"200"| ReturnHsts["UseHsts adds Strict-Transport-Security"]
-    ReturnHsts -->|"200 plus Strict-Transport-Security"| ReturnFwd["Return through UseForwardedHeaders"]
-    ReturnFwd -->|"200 plus Strict-Transport-Security"| ReturnProxy["Return through proxy"]
-    ReturnProxy -->|"200 over TLS"| ReturnClient["Response reaches client"]
+sequenceDiagram
+    participant Client
+    participant Proxy as TLS-terminating proxy
+    participant Fwd as UseForwardedHeaders
+    participant Hsts as UseHsts
+    participant Redirect as UseHttpsRedirection
+    participant App as Rest of the pipeline
+    Client->>Proxy: GET https://public.example/page
+    Proxy->>Fwd: GET /page over plaintext, X-Forwarded-Proto https
+    Note over Fwd: trusted peer, so EffectiveScheme is https
+    Fwd->>Hsts: next
+    Hsts->>Redirect: next
+    Redirect->>App: already secure, no redirect
+    App-->>Redirect: 200
+    Redirect-->>Hsts: 200
+    Hsts-->>Fwd: 200 plus Strict-Transport-Security
+    Fwd-->>Proxy: 200 plus Strict-Transport-Security
+    Proxy-->>Client: 200 over TLS
 ```
 
 - **`UseForwardedHeaders` before `UseHttpsRedirection`** whenever TLS terminates
@@ -367,6 +374,11 @@ plaintext request from a trusted proxy address: forwarded `https` passes redirec
 and receives HSTS, including when the proxy dials `localhost`; forwarded `http` redirects to the
 forwarded host; and forwarding headers are ignored both without the middleware and from an untrusted
 peer.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Declared dependencies
 

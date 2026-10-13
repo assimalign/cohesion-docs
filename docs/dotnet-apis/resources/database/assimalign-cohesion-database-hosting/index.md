@@ -47,6 +47,8 @@ peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403
 forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
 Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior is unchanged.
 
+The model server options take `IDuplexConnectionListener`; client composition supplies an `IDuplexConnectionFactory` for the shared database pool.
+
 ## Project references
 
 | Reference | Kind |
@@ -63,8 +65,6 @@ Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Health` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |
 
 [Parent: Database](../index.md)

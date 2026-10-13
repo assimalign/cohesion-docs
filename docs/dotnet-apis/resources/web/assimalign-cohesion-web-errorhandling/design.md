@@ -87,7 +87,7 @@ Three layers, outermost last:
 2. **The pipeline boundary → `OnError` (this package + #881)** — application-owned fault
    presentation. The boundary catches, resolves `IErrorHandlingFeature`, and delegates the
    response.
-3. **The server's exception isolation (#762, `Web.Hosting`)** — infrastructure protection: an
+3. **The server's exception isolation (#762, `Web.Server`)** — infrastructure protection: an
    exception that escapes even the boundary (or a fault in the boundary/handlers themselves)
    must not kill the connection loop. The server does not invoke this hook — it does not reference
    this package (the hosting-isolation rule forbade it until 2026-10-09) — and that is by design:
@@ -111,7 +111,7 @@ the three-layer model above. It wraps everything downstream in a `try/catch` and
   the one exchange (`IHttpContext.CancelAsync`; the connection survives). This is the same wire-commit
   signal the request-timeout middleware reads. While the response is unstarted, the boundary discards
   the partial response (clears headers, truncates/replaces the body) and writes the error cleanly.
-  The abort trips the generic `IHttpContext.RequestCancelled` signal. Web.Hosting checks it even
+  The abort trips the generic `IHttpContext.RequestCancelled` signal. Web.Server checks it even
   when the boundary returns normally (#1411), classifies the exchange as cancelled, skips
   response-completion callbacks and records `error.type=request_canceled`. The original fault
   still reaches the boundary's diagnostic hook. Compared with 10.0.0-preview.1, callbacks no
@@ -186,7 +186,7 @@ Owner decision 45 applies on HTTP/1.1 and HTTP/2 as well as HTTP/3: if the conne
 resets before the dispatched request body completes, `RequestCancelled` fires and the body read
 throws `OperationCanceledException` carrying that exchange token. `IWebClientFaultFeature.StatusCode`
 remains `null`. The boundary rethrows the cancellation without invoking `OnException` or staging
-an error response, and Web.Hosting records `request_canceled` without an Error log.
+an error response, and Web.Server records `request_canceled` without an Error log.
 
 This changes observable behavior from 10.0.0-preview.1 under decision 15: a reader can no longer
 rely on a body cut short surfacing as `EndOfStreamException` or another transport exception.
@@ -204,7 +204,7 @@ The exception boundary reads it before its ordinary cancellation filter. When tr
 exception is normalized to `OperationCanceledException` carrying the exchange's `RequestCancelled`
 token and retaining the caught exception as its inner exception. It cancels the exchange, publishes
 no `IHttpExceptionFeature`, invokes neither `OnException` nor `OnError`, and stages no error response.
-Web.Hosting records `request_canceled`, skips completion callbacks and emits no Error log. A content
+Web.Server records `request_canceled`, skips completion callbacks and emits no Error log. A content
 adapter that wraps the transport failure in `InvalidOperationException` gets exactly the same result:
 classification uses the transport's report, not an exception type or an inner-exception walk.
 
@@ -360,6 +360,11 @@ the canonical test-only recorder; fresh counter samples prove peer outcomes leav
 - **Wire-level failure isolation** — the transport's per-connection survival (Http.Connections, and
   the server's #762 last-resort catch) is a separate layer the boundary sits inside, not a duplicate.
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Declared dependencies
 
 | Reference | Kind |
@@ -376,3 +381,4 @@ the canonical test-only recorder; fresh counter samples prove peer outcomes leav
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ErrorHandling/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ErrorHandling/src/Assimalign.Cohesion.Web.ErrorHandling.csproj`.
+- **Server isolation and telemetry** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/WebExchangeTelemetry.cs`.

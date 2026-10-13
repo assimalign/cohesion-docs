@@ -14,10 +14,10 @@ generic deployer options remain manifest-driven; no platform types are reference
 SDK defaults are http/tcp:8080 and a Deployment. Replica counts use generic manifest limits; there
 is no Scheduler singleton constraint.
 
-`EmailHubResourceControlPlane.Create` returns a fresh Hosting.Resources control plane with no accepted
-command kinds. Runtime Hosting discovers the generated registration and serves its protocol through
-the private Web.Hosting.Resources feature. Unsupported command envelopes are refused with 501;
-domain commands are deferred to item 31c.
+`EmailHubResourceControlPlane.Create` returns a fresh Hosting.Resources control plane with no
+accepted command kinds. Runtime Hosting discovers the generated registration and serves its protocol
+through the private Web.Hosting resource control-plane integration. Unsupported command envelopes
+are refused with 501; domain commands are deferred to item 31c.
 
 The package is NuGet-only (developer-experience design D4/O2), never a framework member. Its only
 direct dependencies are ApplicationModel and Hosting.Resources; `COHAM001` checks its full resolved

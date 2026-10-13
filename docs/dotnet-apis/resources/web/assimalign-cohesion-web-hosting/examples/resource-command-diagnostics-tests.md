@@ -1,11 +1,11 @@
 # Resource Command Diagnostics Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceCommandDiagnosticsTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceCommandDiagnosticsTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -32,14 +32,16 @@ using Xunit;
 using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Testing;
-using Assimalign.Cohesion.Web.Hosting.Resources.Internal;
+using Assimalign.Cohesion.Web.Hosting.Internal;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
-[Collection(ResourceControlPlaneEventSourceCollection.Name)]
+[Collection(nameof(TelemetryCollection))]
 public sealed class ResourceCommandDiagnosticsTests
 {
-    private const string displayPrefix = "Cohesion Test [Web.Hosting.Resources] - Command diagnostics: ";
+    private const string displayPrefix = "Cohesion Test [Web.Hosting] - Command diagnostics: ";
 
     [Theory(DisplayName = displayPrefix + "default handler ArgumentException is reported by the producer once")]
     [InlineData("POST", "Apply")]
@@ -60,7 +62,7 @@ public sealed class ResourceCommandDiagnosticsTests
         handler.Failure = new ArgumentException("handler-secret payload-secret key-secret caller-secret");
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
         using var producerRecorder = new EventSourceRecorder(producer, EventLevel.Verbose);
-        using var webRecorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var webRecorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", new HttpMethod(method));
         var requestId = new ControlPlaneRequestIdFeature();
         exchange.Features.Set<IWebRequestIdFeature>(requestId);
@@ -77,7 +79,7 @@ public sealed class ResourceCommandDiagnosticsTests
         Payload(failure, "operation").ShouldBe(operation);
         Payload(failure, "exceptionType").ShouldBe("System.ArgumentException");
         string.Join("|", failure.Payload!).ShouldNotContain("secret", Case.Sensitive);
-        webRecorder.Events.ShouldNotContain(item => item.EventId == 2 &&
+        webRecorder.Events.ShouldNotContain(item => item.EventId == 3 &&
             Equals(Payload(item, "requestId"), requestId.ExpectedId));
         exchange.Response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         producerRecorder.Events.ShouldNotContain(item => item.EventId == 0);
@@ -107,7 +109,7 @@ public sealed class ResourceCommandDiagnosticsTests
         }
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
         using var producerRecorder = new EventSourceRecorder(producer, EventLevel.Verbose);
-        using var webRecorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var webRecorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", HttpMethod.Post);
         var requestId = new ControlPlaneRequestIdFeature();
         exchange.Features.Set<IWebRequestIdFeature>(requestId);
@@ -145,7 +147,7 @@ public sealed class ResourceCommandDiagnosticsTests
         originalFailure.ShouldBeSameAs(exception);
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
         using var producerRecorder = new EventSourceRecorder(producer, EventLevel.Verbose);
-        using var webRecorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var webRecorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", HttpMethod.Post);
         var requestId = new ControlPlaneRequestIdFeature();
         exchange.Features.Set<IWebRequestIdFeature>(requestId);
@@ -155,7 +157,7 @@ public sealed class ResourceCommandDiagnosticsTests
         await InvokeAsync(new ReusedExceptionControlPlane(exception), exchange);
 
         // Assert
-        EventWrittenEventArgs malformed = webRecorder.Events.Where(item => item.EventId == 2 &&
+        EventWrittenEventArgs malformed = webRecorder.Events.Where(item => item.EventId == 3 &&
             Equals(Payload(item, "requestId"), requestId.ExpectedId)).ShouldHaveSingleItem();
         Payload(malformed, "phase").ShouldBe("Handler");
         Payload(malformed, "exceptionType").ShouldBe("System.ArgumentException");
@@ -206,5 +208,5 @@ public sealed class ResourceCommandDiagnosticsTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceCommandDiagnosticsTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceCommandDiagnosticsTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

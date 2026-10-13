@@ -1,11 +1,11 @@
 # Resource Control Plane Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -48,11 +48,14 @@ using Assimalign.Cohesion.Web.Testing.TestHost;
 using HttpMethod = System.Net.Http.HttpMethod;
 using HttpStatusCode = System.Net.HttpStatusCode;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public sealed class ResourceControlPlaneTests
 {
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Stop: an earlier throwing completion callback cannot prevent deferred stop")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Stop: an earlier throwing completion callback cannot prevent deferred stop")]
     public async Task Stop_WhenEarlierCompletionCallbackThrows_ShouldStillRequestStop()
     {
         // Arrange
@@ -98,7 +101,7 @@ public sealed class ResourceControlPlaneTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Composition regression: Web wrapper and direct verb serve the same protocol")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Composition regression: Web wrapper and direct verb serve the same protocol")]
     public async Task Routes_ThroughWebWrapperAndDirectVerb_ShouldMatch()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -166,7 +169,7 @@ public sealed class ResourceControlPlaneTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Readiness: gates owning host startup and preserves health data")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Readiness: gates owning host startup and preserves health data")]
     public async Task Readiness_BeforeOwnerStarts_ShouldBeUnavailable()
     {
         await using var factory = new WebApplicationTestFactory();
@@ -201,7 +204,7 @@ public sealed class ResourceControlPlaneTests
         values.GetProperty("decimal").GetDecimal().ShouldBe(3.75M);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Health: a throwing contributor's exception message is absent from the unauthenticated probes")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Health: a throwing contributor's exception message is absent from the unauthenticated probes")]
     public async Task HealthProbes_WhenContributorThrows_ShouldNotPublishExceptionMessage()
     {
         // Arrange
@@ -230,7 +233,7 @@ public sealed class ResourceControlPlaneTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Health: an exception a contributor places in its data is absent from the unauthenticated probes")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Health: an exception a contributor places in its data is absent from the unauthenticated probes")]
     public async Task HealthProbes_WhenContributorDataHoldsException_ShouldNotPublishIt()
     {
         // Arrange
@@ -263,7 +266,7 @@ public sealed class ResourceControlPlaneTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Health: an exception a custom control plane reports in data is absent from the unauthenticated probes")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Health: an exception a custom control plane reports in data is absent from the unauthenticated probes")]
     public async Task HealthProbes_WhenCustomControlPlaneReportsExceptionInData_ShouldNotPublishIt()
     {
         // Arrange — a custom IResourceControlPlane passes its report through unfiltered, unlike the default
@@ -298,7 +301,7 @@ public sealed class ResourceControlPlaneTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: verifies signature, identity, audience, lifetime, and rotation")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: verifies signature, identity, audience, lifetime, and rotation")]
     public async Task Authorization_WithManagedContext_ShouldVerifyJwtClaims()
     {
         using var identity = new TestBootstrapIdentity("tests", "gateway");
@@ -332,7 +335,7 @@ public sealed class ResourceControlPlaneTests
         bare.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Commands: lists applied envelopes and returns conflict refusals")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Commands: lists applied envelopes and returns conflict refusals")]
     public async Task Commands_WithHandler_ShouldExposeStateAndRejectConflictingOwnership()
     {
         // The in-memory transport has no IP peer; exercise commands as an authenticated gateway.
@@ -471,5 +474,5 @@ public sealed class ResourceControlPlaneTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

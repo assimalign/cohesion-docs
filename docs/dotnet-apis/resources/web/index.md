@@ -33,8 +33,6 @@ framework.
 | [`Assimalign.Cohesion.Web.Health`](assimalign-cohesion-web-health/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.HostFiltering`](assimalign-cohesion-web-hostfiltering/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Hosting`](assimalign-cohesion-web-hosting/index.md) | Hosting | Public reference and runtime |
-| [`Assimalign.Cohesion.Web.Hosting.Health`](assimalign-cohesion-web-hosting-health/index.md) | Hosting integration | Public reference and runtime |
-| [`Assimalign.Cohesion.Web.Hosting.Resources`](assimalign-cohesion-web-hosting-resources/index.md) | Hosting integration | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.HttpsPolicy`](assimalign-cohesion-web-httpspolicy/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.OpenApi`](assimalign-cohesion-web-openapi/index.md) | Feature library | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](assimalign-cohesion-web-problemdetails/index.md) | Feature library | Public reference and runtime |
@@ -54,11 +52,17 @@ framework.
 
 ## Architecture
 
-`Web.Hosting.Resources` owns reusable resource-management middleware, including
-authentication and ahead-of-time (AOT) compilation-compatible JSON handling. Area hosts own
-their listeners, readiness gates, and lifecycle. The integration is public in
-`App.Web` and private in generic resource frameworks. `Web.Hosting.Health`
-adapts hosting health contributors into the independent `Web.Health` model.
+`Web.Hosting` includes reusable [resource-management middleware](assimalign-cohesion-web-hosting/design.md#resource-control-plane),
+including authentication and ahead-of-time (AOT) compilation-compatible JSON handling. Area hosts
+own their listeners, readiness gates, and lifecycle. Its [health integration](assimalign-cohesion-web-hosting/design.md#health-integration)
+adapts hosting health contributors into the independent `Web.Health` model. The public types keep
+the `Assimalign.Cohesion.Web.Hosting.Resources` and `Assimalign.Cohesion.Web.Hosting.Health`
+namespaces under `src/Resources/` and `src/Health/`, but their former separate packages are removed
+(owner decision 57, 2026-10-13).
+
+The integrations are public through `Web.Hosting` in `App.Web` and private in each other area
+framework. `Web.Health` joins the 16 area framework closures that lacked it; Database already
+carried it. The hosting context owns retained control-plane resources internally.
 
 ## Dependency boundary
 
@@ -67,27 +71,40 @@ depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child l
 registration verbs are component integrations on `builder.Services` (owner decision 34, #1380), and
 pipeline verbs extend the root's `IWebApplicationPipelineBuilder`, so hosting a feature needs no
 reference to it. The exact runtime may reference any Web library except `Web.Testing`,
-`Web.ApplicationModel`, the `App.Web` producers, and test, example, sample, and fixture projects
-(COHRES002, relaxed by owner decision 2026-10-09); integrations may not reference the exact runtime.
-It references only what it needs, `Web.Routing` and `Web.Server` (owner decision 33, #1379),
+`Web.ApplicationModel`, `Web.ApplicationModel.Orchestration`, the `App.Web` producers, and test,
+example, sample, and fixture projects (COHRES002, relaxed by owner decision 2026-10-09).
+It references only what it needs: `Web.Routing` for the pipeline terminal, `Web.Server` for the
+public engine and its per-exchange features, and `Web.Health` for the integrated health adapter,
 because every reference it takes ships in each framework that carries it: `App.Web` and, privately,
 all 17 other area frameworks. The declarative application model remains separate from the runtime.
 See the [resource dependency rules](../index.md#dependency-rules) .
 
-The hosting family in this area contains `Assimalign.Cohesion.Web.Hosting`,
-`Assimalign.Cohesion.Web.Hosting.Health`, `Assimalign.Cohesion.Web.Hosting.Resources`.
+`Web.Hosting` integrates `Hosting.Health` and `Hosting.Resources` itself. No separate Web
+hosting-family package exists. A future integration package is only for an integration that must
+not land in every framework that carries the module. `Web.Testing` exempts only `Web.Hosting` to
+drive the runtime and its control plane.
 
-## Server contracts
+`Web.Server` references `Web.Routing` for the `http.route` template; `Web.Routing` must never
+reference `Web.Server`, which would form a cycle. The engine has no Hosting or connection-driver
+dependency and can be constructed directly.
 
-[`Assimalign.Cohesion.Web.Server`](assimalign-cohesion-web-server/index.md) contains only contracts:
-the per-exchange features the server publishes, `IWebRequestIdFeature` (the request's W3C trace id),
+## Server engine and contracts
+
+[`Assimalign.Cohesion.Web.Server`](assimalign-cohesion-web-server/index.md) owns the public
+`WebApplicationServer` engine and `WebApplicationServerOptions`, so an application can run the
+server without the hosting module. The server builds its listener from the options and installs
+its own interceptors. `Web.Hosting` keeps HTTP default interceptors, configuration binding, and
+TCP and QUIC listener helpers, and wraps every registered `IWebApplicationServer` in the public,
+non-owning `WebApplicationServerHostService`.
+
+The engine publishes the per-exchange features `IWebRequestIdFeature` (the request's W3C trace id),
 `IWebRequestActivityFeature` (the server span), `IWebResponseStartingFeature` (callbacks before
 final-head commit), `IWebResponseCompletionFeature` (callbacks after the response reaches the
 transport), `IWebServerDrainFeature` (the lame-duck drain signal) and `IWebClientFaultFeature` (the
 `4xx` the transport answers a request body that broke its framing or a limit with, which
 `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read so a client fault is not handled
 as an application defect, #1340), plus `IWebResponseClientFaultFeature` (the response was abandoned
-by the peer or failed its minimum data rate, #1432). `Web.Hosting` installs all seven; namespace
+by the peer or failed its minimum data rate, #1432). `Web.Server` installs all seven; namespace
 `Assimalign.Cohesion.Web`, moved from the root (#1379).
 
 Connection loss mid-upload or mid-response cancels the exchange on every protocol. An incomplete
@@ -95,15 +112,22 @@ HTTP/1.1 body ended by EOF no longer reports `400`; malformed framing and config
 their client-fault statuses. The response report also lets error handling recognize a transport
 write failure wrapped in another exception.
 
-The root's optional `IWebApplicationLifetime` composition capability lets middleware transfer
-disposable resources to the application context for final teardown after requests drain. Stops
-and restarts keep those resources alive; it is not a per-exchange feature.
+The listener seam is `IHttpConnectionListener : IConnectionListener<IHttpConnection>`:
+`Protocols` identifies the configured protocols, `EndPoints` exposes the actual bound endpoints
+after `BindAsync`, and `AcceptAsync` replaces `AcceptOrListenAsync`. Its live `Connections`
+collection tracks accepted connections until `ConnectionClosed` fires. `IHttpConnection` inherits
+the pipe-less `IConnection` root and adds `Protocol`; `IDuplexConnection` supplies byte-pipe access
+for stream transports. The server reads bound endpoints from the listener instead of Hosting's
+former endpoint capture (decision 58, #1459).
 
 ## Diagnostics
 
 The [observability guide](../../../web/observability.md#diagnostic-signal-ownership) maps request
 spans, metrics, operator events and access logs to their Web or transport owner, and lists all
-22 Web event sources. `Web.Hosting` reports server diagnostics through `WebServerEventSource`;
+22 Web event sources. `Web.Server` reports server diagnostics through `WebServerEventSource`,
+with its EventSource, Meter and ActivitySource named `Assimalign.Cohesion.Web.Server`.
+`Web.Hosting` reports control-plane events through `WebHostingEventSource`, named
+`Assimalign.Cohesion.Web.Hosting`, including the exact `rejected-credentials` counter.
 `Http.Connections` reports transport rejections and protocol errors, including requests that
 never reach Web dispatch.
 
@@ -201,8 +225,6 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.HostFiltering` |
 | `Assimalign.Cohesion.Web.Hosting` |
-| `Assimalign.Cohesion.Web.Hosting.Health` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
 | `Assimalign.Cohesion.Web.HttpsPolicy` |
 | `Assimalign.Cohesion.Web.ProblemDetails` |
 | `Assimalign.Cohesion.Web.Query` |

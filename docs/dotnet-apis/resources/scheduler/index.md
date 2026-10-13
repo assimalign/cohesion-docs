@@ -61,10 +61,10 @@ inventory below.
 | Private runtime assembly |
 |---|
 | `Assimalign.Cohesion.Web` |
+| `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Hosting` |
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.Server` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
 | `Assimalign.Cohesion.Http.ExtendedConnect` |

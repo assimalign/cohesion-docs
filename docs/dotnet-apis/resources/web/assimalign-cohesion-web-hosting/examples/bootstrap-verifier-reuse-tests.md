@@ -1,11 +1,11 @@
 # Bootstrap Verifier Reuse Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/BootstrapVerifierReuseTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/BootstrapVerifierReuseTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -30,7 +30,10 @@ using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Hosting;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public sealed class BootstrapVerifierReuseTests
 {
@@ -41,7 +44,7 @@ public sealed class BootstrapVerifierReuseTests
         _output = output;
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: reused context avoids per-request JWK allocations")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: reused context avoids per-request JWK allocations")]
     public void InvokeAsync_RepeatedBearerRequests_ShouldAvoidVerifierConstructionAllocations()
     {
         // Arrange: invalid tokens isolate verifier construction from platform signature costs.
@@ -83,7 +86,7 @@ public sealed class BootstrapVerifierReuseTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: rotated tokens and concurrent requests retain context isolation")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: rotated tokens and concurrent requests retain context isolation")]
     public async Task InvokeAsync_RotatedTokensAndConcurrentContexts_ShouldValidateEveryToken()
     {
         // Arrange: distinct keys with identical identities must never share trust.
@@ -126,5 +129,5 @@ public sealed class BootstrapVerifierReuseTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/BootstrapVerifierReuseTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/BootstrapVerifierReuseTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

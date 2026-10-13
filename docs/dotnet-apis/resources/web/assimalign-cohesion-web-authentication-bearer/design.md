@@ -134,8 +134,8 @@ verification uses BCL one-shot APIs, and base64url is `System.Buffers.Text.Base6
 ## Diagnostics
 
 The internal `JwtBearerEventSource` provider is named
-`Assimalign.Cohesion.Web.Authentication.Bearer`. It references the contracts-only
-`Web.Server` package for request correlation; the authentication dispatcher owns no source.
+`Assimalign.Cohesion.Web.Authentication.Bearer`. It references
+`Web.Server` for the request-id contract used by request correlation; the authentication dispatcher owns no source.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |

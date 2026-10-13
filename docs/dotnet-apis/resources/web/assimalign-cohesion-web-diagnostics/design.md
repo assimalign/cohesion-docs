@@ -165,7 +165,7 @@ One entry per completed exchange, emitted in the middleware's `finally`:
   ordinary `200` and vanish from a log configured at the default `Information`, the opposite of what an
   access log is for. What the criterion was after, not escalating to `Error` and not attaching the
   exception, holds, and `http.client_fault` lets a reader filter the entries out or route them
-  elsewhere. The server's own diagnostics (`Web.Hosting`'s `WebServerEventSource`) report server
+  elsewhere. The server's own diagnostics (`Web.Server`'s `WebServerEventSource`) report server
   lifecycle and failures. This middleware owns the per-exchange access-log entry;
   `Http.Connections` separately reports transport rejections and protocol/client
   faults through its `HttpTransportEventSource`, EventSource counters and `Meter`.
@@ -350,6 +350,11 @@ forwarding sinks, with the payload rules above. No public API or HTTP access-log
 - **No per-request configuration surface.** Everything is builder-time; the only per-request
   variance is the endpoint metadata override, itself attached at map time.
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Declared dependencies
 
 | Reference | Kind |
@@ -366,6 +371,6 @@ forwarding sinks, with the payload rules above. No public API or HTTP access-log
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/src/Assimalign.Cohesion.Web.Diagnostics.csproj`.

@@ -1,20 +1,22 @@
 # Bootstrap Verifier Lifetime Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/BootstrapVerifierLifetimeTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/BootstrapVerifierLifetimeTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Bootstrap: pipeline lifetime reuses signature handles for valid tokens.
-- **Case 2** — Bootstrap: disposing one pipeline preserves another owner and closes its own delegate.
-- **Case 3** — Bootstrap: final teardown releases middleware after a service stop fails.
+- **Case 1** — Bootstrap: managed composition requires the hosting application.
+- **Case 2** — Bootstrap: application teardown disposes each lifetime resource exactly once.
+- **Case 3** — Bootstrap: pipeline lifetime reuses signature handles for valid tokens.
+- **Case 4** — Bootstrap: disposing one pipeline preserves another owner and closes its own delegate.
+- **Case 5** — Bootstrap: final teardown releases middleware after a service stop fails.
 
 ## Source example
 
@@ -32,7 +34,10 @@ using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Hosting;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public sealed class BootstrapVerifierLifetimeTests
 {
@@ -43,7 +48,45 @@ public sealed class BootstrapVerifierLifetimeTests
         _output = output;
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: pipeline lifetime reuses signature handles for valid tokens")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: managed composition requires the hosting application")]
+    public void Build_ForeignApplicationContext_ShouldExplainManualLifetimeOwnership()
+    {
+        // Arrange: this pins the existing rejection while the public lifetime seam is removed.
+        using var identity = new TestBootstrapIdentity("tests", "gateway");
+        var builder = new ForeignApplicationPipelineBuilder();
+        builder.UseResourceControlPlane(new RecordingControlPlane(), CreateContext(identity), () => true);
+
+        // Act
+        InvalidOperationException error = Should.Throw<InvalidOperationException>(() => builder.Build());
+
+        // Assert
+        error.Message.ShouldContain("Web.Hosting application context", Case.Sensitive);
+        error.Message.ShouldContain("ResourceControlPlaneMiddleware.CreateLifetime", Case.Sensitive);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: application teardown disposes each lifetime resource exactly once")]
+    public async Task DisposeAsync_DuplicateLifetimeRegistration_ShouldDisposeOnceAfterStopAndRestart()
+    {
+        // Arrange: ownership already has these semantics; the rollup keeps them internal.
+        await using WebApplication application = WebApplication.CreateBuilder().Build();
+        var resource = new CountingLifetimeResource();
+        application.Context.RegisterForDisposal(resource);
+        application.Context.RegisterForDisposal(resource);
+
+        // Act
+        await ((IHost)application).StartAsync(CancellationToken.None);
+        await ((IHost)application).StopAsync(CancellationToken.None);
+        await ((IHost)application).StartAsync(CancellationToken.None);
+
+        // Assert
+        resource.DisposeCount.ShouldBe(0);
+        await ((IAsyncDisposable)application).DisposeAsync();
+        await ((IAsyncDisposable)application).DisposeAsync();
+        resource.DisposeCount.ShouldBe(1);
+        Should.Throw<ObjectDisposedException>(() => application.Context.RegisterForDisposal(resource));
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: pipeline lifetime reuses signature handles for valid tokens")]
     public async Task InvokeAsync_ValidTokensWithinPipelineLifetime_ShouldAvoidSignatureHandleAllocations()
     {
         // Arrange: both paths reuse parsed keys and profiles; only the pipeline owns a retained handle.
@@ -93,7 +136,7 @@ public sealed class BootstrapVerifierLifetimeTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: disposing one pipeline preserves another owner and closes its own delegate")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: disposing one pipeline preserves another owner and closes its own delegate")]
     public async Task InvokeAsync_SharedContextOwnersDispose_ShouldKeepOtherPipelineAliveAndRejectDisposedPipeline()
     {
         // Arrange
@@ -125,7 +168,7 @@ public sealed class BootstrapVerifierLifetimeTests
         }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Bootstrap: final teardown releases middleware after a service stop fails")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Bootstrap: final teardown releases middleware after a service stop fails")]
     public async Task DisposeAsync_ServiceStopFailure_ShouldReleaseMiddlewareLifetimeAndPreserveFailure()
     {
         // Arrange
@@ -181,5 +224,5 @@ public sealed class BootstrapVerifierLifetimeTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/BootstrapVerifierLifetimeTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/BootstrapVerifierLifetimeTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

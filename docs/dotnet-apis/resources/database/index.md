@@ -159,8 +159,6 @@ inventory below.
 |---|
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
-| `Assimalign.Cohesion.Web.Hosting.Health` |
 | `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.Server` |
@@ -177,9 +175,11 @@ inventory below.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
+`Database.ApplicationModel` and the Cache, Documents and Graph client packages are excluded from
+the area shared framework. `Database.Client`, `Database.Blob.Client`,
+`Database.KeyValuePair.Client` and `Database.Sql.Client` are public reference and runtime
+assemblies. The package delivery table distinguishes assemblies present in the source tree from
+those included by the current framework inventory.
 
 ## Related documentation
 

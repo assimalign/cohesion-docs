@@ -252,12 +252,23 @@ three `extension(IHttpResponse)` members in `HttpResponseFileExtensions`:
 - **`Task SendFileAsync(IFileSystem fileSystem, string path, string? contentType = null, CancellationToken cancellationToken = default)`**
 - **`Task WriteStreamAsync(Stream stream, string? contentType = null, HttpEntityTag? entityTag = null, DateTimeOffset? lastModified = null, CancellationToken cancellationToken = default)`**
 
-Every caller of the engine goes through one of two paths. `MapFallbackToFile` enters the
-`StaticFilesMiddleware`; the middleware and the path overload `SendFileAsync(fileSystem, path)` share
-the traversal gate and mount lookup in `StaticFilePath`, and the path overload then calls
-`SendFileAsync(file)`. The middleware, `SendFileAsync(file)` and `WriteStreamAsync(stream)` all write
-through `RepresentationWriter`, the only code that touches the Http primitives
-(`HttpConditionalRequest`, `HttpRangeSelector` and `HttpIfRange`).
+Every caller of the engine, and what the engine composes, is shown below. An arrow means "calls";
+the middleware's file resolution and the path overload share the traversal gate and mount lookup
+in `StaticFilePath`, and everything that writes a response goes through `RepresentationWriter`,
+which is the only code that touches the Http primitives.
+
+```mermaid
+flowchart TD
+    Fallback["MapFallbackToFile"] --> Middleware["StaticFilesMiddleware"]
+    Middleware --> Gate["StaticFilePath: gate and mount lookup"]
+    PathOverload["SendFileAsync(fileSystem, path)"] --> Gate
+    PathOverload --> FileOverload["SendFileAsync(file)"]
+    Middleware --> Writer["RepresentationWriter"]
+    FileOverload --> Writer
+    Stream["WriteStreamAsync(stream)"] --> Writer
+    Writer --> Conditional["HttpConditionalRequest"]
+    Writer --> Ranges["HttpRangeSelector and HttpIfRange"]
+```
 
 ### How the engine is factored
 
@@ -381,7 +392,7 @@ or `416`. Cancellation surfaces as `OperationCanceledException` from the copy.
 ## Diagnostics
 
 The internal `StaticFilesEventSource` is named `Assimalign.Cohesion.Web.StaticFiles`. It adds no public
-diagnostics API, logging dependency, or metrics instruments. The contracts-only `Web.Server` reference
+diagnostics API, logging dependency, or metrics instruments. The `Web.Server` reference
 supplies `IWebRequestIdFeature` for rejected-request correlation; no ambient activity is read.
 
 | Id | Event | Level | Payload |

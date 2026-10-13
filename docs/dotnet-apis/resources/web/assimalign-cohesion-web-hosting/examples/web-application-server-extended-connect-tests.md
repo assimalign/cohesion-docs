@@ -24,13 +24,17 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Assimalign.Cohesion.Http;
+using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
 using NetHttpVersion = System.Net.HttpVersion;
-using Shouldly;
-using Xunit;
-using Assimalign.Cohesion.Http;
-using Assimalign.Cohesion.Web.Testing;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

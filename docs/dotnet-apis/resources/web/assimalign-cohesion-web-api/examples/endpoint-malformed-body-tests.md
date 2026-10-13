@@ -25,9 +25,11 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http;
@@ -40,6 +42,8 @@ using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 using Assimalign.Cohesion.Web.Testing;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Api.Tests;
 
@@ -207,7 +211,7 @@ public class EndpointMalformedBodyTests
         byte[] json = Encoding.ASCII.GetBytes("{\"name\":\"gizmo\"}");
 
         // Act
-        Connection stream = fault == "content-length"
+        IDuplexConnection stream = fault == "content-length"
             ? await client.SendRequestAsync(
                 "POST",
                 "/widgets",
@@ -262,7 +266,7 @@ public class EndpointMalformedBodyTests
     {
         await factory.StartAsync(cancellationToken);
 
-        await using Connection connection = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        await using IDuplexConnection connection = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
         Stream stream = connection.AsStream();
 
         await stream.WriteAsync(Encoding.ASCII.GetBytes(request), cancellationToken);

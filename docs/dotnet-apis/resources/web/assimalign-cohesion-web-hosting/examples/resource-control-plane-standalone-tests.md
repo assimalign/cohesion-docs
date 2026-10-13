@@ -1,11 +1,11 @@
 # Resource Control Plane Standalone Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneStandaloneTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneStandaloneTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -35,11 +35,14 @@ using DnsEndPoint = System.Net.DnsEndPoint;
 using IPAddress = System.Net.IPAddress;
 using IPEndPoint = System.Net.IPEndPoint;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public sealed class ResourceControlPlaneStandaloneTests
 {
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Standalone: refuses remote namespaced routes before dispatch")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Standalone: refuses remote namespaced routes before dispatch")]
     [InlineData("/cohesion/v1", "GET")]
     [InlineData("/cohesion/v1/future", "GET")]
     [InlineData("/cohesion/v1/healthz", "GET")]
@@ -71,7 +74,7 @@ public sealed class ResourceControlPlaneStandaloneTests
         plane.StopTokens.ShouldBeEmpty();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Standalone: rejects spoofed forwarding and untrusted peers")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Standalone: rejects spoofed forwarding and untrusted peers")]
     [InlineData("192.0.2.10")]
     [InlineData("2001:db8::1")]
     [InlineData("::ffff:192.0.2.10")]
@@ -101,7 +104,7 @@ public sealed class ResourceControlPlaneStandaloneTests
         plane.StopTokens.ShouldBeEmpty();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Standalone: accepts loopback transport peers")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Standalone: accepts loopback transport peers")]
     [InlineData("127.0.0.1")]
     [InlineData("::1")]
     [InlineData("::ffff:127.0.0.1")]
@@ -122,7 +125,7 @@ public sealed class ResourceControlPlaneStandaloneTests
         plane.StopTokens.ShouldBe(new[] { CancellationToken.None });
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Standalone: bare probes stay public")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Standalone: bare probes stay public")]
     [InlineData("/healthz")]
     [InlineData("/readyz")]
     [InlineData("/livez")]
@@ -142,7 +145,7 @@ public sealed class ResourceControlPlaneStandaloneTests
         context.Response.Body.Length.ShouldBeGreaterThan(0);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Managed: remote callers still require gateway credentials")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Managed: remote callers still require gateway credentials")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task InvokeAsync_ManagedRemotePeer_ShouldPreserveCredentialCheck(bool credentialed)
@@ -175,5 +178,5 @@ public sealed class ResourceControlPlaneStandaloneTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneStandaloneTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneStandaloneTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

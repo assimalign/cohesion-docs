@@ -35,16 +35,20 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Web;
 using Assimalign.Cohesion.Web.Hosting;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.HostFiltering.Tests;
 
@@ -453,7 +457,7 @@ public class HostFilteringTests
         CancellationToken cancellationToken)
     {
         InMemoryConnectionFactory connectionFactory = listener.CreateFactory();
-        Connection connection = await connectionFactory.ConnectAsync(listener.EndPoint, cancellationToken);
+        IDuplexConnection connection = await connectionFactory.ConnectAsync(listener.EndPoint, cancellationToken);
 
         await using (connection.ConfigureAwait(false))
         {

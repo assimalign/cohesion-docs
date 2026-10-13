@@ -67,7 +67,6 @@ See [Design](design.md#dependency-injection-composition).
 | `Assimalign.Cohesion.Http.RequestLimits` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http.Connections` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Connections.Tcp` | `CohesionPrivateProjectReference` |

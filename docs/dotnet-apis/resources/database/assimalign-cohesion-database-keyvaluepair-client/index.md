@@ -51,6 +51,8 @@ hosting module.
 
 See the [source-backed usage examples](examples/index.md).
 
+Supply an `IDuplexConnectionFactory` through `KeyValueClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.
+
 ## Project references
 
 | Reference | Kind |

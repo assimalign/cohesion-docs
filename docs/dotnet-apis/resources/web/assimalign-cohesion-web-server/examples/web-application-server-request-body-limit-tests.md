@@ -1,11 +1,11 @@
 # Web Application Server Request Body Limit Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Server` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerRequestBodyLimitTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerRequestBodyLimitTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -24,16 +24,19 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Connections.InMemory;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
-using Assimalign.Cohesion.Web.Hosting.Internal;
-using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+using Assimalign.Cohesion.Web.Internal;
+using Assimalign.Cohesion.Web.Server.Tests.TestObjects;
 
-namespace Assimalign.Cohesion.Web.Hosting.Tests;
+using Shouldly;
+
+using Xunit;
+
+namespace Assimalign.Cohesion.Web.Server.Tests;
 
 /// <summary>
 /// HTTP/1.1 request-body limits found after dispatch, served through the real Web server (#1339).
@@ -47,7 +50,7 @@ public class WebApplicationServerRequestBodyLimitTests
 {
     private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server: A chunked HTTP/1.1 body over the cap should be answered with 413, not 500, and close the connection")]
+    [Fact(DisplayName = "Cohesion Test [Web.Server] - Server: A chunked HTTP/1.1 body over the cap should be answered with 413, not 500, and close the connection")]
     public async Task Server_OnChunkedBodyOverCap_ShouldAnswerContentTooLargeAndClose()
     {
         // Arrange — the chunk's data reads like a last chunk and then a second request.
@@ -66,7 +69,7 @@ public class WebApplicationServerRequestBodyLimitTests
         served.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server: A Content-Length HTTP/1.1 body over the cap should be answered with 413, not 500, and close the connection")]
+    [Fact(DisplayName = "Cohesion Test [Web.Server] - Server: A Content-Length HTTP/1.1 body over the cap should be answered with 413, not 500, and close the connection")]
     public async Task Server_OnContentLengthBodyOverCap_ShouldAnswerContentTooLargeAndClose()
     {
         // Arrange
@@ -85,7 +88,7 @@ public class WebApplicationServerRequestBodyLimitTests
         served.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Server: An HTTP/1.1 body below the minimum data rate should be answered with 408, not 500, and close the connection")]
+    [Fact(DisplayName = "Cohesion Test [Web.Server] - Server: An HTTP/1.1 body below the minimum data rate should be answered with 408, not 500, and close the connection")]
     public async Task Server_OnBodyBelowMinimumDataRate_ShouldAnswerRequestTimeoutAndClose()
     {
         // Arrange — the head declares a body the client never sends.
@@ -129,14 +132,14 @@ public class WebApplicationServerRequestBodyLimitTests
         WebApplicationServer server = new(new WebApplicationServerOptions
         {
             Pipeline = pipeline,
-            Listener = listener,
-        });
+
+        }, listener);
 
         await server.StartAsync(cancellationToken);
 
         try
         {
-            await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+            await using IDuplexConnection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
             Stream stream = client.AsStream();
 
             await stream.WriteAsync(Encoding.ASCII.GetBytes(request), cancellationToken);
@@ -177,5 +180,5 @@ public class WebApplicationServerRequestBodyLimitTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerRequestBodyLimitTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerRequestBodyLimitTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/Assimalign.Cohesion.Web.Server.Tests.csproj`.

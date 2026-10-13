@@ -128,7 +128,7 @@ Without a gateway identity, the admin listener serves `/cohesion/v1` and every p
 for transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
 remote endpoints receive 403; the status makes the development-only restriction explicit. Forwarded
 headers do not establish locality. The guard precedes Database's own namespaced health mappings,
-which otherwise short-circuit the shared Web.Hosting.Resources control-plane middleware.
+which otherwise short-circuit the shared Web.Hosting control-plane middleware.
 
 Bare `/healthz`, `/readyz`, and `/livez` remain open for orchestrators and load balancers. Loopback
 probes keep the Database health report and its server-accepting readiness gate. Gateway-managed
@@ -139,6 +139,8 @@ This is a behavioral breaking change from 10.0.0-preview.1 (owner decision 46, a
 decision 15's preview terms): a reachable
 standalone admin listener previously accepted remote control-plane requests without credentials.
 Use a loopback connection for standalone development or a gateway identity for remote management.
+
+Model server factories supply `IDuplexConnectionListener` instances to their model options. Each server owns accepted `IDuplexConnection` sessions and closes them during its drain; listener disposal does not transfer connection ownership to the hosting module.
 
 ## Declared dependencies
 
@@ -156,8 +158,6 @@ Use a loopback connection for standalone development or a gateway identity for r
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Health` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)

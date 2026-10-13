@@ -118,14 +118,20 @@ wrapped in `DrainAwareWebSocket`, which registers on the token and, when it fire
 handshake with `1001 Going Away`. The flow shows a stop that drains a socket within its budget.
 
 ```mermaid
-flowchart TD
-    Stop["Host calls StopAsync(budget)"] --> Drain["Default server fires Draining"]
-    Drain --> Close["DrainAwareWebSocket sends Close 1001 Going Away to the client"]
-    Close --> Echo["Client echoes Close to the socket"]
-    Echo --> Receive["Socket ReceiveAsync returns Close to the endpoint"]
-    Receive --> Complete["Endpoint calls CloseAsync: completes with nothing more to send"]
-    Complete --> End["Endpoint returns; the exchange ends"]
-    End --> Drained["Default server returns to the host: drained within the budget"]
+sequenceDiagram
+    participant Host as Host stop
+    participant Server as Default server
+    participant Socket as DrainAwareWebSocket
+    participant Client
+    participant App as Endpoint
+    Host->>Server: StopAsync(budget)
+    Server->>Socket: Draining fires
+    Socket->>Client: Close 1001 Going Away
+    Client->>Socket: Close (echo)
+    Socket-->>App: ReceiveAsync returns Close
+    App->>Socket: CloseAsync (completes, nothing more to send)
+    App-->>Server: endpoint returns, exchange ends
+    Server-->>Host: drained within the budget
 ```
 
 The wrapper exists because closing a socket behind the application's back breaks the application's
@@ -240,7 +246,7 @@ A Web feature library: it references the Web root (for `IWebApplicationPipelineB
 `Web.Server` (for `IWebServerDrainFeature`), `Web.Routing` (the router builder and route groups
 `MapWebSocket` maps into), `Http`, `Http.WebSockets` and `Http.Forwarded`, and nothing in the
 hosting family (`COHRES001`, `COHRES004`). Both Web references are feature-to-feature references the
-area allows. The drain signal crosses from `Web.Hosting` through `Web.Server`'s feature contract,
+area allows. The drain signal reaches this package through `Web.Server`'s feature contract,
 which is how the policy reaches the server's lifecycle without referencing it. The contract lived in
 the Web root until #1379 moved the server's per-exchange contracts to `Web.Server` (owner decision
 33); its namespace stayed `Assimalign.Cohesion.Web`, so this package's code did not change.
@@ -314,6 +320,11 @@ package's addition under #1405.
   needs more checks `Origin` itself before accepting.
 - **A hub or message layer** (SignalR-style). A separate decision (Http ADR 1).
 - **Message-size limits.** Recorded as "to revisit" in Http ADR 1.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Declared dependencies
 

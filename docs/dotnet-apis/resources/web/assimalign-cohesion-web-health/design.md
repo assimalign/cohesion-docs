@@ -13,8 +13,9 @@ explicit API without introducing a DI-specific hosting layer.
 
 ## Public application composition
 
-Web application and resource authors can register typed checks, inline probes, or `Hosting.Health`
-contributors through the optional `Web.Hosting.Health` package:
+Web application and resource authors can register typed checks, inline probes, or
+`Hosting.Health` contributors through Web.Hosting's adapter in the
+`Assimalign.Cohesion.Web.Hosting.Health` namespace:
 
 See the [source-backed usage examples](examples/index.md).
 
@@ -25,9 +26,11 @@ unnecessary.
 
 ## Hosting contributor integration
 
-The `AddContributor` adapter lives in `Assimalign.Cohesion.Web.Hosting.Health` (O34). That
-hosting-family library references this model and `Hosting.Health`; this package references only the
-Web root. No root or feature library may reference the adapter.
+The `AddContributor` adapter ships in `Assimalign.Cohesion.Web.Hosting`, keeping the
+`Assimalign.Cohesion.Web.Hosting.Health` namespace (owner decision 57, 2026-10-13). That module
+references this model and `Hosting.Health`; this package references only the Web root. No Web
+root or feature library may reference the hosting module. The adapter is included with hosting,
+not supplied by an optional package.
 
 ## Status model and aggregation
 
@@ -62,7 +65,7 @@ serialization. `Diagnostic` data is handled through a closed primitive-value swi
 fallback. Custom behavior is available through `IHealthResponseWriter`.
 
 The registration, evaluation, and default response path remains trim- and NativeAOT-compatible. The
-optional contributor adapter has its own hosting-family package and tests.
+contributor adapter and its tests live in Web.Hosting.
 
 ## Exception detail
 
@@ -131,9 +134,9 @@ Framework membership is current, not deferred:
 
 - **`App.Web`** — includes `Assimalign.Cohesion.Web.Health` as a public
   `CohesionFrameworkAssembly`, exposing it to Web application consumers.
-- **`App.Database`** — includes it as a private `CohesionFrameworkPrivateAssembly` alongside its private
-  Web runtime closure. That inclusion supports `Database` runtime implementation without exposing
-  Web health types through the `Database` reference surface.
+- **All 17 other area frameworks** — include it privately alongside their Web.Hosting implementation
+  closures. Decision 57 adds the 16 frameworks besides App.Database without exposing Web health
+  types through their public reference surfaces.
 
 A resource may still reference Web.Health privately when it needs the implementation internally, but
 that is not the only consumption model and does not change App.Web's public API.
@@ -141,7 +144,7 @@ that is not the only consumption model and does not change App.Web's public API.
 ## Diagnostics
 
 The internal `HealthCheckEventSource` is named `Assimalign.Cohesion.Web.Health`. It also reports
-`Hosting.Health` contributors adapted by `Web.Hosting.Health`; the adapter raises no second report.
+`Hosting.Health` contributors adapted by Web.Hosting; the adapter raises no second report.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
@@ -194,3 +197,4 @@ event. This is an observable diagnostics change on decision 15's terms, with no 
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/src/Assimalign.Cohesion.Web.Health.csproj`.
+- **Integrated adapter and tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Health/HealthChecksBuilderExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthChecksBuilderTests.cs`.

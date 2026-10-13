@@ -79,7 +79,7 @@ inventory below.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Web` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
+| `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Hosting` |
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.Server` |

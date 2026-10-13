@@ -184,16 +184,19 @@ writes it as the response, so `app.MapGet("/orders/{id}", (long id) => orders.Ge
 
 The thunk's path from binding to the written response:
 
-1. **Bind the parameters.** A binding failure is answered `400` or `415` problem+json. A body read
-   with no serialization registry, or with no contract for its type, throws
-   `HttpContentSerializationException` to the exception boundary.
-2. **Invoke the handler,** awaiting a `Task` or `ValueTask`.
-3. **Write the result.** `void`, `Task` or `ValueTask`: the handler wrote the response. `null`: no
-   body, and `204` unless the handler set a status. A `string`: UTF-8 text, `text/plain` unless the
-   handler set a `Content-Type`. Any other value: `WriteNegotiatedContentAsync`, which writes the
-   serialized body with `Vary: Accept` through an acceptable writer, answers a bodyless `406` with
-   `Vary: Accept` when nothing is acceptable, and throws `HttpContentSerializationException` to the
-   exception boundary when there is no registry or no contract.
+```mermaid
+flowchart TD
+    Bind["Bind parameters"] -->|"binding failure"| Problem["400 or 415 problem+json"]
+    Bind -->|"body: no registry or no contract"| Fault
+    Bind --> Invoke["Invoke the handler, awaiting Task or ValueTask"]
+    Invoke -->|"void, Task, ValueTask"| Done["The handler wrote the response"]
+    Invoke -->|"null"| NoContent["No body; 204 unless the handler set a status"]
+    Invoke -->|"string"| Text["UTF-8 text, text/plain unless the handler set a Content-Type"]
+    Invoke -->|"any other value"| Negotiate["WriteNegotiatedContentAsync"]
+    Negotiate -->|"acceptable writer"| Written["Serialized body, Vary: Accept"]
+    Negotiate -->|"nothing acceptable"| NotAcceptable["Bodyless 406, Vary: Accept"]
+    Negotiate -->|"no registry or no contract"| Fault["HttpContentSerializationException to the exception boundary"]
+```
 
 The rules, and why:
 
@@ -439,6 +442,11 @@ that cannot name them.
   `Web.Api` takes no file-system dependency.
 - **Per-endpoint form limits** (`HttpFormOptions` as endpoint metadata) — the limits are the
   exchange's form feature's, set by installing one ahead of the endpoint.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Declared dependencies
 

@@ -151,7 +151,7 @@ authority cannot be structurally split, such as `denied.example:` or `[::1`.
 raw header value or
 route template is written. The request id is read from `IWebRequestIdFeature`
 inside `IsEnabled`, with an empty string when a custom server omits the feature.
-`Activity.Current` is never used. The contracts-only `Web.Server` reference supplies
+`Activity.Current` is never used. The `Web.Server` reference supplies
 that feature and is already part of App.Web's closure.
 
 The `rejected-requests` total is a lazily created `PollingCounter`, backed by an
@@ -199,6 +199,11 @@ forwarded host is accepted even when the wire host is not, that a forwarded host
 allowlist is rejected even when the wire host is allowlisted, and that without the forwarded-headers
 middleware, or with the guard registered ahead of it, the wire host is validated and forwarding
 headers are ignored.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Declared dependencies
 

@@ -46,7 +46,7 @@ database switching and server administration. Creating and dropping logical data
 host-side engine API.
 
 The package also supplies `BlobDatabaseServer`, created with the engine and a
-`BlobDatabaseServerOptions.Listener` implementing `IConnectionListener`. Call `StartAsync` to bind
+`BlobDatabaseServerOptions.Listener` implementing `IDuplexConnectionListener`. Call `StartAsync` to bind
 and accept, then `StopAsync` to drain and terminally release the listener. The composition root
 retains engine ownership. Startup binds each authenticated session to one database; requests
 identify only containers and objects in that database. The default authenticator trusts every
@@ -83,6 +83,8 @@ See [DESIGN.md](design.md) , the
 `BlobDatabaseEngine.CreateBuilder()` returns the same model builder for standalone composition or
 the concrete hosting builder's build-aware engine factory. This lets the consumer pass already
 resolved values and register nested components while keeping the model package dependency-free.
+
+`BlobDatabaseServerOptions.Listener` takes an `IDuplexConnectionListener`, including TCP and InMemory listeners. The server owns accepted duplex connections and their protocol I/O.
 
 ## Project references
 

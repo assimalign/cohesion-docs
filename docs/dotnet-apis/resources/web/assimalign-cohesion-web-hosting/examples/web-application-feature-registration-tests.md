@@ -30,11 +30,14 @@ test objects.
 using System;
 using System.Net;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Routing;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

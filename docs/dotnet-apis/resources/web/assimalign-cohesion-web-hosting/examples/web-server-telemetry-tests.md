@@ -12,42 +12,35 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Telemetry: The source and the meter should be named for the assembly.
-- **Case 2** — Telemetry: A request with a traceparent should get one server span parented to the caller.
-- **Case 3** — Telemetry: A routed request should name its span and duration by the route template.
-- **Case 4** — Telemetry: With no listener the server should create no activity.
-- **Case 5** — Telemetry: Without a span or traceparent the request id should be random and stable per request.
-- **Case 6** — Telemetry: A version-00 or later-version traceparent should continue the caller's trace.
-- **Case 7** — Telemetry: An invalid traceparent should start a new trace.
-- **Case 8** — Telemetry: The activity current when the server started should not parent its requests.
-- **Case 9** — Telemetry: The meter should record the duration and balance the active-request count.
-- **Case 10** — Telemetry: A pipeline fault should report the replacement 500 as an error.
-- **Case 11** — Telemetry: A client error should not mark the server span as failed.
-- **Case 12** — Telemetry: A client fault found reading the body should report the transport's status, not a 500 error.
-- **Case 13** — Telemetry: An HTTP/2 body below the minimum data rate should report the transport's 408, not a 500 error.
-- **Case 14** — Telemetry: A malformed HTTP/2 body the transport resets the stream for should report the client fault's 400, not a 500 error.
-- **Case 15** — Telemetry: An HTTP/2 exchange cancelled by the reset for a malformed body should report the client fault's 400 without an error.
-- **Case 16** — Telemetry: An HTTP/2 exchange cancelled after the transport answered its body 413 should report the 413 without an error.
-- **Case 17** — Telemetry: A malformed HTTP/3 body the transport resets the stream for should report the client fault's 400, not a 500 error.
-- **Case 18** — Telemetry: An HTTP/3 request the client resets mid-body should report request_canceled, not a 500 error.
-- **Case 19** — Telemetry: Losing an HTTP/3 connection mid-body should cancel the exchange without an Error log or a 500.
-- **Case 20** — Telemetry: A cancelled exchange should report request_canceled and no status code.
-- **Case 21** — Telemetry: The error boundary's streamed-response abort is cancelled and skips completion callbacks.
-- **Case 22** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
-- **Case 23** — Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception.
-- **Case 24** — Telemetry: A response that cannot be sent should report response_send_failed.
-- **Case 25** — Telemetry: A method outside the known list should be reported as _OTHER.
-- **Case 26** — Telemetry: A standard method in another case should be reported as _OTHER with its original case.
-- **Case 27** — Telemetry: Each HTTP/2 stream should get its own server span.
-- **Case 28** — Telemetry: A request with a query should tag url.query with every value redacted and the names kept.
-- **Case 29** — Telemetry: Query parameters the application declares safe should keep their values in url.query.
-- **Case 30** — Telemetry: The request's query should be read only when a span listener subscribes.
-- **Case 31** — Telemetry: url.query should redact every value and keep every name.
-- **Case 32** — Telemetry: url.query should show the values of the parameters declared safe, re-encoded.
-- **Case 33** — Telemetry: A later-version traceparent should keep only its sampled flag.
-- **Case 34** — AllowQueryValuesInTelemetry: A missing or empty name should be rejected.
-- **Case 35** — AllowQueryValuesInTelemetry: A call rejected for a missing or empty name should declare none of its names.
-- **Case 36** — Telemetry: The known-method list should default to the semantic convention's and be replaceable.
+- **Case 1** — Telemetry: A request with a traceparent should get one server span parented to the caller.
+- **Case 2** — Telemetry: A routed request should name its span and duration by the route template.
+- **Case 3** — Telemetry: With no listener the server should create no activity.
+- **Case 4** — Telemetry: Without a span or traceparent the request id should be random and stable per request.
+- **Case 5** — Telemetry: A version-00 or later-version traceparent should continue the caller's trace.
+- **Case 6** — Telemetry: An invalid traceparent should start a new trace.
+- **Case 7** — Telemetry: The activity current when the server started should not parent its requests.
+- **Case 8** — Telemetry: The meter should record the duration and balance the active-request count.
+- **Case 9** — Telemetry: A pipeline fault should report the replacement 500 as an error.
+- **Case 10** — Telemetry: A client error should not mark the server span as failed.
+- **Case 11** — Telemetry: A client fault found reading the body should report the transport's status, not a 500 error.
+- **Case 12** — Telemetry: An HTTP/2 body below the minimum data rate should report the transport's 408, not a 500 error.
+- **Case 13** — Telemetry: A malformed HTTP/2 body the transport resets the stream for should report the client fault's 400, not a 500 error.
+- **Case 14** — Telemetry: An HTTP/2 exchange cancelled by the reset for a malformed body should report the client fault's 400 without an error.
+- **Case 15** — Telemetry: An HTTP/2 exchange cancelled after the transport answered its body 413 should report the 413 without an error.
+- **Case 16** — Telemetry: A malformed HTTP/3 body the transport resets the stream for should report the client fault's 400, not a 500 error.
+- **Case 17** — Telemetry: An HTTP/3 request the client resets mid-body should report request_canceled, not a 500 error.
+- **Case 18** — Telemetry: Losing an HTTP/3 connection mid-body should cancel the exchange without an Error log or a 500.
+- **Case 19** — Telemetry: A cancelled exchange should report request_canceled and no status code.
+- **Case 20** — Telemetry: The error boundary's streamed-response abort is cancelled and skips completion callbacks.
+- **Case 21** — Telemetry: A fault after the response started should report unhandled_exception with the sent status.
+- **Case 22** — Telemetry: A client fault found reading the body after the response started should report client_fault, not unhandled_exception.
+- **Case 23** — Telemetry: A response that cannot be sent should report response_send_failed.
+- **Case 24** — Telemetry: A method outside the known list should be reported as _OTHER.
+- **Case 25** — Telemetry: Each HTTP/2 stream should get its own server span.
+- **Case 26** — Telemetry: A request with a query should tag url.query with every value redacted and the names kept.
+- **Case 27** — Telemetry: Query parameters the application declares safe should keep their values in url.query.
+- **Case 28** — AllowQueryValuesInTelemetry: A missing or empty name should be rejected.
+- **Case 29** — AllowQueryValuesInTelemetry: A call rejected for a missing or empty name should declare none of its names.
 
 ## Source example
 
@@ -69,7 +62,6 @@ using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web.ErrorHandling;
-using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
@@ -87,7 +79,7 @@ namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 /// <summary>
 /// The default server's telemetry (#1064), end to end over the in-memory transport: one server span
-/// per request from the <c>Assimalign.Cohesion.Web.Hosting</c> activity source, parented to the
+/// per request from the <c>Assimalign.Cohesion.Web.Server</c> activity source, parented to the
 /// caller's W3C trace context and tagged per the OpenTelemetry HTTP server conventions; the
 /// <c>http.server.request.duration</c> and <c>http.server.active_requests</c> instruments; the request
 /// id; and nothing at all when nobody listens.
@@ -96,21 +88,6 @@ namespace Assimalign.Cohesion.Web.Hosting.Tests;
 public class WebServerTelemetryTests
 {
     private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
-
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: The source and the meter should be named for the assembly")]
-    public void Name_SourceAndMeter_ShouldBeTheAssemblyName()
-    {
-        // Act
-        string? assemblyName = typeof(WebApplication).Assembly.GetName().Name;
-
-        // Assert
-        WebServerTelemetry.Name.ShouldBe("Assimalign.Cohesion.Web.Hosting");
-        WebServerTelemetry.Name.ShouldBe(assemblyName);
-        WebServerTelemetry.Source.Name.ShouldBe(WebServerTelemetry.Name);
-        WebServerTelemetry.Meter.Name.ShouldBe(WebServerTelemetry.Name);
-        WebServerTelemetry.RequestDuration.Unit.ShouldBe("s");
-        WebServerTelemetry.ActiveRequests.Unit.ShouldBe("{request}");
-    }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A request with a traceparent should get one server span parented to the caller")]
     public async Task ServerSpan_RequestWithTraceParent_ShouldBeOneServerSpanParentedToTheCaller()
@@ -151,7 +128,7 @@ public class WebServerTelemetryTests
         response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
         recorder.Stopped.Where(a => a.TraceId == traceId).ShouldHaveSingleItem();
 
-        span.Source.Name.ShouldBe("Assimalign.Cohesion.Web.Hosting");
+        span.Source.Name.ShouldBe("Assimalign.Cohesion.Web.Server");
         span.Kind.ShouldBe(ActivityKind.Server);
         span.ParentSpanId.ShouldBe(callerSpanId);
         span.HasRemoteParent.ShouldBeTrue();
@@ -252,9 +229,6 @@ public class WebServerTelemetryTests
         using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
 
         // Assert
-        WebServerTelemetry.Source.HasListeners().ShouldBeFalse();
-        WebServerTelemetry.RequestDuration.Enabled.ShouldBeFalse();
-        WebServerTelemetry.ActiveRequests.Enabled.ShouldBeFalse();
         response.StatusCode.ShouldBe(NetHttpStatusCode.NoContent);
         pipelineRan.ShouldBeTrue();
         currentInPipeline.ShouldBeNull();
@@ -562,7 +536,7 @@ public class WebServerTelemetryTests
 
         await factory.StartAsync(cancellationToken);
 
-        await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        await using IDuplexConnection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
         Stream stream = client.AsStream();
 
         // Act
@@ -792,7 +766,7 @@ public class WebServerTelemetryTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act
-        MultiplexedStream stream = await client.SendRequestAsync(
+        IMultiplexedConnectionStream stream = await client.SendRequestAsync(
             "POST",
             path,
             [("content-length", "100")],
@@ -846,7 +820,7 @@ public class WebServerTelemetryTests
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
 
         // Act
-        MultiplexedStream stream = await client.SendRequestAsync(
+        IMultiplexedConnectionStream stream = await client.SendRequestAsync(
             "POST",
             path,
             [],
@@ -902,8 +876,8 @@ public class WebServerTelemetryTests
         });
         await factory.StartAsync(cancellationToken);
         await using Http3RawClient client = await Http3RawClient.ConnectAsync(transport, cancellationToken);
-        await using Connection controlStream = await client.OpenControlStreamAsync(cancellationToken);
-        await using MultiplexedStream requestStream = await client.SendRequestAsync(
+        await using IDuplexConnection controlStream = await client.OpenControlStreamAsync(cancellationToken);
+        await using IMultiplexedConnectionStream requestStream = await client.SendRequestAsync(
             "POST",
             path,
             [],
@@ -1099,7 +1073,7 @@ public class WebServerTelemetryTests
 
         await factory.StartAsync(cancellationToken);
 
-        await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
+        await using IDuplexConnection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
         Stream stream = client.AsStream();
 
         // Act — "zz" is not a chunk size (RFC 9112 §7.1).
@@ -1182,52 +1156,6 @@ public class WebServerTelemetryTests
         span.GetTagItem("http.request.method").ShouldBe("_OTHER");
         span.GetTagItem("http.request.method_original").ShouldBe("PURGE");
         duration.Tags.ContainsKey("http.request.method_original").ShouldBeFalse();
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A standard method in another case should be reported as _OTHER with its original case")]
-    public async Task ServerSpan_MethodInAnotherCase_ShouldReportOtherAndTheOriginalCase()
-    {
-        // Arrange — HttpClient upper-cases 'get' before sending it, so the request is written raw. Methods
-        // are case-sensitive (RFC 9110 §9.1): 'get' is an unknown method, not GET.
-        using CancellationTokenSource cancellation = new(_testTimeout);
-        CancellationToken cancellationToken = cancellation.Token;
-        using TelemetryRecorder recorder = new(metrics: false);
-
-        string path = $"/telemetry/lowercase/{Guid.NewGuid():N}";
-
-        await using InMemoryConnectionListener transport = new();
-        IHttpConnectionListener listener = HttpConnectionListener.Create(options => options.UseHttp1(transport));
-        WebApplicationServer server = new(new WebApplicationServerOptions
-        {
-            Pipeline = new FakePipeline((context, _) =>
-            {
-                context.Response.StatusCode = CohesionHttpStatusCode.NoContent;
-                return Task.CompletedTask;
-            }),
-            Listener = listener,
-        });
-
-        await server.StartAsync(cancellationToken);
-
-        try
-        {
-            await using Connection client = await transport.CreateFactory().ConnectAsync(transport.EndPoint, cancellationToken);
-            Stream stream = client.AsStream();
-
-            // Act
-            await stream.WriteAsync(Encoding.ASCII.GetBytes($"get {path} HTTP/1.1\r\nHost: localhost\r\n\r\n"), cancellationToken);
-            await stream.FlushAsync(cancellationToken);
-            Activity span = await recorder.WaitForStoppedAsync(a => Equals(a.GetTagItem("url.path"), path), cancellationToken);
-
-            // Assert
-            span.DisplayName.ShouldBe("HTTP");
-            span.GetTagItem("http.request.method").ShouldBe("_OTHER");
-            span.GetTagItem("http.request.method_original").ShouldBe("get");
-        }
-        finally
-        {
-            await server.StopAsync(CancellationToken.None);
-        }
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: Each HTTP/2 stream should get its own server span")]
@@ -1346,97 +1274,6 @@ public class WebServerTelemetryTests
         span.GetTagItem("url.query").ShouldBe("page=2&sort=name&q=a%20b&access_token=REDACTED");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: The request's query should be read only when a span listener subscribes")]
-    public void Start_WithoutSpanListener_ShouldNotReadTheQuery()
-    {
-        // Arrange — the same exchange with nobody listening, with only the meter listened to, and with the
-        // source listened to.
-        FakeHttpRequest unobserved = new($"/telemetry/zero-cost/{Guid.NewGuid():N}", "access_token=s3cr3t");
-        FakeHttpRequest measured = new($"/telemetry/zero-cost/{Guid.NewGuid():N}", "access_token=s3cr3t");
-        FakeHttpRequest traced = new($"/telemetry/zero-cost/{Guid.NewGuid():N}", "access_token=s3cr3t");
-        Activity span;
-
-        // Act
-        Serve(unobserved);
-
-        using (new TelemetryRecorder(traces: false))
-        {
-            Serve(measured);
-        }
-
-        using (TelemetryRecorder recorder = new(metrics: false))
-        {
-            Serve(traced);
-            span = recorder.Stopped.Single(a => Equals(a.GetTagItem("url.path"), traced.Path.Value));
-        }
-
-        // Assert
-        unobserved.QueryReads.ShouldBe(0);
-        measured.QueryReads.ShouldBe(0);
-        traced.QueryReads.ShouldBe(1);
-        span.GetTagItem("url.query").ShouldBe("access_token=REDACTED");
-
-        static void Serve(FakeHttpRequest request)
-        {
-            FakeHttpContext exchange = new(response: new FakeHttpResponse(), request: request);
-            WebExchangeTelemetry telemetry = WebExchangeTelemetry.Start(exchange, shownQueryValues: null);
-            telemetry.SetOutcome(responded: true, canceled: false);
-            telemetry.Stop();
-        }
-    }
-
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: url.query should redact every value and keep every name")]
-    [InlineData("", null)]
-    [InlineData("access_token=s3cr3t", "access_token=REDACTED")]
-    [InlineData("a=1&b=2", "a=REDACTED&b=REDACTED")]
-    [InlineData("flag&empty=&token=s3cr3t", "flag&empty&token=REDACTED")]
-    [InlineData("a%20b=1&%C3%A9=2", "a%20b=REDACTED&%C3%A9=REDACTED")]
-    [InlineData("=orphan&a=1", "a=REDACTED")]
-    public void GetQueryAttribute_NoParameterDeclaredSafe_ShouldRedactEveryValue(string query, string? expected)
-    {
-        // Arrange
-        IHttpQueryCollection parsed = new HttpQuery(query).Parse();
-
-        // Act
-        string? attribute = WebServerTelemetry.GetQueryAttribute(parsed, shownValues: null);
-
-        // Assert
-        attribute.ShouldBe(expected);
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: url.query should show the values of the parameters declared safe, re-encoded")]
-    public void GetQueryAttribute_ParametersDeclaredSafe_ShouldShowTheirValuesReEncoded()
-    {
-        // Arrange
-        FrozenSet<string> shown = new[] { "page", "Sort", "q" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        IHttpQueryCollection parsed = new HttpQuery("PAGE=2&sort=name&q=a%20b%26c&token=s3cr3t").Parse();
-
-        // Act
-        string? attribute = WebServerTelemetry.GetQueryAttribute(parsed, shown);
-
-        // Assert
-        attribute.ShouldBe("PAGE=2&sort=name&q=a%20b%26c&token=REDACTED");
-    }
-
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: A later-version traceparent should keep only its sampled flag")]
-    [InlineData("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", 3)]
-    [InlineData("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", 1)]
-    [InlineData("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-02-what-the-future-will-be-like", 0)]
-    public void TryParseTraceParent_TraceFlags_ShouldKeepOnlyTheSampledBitOfALaterVersion(string traceParent, int expectedFlags)
-    {
-        // Act — W3C Trace Context defines the flag bits for version 00; of a later version's flags only
-        // the sampled bit is read (§3.2.4, "Versioning of traceparent").
-        bool parsed = WebServerTelemetry.TryParseTraceParent(traceParent, "cohesion=1", out ActivityContext context);
-
-        // Assert
-        parsed.ShouldBeTrue();
-        context.TraceId.ToHexString().ShouldBe("4bf92f3577b34da6a3ce929d0e0e4736");
-        context.SpanId.ToHexString().ShouldBe("00f067aa0ba902b7");
-        context.TraceFlags.ShouldBe((ActivityTraceFlags)expectedFlags);
-        context.TraceState.ShouldBe("cohesion=1");
-        context.IsRemote.ShouldBeTrue();
-    }
-
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - AllowQueryValuesInTelemetry: A missing or empty name should be rejected")]
     public void AllowQueryValuesInTelemetry_MissingOrEmptyName_ShouldThrow()
     {
@@ -1487,35 +1324,6 @@ public class WebServerTelemetryTests
         span.GetTagItem("url.query").ShouldBe("page=REDACTED&sort=REDACTED");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Telemetry: The known-method list should default to the semantic convention's and be replaceable")]
-    public void GetMethodAttribute_KnownMethods_ShouldDefaultToTheConventionAndBeReplaceable()
-    {
-        // Arrange
-        FrozenSet<string>? replaced = WebServerTelemetry.ParseKnownMethods(" GET, PROPFIND ,,");
-
-        // Act
-        string query = WebServerTelemetry.GetMethodAttribute(CohesionHttpMethod.Query, knownMethods: null, out bool queryKnown);
-        string propfindDefault = WebServerTelemetry.GetMethodAttribute(new CohesionHttpMethod("PROPFIND"), knownMethods: null, out bool propfindKnownByDefault);
-        string propfindReplaced = WebServerTelemetry.GetMethodAttribute(new CohesionHttpMethod("PROPFIND"), replaced, out bool propfindKnown);
-        string postReplaced = WebServerTelemetry.GetMethodAttribute(CohesionHttpMethod.Post, replaced, out bool postKnown);
-
-        // Assert
-        WebServerTelemetry.ParseKnownMethods(null).ShouldBeNull();
-        WebServerTelemetry.ParseKnownMethods("  ").ShouldBeNull();
-        replaced.ShouldNotBeNull();
-        replaced.Order().ShouldBe(["GET", "PROPFIND"]);
-
-        query.ShouldBe("QUERY");
-        queryKnown.ShouldBeTrue();
-        propfindDefault.ShouldBe("_OTHER");
-        propfindKnownByDefault.ShouldBeFalse();
-        propfindReplaced.ShouldBe("PROPFIND");
-        propfindKnown.ShouldBeTrue();
-
-        // The list replaces the default one; it does not add to it.
-        postReplaced.ShouldBe("_OTHER");
-        postKnown.ShouldBeFalse();
-    }
 
     private static double SumActiveRequests(TelemetryRecorder recorder)
     {

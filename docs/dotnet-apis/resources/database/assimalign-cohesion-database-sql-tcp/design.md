@@ -27,6 +27,8 @@ SQL engine API chooses a transport. The existing SQL server-options tests exerci
 extension unchanged. No DNS lookup, reflection, Microsoft.Extensions dependencies, or runtime code
 generation is used.
 
+The constructed `TcpConnectionListener` implements `IDuplexConnectionListener`, matching the SQL server option. Port-0 binding exposes the actual assigned port through its `EndPoint` after `BindAsync` completes.
+
 ## Declared dependencies
 
 | Reference | Kind |

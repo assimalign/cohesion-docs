@@ -36,17 +36,21 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using ClientHttpMethod = System.Net.Http.HttpMethod;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpVersion = System.Net.HttpVersion;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Configuration;
 using Assimalign.Cohesion.Connections.Security;
 using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+using Shouldly;
+
+using Xunit;
+
+using ClientHttpMethod = System.Net.Http.HttpMethod;
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpVersion = System.Net.HttpVersion;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

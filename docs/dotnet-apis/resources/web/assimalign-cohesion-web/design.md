@@ -44,17 +44,20 @@ runtime could see. Decision 32 relaxed COHRES002, and the five moved to their pu
 |---|---|---|---|
 | `IWebEndpointFeature` | `UseRouting` | [`Web.Routing`](../assimalign-cohesion-web-routing/index.md) | routing selects the endpoint; the standard terminal that runs it (`WebApplicationTerminal`) moved with it |
 | `IWebPathBaseFeature` | `Map(path)` | [`Web.Routing`](../assimalign-cohesion-web-routing/index.md) | the non-rejoining branches end in that terminal, so they and their path-base view moved too |
-| `IWebRequestIdFeature` | `Web.Hosting`'s telemetry | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | the server publishes it; COHRES001 rules out `Web.Hosting` itself as the home, because its readers are feature libraries |
-| `IWebResponseCompletionFeature` | `Web.Hosting` | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | as above |
-| `IWebServerDrainFeature` | `Web.Hosting` | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | as above |
+| `IWebRequestIdFeature` | `Web.Server`'s telemetry | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | the server publishes it; COHRES001 rules out `Web.Hosting` itself as the home, because its readers are feature libraries |
+| `IWebResponseCompletionFeature` | `Web.Server` | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | as above |
+| `IWebServerDrainFeature` | `Web.Server` | [`Web.Server`](../assimalign-cohesion-web-server/index.md) | as above |
 
-The root's position after the move, with every arrow meaning "references":
+The engine now also lives in Web.Server, which references Web.Routing for the telemetry route
+template (decision 57). The reverse reference would create a cycle. The root's position after the
+move, with every arrow meaning "references":
 
 ```mermaid
 flowchart LR
     Root["Assimalign.Cohesion.Web — area root"] --> Http["Assimalign.Cohesion.Http"]
     Routing["Web.Routing — endpoint, path base, Map, terminal"] --> Root
-    Server["Web.Server — request id, completion, drain"] --> Root
+    Server["Web.Server — engine and exchange features"] --> Root
+    Server --> Routing
     Hosting["Web.Hosting — runtime module"] --> Root
     Hosting --> Routing
     Hosting --> Server
@@ -110,14 +113,10 @@ the pipeline is built (#1078). Register middleware before starting the applicati
 building its pipeline. Web.Hosting enforces this boundary; compared with 10.0.0-preview.1, late
 registration now throws instead of accepting middleware that never executes.
 
-`IWebApplicationLifetime` is an optional generic capability on the application context (#1412).
-A composition factory can transfer an `IDisposable` resource through `RegisterForDisposal`
-without referencing the hosting module or extending an existing interface. The owner releases
-registered objects once by reference identity, in reverse registration order, during final
-application teardown after requests have drained. Stops and restarts keep them alive. Registration
-after teardown begins fails, and a disposal failure does not prevent cleanup of the other objects.
-This is an additive composition seam relative to 10.0.0-preview.1; feature packages still own their
-resources and policy, and the root adds no feature contract or hosting-library dependency.
+Disposable control-plane resources are owned internally by Web.Hosting's concrete application
+context (owner decision 57, 2026-10-13). The former `IWebApplicationLifetime` seam did not ship
+and is removed: the control plane now lives in the hosting module and needs no Web-root
+disposal contract. Existing root interfaces remain unchanged.
 
 ## Segments and terminal middleware (#1056)
 
@@ -174,11 +173,13 @@ signal — are `Web.Server`'s contracts since #1379; their design is in
 [Web.Server's design](../assimalign-cohesion-web-server/design.md). A custom server may omit any of
 them, so their readers handle an absent feature.
 
-`IWebApplicationBuilder.AddServer` accepts that contracts-only server directly or through a factory
-over the final `IWebApplicationContext`. The Hosting implementation supplies its own lifecycle
-adapter, so a server is not required to reference or implement Hosting's `IHostService`. Multiple
-servers start in registration order and stop in reverse order; `IWebApplicationContext.Servers`
-exposes the original server objects rather than their runtime adapters.
+`IWebApplicationBuilder.AddServer` accepts any `IWebApplicationServer`, including the public
+`WebApplicationServer` engine, directly or through a factory over the final `IWebApplicationContext`.
+Web.Hosting wraps every registered server in the public, non-owning `WebApplicationServerHostService`.
+The wrapper forwards start and stop and owns its own service id; it does not dispose the server.
+A server need not reference or implement Hosting's `IHostService`. Multiple servers start in
+registration order and stop in reverse order; `IWebApplicationContext.Servers` exposes the original
+server objects rather than their runtime adapters.
 
 `AddPipeline` is the complete user-pipeline replacement seam. A Hosting runtime may still place
 fixed runtime terminals ahead of the supplied pipeline; replacing user dispatch does not replace

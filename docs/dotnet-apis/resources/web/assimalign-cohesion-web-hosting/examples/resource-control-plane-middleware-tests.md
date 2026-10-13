@@ -1,13 +1,13 @@
 # Resource Control Plane Middleware Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneMiddlewareTests.cs`
-. It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneMiddlewareTests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
@@ -15,7 +15,7 @@ test objects.
 - **Case 1** — Stop: waits for response completion.
 - **Case 2** — Stop: custom server without completion uses direct fallback.
 - **Case 3** — Port: gates bare probes and permits an absent gate.
-- **Case 4** — `Validate`: pins managed identity failures.
+- **Case 4** — Validate: pins managed identity failures.
 
 ## Source example
 
@@ -23,16 +23,21 @@ test objects.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
+
 using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public sealed class ResourceControlPlaneMiddlewareTests
 {
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Stop: waits for response completion")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Stop: waits for response completion")]
     public async Task InvokeAsync_WithCompletionFeature_ShouldDeferStop()
     {
         // Arrange
@@ -58,7 +63,7 @@ public sealed class ResourceControlPlaneMiddlewareTests
         plane.StopTokens.ShouldBe(new[] { CancellationToken.None });
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Stop: custom server without completion uses direct fallback")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Stop: custom server without completion uses direct fallback")]
     public async Task InvokeAsync_WithoutCompletionFeature_ShouldStopDirectly()
     {
         // Arrange
@@ -78,7 +83,7 @@ public sealed class ResourceControlPlaneMiddlewareTests
         plane.StopTokens.ShouldBe(new[] { cancellation.Token });
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Port: gates bare probes and permits an absent gate")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Port: gates bare probes and permits an absent gate")]
     [InlineData(8080, 8081, true)]
     [InlineData(8080, 8080, false)]
     [InlineData(null, 8081, false)]
@@ -103,7 +108,7 @@ public sealed class ResourceControlPlaneMiddlewareTests
         }
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Validate: pins managed identity failures")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Validate: pins managed identity failures")]
     [InlineData("resource", "A gateway-managed resource requires a public application trust key.")]
     [InlineData(" ", "A gateway-managed resource requires an ambient resource name.")]
     public void Validate_WithIncompleteManagedIdentity_ShouldFailEagerly(string name, string message)
@@ -125,5 +130,5 @@ public sealed class ResourceControlPlaneMiddlewareTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneMiddlewareTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceControlPlaneMiddlewareTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

@@ -26,12 +26,16 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 using HttpHeaderKey = Assimalign.Cohesion.Http.HttpHeaderKey;
 using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
-using Assimalign.Cohesion.Web.Testing;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

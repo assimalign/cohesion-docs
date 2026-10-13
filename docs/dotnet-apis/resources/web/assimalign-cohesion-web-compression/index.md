@@ -91,6 +91,11 @@ external packages.
 Design rationale — the deferred-first-write wrapper, the BREACH default, multiple-coding handling,
 and the non-goals — lives in [DESIGN.md](design.md) .
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Project references
 
 | Reference | Kind |

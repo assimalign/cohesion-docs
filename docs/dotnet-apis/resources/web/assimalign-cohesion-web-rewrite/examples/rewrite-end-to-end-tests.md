@@ -30,18 +30,22 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpMethod = System.Net.Http.HttpMethod;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.FileSystem;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.StaticFiles;
 using Assimalign.Cohesion.Web.Testing;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpMethod = System.Net.Http.HttpMethod;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Rewrite.Tests;
 
@@ -90,7 +94,7 @@ public class RewriteEndToEndTests
         TaskCompletionSource<Activity> stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
         using ActivityListener listener = new()
         {
-            ShouldListenTo = source => source.Name == "Assimalign.Cohesion.Web.Hosting",
+            ShouldListenTo = source => source.Name == "Assimalign.Cohesion.Web.Server",
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = activity =>
             {

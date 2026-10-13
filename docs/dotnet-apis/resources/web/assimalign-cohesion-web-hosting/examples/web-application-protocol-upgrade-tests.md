@@ -25,11 +25,15 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Connections.Tcp;
 using Assimalign.Cohesion.Http;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

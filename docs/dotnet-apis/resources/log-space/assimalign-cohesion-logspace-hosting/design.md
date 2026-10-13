@@ -62,11 +62,11 @@ For application-key tokens this reproduces the former iss/sub/scope rules exactl
 The query middleware is registered BEFORE `UseResourceControlPlane` in
 LogSpaceControlPlaneEndpointService. `ResourceControlPlaneMiddleware.InvokeAsync` authenticates
 unknown /cohesion/v1/* paths then returns 404
-(Web.Hosting.Resources/src/Internal/`ResourceControlPlaneMiddleware`.cs:44-59,185-191); it would
-swallow a later query handler. The earlier LogSpace middleware rejects telemetry-scoped credentials
-on every namespaced query/management request before forwarding other routes, protecting /stop and
-/commands despite the unchanged shared verifier. Query accepts only own-name audience with gateway
-subject and ordinary bootstrap/dev tokens. No cohesion-export audience was added.
+(Web.Hosting/src/Resources/ResourceControlPlaneMiddleware.cs); it would swallow a later query
+handler. The earlier LogSpace middleware rejects telemetry-scoped credentials on every namespaced
+query/management request before forwarding other routes, protecting /stop and /commands despite the
+unchanged shared verifier. Query accepts only own-name audience with gateway subject and ordinary
+bootstrap/dev tokens. No cohesion-export audience was added.
 
 Without a gateway identity, the query middleware permits `/cohesion/v1` and every path below it
 only when the exchange's transport `RemoteEndPoint` is `127.0.0.1`, `::1`, or IPv4-mapped
@@ -178,7 +178,6 @@ flush for the whole lifetime of the other services.
 | `Assimalign.Cohesion.Http.RequestLimits` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http.Connections` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Connections.Tcp` | `CohesionPrivateProjectReference` |

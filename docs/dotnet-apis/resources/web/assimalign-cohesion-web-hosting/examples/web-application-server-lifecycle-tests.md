@@ -5,9 +5,9 @@ This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerLifecycleTests.cs`
-. It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerLifecycleTests.cs`.
+It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
@@ -19,10 +19,13 @@ test objects.
 ```csharp
 using System.Net;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Connections.Tcp;
 using Assimalign.Cohesion.Hosting;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.Hosting.Tests;
 

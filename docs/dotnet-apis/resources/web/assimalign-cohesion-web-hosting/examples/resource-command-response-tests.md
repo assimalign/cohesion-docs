@@ -1,11 +1,11 @@
 # Resource Command Response Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceCommandResponseTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceCommandResponseTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -30,14 +30,16 @@ using Xunit;
 using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Testing;
-using Assimalign.Cohesion.Web.Hosting.Resources.Internal;
+using Assimalign.Cohesion.Web.Hosting.Internal;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
-[Collection(ResourceControlPlaneEventSourceCollection.Name)]
+[Collection(nameof(TelemetryCollection))]
 public sealed class ResourceCommandResponseTests
 {
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Resources] - Command response: write failures preserve the applied outcome")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Command response: write failures preserve the applied outcome")]
     [InlineData("POST", "Apply")]
     [InlineData("DELETE", "Delete")]
     public async Task InvokeAsync_ResponseWriteArgumentException_ShouldPreserveAppliedOutcomeAndPropagateFailure(string method, string operation)
@@ -51,7 +53,7 @@ public sealed class ResourceCommandResponseTests
         EventSource producer = EventSource.GetSources().Single(source => source.Name == "Assimalign.Cohesion.Hosting.Resources");
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
         using var producerRecorder = new EventSourceRecorder(producer, EventLevel.Verbose);
-        using var webRecorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var webRecorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", new HttpMethod(method));
         var requestId = new ControlPlaneRequestIdFeature();
         exchange.Features.Set<IWebRequestIdFeature>(requestId);
@@ -82,7 +84,7 @@ public sealed class ResourceCommandResponseTests
         applied.EventName.ShouldBe("CommandApplied");
         Payload(applied, "operation").ShouldBe(operation);
         producerRecorder.Events.Where(item => item.EventId is >= 2 and <= 5).ShouldHaveSingleItem().ShouldBeSameAs(applied);
-        webRecorder.Events.ShouldNotContain(item => item.EventId == 2 &&
+        webRecorder.Events.ShouldNotContain(item => item.EventId == 3 &&
             Equals(Payload(item, "requestId"), requestId.ExpectedId));
         exchange.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
         exchange.Response.Headers[HttpHeaderKey.ContentType].Value.ShouldBe("application/octet-stream");
@@ -98,5 +100,5 @@ public sealed class ResourceCommandResponseTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceCommandResponseTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Resources/ResourceCommandResponseTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

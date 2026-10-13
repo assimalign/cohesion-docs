@@ -10,6 +10,8 @@ examples require their original test project’s dependencies and supporting obj
 - **[Response Compression Unit Tests](response-compression-unit-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Compression` through its co-located test source.
 - **[Compression Event Source Tests](compression-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Compression` through its co-located test source.
 
+- **[Request Decompression Tests](request-decompression-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Compression` through its co-located test source.
+
 [Assembly overview](../index.md) · [Design](../design.md)
 
 ## Sources

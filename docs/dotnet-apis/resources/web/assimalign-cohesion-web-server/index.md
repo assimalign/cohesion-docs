@@ -1,18 +1,19 @@
 # Assimalign.Cohesion.Web.Server
 
-The contracts the Web server publishes on each exchange.
+The Web server engine and the contracts it publishes on each exchange.
 
 > **Status:** Partial.
 
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[Examples](examples/index.md)** — Source-derived behavioral examples.
 
-The contracts the Web server publishes on each exchange. Contracts only: the default server in
-`Assimalign.Cohesion.Web.Hosting` installs them before the pipeline runs, and middleware and
-handlers read them from `context.Features`. The package has no tests of its own; the
-[Web.Hosting examples](../assimalign-cohesion-web-hosting/examples/index.md) exercise the server
-that installs the features.
+The Web server engine and the contracts it publishes on each exchange. Construct
+`WebApplicationServer` with a pipeline and listener options to serve requests without the hosting
+module. The server installs its own client-fault and response-starting interceptors; middleware
+and handlers read its exchange features from `context.Features`. Web.Hosting composes the same
+public engine behind a non-owning `WebApplicationServerHostService`.
 
 ## Scope
 
@@ -28,7 +29,7 @@ that installs the features.
   Optional `preservedHeaders` keys also retain policy fields accepted unchanged by the callbacks.
 - **Response completion** — `IWebResponseCompletionFeature.Register` queues callbacks that run in
   order after the response is written to the transport. Registration after completion throws.
-  `Web.Hosting.Resources` defers a control-plane stop until its `202` is written this way.
+  `Web.Hosting` defers a control-plane stop until its `202` is written this way.
 - **Drain signal** — `IWebServerDrainFeature.Draining` is cancelled when the server begins its
   lame-duck drain, so a long-lived exchange can end itself within the stop's budget. It cancels
   nothing. `Web.WebSockets` closes open sockets with `1001 Going Away` on it.
@@ -39,10 +40,12 @@ that installs the features.
   HTTP/2 and HTTP/3 a malformed body resets the stream instead and is reported as `400`. The read still
   throws; this tells the code that sees the exception it was the client's fault, not an application
   defect (#1340, #1378). The default server installs it on a request that can have a body, on every
-  version. `Web.Diagnostics`, `Web.ErrorHandling` and `Web.Compression` read it.
+  version. `Web.Diagnostics`, `Web.ErrorHandling` and
+  `Web.Compression` read it.
+
 - **Response client fault** — `IWebResponseClientFaultFeature.ResponseAbortedByClient` reports that
   the peer abandoned the response or could not receive it at the configured minimum rate. The
-  default host publishes it even for bodyless requests. `Web.ErrorHandling` uses this report to
+  default server publishes it even for bodyless requests. `Web.ErrorHandling` uses this report to
   cancel without fault observation, including when middleware wraps the transport exception (#1432).
 
 A custom `IWebApplicationServer` may omit any of the seven, so every reader handles an absent
@@ -50,16 +53,95 @@ feature. SecurityHeaders and CORS require starting callbacks and throw if the fe
 
 ## Namespace
 
-The contracts declare `Assimalign.Cohesion.Web`, the namespace they shipped in when the Web root
-held them. Moving them here (owner decision 33, #1379) changed their assembly, not their name, so
-call sites compile unchanged.
+The public server, its options and the contracts declare `Assimalign.Cohesion.Web`. The contracts
+keep the namespace they used in the Web root; their earlier move here (decision 33, #1379) changed
+assembly, not namespace. The newly public server and options use the package's pinned root namespace
+(decision 57, #1458).
 
 ## Dependencies
 
-`Assimalign.Cohesion.Web` (the root, for `IWebApplicationServer` in the contracts' documentation)
-and `Assimalign.Cohesion.Http` (`IHttpFeature`). No Hosting, DI or configuration reference.
+`Assimalign.Cohesion.Web`, `Assimalign.Cohesion.Http`, `Http.Connections`, `Connections` and
+`Web.Routing` (the endpoint route template for `http.route`). The engine has no Hosting, DI,
+configuration, connection-driver or HTTP default-interceptor package reference.
 
-## Usage
+Web.Routing cannot reference Web.Server because the reverse edge would create a dependency cycle.
+
+## Public options
+
+- `Pipeline` supplies the required `IWebApplicationPipeline`.
+- `Listener` is a `HttpConnectionListenerOptions` initialized to a new instance. Register the
+  transport listeners there; the server constructs its HTTP listener from these options.
+- `MaxConcurrentConnections` is an optional positive cap; null is unlimited.
+- `TelemetryQueryValues` is a case-insensitive set of query names whose values may appear in
+  request spans. The server snapshots it at construction; all other query values remain redacted.
+
+The constructor validates the options, adds its own exchange-feature capacity and rounds once.
+A direct application uses the same request-id, response-starting, client-fault and drain behavior
+as the hosted engine. Add desired HTTP feature interceptors to `Listener.Interceptors` explicitly;
+Web.Hosting supplies request limits, protocol upgrade and extended CONNECT for its hosted path.
+
+## Direct use
+
+This routine takes a pipeline and an application-selected duplex transport listener. The application
+references whichever transport driver it chooses; Web.Server itself has no driver dependency.
+
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Http.Connections;
+using Assimalign.Cohesion.Web;
+
+static async Task ServeAsync(
+    IWebApplicationPipeline pipeline,
+    IDuplexConnectionListener transport,
+    CancellationToken stopping)
+{
+    var listener = new HttpConnectionListenerOptions();
+    listener.UseHttp1(transport);
+    var server = new WebApplicationServer(new WebApplicationServerOptions
+    {
+        Pipeline = pipeline,
+        Listener = listener,
+        MaxConcurrentConnections = 256,
+    });
+
+    try
+    {
+        await server.StartAsync(stopping);
+        await Task.Delay(Timeout.InfiniteTimeSpan, stopping);
+    }
+    catch (OperationCanceledException) when (stopping.IsCancellationRequested)
+    {
+    }
+    finally
+    {
+        using var drain = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await server.StopAsync(drain.Token);
+    }
+}
+```
+
+`StartAsync` completes after every endpoint binds and propagates the original transport failure.
+`StopAsync` stops acceptance, drains in-flight work within its cancellation budget and releases the
+listener. The server is not an `IHostService`; Web.Hosting provides that integration separately.
+
+## Diagnostics
+
+The EventSource, Meter and ActivitySource all use `Assimalign.Cohesion.Web.Server`. The source
+reports bind, connection and drain lifecycle/failures, refused heads and callback/telemetry failures;
+its counters are `connection-faults`, `connection-cap-waits` and `refused-response-heads`.
+The Meter publishes `http.server.request.duration` and `http.server.active_requests`, and the
+ActivitySource publishes one server span per dispatched request. Direct applications choose their
+listeners or forwarding; the entry-point host's default `Assimalign.Cohesion.Web.` prefix covers
+both Web.Server and Web.Hosting. See [Design](design.md#diagnostics) for payloads and throttling.
+
+Making the engine public and relaxing hosted `UseServer<TServer>` to accept any
+`IWebApplicationServer` are additive changes. The three diagnostic names move from Web.Hosting;
+none shipped in 10.0.0-preview.1 (decision 15).
+
+## Exchange feature usage
 
 ```csharp
 // The 32-character lower-case trace id, or null under a server that does not publish it.
@@ -88,14 +170,15 @@ HttpStatusCode? clientFault = context.Features.Get<IWebClientFaultFeature>()?.St
 bool responseAbandoned = context.Features.Get<IWebResponseClientFaultFeature>()?.ResponseAbortedByClient == true;
 ```
 
-`Sdk.Web` applications get the package through the `App.Web` shared framework. A library that
-reads one of these features references the package directly. Design detail:
-[design](design.md).
+`Sdk.Web` applications get the package through the `App.Web` shared framework. A library that reads
+one of these features references the package directly. Design detail: [Design](design.md).
 
 ## Principal public types
 
 | Type | Member | Source file |
 |---|---|---|
+| `WebApplicationServer` | `WebApplicationServer(WebApplicationServerOptions options)`, `Task StartAsync(CancellationToken cancellationToken = default)`, `Task StopAsync(CancellationToken cancellationToken = default)` | `src/WebApplicationServer.cs` |
+| `WebApplicationServerOptions` | `IWebApplicationPipeline? Pipeline`, `HttpConnectionListenerOptions Listener`, `int? MaxConcurrentConnections`, `ISet<string> TelemetryQueryValues` | `src/WebApplicationServerOptions.cs` |
 | `IWebRequestIdFeature` | `ActivityTraceId RequestId` | `src/Abstractions/IWebRequestIdFeature.cs` |
 | `IWebRequestActivityFeature` | `Activity? Activity` | `src/Abstractions/IWebRequestActivityFeature.cs` |
 | `IWebResponseStartingFeature` | `void OnStarting(Func<object?, Task> callback, object? state, IReadOnlyCollection<HttpHeaderKey>? preservedHeaders = null)` | `src/Abstractions/IWebResponseStartingFeature.cs` |
@@ -104,7 +187,7 @@ reads one of these features references the package directly. Design detail:
 | `IWebClientFaultFeature` | `HttpStatusCode? StatusCode` | `src/Abstractions/IWebClientFaultFeature.cs` |
 | `IWebResponseClientFaultFeature` | `bool ResponseAbortedByClient` | `src/Abstractions/IWebResponseClientFaultFeature.cs` |
 
-Each contract extends `IHttpFeature`.
+`WebApplicationServer` implements `IWebApplicationServer`. Each exchange contract extends `IHttpFeature`.
 
 ## Project references
 
@@ -112,6 +195,9 @@ Each contract extends `IHttpFeature`.
 |---|---|
 | [`Assimalign.Cohesion.Web`](../assimalign-cohesion-web/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Http`](../../../libraries/http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Http.Connections`](../../../libraries/http/assimalign-cohesion-http-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Connections`](../../../libraries/connections/assimalign-cohesion-connections/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Web.Routing`](../assimalign-cohesion-web-routing/index.md) | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 
@@ -119,5 +205,7 @@ Each contract extends `IHttpFeature`.
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Assimalign.Cohesion.Web.Server.csproj`.
+- **Engine** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServer.cs`.
+- **Options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServerOptions.cs`.
 - **Contracts** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions`.
 - **Framework membership** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.

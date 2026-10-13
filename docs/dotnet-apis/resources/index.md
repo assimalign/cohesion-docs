@@ -36,8 +36,10 @@ implement that domain. These folder layers do not rename the L1/L2/L3 architectu
 
 Every area has one exact runtime module, `Assimalign.Cohesion.<Area>.Hosting`. It composes
 dependency injection, configuration, logging, and transports. The area root owns the application and
-builder contracts. Features extend those contracts without importing the runtime. Hosting
-integrations use the `<Area>.Hosting.<Suffix>` naming family.
+builder contracts. Features extend those contracts without importing the runtime. The hosting
+module integrates `Hosting.Health` and `Hosting.Resources` itself. A separate
+`<Area>.Hosting.<Suffix>` package is reserved for an integration that must not land in every
+framework that carries the module.
 
 | `Diagnostic` | Enforced boundary |
 |---|---|

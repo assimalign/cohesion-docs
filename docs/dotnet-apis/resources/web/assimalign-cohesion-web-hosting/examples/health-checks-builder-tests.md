@@ -1,13 +1,13 @@
 # Health Checks Builder Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Health` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/HealthChecksBuilderTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthChecksBuilderTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
+together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
 
 ## Behavior exercised
@@ -25,17 +25,22 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
-using WebHealthStatus = Assimalign.Cohesion.Web.Health.HealthStatus;
 using Xunit;
+
 using Assimalign.Cohesion.Hosting.Health;
 using Assimalign.Cohesion.Web.Health;
+using WebHealthStatus = Assimalign.Cohesion.Web.Health.HealthStatus;
 
-namespace Assimalign.Cohesion.Web.Hosting.Health.Tests;
+using Assimalign.Cohesion.Web.Hosting.Health;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
 
 public class HealthChecksBuilderTests
 {
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting.Health] - Builder: maps Hosting contributor results and applies probe tags")]
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Builder: maps Hosting contributor results and applies probe tags")]
     [InlineData(Assimalign.Cohesion.Hosting.Health.HealthStatus.Healthy, WebHealthStatus.Healthy)]
     [InlineData(Assimalign.Cohesion.Hosting.Health.HealthStatus.Degraded, WebHealthStatus.Degraded)]
     [InlineData(Assimalign.Cohesion.Hosting.Health.HealthStatus.Unhealthy, WebHealthStatus.Unhealthy)]
@@ -67,7 +72,7 @@ public class HealthChecksBuilderTests
         contributor.Invocations.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Builder: contributor options override defaults and failures honor policy")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Builder: contributor options override defaults and failures honor policy")]
     public async Task AddContributor_WhenOptionsProvided_ShouldApplyThemAndHonorFailureStatus()
     {
         var contributor = new StubHealthContributor(
@@ -94,7 +99,7 @@ public class HealthChecksBuilderTests
         report.Entries["cache"].Exception.ShouldNotBeNull().Message.ShouldBe("cache offline");
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Builder: contributor receives caller cancellation")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Builder: contributor receives caller cancellation")]
     public async Task AddContributor_WhenCallerCancels_ShouldPropagateCancellationToken()
     {
         using var cancellation = new CancellationTokenSource();
@@ -114,7 +119,7 @@ public class HealthChecksBuilderTests
         contributor.LastCancellationToken.ShouldBe(cancellation.Token);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Builder: contributor names use normal duplicate validation")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Builder: contributor names use normal duplicate validation")]
     public void AddContributor_WhenNameAlreadyRegistered_ShouldThrow()
     {
         IHealthChecksBuilder builder = HealthChecks.CreateBuilder()
@@ -124,7 +129,7 @@ public class HealthChecksBuilderTests
             builder.AddContributor(new StubHealthContributor("DATABASE", HealthContribution.Healthy())));
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting.Health] - Builder: rejects a null contributor")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Builder: rejects a null contributor")]
     public void AddContributor_WhenContributorNull_ShouldThrow()
     {
         IHealthChecksBuilder builder = HealthChecks.CreateBuilder();
@@ -138,5 +143,5 @@ public class HealthChecksBuilderTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/HealthChecksBuilderTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Health/tests/Assimalign.Cohesion.Web.Hosting.Health.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthChecksBuilderTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.

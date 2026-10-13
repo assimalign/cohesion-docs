@@ -1,11 +1,11 @@
 # Web Application Server Quic Drain Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Server` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerQuicDrainTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerQuicDrainTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -29,10 +29,10 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Connections;
-using Assimalign.Cohesion.Web.Hosting.Internal;
-using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
+using Assimalign.Cohesion.Web.Internal;
+using Assimalign.Cohesion.Web.Server.Tests.TestObjects;
 
-namespace Assimalign.Cohesion.Web.Hosting.Tests;
+namespace Assimalign.Cohesion.Web.Server.Tests;
 
 /// <summary>
 /// Exercises the server's drain lifetime against a real QUIC stream whose peer withholds delivery credit.
@@ -44,7 +44,7 @@ public class WebApplicationServerQuicDrainTests
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Server/Drain: The stop budget aborts QUIC delivery while connection disposal is waiting for the peer")]
+    [Theory(DisplayName = "Cohesion Test [Web.Server] - Server/Drain: The stop budget aborts QUIC delivery while connection disposal is waiting for the peer")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task StopAsync_WhenQuicDeliveryOutlivesBudget_ShouldAbortAndFinishConnectionDisposal(bool receiveEndsNaturally)
@@ -64,9 +64,9 @@ public class WebApplicationServerQuicDrainTests
         FakeHttpConnectionListener listener = new(connection);
         WebApplicationServer server = new(new WebApplicationServerOptions
         {
-            Listener = listener,
+
             Pipeline = new FakePipeline(static (_, _) => Task.CompletedTask),
-        });
+        }, listener);
 
         try
         {
@@ -119,5 +119,5 @@ public class WebApplicationServerQuicDrainTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerQuicDrainTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerQuicDrainTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/Assimalign.Cohesion.Web.Server.Tests.csproj`.

@@ -58,7 +58,7 @@ operation.
 ## Server composition
 
 `BlobDatabaseServer` accepts an engine and `BlobDatabaseServerOptions` with a generic
-`IConnectionListener`. The composition root supplies the transport and retains engine ownership.
+`IDuplexConnectionListener`. The composition root supplies the transport and retains engine ownership.
 `StartAsync` binds the listener; `StopAsync` drains work and releases it. A stopped server cannot
 restart; create a new server and listener.
 

@@ -123,6 +123,11 @@ two, so a receive loop written the usual way ends cleanly.
 | `KeepAliveTimeout` | infinite | How long to wait for a pong before aborting; infinite sends unsolicited pongs |
 | `DangerousEnableCompression` | `false` | Whether accepts negotiate permessage-deflate when the client offers it |
 
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
 ## Project references
 
 | Reference | Kind |

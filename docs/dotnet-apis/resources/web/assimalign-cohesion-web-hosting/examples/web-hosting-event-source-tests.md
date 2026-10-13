@@ -1,11 +1,11 @@
-# Resource Control Plane Event Source Tests
+# Web Hosting Event Source Tests
 
-This example exercises `Assimalign.Cohesion.Web.Hosting.Resources` through its co-located test source.
+This example exercises `Assimalign.Cohesion.Web.Hosting` through its co-located test source.
 
 > **Status:** Partial.
 
 The example reproduces
-`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneEventSourceTests.cs`.
+`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebHostingEventSourceTests.cs`.
 It retains the test class and assertions so the setup, operation, and expected outcome stay
 together. Use it in the source project’s test context, with its test dependencies and supporting
 test objects.
@@ -40,35 +40,38 @@ using Xunit;
 using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Testing;
-using Assimalign.Cohesion.Web.Hosting.Resources.Internal;
+using Assimalign.Cohesion.Web.Hosting.Internal;
 
 using IPAddress = System.Net.IPAddress;
 using IPEndPoint = System.Net.IPEndPoint;
 
-namespace Assimalign.Cohesion.Web.Hosting.Resources.Tests;
+using Assimalign.Cohesion.Web.Hosting.Resources;
+using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
 
-[Collection(ResourceControlPlaneEventSourceCollection.Name)]
-public sealed class ResourceControlPlaneEventSourceTests
+namespace Assimalign.Cohesion.Web.Hosting.Tests;
+
+[Collection(nameof(TelemetryCollection))]
+public sealed class WebHostingEventSourceTests
 {
-    private const string displayPrefix = "Cohesion Test [Web.Hosting.Resources] - Event source: ";
+    private const string displayPrefix = "Cohesion Test [Web.Hosting] - Event source: ";
 
     [Fact(DisplayName = displayPrefix + "provider name matches its assembly")]
-    public void GetName_ResourceControlPlaneSource_ShouldMatchAssemblyName()
+    public void GetName_HostingSource_ShouldMatchAssemblyName()
     {
         // Arrange / Act
-        string name = EventSource.GetName(typeof(ResourceControlPlaneEventSource));
+        string name = EventSource.GetName(typeof(WebHostingEventSource));
 
         // Assert
-        name.ShouldBe("Assimalign.Cohesion.Web.Hosting.Resources");
+        name.ShouldBe("Assimalign.Cohesion.Web.Hosting");
     }
 
     [Fact(DisplayName = displayPrefix + "strict manifest validates every event")]
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Test-only manifest validation preserves the concrete source type.")]
     [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "Test-only manifest validation inspects the concrete source type.")]
-    public void GenerateManifest_ResourceControlPlaneSource_ShouldPassStrictValidation()
+    public void GenerateManifest_HostingSource_ShouldPassStrictValidation()
     {
         // Arrange / Act
-        string? manifest = EventSource.GenerateManifest(typeof(ResourceControlPlaneEventSource), null, EventManifestOptions.Strict);
+        string? manifest = EventSource.GenerateManifest(typeof(WebHostingEventSource), null, EventManifestOptions.Strict);
 
         // Assert
         manifest.ShouldNotBeNullOrEmpty();
@@ -80,7 +83,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     public async Task InvokeAsync_StopAccepted_ShouldEmitLifecycleOnce(bool deferred)
     {
         // Arrange
-        using var recorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var recorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         using var ambient = new Activity("unrelated-ambient").Start();
         var resource = new ResourceContext(resourceName: "stop-" + Guid.NewGuid().ToString("N"));
         var plane = new RecordingControlPlane();
@@ -97,7 +100,7 @@ public sealed class ResourceControlPlaneEventSourceTests
 
         // Assert
         EventWrittenEventArgs accepted = ForRequest(recorder, requestId).ShouldHaveSingleItem();
-        accepted.EventId.ShouldBe(3);
+        accepted.EventId.ShouldBe(4);
         accepted.EventName.ShouldBe("StopAccepted");
         accepted.Level.ShouldBe(EventLevel.Informational);
         accepted.PayloadNames.ShouldBe(new[] { "resourceName", "requestId", "deferred" });
@@ -112,7 +115,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     public async Task OnEventCommand_Enable_ShouldPublishExactCredentialCounter()
     {
         // Arrange
-        ResourceControlPlaneEventSource source = ResourceControlPlaneEventSource.Log;
+        WebHostingEventSource source = WebHostingEventSource.Log;
         long before = source.RejectedCredentials;
         var resource = new ResourceContext(resourceName: "counter-" + Guid.NewGuid().ToString("N"));
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/endpoints", HttpMethod.Get);
@@ -148,7 +151,7 @@ public sealed class ResourceControlPlaneEventSourceTests
         var resource = new ResourceContext("application-secret", "credential-" + Guid.NewGuid().ToString("N"),
             "Testing", "gateway-secret", contentRootPath: null, endpoints: null, mounts: null, settings: null,
             references: null, bootstrapCredential: default, applicationTrustKey: identity.PublicKey, ambientValues: null);
-        using var recorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var recorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/endpoints", HttpMethod.Get);
         var requestId = new ControlPlaneRequestIdFeature();
         exchange.Features.Set<IWebRequestIdFeature>(requestId);
@@ -178,7 +181,7 @@ public sealed class ResourceControlPlaneEventSourceTests
 
         // Assert
         EventWrittenEventArgs rejected = ForRequest(recorder, requestId).ShouldHaveSingleItem();
-        rejected.EventId.ShouldBe(1);
+        rejected.EventId.ShouldBe(2);
         rejected.Level.ShouldBe(EventLevel.Warning);
         rejected.PayloadNames.ShouldBe(new[] { "resourceName", "requestId", "status", "reason", "route", "remoteEndPoint", "suppressedCount" });
         Payload(rejected, "reason").ShouldBe(reason);
@@ -199,7 +202,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     {
         // Arrange
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
-        ResourceControlPlaneEventSource source = ResourceControlPlaneEventSource.Log;
+        WebHostingEventSource source = WebHostingEventSource.Log;
         using var recorder = new EventSourceRecorder(source, EventLevel.Verbose);
         var resource = new ResourceContext(resourceName: "remote-" + Guid.NewGuid().ToString("N"));
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/path-secret", HttpMethod.Post);
@@ -240,7 +243,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     {
         // Arrange
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
-        using var recorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var recorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         var resource = new ResourceContext(resourceName: "envelope-" + Guid.NewGuid().ToString("N"));
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", HttpMethod.Post);
         var requestId = new ControlPlaneRequestIdFeature();
@@ -263,7 +266,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     {
         // Arrange
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
-        using var recorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var recorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         var resource = new ResourceContext(resourceName: "handler-" + Guid.NewGuid().ToString("N"));
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", new HttpMethod(method));
         var requestId = new ControlPlaneRequestIdFeature();
@@ -285,7 +288,7 @@ public sealed class ResourceControlPlaneEventSourceTests
     {
         // Arrange
         await Task.Delay(TimeSpan.FromMilliseconds(1100), CancellationToken.None);
-        using var recorder = new EventSourceRecorder(ResourceControlPlaneEventSource.Log, EventLevel.Verbose);
+        using var recorder = new EventSourceRecorder(WebHostingEventSource.Log, EventLevel.Verbose);
         var resource = new ResourceContext(resourceName: "malformed-" + Guid.NewGuid().ToString("N"));
         await using var exchange = new ControlPlaneExchange("/cohesion/v1/commands", HttpMethod.Post);
         var requestId = new ControlPlaneRequestIdFeature();
@@ -308,7 +311,7 @@ public sealed class ResourceControlPlaneEventSourceTests
         immediate.ShouldHaveSingleItem();
         EventWrittenEventArgs[] events = ForRequest(recorder, requestId);
         events.Length.ShouldBe(2);
-        events.ShouldAllBe(item => item.EventId == 2);
+        events.ShouldAllBe(item => item.EventId == 3);
         Payload(events[1], "suppressedCount").ShouldBe(4);
         recorder.Events.ShouldNotContain(item => item.EventId == 0);
     }
@@ -317,7 +320,7 @@ public sealed class ResourceControlPlaneEventSourceTests
         string method, string phase, string exceptionType)
     {
         EventWrittenEventArgs malformed = ForRequest(recorder, requestId).ShouldHaveSingleItem();
-        malformed.EventId.ShouldBe(2);
+        malformed.EventId.ShouldBe(3);
         malformed.Level.ShouldBe(EventLevel.Warning);
         malformed.PayloadNames.ShouldBe(new[] { "resourceName", "requestId", "httpMethod", "phase", "exceptionType", "suppressedCount" });
         Payload(malformed, "httpMethod").ShouldBe(method);
@@ -343,5 +346,5 @@ public sealed class ResourceControlPlaneEventSourceTests
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/ResourceControlPlaneEventSourceTests.cs`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.Resources/tests/Assimalign.Cohesion.Web.Hosting.Resources.Tests.csproj`.
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebHostingEventSourceTests.cs`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Assimalign.Cohesion.Web.Hosting.Tests.csproj`.
