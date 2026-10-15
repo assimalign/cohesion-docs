@@ -4,17 +4,10 @@ parameters:
     type: string
     default: github-assimalign
 
-trigger:
-  branches:
-    include:
-      - main
-      - feature/*
-  paths:
-    include:
-      - docs/**
-      - packages/**
-      - app/**
-      - azure-pipelines.yml
+# Automatic builds are off while the Viu docs app setup is unstable; the pipeline still runs on demand.
+# To restore, trigger on main and feature/* for docs/**, packages/**, app/** and this file, and drop `pr: none`.
+trigger: none
+pr: none
 
 variables:
   buildConfiguration: Release
