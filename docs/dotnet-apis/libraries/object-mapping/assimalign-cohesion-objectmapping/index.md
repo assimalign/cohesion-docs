@@ -19,12 +19,15 @@ low-level operation is target-first to support multiple sources merging into an 
 Scalar access uses compiled getters and setters; that implementation detail is not a blanket
 reflection-free construction guarantee.
 
+The package bundles the [ObjectMapping source generator](../assimalign-cohesion-sourcegeneration-objectmapping/index.md)
+under `analyzers/dotnet/cs`.
+
 ## Dependencies
 
 | Reference | Build item |
 |---|---|
 | [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
-| `Assimalign.Cohesion.SourceGeneration` | `CohesionAnalyzerReference` |
+| [`Assimalign.Cohesion.SourceGeneration.ObjectMapping`](../assimalign-cohesion-sourcegeneration-objectmapping/index.md) | `CohesionAnalyzerReference` |
 
 ## Principal public types
 

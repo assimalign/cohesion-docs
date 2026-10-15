@@ -14,6 +14,7 @@ reserved projects.
 | Area | Purpose |
 |---|---|
 | [Amqp](amqp/index.md) | Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings. |
+| [App](app/index.md) | Hosting kernel, shared-framework producers, and framework membership validation. |
 | [ApplicationModel](application-model/index.md) | Application graphs, portable realization plans, and gateway orchestration. |
 | [Cache](cache/index.md) | Cache contracts and an in-process memory-cache implementation. |
 | [Configuration](configuration/index.md) | A shared configuration model with command-line, environment, and file-format providers. |
@@ -26,7 +27,7 @@ reserved projects.
 | [Hosting](hosting/index.md) | Plain host execution, opt-in resource supervision, health, and telemetry composition. |
 | [Http](http/index.md) | Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional exchange features. |
 | [IdentityModel](identity-model/index.md) | Canonical identity contracts with independent protocol and token-document branches. |
-| [Logging](logging/index.md) | Structured logging contracts, factory composition, and console and debug sinks. |
+| [Logging](logging/index.md) | Structured logging contracts, factory composition, and console and debug sinks, and EventSource forwarding. |
 | [ObjectMapping](object-mapping/index.md) | Explicit profile-based mapping between object models. |
 | [ObjectPool](object-pool/index.md) | Object rental, return policies, factories, and retained instances. |
 | [ObjectValidation](object-validation/index.md) | Fluent validation profiles, reusable rules, and structured failure results. |

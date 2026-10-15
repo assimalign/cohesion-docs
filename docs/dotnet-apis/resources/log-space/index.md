@@ -11,6 +11,11 @@ The enabled host receives authenticated OTLP/HTTP JSON logs over HTTPS, persists
 segments under its data mount, and serves bounded authenticated NDJSON queries. Retention, archival
 and `Database.Embedded` consumption are deferred.
 
+Without a gateway identity, query and management under `/cohesion/v1` accept only transport peers
+at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
+headers do not change this decision. Bare health probes remain open. This tightens standalone
+behavior from 10.0.0-preview.1.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -24,9 +29,12 @@ and `Database.Embedded` consumption are deferred.
 
 The single runtime module is `Assimalign.Cohesion.LogSpace.Hosting`. Roots and feature libraries do
 not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
-Feature registration composes against the root contracts. The exact runtime may reference its area
-root and its hosting-family integrations; integrations may not reference the exact runtime. The
-declarative application model remains separate from the runtime. See the
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.LogSpace.Hosting`.
@@ -34,10 +42,17 @@ The hosting family in this area contains `Assimalign.Cohesion.LogSpace.Hosting`.
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.LogSpace` delivers the `Assimalign.Cohesion.App.LogSpace` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.LogSpace.Refs` and `Assimalign.Cohesion.LogSpace.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
+private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
+the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
+packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+
+The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
+reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
+`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
+`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
+inventory below.
 
 | Public reference-pack assembly |
 |---|
@@ -52,13 +67,18 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.IdentityModel` |
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Web` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
+| `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Hosting` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
 
 `Application`-model and client packages are NuGet-only and are excluded from the area shared
 framework. The package table distinguishes assemblies present in the source tree from those included
@@ -73,6 +93,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/LogSpace/README.md`.
+- **Source** — `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.LogSpace.Refs/src/Assimalign.Cohesion.App.LogSpace.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Refs/src/Assimalign.Cohesion.LogSpace.Refs.csproj` and `cohesion/resources/LogSpace/Assimalign.Cohesion.LogSpace.Runtime/Directory.Build.props`.

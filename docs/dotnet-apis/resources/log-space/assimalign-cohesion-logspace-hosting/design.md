@@ -10,10 +10,11 @@ Item 31b makes LogSpace the Platform sink for Hosting.Telemetry. The resource ro
 contract-only; all composition is in Hosting. OTLP/HTTP JSON logs are accepted, protobuf receives
 415 with an OTLP/JSON-only detail. /v1/traces and /v1/metrics are reserved POST routes returning 501
 after authentication/content validation: libraries/Logging has no span or instrument primitive, and
-protobuf is deferred. No gRPC framing or response-trailer support exists in the HTTP server;
-therefore the SDK otlp endpoint changed from grpc/tcp 4317 to https/tcp 4318, Certificate=tls. query
-stays https/tcp 8443. Both Public flags remain false: application reachability through observed
-endpoints is not external exposure.
+protobuf is deferred. The HTTP server has no gRPC framing (response trailers ship on HTTP/2 and
+HTTP/3 since decision 18, but gRPC hosting stays outside the HTTP/Web program); therefore the SDK
+otlp endpoint changed from grpc/tcp 4317 to https/tcp 4318, Certificate=tls. query stays https/tcp
+8443. Both Public flags remain false: application reachability through observed endpoints is not
+external exposure.
 
 ## HTTP and TLS
 
@@ -42,20 +43,41 @@ path.
 
 ## Authentication and middleware order
 
-The private ES256 verifier is modelled on Web.Hosting.Resources.BootstrapTokenVerifier:
+The private ES256 verifier is a thin configuration of the shared `JsonWebTokenValidator`
+(IdentityModel.Token.JsonWebToken) with `ResourceCredentialProfile` constants (Hosting.Resources):
 issuer=application, key ID/algorithm/signature, required iss/sub/aud/exp/nbf/iat/jti, at most
-24-hour lifetime, audience=LogSpace resource name. Ingest additionally requires scope=telemetry and
-a nonblank subject identifying the emitter; service.name must equal that subject. The gateway uses a
+24-hour lifetime, audience=LogSpace resource name. Its profile leaves the subject rule to LogSpace
+because it depends on scope: ingest requires scope=telemetry and a nonblank subject identifying the
+emitter (mapped to a `TelemetryEmitter` caller); management requires no telemetry scope and
+subject=gateway (a `Gateway` caller). service.name must equal the emitter. The gateway uses a
 distinct (application,sink,emitter) token cache; tokens are not the sink's bootstrap credential.
+
+Both paths consult the resource's registered `IResourceCredentialVerifier` first
+(`ResourceRuntime.TryGetCredentialVerifier`); `NoResult` falls through to the default verifier.
+The mapped caller is then authorized the same way for either source: its `Application` must be the
+ambient application, ingestion admits only `TelemetryEmitter` callers with a nonblank `Subject`
+(the emitter), and management admits only `Gateway` callers whose `Subject` is the ambient gateway.
+For application-key tokens this reproduces the former iss/sub/scope rules exactly.
 
 The query middleware is registered BEFORE `UseResourceControlPlane` in
 LogSpaceControlPlaneEndpointService. `ResourceControlPlaneMiddleware.InvokeAsync` authenticates
 unknown /cohesion/v1/* paths then returns 404
-(Web.Hosting.Resources/src/Internal/`ResourceControlPlaneMiddleware`.cs:44-59,185-191); it would
-swallow a later query handler. The earlier LogSpace middleware rejects telemetry-scoped credentials
-on every namespaced query/management request before forwarding other routes, protecting /stop and
-/commands despite the unchanged shared verifier. Query accepts only own-name audience with gateway
-subject and ordinary bootstrap/dev tokens. No cohesion-export audience was added.
+(Web.Hosting/src/Resources/ResourceControlPlaneMiddleware.cs); it would swallow a later query
+handler. The earlier LogSpace middleware rejects telemetry-scoped credentials on every namespaced
+query/management request before forwarding other routes, protecting /stop and /commands despite the
+unchanged shared verifier. Query accepts only own-name audience with gateway subject and ordinary
+bootstrap/dev tokens. No cohesion-export audience was added.
+
+Without a gateway identity, the query middleware permits `/cohesion/v1` and every path below it
+only when the exchange's transport `RemoteEndPoint` is `127.0.0.1`, `::1`, or IPv4-mapped
+`127.0.0.1`. It performs this check before serving `/cohesion/v1/logs` or forwarding management
+and namespaced probes to the shared middleware. Missing and non-IP endpoints fail closed;
+forwarded headers never grant access. Other peers receive `403 Forbidden`, chosen to make the
+development-only access restriction clear. Bare `/healthz`, `/readyz`, and `/livez` stay open for
+orchestrators and load balancers. The OTLP listener and gateway credential checks retain their
+existing behavior. This is a breaking security change from 10.0.0-preview.1, which admitted remote
+standalone query and management requests (#1431, owner decision 46; preview compatibility follows
+decision 15).
 
 ## `Storage`, lifecycle and query
 
@@ -82,18 +104,22 @@ architectural decision. No cross-area `Database` reference was added.
 
 ## Telemetry ordering
 
-The gateway injects only after a same-application LogSpace is Running with an observed otlp
-endpoint; no self-export is injected. A producer prepared earlier gets no telemetry; a later
-preparation can receive it, while an already-running process needs restart to read changed
-environment. No implicit `DependsOn` was added. Explicit producer.`DependsOn`(sink) establishes
-deterministic startup. RemoteReference injection awaits an authenticated named-OTLP resolution
-contract.
+The gateway injects telemetry only for the sink the application registers in `Providers.Telemetry`
+and never discovers a sink by resource kind: a LogSpace receives exports only when registered as
+`ResourceTelemetrySink.FromResource(logSpace, "otlp")`, and `ResourceTelemetrySink.External(...)`
+names an endpoint outside the model instead. For a resource sink the gateway injects only after the
+sink is Running with an observed HTTPS otlp endpoint (Local may use a declared DevPort); the sink
+does not export to itself. A producer reconciled before the sink is Running starts without telemetry;
+a later preparation can receive it, while an already-running process needs restart to read changed
+environment. No `DependsOn` is inferred. Explicit producer.`DependsOn`(sink) establishes deterministic
+startup. The sink must be a resource of the registering application; `Build()` rejects a LogSpace of
+another application, and RemoteReference sinks await an authenticated named-OTLP resolution contract.
 
 ## Non-goals
 
-LogSpace.Telemetry remains empty project scaffolding, distinct from Hosting.Telemetry. Verifier
-consolidation, inferred telemetry dependencies, retention/archival, protobuf, gRPC, traces and
-metrics are separate deliverables.
+LogSpace.Telemetry remains empty project scaffolding, distinct from Hosting.Telemetry. Inferred
+telemetry dependencies, retention/archival, protobuf, gRPC, traces and metrics are separate
+deliverables.
 
 ## Concrete composition (T10 / O34)
 
@@ -112,11 +138,36 @@ once per build against the same context retained by the application; the hosted-
 installed after factory evaluation. Services start in registration order and stop in reverse. No
 area-owned service abstraction is introduced.
 
+## Dependency injection composition
+
+`LogSpaceApplicationBuilder.Services` is the application's one composition registry, created with
+`EnableDynamicCode = false`, `ValidateOnBuild = true`, and `ValidateScopes = true`. The module
+registers only factories and instances, so the provider stays reflection-free. Every lifecycle
+service is an `IHostService` registration: `AddService(IHostService)` registers the caller's instance,
+`AddService(Func<LogSpaceApplicationContext, IHostService>)` registers a factory closed over the
+context, and a direct `Services.AddSingleton<IHostService>(...)` joins the lifecycle the same way.
+Order is registration order: telemetry registers in the builder constructor, so it starts first and
+stops last; the query and OTLP endpoints register in `Build`, so they start last and stop first.
+
+`Build` closes registration (the container becomes read-only, and a second `Build` throws), creates
+the provider once, and resolves `IEnumerable<IHostService>` once into the snapshot the host reuses
+for every start, stop, and rollback pass. The application owns the provider: disposal stops the host,
+then disposes the provider, which disposes every factory-created service in reverse creation order
+while instance registrations stay with their callers. A failed `Build` disposes the provider before
+rethrowing. The concrete context exposes the provider as `ServiceProvider` to hosting-layer
+factories; the area root and its features never see it.
+
+`LogSegmentStore` is a singleton shared by `SegmentFlushService`, `OtlpReceiverEndpointService`, and
+the query endpoint. When the ambient `otlp` endpoint exists, the flush service registers in the
+builder constructor, directly after telemetry and ahead of every `AddService` call, so segments
+flush for the whole lifetime of the other services.
+
 ## Declared dependencies
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.LogSpace` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
@@ -127,7 +178,6 @@ area-owned service abstraction is introduced.
 | `Assimalign.Cohesion.Http.RequestLimits` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Http.Connections` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Connections.Tcp` | `CohesionPrivateProjectReference` |

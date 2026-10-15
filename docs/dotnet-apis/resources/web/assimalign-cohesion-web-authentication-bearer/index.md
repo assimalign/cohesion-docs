@@ -16,13 +16,17 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
 ## What it provides
 
 - **`JwtBearerOptions`** — valid issuers / audiences, signing keys,
-  allowed algorithms, clock skew, and the name/role claim types.
+  allowed algorithms, clock skew, and the name/role claim types. Issuer and
+  audience validation are on by default: registering a scheme without at
+  least one issuer and one audience fails unless `ValidateIssuer` or
+  `ValidateAudience` is set to `false` explicitly.
 - **`JwtBearerDefaults`** — the default scheme name (`"Bearer"`).
-- **`IJwtSignatureVerifier`** — + `JwtSignatureVerifier.CreateHmac/CreateRsa/CreateEcdsa`
+- **`IJwtSignatureVerifier`** — + the public sealed `HmacJwtSignatureVerifier`,
+  `RsaJwtSignatureVerifier` and `EcdsaJwtSignatureVerifier`, each with `Create`
   — the compatibility seam: HMAC remains Web-local, while the RSA/ECDSA factories
   adapt the reusable IdentityModel JWT verifiers.
-- **`JwtBearerAuthentication.CreateHandler(options)`** — the factory the
-  composition root calls; the concrete handler stays internal.
+- **`JwtBearerHandler.Create(options)`** — the factory the
+  composition root calls; it returns the public sealed handler with private construction.
 
 ## How it fits
 
@@ -32,20 +36,21 @@ The JWT bearer authentication scheme handler for the Cohesion web stack. Reads a
   document validation (issuer / audience / lifetime / algorithm) and asymmetric signature
   verification. The public Bearer seam remains stable, and headless callers can use the lower
   JWT verifier without referencing the Web area.
-- **Emits RFC 6750 `WWW-Authenticate** — Bearer` challenges.
+- **Emits RFC 6750 `WWW-Authenticate: Bearer` challenges.**
 
 `Register` it at the composition root, not here:
 
 See the [source-backed usage examples](examples/index.md).
 
-See [docs/DESIGN.md](design.md) for the validation order, the algorithm-confusion defense, and the
-JWT→`ClaimsPrincipal` mapping.
+See [docs/DESIGN.md](design.md) for the validation order, the fail-closed defaults, the
+algorithm-confusion defense, and the JWT→`ClaimsPrincipal` mapping.
 
 ## Project references
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Authentication` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
 

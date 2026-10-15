@@ -63,6 +63,8 @@ The `Listen` helper ships in `Database.Sql.Tcp`. Omit `AddServer` for embedded S
 `SqlDatabaseEngine.Create(options)` also remains available for standalone use. See
 [DESIGN.md](design.md) for the execution model and its decisions.
 
+`SqlDatabaseServerOptions.Listener` takes an `IDuplexConnectionListener`, including TCP and InMemory listeners. The server owns accepted duplex connections and their protocol I/O.
+
 ## Project references
 
 | Reference | Kind |

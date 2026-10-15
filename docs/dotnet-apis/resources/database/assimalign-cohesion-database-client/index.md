@@ -70,6 +70,8 @@ Transport failures propagate; HTTP refusals become Rejected observations. Serial
 explicit Utf8JsonWriter/JsonDocument access. The caller disposes the client; redirect following and
 cookies are disabled. No runtime Hosting or ApplicationModel dependency was added.
 
+Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.
+
 ## Project references
 
 | Reference | Kind |

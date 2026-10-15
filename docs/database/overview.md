@@ -156,6 +156,11 @@ Engine-owned maintenance runs in embedded and hosted modes alike.
 
 ## Wire model
 
+Each model server owns its own `IDuplexConnectionListener`; the endpoint selects the model.
+Transport selection belongs to the composition root. `Database.Sql.Tcp` supplies the existing
+`Listen(Uri)` convenience for consumers that choose TCP. Engine packages reference no concrete
+transport.
+
 Each endpoint fixes a model family for the entire connection. The shared protocol owns framing,
 handshake, version 1.0 negotiation, errors, and lifecycle; each model owns message identifiers and
 payload codecs. Model clients use the shared pooled client to run their exchanges.

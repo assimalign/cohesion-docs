@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Application Lifecycle Tests](application-lifecycle-tests.md)** — This example exercises `Assimalign.Cohesion.SecretStore.Hosting` through its co-located test source.
+- **[Standalone Control Plane Tests](standalone-control-plane-tests.md)** — This example exercises `Assimalign.Cohesion.SecretStore.Hosting` through its co-located test source.
 - **[Template application](template-application.md)** — The shipped `cohesion-secretstore` template demonstrates the SecretStore executable entry point.
 
 [Assembly overview](../index.md) · [Design](../design.md)

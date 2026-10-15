@@ -6,7 +6,7 @@ The typed Blob client streams content and metadata over a leased database connec
 
 `Assimalign.Cohesion.Database.Blob.Client` supplies `BlobClient`, `IBlobClient`, and
 `IBlobConnection`. `BlobClient.Create` combines `DatabaseConnectionSettings` with an application
-supplied `IConnectionFactory`. The shared `Assimalign.Cohesion.Database.Client` package owns
+supplied `IDuplexConnectionFactory`. The shared `Assimalign.Cohesion.Database.Client` package owns
 dialing, authentication, framing, and pooling. The Blob package owns its typed exchanges.
 
 ## Example
@@ -29,7 +29,7 @@ public static class BlobStreamingExample
 {
     public static async Task RunAsync(
         DatabaseConnectionSettings settings,
-        IConnectionFactory connectionFactory,
+        IDuplexConnectionFactory connectionFactory,
         Stream source,
         Stream destination,
         CancellationToken cancellationToken)

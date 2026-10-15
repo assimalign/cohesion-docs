@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.ApplicationModel.Gateway`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Application Gateway Resource Extensions behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise application gateway resource extensions, credential issuance, and trust behavior using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,6 @@ Source-backed examples for `Assimalign.Cohesion.ApplicationModel.Gateway`.
 - **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/ApplicationModel/README.md`.
 - **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src`.
+- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/ApplicationGatewayResourceExtensionsTests.cs`.
+- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/GatewayCredentialIssuerTests.cs`.
+- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/GatewayTrustTests.cs`.

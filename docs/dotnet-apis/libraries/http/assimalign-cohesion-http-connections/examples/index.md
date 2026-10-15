@@ -4,7 +4,8 @@ Source-backed examples for `Assimalign.Cohesion.Http.Connections`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Http Min Data Rate behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise Http3 Stream Lifetime behavior using the original repository tests.
+- **[Http Connection Hierarchy Tests](http-connection-hierarchy-tests.md)** — Exercise Http Connection Hierarchy behavior using the original repository tests.
 
 ## Sources
 

@@ -17,8 +17,9 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
 
 - **The hook contract** — `IErrorHandler` / the `HttpErrorHandler` delegate: inspect a fault, own
   the response for it (return `true`) or pass (`false`).
-- **Builder-time registration** — `builder.AddErrorHandling().OnError(...)`; handlers are
-  consulted in registration order.
+- **Builder-time registration** — `builder.Services.AddErrorHandling(errors => errors.OnError(...))`,
+  a component integration the application's compilation receives; handlers are consulted in
+  registration order.
 - **The exchange feature** — `IErrorHandlingFeature`, seeded onto every exchange; a pipeline
   exception boundary invokes `HandleAsync(context, exception)` to turn a caught fault into the
   application's response.
@@ -28,7 +29,16 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
   faults escaping downstream, publishes the caught exception as an `IHttpExceptionFeature`, resets
   an unstarted response (aborting the exchange when it has already started), and dispatches through
   the `OnError` chain. A developer-detail toggle enriches the terminal payload; a diagnostics
-  observer (`OnException`) and its suppression predicate provide the fault-observation seam.
+  observer (`OnException`) and its suppression predicate provide the fault-observation seam. A
+  request body that broke its framing or a limit while it was read is the client's fault, which
+  the default Web server reports through
+  `IWebClientFaultFeature` on every version: the boundary skips `OnException` and the `OnError` chain
+  for it and stages the transport's `400`/`413`/`408`/`431` instead of a `500` (#1340, #1378). On
+  HTTP/2 and HTTP/3 a malformed body resets the stream, and the `400` is what the server records.
+  A connection lost mid-body cancels the exchange without a client-fault status (#1439).
+  A response abandoned by the client or reclaimed for a slow reader is reported through
+  `IWebResponseClientFaultFeature`; it cancels without `OnException`, `OnError` or a replacement
+  response, even when another writer wraps the transport failure (#1432).
 - **Status-code pages** — `UseStatusCodePages()` upgrades a bodyless `4xx`/`5xx` terminal response
   (such as the pipeline's bodyless 404) into problem+json, or a custom responder body.
 
@@ -36,7 +46,7 @@ client sees, with an overridable default that renders the RFC 9457 `Web.ProblemD
 
 See the [source-backed usage examples](examples/index.md).
 
-Install the boundary (and, optionally, status-code pages) on the pipeline. `Register`
+Install the boundary (and, optionally, status-code pages) on the pipeline. Register
 `UseErrorHandling()` first so it wraps everything downstream:
 
 See the [source-backed usage examples](examples/index.md).
@@ -46,17 +56,36 @@ inline `try/catch` around `next(context)`) is:
 
 See the [source-backed usage examples](examples/index.md).
 
+## Observing faults
+
+`UseErrorHandling()` reports application faults through the internal event source named
+`Assimalign.Cohesion.Web.ErrorHandling`. Enable it with `dotnet-trace` or forward it through
+`Assimalign.Cohesion.Logging.EventSource`. It writes exception types and messages, with request ids
+from the server feature; it writes no request paths, headers or bodies. `SuppressDiagnosticsCallback`
+routes expected faults from Error to Verbose and still suppresses `OnException`.
+
+Client-caused and cancelled exchanges are excluded from application-fault events and totals.
+Peer-abandoned responses are Verbose only. A boundary abort after the response starts increments
+only `aborted-responses`. If `OnException` logs and forwarding is also enabled, ordinary faults
+are logged twice. See [Diagnostics](design.md#diagnostics) for events, counters and compatibility.
+
 ## Scope boundaries
 
 - **Faults only.** Expected protocol outcomes — an authentication challenge's `401`, a router's
   `404`, an unsupported media type's `415` — are each feature's normal response path and must
   never arrive here as exceptions.
-- **The bodyless 404 terminal lives in `Web.Hosting`.** The pipeline's unhandled-request terminal
-  can only set a payload-free `404` (the hosting-isolation rule keeps `Web.ProblemDetails` out of
-  the runtime module); `UseStatusCodePages()` here is what upgrades it to problem+json.
+- **The bodyless 404 terminal is `Web.Routing`'s `WebApplicationTerminal`.** `Web.Hosting`'s
+  pipeline and every `Map`/`MapWhen` branch end in it, and it can only set a payload-free `404`
+  (neither `Web.Hosting` nor `Web.Routing` references `Web.ProblemDetails`);
+  `UseStatusCodePages()` here is what upgrades it to problem+json.
 - **The payload** is `Web.ProblemDetails`' scope; this package renders it.
 
-Design rationale lives in [DESIGN.md](design.md) .
+Design rationale lives in [DESIGN.md](design.md).
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
 
 ## Project references
 
@@ -66,6 +95,7 @@ Design rationale lives in [DESIGN.md](design.md) .
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.ProblemDetails` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 
 [Parent: Web](../index.md)
 

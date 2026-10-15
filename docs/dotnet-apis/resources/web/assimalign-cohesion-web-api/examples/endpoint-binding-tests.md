@@ -6,23 +6,36 @@ This example exercises `Assimalign.Cohesion.Web.Api` through its co-located test
 
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.Api/tests/EndpointBindingTests.cs`. It retains the
-test class and assertions so the setup, operation, and expected outcome stay together. `Use` it in the
+test class and assertions so the setup, operation, and expected outcome stay together. Use it in the
 source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Binding: route value binds to a typed parameter.
-- **Case 2** — Binding: typed route constraint carries a boxed value.
-- **Case 3** — Binding: query scalars bind by inference.
-- **Case 4** — Binding: missing required query yields 400 problem.
-- **Case 5** — Binding: unparseable query scalar yields 400 problem.
-- **Case 6** — Binding: nullable query is optional.
-- **Case 7** — Binding: header binds by explicit attribute.
-- **Case 8** — Binding: JSON body binds through the serialization registry.
-- **Case 9** — Binding: unsupported body content type yields 415.
-- **Case 10** — Binding: malformed JSON body yields 400.
-- **Case 11** — Binding: form fields bind by attribute.
-- **Case 12** — Binding: CancellationToken and IHttpContext inject directly.
+- **Case 1** — Binding: endpoints mapped through type-parameter receivers bind like any other.
+- **Case 2** — Binding: conditional-access and static-form calls bind instead of reaching the placeholder.
+- **Case 3** — Binding: route value binds to a typed parameter.
+- **Case 4** — Binding: typed route constraint carries a boxed value.
+- **Case 5** — Binding: query scalars bind by inference.
+- **Case 6** — Binding: repeated query values reach sequences in order and scalars read first.
+- **Case 7** — Binding: nullable query sequence elements retain empty occurrences.
+- **Case 8** — Binding: a malformed repeated element rejects the whole query sequence.
+- **Case 9** — Binding: a missing query collection binds as an empty sequence.
+- **Case 10** — Binding: missing required query yields 400 problem.
+- **Case 11** — Binding: unparseable query scalar yields 400 problem.
+- **Case 12** — Binding: nullable query is optional.
+- **Case 13** — Binding: header binds by explicit attribute.
+- **Case 14** — Binding: an attribute name holding a quote or a backslash binds that exact key.
+- **Case 15** — Binding: JSON body binds through the serialization registry.
+- **Case 16** — Binding: unsupported body content type yields 415.
+- **Case 17** — Binding: a body without a Content-Type yields 415.
+- **Case 18** — Binding: a body type the resolver has no contract for faults instead of answering 415.
+- **Case 19** — Binding: a body read without a serialization registry faults instead of answering 415.
+- **Case 20** — Binding: malformed JSON body yields 400.
+- **Case 21** — Binding: form fields bind by attribute.
+- **Case 22** — Binding: repeated form scalars bind their first values in either encoding.
+- **Case 23** — Binding: CancellationToken and IHttpContext inject directly.
+- **Case 24** — Binding: IHttpRequest and IHttpResponse are injected, not read from the body.
+- **Case 25** — Binding: single-context handler uses the middleware overload.
 
 ## Source example
 
@@ -31,17 +44,22 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Api.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Serialization;
 using Assimalign.Cohesion.Web.Testing;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Api.Tests;
 
@@ -52,7 +70,7 @@ namespace Assimalign.Cohesion.Web.Api.Tests;
 /// </summary>
 public class EndpointBindingTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
 
     private static async Task WriteTextAsync(IHttpContext context, string text)
     {
@@ -60,12 +78,78 @@ public class EndpointBindingTests
         await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(text), context.RequestCancelled);
     }
 
+    // Reusable endpoint modules: mapped through a type-parameter receiver rather than a concrete one.
+    private static void MapModule<TApp>(TApp app) where TApp : IWebApplicationPipelineBuilder, IWebApplication
+    {
+        app.MapGet("/module/{id}", (int id) => $"app:{id}");
+    }
+
+    private static void MapGroupModule<TGroup>(TGroup group) where TGroup : IRouterGroupBuilder
+    {
+        group.MapGet("items/{id}", (int id) => $"group:{id}");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: endpoints mapped through type-parameter receivers bind like any other")]
+    public async Task Binding_TypeParameterReceivers_ShouldBind()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseRouting();
+
+        MapModule(factory.Application);
+        MapGroupModule(factory.Application.MapGroup("api"));
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage application = await client.GetAsync("/module/5", cancellation.Token);
+        using HttpResponseMessage group = await client.GetAsync("/api/items/6", cancellation.Token);
+
+        // Assert
+        application.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await application.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("app:5");
+        group.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await group.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("group:6");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: conditional-access and static-form calls bind instead of reaching the placeholder")]
+    public async Task Binding_ConditionalAccessAndStaticFormCalls_ShouldBind()
+    {
+        // Arrange — each of these used to compile against the placeholder, which throws when mapping.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseRouting();
+
+        WebApplicationPipelineBuilderExtensions.MapGet(factory.Application, "/static/{id}", (int id) => $"static:{id}");
+        RouterGroupBuilderEndpointExtensions.MapGet(factory.Application.MapGroup("api"), "items/{id}", (int id) => $"group:{id}");
+
+        Hosting.WebApplication? application = factory.Application;
+        application?.MapGet("/conditional/{id}", (int id) => $"conditional:{id}");
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage staticForm = await client.GetAsync("/static/1", cancellation.Token);
+        using HttpResponseMessage groupStaticForm = await client.GetAsync("/api/items/2", cancellation.Token);
+        using HttpResponseMessage conditional = await client.GetAsync("/conditional/3", cancellation.Token);
+
+        // Assert
+        (await staticForm.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("static:1");
+        (await groupStaticForm.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("group:2");
+        (await conditional.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("conditional:3");
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: route value binds to a typed parameter")]
     public async Task Binding_RouteValue_ShouldBindTypedParameter()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -85,9 +169,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: typed route constraint carries a boxed value")]
     public async Task Binding_TypedRouteConstraint_ShouldBindBoxedValue()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -107,9 +191,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: query scalars bind by inference")]
     public async Task Binding_QueryScalars_ShouldBindByInference()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -126,12 +210,97 @@ public class EndpointBindingTests
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("hello:2");
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: repeated query values reach sequences in order and scalars read first")]
+    public async Task Binding_RepeatedQueryValues_ShouldBindEveryOccurrenceAndFirstScalar()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/repeated", ([FromQuery(Name = "tag")] string[] tags,
+            [FromQuery(Name = "tag")] string first, int[] numbers, string other) =>
+            $"{string.Join('|', tags)}:{first}:{string.Join('|', numbers)}:{other}");
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync(
+            "/repeated?tag=first&numbers=1&other=kept&tag=&numbers=2&tag=last", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("first||last:first:1|2:kept");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: nullable query sequence elements retain empty occurrences")]
+    public async Task Binding_NullableQuerySequence_ShouldRetainEmptyOccurrences()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/nullable-sequence", (List<int?> values) => string.Join('|', values));
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/nullable-sequence?values=1&values=&values=3", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("1||3");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a malformed repeated element rejects the whole query sequence")]
+    public async Task Binding_InvalidQuerySequenceElement_ShouldReturnBadRequest()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        bool invoked = false;
+        factory.Application.MapGet("/invalid-sequence", (int[] values) =>
+        {
+            invoked = true;
+            return string.Join('|', values);
+        });
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/invalid-sequence?values=1&values=bad&values=3", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.BadRequest);
+        invoked.ShouldBeFalse();
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldContain("\"values\"", Case.Sensitive);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a missing query collection binds as an empty sequence")]
+    public async Task Binding_MissingQuerySequence_ShouldBindEmptySequence()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapGet("/missing-sequence", (IReadOnlyList<string> values) => values.Count.ToString());
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/missing-sequence", cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("0");
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: missing required query yields 400 problem")]
     public async Task Binding_MissingRequiredQuery_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -153,9 +322,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: unparseable query scalar yields 400 problem")]
     public async Task Binding_UnparseableQuery_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -175,9 +344,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: nullable query is optional")]
     public async Task Binding_NullableQuery_ShouldBeOptional()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -199,9 +368,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: header binds by explicit attribute")]
     public async Task Binding_Header_ShouldBindByAttribute()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -219,13 +388,40 @@ public class EndpointBindingTests
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("alice");
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: an attribute name holding a quote or a backslash binds that exact key")]
+    public async Task Binding_AttributeNameWithQuoteAndBackslash_ShouldBindExactKey()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseRouting();
+
+        factory.Application.MapGet("/escaped", ([FromQuery(Name = "a\"b")] string quoted, [FromQuery(Name = "c\\d")] string slashed) => $"{quoted}|{slashed}");
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act — the keys arrive percent-encoded: %22 is the quote, %5C the backslash.
+        using HttpResponseMessage bound = await client.GetAsync("/escaped?a%22b=one&c%5Cd=two", cancellation.Token);
+        using HttpResponseMessage missing = await client.GetAsync("/escaped?c%5Cd=two", cancellation.Token);
+
+        // Assert — the declared keys bind, and a missing one is reported under its exact name.
+        bound.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await bound.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("one|two");
+
+        missing.StatusCode.ShouldBe(NetHttpStatusCode.BadRequest);
+        using JsonDocument problem = JsonDocument.Parse(await missing.Content.ReadAsStringAsync(cancellation.Token));
+        problem.RootElement.GetProperty("errors").TryGetProperty("a\"b", out _).ShouldBeTrue();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: JSON body binds through the serialization registry")]
     public async Task Binding_JsonBody_ShouldBindThroughRegistry()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -246,10 +442,10 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: unsupported body content type yields 415")]
     public async Task Binding_UnsupportedBodyContentType_ShouldReturnUnsupportedMediaType()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -266,13 +462,116 @@ public class EndpointBindingTests
         response.StatusCode.ShouldBe(NetHttpStatusCode.UnsupportedMediaType);
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a body without a Content-Type yields 415")]
+    public async Task Binding_BodyWithoutContentType_ShouldReturnUnsupportedMediaType()
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
+
+        factory.Application.UseRouting();
+
+        factory.Application.MapPost("/widgets", (Widget widget) => widget.Name);
+
+        using HttpClient client = factory.CreateClient();
+        using ByteArrayContent content = new(Encoding.UTF8.GetBytes("""{"name":"gizmo","quantity":3}"""));
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/widgets", content, cancellation.Token);
+
+        // Assert — the client did not declare the media type, so no reader can be chosen.
+        response.StatusCode.ShouldBe(NetHttpStatusCode.UnsupportedMediaType);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a body type the resolver has no contract for faults instead of answering 415")]
+    public async Task Binding_BodyTypeWithoutContract_ShouldFault()
+    {
+        // Arrange — a JSON reader is registered, but the resolver does not cover the parameter's type.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
+
+        HttpContentSerializationException? fault = null;
+        factory.Application.Use(async (context, next) =>
+        {
+            try
+            {
+                await next.Invoke(context);
+            }
+            catch (HttpContentSerializationException exception)
+            {
+                fault = exception;
+                context.Response.StatusCode = CohesionHttpStatusCode.InternalServerError;
+            }
+        });
+        factory.Application.UseRouting();
+
+        bool handlerRan = false;
+        factory.Application.MapPost("/unregistered", (Unregistered value) =>
+        {
+            handlerRan = true;
+            return value.Value;
+        });
+
+        using HttpClient client = factory.CreateClient();
+        using StringContent content = new("""{"value":"x"}""", Encoding.UTF8, "application/json");
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/unregistered", content, cancellation.Token);
+
+        // Assert — a composition fault on the server reaches the exception boundary; it is not a 415.
+        response.StatusCode.ShouldBe(NetHttpStatusCode.InternalServerError);
+        fault.ShouldNotBeNull();
+        fault.Message.ShouldContain(nameof(Unregistered), Case.Sensitive);
+        handlerRan.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: a body read without a serialization registry faults instead of answering 415")]
+    public async Task Binding_BodyWithoutRegistry_ShouldFault()
+    {
+        // Arrange — the application registered no serialization at all.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        HttpContentSerializationException? fault = null;
+        factory.Application.Use(async (context, next) =>
+        {
+            try
+            {
+                await next.Invoke(context);
+            }
+            catch (HttpContentSerializationException exception)
+            {
+                fault = exception;
+                context.Response.StatusCode = CohesionHttpStatusCode.InternalServerError;
+            }
+        });
+        factory.Application.UseRouting();
+        factory.Application.MapPost("/widgets", (Widget widget) => widget.Name);
+
+        using HttpClient client = factory.CreateClient();
+        using StringContent content = new("""{"name":"gizmo","quantity":3}""", Encoding.UTF8, "application/json");
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/widgets", content, cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.InternalServerError);
+        fault.ShouldNotBeNull();
+        fault.Message.ShouldContain("AddJsonSerialization", Case.Sensitive);
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: malformed JSON body yields 400")]
     public async Task Binding_MalformedJsonBody_ShouldReturnBadRequest()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
-        factory.Builder.AddJsonSerialization(ApiTestJsonContext.Default);
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddJsonSerialization(ApiTestJsonContext.Default);
 
         factory.Application.UseRouting();
 
@@ -292,9 +591,9 @@ public class EndpointBindingTests
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: form fields bind by attribute")]
     public async Task Binding_FormFields_ShouldBindByAttribute()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -316,12 +615,51 @@ public class EndpointBindingTests
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("boxes:5");
     }
 
+    [Theory(DisplayName = "Cohesion Test [Web.Api] - Binding: repeated form scalars bind their first values in either encoding")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Binding_RepeatedFormScalars_ShouldBindFirstValuesForEitherEncoding(bool useMultipart)
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+        factory.Application.UseRouting();
+        factory.Application.MapPost("/repeated-form", ([FromForm] string title,
+            [FromForm(Name = "qty")] int quantity) => $"{title}:{quantity}");
+        KeyValuePair<string, string>[] fields =
+        [
+            new("title", "first"),
+            new("qty", "5"),
+            new("title", ""),
+            new("qty", "7"),
+            new("title", "last")
+        ];
+        using HttpContent content = useMultipart ? new MultipartFormDataContent() : new FormUrlEncodedContent(fields);
+        if (content is MultipartFormDataContent multipart)
+        {
+            foreach (KeyValuePair<string, string> field in fields)
+            {
+                multipart.Add(new StringContent(field.Value), field.Key);
+            }
+        }
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/repeated-form", content, cancellation.Token);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("first:5");
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: CancellationToken and IHttpContext inject directly")]
     public async Task Binding_Injections_ShouldBindContextAndToken()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 
@@ -338,12 +676,43 @@ public class EndpointBindingTests
         (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("cancellable");
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: IHttpRequest and IHttpResponse are injected, not read from the body")]
+    public async Task Binding_RequestAndResponseParameters_ShouldBeInjected()
+    {
+        // Arrange — no serialization registry: had the parameters bound from the body, the read would fault.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRouting();
+
+        factory.Application.UseRouting();
+
+        factory.Application.MapPost("/echo/{id}", async (int id, IHttpRequest request, IHttpResponse response) =>
+        {
+            IReadOnlyList<EndpointParameterMetadata> described = request.HttpContext.GetEndpointMetadata().GetOrderedMetadata<EndpointParameterMetadata>();
+            string method = request.Method == Assimalign.Cohesion.Http.HttpMethod.Post ? "post" : "other";
+
+            response.StatusCode = CohesionHttpStatusCode.Accepted;
+            await response.Body.WriteAsync(Encoding.UTF8.GetBytes($"{method}:{id}:{described.Count}:{described[0].Name}"), request.HttpContext.RequestCancelled);
+        });
+
+        using HttpClient client = factory.CreateClient();
+        using StringContent content = new("ignored", Encoding.UTF8, "text/plain");
+
+        // Act
+        using HttpResponseMessage response = await client.PostAsync("/echo/9", content, cancellation.Token);
+
+        // Assert — the exchange's own request and response reach the handler, and only the route value
+        // is described as a request input.
+        response.StatusCode.ShouldBe(NetHttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("post:9:1:id");
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.Api] - Binding: single-context handler uses the middleware overload")]
     public async Task Binding_SingleContextHandler_ShouldUseMiddlewareOverload()
     {
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.AddRouting();
+        factory.Builder.Services.AddRouting();
 
         factory.Application.UseRouting();
 

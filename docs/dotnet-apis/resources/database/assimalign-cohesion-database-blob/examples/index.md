@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Blob Database Scope Tests](blob-database-scope-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Blob` through its co-located test source.
+- **[Blob Database Server Tests](blob-database-server-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Blob` through its co-located test source.
 - **[Blob Engine Tests](blob-engine-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Blob` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)

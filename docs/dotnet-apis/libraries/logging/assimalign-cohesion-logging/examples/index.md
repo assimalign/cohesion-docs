@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Logging`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Logger Factory Covariant Return behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise Logger Factory covariant returns and forwarding registration using the original repository tests.
 
 ## Sources
 

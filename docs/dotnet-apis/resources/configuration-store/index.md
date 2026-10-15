@@ -8,6 +8,10 @@ ConfigurationStore is the L3 resource area for durable, named configuration name
 host serves namespace snapshots and declarative mutations over the resource control-plane endpoint;
 values are configuration rather than secrets and are stored as plain JSON beneath the `data` volume.
 
+Without a gateway identity, `/cohesion/v1` accepts only transport peers at `127.0.0.1`, `::1`,
+or IPv4-mapped `127.0.0.1`; other peers receive 403, regardless of forwarded headers.
+Bare `/healthz`, `/readyz`, and `/livez` stay open. Gateway-managed authentication is unchanged.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -22,8 +26,11 @@ values are configuration rather than secrets and are stored as plain JSON beneat
 The single runtime module is `Assimalign.Cohesion.ConfigurationStore.Hosting`. Roots and feature
 libraries do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child
 libraries. Feature registration composes against the root contracts. The exact runtime may reference
-its area root and its hosting-family integrations; integrations may not reference the exact runtime.
-The declarative application model remains separate from the runtime. See the
+any same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.ConfigurationStore.Hosting`.
@@ -31,10 +38,18 @@ The hosting family in this area contains `Assimalign.Cohesion.ConfigurationStore
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.ConfigurationStore` delivers the
-`Assimalign.Cohesion.App.ConfigurationStore` family. Its reference-pack project declares
-`CohesionFrameworkName` and imports `frameworks/Assimalign.Cohesion.App.props`, the public and
-private assembly inventory. `CohesionFrameworkAssembly` entries appear in the reference and runtime
-packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.App.ConfigurationStore` family. Its producers,
+`Assimalign.Cohesion.ConfigurationStore.Refs` and `Assimalign.Cohesion.ConfigurationStore.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+
+The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
+reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
+`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
+`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
+inventory below.
 
 | Public reference-pack assembly |
 |---|
@@ -48,10 +63,15 @@ packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Web` |
+| `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Hosting` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Connections.Quic` |
@@ -70,6 +90,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/ConfigurationStore/README.md`.
+- **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.ConfigurationStore.Refs/src/Assimalign.Cohesion.App.ConfigurationStore.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Refs/src/Assimalign.Cohesion.ConfigurationStore.Refs.csproj` and `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Runtime/Directory.Build.props`.

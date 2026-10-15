@@ -9,6 +9,8 @@ examples require their original test project’s dependencies and supporting obj
 
 - **[Health Check Result Tests](health-check-result-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Health` through its co-located test source.
 - **[Health Check Middleware Tests](health-check-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Health` through its co-located test source.
+- **[Health Check Json Response Writer Tests](health-check-json-response-writer-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Health` through its co-located test source.
+- **[Health Check Event Source Tests](health-check-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Health` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

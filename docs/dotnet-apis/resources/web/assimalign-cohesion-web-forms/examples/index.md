@@ -8,6 +8,8 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Use Forms Middleware Tests](use-forms-middleware-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Forms` through its co-located test source.
+- **[Configured Form Limit Message Tests](configured-form-limit-message-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Forms` through its co-located test source.
+- **[Web Forms Event Source Tests](web-forms-event-source-tests.md)** — This example exercises `Assimalign.Cohesion.Web.Forms` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

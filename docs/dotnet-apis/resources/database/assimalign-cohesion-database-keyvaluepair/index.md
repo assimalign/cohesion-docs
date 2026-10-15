@@ -63,6 +63,8 @@ See the [source-backed usage examples](examples/index.md).
 
 See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 
+`KeyValueDatabaseServerOptions.Listener` takes an `IDuplexConnectionListener`, including TCP and InMemory listeners. The server owns accepted duplex connections and their protocol I/O.
+
 ## Project references
 
 | Reference | Kind |

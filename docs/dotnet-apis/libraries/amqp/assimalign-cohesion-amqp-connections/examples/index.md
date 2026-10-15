@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Amqp.Connections`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Amqp Codec behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise Amqp Codec and Transport Capability behavior using the original repository tests.
 
 ## Sources
 

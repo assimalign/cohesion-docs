@@ -10,6 +10,16 @@ Readiness and required command application gate dependent startup. Stop preserve
 whereas teardown removes owned commands and resources in reverse order. Command clients receive the
 target application's certificate validator; replacing a client must preserve that trust boundary.
 
+## Factory implementation migration (#1465)
+
+Composition uses the public sealed IdentityModel/DataProtection implementations sanctioned by
+owner decision 59. Token audience checks use IdentityModel.Token's `HasAudience` extension;
+where the caller previously accepted null or blank audiences, an ordinal audience-list match
+preserves those inputs locally. Existing validation guards remain in place. This package's
+public API and behavior are unchanged from 10.0.0-preview.1. Its updated dependency creation
+signatures require rebuilding; the source and binary breaks are recorded in the JWT and
+DataProtection package designs on decision 15's terms. Advisory: not applicable: API shape.
+
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.ApplicationModel`,

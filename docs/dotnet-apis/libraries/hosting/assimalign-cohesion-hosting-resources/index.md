@@ -19,6 +19,25 @@ SDKs opt into generated `ResourceRuntime` calls; assembly presence alone does no
 supervision. Invocation context owns environment snapshots, mounts, control planes, and health
 aggregation.
 
+The control plane's health report never carries a contributor's exception (#1409). A
+contributor that throws becomes an `Unhealthy` contribution described by the fixed text
+`The contributor threw an exception.`, and an `Exception` value a contributor places in
+`HealthContribution.Data` is replaced by `The contributor reported an exception.`. Area hosts
+publish the report on the unauthenticated `/healthz`, `/readyz` and `/livez` probes, and an
+exception message routinely names hosts, databases, users and ports. The aggregation catch records
+the failure through the internal `HostingResourceEventSource` before returning the fixed report.
+See the [design](design.md#health-reports-withhold-exceptions) and [diagnostics](design.md#diagnostics).
+
+Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
+only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
+receive 403. Forwarded headers cannot grant access. Bare `/healthz`, `/readyz`, and `/livez` probes
+stay public. Gateway-managed credential checks are unchanged. This restricts remote standalone
+management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
+gateway identity with credentials for remote management.
+
+`ResourceControlPlane` is now the public sealed `IResourceControlPlane` implementation,
+with a private constructor and its own `Create(IEnumerable<string>? acceptedCommandKinds = null)`.
+
 ## Dependencies
 
 | Reference | Build item |
@@ -27,6 +46,7 @@ aggregation.
 | [`Assimalign.Cohesion.Hosting`](../../hosting/assimalign-cohesion-hosting/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Hosting.Health`](../../hosting/assimalign-cohesion-hosting-health/index.md) | `CohesionProjectReference` |
 | `System.Security.Cryptography.ProtectedData` | `CohesionPackageReference` |
+| [`Assimalign.Cohesion.Hosting.Resources`](index.md) | `CohesionSharedSource` |
 
 ## Principal public types
 
@@ -38,7 +58,7 @@ aggregation.
 | `ResourceCommand` | `src/ResourceCommand.cs` |
 | `ResourceContext` | `src/ResourceContext.cs` |
 | `ResourceControlPlane` | `src/ResourceControlPlane.cs` |
-| `ResourceEntryExitException` | `src/ResourceEntryExitException.cs` |
+| `ResourceEntryExitException` | `src/Exceptions/ResourceEntryExitException.cs` |
 | `ResourceMount` | `src/ResourceMount.cs` |
 | `ResourceRuntime` | `src/ResourceRuntime.cs` |
 | `ResourceCommandRejectedException` | `src/Exceptions/ResourceCommandRejectedException.cs` |
@@ -67,10 +87,12 @@ aggregation.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceControlPlane.cs`.
 
-- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceEntryExitException.cs`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/Exceptions/ResourceEntryExitException.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceMount.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/ResourceRuntime.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/src/Exceptions/ResourceCommandRejectedException.cs`.
+
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/shared/CommandFailureDiagnostics.cs`.

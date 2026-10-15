@@ -1,34 +1,32 @@
 # Cohesion Documentation
 
-Markdown documentation and a Viu WebAssembly application for the Cohesion framework.
+The Cohesion documentation micro-frontend package and its Viu WebAssembly preview application.
 
-> **Status:** Partial. The browser application builds, runs on the packaged Cohesion development
-> server, and renders every page in the tree. A Web server rendering host is a later phase.
+> **Status:** Partial. The package and shared-shell preview application are complete; composition by
+> the `docs.assimalign.com` landing zone and its Cohesion Web host is a later phase.
 
 The framework source lives at [assimalign/cohesion](https://github.com/assimalign/cohesion).
-Content under `docs/` is the site's source of truth. The application uses
-`Assimalign.Cohesion.Viu.Markdown` to generate a catalog during compilation, fetch Markdown assets,
-and render Viu nodes in the browser. It follows the sibling `viu-docs` application's composition.
+Content under `docs/` is the site's source of truth. `Assimalign.Cohesion.Docs` generates the catalog,
+carries those pages as static package content, and contributes Cohesion routes and navigation to a
+shared Assimalign frontend shell.
 
 ## Repository layout
 
 ```text
 global.json                                   .NET and Viu SDK selection
 NuGet.config                                  sibling package feeds and local cache
-CohesionDocs.slnx                              application solution
+CohesionDocs.slnx                              package, tests, and preview application solution
+packages/Assimalign.Cohesion.Docs/
+  src/                                         host-neutral Viu micro-frontend package
+  test/                                        catalog, route, navigation, and format tests
+  docs/OVERVIEW.md                             package usage
+  docs/DESIGN.md                               package boundaries and prefix decisions
 app/Assimalign.Cohesion.Docs.App/
-  Assimalign.Cohesion.Docs.App.csproj           browser project and linked content assets
-  Program.cs                                  hosting, catalog, router, and rendering policy
-  CohesionDocsComponentCatalog.cs              explicit component registrations
-  DocsRoutes.cs                               page routes beneath AppShell
-  DocsPageView.cs                              cancellable Markdown page loading
-  PipeTables.cs                               pipe-table extraction and node expansion
-  NavigationTree.cs                           ordered rows, breadcrumbs, previous/next links
-  Components/AppShell.viu                      responsive application layout
-  FragmentScrolling.cs                        JavaScript heading-wait import
+  Assimalign.Cohesion.Docs.App.csproj          thin shared-shell browser host
+  Program.cs                                  host composition and browser startup
+  LandingPage.viu                             minimal preview-only package link
   Properties/launchSettings.json               http://localhost:5180
-  wwwroot/                                    bootstrap, CSS, and Cohesion SVG marks
-  checks/                                     bootstrap helper tests requiring only Node.js
+  wwwroot/                                    bootstrap document and shared-helper import
 docs/
   index.md                                    landing page and top-level navigation order
   database/                                   database guides and language references
@@ -40,33 +38,26 @@ docs/
 
 Use .NET SDK `10.0.400` or a compatible later feature band; `global.json` selects
 `rollForward: latestFeature`. The application pins the Viu SDK and router packages to
-`10.0.0-beta.12`, and the Cohesion Viu Markdown, Hosting, Hosting.Browser, and DevServer packages to
-`10.0.0-beta.4`. Preview features are enabled because the Cohesion assemblies require them.
+`10.0.0-beta.12`, the Cohesion Viu packages to `10.0.0-beta.5`, and the shared frontend packages to
+`1.0.0-preview.1`. Preview features are enabled because the Cohesion assemblies require them.
 
-No public feed carries the `Assimalign.*` packages, so the three sibling feeds must be packed
-locally first. `NuGet.config` clears inherited sources and maps each package family to its sibling
-feed (`Assimalign.Viu.*` → `../viu/_out/packages`, `Assimalign.Cohesion.Viu.*` →
-`../viu-platforms/_out/packages`, everything else `Assimalign.Cohesion.*` →
-`../cohesion/_out/packages`). Other packages use NuGet.org. Restored packages stay in
-`.nuget/packages`; no GitHub Packages source is configured.
+No public feed carries the `Assimalign.*` packages, so the four sibling feeds must be packed locally
+first. `NuGet.config` clears inherited sources and maps each package family to its sibling feed:
+`Assimalign.Viu.*` to `../viu/_out/packages`, `Assimalign.Cohesion.Viu.*` to
+`../viu-platforms/_out/packages`, other `Assimalign.Cohesion.*` packages to
+`../cohesion/_out/packages`, and `Assimalign.Frontend.*` to
+`../../assimalign-core/aaln-core-frontend/_out/packages`. Other packages use NuGet.org. Restored
+packages stay in `.nuget/packages`; no GitHub Packages source is configured.
 
 1. **Cohesion** — `pwsh ../cohesion/installer/scripts/Install-Local.ps1` populates
    `../cohesion/_out/packages` (currently `10.0.1-preview.3.local`).
 2. **Viu** — `pwsh ../viu/scripts/Install-Local.ps1 -Configuration Release` packs the
    `10.0.0-beta.12` set, including the Browser SDK and runtime pack (needs the `wasm-tools` workload).
-3. **Viu platforms** — the repository pins Cohesion `10.0.0-beta.1`, which only exists on the
-   authenticated GitHub Packages feed. To build against the local Cohesion feed instead, pack from a
-   copy of the sources (kept at `../viu-platforms/_out/src`, which is gitignored) with four
-   adjustments: `ServiceProviderBuilder.Services` became `Container` in Cohesion, the DevServer
-   project's inline SDK pin and `global.json` must name the local Cohesion SDK version, the Server
-   project needs `<OutputType>Library</OutputType>` because the newer Web SDK defaults to `Exe`, and
-   `Assimalign.Cohesion.Viu.Markdown/build/Assimalign.Cohesion.Viu.Markdown.targets` must compute its
-   content root with `$([MSBuild]::NormalizePath(...))` instead of the two-argument
-   `Path.GetFullPath`, which does not exist on the .NET Framework MSBuild that Visual Studio uses
-   (otherwise Visual Studio fails to load the project with `MSB4186`). Then
-   pack `Hosting`, `Markdown`, `Hosting.Browser`, `Server`, and `DevServer` with
-   `-p:CohesionVersion=10.0.1-preview.3.local -p:PackageOutputPath=<viu-platforms>\_out\packages`
-   and a NuGet configuration that maps `Assimalign.Cohesion.*` to the Cohesion feed.
+3. **Viu platforms** — `pwsh ../viu-platforms/scripts/Install-Local.ps1 -Configuration Release`
+   produces the `10.0.0-beta.5` Cohesion Viu packages.
+4. **Shared frontend** — `pwsh ../../assimalign-core/aaln-core-frontend/scripts/Install-Local.ps1`
+   produces `Assimalign.Frontend.MicroFrontends` and `Assimalign.Frontend.Components`
+   `1.0.0-preview.1`.
 
 Once the feeds are ready, run:
 
@@ -76,46 +67,41 @@ dotnet run --project app/Assimalign.Cohesion.Docs.App
 
 Open `http://localhost:5180`. The launch profile sets both `applicationUrl` and `ASPNETCORE_URLS`
 because the packaged development server gives the environment variable precedence.
-`Assimalign.Cohesion.Viu.DevServer` selects the Viu SDK's custom-server integration and serves the
-manifest-described assets with a single-page application fallback for direct route requests.
+`Assimalign.Cohesion.Viu.DevServer` serves the built browser assets and applies a single-page
+application fallback for direct documentation route requests such as `/cohesion/database/sql`;
+only the resource control plane (`/cohesion/v1` and its subtree) and the bare health probes are
+reserved, never the `/cohesion` module prefix.
 
-The heading-wait helper can be checked independently, without .NET or package restore:
+Run `dotnet build CohesionDocs.slnx -c Release` and
+`dotnet test CohesionDocs.slnx -c Release --no-build` to verify the package and preview host.
 
-```sh
-node --test app/Assimalign.Cohesion.Docs.App/checks/fragment-scrolling.test.mjs
-```
+## The `Assimalign.Cohesion.Docs` package
+
+`CohesionDocsMicroFrontend` has descriptor ID `cohesion`, title `Cohesion`, route prefix
+`/cohesion`, Cohesion brand accent, order `10`, and source repository
+`https://github.com/assimalign/cohesion`. The Markdown generator builds routes beneath `/cohesion`
+and asset paths beneath `_content/Assimalign.Cohesion.Docs/docs/`.
+
+The package carries every `docs/**/*.md` file under `content/docs/` and supplies a transitive MSBuild
+registration that maps restored content to `wwwroot/_content/Assimalign.Cohesion.Docs/docs/`. The
+landing zone references the package, creates `CohesionDocsMicroFrontend` with its base-addressed
+`HttpClient`, and adds it through `AddMicroFrontends`. The module owns its catalog, HTTP source, and
+renderer, so hosts never call `AddMarkdownContent` for it.
 
 ## Routing and application design
 
-File paths are routes: `docs/index.md` becomes `/`, `docs/database/index.md` becomes `/database`,
-and `docs/database/sql/language/statements/select.md` becomes
-`/database/sql/language/statements/select`. The build generator supplies
-`GeneratedMarkdownContent.Catalog`; the app has no manually maintained page registry.
+File paths are routes beneath the module prefix: `docs/index.md` becomes `/cohesion`,
+`docs/database/index.md` becomes `/cohesion/database`, and
+`docs/database/sql/language/statements/select.md` becomes
+`/cohesion/database/sql/language/statements/select`. The package's build generator supplies
+`GeneratedMarkdownContent.Catalog`; neither the package nor the app has a manually maintained page
+registry.
 
-The application uses clean web history and `<base href="/">`. The Markdown `LinkResolver` qualifies
-fragment-only anchors with their page route so the base element does not send them to `/`.
-Relative `.md` links use `RouterLink`. `ScrollBehavior` waits for destination headings through
-`globalThis.cohesionDocs.waitForHeading`, then delegates scrolling to the router. The helper bounds
-each wait to five seconds and cancels an earlier wait on subsequent navigation. There is no
-hash-bookmark migration or click interception. New page navigation scrolls to the top when no
-heading or saved position applies.
-
-`DocsRoutes` retains the layout and not-found behavior of `MarkdownRoutes`, selecting `DocsPageView`
-for page content. `DocsPageView` preserves the package view's cancellation, request-version guard,
-loading and error states, update lifecycle, unmount cleanup, and server-prefetch seam.
-`MarkdownComponents.Register` remains part of the explicit component factory registration.
-
-`NavigationTree` interleaves pages and child sections using their shared `Order` values. Each
-section uses its `index.md` as its landing link, without listing that page twice. The tree is
-flattened into `NavigationRow` records, then visibility and active state are derived from the
-expanded-section `Reference<T>` and `Router.CurrentRoute`. Route changes expand the current page's
-section chain. Section toggle buttons remain independent of landing-page links. Missing section
-indexes still have a toggle and label, with no invented route.
-
-`AppShell` keeps `<RouterView :depth="1" />` and the reference app's typed-method workaround for
-assimalign/viu#366: `GetRows()` supplies the loop's concrete element type. A nested `v-if` runs inside
-the `v-for` scope. Breadcrumbs follow the page's section chain; previous/next links follow
-`MarkdownContentCatalog.Pages`. The page's H1 is rendered only by Markdown.
+The application uses clean web history and `<base href="/">`. Shared micro-frontend infrastructure
+qualifies fragment-only anchors with their page route, waits for asynchronously rendered headings,
+and provides the layout/not-found route, cancellable page loading, table expansion, ordered
+navigation, breadcrumbs, and previous/next links. The preview app only creates one shared component
+factory, registers its landing component and the shared components, and composes the module.
 
 ## Page format
 
@@ -189,13 +175,14 @@ resolution. Wide tables live in keyboard-focusable `.table-scroll` containers.
 
 ## Hosting boundary
 
-The current application renders Markdown in WebAssembly. Its development host serves assets and
-fallback routes. A dedicated Cohesion Web host with request-time page rendering is a later phase;
-the app does not currently implement server-rendered documentation responses.
+The package is host-neutral and renders Markdown through the shared micro-frontend contract. The
+preview application renders it in WebAssembly and its development host serves assets and fallback
+routes. The dedicated `docs.assimalign.com` Cohesion Web host belongs to the landing-zone repository.
 
 ## Sources
 
-- **Reference application** — `viu-docs/README.md` and `viu-docs/app/Assimalign.Viu.Docs.App/`.
+- **Shared frontend contracts** — `aaln-core-frontend/README.md` and
+  `aaln-core-frontend/libraries/Assimalign.Frontend.MicroFrontends/`.
 - **Markdown integration** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/docs/OVERVIEW.md` and `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/docs/DESIGN.md`.
 - **Catalog and runtime implementation** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/shared/ContentExtraction.cs` and `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/src/`.
 - **Development host** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.DevServer/docs/OVERVIEW.md`.

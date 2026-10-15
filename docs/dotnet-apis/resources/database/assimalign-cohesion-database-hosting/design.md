@@ -122,6 +122,26 @@ and the bridge for hosting-aware engine factories that also need nested servers.
 model interface; its implementation remains internal. Configuration and service reads still occur in
 the hosting callback, outside the model package.
 
+## Standalone admin control plane (#1431)
+
+Without a gateway identity, the admin listener serves `/cohesion/v1` and every path below it only
+for transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
+remote endpoints receive 403; the status makes the development-only restriction explicit. Forwarded
+headers do not establish locality. The guard precedes Database's own namespaced health mappings,
+which otherwise short-circuit the shared Web.Hosting control-plane middleware.
+
+Bare `/healthz`, `/readyz`, and `/livez` remain open for orchestrators and load balancers. Loopback
+probes keep the Database health report and its server-accepting readiness gate. Gateway-managed
+behavior is unchanged, including its existing unauthenticated namespaced health aliases; other
+managed control-plane routes retain their credential checks.
+
+This is a behavioral breaking change from 10.0.0-preview.1 (owner decision 46, accepted on
+decision 15's preview terms): a reachable
+standalone admin listener previously accepted remote control-plane requests without credentials.
+Use a loopback connection for standalone development or a gateway identity for remote management.
+
+Model server factories supply `IDuplexConnectionListener` instances to their model options. Each server owns accepted `IDuplexConnection` sessions and closes them during its drain; listener disposal does not transfer connection ownership to the hosting module.
+
 ## Declared dependencies
 
 | Reference | Kind |
@@ -138,8 +158,6 @@ the hosting callback, outside the model package.
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` | `CohesionPrivateProjectReference` |
-| `Assimalign.Cohesion.Web.Hosting.Health` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)

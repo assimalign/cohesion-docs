@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <_CohesionDocsProjectContentRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..\..\..\docs'))</_CohesionDocsProjectContentRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="$(_CohesionDocsProjectContentRoot)**\*.md"
+             Link="wwwroot\_content\Assimalign.Cohesion.Docs\docs\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

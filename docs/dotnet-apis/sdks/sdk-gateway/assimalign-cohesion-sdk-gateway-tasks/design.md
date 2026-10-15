@@ -63,6 +63,15 @@ two-factor in-process selection, transitive resource runtime assets, typed descr
 generation, and image ordering/relocation. These test contracts are indexed on the
 [task page](../msbuild/tasks.md); this documentation change did not run a .NET build.
 
+The package-only feeds used by Gateway smoke, templates, and `ConsumerWorkspace` must
+include the complete transitive library closure. `Http.Connections` requires the Connections
+feature packages `StreamAbort`, `StreamLimits`, and `Tls` alongside Connections and TCP;
+packing their project references does not emit those dependency packages. Both the SDK smoke
+pack list and its feed-verification list name all three, and `ConsumerWorkspace` checks their
+canonical-version archives before constructing an isolated consumer. `Logging.EventSource`
+and `Web.Authentication.Certificate` arrive through the App and App.Web framework packs,
+respectively; neither belongs to the standalone gateway package closure (#1461).
+
 [Assembly](index.md) · [SDK home](../index.md)
 
 ## Sources

@@ -9,14 +9,18 @@ The base SDK establishes defaults before Microsoft imports and adds generation a
    defaults run.
 3. `Microsoft.NET.Sdk/Sdk/Sdk.props` evaluates the Microsoft SDK props and consumer `Directory.Build.props`.
 4. `Targets/Build.Version.props` loads the static version snapshot generated when the SDK was packed.
-5. `Targets/Assimalign.Cohesion.Sdk.Common.props` sets the SDK marker and intermediate path.
+5. `Targets/Assimalign.Cohesion.Sdk.Common.props` sets the SDK marker and intermediate path, and
+   copies a resource-area executable’s `appsettings*.json` to build and publish output.
 6. `Targets/Sdk.Resource.props` registers manifest tasks and resource metadata defaults.
 7. `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.props` registers the settings task.
 8. `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` registers all frameworks and
    conditionally adds `Assimalign.Cohesion.App`.
 9. The consumer project body evaluates.
 10. `Assimalign.Cohesion.Sdk/Sdk/Sdk.targets` captures image publish inputs and supplies
-    self-contained host-runtime defaults for enabled Debug resources.
+    self-contained host-runtime defaults for enabled resources and plain resource-area executables
+    in every configuration, plus `DisableTransitiveFrameworkReferenceDownloads=true` for every
+    project. It also removes `None` items that duplicate a resource-area executable’s `Content`
+    items.
 11. `Microsoft.NET.Sdk/Sdk/Sdk.targets` loads Microsoft build targets.
 12. `Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` registers pin validation.
 13. `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets` wires settings generation and cleanup.
@@ -81,6 +85,7 @@ explicit property and item name referenced or assigned by the shipped files.
 | `_CohesionResourceNameLower` | Private state | `Targets/Sdk.Resource.targets` |
 | `_CohesionResourceNameSeed` | Private state | `Targets/Sdk.Resource.targets` |
 | `_CohesionResourceNameSlug` | Private state | `Targets/Sdk.Resource.targets` |
+| `_CohesionResourceSdk` | Private state | `Sdk/Sdk.targets`; `Targets/Assimalign.Cohesion.Sdk.Common.props`; `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
 | `_CohesionRuntimePack` | Private state | `Targets/Sdk.Resource.targets` |
 | `_CohesionSdk` | Private state | `Targets/Assimalign.Cohesion.Sdk.Common.props` |
 | `_NativeExecutableExtension` | Private state | `Targets/Sdk.Resource.targets` |
@@ -156,9 +161,10 @@ explicit property and item name referenced or assigned by the shipped files.
 | `MSBuildProjectName` | MSBuild input, output, or assignment; see the file contract. | `Targets/Sdk.Resource.targets` |
 | `MSBuildThisFileDirectory` | MSBuild input, output, or assignment; see the file contract. | `Targets/Assimalign.Cohesion.Sdk.ResourceManifest.props`; `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets`; `Targets/Sdk.Resource.targets` |
 | `MSBuildThisFileName` | MSBuild input, output, or assignment; see the file contract. | `Targets/Assimalign.Cohesion.Sdk.ResourceManifest.props` |
+| `DisableTransitiveFrameworkReferenceDownloads` | Consumer option; defaulted to `true` when unset. | `Sdk/Sdk.targets` |
 | `NETCoreSdkRuntimeIdentifier` | MSBuild input, output, or assignment; see the file contract. | `Sdk/Sdk.targets` |
 | `Nullable` | MSBuild input, output, or assignment; see the file contract. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
-| `OutputType` | MSBuild input, output, or assignment; see the file contract. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; `Targets/Sdk.Resource.targets` |
+| `OutputType` | MSBuild input, output, or assignment; see the file contract. | `Sdk/Sdk.targets`; `Targets/Assimalign.Cohesion.Sdk.Common.props`; `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; `Targets/Sdk.Resource.targets` |
 | `PackageId` | MSBuild input, output, or assignment; see the file contract. | `Targets/Sdk.Resource.targets` |
 | `PackageOutputPath` | MSBuild input, output, or assignment; see the file contract. | `Targets/Sdk.Resource.targets` |
 | `PackageReadmeFile` | MSBuild input, output, or assignment; see the file contract. | `Targets/Sdk.Resource.targets` |
@@ -219,12 +225,14 @@ explicit property and item name referenced or assigned by the shipped files.
 | `ContainerEnvironmentVariable` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Image.targets` |
 | `ContainerLabel` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Image.targets`; `Targets/Sdk.Resource.targets` |
 | `ContainerPort` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Image.targets` |
+| `Content` | Declared, consumed, or produced by the listed files. | `Sdk/Sdk.targets` |
 | `ContentWithTargetPath` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Resource.targets` |
 | `EmbeddedResource` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Resource.targets` |
 | `FileWrites` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Resource.targets` |
 | `FrameworkReference` | Declared, consumed, or produced by the listed files. | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`; `Targets/Sdk.Resource.targets` |
 | `KnownFrameworkReference` | Declared, consumed, or produced by the listed files. | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
 | `NativeCopyLocalItems` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Resource.targets` |
+| `None` | Declared, consumed, or produced by the listed files. | `Sdk/Sdk.targets`; `Targets/Assimalign.Cohesion.Sdk.Common.props` |
 | `PackageReference` | Declared, consumed, or produced by the listed files. | `Targets/Assimalign.Cohesion.Sdk.NameOnly.ProjectReference.targets`; `Targets/Sdk.Resource.targets` |
 | `ProjectReference` | Declared, consumed, or produced by the listed files. | `Targets/Assimalign.Cohesion.Sdk.NameOnly.ProjectReference.targets`; `Targets/Sdk.Resource.targets` |
 | `ReferenceCopyLocalPaths` | Declared, consumed, or produced by the listed files. | `Targets/Sdk.Resource.targets` |

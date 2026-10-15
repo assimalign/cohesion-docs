@@ -17,15 +17,48 @@ Version-aware OpenAPI models, authoring, serialization, validation, and integrat
 | `Assimalign.Cohesion.OpenApi.Validation` | Validates OpenAPI structure, semantics, and version placement. | [Overview](assimalign-cohesion-openapi-validation/index.md) |
 | `Assimalign.Cohesion.OpenApi.Versioning` | Transforms OpenAPI documents between supported specification versions. | [Overview](assimalign-cohesion-openapi-versioning/index.md) |
 
+## Source generator
+
+| Compiler component | Responsibility | Reference |
+|---|---|---|
+| `Assimalign.Cohesion.SourceGeneration.OpenApi` | Generates attribute metadata providers and composed OpenAPI registries. | [Overview](assimalign-cohesion-sourcegeneration-openapi/index.md) |
+
 ## Dependencies and delivery
 
 The repository places this area in delivery wave 3. The wave is a dependency-ordering guide, not a
 release or completeness guarantee.
 
+The root model references nothing in the family, every other package references it, and the graph
+is acyclic. The sibling references in the table each reuse a sibling's behavior: Validation checks
+the serialized document through Serialization; Generation consumes the Attributes metadata;
+Versioning deep-copies by a serialization round trip and reports version fit through Validation; and
+Integration composes Attributes, Generation, Serialization and Versioning. No package references
+Web, ApiManager, or any service runtime.
+
+Every package in the table is implemented. The eight libraries are built and tested on Linux,
+Windows, and macOS by `.github/workflows/library-openapi.yml` and are listed in the release inventory
+(`installer/scripts/modules/CohesionPackaging.psm1`), so a release publishes each as its own package;
+Attributes, Fluent, Generation, Integration and Versioning joined the matrix and the inventory with
+#1062. No OpenApi package is a member of a shared framework, so an application, an `Sdk.Web` one
+included, references the packages it uses.
+
+`Assimalign.Cohesion.SourceGeneration.OpenApi`, the attribute source generator, has no package of
+its own: it ships inside `Assimalign.Cohesion.OpenApi.Attributes` at `analyzers/dotnet/cs/`, so a
+project that references Attributes, directly or through Generation or Integration, gets it. Each
+annotated assembly gets a generated provider class advertised with
+`[assembly: OpenApiMetadataProvider]`, and a referencing compilation's internal
+`OpenApiMetadataRegistry` combines every advertised provider at compile time (see
+[Attributes](assimalign-cohesion-openapi-attributes/index.md)).
+
+The first service-layer consumer is the Web OpenAPI adapter,
+[`Assimalign.Cohesion.Web.OpenApi`](../../resources/web/assimalign-cohesion-web-openapi/index.md),
+which builds on Integration, Attributes and Generation and passes the schemas it derives from
+System.Text.Json contracts through the metadata's optional `Schema` members.
+
 | Assembly | Declared dependencies |
 |---|---|
 | `Assimalign.Cohesion.OpenApi` | No explicit Cohesion or package reference in the project file |
-| `Assimalign.Cohesion.OpenApi.Attributes` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference) |
+| `Assimalign.Cohesion.OpenApi.Attributes` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.SourceGeneration.OpenApi` (CohesionAnalyzerReference) |
 | `Assimalign.Cohesion.OpenApi.Fluent` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference) |
 | `Assimalign.Cohesion.OpenApi.Generation` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Attributes` (CohesionProjectReference) |
 | `Assimalign.Cohesion.OpenApi.Integration` | `Assimalign.Cohesion.OpenApi` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Attributes` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Generation` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Serialization` (CohesionProjectReference), `Assimalign.Cohesion.OpenApi.Versioning` (CohesionProjectReference) |
@@ -44,6 +77,8 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
 - **Source** — `cohesion/libraries/OpenApi/README.md`.
+
+- **Source** — `cohesion/installer/scripts/modules/CohesionPackaging.psm1`.
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi/src/Assimalign.Cohesion.OpenApi.csproj`.
 
@@ -108,3 +143,5 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Versioning/docs/DESIGN.md`.
 
 - **Source** — `cohesion/libraries/OpenApi/Assimalign.Cohesion.OpenApi.Versioning/src`.
+
+- **Source** — `cohesion/analyzers/Assimalign.Cohesion.SourceGeneration.OpenApi/README.md`.

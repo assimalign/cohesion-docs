@@ -1,12 +1,12 @@
-# Example: Http Min Data Rate Tests
+# Example: Http3 Stream Lifetime Tests
 
-Exercise Http Min Data Rate behavior using the original repository tests.
+Exercise Http3 Stream Lifetime behavior using the original repository tests.
 
 [Examples](index.md) · [Assembly overview](../index.md)
 
 ## Test-project context
 
-This is the complete `HttpMinDataRateTests.cs` listing from the package test project. Keep it in
+This is the complete `Http3StreamLifetimeTests.cs` listing from the package test project. Keep it in
 that project when running it: the project supplies its package references, generated sources, and
 any shared fixtures. The using block below makes the test-framework import explicit where the
 original project supplies it globally.
@@ -15,49 +15,164 @@ original project supplies it globally.
 
 ```csharp
 using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using System.Net.Quic;
+using System.Runtime.Versioning;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
 
+using Assimalign.Cohesion.Connections;
+using Assimalign.Cohesion.Http.Connections.Tests.TestObjects;
+
 namespace Assimalign.Cohesion.Http.Connections.Tests;
 
-public class HttpMinDataRateTests
+/// <summary>Checks request streams finish individually while their HTTP/3 connection stays reusable.</summary>
+[Collection("Http3StreamLifetime")]
+public class Http3StreamLifetimeTests
 {
-    [Fact(DisplayName = "Cohesion Test [Http.Connections] - MinDataRate: Should store the rate and grace period")]
-    public void Constructor_OnValidValues_ShouldStoreDimensions()
+    [Theory(DisplayName = "Cohesion Test [Http.Connections] - Http3: Disposing an unanswered exchange should dispose its request stream")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisposeAsync_OnUnansweredExchange_ShouldDisposeRequestStream(bool peerReset)
     {
-        HttpMinDataRate rate = new(bytesPerSecond: 240, gracePeriod: TimeSpan.FromSeconds(5));
+        // Arrange — the host has accepted an exchange but will not call SendAsync, for example when
+        // application execution fails or the peer cancels. Only the host's exchange disposal remains.
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+        CompletionTrackingMultiplexedConnection? tracked = null;
+        await using Http3InMemoryPeer peer = await Http3InMemoryPeer.StartAsync(
+            decorate: connection => tracked = new CompletionTrackingMultiplexedConnection(connection));
+        await using IDuplexConnection request = await peer.OpenRequestStreamAsync();
+        await request.Output.WriteAsync(HttpProtocolPayloadFactory.CreateHttp3Request("POST", "/unanswered", "https", "a"), timeout.Token);
+        IHttpContext exchange = await peer.NextContextAsync();
+        if (peerReset)
+        {
+            request.Abort(new ConnectionAbortedException("The peer cancelled its request."));
+            exchange.RequestCancelled.IsCancellationRequested.ShouldBeTrue();
+        }
 
-        rate.BytesPerSecond.ShouldBe(240);
-        rate.GracePeriod.ShouldBe(TimeSpan.FromSeconds(5));
+        // Act
+        await exchange.DisposeAsync();
+
+        // Assert — the native driver's release is asynchronous; permit the disposal observer to run
+        // without letting connection teardown provide the missing cleanup.
+        tracked.ShouldNotBeNull();
+        Stopwatch disposalWait = Stopwatch.StartNew();
+        while (tracked.DisposedRequestCount != 1 && disposalWait.Elapsed < TimeSpan.FromSeconds(1))
+        {
+            await Task.Delay(10, timeout.Token);
+        }
+
+        tracked.DisposedRequestCount.ShouldBe(1);
+        peer.Server.State.ShouldBe(ConnectionState.Open);
     }
 
-    [Theory(DisplayName = "Cohesion Test [Http.Connections] - MinDataRate: Should reject a non-positive rate")]
-    [InlineData(0d)]
-    [InlineData(-1d)]
-    public void Constructor_OnNonPositiveRate_ShouldThrow(double bytesPerSecond)
+    [Fact(DisplayName = "Cohesion Test [Http.Connections] - Http3: Sequential in-memory exchanges should complete both stream pipes")]
+    public async Task SendAsync_OnSequentialInMemoryRequests_ShouldCompleteBothStreamPipes()
     {
-        Should.Throw<ArgumentOutOfRangeException>(() => new HttpMinDataRate(bytesPerSecond, TimeSpan.FromSeconds(5)));
+        // Arrange — this pins existing in-memory behavior; that driver holds no accepted-stream table.
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
+        CompletionTrackingMultiplexedConnection? tracked = null;
+        await using Http3InMemoryPeer peer = await Http3InMemoryPeer.StartAsync(
+            decorate: connection => tracked = new CompletionTrackingMultiplexedConnection(connection));
+
+        for (int index = 0; index < 8; index++)
+        {
+            // Act — a complete request and response on the same connection, without disposing the
+            // client stream before checking that the HTTP layer has completed its server-side pipes.
+            await using IDuplexConnection request = await peer.OpenRequestStreamAsync();
+            await request.Output.WriteAsync(HttpProtocolPayloadFactory.CreateHttp3Request("GET", $"/{index}", "https", "a"), timeout.Token);
+            request.Output.Complete();
+            IHttpContext exchange = await peer.NextContextAsync();
+            exchange.Response.StatusCode = HttpStatusCode.Ok;
+            await peer.ConnectionContext.SendAsync(exchange, timeout.Token);
+            await exchange.DisposeAsync();
+            (await Http3InMemoryPeer.ReadToEndAsync(request)).ShouldNotBeEmpty();
+
+            // Assert — output FIN was received, input was completed, and no request remains active.
+            tracked.ShouldNotBeNull();
+            tracked.RequestCount.ShouldBe(index + 1);
+            tracked.CurrentRequests.ShouldBe(0);
+            peer.Server.State.ShouldBe(ConnectionState.Open);
+        }
     }
 
-    [Fact(DisplayName = "Cohesion Test [Http.Connections] - MinDataRate: Should reject a non-positive grace period")]
-    public void Constructor_OnNonPositiveGracePeriod_ShouldThrow()
+    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    [Fact(DisplayName = "Cohesion Test [Http.Connections] - Http3: Sequential QUIC exchanges should release each request stream and restore the gauge")]
+    public async Task SendAsync_OnSequentialQuicRequests_ShouldReleaseEachRequestStreamAndRestoreGauge()
     {
-        Should.Throw<ArgumentOutOfRangeException>(() => new HttpMinDataRate(240, TimeSpan.Zero));
-        Should.Throw<ArgumentOutOfRangeException>(() => new HttpMinDataRate(240, TimeSpan.FromSeconds(-1)));
+        if (!QuicListener.IsSupported)
+        {
+            return;
+        }
+
+        // Arrange — EventListener reaches the driver's real gauge and lifecycle events through its
+        // diagnostics contract. No extra visibility grant or public test seam is needed.
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
+        using QuicRequestStreamEventListener events = new();
+        await using Http3LoopbackServer server = await Http3LoopbackServer.StartAsync(exchange =>
+        {
+            exchange.Response.StatusCode = HttpStatusCode.Ok;
+            exchange.Response.Body = new MemoryStream(Encoding.ASCII.GetBytes(exchange.Request.Path.Value));
+            return Task.CompletedTask;
+        }, timeout.Token);
+        double baseline = await events.ReadNextGaugeAsync(timeout.Token);
+        using HttpClient client = new(new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        });
+
+        for (int index = 0; index < 8; index++)
+        {
+            // Act — consume the complete response including its FIN, then let the asynchronous QUIC
+            // stream release complete while the connection and its critical streams stay open.
+            string path = $"/{index}";
+            using HttpRequestMessage request = new(System.Net.Http.HttpMethod.Get, new Uri(server.BaseUri, path))
+            {
+                Version = System.Net.HttpVersion.Version30,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact
+            };
+            using HttpResponseMessage response = await client.SendAsync(request, timeout.Token);
+            (await response.Content.ReadAsStringAsync(timeout.Token)).ShouldBe(path);
+            response.Version.ShouldBe(System.Net.HttpVersion.Version30);
+
+            Stopwatch releaseWait = Stopwatch.StartNew();
+            while (events.CurrentRequestStreams != 0 && releaseWait.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                await Task.Delay(10, timeout.Token);
+            }
+
+            // Assert — each opened request has a corresponding close; the gauge contains only the
+            // connection's critical streams above baseline, and a fresh sample cannot be a stale zero.
+            events.RequestStreamsOpened.ShouldBe(index + 1);
+            events.CurrentRequestStreams.ShouldBe(0);
+            events.ConnectionCount.ShouldBe(1);
+            events.CurrentCriticalStreams.ShouldBeGreaterThan(0);
+            (await events.ReadNextGaugeAsync(timeout.Token)).ShouldBe(baseline + events.CurrentCriticalStreams);
+            events.DuplicateCloses.ShouldBe(0);
+        }
     }
 }
 ```
 
 ## Walkthrough
 
-- **Covered behavior** — MinDataRate: Should store the rate and grace period.
-- **Covered behavior** — MinDataRate: Should reject a non-positive rate.
-- **Covered behavior** — MinDataRate: Should reject a non-positive grace period.
+- **Covered behavior** — Http3: Disposing an unanswered exchange should dispose its request stream when the peer has not reset it (`peerReset: false`).
+- **Covered behavior** — Http3: Disposing an unanswered exchange should dispose its request stream after a peer reset (`peerReset: true`).
+- **Covered behavior** — Http3: Sequential in-memory exchanges should complete both stream pipes.
+- **Covered behavior** — Http3: Sequential QUIC exchanges should release each request stream and restore the gauge.
 
 The assertions define the expected result or failure boundary. Test-only doubles supply controlled
 inputs; they are not additional shipped APIs.
 
 ## Sources
 
-- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/tests/HttpMinDataRateTests.cs`.
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/tests/Http3StreamLifetimeTests.cs`.
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/tests/Assimalign.Cohesion.Http.Connections.Tests.csproj`.

@@ -16,10 +16,10 @@ and the data Volume at /data with 10Gi. The planner requires the sized data moun
 `Storage.Size` may override capacity. The control plane does not implement telemetry ingestion (item
 31b).
 
-`LogSpaceResourceControlPlane.Create` returns a fresh Hosting.Resources control plane with no accepted
-command kinds. Runtime Hosting discovers the generated registration and serves its protocol through
-the private Web.Hosting.Resources feature. Unsupported command envelopes are refused with 501;
-domain commands are deferred to item 31c.
+`LogSpaceResourceControlPlane.Create` returns a fresh Hosting.Resources control plane with no
+accepted command kinds. Runtime Hosting discovers the generated registration and serves its protocol
+through the private Web.Hosting resource control-plane integration. Unsupported command envelopes
+are refused with 501; domain commands are deferred to item 31c.
 
 The package is NuGet-only (developer-experience design D4/O2), never a framework member. Its only
 direct dependencies are ApplicationModel and Hosting.Resources; `COHAM001` checks its full resolved

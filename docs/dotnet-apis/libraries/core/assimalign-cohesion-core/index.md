@@ -1,6 +1,7 @@
 # Assimalign.Cohesion.Core
 
-Provides shared primitives, environment contracts, typed endpoints, and low-level utilities.
+Provides the foundational primitives, frozen `COHESION_*` runtime contract, typed `System.Uri`
+endpoints, environment helpers, glob support, and low-level extensions shared across Cohesion.
 
 > **Status:** Partial.
 
@@ -19,14 +20,14 @@ Provides shared primitives, environment contracts, typed endpoints, and low-leve
 ## Scope
 
 Core stays free of hosting, configuration, logging, and dependency-injection references. The frozen
-resource environment contract belongs here so gateways and resources share one vocabulary. Its
-project also delivers the component-integration analyzer to package consumers.
+runtime contract belongs to `AppEnvironment.Variables` so gateways and resources share one vocabulary.
+Its project also delivers the component-integration analyzer to package consumers.
 
 ## Dependencies
 
 | Reference | Build item |
 |---|---|
-| `Assimalign.Cohesion.SourceGeneration.ComponentModel` | `CohesionAnalyzerReference` |
+| [`Assimalign.Cohesion.SourceGeneration`](../assimalign-cohesion-sourcegeneration/index.md) | `CohesionAnalyzerReference` |
 
 ## Principal public types
 
@@ -37,9 +38,10 @@ project also delivers the component-integration analyzer to package consumers.
 | `AdaptiveMemoryPoolPressurePolicy` | `src/System/Buffers/AdaptiveMemoryPoolPressurePolicy.cs` |
 | `AdaptiveMemoryPoolSnapshot` | `src/System/Buffers/AdaptiveMemoryPoolSnapshot.cs` |
 | `AppEnvironment` | `src/AppEnvironment.cs` |
+| `AppEnvironment.Keys` | `src/AppEnvironment.Keys.cs` |
+| `AppEnvironment.Variables` | `src/AppEnvironment.Variables.cs` |
 | `AsyncExtensions` | `src/System/Threading/Tasks/AsyncExtensions.cs` |
 | `Glob` | `src/System/IO/Glob.Tokens.cs` |
-| `ResourceEnvironment` | `src/ResourceEnvironment.cs` |
 | `Size` | `src/System/Size.cs` |
 | `UriExtensions` | `src/System/UriExtensions.cs` |
 | `ArgumentExceptionExtensions` | `src/System/ExceptionExtensions.cs` |
@@ -47,6 +49,7 @@ project also delivers the component-integration analyzer to package consumers.
 | `ArgumentOutOfRangeExceptionExtensions` | `src/System/ExceptionExtensions.cs` |
 | `ComponentIntegrationAttribute` | `src/ComponentModel/ComponentIntegrationAttribute.cs` |
 | `DirectoryName` | `src/System/IO/DirectoryName.cs` |
+| `FileSystemPath` | `src/System/IO/FileSystemPath.cs` |
 | `Either<T1, T2, T3, T4, T5>` | `src/System/SumTypes/Either.T5.cs` |
 
 ## Sources
@@ -73,11 +76,13 @@ project also delivers the component-integration analyzer to package consumers.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/AppEnvironment.cs`.
 
+- **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/AppEnvironment.Keys.cs`.
+
+- **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/AppEnvironment.Variables.cs`.
+
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/Threading/Tasks/AsyncExtensions.cs`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/IO/Glob.Tokens.cs`.
-
-- **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/ResourceEnvironment.cs`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/Size.cs`.
 
@@ -88,5 +93,7 @@ project also delivers the component-integration analyzer to package consumers.
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/ComponentModel/ComponentIntegrationAttribute.cs`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/IO/DirectoryName.cs`.
+
+- **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/IO/FileSystemPath.cs`.
 
 - **Source** — `cohesion/libraries/Core/Assimalign.Cohesion.Core/src/System/SumTypes/Either.T5.cs`.

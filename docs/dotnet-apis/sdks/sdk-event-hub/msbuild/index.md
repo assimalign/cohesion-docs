@@ -10,7 +10,8 @@ The EventHub SDK surrounds the consumer project with base imports and area defau
    defaults run.
 4. `Microsoft.NET.Sdk/Sdk/Sdk.props` evaluates the Microsoft SDK props and consumer `Directory.Build.props`.
 5. `Targets/Build.Version.props` loads the static version snapshot generated when the SDK was packed.
-6. `Targets/Assimalign.Cohesion.Sdk.Common.props` sets the SDK marker and intermediate path.
+6. `Targets/Assimalign.Cohesion.Sdk.Common.props` sets the SDK marker and intermediate path, and
+   copies a resource-area executable’s `appsettings*.json` to build and publish output.
 7. `Targets/Sdk.Resource.props` registers manifest tasks and resource metadata defaults.
 8. `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.props` registers the settings task.
 9. `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` registers all frameworks and
@@ -20,7 +21,10 @@ The EventHub SDK surrounds the consumer project with base imports and area defau
 11. The consumer project body evaluates.
 12. `Assimalign.Cohesion.Sdk.EventHub/Sdk/Sdk.targets` imports the base targets.
 13. `Assimalign.Cohesion.Sdk/Sdk/Sdk.targets` captures image publish inputs and supplies
-    self-contained host-runtime defaults for enabled Debug resources.
+    self-contained host-runtime defaults for enabled resources and plain resource-area executables
+    in every configuration, plus `DisableTransitiveFrameworkReferenceDownloads=true` for every
+    project. It also removes `None` items that duplicate a resource-area executable’s `Content`
+    items.
 14. `Microsoft.NET.Sdk/Sdk/Sdk.targets` loads Microsoft build targets.
 15. `Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` registers pin validation.
 16. `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets` wires settings generation and cleanup.

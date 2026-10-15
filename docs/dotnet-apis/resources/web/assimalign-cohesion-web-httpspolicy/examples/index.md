@@ -7,6 +7,7 @@ Examples for `Assimalign.Cohesion.Web.HttpsPolicy` are derived from source docum
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
+- **[Https Redirection End To End Tests](https-redirection-end-to-end-tests.md)** — This example exercises `Assimalign.Cohesion.Web.HttpsPolicy` through its co-located test source.
 - **[Https Redirection Tests](https-redirection-tests.md)** — This example exercises `Assimalign.Cohesion.Web.HttpsPolicy` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)

@@ -98,6 +98,11 @@ usually `tls`, holding its certificate, private key, and chain. Trust anchors tr
 Bootstrap credentials authorize management; telemetry-scoped credentials cannot authorize sink
 query or management.
 
+Without a gateway identity, a standalone resource's `/cohesion/v1` control plane accepts only
+transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other or unknown peers receive
+`403`; forwarded headers cannot grant access. Bare `/healthz`, `/readyz` and `/livez` probes stay
+public. See [resource management](web/server.md#enabled-resource-management).
+
 `Local` denotes a developer machine. `Development` is a deployable environment. Without an
 explicit value, environment selection falls back through `DOTNET_ENVIRONMENT` to `Production`.
 These distinctions matter for the Local-only certificate fallbacks in the operational hosts.

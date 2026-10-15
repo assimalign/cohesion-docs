@@ -8,18 +8,19 @@ Exercise Http Interim Response Feature behavior using the original repository te
 
 This is the complete `HttpInterimResponseFeatureTests.cs` listing from the package test project.
 Keep it in that project when running it: the project supplies its package references, generated
-sources, and any shared fixtures. The using block below makes the test-framework import explicit
-where the original project supplies it globally.
+sources, and any shared fixtures. The using blocks below include the test-framework imports.
 
 ## Code
 
 ```csharp
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
 using System.Threading;
-using System;
+using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
 
 namespace Assimalign.Cohesion.Http.InterimResponses.Tests;
@@ -39,7 +40,8 @@ public class HttpInterimResponseFeatureTests
         RecordingControl control = new();
         HttpExchangeInterceptorResponseContext context = CreateContext(control);
 
-        HttpInterimResponses.CreateInterceptor().BeforeResponse(context);
+        HttpInterimResponseInterceptor interceptor = HttpInterimResponseInterceptor.Create();
+        interceptor.BeforeResponse(context);
 
         context.Features.Get<IHttpInterimResponseFeature>().ShouldNotBeNull();
     }
@@ -49,7 +51,7 @@ public class HttpInterimResponseFeatureTests
     {
         HttpExchangeInterceptorResponseContext context = CreateContext(control: null);
 
-        HttpInterimResponses.CreateInterceptor().BeforeResponse(context);
+        HttpInterimResponseInterceptor.Create().BeforeResponse(context);
 
         context.Features.Get<IHttpInterimResponseFeature>().ShouldBeNull();
     }
@@ -149,14 +151,14 @@ public class HttpInterimResponseFeatureTests
     private static IHttpInterimResponseFeature CreateFeature(IHttpExchangeControl control)
     {
         HttpExchangeInterceptorResponseContext context = CreateContext(control);
-        HttpInterimResponses.CreateInterceptor().BeforeResponse(context);
+        HttpInterimResponseInterceptor.Create().BeforeResponse(context);
         return context.Features.Get<IHttpInterimResponseFeature>()!;
     }
 
     private static FakeHttpContext CreateContextWithFeature(IHttpExchangeControl control)
     {
         HttpExchangeInterceptorResponseContext interceptorContext = CreateContext(control);
-        HttpInterimResponses.CreateInterceptor().BeforeResponse(interceptorContext);
+        HttpInterimResponseInterceptor.Create().BeforeResponse(interceptorContext);
         return new FakeHttpContext(interceptorContext.Features);
     }
 
@@ -188,6 +190,11 @@ public class HttpInterimResponseFeatureTests
         public bool CanTakeOver => false;
 
         public Stream TakeOver() => throw new InvalidOperationException("This fake control does not offer takeover.");
+
+        public bool CanAcceptTunnel => false;
+
+        public ValueTask<Stream> AcceptTunnelAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromException<Stream>(new InvalidOperationException("This fake control does not offer a tunnel."));
     }
 
     /// <summary>

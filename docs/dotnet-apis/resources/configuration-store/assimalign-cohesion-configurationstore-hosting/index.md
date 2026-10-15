@@ -31,6 +31,10 @@ concrete durable ConfigurationStore host, builder, and context.
 The protocol listener starts after user services and drains before them. Enabled resources bind the
 ambient `api` endpoint; plain applications use `--endpoint` or the loopback default.
 
+Without a gateway identity, `/cohesion/v1` accepts only transport peers at `127.0.0.1`, `::1`,
+or IPv4-mapped `127.0.0.1`; other peers receive 403, regardless of forwarded headers.
+Bare `/healthz`, `/readyz`, and `/livez` stay open. Gateway-managed authentication is unchanged.
+
 ## Public types
 
 - **`ConfigurationStoreApplication`** — concrete host and creation entry point.
@@ -85,11 +89,19 @@ The base host owns the already-cancelled run semantic: one complete start and gr
 fresh lifecycle tokens, normal run-observer notifications, and a final Stopped state. The concrete
 application and IHost route share it. Startup failures still roll back and propagate.
 
+## Dependency injection composition
+
+`ConfigurationStoreApplicationBuilder.Services` holds every registration the application runs with.
+`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the lifecycle
+in the same order. `Build` closes registration and resolves the services once. Disposing the
+application disposes every factory-created service. See [Design](design.md#dependency-injection-composition).
+
 ## Project references
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.ConfigurationStore` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |

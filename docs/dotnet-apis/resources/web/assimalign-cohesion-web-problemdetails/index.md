@@ -28,7 +28,12 @@ readable error body (`application/problem+json`) with an AOT-safe, zero-reflecti
 See the [source-backed usage examples](examples/index.md).
 
 Types surface in the `Assimalign.Cohesion.Web` namespace (documented deviation — see
-[DESIGN.md](design.md) ).
+[DESIGN.md](design.md)).
+
+`HttpStatusCode` accepts codes from 100 through 599, including unregistered codes.
+`ProblemDetails.FromStatus(new HttpStatusCode(499))` uses title `Error`; an unregistered 5xx
+code uses `Internal Server Error`. Registered codes use their reason phrase. The response helper
+preserves the numeric status, and an explicit `ProblemDetails.Title` is written unchanged.
 
 ## Scope boundaries
 

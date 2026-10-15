@@ -6,9 +6,216 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Http.Sessions
 
 ## Design and boundaries
 
-`IHttpSession` exposes byte-array values, keys, availability, and explicit load/commit operations.
-Typed string and integer helpers are extension members over that binary contract. An attached
-feature supplies the session without adding application state to the protocol core.
+Per-exchange session state for the Cohesion HTTP family. This document
+captures the design intent so future readers do not have to re-derive it from
+the code.
+
+## Design intent
+
+Restore the familiar `ISession`-style ergonomics (`context.Session`, typed
+get/set, key enumeration) on top of the Cohesion HTTP protocol core, which
+deliberately omits sessions — they are an application-layer concept, not part
+of the wire protocol. The package attaches an `IHttpSessionFeature` to
+`IHttpContext.Features` and surfaces it through `context.Session` /
+`context.RequireSession`.
+
+## Surface shape: binary store + typed skin
+
+`IHttpSession` is a binary key/value store (`byte[]` values) plus lifecycle
+(`LoadAsync` / `CommitAsync`), availability (`IsAvailable`), and key
+enumeration (`Keys`). The binary core is the storage primitive; typed
+ergonomics (`GetString`/`SetString`, `GetInt32`/`SetInt32`, and their
+`TryGet` forms) are **extension members on `IHttpSession`**, not instance
+methods.
+
+Putting the typed accessors on the interface as extensions (rather than on
+the concrete `HttpSession`) means they apply to *every* session
+implementation — a future distributed or cookie-backed store inherits the
+exact same typed API for free, and the encoding rules live in one place.
+
+### Encoding rules
+
+- **Strings**: UTF-8.
+- **Int32**: fixed big-endian (network order) via
+  `BinaryPrimitives.WriteInt32BigEndian`. A stable, endian-independent byte
+  layout means a value written on one platform reads back identically on
+  another, and lets a different store interoperate by following the same
+  convention. `GetInt32` returns `null` when the stored value is not exactly
+  four bytes, so a string value is never silently reinterpreted as an int.
+
+## IsAvailable semantics
+
+`IsAvailable` follows the conventional `ISession` contract: it is `false`
+until `LoadAsync` completes, then `true`. The in-memory `HttpSession` imposes
+no real load step, so reads and writes succeed before `LoadAsync` is called;
+`IsAvailable` simply reports whether a load has occurred. A distributed store
+that genuinely needs an async fetch will gate readiness on the same flag
+without changing the contract.
+
+## Feature + context ergonomics
+
+`IHttpSessionFeature` carries the session on the context. The
+`context.Session` extension property reads through the feature (returns
+`null` when none is installed) and, on assignment, installs the internal
+`HttpSessionFeature`. `context.RequireSession` throws when no session has
+been attached, for call sites that treat the session as a hard dependency.
+Storage is the strongly-typed `IHttpContext.Features` collection (not the
+loose `Items` bag) so the feature can be observed or replaced by middleware.
+
+## Backing-store seam: `IHttpSessionStore`
+
+`LoadAsync` / `CommitAsync` were always part of the contract so a future
+distributed store could round-trip through a backend without changing callers.
+That store seam now exists: **`IHttpSessionStore`** is the asynchronous
+backing-store contract — `GetAsync` / `SetAsync` / `RefreshAsync` /
+`RemoveAsync`, keyed by session id, carrying an opaque `byte[]` payload plus
+idle-timeout metadata. The store never interprets the payload; framing is the
+session's concern (see below). `InMemoryHttpSessionStore` is the default
+implementation — the in-memory dictionary moved *behind* the seam — so the same
+store contract that a distributed backend (distributed cache, key/value
+resource, database) will implement already runs in-process. The standalone
+`HttpSession` remains the simple, no-store, in-process session for direct/manual
+use; the store-backed session (`HttpSessionStoreSession`, internal) is what the
+Web session middleware installs over the configured store.
+
+### Session construction and identifier reassignment
+
+`HttpSessionStoreExtensions.CreateSession` is the public composition entry point
+on `IHttpSessionStore`. It validates the id and positive idle timeout, then returns
+an unloaded `IHttpStoredSession` without performing store I/O. The implementation
+remains internal; callers use the existing `IHttpSession` lifecycle and value
+operations. `IHttpStoredSession.ReassignId` is the additional capability for
+preserving buffered state under a replacement identifier. It marks the session
+modified but performs no I/O: the hosting pipeline removes the old store entry
+and delivers the new identifier to the client.
+
+This contract is public because middleware and other HTTP hosts legitimately
+compose store-backed sessions without owning their framing or buffering logic.
+It replaces shipped-library friend access while keeping serialization implementation details internal. The interfaces and extension
+retain the existing `Assimalign.Cohesion.Http` family namespace, a scoped deviation
+from the namespace-matches-assembly rule. Instances are per exchange and are not
+thread-safe; store concurrency remains last-commit-wins.
+
+### Payload framing — `HttpSessionSerializer`
+
+Any store must round-trip **identical bytes**, so the dictionary→bytes framing
+lives with the session, not the store. `HttpSessionSerializer` is a
+version-prefixed, length-prefixed binary layout (`[version][count]` then
+`[keyLen][key][valLen][value]` per entry, big-endian, UTF-8 keys). It uses no
+reflection and no dynamic serialization — fully AOT/trim-safe — and the leading
+version byte lets the frame evolve: an unrecognized version is rejected
+(`TryDeserialize` returns `false`) rather than misread. A store sees only opaque
+bytes, so switching backends never changes the frame.
+
+### Concurrency contract — last-commit-wins
+
+The store performs **no** read-modify-write locking across a request. Two
+concurrent requests for the same session id each read a snapshot, mutate
+locally, and write the whole payload back; the write that completes last
+replaces the payload **wholesale** — there is no per-key merge. This is the
+contract every `IHttpSessionStore` implementation must honor (`SetAsync` is an
+unconditional overwrite), chosen because it is what distributed stores can
+implement cheaply and uniformly. Compare-and-swap / ETag concurrency is
+deliberately *not* part of this contract; a backend that offers it may expose
+stronger guarantees through a separate adapter, but the session pipeline relies
+only on last-commit-wins. `HttpSessionStoreSession.CommitAsync` writes only when
+the session was modified; an accessed-but-unmodified session instead slides the
+store's idle window.
+
+### Sliding expiration
+
+Idle expiration is **renew-on-access** at the store level, driven by
+`HttpSessionOptions.IdleTimeout`: `GetAsync` and `RefreshAsync` both push a live
+entry's expiry to `now + idleTimeout`, and an elapsed entry reads back as absent.
+The in-memory default expires lazily (on access) with no background reaper.
+
+### What still lives elsewhere
+
+`HttpSessionOptions` remains the store-agnostic home for cookie/timeout
+configuration (cookie name, path, `HttpOnly`, idle timeout) and does not bind
+this package to any store. The session-id **cookie establishment**, the
+**per-request middleware** (`UseSessions`), and the **id-regeneration** API live
+one layer up in `Assimalign.Cohesion.Web.Sessions`, which composes this store
+seam with the hardened `Http.Cookies` model — this package still takes no cookie
+dependency.
+
+`UseSessions` validates `CookieName` as a non-empty RFC 6265 §4.1.1 `token`
+and `CookiePath` as `path-value` at composition, through the cookie model.
+Those checks belong to Web.Sessions, where the options become cookie settings;
+the option properties here remain plain configuration values. Web.Sessions'
+DESIGN records the earlier failure for invalid names since 10.0.0-preview.1
+(#1416).
+
+## AOT posture
+
+No reflection, no runtime code generation, no dynamic serialization. The
+in-memory store is a plain `ConcurrentDictionary`; typed accessors use
+`Encoding.UTF8` and `BinaryPrimitives`; payload framing is hand-rolled
+length-prefixed binary (`HttpSessionSerializer`). The clock is a
+`TimeProvider` (BCL). Fully AOT/trim safe.
+
+## Non-goals
+
+- **Concrete distributed backends.** The store *seam* ships here with an
+  in-memory default; a distributed cache / key-value / database store is a
+  follow-up adapter that implements `IHttpSessionStore` (honoring the
+  last-commit-wins contract), not part of this package.
+- **Session-id cookie establishment.** No cookie is read or written *in this
+  package*; the Cookies dependency is intentionally not taken here. Cookie
+  establishment lives in `Assimalign.Cohesion.Web.Sessions`.
+- **Per-request session middleware.** Resolving and committing a session
+  around each request is a higher-layer concern (`UseSessions` in
+  `Web.Sessions`).
+- **Compare-and-swap / merge concurrency.** The store contract is
+  last-commit-wins by design; per-key merge or optimistic concurrency is not
+  offered at this seam.
+- **Rich typed accessors beyond int/string.** Other scalar types can layer on
+  as additional extensions following the same encoding discipline.
+
+## Diagnostics
+
+The internal `HttpSessionEventSource` is named `Assimalign.Cohesion.Http.Sessions`.
+It observes the store-backed session's load and commit boundary, including idle refresh,
+and rethrows the original failure. Requested cancellation is not reported as a failure.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | StoreLoadFailed | Error | exceptionType, suppressedCount:int |
+| 2 | StoreCommitFailed | Error | exceptionType, suppressedCount:int |
+
+Both events are throttled independently to one per second. The lazy PollingCounters
+`store-load-failures` and `store-commit-failures` count every failure, even with no listener
+or when a report is suppressed. Exception messages are deliberately omitted: an arbitrary
+store can embed the bearer session id or session data in its message. This stricter payload
+choice follows #1436's no-session-data requirement. No session identifier, key, value, or
+serialized frame is written.
+
+Http.Sessions owns these reports so bare HTTP hosts receive them too. Web.Sessions does
+not report the same failures again. A custom replacement session that does not use
+`CreateSession` owns its own store operations and diagnostics.
+
+## Compatibility since 10.0.0-preview.1 (#1436)
+
+Owner decision 55 adds only `IHttpStoredSession.IsModified`, with a default implementation
+returning `true`. Existing custom implementations continue compiling and committing on
+every call. The built-in store-backed session overrides it with its existing mutation flag;
+an unchanged session skips payload persistence, retaining its existing idle refresh.
+This is additive, with no change to session lifetime or persistence semantics. Failure events
+and exact counters are newly observable; exceptions still propagate unchanged.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
 
 ## Dependency boundary
 

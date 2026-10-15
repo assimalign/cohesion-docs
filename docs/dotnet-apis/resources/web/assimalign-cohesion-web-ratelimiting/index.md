@@ -21,7 +21,8 @@ plus partitioning and queueing, are available through the policy model.
   with the limiter's full queueing semantics. This is the primary flood shield.
 - **Named policies** (`options.AddPolicy(name, policy)`) attached to individual endpoints through the
   sealed `RateLimitingMetadata` carrier in the routing metadata bag. A per-endpoint policy is evaluated
-  *in addition to* the global limiter.
+  *in addition to* the global limiter, read from the endpoint `UseRouting` publishes and acquired
+  asynchronously, so queueing limiters work per endpoint too.
 - **Partitioned limiting** with AOT-safe partition-key selectors: `RateLimitPartitionKeys.ClientAddress`
   (composing the forwarded-headers trust model), `RateLimitPartitionKeys.Header`, and any typed selector
   delegate.
@@ -33,7 +34,8 @@ plus partitioning and queueing, are available through the policy model.
 ## Dependencies
 
 - **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions the verb and middleware build on.
-- **`Assimalign.Cohesion.Web.Routing`** — the route-match feature and endpoint-metadata bag the per-endpoint gate reads.
+- **`Assimalign.Cohesion.Web.Routing`** — the published route match and endpoint-metadata bag the per-endpoint gate reads, and the acknowledgement routing checks before it dispatches.
+- **`Assimalign.Cohesion.Web.Server`** — the request-id feature contract used to correlate rejection diagnostics.
 - **`Assimalign.Cohesion.Http`** — the HTTP context, status codes, and header keys.
 - **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveRemoteIp` read the client-address partition key composes with.
 - **`Assimalign.Cohesion.Http.Streaming`** — the response-streaming feature the rejection writer checks before answering.
@@ -46,12 +48,23 @@ It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isol
 
 See the [source-backed usage examples](examples/index.md).
 
-`Register` `UseRateLimiting` early — after `UseForwardedHeaders` (so client-address keys see the
-effective client identity) and before `UseRouting` (so it can gate matched endpoints at the
-route-match seam).
+Register `UseRateLimiting` after `UseForwardedHeaders` (so client-address keys see the effective
+client identity) and after `UseRouting` (so the request's endpoint and its `RateLimitingMetadata`
+are known when it runs). Registered ahead of `UseRouting`, the global limiter still applies, but an
+endpoint that names a policy fails with `InvalidOperationException` when it is dispatched instead of
+running without its limit.
 
-See `docs/DESIGN.md` for the policy model, the partition-key trust posture, the per-endpoint
-metadata mechanics, the queueing and disposal posture, the telemetry follow-up, and the non-goals.
+See `docs/DESIGN.md` for the policy model, the partition-key trust posture, the per-endpoint metadata
+mechanics, the queueing and disposal posture, diagnostics, and the non-goals.
+
+## Diagnostics
+
+Enable `Assimalign.Cohesion.Web.RateLimiting` with `dotnet-trace` for Verbose rejection details and
+throttled Warning events when a committed response has to be aborted. `dotnet-counters` publishes the
+exact `rejected-requests` total, maintained even before a listener attaches. Events identify the gate,
+configured policy, and request id; partition keys and request input are never written. The existing
+`OnDecision` hook remains available for application observations; OpenTelemetry instruments are deferred
+to #317.
 
 ## Project references
 
@@ -59,6 +72,7 @@ metadata mechanics, the queueing and disposal posture, the telemetry follow-up, 
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |

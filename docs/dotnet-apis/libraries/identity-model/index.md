@@ -28,7 +28,7 @@ release or completeness guarantee.
 | `Assimalign.Cohesion.IdentityModel.Protocols.OpenIdConnect` | `Assimalign.Cohesion.IdentityModel.Protocols` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel` (CohesionSharedSource), `Assimalign.Cohesion.IdentityModel.Protocols` (CohesionSharedSource) |
 | `Assimalign.Cohesion.IdentityModel.Protocols.Saml` | `Assimalign.Cohesion.IdentityModel.Protocols` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel` (CohesionSharedSource) |
 | `Assimalign.Cohesion.IdentityModel.Token` | `Assimalign.Cohesion.IdentityModel` (CohesionProjectReference) |
-| `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `Assimalign.Cohesion.IdentityModel.Token` (CohesionProjectReference) |
+| `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `Assimalign.Cohesion.IdentityModel.Token` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` (CohesionSharedSource) |
 | `Assimalign.Cohesion.IdentityModel.Token.Saml` | `Assimalign.Cohesion.IdentityModel.Token` (CohesionProjectReference) |
 
 ## Sources

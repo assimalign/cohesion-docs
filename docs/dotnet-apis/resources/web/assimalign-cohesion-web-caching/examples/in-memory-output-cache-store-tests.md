@@ -7,7 +7,7 @@ This example exercises `Assimalign.Cohesion.Web.Caching` through its co-located 
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/tests/InMemoryOutputCacheStoreTests.cs`. It
 retains the test class and assertions so the setup, operation, and expected outcome stay together.
-`Use` it in the source project’s test context, with its test dependencies and supporting test objects.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
@@ -40,14 +40,14 @@ namespace Assimalign.Cohesion.Web.Caching.Tests;
 /// </summary>
 public class InMemoryOutputCacheStoreTests
 {
-    private static readonly DateTimeOffset Epoch = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _epoch = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     private static OutputCacheEntry Entry(byte[] body, TimeSpan validFor, params string[] tags)
         => new(
             HttpStatusCode.Ok,
             Array.Empty<OutputCacheHeader>(),
             body,
-            Epoch,
+            _epoch,
             validFor,
             tags,
             Array.Empty<string>());
@@ -85,7 +85,7 @@ public class InMemoryOutputCacheStoreTests
     public async Task GetAsync_PastTimeToLive_ShouldReturnNull()
     {
         // Arrange
-        ManualTimeProvider time = new(Epoch);
+        ManualTimeProvider time = new(_epoch);
         using InMemoryOutputCacheStore store = new(InMemoryOutputCacheStore.DefaultSizeLimit, time);
         await store.SetAsync("key", Entry(new byte[] { 9 }, TimeSpan.FromSeconds(30)));
 

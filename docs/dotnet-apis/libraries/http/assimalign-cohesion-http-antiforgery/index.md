@@ -1,6 +1,13 @@
 # Assimalign.Cohesion.Http.Antiforgery
 
-Protects HTTP requests with paired antiforgery cookie and request tokens.
+`Assimalign.Cohesion.Http.Antiforgery` creates and validates signed cookie and
+request-token pairs for cross-site request forgery protection. The public sealed
+`HttpAntiforgery` implements `IHttpAntiforgery`. Create it with either
+`HttpAntiforgery.Create(options)` or `HttpAntiforgery.Create(configure)` and share
+it across the application's requests; its constructor is private. Both overloads
+return `HttpAntiforgery`, which can be used through `IHttpAntiforgery`.
+`GetAndStoreTokens(context)` issues the pair; `IsRequestValidAsync(context)`
+checks a submitted pair.
 
 ## Reference
 
@@ -14,9 +21,19 @@ Protects HTTP requests with paired antiforgery cookie and request tokens.
 
 ## Scope
 
-The signed double-submit model protects both halves so an injected cookie alone cannot authenticate
-a request token. Antiforgery composes protocol, cookie, and form contracts without adding these
-concerns to the HTTP root. Validation is an explicit server-side operation.
+The package reads the cookie through Http.Cookies and the request token from
+the already-parsed Http.Forms collection. The first occurrence of the
+configured form-token field is used. If it is absent or empty, the configured
+request header supplies the token. An invalid nonempty first form token fails
+validation; later form values are not tried. Form parsing must happen before
+validation when using the form-token path.
+
+This changes repeated-field behavior from 10.0.0-preview.1: multipart formerly
+selected the last value, and urlencoded forms comma-joined the values. Both
+encodings now select the first token.
+
+See [Design](design.md) for token protection, dependency direction, and Web
+pipeline integration.
 
 ## Dependencies
 
@@ -25,6 +42,7 @@ concerns to the HTTP root. Validation is an explicit server-side operation.
 | [`Assimalign.Cohesion.Http`](../../http/assimalign-cohesion-http/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Http.Cookies`](../../http/assimalign-cohesion-http-cookies/index.md) | `CohesionProjectReference` |
 | [`Assimalign.Cohesion.Http.Forms`](../../http/assimalign-cohesion-http-forms/index.md) | `CohesionProjectReference` |
+| [`Assimalign.Cohesion.Http.Forwarded`](../../http/assimalign-cohesion-http-forwarded/index.md) | `CohesionProjectReference` |
 
 ## Principal public types
 
@@ -41,11 +59,15 @@ concerns to the HTTP root. Validation is an explicit server-side operation.
 
 ## Sources
 
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/docs/OVERVIEW.md`.
+
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/src/Assimalign.Cohesion.Http.Antiforgery.csproj`.
 
 - **Source** — `cohesion/libraries/Directory.Build.props`.
 
 - **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/README.md`.
 
 - **Source** — `cohesion/libraries/Http/README.md`.
 

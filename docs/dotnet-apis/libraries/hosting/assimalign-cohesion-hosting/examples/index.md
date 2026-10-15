@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Hosting`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Host Environment behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise host environment and lifecycle behavior, including failed startup finalization and retries, using the original repository tests.
 
 ## Sources
 

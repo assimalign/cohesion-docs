@@ -8,12 +8,15 @@ Connection contracts and concrete stream, multiplexed, datagram, and security dr
 
 | Package | Responsibility | Reference |
 |---|---|---|
-| `Assimalign.Cohesion.Connections` | Defines byte-stream, multiplexed, and datagram connection contracts. | [Overview](assimalign-cohesion-connections/index.md) |
+| `Assimalign.Cohesion.Connections` | Defines the shared `IConnection` lifecycle, duplex, multiplexed, and datagram data planes, typed listeners and factories, and live connection collections. | [Overview](assimalign-cohesion-connections/index.md) |
 | `Assimalign.Cohesion.Connections.InMemory` | Provides socketless stream and multiplexed connections for live protocol tests. | [Overview](assimalign-cohesion-connections-inmemory/index.md) |
 | `Assimalign.Cohesion.Connections.NamedPipes` | Carries ordered byte streams over named pipes for local inter-process communication. | [Overview](assimalign-cohesion-connections-namedpipes/index.md) |
-| `Assimalign.Cohesion.Connections.Quic` | Adapts QUIC connections and streams to Cohesion multiplexed connection contracts. | [Overview](assimalign-cohesion-connections-quic/index.md) |
-| `Assimalign.Cohesion.Connections.Security` | Applies Transport Layer Security (TLS) to established Cohesion connections. | [Overview](assimalign-cohesion-connections-security/index.md) |
+| `Assimalign.Cohesion.Connections.Quic` | Adapts QUIC connections and streams to `IMultiplexedConnection` and `IMultiplexedConnectionStream`. | [Overview](assimalign-cohesion-connections-quic/index.md) |
+| `Assimalign.Cohesion.Connections.Security` | Applies Transport Layer Security (TLS), registers TLS facts, and passes through inner features except directional abort. | [Overview](assimalign-cohesion-connections-security/index.md) |
+| `Assimalign.Cohesion.Connections.StreamAbort` | Exposes optional coded per-direction stream aborts through `stream.DirectionalAbort`. | [Overview](assimalign-cohesion-connections-streamabort/index.md) |
+| `Assimalign.Cohesion.Connections.StreamLimits` | Exposes the optional cumulative inbound stream allowance through `connection.StreamLimits`. | [Overview](assimalign-cohesion-connections-streamlimits/index.md) |
 | `Assimalign.Cohesion.Connections.Tcp` | Provides socket-backed streams over TCP, Unix domain sockets, and inherited listening sockets. | [Overview](assimalign-cohesion-connections-tcp/index.md) |
+| `Assimalign.Cohesion.Connections.Tls` | Exposes TLS handshake facts through `connection.Tls`. | [Overview](assimalign-cohesion-connections-tls/index.md) |
 | `Assimalign.Cohesion.Connections.Udp` | Provides message-oriented User Datagram Protocol (UDP) connections. | [Overview](assimalign-cohesion-connections-udp/index.md) |
 
 ## Dependencies and delivery
@@ -24,11 +27,14 @@ release or completeness guarantee.
 | Assembly | Declared dependencies |
 |---|---|
 | `Assimalign.Cohesion.Connections` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Connections.InMemory` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Connections.InMemory` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamAbort` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Connections.NamedPipes` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
-| `Assimalign.Cohesion.Connections.Quic` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionSharedSource) |
-| `Assimalign.Cohesion.Connections.Security` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Connections.Quic` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamAbort` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamLimits` (CohesionProjectReference), `Assimalign.Cohesion.Connections.Tls` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionSharedSource) |
+| `Assimalign.Cohesion.Connections.Security` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections.Tls` (CohesionProjectReference), `Assimalign.Cohesion.Connections.StreamAbort` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Connections.StreamAbort` | `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
+| `Assimalign.Cohesion.Connections.StreamLimits` | `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Connections.Tcp` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionSharedSource) |
+| `Assimalign.Cohesion.Connections.Tls` | `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
 | `Assimalign.Cohesion.Connections.Udp` | `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Connections` (CohesionProjectReference) |
 
 ## Sources
@@ -94,3 +100,27 @@ release or completeness guarantee.
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/src/Assimalign.Cohesion.Connections.Udp.csproj`.
 
 - **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Udp/src`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamAbort/src/Assimalign.Cohesion.Connections.StreamAbort.csproj`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamAbort/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamAbort/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamAbort/src`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamLimits/src/Assimalign.Cohesion.Connections.StreamLimits.csproj`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamLimits/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamLimits/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.StreamLimits/src`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tls/src/Assimalign.Cohesion.Connections.Tls.csproj`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tls/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tls/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tls/src`.

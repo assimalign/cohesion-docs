@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.FileSystem.Physical`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Physical File System Watch behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise physical file-system operations, extended-length roots, and change notifications using the original repository tests.
 
 ## Sources
 
@@ -14,3 +14,4 @@ Source-backed examples for `Assimalign.Cohesion.FileSystem.Physical`.
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem.Physical/docs/DESIGN.md`.
 - **Source** — `cohesion/libraries/FileSystem/README.md`.
 - **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem.Physical/src`.
+- **Source** — `cohesion/libraries/FileSystem/Assimalign.Cohesion.FileSystem.Physical/tests/PhysicalFileSystemTests.cs`.

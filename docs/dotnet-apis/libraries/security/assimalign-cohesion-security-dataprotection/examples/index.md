@@ -4,7 +4,7 @@ Source-backed examples for `Assimalign.Cohesion.Security.DataProtection`.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise File System Key Repository behavior using the original repository tests.
+- **[Behavioral tests](behavioral-tests.md)** — Exercise file-system key persistence and purpose-scoped data protection using the original repository tests.
 
 - **[Protect a purpose-scoped payload](protect-payload.md)** — Protect and recover a small payload using a persisted rotating key ring.
 

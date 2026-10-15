@@ -96,19 +96,66 @@ The session-id cookie is built through the hardened `Http.Cookies` model with se
 
 - **`HttpOnly`** — from `HttpSessionOptions.CookieHttpOnly` (default `true`).
 - **`SameSite=Lax`** — a fixed secure default (CSRF-resistant while surviving top-level navigation).
-- **`Secure`** — set only when the request scheme is HTTPS (the transport-derived typed scheme, not a
-  header or string), so the cookie round-trips over the plaintext in-memory test transport yet is
-  Secure in production HTTPS.
+- **`Secure`** — set when the *effective* scheme is HTTPS (see "Behind a proxy" below), so the cookie
+  round-trips over the plaintext in-memory test transport yet is Secure in production HTTPS, including
+  behind a TLS-terminating proxy.
 - **Session-scoped** — no `Max-Age`/`Expires`; the cookie clears when the browser session ends, and
   server-side idle timeout governs true expiry.
-- **`Name` / Path** — from `HttpSessionOptions.CookieName` / `CookiePath`.
+- **Name / Path** — from `HttpSessionOptions.CookieName` / `CookiePath`. `UseSessions` checks both
+  before registering middleware: the name through the `HttpCookie` constructor against the RFC 6265
+  §4.1.1 non-empty `token` grammar (#1416), and the path through the `HttpCookieOptions.Path` setter
+  against `path-value` (#1153). A name such as `a b` or a path such as `/tenant;x` or `/café` fails
+  composition. Token punctuation remains valid in names; whitespace, separators, control characters,
+  non-ASCII characters, null and empty names do not. Reusing the cookie model keeps composition and
+  request-time emission on the same grammar.
+- **Not essential by default** — `HttpSessionOptions.CookieIsEssential` (default `false`) marks the
+  cookie for a cookie-consent policy (Web.CookiePolicy). Under a consent requirement a non-essential
+  session cookie is dropped until the user consents, because a session usually holds state that
+  needs consent; an application that cannot work without its session (a cart, a multi-step form)
+  sets it to `true`.
+
+### Behind a proxy — the `Secure` decision reads the effective scheme
+
+The `Secure` flag answers "did the client reach us over HTTPS?", and behind a TLS-terminating proxy
+the transport cannot answer that: the app-facing hop is plaintext, so a wire-scheme check would
+issue the session id without `Secure` on every proxied HTTPS request, and the browser would later
+send it over any plaintext request to the same host (#1050, defect D7). The cookie therefore reads
+`context.EffectiveScheme` from `Assimalign.Cohesion.Http.Forwarded` — owner decision 3 in
+`docs/programs/HTTP_WEB_PROGRAM_PLAN.md` §7.4: consumers read the effective values; nothing rewrites
+the request.
+
+- **With `UseForwardedHeaders`** registered ahead of the first session access, a trusted proxy's
+  `https` (RFC 7239 `proto` or `X-Forwarded-Proto`) marks the cookie `Secure`.
+- **Without it** — or from a peer outside the forwarded-headers trust model — the effective scheme is the
+  transport-derived scheme, so a client that sends `X-Forwarded-Proto: https` itself changes nothing.
+
+The package never parses forwarding headers; which proxy is believed is `Web.ForwardedHeaders`'
+trust model. The decision is taken when the cookie is established (first access or regeneration), so
+the forwarded-headers middleware must have run by then — registering it first satisfies that.
 
 ## Error model
 
 The package defines no exception root; it throws framework `InvalidOperationException` /
-`ArgumentException` for misuse (sessions not enabled, regeneration after the head started,
-non-positive idle timeout). Store I/O surfaces whatever the `IHttpSessionStore` implementation
-throws.
+`ArgumentException` for misuse (sessions not enabled, regeneration after the head started, non-positive
+idle timeout, a cookie name outside `token`, or a cookie path outside `path-value`). All three option
+checks run in `UseSessions`, at composition. Each cookie-option failure is an `ArgumentException`
+with `ParamName` `configure`: its message names the full option, the cookie constructor's or setter's
+exception is preserved as `InnerException`, and neither message echoes the invalid value. No middleware
+is registered on failure. Store I/O surfaces whatever the `IHttpSessionStore` implementation throws.
+
+## Breaking behavior since 10.0.0-preview.1
+
+In 10.0.0-preview.1, `UseSessions` accepted an invalid `CookieName`; `HttpCookie` rejected it only when
+an application established a session cookie during a request. Since #1416 both `UseSessions` overloads
+reject it during composition, before registering middleware. Applications must configure a non-empty
+RFC 6265 `token` name. Defaults and other valid names are unchanged; applications that supplied an
+invalid name now fail at composition instead of failing cookie-establishing requests.
+
+Since #1405, a new session first accessed after the response head starts reports a throttled
+Warning `SessionStateLost` when `IHttpStoredSession.IsModified` is true. This is a diagnostic
+behavior change from 10.0.0-preview.1 under decision 15: warning-level monitoring now observes
+discarded modifications. Read-only orphans remain Verbose-only; cookies, persistence, and public
+contracts are unchanged.
 
 ## AOT posture
 
@@ -148,12 +195,82 @@ guard, and the not-enabled / no-session error paths). End-to-end tests over
 the session-id cookie, that an untouched request sets no cookie, and that a cookie-less client
 starts an independent session.
 
+`tests/SessionForwardedTests.cs` covers the proxy behavior with the real forwarded-headers
+middleware (the test project references `Web.ForwardedHeaders`): end to end, with the factory's
+in-memory peer trusted as a local transport, a forwarded `https` yields a `Secure` session cookie
+and a spoofed `X-Forwarded-Proto` without the middleware does not; at the unit level, a plaintext
+request from a trusted proxy address (the double's connection) and from an untrusted one pin the
+trust dependency.
+
+`tests/SessionPipelineExtensionsTests.cs` drives `UseSessions` over a capturing pipeline builder: a
+cookie path outside `path-value` throws at registration and registers no middleware; in-grammar paths,
+the percent-encoded form included, register it. `tests/SessionCookieNameTests.cs` covers both overloads'
+cookie-name check: null, empty, whitespace, separators, control and non-ASCII characters fail before
+registration, and names containing all token punctuation pass. The errors name the option, preserve the
+cookie constructor's exception, and do not echo the value.
+
+## Store failure ownership (#1436)
+
+`Assimalign.Cohesion.Http.Sessions` owns store load and commit failure reporting through
+its internal same-named EventSource. Web.Sessions deliberately does not repeat those reports.
+The HTTP source reports exception types only because store messages can contain session ids
+or values. It also reports failures of the idle refresh performed instead of an unchanged
+payload commit. The original exception continues to propagate to the caller.
+
+`IHttpStoredSession.IsModified` now exposes the built-in modification flag. Its default
+interface implementation returns `true`, preserving custom implementations that commit every
+time. Built-in sessions keep skipping unchanged payload writes while renewing the idle window;
+this property does not change read-only expiration behavior.
+
+## Diagnostics
+
+The internal `WebSessionEventSource` is named `Assimalign.Cohesion.Web.Sessions`.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | SessionOrphaned | Verbose | reason (`ResponseStarted`), requestId |
+| 2 | SessionStateLost | Warning (throttled) | reason (`ResponseStarted`), requestId, suppressedCount:int |
+
+`orphaned-sessions` and `lost-sessions` are exact PollingCounter totals, maintained even when
+nobody listens. Every orphan increments `orphaned-sessions` once at the middleware's post-pipeline
+commit check and emits `SessionOrphaned` when Verbose is enabled. If the managed session's
+`IHttpStoredSession.IsModified` is true, the same check also increments `lost-sessions` and reports
+`SessionStateLost`. Reading `context.Session` materializes an empty new session, so a cookieless
+read after the head commits is an orphan without lost state: it remains Verbose-only and does not
+increment `lost-sessions`.
+
+The loss Warning is limited to once per second across the process; the next emitted Warning's
+`suppressedCount` reports the losses suppressed by that throttle. The loss counter still counts
+every modified orphan. No session id, cookie, key, or value is written. The request id comes from
+`IWebRequestIdFeature` inside the enabled check and, for the Warning, after the throttle admits it.
+Http.Sessions owns load/commit failures (see above), with no duplicate report here.
+
+Since 10.0.0-preview.1, diagnostics become observable but cookie and persistence behavior are
+unchanged. The Web.Server dependency provides request correlation and adds
+no hosting dependency or framework member.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
 ## Declared dependencies
 
 | Reference | Kind |
 |---|---|
 | `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Sessions` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Cookies` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |

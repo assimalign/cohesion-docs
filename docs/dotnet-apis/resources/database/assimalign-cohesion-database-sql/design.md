@@ -276,8 +276,8 @@ unsupported-clause diagnostics.
   can cost performance but never correctness. SELECT only in this cut;
   UPDATE/DELETE target collection still scans (recorded follow-up).
 - **`Seek` execution is snapshot-anchored.** The executor drives the B+Tree
-  cursor through the **statement snapshot** (the ```IIndex.OpenCursor``(snapshot,
-  …)` overload — the same snapshot the equivalent scan filters through, which
+  cursor through the **statement snapshot** (the `IIndex.OpenCursor(snapshot, …)`
+  overload — the same snapshot the equivalent scan filters through, which
   is the equivalence anchor under ReadCommitted's per-statement re-capture),
   unpacks each visible entry's packed row location, fetches the row, and
   re-checks the row's stamps against the same snapshot (defense in depth:
@@ -574,8 +574,8 @@ engine configuration; observers read it through `IDatabaseEngineWorker.Interval`
 ## The SQL server runtime (`SqlDatabaseServer`)
 
 The SQL model ships its own wire-protocol server: `SqlDatabaseServer`, a sealed implementation of
-the area root's `IDatabaseServer` contract fronting exactly one `SqlDatabaseEngine` (```Create``(engine,
-options)`, options in ``SqlDatabaseServerOptions``). Servers are per-model by design: this type is
+the area root's `IDatabaseServer` contract fronting exactly one `SqlDatabaseEngine`
+(`Create(engine, options)`, options in `SqlDatabaseServerOptions`). Servers are per-model by design: this type is
 where SQL-specific wire behavior grows (typed relational payloads, SQL transaction frames) as the
 protocol's model-specific surface lands; today execution rides the model-agnostic text-execute seam
 on the root's `IDatabaseSession`. "Running" lives here — the engine underneath has no lifecycle;
@@ -608,7 +608,7 @@ requirement** — every model implements them its own way against `Connections` 
 ### Composition seam
 
 `SqlDatabaseServer.Create(engine, options)` — or the `AddSqlServer(engine, configure)` builder verb
-— composes a server. The options carry one configured `IConnectionListener` instance, not a listener
+— composes a server. The options carry one configured `IDuplexConnectionListener` instance, not a listener
 factory. `StartAsync` explicitly awaits `BindAsync` before it starts the accept loop or returns; a
 bind failure is propagated only after the listener is terminally disposed, so a partially acquired
 endpoint cannot remain live. `StopAsync` cancels the pending accept, drains sessions within the
@@ -1009,6 +1009,28 @@ for both equality and hashing. Foreign-key string columns require equal effectiv
 forward and reverse checks agree. Default changes after table creation reject until index rebuild
 support exists. Other model defaults are unaffected. See the design for the legacy CompareInfo
 compatibility escalation and #1026 linguistic-collation boundary.
+
+## Connection contracts
+
+The server accepts `IDuplexConnection` values through `IDuplexConnectionListener`:
+framed database traffic requires the byte-pipe contract. The transport listener's live
+`Connections` collection is observational; the server owns every connection it accepts,
+performs its I/O, and drains, aborts or disposes it during shutdown. Disposing the listener
+alone does not close accepted connections. `ConnectionClosed` signals local close, abort,
+peer close and, at the latest, completion of connection disposal.
+
+### Breaking changes from 10.0.0-preview.1 (#1459)
+
+`SqlDatabaseServerOptions.Listener` changes from `IConnectionListener?` to
+`IDuplexConnectionListener?`. Changing the property's getter and setter signatures breaks
+preview.1 binaries and source that supplies a listener typed only as `IConnectionListener`.
+This preview break is accepted under owner decisions 15 and 58. Rebuild consumers and use
+`IDuplexConnectionListener` for listener variables and custom implementations. Custom listeners
+can derive from `DuplexConnectionListener`, supply `Id`, and implement `AcceptCoreAsync`
+returning `ValueTask<IDuplexConnection>`; the base handles shared accept dispatch and live
+connection tracking. Custom byte-pipe connections derive from `DuplexConnection` or implement
+`IDuplexConnection`. Built-in duplex listeners already satisfy the new contract. Database wire
+framing, handshake and model messages are unchanged.
 
 ## Declared dependencies
 

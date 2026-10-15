@@ -57,6 +57,12 @@ Resolve resource/application identifiers; validate declared metadata and referen
 generate the manifest, resource accessors, and control-plane source. Composite manifests lift
 same-application member metadata and lifecycle constraints.
 
+The ApplicationModel SDK's generated resource-reference `ConnectionFactory()` accessors return
+`IDuplexConnectionFactory` and request that same contract from `ResourceRuntime`. Their consumers
+exchange framed bytes, so the generated surface selects the duplex contract explicitly; the common
+`IConnectionFactory` can produce other connection kinds. See the
+[ApplicationModel design](../../sdk-application-model/assimalign-cohesion-sdk-applicationmodel-tasks/design.md).
+
 `Tasks/src/Tasks/Resources/CohesionCreateResourceManifest.cs` defines this type.
 
 | Parameter | Type | Direction | Task default | Meaning |

@@ -6,7 +6,7 @@ This example exercises `Assimalign.Cohesion.Web.Query` through its co-located te
 
 The example reproduces
 `cohesion/resources/Web/Assimalign.Cohesion.Web.Query/tests/QueryRedirectTests.cs`. It retains the
-test class and assertions so the setup, operation, and expected outcome stay together. `Use` it in the
+test class and assertions so the setup, operation, and expected outcome stay together. Use it in the
 source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
@@ -44,8 +44,8 @@ namespace Assimalign.Cohesion.Web.Query.Tests;
 /// </summary>
 public class QueryRedirectTests
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(30);
-    private static readonly NetHttpMethod QueryMethod = new("QUERY");
+    private static readonly TimeSpan _testTimeout = TimeSpan.FromSeconds(30);
+    private static readonly NetHttpMethod _queryMethod = new("QUERY");
 
     // ============================================================================
     // Response shaping (unit level — the raw 3xx the helper writes)
@@ -155,13 +155,13 @@ public class QueryRedirectTests
     public async Task RedirectQuery_EndToEnd_ShouldReissueQueryWithContent(bool permanent)
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         (WebApplicationTestFactory factory, HttpClient client) = await CreateRedirectAppAsync(
             permanent, toGet: false, cancellation.Token);
         await using WebApplicationTestFactory ownedFactory = factory;
         using HttpClient ownedClient = client;
 
-        using var request = new HttpRequestMessage(QueryMethod, "/search")
+        using var request = new HttpRequestMessage(_queryMethod, "/search")
         {
             Content = new StringContent("{\"q\":\"cohesion\"}", Encoding.UTF8, "application/json"),
         };
@@ -178,13 +178,13 @@ public class QueryRedirectTests
     public async Task RedirectQueryToGet_EndToEnd_ShouldReissueAsGetWithoutContent()
     {
         // Arrange
-        using CancellationTokenSource cancellation = new(TestTimeout);
+        using CancellationTokenSource cancellation = new(_testTimeout);
         (WebApplicationTestFactory factory, HttpClient client) = await CreateRedirectAppAsync(
             permanent: false, toGet: true, cancellation.Token);
         await using WebApplicationTestFactory ownedFactory = factory;
         using HttpClient ownedClient = client;
 
-        using var request = new HttpRequestMessage(QueryMethod, "/search")
+        using var request = new HttpRequestMessage(_queryMethod, "/search")
         {
             Content = new StringContent("{\"q\":\"cohesion\"}", Encoding.UTF8, "application/json"),
         };

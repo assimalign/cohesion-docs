@@ -10,6 +10,11 @@ The multi-model OLTP database engine family for Cohesion: five independent datab
 customer-owned `Sdk.Database` executable whose `Program.cs` composes its engines, code-first schema,
 servers, and provisioning.
 
+An enabled resource's standalone `admin` control plane accepts `/cohesion/v1` only from transport
+peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
+forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
+Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior is unchanged.
+
 ## Packages
 
 | Package | Role | Shared-framework delivery |
@@ -85,9 +90,12 @@ uses an embedded engine.
 
 The single runtime module is `Assimalign.Cohesion.Database.Hosting`. Roots and feature libraries do
 not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
-Feature registration composes against the root contracts. The exact runtime may reference its area
-root and its hosting-family integrations; integrations may not reference the exact runtime. The
-declarative application model remains separate from the runtime. See the
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
 [resource dependency rules](../index.md#dependency-rules) .
 
 The hosting family in this area contains `Assimalign.Cohesion.Database.Hosting`.
@@ -95,10 +103,17 @@ The hosting family in this area contains `Assimalign.Cohesion.Database.Hosting`.
 ## Framework and SDK
 
 `Assimalign.Cohesion.Sdk.Database` delivers the `Assimalign.Cohesion.App.Database` family. Its
-reference-pack project declares `CohesionFrameworkName` and imports
-`frameworks/Assimalign.Cohesion.App.props`, the public and private assembly inventory.
-`CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
-`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+producers, `Assimalign.Cohesion.Database.Refs` and `Assimalign.Cohesion.Database.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
+private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
+the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
+packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+
+The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
+reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
+`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
+`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
+inventory below.
 
 | Public reference-pack assembly |
 |---|
@@ -144,12 +159,14 @@ reference-pack project declares `CohesionFrameworkName` and imports
 |---|
 | `Assimalign.Cohesion.Web` |
 | `Assimalign.Cohesion.Web.Hosting` |
-| `Assimalign.Cohesion.Web.Hosting.Resources` |
-| `Assimalign.Cohesion.Web.Hosting.Health` |
 | `Assimalign.Cohesion.Web.Health` |
 | `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
 | `Assimalign.Cohesion.Http` |
 | `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
 | `Assimalign.Cohesion.Http.RequestLimits` |
 | `Assimalign.Cohesion.Connections.Tcp` |
 | `Assimalign.Cohesion.Connections.Quic` |
@@ -158,9 +175,11 @@ reference-pack project declares `CohesionFrameworkName` and imports
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
+`Database.ApplicationModel` and the Cache, Documents and Graph client packages are excluded from
+the area shared framework. `Database.Client`, `Database.Blob.Client`,
+`Database.KeyValuePair.Client` and `Database.Sql.Client` are public reference and runtime
+assemblies. The package delivery table distinguishes assemblies present in the source tree from
+those included by the current framework inventory.
 
 ## Related documentation
 
@@ -171,7 +190,8 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/README.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.Database.Refs/src/Assimalign.Cohesion.App.Database.Refs.csproj`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Refs/src/Assimalign.Cohesion.Database.Refs.csproj` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Runtime/Directory.Build.props`.
 - **Architecture source** — `cohesion/docs/resources/Database/DESIGN.md`.

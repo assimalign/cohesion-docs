@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Database Application Lifetime Tests](database-application-lifetime-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Hosting` through its co-located test source.
+- **[Standalone Admin Control Plane Tests](standalone-admin-control-plane-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Hosting` through its co-located test source.
 - **[Template application](template-application.md)** — The shipped `cohesion-database` template demonstrates the `Database` executable entry point.
 
 [Assembly overview](../index.md) · [Design](../design.md)

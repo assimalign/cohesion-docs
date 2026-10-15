@@ -14,7 +14,7 @@ systems. `WebApplicationTestFactory` is that surface — the Cohesion analogue o
 
 - **Server side** — the builder-time listener registration seam:
   `builder.Server.UseServer(options => options.UseHttp1(listener))` accepts any
-  `IConnectionListener`, so the in-memory driver's `InMemoryConnectionListener`
+  `IDuplexConnectionListener`, so the in-memory driver's `InMemoryConnectionListener`
   (`Assimalign.Cohesion.Connections.InMemory`, #772) plugs in with no contract changes.
 - **Client side** — `SocketsHttpHandler.ConnectCallback`: the real .NET HTTP client dials the
   in-memory listener's bound `InMemoryConnectionFactory` and speaks over the returned
@@ -48,7 +48,7 @@ WebApplicationTestFactory
  ├─ Application  (built lazily on first access; pipeline configured here)
  └─ CreateClient()
       └─ SocketsHttpHandler.ConnectCallback ──dials──► factory ──► ClientConnectionStream
-                                                                        (owns the Connection)
+                                                                        (owns the IDuplexConnection)
 ```
 
 **Two-phase configuration, snapshot at start.** Services and features are configured on `Builder`
@@ -70,10 +70,19 @@ construction: the default server's `StartAsync` only schedules its accept loop a
 synchronously. `StartAsync` /`StopAsync` remain public for tests that assert lifecycle behaviour
 itself.
 
+## Response-starting parity (#1156)
+
+The factory honors `IWebResponseStartingFeature` through the default Web.Server engine composed by
+Web.Hosting and the real transport head hook. Buffered and streamed HTTP/1.1 and HTTP/2 tests therefore
+see the same
+reverse callback order, once-per-exchange lifetime, callback-failure abort and refused-head header
+carryover as production. It has no synthetic callback runner or independent response-start flag.
+Web.Hosting tests cover HTTP/3 separately with the multiplexed in-memory driver and raw QPACK.
+
 ## Client connection ownership
 
 `ConnectCallback` returns a `ClientConnectionStream` — the connection's duplex-pipe stream adapter
-plus one added responsibility: disposing the stream disposes the dialed `Connection`.
+plus one added responsibility: disposing the stream disposes the dialed `IDuplexConnection`.
 `SocketsHttpHandler` disposes a pooled connection's stream when it evicts or tears down the
 connection; without the ownership hook the client end's pipes would never complete and the server
 end would stay parked in its receive loop until server shutdown. With it, client-side teardown
@@ -108,28 +117,36 @@ or over the loopback TLS integration tests that already exist in Web.Hosting.
 | Construct | Listener + dial factory created; `Builder` prepared with the in-memory `UseServer` registration. Nothing runs. |
 | `Application` access | `Builder.Build()` (once, thread-safe). |
 | `StartAsync` / first `CreateClient` | Default server resolved (pipeline snapshot) and started; accept loop live. Idempotent. |
-| `StopAsync` | Server's graceful stop: stop accepting, drain in-flight connections, dispose the listener chain. `New` dials are refused (`ConnectionAbortedException` → client `HttpRequestException`). Idempotent; no-op before start. |
-| `DisposeAsync` | `StopAsync`, then application disposal, then defensive in-memory listener teardown (idempotent for the never-started factory). Safe to call twice. |
+| `StopAsync` | Server's lame-duck stop: stop accepting, let in-flight requests finish within the caller's budget (none means no limit), cancel what outlives it, dispose the listener chain. New dials are refused (`ConnectionAbortedException` → client `HttpRequestException`). Idempotent; no-op before start. |
+| `DisposeAsync` | The server's stop with a budget that has already run out — in-flight requests are cancelled and their connections aborted, not waited for — then application disposal, then defensive in-memory listener teardown (idempotent for the never-started factory). Safe to call twice. |
 
-`For` `Program`-backed factories, construction reserves an ambient loopback endpoint but starts nothing;
-`StartAsync` creates a `Hosting.Resources` `ResourceRuntime` scope, invokes the registered entry,
-and waits for `/readyz`; `StopAsync` posts `/cohesion/v1/stop` and joins the entry completion task;
-disposal then releases the captured host. The factory presents the invocation's bootstrap credential
-only on its internal graceful-stop request. Public clients are deliberately uncredentialed so user
-middleware never receives the privileged token; tests that call a namespaced control-plane route
-directly must add the credential to that individual request.
+For `Program`-backed factories, construction reserves an ambient loopback endpoint but starts
+nothing; `StartAsync` creates a `Hosting.Resources` `ResourceRuntime` scope, invokes the registered
+entry, and waits for `/readyz`; `StopAsync` posts `/cohesion/v1/stop` and joins the entry completion
+task; disposal then releases the captured host. The factory presents the invocation's bootstrap
+credential only on its internal graceful-stop request. Public clients are deliberately
+uncredentialed so user middleware never receives the privileged token; tests that call a namespaced
+control-plane route directly must add the credential to that individual request.
 
-Stop semantics — including cancellation-as-drain for in-flight exchanges — are owned and documented
-by Web.Hosting (`docs/DESIGN.md`, "Stop semantics"); the factory adds no policy of its own on top.
+Stop semantics — the lame-duck drain, its budget, and what happens when the budget runs out — are
+owned and documented by Web.Server (its design,
+"[Stop semantics](../assimalign-cohesion-web-server/design.md#stop-semantics-the-lame-duck-drain-146)").
+The factory adds one policy on top: disposal is teardown, so it stops the server with an expired
+budget. A lame-duck drain with no budget waits for every in-flight request, and a handler parked
+until its request is cancelled would hold a test's disposal open forever. Before #146 the stop's
+single token cancelled such a handler on HTTP/1.1 (an HTTP/2 one kept running, and disposal waited
+for it); disposal now cancels it on both. A test that needs its requests to finish calls
+`StopAsync` first.
 
 ## Parallel test isolation
 
 Each factory owns a private listener, dial factory, and application. Because the router builder is
-per-application state (#789 — `AddRouting` registers a per-application `IRouterFeature`, and
-`UseRouting` resolves that same feature), two factories in one process share no route tables,
-middleware, or connections. The test suite guards this end to end: two live factories with disjoint
-route maps serve their own routes and 404 each other's, sequentially and concurrently. This is what
-makes the factory safe under parallel xUnit execution — the intended usage, not an edge case.
+per-application state (#789 — `builder.Services.AddRouting()` registers a per-application
+`IRouterFeature`, and `UseRouting` resolves that same feature), two factories in one process share no
+route tables, middleware, or connections. The test suite guards this end to end: two live factories
+with disjoint route maps serve their own routes and 404 each other's, sequentially and concurrently.
+This is what makes the factory safe under parallel xUnit execution — the intended usage, not an edge
+case.
 
 `Program`-backed factories extend this guarantee to full hosts: each entry runs on its own execution
 flow under an `AsyncLocal` resource frame, so endpoints, settings, references, mounts, environment,
@@ -177,6 +194,24 @@ and the program assembly name as audience. The ambient context carries the token
 P-256 trust JWK. Internal stop requests send that JWT as Bearer; public clients remain
 uncredentialed. Custom managed contexts must supply a matching JWT and public trust key.
 
+The socketless client transport consumes `IDuplexConnection` for its input/output pipe.
+Identity and lifetime remain available through the shared `IConnection` root; HTTP listener
+accepts use `AcceptAsync` and retain their accepted connections until `ConnectionClosed` fires.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
 ## Declared dependencies
 
 | Reference | Kind |
@@ -197,3 +232,4 @@ uncredentialed. Custom managed contexts must supply a matching JWT and public tr
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Assimalign.Cohesion.Web.Testing.csproj`.
+- **Client transport contract** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/Internal/ClientConnectionStream.cs`.
