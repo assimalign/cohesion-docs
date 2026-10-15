@@ -1,0 +1,114 @@
+# Assimalign.Cohesion.Web.Compression
+
+Transparent HTTP body compression for the Cohesion Web pipeline, both directions in one lean feature package.
+
+> **Status:** Partial.
+
+## Reference pages
+
+- **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+
+Transparent HTTP body compression for the Cohesion Web pipeline, both directions in one lean feature
+package. Cohesion serves HTTP directly in its in-process hosting story, so response compression
+(bandwidth, TTFB for JSON/HTML) and safe request decompression cannot be punted to a reverse proxy.
+This package fills that gap with two independent, builder-time-configured middleware verbs over the
+BCL codecs only — no external dependencies, AOT-safe.
+
+## What it does
+
+### Response compression — `UseResponseCompression`
+
+- **Negotiates** gzip or Brotli from each request's `Accept-Encoding` using the shared
+  `Assimalign.Cohesion.Http` negotiation primitives (`HttpAcceptParser` /
+  `HttpContentNegotiation.TrySelectEncoding`) — the q-value / `identity;q=0` semantics are not
+  re-implemented here.
+- **Defers the decision to first write.** There is no header-commit hook, so the middleware wraps
+  `IHttpResponse.Body`; the media type, status, and any handler-set `Content-Encoding` are only
+  known once the handler starts writing. On the first body byte it decides whether to compress,
+  stamps `Content-Encoding`, drops the stale `Content-Length`, and always appends
+  `Vary: Accept-Encoding` for an eligible media type (never clobbering an existing `Vary` token
+  such as the `Accept` a content-negotiated write stamped).
+- **Honors a size threshold** without buffering the whole response: it buffers only up to the
+  threshold to decide, then streams the remainder through the encoder into the transport's response
+  buffer.
+- **Never double-compresses** an already-encoded response, and **hands off** cleanly to a handler
+  that streams via the response-streaming feature (that path commits its own head and bypasses
+  `IHttpResponse.Body`).
+- **BREACH-cautious:** over an `https` request the middleware does nothing unless
+  `EnableForHttps` is set (default off). "`https`" is the effective scheme, so TLS terminated at a
+  trusted proxy counts once `UseForwardedHeaders` runs ahead of this middleware.
+- **A handler can opt** — its own response out through `IResponseCompressionFeature.Disable()`.
+
+### Request decompression — `UseRequestDecompression`
+
+- **Transparently inflates** gzip / br / deflate request bodies per `Content-Encoding` before
+  handlers read them, by decorating the exchange with a request whose `Body` is the decoded stream
+  (the core `IHttpRequest.Body` is get-only and cannot be swapped in place).
+- **Zip-bomb guard:** a configurable decompressed-size limit terminates an over-large body with
+  `413`. The transport's byte cap protects only the compressed wire bytes; this bounds the decoded
+  output.
+- **`415`** for an unsupported coding, **`400`** for a malformed coded body; multiple codings
+  (`Content-Encoding: gzip, br`) are decoded in reverse application order. A malformed message
+  framing under the decoders (a broken chunk size) is the transport's client fault, not the
+  content's: it propagates unchanged and the transport answers it (#1340).
+
+## Usage
+
+See the [source-backed usage examples](examples/index.md).
+
+## Public surface
+
+| Type | Role |
+| --- | --- |
+| `ResponseCompressionExtensions` | `UseResponseCompression(...)` pipeline verb |
+| `ResponseCompressionOptions` | Codings, eligible media types, size threshold, level, `EnableForHttps` |
+| `IResponseCompressionFeature` | Per-exchange opt-out (`Disable()`) read at first write |
+| `RequestDecompressionExtensions` | `UseRequestDecompression(...)` pipeline verb |
+| `RequestDecompressionOptions` | The decompressed-size guard (`MaxDecompressedSizeBytes`) |
+
+## Diagnostics
+
+Enable the `Assimalign.Cohesion.Web.Compression` EventSource to observe decompression limits and
+aborted rejections at Warning, or unsupported and malformed coded bodies at Verbose. The
+`decompression-limit-rejections` counter counts each exchange rejected for exceeding the
+decompressed-size limit, even when warning events are throttled. Events include the request id and
+recognized coding tokens, never raw header values or body content. See [DESIGN.md](design.md#diagnostics)
+for payloads and throttling.
+
+## Dependencies
+
+`Assimalign.Cohesion.Web` (pipeline seams) · `Assimalign.Cohesion.Http` (headers, status codes,
+negotiation primitives) · `Assimalign.Cohesion.Http.Forwarded` (the `EffectiveScheme` read behind the
+BREACH guard) · `Assimalign.Cohesion.Http.Streaming` (the `HasStarted` probe used on the abort path) ·
+`Assimalign.Cohesion.Web.Server` (`IWebClientFaultFeature`, which tells a transport framing failure
+from a decoder's, #1340, and `IWebRequestIdFeature` for diagnostic correlation). Per the Web-area
+dependency rule it references no hosting module, holds no
+DI/configuration/logging state, and is delivered to applications through the `App.Web` shared
+framework. Compression itself rides the BCL `GZipStream` / `BrotliStream` / `ZLibStream` — no
+external packages.
+
+Design rationale — the deferred-first-write wrapper, the BREACH default, multiple-coding handling,
+and the non-goals — lives in [DESIGN.md](design.md) .
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
+## Project references
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
+
+[Parent: Web](../index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/docs/OVERVIEW.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/src/Assimalign.Cohesion.Web.Compression.csproj`.

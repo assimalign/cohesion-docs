@@ -1,0 +1,195 @@
+# Props
+
+The base props define consumer defaults, register the settings task, and map framework references
+to NuGet packs. Resource props and the manifest contribution template belong to
+`Assimalign.Cohesion.Sdk.ApplicationModel` and are documented below with their owning SDK.
+
+## `Sdk/Sdk.props`
+
+Entry point: imports defaults, Microsoft props, frozen version, common markers, settings
+registration, and framework registrations in that order.
+
+## `Targets/Assimalign.Cohesion.Sdk.Common.props`
+
+Marks the project as a Cohesion SDK consumer and computes the shared intermediate path. The two
+underscored properties are private implementation state. Also defaults `CohesionApplicationModel`
+to `disabled` when unset.
+
+| Property | Value | Effect | Condition and source |
+|---|---|---|---|
+| `_CohesionSdk` | `true` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Common.props`; unconditional |
+| `_CohesionIntermediateOutputPath` | `$(IntermediateOutputPath)\Cohesion` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Common.props`; unconditional |
+| `CohesionApplicationModel` | `disabled` | Enable or disable resource generation. | `Targets/Assimalign.Cohesion.Sdk.Common.props`; when `'$(CohesionApplicationModel)' == ''` |
+
+For a resource-area executable, a resource-area SDK project with `OutputType=Exe`, it also copies
+`appsettings*.json` to the build and publish output: the host reads `appsettings.json` and
+`appsettings.{Environment}.json` from its content root, `AppContext.BaseDirectory` for a plain
+application. Microsoft’s props define the default `None` items before this import; a consumer’s
+own `None Update` in the project body still wins.
+
+| Item | Declaration | Metadata | Condition and source |
+|---|---|---|---|
+| `None` | `Update=appsettings*.json`; `CopyToOutputDirectory=PreserveNewest`; `CopyToPublishDirectory=PreserveNewest` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.Common.props`; when `'$(_CohesionResourceSdk)' == 'true' and '$(OutputType)' == 'Exe'` |
+
+## `Targets/Assimalign.Cohesion.Sdk.Defaults.props`
+
+Sets compiler defaults before importing `Microsoft.NET.Sdk`. Resource-area SDKs mark the project
+before this import so they receive executable output; direct base-SDK consumers retain the
+Microsoft SDK's Library default. Every assignment is conditional on an empty value.
+
+| Property | Value | Effect | Condition and source |
+|---|---|---|---|
+| `OutputType` | `Exe` | Assigned during `evaluation` for resource-area SDKs. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(OutputType)' == '' and '$(_CohesionResourceSdk)' == 'true'` |
+| `TargetFramework` | `net10.0` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(TargetFramework)' == ''` |
+| `LangVersion` | `Preview` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(LangVersion)' == ''` |
+| `EnablePreviewFeatures` | `true` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(EnablePreviewFeatures)' == ''` |
+| `ImplicitUsings` | `disable` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(ImplicitUsings)' == ''` |
+| `Nullable` | `enable` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(Nullable)' == ''` |
+| `IsAotCompatible` | `true` | Assigned during `evaluation`. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props`; when `'$(IsAotCompatible)' == ''` |
+
+## `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`
+
+Registers nineteen shared frameworks for net10.0. The base adds no implicit framework; each
+resource SDK adds `Assimalign.Cohesion.App` and its own area framework. A direct base-SDK executable
+adds an explicit `FrameworkReference` to App.
+
+| Property | Value | Effect | Condition and source |
+|---|---|---|---|
+| `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by all registered framework targeting and runtime packs. | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`; when `'$(CohesionAppFrameworkVersion)' == ''` |
+
+| Item | Declaration | Metadata | Condition and source |
+|---|---|---|---|
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.Web`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.Web`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.Web.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.Web.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.Database`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.Database`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.Database.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.Database.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.ApiManager`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.ApiManager`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.ApiManager.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.ApiManager.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.ConfigurationStore`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.ConfigurationStore`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.ConfigurationStore.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.ConfigurationStore.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.EmailHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.EmailHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.EmailHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.EmailHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.EventHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.EventHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.EventHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.EventHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.IdentityHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.IdentityHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.IdentityHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.IdentityHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.IoTHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.IoTHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.IoTHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.IoTHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.LoadBalancer`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.LoadBalancer`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.LoadBalancer.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.LoadBalancer.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.LogSpace`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.LogSpace`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.LogSpace.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.LogSpace.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.MediaHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.MediaHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.MediaHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.MediaHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.MessageHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.MessageHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.MessageHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.MessageHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.NatGateway`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.NatGateway`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.NatGateway.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.NatGateway.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.NotificationHub`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.NotificationHub`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.NotificationHub.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.NotificationHub.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.Rezolvr`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.Rezolvr`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.Rezolvr.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.Rezolvr.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.Scheduler`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.Scheduler`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.Scheduler.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.Scheduler.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.SecretStore`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.SecretStore`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.SecretStore.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.SecretStore.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `KnownFrameworkReference` | `Include=Assimalign.Cohesion.App.VpnGateway`; `TargetFramework=net10.0`; `RuntimeFrameworkName=Assimalign.Cohesion.App.VpnGateway`; `DefaultRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `LatestRuntimeFrameworkVersion=$(CohesionAppFrameworkVersion)`; `TargetingPackName=Assimalign.Cohesion.App.VpnGateway.Ref`; `TargetingPackVersion=$(CohesionAppFrameworkVersion)`; `RuntimePackNamePatterns=Assimalign.Cohesion.App.VpnGateway.Runtime.**RID**`; `RuntimePackRuntimeIdentifiers=win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`; `IsTrimmable=true` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+
+## `Targets/Assimalign.Cohesion.Sdk.ResourceManifest.props`
+
+Owned by `Assimalign.Cohesion.Sdk.ApplicationModel`. This resource-package contribution template
+includes `../cohesion/resource.json` using absolute paths, identifies the package from
+`MSBuildThisFileName`, and marks `IsSelf=false`.
+
+| Item | Declaration | Metadata | Condition and source |
+|---|---|---|---|
+| `CohesionResourceManifest` | `Include=$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../cohesion/resource.json'))`; `ManifestPath=$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../cohesion/resource.json'))`; `PackageId=$(MSBuildThisFileName)`; `ReferenceIdentity=$(MSBuildThisFileName)`; `IsSelf=false` | No additional child metadata | `Targets/Assimalign.Cohesion.Sdk.ResourceManifest.props` |
+
+## `Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.props`
+
+Registers `CreateStronglyTypedSettingsTask` from the packaged task assembly with Runtime=NET.
+Generation is wired later, and only if a class name is supplied.
+
+| Task | Assembly | Runtime |
+|---|---|---|
+| `Assimalign.Cohesion.Sdk.Tasks.CreateStronglyTypedSettingsTask` | `..\Tasks\Assimalign.Cohesion.Sdk.Tasks.dll` | `NET` |
+
+## `Targets/Sdk.Resource.props`
+
+Owned by `Assimalign.Cohesion.Sdk.ApplicationModel`, whose `Sdk/Sdk.targets` imports this file after
+the consumer project body and before the base SDK's targets. The auxiliary SDK's `Sdk/Sdk.props`
+is intentionally empty; the base or area SDK owns the props chain. Area SDKs import ApplicationModel
+when `CohesionApplicationModel=enabled`; a direct base-SDK consumer imports it explicitly.
+
+Registers the manifest, portable-package, and image-validation tasks. Defines resource defaults
+and item metadata. The `CohesionApplicationModel=disabled` default comes from the base
+`Targets/Assimalign.Cohesion.Sdk.Common.props`, not this file. MSBuild evaluates item definitions
+before project items, so the metadata defaults still apply after the project body.
+
+| Property | Value | Effect | Condition and source |
+|---|---|---|---|
+| `CohesionApplication` | `$(CohesionApplicationName)` | Application identity; aliases CohesionApplicationName. | `Targets/Sdk.Resource.props`; when `'$(CohesionApplication)' == '' and '$(CohesionApplicationName)' != ''` |
+| `CohesionApplicationName` | `$(CohesionApplication)` | Application identity; aliases CohesionApplication. | `Targets/Sdk.Resource.props`; when `'$(CohesionApplicationName)' == '' and '$(CohesionApplication)' != ''` |
+| `CohesionResourceComposable` | `true` | Whether the manifest permits in-process composition. | `Targets/Sdk.Resource.props`; when `'$(CohesionResourceComposable)' == ''` |
+| `CohesionReplicas` | `1` | Replica count written to lifecycle metadata. | `Targets/Sdk.Resource.props`; when `'$(CohesionReplicas)' == ''` |
+| `CohesionStopGraceSeconds` | `30` | Graceful-stop budget, at least five seconds. | `Targets/Sdk.Resource.props`; when `'$(CohesionStopGraceSeconds)' == ''` |
+| `CohesionRestartPolicy` | `OnFailure` | OnFailure, Always, or Never. | `Targets/Sdk.Resource.props`; when `'$(CohesionRestartPolicy)' == ''` |
+| `CohesionPackRuntime` | `false` | Opt into a separate ordinary runtime package after manifest packing. | `Targets/Sdk.Resource.props`; when `'$(CohesionPackRuntime)' == ''` |
+| `CohesionImageRequired` | `false` | Promote missing digest-pinned package image diagnostic to an error. | `Targets/Sdk.Resource.props`; when `'$(CohesionImageRequired)' == ''` |
+| `CohesionPackImageArchive` | `false` | Include the image archive in the manifest package. | `Targets/Sdk.Resource.props`; when `'$(CohesionPackImageArchive)' == ''` |
+
+| Item | Declaration | Metadata | Condition and source |
+|---|---|---|---|
+| `CohesionEndpoint` | Metadata defaults | `Scheme=`; `ContainerPort=`; `DevPort=`; `Public=false`; `Certificate=`; `Protocol=tcp` | `Targets/Sdk.Resource.props` |
+| `CohesionProbe` | Metadata defaults | `Endpoint=`; `Http=`; `Tcp=`; `Exec=`; `Grpc=`; `None=` | `Targets/Sdk.Resource.props` |
+| `CohesionMount` | Metadata defaults | `Kind=`; `ContainerPath=`; `Source=`; `Size=` | `Targets/Sdk.Resource.props` |
+| `CohesionSetting` | Metadata defaults | `Default=`; `Type=string` | `Targets/Sdk.Resource.props` |
+| `CohesionResourceReference` | Metadata defaults | `Version=`; `Optional=false`; `Endpoints=` | `Targets/Sdk.Resource.props` |
+| `CohesionResourceProperty` | Metadata defaults | `Value=` | `Targets/Sdk.Resource.props` |
+
+| Task | Assembly | Runtime |
+|---|---|---|
+| `Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.CohesionCreateResourceManifest` | `..\Tasks\Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.dll` | `NET` |
+| `Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.CohesionPrepareResourceManifestPackage` | `..\Tasks\Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.dll` | `NET` |
+| `Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.CohesionValidateImageManifest` | `..\Tasks\Assimalign.Cohesion.Sdk.ApplicationModel.Tasks.dll` | `NET` |
+
+## Generated `Targets/Build.Version.props`
+
+The SDK package freezes `CohesionMajorVersion`, `CohesionMinorVersion`, `CohesionPatchVersion`,
+and `CohesionVersion` at pack time. The repository’s dynamic version source is
+`build/Targets/Build.Version.props`; its target-framework calculation is not shipped verbatim. The
+frozen import precedes framework registrations so targeting pack versions are available when their
+items are evaluated.
+
+## Framework membership and pack contents
+
+`libraries/App/Assimalign.Cohesion.App.props` supplies the App kernel roots and shared producer
+defaults. App derives its membership from the seventeen `CohesionAppKernelRoot` entries and their
+transitive Cohesion project-reference closure, then adds the umbrella assembly. The roots include
+`Connections.StreamAbort`, `Connections.StreamLimits`, `Connections.Tls`, and
+`Logging.EventSource`. See the [App reference](../../../libraries/app/index.md) for the full list
+and source-backed framework validation examples.
+
+Each area’s Runtime producer declares its own member list in `Directory.Build.props`; its Refs
+producer imports that same file. Public `CohesionFrameworkAssembly` entries go into targeting and
+runtime packs. `CohesionFrameworkPrivateAssembly` entries are runtime-only.
+`CohesionFrameworkAnalyzer` entries ship in targeting packs as `analyzers/dotnet/cs/` assets.
+
+The `.Refs` and `.Runtime` projects import the common framework targets.
+`CohesionCollectFrameworkPack` resolves source paths at target execution, validates that listed
+assemblies exist, and writes `data/FrameworkList.xml` or `data/RuntimeList.xml`. Ref assemblies
+live in `ref/<tfm>/`; runtime implementations live in `runtimes/<rid>/lib/<tfm>/`. The SDK’s
+registered runtime identifiers are
+`win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;osx-x64;osx-arm64`.
+
+Framework inclusion is evaluated in props. Set `CohesionAutoIncludeAppFramework` and
+`CohesionAppFrameworkVersion` before that point, for example in consumer `Directory.Build.props` or
+as global properties. Changing a property in the later project body does not remove an
+already-created item or rewrite its metadata.
+
+[MSBuild](index.md) · [Targets](targets.md)
+
+## Sources
+
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Common.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Defaults.props`
+- **Source** —
+  `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Assimalign.Cohesion.Sdk.ResourceManifest.props`
+- **Source** —
+  `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Sdk/Sdk.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Sdk/Sdk.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.props`
+- **Source** — `cohesion/sdks/Directory.Build.targets`
+- **Source** — `cohesion/build/Targets/Build.Version.props`
+- **Source** — `cohesion/build/Targets/Build.TargetFramework.props`
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.targets`
+- **Source** — `cohesion/libraries/App/Directory.Build.props`
+- **Source** — `cohesion/libraries/App/Directory.Build.targets`

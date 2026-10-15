@@ -1,0 +1,17 @@
+<template>
+    <section class="brand-cohesion">
+        <p class="text-sm font-semibold uppercase tracking-widest text-[var(--accent)]">Preview host</p>
+        <h1 class="mt-2 text-4xl font-bold tracking-tight">Cohesion documentation</h1>
+        <p class="mt-4 max-w-2xl text-lg opacity-75">This thin host exercises the packaged documentation module exactly as the landing zone composes it.</p>
+        <div class="mt-10 max-w-xl">
+            <ProductCard :product="Cohesion" title="Cohesion" description="Application infrastructure, resources, platforms, and .NET APIs." route="/cohesion" />
+        </div>
+    </section>
+</template>
+
+@script {
+    using Assimalign.Frontend;
+
+    /// <summary>Gets the Cohesion accent used by the preview card.</summary>
+    public BrandAccent Cohesion => BrandAccent.Cohesion;
+}

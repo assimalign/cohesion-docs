@@ -1,0 +1,410 @@
+# Assimalign.Cohesion.Web.HttpsPolicy design
+
+This page describes the boundaries and implementation shape of `Assimalign.Cohesion.Web.HttpsPolicy`.
+
+> **Status:** Partial.
+
+## Design intent
+
+One lean package pairs the two HTTPS-posture concerns a web server needs — HTTP-to-HTTPS redirection
+and HTTP Strict Transport Security (issue #780). They are a natural pair, not two micro-packages:
+both are edge middleware, both are dependency-free option captures, and both turn on the same
+question — *is this request secure?* HSTS and redirection are complementary halves of the same
+policy (redirect the plaintext request, then tell the client never to try plaintext again), so
+shipping them together keeps the composition story in one place.
+
+The package owns only the Web-pipeline surface: two options objects, two
+`extension(IWebApplicationPipelineBuilder)` verbs, and two internal middleware. The typed protocol
+values it stands on — `HttpScheme`, `HttpHost`, `HttpHostMatcher`, `HttpHeaderKey`, the redirect
+status codes — all live in `Assimalign.Cohesion.Http`.
+
+## Connection-security detection — the effective typed scheme
+
+Both middleware must know, at request time, whether the connection is already secure. The decision:
+**read the effective scheme (`context.EffectiveScheme`, from `Assimalign.Cohesion.Http.Forwarded`)
+and compare it to `HttpScheme.Https`.** Without a trusted proxy in front, the effective scheme *is*
+`IHttpRequest.Scheme` — the typed, AOT-safe security signal #763 delivers, and the reason this
+feature was sequenced behind that work. Behind a trusted proxy it is the scheme the client used on
+the outermost trusted hop (see "Behind a TLS-terminating proxy" below).
+
+What #763 actually shipped, traced through the code:
+
+- The request-target cannot raise it on a cleartext connection. An HTTP/1.1
+  absolute-form target such as `https://example.com/admin`, or an HTTP/2 `:scheme`
+  of `https`, used to become `IHttpRequest.Scheme` whatever the connection, so a
+  cleartext request that named an `https` target skipped the redirect and reached
+  the application in cleartext. Since #1324's review the HTTP/1.1 transport answers
+  that target with `421` (RFC 9110 §7.4) before the pipeline runs. Cleartext HTTP/2
+  now also answers `:scheme https` with `421` (#1415), replacing the intermediate
+  behavior that reported the connection's `http`. The listener's
+  `AllowAlternateSchemes` option lets a trusted gateway forward `https` to an h2c
+  backend and preserves that scheme on the request (`Http.Connections` DESIGN,
+  "The request scheme and an https target on cleartext"). With the option enabled,
+  this middleware trusts the gateway's scheme and skips the redirect. Otherwise
+  `https` on the request means a secured connection; `HttpsRedirectionEndToEndTests`
+  pins the HTTP/1.1 421. Rejecting h2c's secure scheme is a behavioral break from
+  10.0.0-preview.1, which accepted the client-supplied scheme on every listener.
+- **A transport listener exposes** — a `ConnectionSecurity` capability
+  (`Capabilities.Security`); a TLS-layered listener reports
+  `ConnectionSecurity.Tls`.
+- **The HTTP connection layer** — derives the request scheme from that capability once
+  per listener and surfaces it as the `HttpScheme` enum on `IHttpRequest.Scheme`
+  (`HttpConnectionIsSecurePropagationTests` in `Http.Connections` pins this:
+  a TLS-capability listener yields `HttpScheme.Https` on every request, keep-alive
+  included).
+
+So the "typed TLS feature" the issue calls for is realized, for this package's question, as the
+transport-derived `HttpScheme` enum on the request. The TLS session itself has its own surface now:
+`Http.Tls`'s `context.TlsConnection` (`IHttpTlsConnectionFeature`, #1065), which the accessor builds
+on first read from the `ITlsConnectionInfo` facet the transport publishes on the exchange's
+connection info (#1367). This package does not read it. Whether an exchange is secure is a scheme
+question, which `HttpScheme` answers without a reference to `Http.Tls`; the session's certificate,
+protocol and cipher suite answer other questions. Reading the enum is not scheme-string sniffing:
+nothing parses the literal text `"https"`, inspects a header, or reflects. `Web.Compression` gates
+its BREACH protection on the same effective scheme (`context.EffectiveScheme == HttpScheme.Https`),
+so the two packages agree on what "secure" means for any given exchange.
+
+### Behind a TLS-terminating proxy
+
+`IHttpRequest.Scheme` describes the **immediate hop**. When TLS terminates at a proxy and the
+app-facing hop is plaintext, the wire scheme reads as insecure on every request: reading it,
+`UseHttpsRedirection` would loop (the proxy re-delivers the redirect over the same plaintext hop)
+and `UseHsts` would never emit (#1050, defect D7).
+
+The forwarded-headers middleware (`Web.ForwardedHeaders`) deliberately never mutates
+`Request.Scheme`; it publishes the proxy-asserted scheme and host on `IHttpForwardedFeature`, and
+consumers read them through the `Effective*` convention in `Assimalign.Cohesion.Http.Forwarded`
+(owner decision 3 in `docs/programs/HTTP_WEB_PROGRAM_PLAN.md` §7.4: read the effective values, never
+rewrite the request). Both middleware in this package follow that convention:
+
+- **Redirection** treats the request as secure when `EffectiveScheme` is
+  `https`, so a request a trusted proxy received over TLS passes through instead
+  of looping. An insecure request's `Location` is built from `EffectiveHost` —
+  the authority the client addressed — rather than the proxy's upstream
+  authority, which the client cannot reach.
+- **HSTS** emits when `EffectiveScheme` is `https` and matches the excluded hosts
+  against `EffectiveHost`. RFC 6797 §7.2 forbids emission over a non-secure
+  *transport*; the transport that matters is the one the user agent receives the
+  field over, and behind a trusted TLS-terminating proxy that is the proxy's TLS
+  leg. Matching exclusions on the effective host matters for a local proxy that
+  dials `localhost`: matching the wire host would suppress the policy for the
+  public host.
+
+**Trust dependency.** The effective values change only when `UseForwardedHeaders` accepted a trusted
+hop, so a client that sends `X-Forwarded-Proto: https` directly is still redirected and never
+receives HSTS. With no forwarded-headers middleware in the pipeline, the effective values are
+exactly the wire values and both middleware behave as before.
+
+**Ordering.** Register `UseForwardedHeaders` before `UseHttpsRedirection`: the redirect decision is
+made before `next`, so the feature must already be on the exchange. `UseHsts` reads after `next`
+returns, so it honors the forwarded identity wherever `UseForwardedHeaders` sits.
+
+`HttpsRedirectionOptions.HttpsPort` is the port the *client* should use. Behind a TLS-terminating
+proxy that is the proxy's public HTTPS port, not a port the application itself binds.
+
+#### Recognizing a redirect loop
+
+A sustained `307` or `308` rate on every route, with HTTPS clients repeatedly
+redirected and never reaching the page, is the proxy-loop symptom. Check the
+status breakdown in `http.server.request.duration` and the HTTP access logs.
+**No event reports this loop when `UseForwardedHeaders` is missing**: HttpsPolicy
+has no event source, and absent middleware cannot emit a forwarding diagnostic.
+When forwarded-headers middleware is present and receives forwarding headers,
+its `ForwardingStopped(UntrustedPeer)` signal identifies a proxy whose assertions
+were refused because the peer is not trusted. It diagnoses the trust failure,
+not the loop itself; absence of that signal does not rule out a loop. Check that
+`UseForwardedHeaders` runs before `UseHttpsRedirection`, that the proxy sends the
+original scheme, and that its address is in the configured trusted proxies or
+networks. Trust only the actual proxy peers.
+
+## Redirection
+
+### `Location` composition
+
+The `Location` is rebuilt from the request itself, never echoed from an untrusted header (a
+forwarded host reaches it only after the forwarded-headers trust walk accepted the hop and
+shape-checked the value):
+
+- **Scheme** — always `https`.
+- **Host** — the request's effective host (`EffectiveHost`: the host a trusted proxy forwarded,
+  otherwise the request's own host), its inbound port stripped via `HttpHost.TryGetComponents` and
+  replaced by the configured HTTPS port. An IPv6 literal is re-bracketed for URL use, since the
+  component split strips brackets (`[::1]:80` and the unbracketed `::1` both compose to
+  `https://[::1]...`). A host the redirect cannot name is answered with `400` instead (see "A host
+  the redirect cannot name", below).
+- **Path** — the decoded `HttpPath` percent-encoded back per segment by `HttpPath.ToUriComponent()`
+  (#1324). Every transport decodes the request path before middleware sees it, so writing
+  `HttpPath.Value` as is put decoded text in `Location`: `/caf%C3%A9` became `/café`, which the
+  HTTP/1.1 writer sends as `/caf?` (a different path plus a query), and `/100%25` became `/100%`,
+  which is not a URI reference (RFC 9110 §10.2.2). `ToUriComponent` keeps `pchar` and `/` as they
+  are, encodes everything else as UTF-8, and writes a `%` as `%25` except where it begins an escape
+  the decoder leaves as written: an encoded slash (`%2F`), or a sequence that is not valid UTF-8
+  (the Latin-1 `%E9`). One in the path is the escape the request carried, and encoding it again
+  would name the different URI `%252F` or `%25E9`. `HttpPath.FromUriComponent` reads the result back
+  as the request's path. A space, `?` or `#` never reaches this point: `HttpPath` rejects them, and
+  the transports fail a request-target that decodes to one (`HttpPathTests` in core Http pins both).
+  The asterisk-form `*` of an `OPTIONS` request for the whole server (RFC 9112 §3.2.4) is written as
+  the empty path, so the `Location` is `https://example.com`, the absolute-form of `*`; appended as
+  a path it made the authority `example.com*`.
+- **Query** — rebuilt from the parsed `IHttpQueryCollection` by `HttpQuery.Create`, which
+  percent-encodes each key and value except for the unreserved characters and writes an empty value
+  as the bare key. `Web.StaticFiles`' add-a-slash redirect and `Web.Rewrite`'s redirects use the
+  same calls, so the three write a path and a query the same way. **This is not byte-verbatim**, and
+  deliberately so: `IHttpRequest` exposes only the *parsed* query (the raw query string is discarded
+  at the transport boundary — see `TransportHttpRequest`), so the reconstruction (a) follows the
+  parsed collection's enumeration order rather than guaranteed wire order, and (b) normalizes
+  percent-encoding. For a redirect this is safe — the client re-issues against the rebuilt target —
+  and it is the best fidelity the current `IHttpRequest` surface allows. Exposing a raw
+  request-target/raw-query accessor on `IHttpRequest` (a core `Http` change) would let this be truly
+  verbatim; it is recorded as a scope-creep candidate, not taken here.
+
+The response is **status + `Location` only** — bodyless. Being a `3xx`, it sits below the `4xx`
+/`5xx` range the status-code-pages middleware acts on, so that middleware never adds a body to it;
+no coordination is needed beyond choosing a redirect status.
+
+### A host the redirect cannot name
+
+An insecure request whose effective host the redirect cannot name is answered with `400 Bad Request`
+(RFC 9112 §3.2), without a `Location` and without calling `next` (#1324). Three shapes qualify:
+
+- **Empty** — no `Host` and no authority; there is nothing to address.
+- **Not a well-formed `host[:port]`** — `HttpHost.TryGetComponents` fails: an unterminated or empty
+  bracket, junk after `]`, a trailing `:`, or a port outside 1–65535.
+- **A character outside the unreserved set and `:`** — the component split is structural, and the
+  transport requires only visible ASCII in `Host`, so `evil.example/x`, `user@evil.example`,
+  `host\x`, `host?x` and `host#x` all split cleanly. Echoed, each moves part of the URL into or out
+  of the authority. The set is the one Web.Rewrite's canonicalization rules echo
+  (`RewriteUrl.IsSafeHostName`): DNS names, IPv4 literals and IPv6 literals without their brackets.
+
+Before #1324 the first two fell back to the raw `host.Value`, so unparsed request text reached
+`Location`, and the third was echoed as split. Since #1183 the transport refuses CR, LF and NUL in a
+response field, which turned a reflected control character into a `500` rather than a split
+response; the middleware now refuses the host itself.
+
+`400` rather than skipping the redirect: a skipped redirect would hand the request to the
+application over the insecure connection, which is the one thing this middleware exists to prevent.
+Web.Rewrite's `AddRedirectToHttps` rule skips instead, because it is one canonicalization rule among
+others, not a policy gate.
+
+### Method-preserving status only
+
+`307` (default) and `308` are the only permitted statuses, validated at builder time. The historical
+`301` /`302` are rewritten to `GET` by user agents, which would silently drop the method and body of
+a non-`GET` request being upgraded to HTTPS (RFC 9110 §15.4.8/§15.4.9). Restricting the option to
+the method-preserving pair makes that foot-gun unreachable.
+
+### HTTPS port resolution — explicit only
+
+`HttpsRedirectionOptions.HttpsPort` is an explicit setting (default `443`, which is omitted from
+the `Location`). It is **not** derived from the server's endpoint bindings, for a hard
+architectural reason: a feature-package middleware cannot see those bindings without referencing
+`Web.Hosting`, and the resource hosting-isolation rule (`COHRES001`) forbids that reference — the
+build fails on it. Nor is `IHttpConnectionInfo.LocalPort` a usable fallback: on an insecure request
+that is the *plaintext* port (e.g. 80), not the HTTPS port to redirect to. No feature on the request
+surfaces the HTTPS listener's port. So explicit configuration is the correct and only clean
+expression today; builder-time derivation from endpoint bindings is recorded as a scope-creep
+candidate for if and when the Web layer surfaces bindings to middleware through a feature.
+
+## HSTS
+
+### Emission point — after `next`, before the exception boundary
+
+The `Strict-Transport-Security` field is applied **after** `next` returns (post-`next`), and the
+verb documents that `UseHsts` should sit **before the exception boundary** (`#881`) in the pipeline.
+This is the reasoned call the issue asked for; the alternative (set the header before `next`) was
+rejected.
+
+The forcing function is the `#881` exception boundary. On a faulted, unstarted response it calls
+`response.Headers.Clear()`, renders a fresh problem+json `500`, and **returns normally** (it
+swallows the fault rather than rethrowing). Trace the two emission points against that:
+
+- **Pre-`next`** — the header is set, then a downstream fault reaches the
+  boundary, which clears all headers (wiping HSTS) and writes the `500`. The
+  policy is **lost** on every error response. Rejected.
+- **Post-`next`, with `UseHsts` outside the boundary** — the boundary handles the
+  fault, resets, writes the `500`, and returns; control unwinds back to this
+  middleware, which *then* applies HSTS onto the already-reset response. A reset
+  error response served over TLS **still carries the policy** — the behavior the
+  issue argues for ("a reset error response over TLS arguably still deserves
+  HSTS"). Chosen.
+
+The response model is buffered-until-the-pipeline-unwinds (the boundary and the status-code-pages
+middleware both operate on the buffered response post-`next`), so for the common buffered response
+the post-`next` write still lands on the head before the transport sends it. The one response that
+cannot receive the field is one whose head has **already committed** to the wire — a genuinely
+streamed response. That is inherent to HTTP (no field can be added after the head is sent) and
+independent of emission point; the middleware detects it through `IHttpHeaderCollection.IsReadOnly`
+and **skips rather than faults**, using the core header collection's own read-only signal so no
+dependency on the response-streaming feature (`Http.Streaming`) is needed.
+
+### `Header` value composed once
+
+Because the options are captured and immutable-after-capture, the field value
+`max-age=<seconds>[; includeSubDomains][; preload]` is composed **once**, in the `UseHsts` verb, and
+handed to the middleware as a string. `max-age` is emitted as whole seconds (RFC 6797 §6.1.1); the
+directives append in the conventional order. `max-age=0` is valid (it tells a user agent to delete a
+stored policy) and allowed; a negative `MaxAge` is rejected at builder time.
+
+**`MaxAge` default — 365 days.** HSTS deployment guidance and the browser preload lists treat one
+year as the production baseline, so that is the default. It is a real commitment (a client that saw
+the header refuses plaintext for the whole window even if HTTPS is later withdrawn), so the XML docs
+and this file flag the lock-in and recommend a short window when first rolling HSTS out. `preload`
+is emitted faithfully when set but its submission preconditions (≥1 year + `includeSubDomains`) are
+**not** enforced, because `preload` is not itself an RFC 6797 directive.
+
+### Host exclusion — reuse `HttpHostMatcher`
+
+`ExcludedHosts` reuses the core `HttpHostMatcher` (the #781 host-filtering primitive) rather than
+re-implementing host matching, so exclusion shares the same case-insensitive, port-ignoring,
+IPv6-bracket-insensitive semantics as the rest of the stack — `localhost:5001` and `[::1]` match the
+`localhost`/`[::1]` defaults. The default excluded set is `localhost`, `127.0.0.1`, `[::1]`: a
+developer commonly serves plaintext on loopback, and a long-lived HSTS policy pinned to `localhost`
+would poison every other local project on that authority. The matcher runs against the **effective**
+host — the authority the policy is pinned to in the user agent — so a same-host reverse proxy that
+dials the app as `localhost` does not suppress the policy for the public host it forwards.
+
+One wrinkle drives a small design choice: `HttpHostMatcher.Create` rejects an *empty* pattern list
+(the deny-all-by-mistake guard host filtering wants). HSTS wants the opposite for an empty list —
+emit everywhere. So a cleared `ExcludedHosts` compiles to a **null matcher** (no exclusions), not a
+call to `Create`; a non-empty list is precompiled once at builder time, where an invalid pattern
+(port-bearing, malformed, wildcard-misusing) throws.
+
+## The RFC 6797 header-key fix (core `Http`)
+
+`HttpHeaderKey.StrictTransportSecurity` shipped with the value `"Strict-Transports-Security"` (an
+extra *s*), wrong per RFC 6797 — it would have corrupted every HSTS emission. It is corrected to
+`"Strict-Transport-Security"` in `libraries/Http/Assimalign.Cohesion.Http`, with round-trip tests
+through `IHttpHeaderCollection` (mirroring the #768 `Sec-WebSocket-Protocol` fix). The member *name*
+is unchanged; only the wire value moved. Blast radius was one line: the misspelled string appeared
+nowhere else, and the HTTP/2 HPACK / HTTP/3 QPACK static tables already carried the correct
+lowercase `strict-transport-security`.
+
+## Ordering / composition summary
+
+The pipeline order behind a TLS-terminating proxy, drawn as the exchange it produces: the
+forwarded-headers middleware resolves the client-facing scheme first, so redirection sees `https`
+and passes the request on, and HSTS stamps the policy on the way back out.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Proxy as TLS-terminating proxy
+    participant Fwd as UseForwardedHeaders
+    participant Hsts as UseHsts
+    participant Redirect as UseHttpsRedirection
+    participant App as Rest of the pipeline
+    Client->>Proxy: GET https://public.example/page
+    Proxy->>Fwd: GET /page over plaintext, X-Forwarded-Proto https
+    Note over Fwd: trusted peer, so EffectiveScheme is https
+    Fwd->>Hsts: next
+    Hsts->>Redirect: next
+    Redirect->>App: already secure, no redirect
+    App-->>Redirect: 200
+    Redirect-->>Hsts: 200
+    Hsts-->>Fwd: 200 plus Strict-Transport-Security
+    Fwd-->>Proxy: 200 plus Strict-Transport-Security
+    Proxy-->>Client: 200 over TLS
+```
+
+- **`UseForwardedHeaders` before `UseHttpsRedirection`** whenever TLS terminates
+  at a proxy. Redirection decides before `next`, so the effective scheme must
+  already be resolved; registered the other way round, every proxied request is
+  judged by its plaintext wire scheme and redirected.
+- **`UseHttpsRedirection` earliest** after that. An insecure request
+  short-circuits here before compression, serialization, or any other response
+  work happens on a response that is about to be discarded.
+- **`UseHsts` before the exception boundary.** See the emission-point analysis:
+  post-`next` from outside the boundary is what lets the policy survive a reset
+  error response.
+- **The two are order-independent** — relative to each other. HSTS never emits on the
+  redirect response anyway — that response rides an *insecure* request (a secure
+  request is not redirected), and HSTS is secure-only.
+
+## AOT posture
+
+Options → a captured string and a precompiled matcher at registration; request-time work is one
+typed feature lookup (the `Effective*` read), an enum comparison, an optional matcher hit, and a
+header set. No reflection, no configuration binding, no service location, no runtime code
+generation.
+
+## Non-goals
+
+- **No hosting integration.** The package must not (and cannot, per `COHRES001`)
+  reference `Web.Hosting`; pipeline placement is the application's
+  registration-order responsibility. HTTPS-port derivation from endpoint bindings
+  is out of scope for the same reason.
+- **No byte-verbatim query round-trip.** The parsed-query reconstruction is the
+  ceiling of the current `IHttpRequest` surface (see "`Location` composition").
+- **No downgrade of the redirect to `301`/`302`.** Method-preserving statuses
+  only.
+- **No `preload` precondition enforcement.** The directive is emitted as
+  configured; submission rules are the operator's concern.
+- **No redirect-host exclusions.** Redirection upgrades every insecure request;
+  to avoid redirecting loopback in development, do not register the verb there
+  (or serve HTTPS directly). Host *exclusion* is an HSTS concept only, because an
+  HSTS policy is sticky where a redirect is not.
+
+## Scope-creep candidates (recorded, not taken)
+
+- **Expose a raw request-target** — / raw query string on `IHttpRequest` so redirection
+  can preserve the query byte-verbatim.
+- **Surface server endpoint bindings** — to middleware through a feature so the HTTPS
+  port can be derived at builder time instead of configured explicitly.
+
+## Testing
+
+`tests/HttpsRedirectionTests.cs` and `tests/HstsTests.cs` drive the two middleware directly through
+a unit-level `IHttpContext` double (`tests/TestObjects/TestHttpContext.cs`) and a capturing
+pipeline-builder double (`TestPipelineBuilder`), so the verbs' builder-time validation and the
+middleware behavior are exercised through the public surface only — no `Web.Hosting` /`Web.Testing`
+dependency. The in-memory HTTP/1.1 test factory cannot express an `https` request (the same reason
+`Web.Compression` uses a context double), which is exactly the state these tests must set. Coverage:
+redirect status (`307`/`308`), `Location` composition (default/custom port, inbound-port swap, IPv6
+re-bracketing, the per-segment path encoding with an encoded slash kept as written, query
+preservation and encoding), the `400` for a host the redirect cannot name, secure pass-through, HSTS
+value composition for every directive combination, the loopback exclusions and a custom wildcard
+exclusion, the post-`next` emission point and its survival across a simulated `#881` reset, the
+committed-head skip, and builder-time validation failures. The RFC 6797 key fix is covered by
+round-trip tests in `Assimalign.Cohesion.Http`.
+
+`tests/HttpsPolicyForwardedTests.cs` covers the proxy behavior with the real forwarded-headers
+middleware (the test project references `Web.ForwardedHeaders`), captured through the same
+`TestPipelineBuilder` and run in front of the policy middleware. The double's connection reports a
+plaintext request from a trusted proxy address: forwarded `https` passes redirection without a loop
+and receives HSTS, including when the proxy dials `localhost`; forwarded `http` redirects to the
+forwarded host; and forwarding headers are ignored both without the middleware and from an untrusted
+peer.
+
+Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
+use `IMultiplexedConnectionStream`. These contract names do not alter this package's
+request/response behavior.
+
+## Exception messages (#1467, #1471)
+
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
+The internal naming cleanup preserves message text, placeholders and resource order.
+
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
+an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
+output directory; no designer is checked in. Formatted messages use
+`string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
+preserves the existing exception text and input-disclosure rules, including any diagnostic
+type-only exclusions. EventSource templates, log messages and response bodies retain their
+existing ownership. This is a conventions change with no public API or behavior break against
+10.0.0-preview.1.
+
+## Declared dependencies
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
+
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.HttpsPolicy/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.HttpsPolicy/src/Assimalign.Cohesion.Web.HttpsPolicy.csproj`.

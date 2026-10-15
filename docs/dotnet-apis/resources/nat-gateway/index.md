@@ -1,0 +1,99 @@
+# NatGateway
+
+NatGateway defines the application and hosting seams for a network-address-translation resource.
+
+> **Status:** Partial. The host and orchestration seams exist; domain services remain fillers.
+
+NatGateway is the L3 networking service platform intended to manage source and destination
+translation rules, live translation sessions, port allocation, and egress policy.
+
+The host supports enabled-resource control planes; domain services remain fillers pending the area
+program.
+
+Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
+only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
+receive 403. Forwarded headers cannot grant access. Bare `/healthz`, `/readyz`, and `/livez` probes
+stay public. Gateway-managed credential checks are unchanged. This restricts remote standalone
+management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
+gateway identity with credentials for remote management.
+
+## Packages
+
+| Package | Role | Shared-framework delivery |
+|---|---|---|
+| [`Assimalign.Cohesion.NatGateway`](assimalign-cohesion-natgateway/index.md) | `Root` | Public reference and runtime |
+| [`Assimalign.Cohesion.NatGateway.ApplicationModel`](assimalign-cohesion-natgateway-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
+| [`Assimalign.Cohesion.NatGateway.Hosting`](assimalign-cohesion-natgateway-hosting/index.md) | Hosting | Public reference and runtime |
+
+## Dependency boundary
+
+The single runtime module is `Assimalign.Cohesion.NatGateway.Hosting`. Roots and feature libraries
+do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
+Feature registration composes against the root contracts. The exact runtime may reference any
+same-area library except the area's `Testing`, `ApplicationModel`, and
+`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
+closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
+integrations may not reference the exact runtime. The declarative application model remains separate
+from the runtime. See the
+[resource dependency rules](../index.md#dependency-rules) .
+
+The hosting family in this area contains `Assimalign.Cohesion.NatGateway.Hosting`.
+
+## Framework and SDK
+
+`Assimalign.Cohesion.Sdk.NatGateway` delivers the `Assimalign.Cohesion.App.NatGateway` family. Its
+producers, `Assimalign.Cohesion.NatGateway.Refs` and `Assimalign.Cohesion.NatGateway.Runtime`,
+declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
+and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
+which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
+runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+
+The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
+reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
+`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
+`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
+inventory below.
+
+| Public reference-pack assembly |
+|---|
+| `Assimalign.Cohesion.App.NatGateway` |
+| `Assimalign.Cohesion.NatGateway` |
+| `Assimalign.Cohesion.NatGateway.Hosting` |
+
+| Private runtime assembly |
+|---|
+| `Assimalign.Cohesion.Connections.Quic` |
+| `Assimalign.Cohesion.Connections.Security` |
+| `Assimalign.Cohesion.Connections.Tcp` |
+| `Assimalign.Cohesion.Http` |
+| `Assimalign.Cohesion.Http.Connections` |
+| `Assimalign.Cohesion.Http.ExtendedConnect` |
+| `Assimalign.Cohesion.Http.Forwarded` |
+| `Assimalign.Cohesion.Http.ProtocolUpgrade` |
+| `Assimalign.Cohesion.Http.RequestLimits` |
+| `Assimalign.Cohesion.IdentityModel` |
+| `Assimalign.Cohesion.IdentityModel.Token` |
+| `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
+| `Assimalign.Cohesion.Web` |
+| `Assimalign.Cohesion.Web.Health` |
+| `Assimalign.Cohesion.Web.Hosting` |
+| `Assimalign.Cohesion.Web.Routing` |
+| `Assimalign.Cohesion.Web.Server` |
+
+`Application`-model and client packages are NuGet-only and are excluded from the area shared
+framework. The package table distinguishes assemblies present in the source tree from those included
+by the current framework inventory.
+
+## Related documentation
+
+- **Product** — [NatGateway](../../../nat-gateway/index.md).
+- **SDK** — [`Assimalign.Cohesion.Sdk.NatGateway`](../../sdks/sdk-nat-gateway/index.md).
+- **Parent** — [Resources](../index.md).
+
+## Sources
+
+- **Primary source** — `cohesion/resources/NatGateway/README.md`.
+- **Source** — `cohesion/.claude/rules/resource-areas.md`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/docs/OVERVIEW.md`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/resources/NatGateway/Assimalign.Cohesion.NatGateway.Refs/src/Assimalign.Cohesion.NatGateway.Refs.csproj` and `cohesion/resources/NatGateway/Assimalign.Cohesion.NatGateway.Runtime/Directory.Build.props`.

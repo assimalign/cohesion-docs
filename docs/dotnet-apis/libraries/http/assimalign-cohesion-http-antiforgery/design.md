@@ -1,0 +1,305 @@
+# Assimalign.Cohesion.Http.Antiforgery design
+
+Design decisions and ownership boundaries for `Assimalign.Cohesion.Http.Antiforgery`.
+
+[Overview](index.md) · [Examples](examples/index.md)
+
+## Design and boundaries
+
+Server-side cross-site request forgery (CSRF) protection for the Cohesion
+HTTP family. This document captures the design intent so future readers do
+not have to re-derive it from the code.
+
+## Design intent
+
+Restore the familiar antiforgery ergonomics (`GetAndStoreTokens`,
+`ValidateRequestAsync`) on top of the Cohesion HTTP protocol core, which
+deliberately knows nothing about CSRF. The package realizes the
+`IHttpAntiforgery` / `IHttpAntiforgeryFeature` abstractions and the
+`HttpAntiforgeryTokenSet` model using only BCL cryptography — no
+`Microsoft.Extensions.*`, no external data-protection stack.
+
+## Token model: signed double-submit
+
+The classic double-submit cookie defense puts a random value in a cookie and
+requires the same value to be echoed in a header or form field. Its weakness
+is integrity: an attacker who can set a cookie (subdomain takeover, "cookie
+tossing") can also supply the matching request value. This package closes
+that gap by cryptographically protecting both halves:
+
+- **Cookie token** = `base64url(Protect(0x01 ‖ secret))`, where `secret` is 32
+  random bytes. The protection lets the server detect an injected/forged
+  cookie token.
+- **Request token** = `base64url(Protect(0x02 ‖ nonce ‖ secret))`, where
+  `nonce` is 16 random bytes and `secret` is the cookie token's secret. The
+  protection binds the request token to one specific cookie secret.
+
+The two payloads are **domain-separated** by a leading byte (`0x01` cookie,
+`0x02` request) so a cookie token can never be replayed as a request token.
+`HttpAntiforgeryTokenEngine` owns this framing; the authenticated protection of
+each payload is delegated to a pluggable `IHttpAntiforgeryProtector` (see the
+next section), so the engine holds no key material.
+
+Validation recovers each payload through the protector (which fails closed on
+tampering), checks the domain byte, and compares the recovered cookie secret in
+fixed time via `CryptographicOperations.FixedTimeEquals`. A forged, truncated,
+or wrong-key token is treated as a validation failure (return `false` / throw
+`AntiforgeryValidationException`), never as an exception bubbling out of the
+read path — `Base64Url` decode failures on untrusted input are caught and
+mapped to "invalid".
+
+## The protector seam: `IHttpAntiforgeryProtector`
+
+Cryptography is a **pluggable seam**, not a hard-wired HMAC. `Protect` returns
+an authenticated (and, for encrypting implementations, confidential) payload;
+`TryUnprotect` fails closed for untrusted input (returns `false`, never
+throws). The engine calls only these two operations.
+
+- **Default** (`HmacHttpAntiforgeryProtector`): `Protect(p) = p ‖ HMAC-SHA256(key, p)`
+  over `HttpAntiforgeryOptions.Key`, `TryUnprotect` recomputes and compares in
+  fixed time. This preserves the original zero-dependency, single-process
+  behavior — the cookie secret still travels in the clear inside the token,
+  exactly as before.
+- **Ring-backed** (recommended for multi-node / restart-stable): set
+  `HttpAntiforgeryOptions.Protector` to an implementation backed by a
+  persisted, rotating key ring. When set, `Protector` **supersedes `Key`
+  entirely**. The Cohesion data-protection provider
+  (`Assimalign.Cohesion.Security.DataProtection`) is the intended backing: its
+  versioned key-id header makes rotation transparent, and pointing every node at
+  a shared key repository means nodes validate each other's tokens **without
+  hand-distributing raw key bytes**.
+
+This package takes **no dependency** on any data-protection library. The
+adapter from `IDataProtector` to `IHttpAntiforgeryProtector` ships in the Web
+composition layer: `AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)` in
+`Assimalign.Cohesion.Web.Antiforgery` derives a protector for its own purpose
+chain and adapts it, keeping this package lean and free of key-management
+concerns.
+
+## Why an application key, and the default
+
+Signing requires a key. `HttpAntiforgeryOptions.Key` defaults to a fresh
+32-byte random value per `HttpAntiforgeryOptions` instance. That default is
+zero-config and **for development only**, because it has two consequences
+that are documented on the type:
+
+- Tokens minted before a process restart will not validate afterward.
+- Multiple instances behind a load balancer reject each other's tokens.
+
+Deployed applications set a ring-backed `Protector` (which supersedes `Key`)
+rather than hand-distributing a shared static `Key`; in a Web application,
+`builder.Services.AddAntiforgery(antiforgery => antiforgery.UseDataProtection(provider))`
+does it. We chose a
+secure-by-default-but-explicit-for-scale posture over silently persisting a key
+somewhere, because key storage is a deployment decision the library should not
+make — the seam lets the host make it once, in the data-protection layer, for
+antiforgery and every other protected artifact.
+
+## Service shape: stateless singleton over a passed-in context
+
+`IHttpAntiforgery` methods each take the `IHttpContext` they operate on, so
+the public sealed implementation, `HttpAntiforgery`, is stateless aside from
+its options + engine and is safe to share across requests. Its constructor is
+private: the static `Create(Action<HttpAntiforgeryOptions>? configure = null)`
+and `Create(HttpAntiforgeryOptions options)` overloads both return
+`HttpAntiforgery` after the existing option validation. The implementation and
+factories share one public type, as owner decision 59 (#1464) requires;
+`IHttpAntiforgery` remains the contract for consumers and custom implementations.
+Token helpers remain internal, and nested helpers remain private.
+
+All five context-taking operations reject a null `httpContext` with
+`ArgumentNullException`, including `ValidateRequestAsync` through
+`IsRequestValidAsync`. The exception is documented on `IHttpAntiforgery`,
+whose member documentation the public implementation inherits. This records
+the existing error behavior; it does not change request validation.
+
+The `IHttpAntiforgeryFeature` carries the shared service on a context so
+downstream handlers resolve the *same* configured service — and therefore the
+same signing key — via `context.Antiforgery` / `context.RequireAntiforgery`.
+
+Every `IHttpAntiforgeryFeature` reports `nameof(IHttpAntiforgeryFeature)` as its
+feature name. The feature collection is name-keyed, so an exchange carries at
+most one antiforgery service: assigning `context.Antiforgery` replaces an
+application-level registration (the feature `AddAntiforgery` in
+`Web.Antiforgery` seeds onto every exchange) instead of adding a second feature
+that type-based lookup would resolve unpredictably.
+
+## Dependency direction
+
+The package references the protocol core and three Http-family packages, each of which references
+only the core:
+
+```mermaid
+flowchart LR
+    Antiforgery["Http.Antiforgery — this package"] --> Cookies["Http.Cookies — cookie-token storage"]
+    Antiforgery --> Forms["Http.Forms — form-field request-token extraction"]
+    Antiforgery --> Forwarded["Http.Forwarded — the effective scheme behind a trusted proxy"]
+    Antiforgery --> Http["Assimalign.Cohesion.Http — protocol core"]
+    Cookies --> Http
+    Forms --> Http
+    Forwarded --> Http
+```
+
+The package reads the cookie token from `request.Cookies` and writes it to
+`response.Cookies` (Cookies package). It reads the request token from
+`request.Form[field]` (Forms package) and falls back to
+`request.Headers[header]`. It does not re-implement cookie parsing or form
+parsing.
+
+The cookie token's name and path are `HttpAntiforgeryOptions.CookieName`
+and `CookiePath`. The service constructor checks both before retaining
+options or creating the token engine: the name through `HttpCookie`
+against the RFC 6265 §4.1.1 non-empty `token` grammar (#1416), and the path
+through `HttpCookieOptions.Path` against `path-value` (#1153). Reusing the
+cookie model keeps composition and request-time emission on the same
+grammar. Token punctuation is valid in names; null, empty, whitespace,
+separators, control and non-ASCII characters are rejected.
+
+Both `HttpAntiforgery.Create` overloads reach this constructor, as does
+`builder.Services.AddAntiforgery` in `Web.Antiforgery`. A name such as `a b`
+or a path such as `/tenant;x` fails composition with `ArgumentException`
+(`ParamName` `options`), before a service or feature is returned. The
+exception names the full option and preserves the cookie constructor's or
+setter's exception as `InnerException`; neither message echoes the value.
+The Web verb registers nothing on failure.
+
+The cookie token is marked essential by default
+(`HttpAntiforgeryOptions.CookieIsEssential`), so a cookie-consent policy
+(Web.CookiePolicy) emits it before the user consents: without it, no unsafe
+request from an undecided user could pass validation.
+
+The cookie token is marked `Secure` whenever the request's effective scheme is
+HTTPS (`context.EffectiveScheme`, Forwarded package): the client reached the
+application over HTTPS, directly or through a trusted TLS-terminating proxy that
+the forwarded-headers middleware vouched for, which therefore has to run before
+a handler stores the token. `HttpAntiforgeryOptions.CookieSecure` forces the flag
+on plaintext requests too. Web.Sessions and Cookie authentication follow the same
+rule (#1050). Until 2026-10-01 the flag followed `CookieSecure` alone, which
+defaulted to off, so a deployment that forgot to set it issued the token over
+HTTPS without `Secure`, and the browser would send it back over any later
+plaintext request to the host. A three-way policy (same as request, always,
+never) was not added here: that is a default for every cookie, which
+Web.CookiePolicy owns as `CookiePolicyOptions.Secure`.
+
+A note on the form path: `request.Form` returns the *already-parsed* form.
+Antiforgery does not itself trigger body parsing — that is the Forms layer's
+job (a forms middleware, or an explicit `ReadFormAsync`). When the form has
+not been parsed, the form-token path yields nothing and the header path is
+used. The header path is therefore always available; the form path requires
+the body to have been parsed first.
+
+Repeated form-token fields use the **first** value, in the same order as the
+Forms collection (#1211, decision 31). Later values are not tried if that
+first value fails validation. When the first value is empty, the existing
+header fallback still applies; a later nonempty form value does not suppress
+it. This is a breaking change from 10.0.0-preview.1: multipart previously
+selected the last token field, while urlencoded parsing comma-joined the
+values into one token string. Both encodings now follow the same scalar rule.
+
+## Safe-method skip
+
+`IsRequestValidAsync` returns `true` for GET, HEAD, OPTIONS, and TRACE
+without inspecting tokens, per RFC 9110 §9.2.1 (safe methods are not
+state-changing). Only unsafe methods require a valid pair.
+
+## Response side effects
+
+`GetAndStoreTokens` / `SetCookieTokenAndHeader` set the cookie token through
+the response cookie feature and apply `Cache-Control: no-cache, no-store`,
+`Pragma: no-cache`, and `X-Frame-Options: SAMEORIGIN`. A page carrying a
+token must not be cached or a shared cache could serve one user's token to
+another; `X-Frame-Options` reduces clickjacking that could drive token
+submission.
+
+## Breaking changes since 10.0.0-preview.1
+
+The `v10.0.0-preview.1` tag shipped `HttpAntiforgery` as a public static
+factory whose two `Create` overloads returned `IHttpAntiforgery`. Since #1464,
+it is the public sealed implementation of that interface, and both overloads
+return `HttpAntiforgery`. Replacing the static class with the sealed class and
+changing the factory return signatures is a **binary-breaking change**, accepted
+during previews on decision 15's terms and sanctioned by decision 59. Consumers
+compiled against the old factory must rebuild against the updated package.
+Existing `HttpAntiforgery.Create(...)` source call sites remain compatible,
+including assignments to `IHttpAntiforgery`; the parameters, validation, token
+format, and request behavior are unchanged.
+
+In 10.0.0-preview.1, `HttpAntiforgery.Create` accepted an invalid
+`CookieName`; `HttpCookie` rejected it only when a request stored a cookie
+token. Since #1416 both factory overloads reject it at composition.
+Applications must configure a non-empty RFC 6265 `token` name. Defaults
+and other valid names are unchanged; applications that supplied an invalid
+name now fail at composition instead of failing token-storing requests.
+
+## AOT posture
+
+No reflection, no runtime code generation, no dynamic serialization. All
+crypto is BCL (`HMACSHA256.HashData`, `RandomNumberGenerator`,
+`CryptographicOperations.FixedTimeEquals`, `Base64Url`). Token payloads are
+small and use stack buffers, so the hot paths are allocation-light.
+
+## Non-goals
+
+- **Key management / rotation.** The package protects payloads through the
+  `IHttpAntiforgeryProtector` seam; it does not persist, rotate, or distribute
+  keys itself. Ring-backed persistence and rotation are available by plugging a
+  data-protection-backed protector in at the host — that concern lives in the
+  key ring, not here.
+- **Identity binding.** ASP.NET Core's antiforgery can embed the
+  authenticated username/claims in the token. This package binds the request
+  token to the cookie token only. Identity binding can layer on later without
+  changing the wire shape.
+- **Triggering form parsing.** Reading the request token from a form relies
+  on the Forms layer having parsed the body; antiforgery does not own that.
+- **Middleware.** This package provides the service, feature, and ergonomics.
+  Pipeline enforcement is the Web layer's: `Assimalign.Cohesion.Web.Antiforgery`
+  validates the unsafe requests of endpoints that declare a requirement (and
+  reads the form for the form-token flow, which this package does not trigger).
+
+## Data-protection test composition (#1465)
+
+The protector-seam tests now construct their key repository with
+`FileSystemKeyRepository.Create(path)`. `DataProtectionProvider.Create(...)` keeps its spelling
+and returns the public provider. These upstream factory changes require rebuilding the tests;
+the preview.1 source and binary breaks are recorded in Security.DataProtection's DESIGN on
+decision 15's terms. This cleanup changes no Http.Antiforgery API or token behavior and adds no
+shipped data-protection dependency. Advisory: not applicable: API shape.
+
+## Exception message resources (#1467)
+
+Resource keys name the failure with a short PascalCase noun phrase, at most 40 characters
+(#1471). These internal names are independent of the preserved message text and placeholders.
+
+Exception diagnostics live in `src/Properties/ErrorMessages.resx`. The shared build targets
+use MSBuild strongly typed resource generation to produce an internal `ErrorMessages` class
+in this assembly's `RootNamespace`, under the intermediate output directory. No designer source
+is checked in, and a command-line or NativeAOT build uses the same embedded resources.
+Formatted diagnostics use `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`.
+The invariant messages, exception types, error codes and existing input-redaction rules stay
+unchanged; this introduces no public API or breaking behavior against 10.0.0-preview.1.
+EventSource templates, log messages and HTTP response bodies keep their existing owners.
+
+## Dependency boundary
+
+The declared build inputs are `Assimalign.Cohesion.Http`, `Assimalign.Cohesion.Http.Cookies`,
+`Assimalign.Cohesion.Http.Forms`, `Assimalign.Cohesion.Http.Forwarded`. The
+[overview](index.md#dependencies) distinguishes project references, package references, shared
+source, and analyzer inputs.
+
+## Sources
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/src/Assimalign.Cohesion.Http.Antiforgery.csproj`.
+
+- **Source** — `cohesion/libraries/Directory.Build.props`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/docs/DESIGN.md`.
+
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Antiforgery/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/README.md`.
+
+- **Source** — `cohesion/libraries/Http/README.md`.
+
+- **Source** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Antiforgery/src`.

@@ -1,0 +1,849 @@
+# Example: Host Behavioral Tests
+
+Exercise host environment and lifecycle behavior, including failed startup finalization and retries, using the original repository tests.
+
+[Examples](index.md) · [Assembly overview](../index.md)
+
+## Test-project context
+
+These are complete test-file listings from the package test project. Keep them in that project
+when running them: the project supplies its package references, generated sources, and any shared
+fixtures. The using blocks make the test-framework import explicit where the original project
+supplies it globally.
+
+## Code
+
+### HostEnvironmentTests.cs
+
+```csharp
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Hosting.Tests;
+
+public sealed class HostEnvironmentTests
+{
+    [Theory(DisplayName = "Cohesion Test [Hosting] - Environment: Local matching is ordinal case-insensitive")]
+    [InlineData(AppEnvironment.Keys.Local)]
+    [InlineData("local")]
+    [InlineData("LoCaL")]
+    public void IsLocal_MatchingName_ShouldSelectDeveloperMachine(string name)
+    {
+        IHostEnvironment environment = new HostEnvironment(name);
+
+        environment.IsLocal().ShouldBeTrue();
+        environment.IsDevelopment().ShouldBeFalse();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Hosting] - Environment: Deployed names remain distinct from Local")]
+    [InlineData(AppEnvironment.Keys.Development)]
+    [InlineData("development")]
+    [InlineData(AppEnvironment.Keys.Staging)]
+    [InlineData("staging")]
+    [InlineData(AppEnvironment.Keys.Production)]
+    [InlineData("production")]
+    public void IsLocal_DeployedName_ShouldRemainFalse(string name)
+    {
+        IHostEnvironment environment = new HostEnvironment(name);
+
+        environment.IsLocal().ShouldBeFalse();
+        (environment.IsDevelopment() || environment.IsStaging() || environment.IsProduction()).ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Hosting] - Environment: Named predicates share case-insensitive matching")]
+    public void IsEnvironment_NamedPredicates_ShouldIgnoreCase()
+    {
+        new HostEnvironment("TEST").IsTest().ShouldBeTrue();
+        new HostEnvironment("UAT").IsUserAcceptanceTesting().ShouldBeTrue();
+        new HostEnvironment("QA").IsQualityAssurance().ShouldBeTrue();
+        new HostEnvironment("custom").IsEnvironment("CUSTOM").ShouldBeTrue();
+        new HostEnvironment("custom").IsEnvironment("other").ShouldBeFalse();
+    }
+}
+```
+
+### HostTests.cs
+
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+
+using Shouldly;
+using Xunit;
+
+namespace Assimalign.Cohesion.Hosting.Tests;
+
+
+public class HostTests
+{
+    public const string DisplayPrefix = $"Cohesion Test [Hosting] - Host: ";
+
+    [Theory(DisplayName = DisplayPrefix + "Rollback enumeration failures preserve the startup fault and allow a failing retry")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_WhenRollbackEnumerationThrows_ShouldFailAndRetry(bool failDuringServiceStart)
+    {
+        // Arrange
+        var startupFailure = new InvalidOperationException("startup failed");
+        var rollbackFailure = new InvalidOperationException("rollback enumeration failed");
+        int attempts = 0;
+        bool rollingBack = false;
+        IEnumerable<IHostService> Services()
+        {
+            if (rollingBack)
+            {
+                rollingBack = false;
+                throw rollbackFailure;
+            }
+            if (!failDuringServiceStart)
+            {
+                attempts++;
+                rollingBack = true;
+                throw startupFailure;
+            }
+            yield return new DelegateHostService(_ =>
+            {
+                attempts++;
+                rollingBack = true;
+                return Task.FromException(startupFailure);
+            }, _ => Task.CompletedTask);
+        }
+        await using IHost host = new TestHost(new TestHostOptions(), Services());
+
+        // Act / Assert: each attempt must execute and retain its original fault.
+        for (int attempt = 1; attempt <= 2; attempt++)
+        {
+            var failure = await Should.ThrowAsync<InvalidOperationException>(
+                () => host.StartAsync(CancellationToken.None));
+            failure.ShouldBeSameAs(startupFailure);
+            host.Context.State.ShouldBe(HostState.Failed);
+            attempts.ShouldBe(attempt);
+            await host.Context.WaitForShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Theory(DisplayName = DisplayPrefix + "Invalid startup or rollback budgets cannot leave the host Starting")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_WhenBudgetSetupThrows_ShouldFailAndRetry(bool invalidRollbackBudget)
+    {
+        // Arrange
+        var options = new TestHostOptions();
+        var startupFailure = new InvalidOperationException("startup failed");
+        if (invalidRollbackBudget)
+        {
+            options.ShutdownTimeout = TimeSpan.FromSeconds(-2);
+            options.HostedServices.Add(new DelegateHostService(
+                _ => Task.FromException(startupFailure), _ => Task.CompletedTask));
+        }
+        else
+        {
+            options.StartupTimeout = TimeSpan.FromSeconds(-2);
+        }
+        await using IHost host = new TestHost(options);
+
+        // Act / Assert
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            if (invalidRollbackBudget)
+            {
+                var failure = await Should.ThrowAsync<InvalidOperationException>(
+                    () => host.StartAsync(CancellationToken.None));
+                failure.ShouldBeSameAs(startupFailure);
+            }
+            else
+            {
+                await Should.ThrowAsync<ArgumentOutOfRangeException>(
+                    () => host.StartAsync(CancellationToken.None));
+            }
+            host.Context.State.ShouldBe(HostState.Failed);
+        }
+    }
+
+    [Theory(DisplayName = DisplayPrefix + "Rejected startup hooks never enter the service lifecycle")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_WhenStartingHookRejects_ShouldLeaveServiceLifecycleUntouched(bool afterCompletedCycle)
+    {
+        var events = new List<TestLifecycleService.Lifecycle>();
+        var options = new TestHostOptions();
+        options.HostedServices.Add(new TestLifecycleService(events.Add));
+        bool reject = !afterCompletedCycle;
+        var expectedFailure = new InvalidOperationException("startup rejected");
+        await using IHost host = new HookRecordingHost(options, phase =>
+        {
+            if (phase == "OnStarting" && reject)
+            {
+                throw expectedFailure;
+            }
+        });
+
+        if (afterCompletedCycle)
+        {
+            await host.StartAsync();
+            await host.StopAsync();
+            reject = true;
+        }
+        var previousEvents = events.ToArray();
+
+        var failure = await Should.ThrowAsync<InvalidOperationException>(
+            () => host.StartAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+        failure.ShouldBeSameAs(expectedFailure);
+        host.Context.State.ShouldBe(HostState.Failed);
+        events.ShouldBe(previousEvents);
+        await host.StopAsync();
+        events.ShouldBe(previousEvents);
+
+        // The generic host still permits a fresh attempt when its hook permits it.
+        reject = false;
+        await host.StartAsync();
+        await host.StopAsync();
+        events.Count.ShouldBe(previousEvents.Length + 6);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Pre-cancelled run starts and stops each service once")]
+    public async Task RunAsync_WithPreCancelledToken_ShouldStartAndStopEachServiceOnce()
+    {
+        // Arrange
+        var events = new List<string>();
+        var options = new TestHostOptions();
+        foreach (string name in new[] { "first", "second" })
+        {
+            options.HostedServices.Add(new DelegateHostService(
+                token => { token.IsCancellationRequested.ShouldBeFalse(); events.Add(name + ":start"); return Task.CompletedTask; },
+                token => { token.IsCancellationRequested.ShouldBeFalse(); events.Add(name + ":stop"); return Task.CompletedTask; }));
+        }
+        await using IHost host = new TestHost(options);
+
+        // Act
+        await host.RunAsync(new CancellationToken(canceled: true)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        events.ShouldBe(new[] { "first:start", "second:start", "second:stop", "first:stop" });
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A normal run follows a pre-cancelled run on the same host")]
+    public async Task RunAsync_AfterPreCancelledRun_ShouldRunNormally()
+    {
+        // Arrange
+        int starts = 0;
+        int stops = 0;
+        var options = new TestHostOptions();
+        options.HostedServices.Add(new DelegateHostService(
+            _ => { starts++; return Task.CompletedTask; },
+            _ => { stops++; return Task.CompletedTask; }));
+        var host = new TestHost(options);
+        await using IHost lifetime = host;
+        await host.RunAsync(new CancellationToken(canceled: true));
+
+        // Act
+        Task run = host.RunAsync(CancellationToken.None);
+        host.Context.State.ShouldBe(HostState.Started);
+        run.IsCompleted.ShouldBeFalse();
+        host.Context.Shutdown();
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        starts.ShouldBe(2);
+        stops.ShouldBe(2);
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Pre-cancelled run notifies the normal observer sequence")]
+    public async Task RunAsync_WithPreCancelledToken_ShouldNotifyObserver()
+    {
+        // Arrange
+        var runner = new RecordingRunObserver();
+        var host = new TestHost(new TestHostOptions());
+        await using IHost lifetime = host;
+        host.Context.Runner = runner;
+
+        // Act
+        await host.RunAsync(new CancellationToken(canceled: true)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        runner.Events.ShouldBe(new[] { "Started", "Stopping", "Stopped" });
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Pre-cancelled extension run uses fresh lifecycle tokens")]
+    public async Task RunAsync_OnPlainHostWithPreCancelledToken_ShouldStartAndStop()
+    {
+        // Arrange
+        var host = new PlainRunHost();
+        await using IHost lifetime = host;
+
+        // Act
+        await lifetime.RunAsync(new CancellationToken(canceled: true)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        host.Events.ShouldBe(new[] { "Start", "Stop" });
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Theory(DisplayName = DisplayPrefix + "A run never joins a stop that could not begin")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_WhenStopCannotBegin_ShouldComplete(bool preCancelled)
+    {
+        // Arrange: simulate a derived startup hook making the state terminal without a stop.
+        HookRecordingHost? host = null;
+        host = new HookRecordingHost(new TestHostOptions(), phase =>
+        {
+            if (phase == "OnStarted")
+            {
+                host!.Context.SetState(HostState.Failed);
+                host.Context.Shutdown();
+            }
+        });
+        await using IHost lifetime = host;
+
+        // Act
+        await host.RunAsync(new CancellationToken(preCancelled)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        host.Context.State.ShouldBe(HostState.Failed);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Pre-cancelled run still propagates startup failure")]
+    public async Task RunAsync_WithPreCancelledTokenAndFailedStart_ShouldRollbackAndThrow()
+    {
+        // Arrange
+        var expected = new InvalidOperationException("start failed");
+        int stops = 0;
+        var options = new TestHostOptions();
+        options.HostedServices.Add(new DelegateHostService(
+            _ => Task.FromException(expected),
+            _ => { stops++; return Task.CompletedTask; }));
+        var host = new TestHost(options);
+        await using IHost lifetime = host;
+
+        // Act
+        InvalidOperationException error = await Should.ThrowAsync<InvalidOperationException>(
+            () => host.RunAsync(new CancellationToken(canceled: true)));
+
+        // Assert
+        error.ShouldBeSameAs(expected);
+        stops.ShouldBe(1);
+        host.Context.State.ShouldBe(HostState.Failed);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Ensure Lifecycle Service Start & Stop Order")]
+    public async Task TestLifecycleServiceOrder()
+    {
+        var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var queue = new Queue<TestLifecycleService.Lifecycle>();
+
+        var hostOptions = new TestHostOptions();
+
+        hostOptions.HostedServices.Add(new TestLifecycleService(queue.Enqueue));
+
+        var host = new TestHost(hostOptions);
+
+        await host.RunAsync(cancellationTokenSource.Token);
+
+        Assert.Equal(6, queue.Count);
+
+        // Ensure lifecycle order
+        Assert.Equal(TestLifecycleService.Lifecycle.Starting, queue.Dequeue());
+        Assert.Equal(TestLifecycleService.Lifecycle.Start, queue.Dequeue());
+        Assert.Equal(TestLifecycleService.Lifecycle.Started, queue.Dequeue());
+        Assert.Equal(TestLifecycleService.Lifecycle.Stopping, queue.Dequeue());
+        Assert.Equal(TestLifecycleService.Lifecycle.Stop, queue.Dequeue());
+        Assert.Equal(TestLifecycleService.Lifecycle.Stopped, queue.Dequeue());
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "All four host hooks fire in order around the service lifecycle")]
+    public async Task Host_StartStopCycle_FiresAllFourHooksInOrder()
+    {
+        // Arrange
+        var events = new List<string>();
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new TestLifecycleService(lifecycle => events.Add(lifecycle.ToString())));
+
+        IHost host = new HookRecordingHost(options, events.Add);
+
+        // Act
+        await host.StartAsync();
+        await host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+
+        // Assert
+        events.ShouldBe(new[]
+        {
+            "OnStarting", "Starting", "Start", "Started", "OnStarted",
+            "OnStopping", "Stopping", "Stop", "Stopped", "OnStopped",
+        });
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A cleanly stopped host can be started and stopped again")]
+    public async Task Host_AfterCleanStop_CanBeRestarted()
+    {
+        // Arrange
+        var events = new List<TestLifecycleService.Lifecycle>();
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new TestLifecycleService(events.Add));
+
+        IHost host = new TestHost(options);
+
+        // Act - two full start/stop cycles on the same host instance.
+        await host.StartAsync();
+        host.Context.State.ShouldBe(HostState.Started);
+        await host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        host.Context.State.ShouldBe(HostState.Stopped);
+
+        await host.StartAsync();
+        host.Context.State.ShouldBe(HostState.Started);
+        await host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        host.Context.State.ShouldBe(HostState.Stopped);
+
+        // Assert - the full lifecycle ran twice.
+        var cycle = new[]
+        {
+            TestLifecycleService.Lifecycle.Starting,
+            TestLifecycleService.Lifecycle.Start,
+            TestLifecycleService.Lifecycle.Started,
+            TestLifecycleService.Lifecycle.Stopping,
+            TestLifecycleService.Lifecycle.Stop,
+            TestLifecycleService.Lifecycle.Stopped,
+        };
+
+        events.ShouldBe(new List<TestLifecycleService.Lifecycle>([.. cycle, .. cycle]));
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Shutdown during RunAsync drains services with a fresh stop budget")]
+    public async Task RunAsync_ShutdownRequested_DrainsServicesWithFreshBudget()
+    {
+        // Arrange
+        var drained = false;
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateBackgroundService(async cancellationToken =>
+        {
+            started.SetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            // The drain step must be reachable: the stop budget cannot be a token that was
+            // already cancelled by the shutdown signal itself.
+            await Task.Delay(100, CancellationToken.None);
+            drained = true;
+        }));
+
+        var host = new TestHost(options);
+
+        // Act
+        var run = host.RunAsync();
+        await started.Task;
+        host.Context.Shutdown();
+        await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        drained.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A direct StopAsync unparks a waiting RunAsync")]
+    public async Task StopAsync_WhileRunAsyncParked_UnparksRunAsync()
+    {
+        // Arrange
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateBackgroundService(async cancellationToken =>
+        {
+            started.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }));
+
+        var host = new TestHost(options);
+        var run = host.RunAsync();
+        await started.Task;
+
+        // Act - stop directly rather than signaling shutdown.
+        await ((IHost)host).StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+
+        // Assert
+        await Should.NotThrowAsync(() => run.WaitAsync(TimeSpan.FromSeconds(5)));
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A failing service start rolls back started services and marks the host Failed")]
+    public async Task StartAsync_WhenServiceFailsToStart_RollsBackStartedServicesAndFails()
+    {
+        // Arrange - a healthy service that starts first...
+        var healthyStopped = false;
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateBackgroundService(async cancellationToken =>
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            healthyStopped = true;
+        }));
+
+        // ...followed by a service whose start fails.
+        options.HostedServices.Add(new DelegateHostService(
+            cancellationToken => throw new InvalidOperationException("start failure")));
+
+        IHost host = new TestHost(options);
+
+        // Act
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync());
+
+        // Assert
+        exception.Message.ShouldBe("start failure");
+        host.Context.State.ShouldBe(HostState.Failed);
+        healthyStopped.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A failed start does not wedge the host: stop and a retried start work")]
+    public async Task StartAsync_AfterFailedStart_HostCanBeStoppedAndStartedAgain()
+    {
+        // Arrange - a service that fails its first start and succeeds afterwards.
+        var attempts = 0;
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateHostService(cancellationToken =>
+        {
+            attempts++;
+            return attempts == 1
+                ? Task.FromException(new InvalidOperationException("transient start failure"))
+                : Task.CompletedTask;
+        }));
+
+        IHost host = new TestHost(options);
+
+        // Act
+        await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync());
+        host.Context.State.ShouldBe(HostState.Failed);
+
+        // Assert - stopping the failed host is a clean no-op, and a retried start succeeds.
+        await Should.NotThrowAsync(() => host.StopAsync());
+        host.Context.State.ShouldBe(HostState.Failed);
+
+        await host.StartAsync();
+        host.Context.State.ShouldBe(HostState.Started);
+
+        await host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A cancelled startup tears down started services and marks the host Failed")]
+    public async Task StartAsync_CancelledDuringStartup_TearsDownAndFails()
+    {
+        // Arrange - a healthy first service...
+        var healthyStopped = false;
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateBackgroundService(async cancellationToken =>
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            healthyStopped = true;
+        }));
+
+        // ...and a second whose start only finishes when the token is honored.
+        var startEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        options.HostedServices.Add(new DelegateHostService(async cancellationToken =>
+        {
+            startEntered.SetResult();
+            await blockStart.Task.WaitAsync(cancellationToken);
+        }));
+
+        IHost host = new TestHost(options);
+        using var startTokenSource = new CancellationTokenSource();
+
+        // Act - cancel while the second service is mid-start.
+        var start = host.StartAsync(startTokenSource.Token);
+        await startEntered.Task;
+        startTokenSource.Cancel();
+
+        // Assert
+        await Should.ThrowAsync<OperationCanceledException>(() => start);
+        host.Context.State.ShouldBe(HostState.Failed);
+        healthyStopped.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "StopAsync honors StopServicesConcurrently")]
+    public async Task StopAsync_WithStopServicesConcurrently_StopsServicesConcurrently()
+    {
+        // Arrange - two services whose stops can only finish if both are in flight at once.
+        var enteredFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var enteredSecond = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var options = new TestHostOptions
+        {
+            StopServicesConcurrently = true,
+        };
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: async cancellationToken =>
+            {
+                enteredFirst.SetResult();
+                await enteredSecond.Task.WaitAsync(cancellationToken);
+            }));
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: async cancellationToken =>
+            {
+                enteredSecond.SetResult();
+                await enteredFirst.Task.WaitAsync(cancellationToken);
+            }));
+
+        IHost host = new TestHost(options);
+
+        // Act & Assert - a serial stop would deadlock each service on the other and abort
+        // on the stop budget; a concurrent stop completes.
+        await host.StartAsync();
+        await Should.NotThrowAsync(
+            () => host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token));
+
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "A failing service stop does not leak the services behind it")]
+    public async Task StopAsync_WhenAServiceFailsToStop_StillStopsRemainingServices()
+    {
+        // Arrange - stop order is reverse registration: third, second (throws), first.
+        var firstStopped = false;
+        var thirdStopped = false;
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: cancellationToken =>
+            {
+                firstStopped = true;
+                return Task.CompletedTask;
+            }));
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: cancellationToken => throw new InvalidOperationException("stop failure")));
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: cancellationToken =>
+            {
+                thirdStopped = true;
+                return Task.CompletedTask;
+            }));
+
+        IHost host = new TestHost(options);
+
+        // Act
+        await host.StartAsync();
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token));
+
+        // Assert - the failure surfaced, but every other service was still stopped.
+        exception.Message.ShouldBe("stop failure");
+        thirdStopped.ShouldBeTrue();
+        firstStopped.ShouldBeTrue();
+        host.Context.State.ShouldBe(HostState.Stopped);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Multiple stop failures aggregate with a stop message")]
+    public async Task StopAsync_WhenMultipleServicesFailToStop_ThrowsAggregateWithStopMessage()
+    {
+        // Arrange
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: cancellationToken => throw new InvalidOperationException("first stop failure")));
+
+        options.HostedServices.Add(new DelegateHostService(
+            start: cancellationToken => Task.CompletedTask,
+            stop: cancellationToken => throw new InvalidOperationException("second stop failure")));
+
+        IHost host = new TestHost(options);
+
+        // Act
+        await host.StartAsync();
+        var exception = await Should.ThrowAsync<AggregateException>(
+            () => host.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token));
+
+        // Assert
+        exception.Message.ShouldContain("failed to stop");
+        exception.InnerExceptions.Count.ShouldBe(2);
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "Stopping or disposing a never-started host is a no-op")]
+    public async Task StopAsync_NeverStartedHost_IsNoOpAndDisposeDoesNotThrow()
+    {
+        // Arrange
+        IHost neverStartedForStop = new TestHost(new TestHostOptions());
+        IHost neverStartedForAsyncDispose = new TestHost(new TestHostOptions());
+        IHost neverStartedForSyncDispose = new TestHost(new TestHostOptions());
+
+        // Act & Assert
+        await Should.NotThrowAsync(() => neverStartedForStop.StopAsync());
+        neverStartedForStop.Context.State.ShouldBe(HostState.Idle);
+
+        await Should.NotThrowAsync(() => neverStartedForAsyncDispose.DisposeAsync().AsTask());
+        Should.NotThrow(() => neverStartedForSyncDispose.Dispose());
+    }
+
+    [Fact(DisplayName = DisplayPrefix + "RunAsync can run the same host again after a completed run")]
+    public async Task RunAsync_AfterPreviousRun_RunsAgain()
+    {
+        // Arrange
+        var runs = 0;
+        using var startedSignal = new SemaphoreSlim(0);
+        var options = new TestHostOptions();
+
+        options.HostedServices.Add(new DelegateBackgroundService(async cancellationToken =>
+        {
+            Interlocked.Increment(ref runs);
+            startedSignal.Release();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }));
+
+        var host = new TestHost(options);
+
+        // Act - first run.
+        var run1 = host.RunAsync();
+        await startedSignal.WaitAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        host.Context.Shutdown();
+        await run1.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Second run of the same instance.
+        var run2 = host.RunAsync();
+        await startedSignal.WaitAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        host.Context.Shutdown();
+        await run2.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        runs.ShouldBe(2);
+    }
+}
+```
+
+### TestHost.cs
+
+This test-only fixture supplies the host context and the service enumerable used by the lifecycle
+cases above.
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+namespace Assimalign.Cohesion.Hosting.Tests;
+
+internal class TestHostContext : HostContext
+{
+
+    public TestHostContext(
+        IEnumerable<IHostService> services,
+        FileSystemPath? contentRootPath = null)
+    {
+        HostedServices = services;
+        Environment = new HostEnvironment("Test")
+        {
+            ContentRootPath = contentRootPath,
+        };
+    }
+    public override IHostEnvironment Environment { get; }
+    public IServiceProvider? ServiceProvider { get; }
+    public override IEnumerable<IHostService> HostedServices { get; }
+}
+
+internal class TestHostOptions : HostOptions<TestHostContext>
+{
+    public TestHostOptions()
+    {
+        HostedServices = new List<IHostService>();
+        ContentRootPath = FileSystemPath.Parse(Path.GetFullPath(AppContext.BaseDirectory));
+    }
+
+    public List<IHostService> HostedServices { get; }
+
+    public FileSystemPath? ContentRootPath { get; set; }
+}
+
+internal class TestHost : Host<TestHostContext>
+{
+    public TestHost(TestHostOptions options, IEnumerable<IHostService> services) : base(options)
+    {
+        Context = new TestHostContext(services, options.ContentRootPath);
+    }
+
+    public TestHost(TestHostOptions options) : base(options)
+    {
+        Context = new TestHostContext(options.HostedServices, options.ContentRootPath);
+    }
+
+    public override TestHostContext Context { get; }
+}
+```
+
+## Walkthrough
+
+### Host environment tests
+
+- **Covered behavior** — Environment: Local matching is ordinal case-insensitive.
+- **Covered behavior** — Environment: Deployed names remain distinct from Local.
+- **Covered behavior** — Environment: Named predicates share case-insensitive matching.
+
+### HostTests
+
+- **Test entry point** — `StartAsync_WhenRollbackEnumerationThrows_ShouldFailAndRetry` — Rollback enumeration failures preserve the startup fault and allow a failing retry.
+- **Test entry point** — `StartAsync_WhenBudgetSetupThrows_ShouldFailAndRetry` — Invalid startup or rollback budgets cannot leave the host Starting.
+- **Test entry point** — `StartAsync_WhenStartingHookRejects_ShouldLeaveServiceLifecycleUntouched` — Rejected startup hooks never enter the service lifecycle.
+- **Test entry point** — `RunAsync_WithPreCancelledToken_ShouldStartAndStopEachServiceOnce` — Pre-cancelled run starts and stops each service once.
+- **Test entry point** — `RunAsync_AfterPreCancelledRun_ShouldRunNormally` — A normal run follows a pre-cancelled run on the same host.
+- **Test entry point** — `RunAsync_WithPreCancelledToken_ShouldNotifyObserver` — Pre-cancelled run notifies the normal observer sequence.
+- **Test entry point** — `RunAsync_OnPlainHostWithPreCancelledToken_ShouldStartAndStop` — Pre-cancelled extension run uses fresh lifecycle tokens.
+- **Test entry point** — `RunAsync_WhenStopCannotBegin_ShouldComplete` — A run never joins a stop that could not begin.
+- **Test entry point** — `RunAsync_WithPreCancelledTokenAndFailedStart_ShouldRollbackAndThrow` — Pre-cancelled run still propagates startup failure.
+- **Test entry point** — `TestLifecycleServiceOrder` — Ensure Lifecycle Service Start & Stop Order.
+- **Test entry point** — `Host_StartStopCycle_FiresAllFourHooksInOrder` — All four host hooks fire in order around the service lifecycle.
+- **Test entry point** — `Host_AfterCleanStop_CanBeRestarted` — A cleanly stopped host can be started and stopped again.
+- **Test entry point** — `RunAsync_ShutdownRequested_DrainsServicesWithFreshBudget` — Shutdown during RunAsync drains services with a fresh stop budget.
+- **Test entry point** — `StopAsync_WhileRunAsyncParked_UnparksRunAsync` — A direct StopAsync unparks a waiting RunAsync.
+- **Test entry point** — `StartAsync_WhenServiceFailsToStart_RollsBackStartedServicesAndFails` — A failing service start rolls back started services and marks the host Failed.
+- **Test entry point** — `StartAsync_AfterFailedStart_HostCanBeStoppedAndStartedAgain` — A failed start does not wedge the host: stop and a retried start work.
+- **Test entry point** — `StartAsync_CancelledDuringStartup_TearsDownAndFails` — A cancelled startup tears down started services and marks the host Failed.
+- **Test entry point** — `StopAsync_WithStopServicesConcurrently_StopsServicesConcurrently` — StopAsync honors StopServicesConcurrently.
+- **Test entry point** — `StopAsync_WhenAServiceFailsToStop_StillStopsRemainingServices` — A failing service stop does not leak the services behind it.
+- **Test entry point** — `StopAsync_WhenMultipleServicesFailToStop_ThrowsAggregateWithStopMessage` — Multiple stop failures aggregate with a stop message.
+- **Test entry point** — `StopAsync_NeverStartedHost_IsNoOpAndDisposeDoesNotThrow` — Stopping or disposing a never-started host is a no-op.
+- **Test entry point** — `RunAsync_AfterPreviousRun_RunsAgain` — RunAsync can run the same host again after a completed run.
+
+The assertions define the expected result or failure boundary. Test-only doubles supply controlled
+inputs; they are not additional shipped APIs.
+
+## Sources
+
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/tests/HostEnvironmentTests.cs`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/tests/HostTests.cs`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/tests/TestObjects/TestHost.cs`.
+- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/tests/Assimalign.Cohesion.Hosting.Tests.csproj`.

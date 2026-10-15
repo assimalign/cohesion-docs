@@ -1,0 +1,85 @@
+# Assimalign.Cohesion.Web.RateLimiting
+
+Inbound request rate limiting for the Cohesion Web pipeline.
+
+> **Status:** Partial.
+
+## Reference pages
+
+- **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+
+Inbound request rate limiting for the Cohesion Web pipeline. The package adapts the BCL
+`System.Threading.RateLimiting` engine to the Web middleware model: it supplies the middleware, the
+policy model, the partition-key surface, and the rejection response — it never reimplements a
+limiter algorithm. All four BCL limiters (fixed window, sliding window, token bucket, concurrency),
+plus partitioning and queueing, are available through the policy model.
+
+## Scope
+
+- **A global limiter** (`RateLimitingOptions.GlobalPolicy`) applied to every request, acquired up-front
+  with the limiter's full queueing semantics. This is the primary flood shield.
+- **Named policies** (`options.AddPolicy(name, policy)`) attached to individual endpoints through the
+  sealed `RateLimitingMetadata` carrier in the routing metadata bag. A per-endpoint policy is evaluated
+  *in addition to* the global limiter, read from the endpoint `UseRouting` publishes and acquired
+  asynchronously, so queueing limiters work per endpoint too.
+- **Partitioned limiting** with AOT-safe partition-key selectors: `RateLimitPartitionKeys.ClientAddress`
+  (composing the forwarded-headers trust model), `RateLimitPartitionKeys.Header`, and any typed selector
+  delegate.
+- **Rejection handling**: `429 Too Many Requests` (configurable status) with a `Retry-After` header from
+  the lease metadata, an `OnRejected` hook that may own the response, and an `OnDecision` observation hook.
+- **A typed feature** (`IRateLimitingFeature`) exposing the decision (policy name, whether acquired,
+  retry-after) to downstream stages.
+
+## Dependencies
+
+- **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions the verb and middleware build on.
+- **`Assimalign.Cohesion.Web.Routing`** — the published route match and endpoint-metadata bag the per-endpoint gate reads, and the acknowledgement routing checks before it dispatches.
+- **`Assimalign.Cohesion.Web.Server`** — the request-id feature contract used to correlate rejection diagnostics.
+- **`Assimalign.Cohesion.Http`** — the HTTP context, status codes, and header keys.
+- **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveRemoteIp` read the client-address partition key composes with.
+- **`Assimalign.Cohesion.Http.Streaming`** — the response-streaming feature the rejection writer checks before answering.
+- **`System.Threading.RateLimiting` (BCL, AOT-safe)** — the limiter engine.
+
+It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isolation rule,
+`COHRES001`).
+
+## Usage
+
+See the [source-backed usage examples](examples/index.md).
+
+Register `UseRateLimiting` after `UseForwardedHeaders` (so client-address keys see the effective
+client identity) and after `UseRouting` (so the request's endpoint and its `RateLimitingMetadata`
+are known when it runs). Registered ahead of `UseRouting`, the global limiter still applies, but an
+endpoint that names a policy fails with `InvalidOperationException` when it is dispatched instead of
+running without its limit.
+
+See `docs/DESIGN.md` for the policy model, the partition-key trust posture, the per-endpoint metadata
+mechanics, the queueing and disposal posture, diagnostics, and the non-goals.
+
+## Diagnostics
+
+Enable `Assimalign.Cohesion.Web.RateLimiting` with `dotnet-trace` for Verbose rejection details and
+throttled Warning events when a committed response has to be aborted. `dotnet-counters` publishes the
+exact `rejected-requests` total, maintained even before a listener attaches. Events identify the gate,
+configured policy, and request id; partition keys and request input are never written. The existing
+`OnDecision` hook remains available for application observations; OpenTelemetry instruments are deferred
+to #317.
+
+## Project references
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+
+[Parent: Web](../index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.RateLimiting/docs/OVERVIEW.md`.
+- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.RateLimiting/src/Assimalign.Cohesion.Web.RateLimiting.csproj`.

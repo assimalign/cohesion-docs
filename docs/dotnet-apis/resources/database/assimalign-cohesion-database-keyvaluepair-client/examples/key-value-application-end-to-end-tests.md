@@ -1,0 +1,233 @@
+# Key Value Application End To End Tests
+
+This example exercises `Assimalign.Cohesion.Database.KeyValuePair.Client` through its co-located test source.
+
+> **Status:** Partial.
+
+The example reproduces
+`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/tests/KeyValueApplicationEndToEndTests.cs`
+. It retains the test class and assertions so the setup, operation, and expected outcome stay
+together. `Use` it in the source project’s test context, with its test dependencies and supporting
+test objects.
+
+## Behavior exercised
+
+- **Case 1** — E2E: key-value over TCP round-trips CRUD/CAS/scan and data survives a restart.
+
+## Source example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Shouldly;
+using Xunit;
+using Assimalign.Cohesion.Connections.Tcp;
+using Assimalign.Cohesion.Database.Client;
+using Assimalign.Cohesion.Database.Hosting;
+using Assimalign.Cohesion.Database.KeyValuePair;
+
+namespace Assimalign.Cohesion.Database.KeyValuePair.Client.Tests;
+
+/// <summary>
+/// The key-value wire end-to-end: the full stack composed the builder-first way —
+/// file-backed key-value engine registered by <c>AddKeyValue</c>, a real
+/// TCP loopback listener, a deferred server nested beneath the engine,
+/// the hosting application built from the root builder — driven with the typed
+/// key-value client, including restart recovery over the real file sets.
+/// </summary>
+/// <remarks>
+/// Resource executables compose their model servers explicitly. This suite keeps
+/// key-value coverage in the model package while exercising that same application
+/// composition path.
+/// </remarks>
+public sealed class KeyValueApplicationEndToEndTests : IDisposable
+{
+    private readonly string _rootPath = Path.Combine(Path.GetTempPath(), "cohesion-kv-e2e", Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_rootPath))
+        {
+            try
+            {
+                Directory.Delete(_rootPath, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup.
+            }
+        }
+    }
+
+    private const string DatabaseName = "kv";
+
+    private static CancellationToken TestTimeout(int seconds = 30)
+        => new CancellationTokenSource(TimeSpan.FromSeconds(seconds)).Token;
+
+    private static byte[] Bytes(string text) => Encoding.UTF8.GetBytes(text);
+
+    private static string Text(ReadOnlyMemory<byte> bytes) => Encoding.UTF8.GetString(bytes.Span);
+
+    /// <summary>
+    /// The TCP listener binds lazily on the accept loop's first accept; poll until
+    /// the OS-assigned port is observable.
+    /// </summary>
+    private static async Task<int> WaitForBoundPortAsync(TcpConnectionListener listener)
+    {
+        long deadline = Environment.TickCount64 + 15_000;
+
+        while (Environment.TickCount64 < deadline)
+        {
+            if (listener.EndPoint is IPEndPoint { Port: > 0 } endpoint)
+            {
+                return endpoint.Port;
+            }
+
+            await Task.Delay(25);
+        }
+
+        throw new TimeoutException("The TCP listener did not bind within the budget.");
+    }
+
+    private static IKeyValueClient CreateClient(int port)
+        => KeyValueClient.Create(new KeyValueClientOptions
+        {
+            Settings = new DatabaseConnectionSettings
+            {
+                Database = DatabaseName,
+                Principal = "e2e",
+                EndPoint = new IPEndPoint(IPAddress.Loopback, port),
+            },
+            ConnectionFactory = new TcpConnectionFactory(),
+        });
+
+    /// <summary>
+    /// Composes the key-value application the builder-first way: engine verb,
+    /// nested TCP server factory, build. The application owns engine disposal;
+    /// the engine owns its server and listener.
+    /// </summary>
+    private (KeyValueDatabaseEngine Engine, TcpConnectionListener Listener, IDatabaseApplication Application) Compose()
+    {
+        DatabaseApplicationBuilder builder = DatabaseApplication.CreateBuilder();
+
+        TcpConnectionListener? listener = null;
+        builder.AddKeyValue((context, options) =>
+        {
+            options.EngineName = "kv";
+            options.RootPath = _rootPath;
+            options.AddServer(engine =>
+            {
+                listener = new TcpConnectionListener(new TcpConnectionListenerOptions
+                {
+                    EndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+                });
+                return KeyValueDatabaseServer.Create((KeyValueDatabaseEngine)engine,
+                    new KeyValueDatabaseServerOptions { Listener = listener });
+            });
+        });
+        var application = builder.Build();
+        return ((KeyValueDatabaseEngine)application.Context.GetEngine("kv"), listener!, application);
+    }
+    [Fact(DisplayName = "Cohesion Test [Database.KeyValuePair.Client] - E2E: key-value over TCP round-trips CRUD/CAS/scan and data survives a restart")]
+    public async Task EndToEnd_KeyValueOverTcpWithRestart_ShouldServeAndRecover()
+    {
+        long swappedETag;
+
+        // ---- First composition: serve CRUD/CAS/scan over real TCP loopback. ----
+        {
+            var (engine, listener, application) = Compose();
+
+            await using (application)
+            {
+                // Code-first provisioning before the endpoint accepts (the area
+                // principle: the wire carries no database-management verbs).
+                await engine.CreateDatabaseAsync(DatabaseName, TestTimeout());
+
+                await application.StartAsync(TestTimeout());
+                int port = await WaitForBoundPortAsync(listener);
+
+                await using (var client = CreateClient(port))
+                await using (var connection = await client.ConnectAsync(TestTimeout()))
+                {
+                    // CRUD round-trip.
+                    long etag = await connection.PutAsync(Bytes("user:1"), Bytes("ada"), TestTimeout());
+                    var entry = await connection.GetAsync(Bytes("user:1"), TestTimeout());
+                    Text(entry!.Value.Value).ShouldBe("ada");
+                    entry.Value.ETag.ShouldBe(etag);
+
+                    // Compare-and-swap: stale miss (first-class), current applies.
+                    var stale = await connection.PutAsync(
+                        Bytes("user:1"), Bytes("ignored"), KeyValueWriteCondition.IfETagMatches(etag + 1000), TestTimeout());
+                    stale.Applied.ShouldBeFalse();
+                    stale.ETag.ShouldBe(etag);
+
+                    var swap = await connection.PutAsync(
+                        Bytes("user:1"), Bytes("ada-2"), KeyValueWriteCondition.IfETagMatches(etag), TestTimeout());
+                    swap.Applied.ShouldBeTrue();
+                    swappedETag = swap.ETag!.Value;
+
+                    // A few more entries, one deleted — the scan shows the survivors.
+                    await connection.PutAsync(Bytes("user:2"), Bytes("grace"), TestTimeout());
+                    await connection.PutAsync(Bytes("vendor:1"), Bytes("acme"), TestTimeout());
+                    (await connection.TryDeleteAsync(Bytes("vendor:1"), TestTimeout())).ShouldBeTrue();
+
+                    IReadOnlyList<KeyValueClientEntry> users = await connection.ScanAsync(
+                        new KeyValueScanRange { Prefix = Bytes("user:") }, TestTimeout());
+                    users.Count.ShouldBe(2);
+                    Text(users[0].Key).ShouldBe("user:1");
+                    Text(users[1].Key).ShouldBe("user:2");
+                }
+
+                await application.StopAsync(TestTimeout());
+            }
+        }
+
+        // ---- Second composition over the same root: restart recovery. ----
+        {
+            var (engine, listener, application) = Compose();
+
+            await using (application)
+            {
+                await engine.OpenDatabaseAsync(DatabaseName, TestTimeout());
+
+                await application.StartAsync(TestTimeout());
+                int port = await WaitForBoundPortAsync(listener);
+
+                await using (var client = CreateClient(port))
+                await using (var connection = await client.ConnectAsync(TestTimeout()))
+                {
+                    // The committed state survived the restart — value, etag, and
+                    // the primary index (a get is an index seek) all recovered.
+                    var recovered = await connection.GetAsync(Bytes("user:1"), TestTimeout());
+                    Text(recovered!.Value.Value).ShouldBe("ada-2");
+                    recovered.Value.ETag.ShouldBe(swappedETag);
+
+                    (await connection.ExistsAsync(Bytes("vendor:1"), TestTimeout())).ShouldBeFalse();
+
+                    IReadOnlyList<KeyValueClientEntry> all = await connection.ScanAsync(cancellationToken: TestTimeout());
+                    all.Count.ShouldBe(2);
+
+                    // And the recovered database accepts new conditional writes.
+                    var post = await connection.PutAsync(
+                        Bytes("user:1"), Bytes("ada-3"), KeyValueWriteCondition.IfETagMatches(swappedETag), TestTimeout());
+                    post.Applied.ShouldBeTrue();
+                }
+
+                await application.StopAsync(TestTimeout());
+            }
+        }
+    }
+}
+```
+
+[All examples](index.md) · [Assembly overview](../index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/tests/KeyValueApplicationEndToEndTests.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/tests/Assimalign.Cohesion.Database.KeyValuePair.Client.Tests.csproj`.

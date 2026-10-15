@@ -1,0 +1,87 @@
+# Assimalign.Cohesion.Security.DataProtection
+
+Protects purpose-scoped payloads with authenticated encryption and a rotating key ring.
+
+## Reference
+
+- **[Overview](index.md)** — purpose, dependencies, and principal types.
+
+- **[Design](design.md)** — decisions and extension boundaries.
+
+- **[Examples](examples/index.md)** — source-backed usage and tests.
+
+[Security](../index.md)
+
+## Scope
+
+AES-256-GCM protects versioned payloads and HKDF-SHA256 derives purpose-specific subkeys. Lazy
+rotation keeps retired keys available during a grace window. `IKeyRepository` separates persistence
+from protection, allowing nodes to share a configured key directory.
+
+A payload naming a key the ring does not hold reloads the repository at most once per
+`DataProtectionOptions.UnknownKeyReloadInterval` (default 30 seconds), so a client cannot force a
+read per request, and a key another node writes resolves within one interval. A repository read
+that fails during that reload surfaces from `Unprotect` as `DataProtectionException`. See the
+[design](design.md#reloads-and-the-unknown-key-throttle).
+
+Consumers adapt `IDataProtector` to their own seams at builder time. `Web.Antiforgery`'s
+`AntiforgeryBuilder.UseDataProtection(dataProtectionProvider)` derives a protector for the
+purpose chain `("Assimalign.Cohesion.Web.Antiforgery", "v1")` and adapts it to
+`IHttpAntiforgeryProtector`; `Http.Antiforgery` itself takes no dependency on this library.
+
+`DataProtectionProvider` and `FileSystemKeyRepository` are public sealed implementations with
+private constructors. Their `Create` methods return the concrete type; application code can
+continue to use `IDataProtectionProvider` and `IKeyRepository` contracts.
+
+## Dependencies
+
+The project file declares no explicit Cohesion project or external package references.
+
+## Principal public types
+
+| Type | Source file |
+|---|---|
+| `DataProtectionException` | `src/Exceptions/DataProtectionException.cs` |
+| `DataProtectionProvider` | `src/DataProtectionProvider.cs` |
+| `IDataProtectionProvider` | `src/Abstractions/IDataProtectionProvider.cs` |
+| `IDataProtector` | `src/Abstractions/IDataProtector.cs` |
+| `IKey` | `src/Abstractions/IKey.cs` |
+| `IKeyRepository` | `src/Abstractions/IKeyRepository.cs` |
+| `FileSystemKeyRepository` | `src/FileSystemKeyRepository.cs` |
+| `DataProtectionOptions` | `src/DataProtectionOptions.cs` |
+| `DataProtectionProviderExtensions` | `src/Extensions/DataProtectionProviderExtensions.cs` |
+| `KeyDocument` | `src/KeyDocument.cs` |
+
+## Sources
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Assimalign.Cohesion.Security.DataProtection.csproj`.
+
+- **Source** — `cohesion/libraries/Directory.Build.props`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/docs/OVERVIEW.md`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/docs/DESIGN.md`.
+
+- **Source** — `cohesion/libraries/Security/README.md`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Exceptions/DataProtectionException.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/DataProtectionProvider.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Abstractions/IDataProtectionProvider.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Abstractions/IDataProtector.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Abstractions/IKey.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Abstractions/IKeyRepository.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/FileSystemKeyRepository.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/DataProtectionOptions.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/Extensions/DataProtectionProviderExtensions.cs`.
+
+- **Source** — `cohesion/libraries/Security/Assimalign.Cohesion.Security.DataProtection/src/KeyDocument.cs`.

@@ -1,0 +1,59 @@
+# Assimalign.Cohesion.Database.Embedded design
+
+This page describes the boundaries and implementation shape of `Assimalign.Cohesion.Database.Embedded`.
+
+> **Status:** Partial.
+
+## Intent
+
+The `Database` area is the data layer for the rest of the Cohesion platform (area `DESIGN.md` R10).
+Most platform resources should not run — or depend on — a separate database server process for their
+own state; they embed the engines they need. This project is that consumption path, and it is
+deliberately thin.
+
+## The engine self-sufficiency principle
+
+The facade can only be thin because of an invariant this project *enforces by existing*: **engines
+are self-sufficient libraries**. An engine owns its internal background workers — WAL flushing,
+checkpointing, version pruning — whether it runs embedded or hosted. `Database.Hosting` merely
+composes the per-model wire-protocol servers that front engines; it adds no behavior an embedded
+consumer would lose (since 2026-07-13 the engine's worker loops are engine-internal, always — there
+is no host scheduling to miss). If an engine ever requires the host to function, embedded consumers
+break — that is a design defect in the engine, not a missing feature here.
+
+## Decisions
+
+- **Composition only.** `EmbeddedDatabase` registers engines, looks them up by name or model, and disposes them in reverse registration order. It does not proxy engine operations — consumers work with `IDatabaseEngine`/`IDatabase` directly, so embedded and hosted code paths stay identical.
+- **No DI.** Repo rule: `*.Hosting` is the only DI seam. Embedded consumers new up engines from their factories (`{Model}DatabaseEngine.Create(options)`); resources with DI wire this in their own hosting layer.
+- **Engine-name uniqueness enforced at composition**, ordinal-ignore-case, matching `IDatabaseEngine.Name` semantics elsewhere.
+- **Best-effort disposal with aggregation.** One failing engine must not leak the others' file handles; failures are collected and rethrown as `AggregateException`.
+
+## Non-goals
+
+- **No cross-engine transactions** — a transaction is scoped to one database in one engine.
+- **No configuration binding here** — `cohesion.config` binding belongs to the consuming resource's hosting layer.
+- **No lifecycle states beyond compose/dispose** — engines own their own `EngineState`.
+
+## AOT posture
+
+Pure composition; no reflection, no discovery. Consumers reference engine packages statically.
+
+## Phase 29 root-contract migration
+
+The embedded test engine now implements the root's `DatabaseName` operations and read-only `Servers`
+observation. Embedded composition continues to own the engines explicitly supplied to
+`EmbeddedDatabase`; this existing aggregate is separate from the hosting builder's
+instance-borrowed registration contract.
+
+## Declared dependencies
+
+| Reference | Kind |
+|---|---|
+| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Embedded/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Embedded/src/Assimalign.Cohesion.Database.Embedded.csproj`.

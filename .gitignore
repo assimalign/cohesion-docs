@@ -1,0 +1,7 @@
+.nuget/
+_out/
+**/bin/
+**/obj/
+.vs/
+**/wwwroot/_content/
+**/wwwroot/docs/

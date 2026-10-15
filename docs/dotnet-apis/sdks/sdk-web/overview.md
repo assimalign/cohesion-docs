@@ -1,0 +1,99 @@
+# Overview
+
+The Web SDK inherits shared build behavior and adds area-specific defaults.
+
+> **Status:** Implemented. This describes the SDK build layer; resource runtime capabilities are documented separately.
+
+## Chaining and overrides
+
+The [base overview](../sdk/overview.md) describes shared build defaults, settings generation, and
+pin validation. Enabled Web resources import `Assimalign.Cohesion.Sdk.ApplicationModel` for
+resource manifests, generated resource APIs, packaging, and image targets.
+
+Properties conditioned on an empty value apply before the consumer project body. Later project
+assignments can override them. Default items use `Include` so consumers can use `Update` or `Remove`
+by identity.
+
+| Property | Default | Effect | Defined in |
+|---|---|---|---|
+| `OutputType` | `Exe` | Executable output; explicitly choose Library for a base-SDK library. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `TargetFramework` | `net10.0` | Compile against the .NET 10 target framework. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `LangVersion` | `Preview` | Enable preview C# syntax. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `EnablePreviewFeatures` | `true` | Permit preview APIs; also affects language-version selection. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `ImplicitUsings` | `disable` | Require explicit using directives. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `Nullable` | `enable` | Enable nullable reference analysis. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+| `IsAotCompatible` | `true` | Enable ahead-of-time compatibility analysis. | `Targets/Assimalign.Cohesion.Sdk.Defaults.props` |
+
+| Property | Default | Effect | Defined in |
+|---|---|---|---|
+| `CohesionApplicationModel` | `disabled` | Opt in to manifest generation with enabled. | `base Targets/Assimalign.Cohesion.Sdk.Common.props` |
+| `CohesionAutoIncludeAppFramework` | `Unset; inclusion enabled` | Set false before the props include to suppress both frameworks. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by the base and area framework packs. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `CohesionSkipSdkPinCheck` | `Unset` | Tooling-only escape for pin validation. | `base Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` |
+
+## Area properties
+
+| Name | Default or assignment | Effect | Where defined and condition |
+|---|---|---|---|
+| `EventSourceSupport` | `true` | Preserve NativeAOT EventSource delivery and forwarding to configured sinks. | `Targets/Sdk.Web.props`; when `'$(EventSourceSupport)' == ''` |
+| `CohesionResourceApplicationModel` | `Assimalign.Cohesion.Web.ApplicationModel` | Application-model assembly/package selected for an enabled resource. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceApplicationModel)' == ''` |
+| `CohesionResourceControlPlaneType` | `Assimalign.Cohesion.ApplicationModel.WebResourceControlPlane` | Fully qualified control-plane type used by generated registration. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceControlPlaneType)' == ''` |
+| `CohesionResourceKind` | `Web` | Resource kind recorded in the manifest. | `Targets/Sdk.Web.props`; when `'$(CohesionResourceKind)' == ''` |
+| `CohesionControlPlaneEndpoint` | `http` | Endpoint used for the default control plane. | `Targets/Sdk.Web.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
+| `CohesionControlPlanePath` | `/cohesion/v1` | Absolute control-plane route prefix. | `Targets/Sdk.Web.props`; when `'$(CohesionControlPlanePath)' == ''` |
+| `CohesionWorkloadKind` | `Deployment` | Workload lifecycle kind written to the manifest. | `Targets/Sdk.Web.props`; when `'$(CohesionWorkloadKind)' == ''` |
+| `InterceptorsNamespaces` | `$(InterceptorsNamespaces);Assimalign.Cohesion.Web.Api.Generated` | Adds the namespace used by generated Web API interceptors. | `Targets/Sdk.Web.props`; unconditional |
+
+`EventSourceSupport` defaults to `true` only when unset. Explicit values before the import are
+preserved; later project-body assignments override the default, and command-line global properties
+win over both. The default is Web-specific. Setting it to `false` disables EventSource delivery,
+in-process listeners, and forwarding in a native application, while server behavior and internal
+counter maintenance remain unchanged. See the [NativeAOT design](assimalign-cohesion-sdk-web-tasks/design.md#nativeaot-event-delivery).
+
+## Area items
+
+| Item | Declaration | Metadata | Where defined |
+|---|---|---|---|
+| `CohesionEndpoint` | `Include=http`; `Scheme=http`; `ContainerPort=8080`; `Public=false` | No additional child metadata | `Targets/Sdk.Web.props` |
+| `CohesionProbe` | `Include=readiness`; `Endpoint=http`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Web.props` |
+| `CohesionProbe` | `Include=liveness`; `Endpoint=http`; `Http=/livez` | No additional child metadata | `Targets/Sdk.Web.props` |
+| `None` | `Update=wwwroot/**`; `CopyToOutputDirectory=PreserveNewest`; `CopyToPublishDirectory=PreserveNewest` | No additional child metadata | `Targets/Sdk.Web.props` |
+
+`wwwroot` is the web root `UseStaticFiles()` serves, resolved under the content root
+(`AppContext.BaseDirectory` for a plain application), so the `None` update ships it with the build
+and publish output. A consumer’s own `None Update` in the project body still wins.
+
+The `FrameworkReference` item for `Assimalign.Cohesion.App.Web` is added by `Sdk/Sdk.props` when
+`CohesionAutoIncludeAppFramework` is not `false`. The defaults below come from this area’s own
+props file.
+
+## Artifacts and validation
+
+When enabled, the ApplicationModel SDK targets generate `cohesion/resource.json`, `Resource.g.cs`, and
+`ResourceControlPlane.g.cs` beneath `IntermediateOutputPath`. The application-model package is
+injected at `CohesionVersion` unless suppressed; generated registration uses the area type listed
+above.
+
+Pin disagreement is `COHSDK002`; an enabled non-executable is `COHSDK008`; a disabled resource
+reference is `COHSDK001`. Kind-prefix errors are `COHSDK009` and invalid certificate metadata is
+`COHSDK010`. Image and pack diagnostics are inherited; see the
+[complete base diagnostic table](../sdk/overview.md#diagnostics). This layer adds no validation
+target or generated artifact of its own.
+
+[SDK home](index.md) · [MSBuild](msbuild/index.md)
+
+## Sources
+
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/DESIGN.md`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Sdk/Sdk.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Sdk/Sdk.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Targets/Sdk.Web.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Targets/Sdk.Web.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Defaults.props`
+- **Source** —
+  `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Tasks/docs/OVERVIEW.md`
