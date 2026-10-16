@@ -27,7 +27,7 @@ ownership under the database writer lock. Schema-owned collections reject the op
 reserved system collections are read-only.
 
 The statement uses an active session transaction or an automatic statement transaction. Successful
-execution returns a command `QueryResult` with `Success` and an affected count of zero.
+execution returns a command `DatabaseResult` with `Success` and an affected count of zero.
 
 ## Examples
 

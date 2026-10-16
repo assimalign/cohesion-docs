@@ -103,18 +103,24 @@ the one-sequence-namespace pairing, and the per-statement bracket/apply-gate mod
   wire's generic ResultHeader/Row/Complete framing untouched — a deliberate
   constraint so the model needs no protocol surface of its own.
 
-## The text seam (docs/COMMANDS.md — the grammar contract)
+## Typed execution and the wire command grammar
 
-The session's text-execute seam parses the command grammar into the same typed requests the typed
-seam executes. **Decision (2026-07-14): the recommended minimal-grammar shape was taken** — it makes
-the model wire-compatible with the existing `Execute` message (statement text + named tuple-codec
-parameters) and the generic server session pump with **zero protocol changes**, which is also what
-made the server-core extraction evidence conclusive (area DESIGN §3.10). The rejected alternative —
-model-specific binary command frames ("KV wants binary command paths", the extraction trigger's
-prediction) — would have forked the protocol message family and the server pump for no
-expressiveness gain over named binary parameters; it remains open as a measured-need optimization,
-not a default. The grammar is a contract: parser, COMMANDS.md, and the corpus tests change together
-(the DIALECT.md precedent).
+`KeyValueDatabaseSession` derives from `DatabaseExecutionSession<KeyValueRequest>`.
+It accepts typed commands only; the request root has no statement or parameter map.
+The server's internal `ExecuteCommandTextAsync` entry parses the grammar in
+`COMMANDS.md` (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`). It checks closed session, blank text, cancellation, offline
+database and refusing transaction before parsing, then calls the public typed NVI.
+The server decodes parameter values before entering it.
+
+The owner decision of 2026-10-16 (#1576) removes the public text seam because the grammar
+is deliberately not a language and per-model servers already own the wire path. Execute
+frames, command grammar, result framing and error codes are unchanged. Root statement
+events name the parsed verb request type; parse failures use this model's event 10, and
+pre-parse refusals produce no root statement event.
+
+The 2026-07-14 choice of a minimal grammar reused Execute frames without adding binary
+command frames. That remains the wire contract: parser, COMMANDS.md and corpus tests change
+together. Model-specific binary frames remain a measured-need optimization.
 
 ## `Key`-space catalog introspection (C2)
 
@@ -149,7 +155,9 @@ shape:
 
 ```mermaid
 flowchart LR
-    Session["KeyValueDatabaseSession"] --> Parser["KeyValueCommandParser"]
+    Wire["KeyValueDatabaseServerSession"] --> Entry["Internal ExecuteCommandTextAsync: validation and refusals"]
+    Entry --> Parser["KeyValueCommandParser"]
+    Parser --> Session["KeyValueDatabaseSession.ExecuteAsync: typed public NVI"]
     Session --> Executor["KeyValueOperationExecutor"]
     Executor --> Snapshot["KeyValuePair.Catalog snapshot"]
 ```
@@ -176,8 +184,7 @@ model independence outweighs the duplication/drift cost, and wire-behavior parit
 protocol contract plus each model's E2E suite, not by shared code (the preserved
 prediction-vs-evidence table and the full placement history live in the area `DESIGN.md` §3.10 and
 decision log). The copy is textually near-identical to `Database.Sql` 's today; divergence over time
-is sanctioned — that is the point. The pump adds no model-specific behavior yet: the command grammar
-travels the protocol's existing Execute message into the root's text-execute seam, and the model's
+is sanctioned — that is the point. The pump passes the protocol's existing Execute message to the internal `ExecuteCommandTextAsync` entry, and the model's
 result sets ride the generic result framing (`ResultComplete` carries the set's real `AffectedCount`
 , so the model's one-row outcome sets report 1/0 on the wire). Model-specific wire surface (binary
 command frames, if measurement ever demands them) grows here, in this copy, without touching any
@@ -364,3 +371,13 @@ framing, handshake and model messages are unchanged.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Assimalign.Cohesion.Database.KeyValuePair.csproj`.
+
+## Wire parse-failure reporting (#1578, 2026-10-16)
+
+`StatementParseFailed` (event 10, Error) reports `sessionId`, `database`, `code`,
+`exceptionType` and `suppressedCount` (int). It reports at most once per second across
+sessions; the suppression payload saturates at `int.MaxValue`. The exact
+`total-statement-parse-failures` counter includes suppressed and disabled reports.
+Parameter decoding precedes the internal entry's closed, blank, canceled, offline and
+transaction checks, then parsing and the public typed NVI. Parse failures return
+`ParseFailure` before any root statement event; the connection remains ready.

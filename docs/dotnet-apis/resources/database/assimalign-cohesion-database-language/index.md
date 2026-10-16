@@ -4,6 +4,9 @@ The shared query-language substrate for database models.
 
 > **Status:** Partial.
 
+`Diagnostic`, `DiagnosticLocation` and `DiagnosticSeverity` live in `Database.Types`
+(#1577, 2026-10-16). Language references Types and produces these shared values.
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -13,9 +16,6 @@ No project overview is present. The following public declarations are taken from
 
 | Type | Source responsibility |
 |---|---|
-| `Diagnostic` | Public class declared in `Diagnostic.cs`. |
-| `DiagnosticLocation` | Public enum declared in `DiagnosticLocation.cs`. |
-| `DiagnosticSeverity` | Public enum declared in `DiagnosticSeverity.cs`. |
 | `QueryDiagnostics` | Creates diagnostics shared by model-specific query languages. |
 | `Token` | Represents a single lexical token scanned from a query statement. |
 | `TokenLexer` | A zero-allocation lexer that tokenizes query statements for SQL, OQL, and GQL. `Supports` iteration via the foreach pattern. var lexer = new `TokenLexer`(sql, options); foreach (var token in lexer) { /* ... */ } |
@@ -35,9 +35,9 @@ No project overview is present. The following public declarations are taken from
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/Diagnostic.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/DiagnosticLocation.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/DiagnosticSeverity.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/Diagnostic.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/DiagnosticLocation.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/DiagnosticSeverity.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/QueryDiagnostics.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Lexer/Token.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Lexer/TokenLexer.cs`.

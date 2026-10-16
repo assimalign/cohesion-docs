@@ -160,11 +160,12 @@ an explicit nonnegative maximum depth, a visited-node set seeded with the start,
 nodes. It excludes the start even when a cycle or self-loop reaches it. Incident edges are ordered
 by identity, making the breadth-first result deterministic. Its result contains visited nodes; GQL's
 projected `a,r,b` values expose the actual frozen `GraphNode` /`GraphRelationship` objects through
-`QueryRow.GetValue`. Property projections return scalars. This does not add a path member to the
+`DatabaseRow.GetValue`. Property projections return scalars. This does not add a path member to the
 frozen traversal contract.
 
 `GraphPathsQueryRequest.FromGql` selects real path execution through the existing
-`IDatabaseSession.ExecuteAsync(QueryRequest)` boundary. Its `GraphPathsQueryResult.Paths` contains
+`GraphDatabaseSession.ExecuteAsync(GraphRequest)` capability. Row and path requests
+share the typed `GraphRequest` base. The returned `GraphPathsQueryResult.Paths` contains
 materialized `GraphPath` objects from the matcher's bound entities and traversal sequence, under
 the same pinned snapshot as scalar execution. Exactly one projection is required: a node variable
 produces a singleton path, a relationship variable produces its stored source and target nodes,
@@ -187,7 +188,8 @@ claim.
 
 `GraphSchema.Open(database, session)` already supplies in-process discovery of labels, relationship
 types, property keys and indexes. C2 preserves that interface and makes the same catalog reachable
-through textual requests on the existing `IDatabaseSession.ExecuteAsync` query boundary. Dedicated
+through textual requests on `GraphDatabaseSession`, whose
+`DatabaseLanguageSession<GraphRequest>` base provides typed and text execution. Dedicated
 `SHOW` statements are Cohesion GQL extensions, not ISO conformance claims. A catalog definition is
 not a graph node: exposing it through `MATCH` would invent graph identities and relationships and
 would reserve labels in the user graph. `SHOW` instead returns a typed result set with no fabricated
@@ -516,3 +518,9 @@ framing, handshake and model messages are unchanged.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Assimalign.Cohesion.Database.Graph.csproj`.
+
+## Session execution (#1576, 2026-10-16)
+
+`GraphDatabaseSession` derives from `DatabaseLanguageSession<GraphRequest>` for typed and text
+execution. `GraphRequest` owns its typed `Statement` and optional `Parameters` over
+the memberless `DatabaseRequest` root. Results use the `DatabaseResult` family.

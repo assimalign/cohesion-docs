@@ -14,9 +14,9 @@ examples require their original test project’s dependencies and supporting obj
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/Diagnostic.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/DiagnosticLocation.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/DiagnosticSeverity.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/Diagnostic.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/DiagnosticLocation.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Diagnostics/DiagnosticSeverity.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Diagnostics/QueryDiagnostics.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Lexer/Token.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Lexer/TokenLexer.cs`.

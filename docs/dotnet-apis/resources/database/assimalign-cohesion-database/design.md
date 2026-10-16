@@ -5,10 +5,10 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The area root (architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`)). Everything here must be true for *all five* data
-models — anything model-specific belongs in a model package. The root's job is to make engines
-substitutable at the seams the platform builds on: the server serves any engine, the hosting layer
-composes any engine, a client result looks the same regardless of the engine that produced it.
+(`cohesion/docs/resources/Database/DESIGN.md`)). The lifecycle and composition bases serve all five data models. Execution capability
+bases serve four typed models and three language models. Model requests, parsers and
+servers live in model packages; Hosting consumes the common lifecycle root and execution
+callers use the concrete model session.
 
 The root is also the area's **rollup**: it references every child root — the independently
 consumable base components a database is made of (`Database.Types`, `Database.Language`,
@@ -128,20 +128,22 @@ classDiagram
   keeps the callback signature stable as the context grows. An earlier cut of
   this contract (same day, superseded before merge) exposed a single nullable
   `Server`; per-model servers made plurality structural, not optional.
-- **Two execute seams on `IDatabaseSession`.** The typed seam
-  (`ExecuteAsync(QueryRequest)`) is for in-process consumers that already speak a
-  model's language objects (`SqlQueryRequest`). The **text seam**
-  (`ExecuteAsync(string, parameters)`) exists for the wire protocol: the server
-  receives statement *text* plus decoded parameter values and must stay
-  model-agnostic — so the session, which knows its model, owns parsing. The
-  alternative — the server referencing model language packages to build typed
-  requests — would couple the one shared network front-end to every model and
-  violate the area's composition rules. Each model implements the text seam with
-  its own parser (`SqlDatabaseSession` → `SqlQueryRequest.FromSql`).
+- **Execution belongs to session capabilities (owner reversal, 2026-10-16; #1576).**
+  The earlier decision put two execute members on every `DatabaseSession` to serve one
+  shared network front-end. Per-model servers replaced that front-end, removing its reason:
+  Blob has no execution language, and KeyValuePair's command grammar is an internal wire
+  encoding. The root session now owns lifecycle, state and explicit transactions only.
+  `DatabaseExecutionSession<TRequest>` adds typed execution; Sql, Documents and Graph
+  derive `DatabaseLanguageSession<TRequest>` for typed and text execution. KeyValuePair
+  derives only the typed base, and Blob directly derives `DatabaseSession`.
+  Both bases constrain requests to `DatabaseRequest`, validate in public non-virtual
+  members, and call protected abstract cores. A foreign-model request fails compilation.
+  The language base's typed forwarder is declared before its text member and calls the
+  public typed NVI, so the compiler names the model's request type in its diagnostic.
 - **The isolation-level seam consumes the Transactions child's enum directly**
   (2026-07-13, with the MVCC-integration design — area DESIGN.md §3.8).
-  `IDatabaseSession.BeginTransactionAsync(IsolationLevel, …)` and
-  `IDatabaseTransaction.IsolationLevel` speak `Database.Transactions`'
+  `DatabaseSession.BeginTransactionAsync(IsolationLevel, …)` and
+  `DatabaseTransaction.IsolationLevel` speak `Database.Transactions`'
   `IsolationLevel` — the same pattern as `TransactionId`/`TransactionState`:
   post-inversion, the root consumes child vocabulary rather than duplicating
   it. The rejected alternative — a root-owned isolation enum mapped onto the
@@ -159,10 +161,10 @@ classDiagram
   the data). A subtype of `DatabaseException` keeps existing `catch` blocks
   working while giving the server an exact mapping — better than string-matching
   messages or per-model exception knowledge in the server.
-- **`QueryRequest`/`QueryResult` live in `Database.Execution`, not here.** The
+- **`DatabaseRequest`/`DatabaseResult` live in `Database.Execution`, not here.** The
   root aggregates the execution family rather than owning it: execution is its
-  own child root with pipeline/context machinery the contract root has no
-  business carrying. The same holds for the other child-root vocabularies the
+  own child root for model-neutral request/result contracts, referencing Types only.
+  The unused shared pipeline was deleted in #1257. The same holds for the other child-root vocabularies the
   root's contracts speak: `TransactionId`/`TransactionState` live in
   `Database.Transactions` (`IDatabaseTransaction` consumes them), and
   `ProtocolVersion` lives in `Database.Protocol` (`IDatabaseServerSession`
@@ -280,11 +282,11 @@ consumers deserve to catch that kind precisely rather than parse messages; on th
 `ExecutionFailure` with a precise message).
 
 **Child roots own independent exception roots** — `StorageException`, `DatabaseTypeException`,
-`QueryExecutionException`, `ProtocolException`, `TransactionAbortedException` all inherit
+`ProtocolException`, `TransactionAbortedException` all inherit
 `Exception` directly. This is the point of the child-root inversion: a child root must be
-independently consumable, so its error surface cannot depend on the area contracts. (`Storage`, Types,
-and Execution were always shaped this way; Protocol and Transactions joined them when their root
-references were inverted, 2026-07-13.)
+independently consumable, so its error surface cannot depend on the area contracts. (`Storage` and Types were already shaped this way; Protocol and Transactions joined them
+when their root references were inverted, 2026-07-13.) Execution has no exception root
+since its unused shared pipeline was removed in #1257.
 
 The consequence, deliberately accepted: `catch (DatabaseException)` does **not** catch child-root
 failures. The layer that owns both vocabularies translates at its boundary — the server session pump

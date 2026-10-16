@@ -36,7 +36,7 @@ byte sequences; keys order by unsigned lexicographic byte comparison.
   `KeyValueDeleteRequest`, `KeyValueExistsRequest`, `KeyValueScanRequest`) —
   the model's members of the shared `Database.Execution` request family.
 - **The text command grammar (`GET`/`PUT`/`DELETE`/`EXISTS`/`SCAN`)** — the contract
-  in COMMANDS.md (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`), parsed by the session's text-execute seam so the
+  in COMMANDS.md (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`), parsed by the internal `ExecuteCommandTextAsync` wire entry so the
   wire protocol's Execute message serves the model with zero protocol changes.
 - **`KeyValueDatabaseServer` (+ `KeyValueDatabaseServerOptions`)** — the model's
   wire-protocol server, carrying its own full copy of the server machinery
@@ -82,3 +82,7 @@ See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Assimalign.Cohesion.Database.KeyValuePair.csproj`.
+
+The public `KeyValueDatabaseSession` derives from `DatabaseExecutionSession<KeyValueRequest>`
+and accepts typed commands only. The grammar is an internal wire encoding, deliberately not a
+language capability. Results use `DatabaseResult` and `DatabaseResultSet`.

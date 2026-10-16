@@ -577,8 +577,8 @@ The SQL model ships its own wire-protocol server: `SqlDatabaseServer`, a sealed 
 the area root's `IDatabaseServer` contract fronting exactly one `SqlDatabaseEngine`
 (`Create(engine, options)`, options in `SqlDatabaseServerOptions`). Servers are per-model by design: this type is
 where SQL-specific wire behavior grows (typed relational payloads, SQL transaction frames) as the
-protocol's model-specific surface lands; today execution rides the model-agnostic text-execute seam
-on the root's `IDatabaseSession`. "Running" lives here — the engine underneath has no lifecycle;
+protocol's model-specific surface lands; execution uses `SqlDatabaseSession` through its
+`DatabaseLanguageSession<SqlQueryRequest>` capability. "Running" lives here — the engine underneath has no lifecycle;
 the server starts and stops around it.
 
 ### Why the machinery is `Sql`-internal — per-model duplication (2026-07-14, owner decision; the settled placement)
@@ -623,8 +623,8 @@ disposes its engine.
 ### The text-execute path
 
 The server receives statement *text* and tuple-codec parameter bytes off the wire; the bridge to the
-engine is the **text-execute seam on the root contract** —
-`IDatabaseSession.ExecuteAsync(string, IReadOnlyDictionary<string, object?>?, CancellationToken)` —
+engine is the **language capability** —
+`DatabaseLanguageSession<SqlQueryRequest>.ExecuteAsync(string, IReadOnlyDictionary<string, object?>?, CancellationToken)` —
 which `SqlDatabaseSession` implements with the model's own parser (`SqlQueryRequest.FromSql`).
 Parameters decode with `DatabaseValueCodec` (`Database.Types`), one self-describing component per
 parameter; result rows encode the same way, one component per column, so both directions ride the
@@ -723,7 +723,7 @@ stateDiagram-v2
     Idle --> Closed: disconnect
 ```
 
-State misuse returns `QueryResultStatus.Error` with an error diagnostic, without throwing or
+State misuse returns `DatabaseResultStatus.Error` with an error diagnostic, without throwing or
 changing the active transaction. `COHSQLT001` means nested `BEGIN`; `COHSQLT002` means `COMMIT` or
 `ROLLBACK` without an active scope. The wire maps these to `ExecutionFailure` and includes the
 stable diagnostic code in its message. The connection remains usable.
@@ -1051,3 +1051,9 @@ framing, handshake and model messages are unchanged.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Assimalign.Cohesion.Database.Sql.csproj`.
+
+## Session execution (#1576, 2026-10-16)
+
+`SqlDatabaseSession` derives from `DatabaseLanguageSession<SqlQueryRequest>` for typed and text
+execution. `SqlQueryRequest` owns its typed `Statement` and optional `Parameters` over
+the memberless `DatabaseRequest` root. Results use the `DatabaseResult` family.
