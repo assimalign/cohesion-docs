@@ -16,7 +16,8 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 [ LIMIT nonnegative_integer ] [ OFFSET nonnegative_integer ]
 [ ; ]
 
-<select_list> ::= { * | expression [ [ AS ] column_alias ] [ , ...n ] }
+<select_list> ::= <select_item> [ , ...n ]
+<select_item> ::= * | expression [ [ AS ] column_alias ]
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
 <join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }

@@ -31,10 +31,12 @@ shape, in depth-first pre-order:
 | estimated_rows | Int64 | Yes; always NULL |
 | actual_rows | Int64 | Yes; always NULL |
 
-SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, Group, Insert, InsertSelect,
+SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, JoinStep, Group, Insert, InsertSelect,
 Update and Delete. IndexSeek includes the chosen index and bounds. These are model descriptions, not
 an execution API. SQL carries the rows through ordinary result frames. A source test guard requires
 every concrete plan record to have a description mapping.
+N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
+steps whose inputs will be empty. Plan output uses the same eight columns.
 
 ## Examples
 
@@ -49,6 +51,15 @@ EXPLAIN returns eight-column plan rows including a Delete operator. The SELECT s
 `2`, `3`. An indexed `EXPLAIN SELECT id FROM t WHERE age >= 20 AND age < 40` reports IndexSeek with
 that bound when an eligible age index exists.
 
+With the [three-input JOIN fixture](../clauses/join.md#left-using-and-computed-output):
+
+```sql
+EXPLAIN SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON b.id = c.id;
+```
+
+The description contains two JoinStep children, one Inner and one LeftOuter, with table scans
+because this fixture defines no indexes. It returns plan rows without reading or changing data rows.
+
 ## See also
 
 [Statements](index.md) · [SELECT](select.md) · [Diagnostics](../diagnostics.md)
@@ -57,3 +68,4 @@ that bound when an eligible age index exists.
 
 - **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExplainTests.cs`.
 - **Shape** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabasePlanDescription.cs`.
+- **Join steps** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`.

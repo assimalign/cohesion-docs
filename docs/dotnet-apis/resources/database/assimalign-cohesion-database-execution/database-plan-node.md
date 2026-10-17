@@ -25,6 +25,11 @@ and detail are model-defined; a seek can include its index and bounds. The initi
 supplied values without validating tree structure or invoking an executor. There are no additional
 constructor validation exceptions. Required members must be set by C# callers.
 
+SQL N-way descriptions emit a JoinStep child for every join, carrying its kind and scan or
+IndexSeek access. GQL standalone RETURN uses a Return root; Project describes each output and
+Distinct groups those projections when requested. These are model vocabulary additions without
+changes to DatabasePlanNode or the eight-column result shape.
+
 ## Example
 
 ```csharp
@@ -44,3 +49,5 @@ await using var description = DatabasePlanDescription.Create([seek]);
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabasePlanNode.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExplainTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.
