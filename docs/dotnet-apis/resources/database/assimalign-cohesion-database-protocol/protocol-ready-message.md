@@ -14,7 +14,11 @@ public sealed record ProtocolReadyMessage(ProtocolVersion Version, IReadOnlyList
 
 ## Behavior and exceptions
 
-Carries agreed version and two-sided capability intersection in server registration order. Empty payload means 2.0 with no capabilities; encoding that agreement stays empty. 2.1 writes version and names. Null Capabilities throws ArgumentNullException at construction and init/with assignment. Encode/Decode reject malformed version/list/payload with ProtocolException. The client also rejects unsolicited capability agreements.
+Carries agreed version and two-sided capability intersection in server registration order. Empty
+payload means 2.0 with no capabilities; encoding that agreement stays empty. 2.1 writes version and
+names. Null Capabilities throws ArgumentNullException at construction and init/with assignment.
+Encode/Decode reject malformed version/list/payload with ProtocolException. The client also rejects
+unsolicited capability agreements.
 
 ## Example
 

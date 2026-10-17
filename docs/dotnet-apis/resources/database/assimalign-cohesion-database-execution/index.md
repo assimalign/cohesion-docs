@@ -4,6 +4,12 @@ The model-neutral request/result vocabulary of the Cohesion Data Platform:
 `DatabaseRequest`, `DatabaseResult`, `DatabaseResultSet`, `DatabaseResultStatus`,
 `DatabaseRow` and `DatabaseColumn`.
 
+## Reference pages
+
+- **[DatabasePlanDescription](database-plan-description.md)** — Public contract and usage.
+- **[DatabasePlanNode](database-plan-node.md)** — Public contract and usage.
+- **[DatabaseRow](database-row.md)** — Public contract and usage.
+
 ## Scope
 
 - **Requests:** `DatabaseRequest` has no members. Model requests own their inputs. Language
@@ -44,12 +50,6 @@ offers lifecycle, state and transactions. Use the concrete model session to exec
 See [Design](design.md) for the decisions and deferred result-contract work.
 
 [Examples](examples/index.md) · [Parent: Database](../index.md)
-
-- **[DatabasePlanDescription](database-plan-description.md)** — Public contract and usage.
-
-- **[DatabasePlanNode](database-plan-node.md)** — Public contract and usage.
-
-- **[DatabaseRow](database-row.md)** — Public contract and usage.
 
 ## Sources
 

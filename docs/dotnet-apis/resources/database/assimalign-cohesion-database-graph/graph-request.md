@@ -20,7 +20,8 @@ Construction is restricted to the two graph request leaves. Their constructors f
 parameter dictionary and result shape. Statement cannot be null (ArgumentNullException in the leaf
 constructor). Parameters are optional and retain the caller's dictionary; planning normalizes by
 ordinal bare name and validates referenced values. Collisions are COHDBG014, absent references
-COHDBG001 and unsupported/non-finite values COHDBG003. Null is a binding and unused values are ignored.
+COHDBG001 and unsupported/non-finite values COHDBG003. Null is a binding and unused values are
+ignored.
 
 ## Example
 

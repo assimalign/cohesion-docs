@@ -18,7 +18,11 @@ public sealed class ProtocolMessageFamily
 
 ## Behavior and exceptions
 
-Snapshots endpoint identifiers and capabilities. Model identifiers are 5..9 or 64..255. A capability may gate only its own family identifiers, except the shared Diagnostics descriptor. Invalid scope, duplicate name/identifier or reserved identifier throws ArgumentException; null lists/descriptors throw ArgumentNullException. Supports recognizes defined core frames, while ProtocolChannel additionally gates their negotiated use.
+Snapshots endpoint identifiers and capabilities. Model identifiers are 5..9 or 64..255. A capability
+may gate only its own family identifiers, except the shared Diagnostics descriptor. Invalid scope,
+duplicate name/identifier or reserved identifier throws ArgumentException; null lists/descriptors
+throw ArgumentNullException. Supports recognizes defined core frames, while ProtocolChannel
+additionally gates their negotiated use.
 
 ## Example
 

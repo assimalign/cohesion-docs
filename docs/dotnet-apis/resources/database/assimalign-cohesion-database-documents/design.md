@@ -203,7 +203,7 @@ supported scalar keys, visibility filtering, and restart recovery.
 
 ## Data mutation and serialization semantics
 
-OQL now includes index DDL but no document data-mutation clauses. The existing collection API
+OQL INSERT provides insert-only VALUES/SELECT writes with duplicate-key diagnostics. The collection API
 provides deterministic mutation semantics: Put replaces the complete JSON value by ordinal identity,
 `Delete` removes that identity, and each operation either completes in its transaction or rolls back.
 Put captures caller memory before awaiting and returns a new version. An optional expected version

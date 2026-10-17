@@ -16,7 +16,9 @@ public sealed class GqlTruthTestExpression : GqlExpression
 
 ## Behavior and exceptions
 
-TruthValue true/false/null means TRUE/FALSE/UNKNOWN. IsNegated implements IS NOT. A Boolean/NULL operand yields Boolean; a non-Boolean evaluated operand raises COHDBG013. Invalid AST shapes fail COHDBG001.
+TruthValue true/false/null means TRUE/FALSE/UNKNOWN. IsNegated implements IS NOT. A Boolean/NULL
+operand yields Boolean; a non-Boolean evaluated operand raises COHDBG013. Invalid AST shapes fail
+COHDBG001.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

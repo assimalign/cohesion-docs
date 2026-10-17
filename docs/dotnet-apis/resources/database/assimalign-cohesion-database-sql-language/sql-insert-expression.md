@@ -17,7 +17,10 @@ public sealed class SqlInsertExpression : SqlQueryExpression
 
 ## Behavior and exceptions
 
-IsDefaultValues identifies INSERT DEFAULT VALUES, inserting one row with every column omitted. Both Values and SelectSource are null in that form; the optional column list is retained. Ordinary VALUES may contain SqlDefaultExpression items. The parser owns construction. Invalid DEFAULT placement is SQL0003; NOT NULL failures use COHSQLE024 (23502).
+IsDefaultValues identifies INSERT DEFAULT VALUES, inserting one row with every column omitted. Both
+Values and SelectSource are null in that form; the optional column list is retained. Ordinary VALUES
+may contain SqlDefaultExpression items. The parser owns construction. Invalid DEFAULT placement is
+SQL0003; NOT NULL failures use COHSQLE024 (23502).
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

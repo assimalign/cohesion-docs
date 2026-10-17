@@ -10,13 +10,13 @@ DROP COLLECTION [ IF EXISTS ] collection_name [ ; ]
 
 ## Remarks
 
-Names are case-sensitive and local to the session database. Success reports affected count zero.
-IF EXISTS ignores an absent collection; it does not permit dropping a schema-owned collection.
-The operation uses the same core as the session API and participates in an explicit transaction
-or an automatic transaction. CREATE is visible to later statements in its transaction; rollback
-removes it. DROP rollback restores the collection, documents and indexes together.
-Snapshot conflicts are checked before a conditional no-op. A failed collection statement aborts
-an explicit transaction under the Documents failed-statement rule.
+Names are case-sensitive and local to the session database. Success reports affected count zero. IF
+EXISTS ignores an absent collection; it does not permit dropping a schema-owned collection. The
+operation uses the same core as the session API and participates in an explicit transaction or an
+automatic transaction. CREATE is visible to later statements in its transaction; rollback removes
+it. DROP rollback restores the collection, documents and indexes together. Snapshot conflicts are
+checked before a conditional no-op. A failed collection statement aborts an explicit transaction
+under the Documents failed-statement rule.
 
 | Code | Meaning |
 | --- | --- |
@@ -36,8 +36,8 @@ DROP COLLECTION scratch;
 DROP COLLECTION IF EXISTS scratch;
 ```
 
-Each reports zero affected rows. The final state has no scratch collection.
-An unconditional repeated DROP reports COHDOC002 when the collection does not exist.
+Each reports zero affected rows. The final state has no scratch collection. An unconditional
+repeated DROP reports COHDOC002 when the collection does not exist.
 
 ## See also
 

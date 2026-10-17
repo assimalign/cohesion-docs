@@ -7,7 +7,7 @@ Reference for read-only virtual relations describing the session database's cata
 ## Metadata families
 
 - **[INFORMATION_SCHEMA](information-schema.md)** — Inspect stored tables, columns, and constraints.
-- **[COHESION_SCHEMA](cohesion-schema.md)** — Inspect index keys and object ownership.
+- **[COHESION_SCHEMA](cohesion-schema.md)** — Inspect indexes, ownership, functions and types.
 
 ## Scope
 

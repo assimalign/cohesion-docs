@@ -14,10 +14,12 @@ public sealed class OqlObjectExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Members retain named expressions in order. Evaluation omits MISSING, preserves NULL and keeps the last included value for a repeated case-sensitive key. A later MISSING does not remove an earlier value. Invalid evaluated JSON is COHDOC008.
+Members retain named expressions in order. Evaluation omits MISSING, preserves NULL and keeps the
+last included value for a repeated case-sensitive key. A later MISSING does not remove an earlier
+value. Invalid evaluated JSON is COHDOC008.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

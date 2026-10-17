@@ -18,8 +18,8 @@ The added overload maps protocol Warning/Error entries into Database.Types.Diagn
 DatabaseException carrier, preserving nullable offsets and one-based line. The root copies and
 orders entries, with unlocated entries last. Message retains the Error frame text. Existing
 constructors without diagnostics remain available. A null diagnostic list is rejected by the
-sequence mapping with ArgumentNullException. Model SQL/GQL exceptions preserve these entries
-through their inner DatabaseException. Malformed frames fail the exchange and discard its transport.
+sequence mapping with ArgumentNullException. Model SQL/GQL exceptions preserve these entries through
+their inner DatabaseException. Malformed frames fail the exchange and discard its transport.
 
 ## Example
 

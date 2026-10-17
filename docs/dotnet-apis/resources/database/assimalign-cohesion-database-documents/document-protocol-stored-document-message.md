@@ -14,11 +14,13 @@ public sealed record DocumentProtocolStoredDocumentMessage(Document Document)
 
 ## Behavior and exceptions
 
-StoredDocument (70) carries identity, version and UTF-8 JSON content. Get returns zero such frames for absence; Put returns its newly stored value. Invalid identity/content or malformed fields are ProtocolException codec failures.
+StoredDocument (70) carries identity, version and UTF-8 JSON content. Get returns zero such frames
+for absence; Put returns its newly stored value. Invalid identity/content or malformed fields are
+ProtocolException codec failures.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

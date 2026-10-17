@@ -14,10 +14,12 @@ public sealed class OqlMissingExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Represents the SQL++ MISSING literal as a distinct node rather than a null literal. Optional Location retains its span. The constructor accepts an absent location without additional validation exceptions; evaluation produces an absent value omitted from projected objects.
+Represents the SQL++ MISSING literal as a distinct node rather than a null literal. Optional
+Location retains its span. The constructor accepts an absent location without additional validation
+exceptions; evaluation produces an absent value omitted from projected objects.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

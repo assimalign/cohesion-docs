@@ -18,15 +18,15 @@ public sealed class DocumentDatabaseServer : DatabaseServer
 
 ## Behavior and exceptions
 
-The caller supplies an engine and listener; creation snapshots options. The server owns its
-listener lifecycle; Stop terminally disposes the listener. It authenticates each database-bound
-session and serves one exchange at a time. Model Failure completes a rejected statement without
-Complete; the session stays ready. Protocol violations close it.
+The caller supplies an engine and listener; creation snapshots options. The server owns its listener
+lifecycle; Stop terminally disposes the listener. It authenticates each database-bound session and
+serves one exchange at a time. Model Failure completes a rejected statement without Complete; the
+session stays ready. Protocol violations close it.
 
 The formatter retains one encoded frame and flushes each result. TCP backpressure bounds queued
 output; InMemory's output pipe does not apply backpressure, so queued bytes can grow if its reader
-stops. Engine queries and client results remain materialized. Every individual JSON result fits
-the shared 16 MiB frame limit. Malformed UTF-8 is rejected by the shared and model payload readers.
+stops. Engine queries and client results remain materialized. Every individual JSON result fits the
+shared 16 MiB frame limit. Malformed UTF-8 is rejected by the shared and model payload readers.
 
 Null engine/options throw ArgumentNullException; missing listener, nonpositive session limit or
 invalid timer durations throw ArgumentException. Statement failures retain DatabaseException

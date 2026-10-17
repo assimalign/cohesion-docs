@@ -15,11 +15,11 @@ public sealed class DocumentClientException : DatabaseException
 
 ## Behavior and exceptions
 
-Retains the protocol category and server's composed CODE: message. Inherited Diagnostics copies
-and orders supplied entries; null means an empty collection. It preserves parser and engine
-codes/spans rather than extracting codes from Message. Shared dial/handshake failures remain inner
-exceptions. No extra validation exception is introduced by this constructor.
-Connection reuse follows fully decoded model Failure completion, independently of exception ancestry.
+Retains the protocol category and server's composed CODE: message. Inherited Diagnostics copies and
+orders supplied entries; null means an empty collection. It preserves parser and engine codes/spans
+rather than extracting codes from Message. Shared dial/handshake failures remain inner exceptions.
+No extra validation exception is introduced by this constructor. Connection reuse follows fully
+decoded model Failure completion, independently of exception ancestry.
 
 ## Example
 

@@ -15,7 +15,9 @@ public sealed class GqlIsNullExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Tests explicit NULL or an absent graph property; IsNegated implements IS NOT NULL. The result is Boolean. Invalid hand-built operand shapes fail COHDBG001 at planning. GQL does not use Documents MISSING.
+Tests explicit NULL or an absent graph property; IsNegated implements IS NOT NULL. The result is
+Boolean. Invalid hand-built operand shapes fail COHDBG001 at planning. GQL does not use Documents
+MISSING.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

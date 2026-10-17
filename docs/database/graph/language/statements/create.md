@@ -16,14 +16,14 @@ CREATE insertion_path [ , ...n ]
 
 | Construct | Support |
 |---|---|
-| Literal node/path insertion | Supported |
+| Node/path insertion with literal or parameter properties | Supported |
 | Preceding `MATCH` and `WHERE` | Supported |
 | Following `RETURN` | Supported |
 | `CREATE DATABASE`, `CREATE GRAPH` | Recognized, not supported (`COHDBL001`) |
 
 ## Arguments
 
-- **`insertion_path`** — a literal node/path pattern; created relationships require a type and direction.
+- **`insertion_path`** — a node/path pattern with scalar literal or parameter properties; created relationships require a type and direction.
 - **`projection`** — a bound variable or scalar property, with optional alias.
 
 ## Remarks
@@ -34,6 +34,8 @@ Use [INSERT](insert.md) when choosing the profile's standard insertion verb.
 
 This syntax does not manage databases, graphs, schemas, labels, or indexes.
 Session-bound schema operations are provided by `GraphSchema.Open`.
+
+[Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
 
@@ -54,4 +56,3 @@ CREATE (a:Person {name: 'Alice'}) RETURN a
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
-

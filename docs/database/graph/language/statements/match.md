@@ -27,7 +27,7 @@ MATCH path [ , ...n ]
 ## Arguments
 
 - **`path`** — a node followed by zero or more relationship/node pairs; see [Patterns](../patterns.md).
-- **`predicate`** — scalar comparisons joined by `AND`.
+- **`predicate`** — the [WHERE expression](../clauses/where.md), including logic, arithmetic and predicates.
 - **`projection`** — a bound variable or `variable.property`, optionally with an `AS` alias.
 
 ## Remarks
@@ -39,6 +39,8 @@ and a relationship.
 The planner can anchor at an indexed node in the middle or at either end of a path.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
 identity at most once, while node identities may recur. Separate paths have separate edge sets.
+
+[Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
 
@@ -63,4 +65,3 @@ That fixture returns `Bob` and `2`. These are fixture-dependent results, not bui
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs`.
-

@@ -14,7 +14,11 @@ public sealed class SqlLiteralExpression : SqlExpression
 
 ## Behavior and exceptions
 
-Value contains unquoted text. Temporal, day-time interval and binary values use parser-normalized canonical text; LiteralType selects the reader. National strings become ordinary String literals. SqlLiteralType adds Date, Time, Timestamp, TimestampWithTimeZone, Interval and Binary alongside String/Integer/Float/Null/Boolean; Float still evaluates as exact Decimal. No public constructor is exposed. Malformed typed contents report SQL0008; unsupported year-month intervals report COHDBL001.
+Value contains unquoted text. Temporal, day-time interval and binary values use parser-normalized
+canonical text; LiteralType selects the reader. National strings become ordinary String literals.
+SqlLiteralType adds Date, Time, Timestamp, TimestampWithTimeZone, Interval and Binary alongside
+String/Integer/Float/Null/Boolean; Float still evaluates as exact Decimal. No public constructor is
+exposed. Malformed typed contents report SQL0008; unsupported year-month intervals report COHDBL001.
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

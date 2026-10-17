@@ -15,11 +15,13 @@ public sealed record DocumentProtocolExecuteMessage(string Statement, ReadOnlyMe
 
 ## Behavior and exceptions
 
-Execute (64) carries OQL plus a UTF-8 JSON object of parameters. Create(statement) supplies {}. Encode validates JSON; Decode also rejects inconsistent lengths and trailing bytes with ProtocolException.
+Execute (64) carries OQL plus a UTF-8 JSON object of parameters. Create(statement) supplies {}.
+Encode validates JSON; Decode also rejects inconsistent lengths and trailing bytes with
+ProtocolException.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

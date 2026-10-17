@@ -13,9 +13,9 @@ EXPLAIN { select_statement | insert_statement | update_statement | delete_statem
 ## Remarks
 
 EXPLAIN performs the statement's normal parameter validation, name binding, planning and
-provisioning admission. It waits for the same reserved tables as that statement. It never calls
-its data executor, even inside a transaction that later commits. DDL, transaction control,
-nested EXPLAIN and EXPLAIN ANALYZE report `COHDBL001`. Ordinary planning errors retain their codes.
+provisioning admission. It waits for the same reserved tables as that statement. It never calls its
+data executor, even inside a transaction that later commits. DDL, transaction control, nested
+EXPLAIN and EXPLAIN ANALYZE report `COHDBL001`. Ordinary planning errors retain their codes.
 
 All three query languages use the [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 shape, in depth-first pre-order:
@@ -31,10 +31,10 @@ shape, in depth-first pre-order:
 | estimated_rows | Int64 | Yes; always NULL |
 | actual_rows | Int64 | Yes; always NULL |
 
-SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, Group, Insert,
-InsertSelect, Update and Delete. IndexSeek includes the chosen index and bounds. These are
-model descriptions, not an execution API. SQL carries the rows through ordinary result frames.
-A source test guard requires every concrete plan record to have a description mapping.
+SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, Group, Insert, InsertSelect,
+Update and Delete. IndexSeek includes the chosen index and bounds. These are model descriptions, not
+an execution API. SQL carries the rows through ordinary result frames. A source test guard requires
+every concrete plan record to have a description mapping.
 
 ## Examples
 
@@ -45,9 +45,9 @@ EXPLAIN DELETE FROM t WHERE id = 1;
 SELECT id FROM t ORDER BY id;
 ```
 
-EXPLAIN returns eight-column plan rows including a Delete operator. The SELECT still returns
-`1`, `2`, `3`. An indexed `EXPLAIN SELECT id FROM t WHERE age >= 20 AND age < 40` reports
-IndexSeek with that bound when an eligible age index exists.
+EXPLAIN returns eight-column plan rows including a Delete operator. The SELECT still returns `1`,
+`2`, `3`. An indexed `EXPLAIN SELECT id FROM t WHERE age >= 20 AND age < 40` reports IndexSeek with
+that bound when an eligible age index exists.
 
 ## See also
 

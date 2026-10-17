@@ -14,11 +14,13 @@ public sealed record DocumentProtocolCollectionMessage(string Name)
 
 ## Behavior and exceptions
 
-Collection (71) carries a collection name. Collection commands return names rather than session-bound engine handles. The codec rejects blank names, malformed UTF-8 and trailing data with ProtocolException.
+Collection (71) carries a collection name. Collection commands return names rather than
+session-bound engine handles. The codec rejects blank names, malformed UTF-8 and trailing data with
+ProtocolException.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

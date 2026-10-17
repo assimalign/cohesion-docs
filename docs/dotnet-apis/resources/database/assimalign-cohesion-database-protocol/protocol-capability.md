@@ -16,7 +16,11 @@ public sealed class ProtocolCapability
 
 ## Behavior and exceptions
 
-Immutable capability descriptor; message identifiers are copied. Diagnostics is the shared diagnostics name and gates core frame 14. Names contain 1..128 ASCII lowercase letters, digits, dots or hyphens and compare ordinally. Model names begin with lowercase family name plus a dot. An extension with no new frame is allowed. Malformed names throw ProtocolException; null messageTypes throws ArgumentNullException. Family construction validates scope and ownership.
+Immutable capability descriptor; message identifiers are copied. Diagnostics is the shared
+diagnostics name and gates core frame 14. Names contain 1..128 ASCII lowercase letters, digits, dots
+or hyphens and compare ordinally. Model names begin with lowercase family name plus a dot. An
+extension with no new frame is allowed. Malformed names throw ProtocolException; null messageTypes
+throws ArgumentNullException. Family construction validates scope and ownership.
 
 ## Example
 

@@ -27,8 +27,9 @@ are rejected. Nested values are owned JsonElement instances. Whole-document rows
 
 An invalid ordinal index throws IndexOutOfRangeException. IsMissing validates its ordinal with
 ArgumentOutOfRangeException. Unknown names throw KeyNotFoundException; null names
-ArgumentNullException. A typed numeric/Boolean getter on NULL/MISSING throws InvalidOperationException.
-GetBytes accepts JSON/string data and returns empty memory for unknown values; other types fail.
+ArgumentNullException. A typed numeric/Boolean getter on NULL/MISSING throws
+InvalidOperationException. GetBytes accepts JSON/string data and returns empty memory for unknown
+values; other types fail.
 
 ## Example
 

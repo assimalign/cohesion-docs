@@ -33,17 +33,17 @@ public sealed class DocumentConnection : IAsyncDisposable
 
 QueryAsync materializes rows or whole documents; ExecuteAsync returns the affected count (-1 for
 queries, zero for DDL, inserted count for INSERT). Parameters follow case-sensitive bare-name
-binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes
-before their first await. Get returns null when absent; Put replaces/upserts and returns a new
-version; Delete returns whether a document existed. Expected versions must match visible content.
-Collection operations return names; lists use ordinal name order. Explicit transactions are absent.
+binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes before
+their first await. Get returns null when absent; Put replaces/upserts and returns a new version;
+Delete returns whether a document existed. Expected versions must match visible content. Collection
+operations return names; lists use ordinal name order. Explicit transactions are absent.
 
 Blank statement/names or invalid parameters throw ArgumentException; invalid wire JSON can throw
 ProtocolException. Disposed rentals throw ObjectDisposedException, concurrent exchanges
 InvalidOperationException and cancellation OperationCanceledException. An unfinished exchange is
 discarded; a canceled mutation may already have committed. A fully decoded model Failure raises
-DocumentClientException and permits reuse, even if partial results preceded it; partial results
-are discarded. Malformed traffic and shared Error discard the connection. Dispose returns a healthy
+DocumentClientException and permits reuse, even if partial results preceded it; partial results are
+discarded. Malformed traffic and shared Error discard the connection. Dispose returns a healthy
 rental exactly once; Abort discards it. Repeated disposal cannot return a later rental.
 
 ## Example

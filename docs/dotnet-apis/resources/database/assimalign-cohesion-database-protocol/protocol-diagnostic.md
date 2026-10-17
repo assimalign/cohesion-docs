@@ -11,7 +11,11 @@ public sealed record ProtocolDiagnostic(ProtocolDiagnosticSeverity Severity,
 
 ## Behavior and exceptions
 
-Model-neutral wire entry with no dependency on language/type diagnostic assemblies. Severity accepts Warning (1) or Error (2) in the codec. Offsets are both null for unlocated entries, otherwise 0 <= Start <= End; End is exclusive and Line is one-based. Code and Message may be null; null/empty fields encode empty and decode null. The record stores values; ProtocolDiagnosticsMessage validates wire fields and throws ProtocolException for malformed entries.
+Model-neutral wire entry with no dependency on language/type diagnostic assemblies. Severity accepts
+Warning (1) or Error (2) in the codec. Offsets are both null for unlocated entries, otherwise 0 <=
+Start <= End; End is exclusive and Line is one-based. Code and Message may be null; null/empty
+fields encode empty and decode null. The record stores values; ProtocolDiagnosticsMessage validates
+wire fields and throws ProtocolException for malformed entries.
 
 ## Example
 

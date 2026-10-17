@@ -20,7 +20,11 @@ public sealed class SqlColumnDefinition
 
 ## Behavior and exceptions
 
-ResolvedType holds the built-in DatabaseTypeInfo resolved during parsing, including contextual multi-word type names and modifiers. It is null for engine-resolved domains or invalid types, so inspect diagnostics before use. DataType retains the parsed declaration; DefaultValue may contain typed literal nodes. No public constructor is exposed. Invalid modifiers use SQL0005; an unresolved engine type uses COHSQLE010 (42704).
+ResolvedType holds the built-in DatabaseTypeInfo resolved during parsing, including contextual
+multi-word type names and modifiers. It is null for engine-resolved domains or invalid types, so
+inspect diagnostics before use. DataType retains the parsed declaration; DefaultValue may contain
+typed literal nodes. No public constructor is exposed. Invalid modifiers use SQL0005; an unresolved
+engine type uses COHSQLE010 (42704).
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

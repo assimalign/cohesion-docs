@@ -14,7 +14,9 @@ public sealed class GqlListExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Copies Items into a read-only list in source order. The list executes only as IN's right operand. A null list, null item or use outside IN is rejected by the planner with COHDBG001. An empty IN list is valid and yields FALSE even for NULL.
+Copies Items into a read-only list in source order. The list executes only as IN's right operand. A
+null list, null item or use outside IN is rejected by the planner with COHDBG001. An empty IN list
+is valid and yields FALSE even for NULL.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

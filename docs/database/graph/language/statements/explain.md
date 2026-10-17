@@ -10,6 +10,7 @@ EXPLAIN { match_statement | insert_statement | create_statement | delete_stateme
 
 ## Remarks
 
+DELETE statements include their required preceding MATCH. SHOW is not admitted under EXPLAIN.
 Normal parameter checks, binding, planning and provisioning admission apply. Mutation plans change
 neither nodes nor relationships, including if an explicit transaction subsequently commits.
 Nested EXPLAIN and EXPLAIN ANALYZE report COHDBL001. Plans use the
@@ -30,9 +31,9 @@ EXPLAIN MATCH (a:Person {name:'Ada'})-[:KNOWS]->(b)-[:KNOWS]->(c) RETURN a;
 EXPLAIN INSERT (:Person {name:'Dee'});
 ```
 
-The first returns IndexSeek with target Person, index by_name, detail
-`node=0; property=name; value='Ada'` and two Expand nodes. Without that index it uses LabelScan.
-The second describes insertion and creates no Dee node.
+The first returns IndexSeek with target Person, index by_name, detail `node=0; property=name;
+value='Ada'` and two Expand nodes. Without that index it uses LabelScan. The second describes
+insertion and creates no Dee node.
 
 ## See also
 

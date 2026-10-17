@@ -15,8 +15,8 @@ public static bool TryResolve(string name, out DatabaseType type);
 ## Behavior and exceptions
 
 Names compare case-insensitively and exclude written arguments. DDL and CAST use one parser grammar
-for multi-word/national character names, DOUBLE PRECISION and temporal names, without reserving
-new words. FLOAT(p) selects Float32 for 1..24 bits and Float64 for 25..53 or no precision. Fixed
+for multi-word/national character names, DOUBLE PRECISION and temporal names, without reserving new
+words. FLOAT(p) selects Float32 for 1..24 bits and Float64 for 25..53 or no precision. Fixed
 national forms resolve as Character; VARYING forms as String. SQL Server spellings are lexical
 aliases, not emulated range/rounding/storage behavior. TIME WITH TIME ZONE has no shared storage
 type and returns false; the parser reports SQL0005. Unknown names return false for engine domain

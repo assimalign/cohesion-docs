@@ -17,11 +17,11 @@ public sealed class DocumentDuplicateKeyException : DatabaseException
 
 ## Behavior and exceptions
 
-Carries one Error diagnostic, COHDOC012, with the collection and duplicate identity. Message has
-no code prefix. INSERT uses this type for existing keys, repeated keys within VALUES and a
-self-copy. The failed statement's writes, versions and indexes roll back together. PutAsync
-retains replacement/upsert behavior. The constructor adds no validation exception beyond its
-value arguments. Over the wire, the failure becomes DocumentClientException with COHDOC012.
+Carries one Error diagnostic, COHDOC012, with the collection and duplicate identity. Message has no
+code prefix. INSERT uses this type for existing keys, repeated keys within VALUES and a self-copy.
+The failed statement's writes, versions and indexes roll back together. PutAsync retains
+replacement/upsert behavior. The constructor adds no validation exception beyond its value
+arguments. Over the wire, the failure becomes DocumentClientException with COHDOC012.
 
 ## Example
 

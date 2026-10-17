@@ -65,4 +65,3 @@ Execute each statement separately; the insert reports the number of inserted row
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSubqueryExecutionTests.cs`
-- **Implementation** — `cohesion/resources/Database/samples/Assimalign.Cohesion.Database.Demo/Program.cs`

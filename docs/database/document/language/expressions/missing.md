@@ -26,15 +26,15 @@ null for either unknown state, while IsNull returns true only for explicit NULL.
 | IS VALUED | TRUE | FALSE | FALSE |
 | IS NOT VALUED | FALSE | TRUE | TRUE |
 
-Comparisons and arithmetic propagate MISSING before NULL. Ascending order is MISSING, NULL,
-FALSE, TRUE, number, ordinal string, array, object; descending reverses it. GROUP BY keeps MISSING
-and NULL separate. COUNT(expr), SUM, AVG, MIN and MAX skip both; COUNT(*) counts documents.
+Comparisons and arithmetic propagate MISSING before NULL. Ascending order is MISSING, NULL, FALSE,
+TRUE, number, ordinal string, array, object; descending reverses it. GROUP BY keeps MISSING and NULL
+separate. COUNT(expr), SUM, AVG, MIN and MAX skip both; COUNT(*) counts documents.
 
 ## Boolean contexts
 
-WHERE, HAVING, AND, OR, NOT and searched CASE use one truth conversion. Nonzero numbers and
-nonempty strings, arrays and objects are true; zero and empty values are false. NULL and MISSING
-retain their states. The tables below use T/F/N/M for TRUE/FALSE/NULL/MISSING.
+WHERE, HAVING, AND, OR, NOT and searched CASE use one truth conversion. Nonzero numbers and nonempty
+strings, arrays and objects are true; zero and empty values are false. NULL and MISSING retain their
+states. The tables below use T/F/N/M for TRUE/FALSE/NULL/MISSING.
 
 | AND | T | F | N | M |
 | --- | --- | --- | --- | --- |
@@ -50,9 +50,8 @@ retain their states. The tables below use T/F/N/M for TRUE/FALSE/NULL/MISSING.
 | N | T | N | N | N |
 | M | T | M | N | M |
 
-NOT maps T/F/N/M to F/T/N/M. WHERE and HAVING retain only converted TRUE.
-NIL is a NULL synonym; UNDEFINED is reserved and reports `COHDBL001`, as do deferred
-IS KNOWN and IS UNKNOWN forms.
+NOT maps T/F/N/M to F/T/N/M. WHERE and HAVING retain only converted TRUE. NIL is a NULL synonym;
+UNDEFINED is reserved and reports `COHDBL001`, as do deferred IS KNOWN and IS UNKNOWN forms.
 
 ## Examples
 
@@ -66,9 +65,9 @@ SELECT META().id AS id FROM presence WHERE v IS MISSING;
 SELECT COUNT(v) AS present, COUNT(*) AS total FROM presence WHERE 1;
 ```
 
-Projected JSON objects are `{"id":"a"}`, `{"id":"b","v":null}` and `{"id":"c","v":1}`.
-The presence filter returns a; the aggregate row is `(1, 3)`. The wire carries projected results
-as Document frames, preserving the distinction rather than replacing missing cells with NULL.
+Projected JSON objects are `{"id":"a"}`, `{"id":"b","v":null}` and `{"id":"c","v":1}`. The presence
+filter returns a; the aggregate row is `(1, 3)`. The wire carries projected results as Document
+frames, preserving the distinction rather than replacing missing cells with NULL.
 
 ## See also
 

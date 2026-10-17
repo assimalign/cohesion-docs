@@ -45,7 +45,9 @@ nonnegative and ordinals start at one. All non-null catalog-name fields name the
 `MATCH_OPTION` is `NONE`, `UPDATE_RULE` is `RESTRICT`, and `DELETE_RULE`
 is `RESTRICT` or `CASCADE`.
 
-`COLUMN_DEFAULT` is SQL literal text, with doubled quotes for a string default, or null if absent.
+`COLUMN_DEFAULT` is canonical SQL, with doubled quotes for a string default, or null if absent.
+Resolved temporal/binary defaults use typed prefixes and X hex, including defaults declared as
+plain strings. Canonical DATA_TYPE names parse in DDL and CAST.
 Inapplicable or unknown metadata is null. `CHARACTER_OCTET_LENGTH` is null because the catalog has
 no character-set byte bound.
 
@@ -58,10 +60,10 @@ type parameters appear in the separate metadata fields where available.
 System relations are virtual, read-only projections of the current database catalog. Names are
 case-insensitive and must include their schema. Supported SELECT projection, aliases, parameters,
 filtering, ordering, distinct results, aggregation, and pagination work over the wire as well.
-Joins involving these relations remain excluded.
+The supported two-relation INNER JOIN accepts either stored or system inputs.
 
 A snapshot-isolation transaction retains its catalog capture from transaction begin.
-Auto-commit and `ReadCommitted` statements capture at statement start. Each capture includes
+Auto-commit and `ReadCommitted` statements capture at first system-relation binding. Each capture includes
 tables and indexes together, preventing partially observed DDL. Fresh captures after a table drop
 contain none of that table's related metadata. These catalog snapshots differ from the ordinary
 table-definition binding rule described under [ALTER TABLE](../statements/alter-table.md).

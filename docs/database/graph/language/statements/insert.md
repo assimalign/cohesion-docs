@@ -1,6 +1,6 @@
 # INSERT
 
-INSERT creates nodes and relationships from literal graph patterns.
+INSERT creates nodes and relationships from graph patterns with scalar literal or parameter properties.
 
 > **Status:** Implemented.
 
@@ -22,7 +22,7 @@ INSERT insertion_path [ , ...n ]
 
 ## Arguments
 
-- **`insertion_path`** — nodes and directed, typed relationships with optional literal property maps.
+- **`insertion_path`** — nodes and directed, typed relationships with optional literal or parameter property maps.
 - **`match_path`** — a finite pattern supplying existing variables.
 - **`projection`** — a bound variable or scalar property, optionally aliased.
 
@@ -30,10 +30,13 @@ INSERT insertion_path [ , ...n ]
 
 `INSERT` is the standard graph-insertion spelling in this profile. Its abstract syntax tree uses
 the same `Creates` collection as `CREATE`. Relationship insertion requires a type and direction;
-undirected relationship creation fails planning. Property maps contain scalar literals.
+undirected relationship creation fails planning. Property maps contain scalar literals or [parameters](../expressions/parameters.md).
+Bindings preserve runtime types; missing/invalid values and collisions use COHDBG001/003/014.
 
 Insertion joins the session transaction. A failed mutation rolls back the owning logical
 transaction, including an explicit transaction.
+
+[Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
 
@@ -59,4 +62,3 @@ MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}) INSERT (a)-[r:KNOWS]-
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanner.cs`.
-

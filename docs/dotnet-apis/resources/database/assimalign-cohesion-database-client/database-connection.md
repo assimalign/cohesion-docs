@@ -16,9 +16,9 @@ public IReadOnlyList<string> Capabilities { get; private set; }
 The shared handshake advertises the selected family's capabilities. Ready applies the negotiated
 version and validated intersection. Empty Ready means 2.0 with no capabilities; different majors,
 unsolicited agreements, invalid names or malformed UTF-8 fail the handshake and discard the
-transport. Failures surface as DatabaseClientException with the wire category; cancellation
-remains OperationCanceledException. The properties are read-only to consumers and throw no
-additional validation exception. Each model client selects its family at composition time.
+transport. Failures surface as DatabaseClientException with the wire category; cancellation remains
+OperationCanceledException. The properties are read-only to consumers and throw no additional
+validation exception. Each model client selects its family at composition time.
 
 ## Example
 

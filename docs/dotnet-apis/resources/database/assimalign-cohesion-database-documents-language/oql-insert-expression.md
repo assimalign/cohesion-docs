@@ -21,10 +21,14 @@ public sealed class OqlInsertExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Retains Collection, optional Alias, ordered Values pairs, or Select plus KeyName/ValueName. Names bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object. Planning rejects invalid contexts with COHDOC001. Execution requires nonblank string keys and JSON values (COHDOC008), exact numbers (COHDOC007/22003), and no visible duplicate key (DocumentDuplicateKeyException/COHDOC012).
+Retains Collection, optional Alias, ordered Values pairs, or Select plus KeyName/ValueName. Names
+bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object.
+Planning rejects invalid contexts with COHDOC001. Execution requires nonblank string keys and JSON
+values (COHDOC008), exact numbers (COHDOC007/22003), and no visible duplicate key
+(DocumentDuplicateKeyException/COHDOC012).
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

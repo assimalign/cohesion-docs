@@ -27,13 +27,21 @@ Named forms start with a letter or underscore and continue with letters, digits 
 Unused keys are ignored, but normalized collisions always report `COHSQLE023`, even for transaction
 commands. Missing bindings report `COHSQLE020` before any rows are read or written. Supplied NULL
 is a binding. Malformed references, `?` and `:name` report `SQL0003`; unsupported markers share
-the message naming the supported forms. Parameters carry values, not identifiers or syntax. Their runtime types matter for
+this shared message:
+
+```text
+Unsupported parameter form; use $name, @name, or $1. Names must be an identifier (a letter or _, then letters, digits or _) or digits only.
+```
+
+Parameters carry values, not identifiers or syntax. Their runtime types matter for
 conversion and comparison, unlike integer and fractional literals' fixed evaluator types.
 
 A parameter in an ordering expression is a value, not a select-list ordinal. Parameters are excluded
 from literal defaults and deterministic row-local check constraints.
 
-Use `SqlCommand.WithParameter` or the client parameter collection. Parsing and execution occur
+Use `SqlCommand.WithParameter` or the client parameter collection. Add/indexer operations replace
+an existing normalized name; raw request maps instead receive collision validation at the server.
+See [SqlParameterCollection](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-parameter-collection.md). Parsing and execution occur
 at the server; the typed client does not parse SQL.
 
 ## Examples

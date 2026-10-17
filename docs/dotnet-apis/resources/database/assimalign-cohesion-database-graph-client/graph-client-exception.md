@@ -12,7 +12,10 @@ public sealed class GraphClientException : DatabaseException
 
 ## Behavior and exceptions
 
-Copies diagnostics from an inner DatabaseException, otherwise retains an empty list. Code preserves the wire category and Message preserves composed server text. Constructors add no new validation exception. Connection reuse depends on terminal-response evidence: scalar and pre-output path rejections preserve it; unfinished streams, cancellation and protocol failures discard it.
+Copies diagnostics from an inner DatabaseException, otherwise retains an empty list. Code preserves
+the wire category and Message preserves composed server text. Constructors add no new validation
+exception. Connection reuse depends on terminal-response evidence: scalar and pre-output path
+rejections preserve it; unfinished streams, cancellation and protocol failures discard it.
 
 ## Example
 

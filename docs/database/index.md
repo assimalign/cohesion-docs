@@ -23,8 +23,8 @@ typed client carry the same bounded surface over a model-owned wire family.
 
 ## Document
 
-The Document model stores versioned JSON documents in collections. Its Object Query Language (OQL)
-subset supports queries and index definition over nested document shapes. Collection operations
+The Document model stores versioned JSON documents in collections. Its OQL SQL++ subset
+supports MISSING-aware queries, INSERT, EXPLAIN and transactional collection/index definitions. Collection operations
 use database-bound sessions and the shared transaction and storage components.
 
 ## Graph
@@ -69,4 +69,3 @@ query language.
 - **Key-value engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`
 - **Blob engine and wire surface** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`
 - **Cache deferral** — `cohesion/docs/programs/DATABASE_MVP_FEATURES.md`
-

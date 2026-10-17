@@ -15,7 +15,10 @@ public sealed class GqlLogicalExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Operator uses GqlLogicalOperator.And, Or or Xor. Operands are copied into a read-only chain; valid chains have at least two. AND stops at false, OR at true, XOR propagates unknown. OR/XOR share a precedence level in text. Undefined operators, null lists/items and short chains fail planning with COHDBG001. Deep recursion fails as COHDBG008 (SQLSTATE 54001), not a fixed count limit.
+Operator uses GqlLogicalOperator.And, Or or Xor. Operands are copied into a read-only chain; valid
+chains have at least two. AND stops at false, OR at true, XOR propagates unknown. OR/XOR share a
+precedence level in text. Undefined operators, null lists/items and short chains fail planning with
+COHDBG001. Deep recursion fails as COHDBG008 (SQLSTATE 54001), not a fixed count limit.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

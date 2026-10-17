@@ -15,10 +15,12 @@ public sealed class OqlCreateCollectionExpression : OqlExpression
 
 ## Behavior and exceptions
 
-CREATE COLLECTION AST with Name and IfNotExists. The constructor retains its inputs; execution uses the transactional collection core. Blank names fail COHDOC001, existing names COHDOC010 (42P07) unless conditional, and system names COHDOC004.
+CREATE COLLECTION AST with Name and IfNotExists. The constructor retains its inputs; execution uses
+the transactional collection core. Blank names fail COHDOC001, existing names COHDOC010 (42P07)
+unless conditional, and system names COHDOC004.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

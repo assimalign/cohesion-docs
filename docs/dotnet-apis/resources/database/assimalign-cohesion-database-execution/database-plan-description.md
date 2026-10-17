@@ -22,11 +22,11 @@ public sealed class DatabasePlanDescription : DatabaseResultSet
 
 ## Behavior and exceptions
 
-Create materializes nodes in their supplied order, expected to be depth-first pre-order, and
-copies optional diagnostics. It does not sort or execute a plan. Status is Success and affected
-count is -1. Columns, in order, are node_id (Int32), parent_id (nullable Int32), operator (String),
-target/index/detail (nullable String), estimated_rows/actual_rows (nullable Int64). Both counts
-are always NULL. Operator vocabulary belongs to each model. DisposeAsync is a completed no-op.
+Create materializes nodes in their supplied order, expected to be depth-first pre-order, and copies
+optional diagnostics. It does not sort or execute a plan. Status is Success and affected count is
+-1. Columns, in order, are node_id (Int32), parent_id (nullable Int32), operator (String),
+target/index/detail (nullable String), estimated_rows/actual_rows (nullable Int64). Both counts are
+always NULL. Operator vocabulary belongs to each model. DisposeAsync is a completed no-op.
 
 Null nodes or a null sequence throw ArgumentNullException. Enumeration checks cancellation and
 throws OperationCanceledException. EXPLAIN retains the wrapped statement's planning errors and

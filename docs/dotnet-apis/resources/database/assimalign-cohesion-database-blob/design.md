@@ -188,7 +188,7 @@ materializes and writes one bounded frame at a time. Incoming framing still enfo
 MiB ceiling before allocation, and Blob decoding rejects a content frame larger than its stricter
 65,536-byte bound.
 
-Version 1.0 defines the following complete payload layouts. Integers are big-endian. A `text` field
+The baseline Blob model defines the following complete payload layouts. Integers are big-endian. A `text` field
 is an Int32 UTF-8 byte length followed by exactly that many UTF-8 bytes, without a terminator. Each
 text field is limited to 65,535 bytes, and invalid UTF-8, negative lengths, missing bytes, and
 trailing bytes are protocol violations. Container and object names must be nonempty and compare
@@ -293,7 +293,7 @@ overload accepting pre-read metadata resumes immediately after a validated Trans
 uses it to open storage with the declared content type before accepting content. The caller must
 retain exclusive access throughout and discard the exchange after failure. No concrete transport is
 referenced here. Public codecs use explicit binary operations and strict UTF-8, with no reflection
-or object serialization. Shared protocol version remains 1.0 because these are first-use Blob
+or object serialization. Shared protocol startup negotiates 2.1, while these retain the baseline Blob
 endpoint messages and SQL/`Key`-Value payloads and identifiers remain unchanged.
 
 `BlobProtocolTests` use `Connections.InMemory` for authenticated request/transfer exchanges in both
@@ -435,6 +435,12 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Database.Blob.Catalog` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 transport contract
+
+Shared startup negotiates 2.1 with no Blob Diagnostics capability. Negotiated 2.0 retains empty
+Ready and baseline Blob payload bytes; different majors are refused. All model payload readers
+reject malformed UTF-8. Structured Diagnostics is not a Blob result mechanism.
 
 ## Sources
 

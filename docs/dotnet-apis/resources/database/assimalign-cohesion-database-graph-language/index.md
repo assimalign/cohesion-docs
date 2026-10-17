@@ -32,7 +32,7 @@ The Graph engine consumes the AST for planning and execution in the session's bo
 
 See the [source-backed usage examples](examples/index.md).
 
-The supported surface is finite `MATCH` paths, scalar comparison/conjunction filters, variable or
+The supported surface is finite `MATCH` paths, scalar Boolean/arithmetic filters with parameters, variable or
 property projection, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.

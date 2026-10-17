@@ -14,11 +14,13 @@ public sealed record DocumentProtocolResultMessage(ReadOnlyMemory<byte> Json)
 
 ## Behavior and exceptions
 
-Document (65) carries one valid JSON value: a whole source document or projected object. MISSING members are omitted; NULL remains. Encode/Decode validate JSON and reject malformed UTF-8/JSON with ProtocolException.
+Document (65) carries one valid JSON value: a whole source document or projected object. MISSING
+members are omitted; NULL remains. Encode/Decode validate JSON and reject malformed UTF-8/JSON with
+ProtocolException.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

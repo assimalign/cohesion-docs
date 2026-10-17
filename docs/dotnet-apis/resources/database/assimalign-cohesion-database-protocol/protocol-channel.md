@@ -20,7 +20,11 @@ public sealed class ProtocolChannel : IAsyncDisposable
 
 ## Behavior and exceptions
 
-Permanently binds a stream to one family. Negotiate selects the local/peer intersection and applies it once; SetAgreement applies a validated Ready once on the client. A repeated, unsupported or invalid agreement throws ProtocolException. Gated reads/writes, including Diagnostics, fail until agreed. Null stream/family throws ArgumentNullException. Dispose closes the stream unless leaveOpen. No family switching, pipelining or model payload dispatch is added.
+Permanently binds a stream to one family. Negotiate selects the local/peer intersection and applies
+it once; SetAgreement applies a validated Ready once on the client. A repeated, unsupported or
+invalid agreement throws ProtocolException. Gated reads/writes, including Diagnostics, fail until
+agreed. Null stream/family throws ArgumentNullException. Dispose closes the stream unless leaveOpen.
+No family switching, pipelining or model payload dispatch is added.
 
 ## Example
 

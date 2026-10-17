@@ -17,10 +17,11 @@ public abstract object? GetValue(int ordinal);
 
 ## Behavior and exceptions
 
-Documents query rows and Documents.Client.DocumentRow support MISSING; SQL, Graph and Key-Value
-rows do not. IsMissing checks capability before ordinal validation. Unsupported rows throw
-NotSupportedException even for an invalid ordinal; supporting rows reject negative or out-of-range
-ordinals with ArgumentOutOfRangeException. A subclass opting in implements IsMissingCore.
+Documents document-projection rows and Documents.Client.DocumentRow support MISSING. Shared
+plan-description rows retain the default capability. SQL, Graph and Key-Value rows do not. IsMissing
+checks capability before ordinal validation. Unsupported rows throw NotSupportedException even for
+an invalid ordinal; supporting rows reject negative or out-of-range ordinals with
+ArgumentOutOfRangeException. A subclass opting in implements IsMissingCore.
 
 For Documents, IsMissing is true only for absence and IsNull only for explicit NULL. GetValue
 returns null for either; check the capability and IsMissing first. MISSING projections are omitted

@@ -17,10 +17,13 @@ public sealed class OqlLikeExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Operand and Pattern use ordinal Unicode-scalar matching. Null Escape means default backslash; an empty evaluated string disables escaping. MISSING precedes non-string/NULL results. Invalid evaluated escapes or trailing pattern escapes fail COHDOC013; a malformed literal escape is OQL0002. Evaluation honors cancellation with OperationCanceledException.
+Operand and Pattern use ordinal Unicode-scalar matching. Null Escape means default backslash; an
+empty evaluated string disables escaping. MISSING precedes non-string/NULL results. Invalid
+evaluated escapes or trailing pattern escapes fail COHDOC013; a malformed literal escape is OQL0002.
+Evaluation honors cancellation with OperationCanceledException.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

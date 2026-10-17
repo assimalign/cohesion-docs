@@ -14,11 +14,13 @@ public sealed record DocumentProtocolCompleteMessage(long ResultCount, long Affe
 
 ## Behavior and exceptions
 
-Complete (66) records ResultCount and AffectedCount as two big-endian Int64 values. Count is nonnegative; affected count is at least -1 (-1 for reads). Invalid counts or a payload other than 16 bytes throw ProtocolException.
+Complete (66) records ResultCount and AffectedCount as two big-endian Int64 values. Count is
+nonnegative; affected count is at least -1 (-1 for reads). Invalid counts or a payload other than 16
+bytes throw ProtocolException.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

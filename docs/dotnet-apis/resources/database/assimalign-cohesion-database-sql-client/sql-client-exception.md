@@ -15,7 +15,11 @@ public sealed class SqlClientException : DatabaseException
 
 ## Behavior and exceptions
 
-The inner-exception constructor copies diagnostics when its inner cause is a DatabaseException. The three-argument constructor has an empty list. The carrier preserves code, severity and span while Kind/Code retain client and wire categories. ConnectionUsable is true for ParseFailure, ExecutionFailure, TransactionAborted, NotAuthorized and InvalidCast; protocol/connection failures are unusable. Constructors add no new validation exception.
+The inner-exception constructor copies diagnostics when its inner cause is a DatabaseException. The
+three-argument constructor has an empty list. The carrier preserves code, severity and span while
+Kind/Code retain client and wire categories. ConnectionUsable is true for ParseFailure,
+ExecutionFailure, TransactionAborted, NotAuthorized and InvalidCast; protocol/connection failures
+are unusable. Constructors add no new validation exception.
 
 ## Example
 

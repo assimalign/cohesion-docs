@@ -1,6 +1,7 @@
 # SqlLiteralText
 
-Strict, invariant public readers for SQL literal contents, independent of the host clock and time zone.
+Strict, invariant public readers for SQL literal contents, independent of the host clock and time
+zone.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -20,10 +21,10 @@ public static class SqlLiteralText
 
 ## Behavior and exceptions
 
-Pass unquoted contents, not a full SQL literal. DATE requires yyyy-MM-dd; TIME requires HH:mm
-with optional :ss and up to seven fractional digits. TIMESTAMP accepts a date and optional time
-separated by one space or T, returns Unspecified kind, and rejects zones. Zoned timestamps allow
-Z or +/-HH:mm within +/-14:00; omitted offset means UTC and written offsets are retained.
+Pass unquoted contents, not a full SQL literal. DATE requires yyyy-MM-dd; TIME requires HH:mm with
+optional :ss and up to seven fractional digits. TIMESTAMP accepts a date and optional time separated
+by one space or T, returns Unspecified kind, and rejects zones. Zoned timestamps allow Z or +/-HH:mm
+within +/-14:00; omitted offset means UTC and written offsets are retained.
 
 ParseBinary accepts even hexadecimal digits, including empty input. ParseInterval accepts day-time
 qualified fields/ranges, PostgreSQL units/clocks or ISO durations at exact 100 ns resolution.

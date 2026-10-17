@@ -6,8 +6,11 @@ The typed SQL client: a relational surface — commands, typed result sets, a SQ
 
 ## Reference pages
 
+- **[SqlParameterCollection](sql-parameter-collection.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[SqlResultSet](sql-result-set.md)** — Public signature and diagnostics.
+- **[SqlClientException](sql-client-exception.md)** — Values and usage.
 
 The typed SQL client: a relational surface — commands, typed result sets, a SQL-scoped error
 taxonomy, and a telemetry hook — layered over the shared `Assimalign.Cohesion.Database.Client` core.
@@ -66,10 +69,6 @@ See `docs/DESIGN.md` for the design decisions behind the surface.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
-
-- **[SqlResultSet](sql-result-set.md)** — Public signature and diagnostics.
-
-- **[SqlClientException](sql-client-exception.md)** — Values and usage.
 
 ## Sources
 

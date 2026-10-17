@@ -60,7 +60,7 @@ and INTERVAL declaration field restrictions report `COHDBL001`.
 
 Unknown built-in names are resolved as engine domains; an absent type is `COHSQLE010` (42704).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
-literal defaults. Catalog storage is format 13; compiled schema artifacts are version 7. These
+literal defaults. SQL row-storage is format 13; compiled schema artifacts are version 7. These
 unreleased formats have no compatibility reader for older formats.
 
 ## Examples

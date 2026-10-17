@@ -16,7 +16,10 @@ public readonly record struct ProtocolVersion(ushort Major, ushort Minor) : ICom
 
 ## Behavior and exceptions
 
-Current is 2.1. TryNegotiate refuses different majors with false/default; otherwise selects the lower minor. Comparison orders major then minor. The 2.0 major introduced Documents JSON projection frames; 2.1 adds capability negotiation. These methods have no additional validation exception for unsupported versions; negotiation reports false.
+Current is 2.1. TryNegotiate refuses different majors with false/default; otherwise selects the
+lower minor. Comparison orders major then minor. The 2.0 major introduced Documents JSON projection
+frames; 2.1 adds capability negotiation. These methods have no additional validation exception for
+unsupported versions; negotiation reports false.
 
 ## Example
 

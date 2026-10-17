@@ -12,7 +12,10 @@ public enum SqlLiteralType
 
 ## Behavior and exceptions
 
-Typed literal kinds select strict readers for canonical SqlLiteralExpression.Value text. Float retains exact Decimal semantics; national strings normalize to String. The enum adds no exceptions; malformed literal content is SQL0008 at parse time and unsupported year-month intervals are COHDBL001.
+Typed literal kinds select strict readers for canonical SqlLiteralExpression.Value text. Float
+retains exact Decimal semantics; national strings normalize to String. The enum adds no exceptions;
+malformed literal content is SQL0008 at parse time and unsupported year-month intervals are
+COHDBL001.
 
 ## Example
 

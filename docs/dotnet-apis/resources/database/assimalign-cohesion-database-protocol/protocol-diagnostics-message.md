@@ -16,7 +16,12 @@ public sealed record ProtocolDiagnosticsMessage(IReadOnlyList<ProtocolDiagnostic
 
 ## Behavior and exceptions
 
-Encodes i32 count then severity, code, message, start/end and line for each entry, using big-endian integers. Null Entries throws ArgumentNullException at construction or init/with assignment. Invalid spans, severity, line, counts, UTF-8, trailing data or size limits throw ProtocolException. Codec bounds remain strict; SQL/GQL servers apply the outbound prefix-plus-COHDBP001 policy before encoding. They preserve the original outcome and session when diagnostics overflow. Information entries are never sent.
+Encodes i32 count then severity, code, message, start/end and line for each entry, using big-endian
+integers. Null Entries throws ArgumentNullException at construction or init/with assignment. Invalid
+spans, severity, line, counts, UTF-8, trailing data or size limits throw ProtocolException. Codec
+bounds remain strict; SQL/GQL servers apply the outbound prefix-plus-COHDBP001 policy before
+encoding. They preserve the original outcome and session when diagnostics overflow. Information
+entries are never sent.
 
 ## Example
 

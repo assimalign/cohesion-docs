@@ -18,14 +18,14 @@ public GraphPathResult QueryPathsAsync(string statement,
 One authenticated rental runs one active exchange. QueryAsync materializes scalar/SHOW/EXPLAIN rows;
 ExecuteAsync returns affected entity count (-1 for rows). QueryPathsAsync streams one bound path,
 node or relationship from read-only MATCH. Parameters preserve runtime scalar types and bind
-case-sensitive bare names in WHERE and maps. Missing values, collisions and invalid types reach
-the same engine diagnostics (COHDBG001/014/003) as embedded requests.
+case-sensitive bare names in WHERE and maps. Missing values, collisions and invalid types reach the
+same engine diagnostics (COHDBG001/014/003) as embedded requests.
 
 Blank statements throw ArgumentException; disposed rentals ObjectDisposedException; overlapping
 exchanges InvalidOperationException. Unfinished cancellation throws OperationCanceledException and
 discards the connection. GraphClientException retains server category and diagnostics. A terminal
-rejection before scalar/path output preserves reuse. Early path disposal discards it. Explicit
-wire transactions are unsupported.
+rejection before scalar/path output preserves reuse. Early path disposal discards it. Explicit wire
+transactions are unsupported.
 
 ## Example
 

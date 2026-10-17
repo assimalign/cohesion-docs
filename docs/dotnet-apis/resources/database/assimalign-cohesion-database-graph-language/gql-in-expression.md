@@ -15,7 +15,9 @@ public sealed class GqlInExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Operand tests membership in List. All list items evaluate before membership, so later errors still fail with COHDBG013. A match wins, otherwise NULL operand/item yields unknown; empty-list IN is FALSE. Malformed AST operands/list shapes fail COHDBG001.
+Operand tests membership in List. All list items evaluate before membership, so later errors still
+fail with COHDBG013. A match wins, otherwise NULL operand/item yields unknown; empty-list IN is
+FALSE. Malformed AST operands/list shapes fail COHDBG001.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

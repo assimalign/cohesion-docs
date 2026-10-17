@@ -22,9 +22,9 @@ Listener is required and transfers its lifecycle to the server. A null Authentic
 DatabaseAuthenticator.AllowAll. MaxSessions bounds accepted sessions; authentication and idle
 timeouts bound a peer's slot. IdleTimeout accepts Timeout.InfiniteTimeSpan. ShutdownDrainTimeout
 also bounds terminal error write/flush/closure. Creation copies options, preserving listener and
-authenticator references; later property changes do not alter a running server.
-The setters store values. DocumentDatabaseServer.Create rejects missing listeners, nonpositive
-session limits and invalid timer bounds with ArgumentException.
+authenticator references; later property changes do not alter a running server. The setters store
+values. DocumentDatabaseServer.Create rejects missing listeners, nonpositive session limits and
+invalid timer bounds with ArgumentException.
 
 ## Example
 

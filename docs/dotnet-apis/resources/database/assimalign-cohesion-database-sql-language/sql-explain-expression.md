@@ -13,7 +13,10 @@ public sealed class SqlExplainExpression : SqlQueryExpression
 
 ## Behavior and exceptions
 
-Statement is the SELECT/INSERT/UPDATE/DELETE tree to plan. The wrapper has no public constructor. Parsing EXPLAIN DDL, transaction commands, nested EXPLAIN or ANALYZE reports COHDBL001. Engine execution returns DatabasePlanDescription and never invokes the wrapped data executor; ordinary planning errors retain their diagnostics.
+Statement is the SELECT/INSERT/UPDATE/DELETE tree to plan. The wrapper has no public constructor.
+Parsing EXPLAIN DDL, transaction commands, nested EXPLAIN or ANALYZE reports COHDBL001. Engine
+execution returns DatabasePlanDescription and never invokes the wrapped data executor; ordinary
+planning errors retain their diagnostics.
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

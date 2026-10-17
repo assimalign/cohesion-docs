@@ -23,12 +23,12 @@ public class DatabaseException : Exception
 Diagnostics is never null. Constructors without diagnostics return an empty collection. The
 structured constructor snapshots supplied entries, ordering located entries by Start before
 unlocated ones; ties retain input order. Code, message, severity and available source spans stay
-separate. Locations use zero-based UTF-16 offsets with exclusive End and one-based Line.
-Passing a null diagnostic sequence throws ArgumentNullException.
+separate. Locations use zero-based UTF-16 offsets with exclusive End and one-based Line. Passing a
+null diagnostic sequence throws ArgumentNullException.
 
-Query parse/binder/planner rejections use this carrier. Servers compose CODE: message from the
-first Error entry; SQL and GQL negotiate structured wire diagnostics, while Documents uses its
-Failure frame. DatabaseParseException retains complete parser diagnostics through the same base.
+Query parse/binder/planner rejections use this carrier. Servers compose CODE: message from the first
+Error entry; SQL and GQL negotiate structured wire diagnostics, while Documents uses its Failure
+frame. DatabaseParseException retains complete parser diagnostics through the same base.
 
 ## Example
 

@@ -8,7 +8,9 @@ public enum ProtocolDiagnosticSeverity : byte { Warning = 1, Error = 2 }
 
 ## Behavior and exceptions
 
-Only Warning/Error travel in negotiated Diagnostics. Information entries are omitted by servers. The enum itself stores values; ProtocolDiagnosticsMessage rejects any other wire value with ProtocolException.
+Only Warning/Error travel in negotiated Diagnostics. Information entries are omitted by servers. The
+enum itself stores values; ProtocolDiagnosticsMessage rejects any other wire value with
+ProtocolException.
 
 ## Example
 

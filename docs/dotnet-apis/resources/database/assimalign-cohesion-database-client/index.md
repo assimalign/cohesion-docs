@@ -8,6 +8,8 @@ The shared client core of the Data Platform: the protocol client every per-model
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[DatabaseClientException](database-client-exception.md)** — Public signature and diagnostics.
+- **[DatabaseConnection](database-connection.md)** — Public signature and diagnostics.
 
 The shared client core of the Data Platform: the protocol client every per-model client
 (`Sql.Client`, `KeyValuePair.Client`, `Blob.Client`, …) builds on. It dials a
@@ -81,10 +83,6 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
-
-- **[DatabaseClientException](database-client-exception.md)** — Public signature and diagnostics.
-
-- **[DatabaseConnection](database-connection.md)** — Public signature and diagnostics.
 
 ## Sources
 

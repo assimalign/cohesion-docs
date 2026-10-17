@@ -20,10 +20,10 @@ public sealed class DatabasePlanNode
 
 ## Behavior and exceptions
 
-NodeId identifies a node within the description; ParentId is null for a root. Optional target,
-index and detail are model-defined; a seek can include its index and bounds. The initializer
-stores supplied values without validating tree structure or invoking an executor. There are no
-additional constructor validation exceptions. Required members must be set by C# callers.
+NodeId identifies a node within the description; ParentId is null for a root. Optional target, index
+and detail are model-defined; a seek can include its index and bounds. The initializer stores
+supplied values without validating tree structure or invoking an executor. There are no additional
+constructor validation exceptions. Required members must be set by C# callers.
 
 ## Example
 

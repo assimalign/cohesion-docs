@@ -15,8 +15,8 @@ public sealed class DocumentClientOptions
 ## Behavior and exceptions
 
 Settings selects database, endpoint, principal and pool limits. ConnectionFactory is the statically
-composed transport driver. The setters store values; DocumentClient.Create validates that both
-are present and the settings are valid, throwing ArgumentException when they are not.
+composed transport driver. The setters store values; DocumentClient.Create validates that both are
+present and the settings are valid, throwing ArgumentException when they are not.
 
 ## Example
 

@@ -14,11 +14,14 @@ public sealed record DocumentProtocolResultHeaderMessage(IReadOnlyList<(string N
 
 ## Behavior and exceptions
 
-ResultHeader (67) carries ordered column names/types and WholeDocuments. Both result shapes use Document frames; WholeDocuments requires exactly one column. Empty names/columns, undefined type tags, malformed fields or trailing bytes throw ProtocolException. The client also rejects duplicate names and invalid projected object members.
+ResultHeader (67) carries ordered column names/types and WholeDocuments. Both result shapes use
+Document frames; WholeDocuments requires exactly one column. Empty names/columns, undefined type
+tags, malformed fields or trailing bytes throw ProtocolException. The client also rejects duplicate
+names and invalid projected object members.
 
-Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit
-the shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to
-establish response completion.
+Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
+shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish
+response completion.
 
 ## Example
 

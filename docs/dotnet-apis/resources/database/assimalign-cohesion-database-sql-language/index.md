@@ -6,8 +6,17 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[SqlLiteralText](sql-literal-text.md)** — Public contract and usage.
+- **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
+- **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
+- **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
+- **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
+- **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
+- **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
+- **[SqlLiteralType](sql-literal-type.md)** — Values and usage.
 
 The SQL language front-end of the Cohesion Data Platform: a recursive-descent parser
 (`SqlQueryParser`) producing a full clause-level AST over the shared lexer infrastructure
@@ -53,17 +62,6 @@ See [DESIGN.md](design.md) for the parser's shape and the decisions behind it.
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
-
-- **[SqlLiteralText](sql-literal-text.md)** — Public contract and usage.
-
-- **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
-- **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
-- **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
-- **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
-- **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
-- **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
-
-- **[SqlLiteralType](sql-literal-type.md)** — Values and usage.
 
 ## Sources
 

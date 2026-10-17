@@ -132,30 +132,18 @@ relations have no catalog table records to list.
 
 ### The relation seam and statement snapshot
 
-`SqlPlanner` recognizes the reserved, schema-qualified view names before `ResolveTable`. It binds
-their declared columns into a separate `SqlSystemViewPlan`, carrying the view identity, projection,
-predicate, ordering, distinct/count mode, and limit/offset. `SqlSelectPlan` still means a stored
-table, and `SqlCatalogTable` has no virtual/system flag. This keeps physical access paths and object
-locks meaningful instead of inventing a dummy object id or storage location for metadata. No
-existing public interface changes.
+The binder resolves stored tables and registered system relations through one relation-source
+path. Every system relation can participate on either side of the supported two-relation INNER
+JOIN, with the same column, alias, ambiguity and grouping checks. System sources take no object
+locks and supply no indexes; an eligible stored input can still supply index probes. There are
+no dummy stored objects or synthetic metadata rows.
 
-`SqlPlanExecutor.SystemViews.cs` projects catalog descriptions to rows at query time and applies the
-same expression evaluator and SELECT semantics as table queries: column and expression projection,
-aliases, parameters, `WHERE`, `ORDER BY`, `DISTINCT`, grouping/aggregates, `LIMIT`, and `OFFSET`
-. The existing planner limits on joins and subqueries also apply. Rows use the ordinary materialized
-result and wire codecs, so metadata is available over `SqlDatabaseServer` without a separate
-protocol operation.
-
-`SqlCatalog.CaptureSnapshot(ISqlCatalog)` returns the catalog-owned `ISqlCatalogSnapshot` contract,
-capturing tables and their index descriptions together under the catalog's existing metadata lock.
-The capture is read-only, carries no storage handle, and has no disposal lifetime. A snapshot
-transaction retains the capture taken at begin; auto-commit and `ReadCommitted` statements capture
-at statement start. All system rows for that statement use that one capture, including
-referenced-key resolution. Catalog publication cannot split a table from its constraints or indexes
-during a metadata read. Later statements see completed DDL according to their isolation level, so
-`DROP TABLE` removes the table, its columns, constraints, indexes, and ownership rows from fresh
-snapshots. There are no metadata rows in the user record space and no persisted system-view cache to
-reconcile.
+The statement context captures one immutable catalog image on its first system binding. Child
+queries and INSERT SELECT sources share it. Snapshot transactions provide their BEGIN-time image;
+automatic and ReadCommitted statements capture on demand. A stored-only statement needs no
+catalog capture. Table/index/constraint descriptions are captured together, so catalog publication
+cannot split them during a metadata read. Fresh later captures reflect completed DDL according to
+the session isolation level. Ordinary result/wire codecs return metadata and EXPLAIN plan rows.
 
 The dependency split keeps virtual relation binding and execution in SQL while the catalog remains
 the source of stored object descriptions:

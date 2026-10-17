@@ -15,7 +15,9 @@ public sealed class GqlUnaryExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Operator supports NOT and unary +/-. NOT requires Boolean/NULL, preserves unknown, and reverses true/false. Signs promote numeric operands and propagate NULL. Invalid evaluated types, overflow or non-finite results raise COHDBG013; unsupported hand-built operator shapes fail COHDBG001.
+Operator supports NOT and unary +/-. NOT requires Boolean/NULL, preserves unknown, and reverses
+true/false. Signs promote numeric operands and propagate NULL. Invalid evaluated types, overflow or
+non-finite results raise COHDBG013; unsupported hand-built operator shapes fail COHDBG001.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

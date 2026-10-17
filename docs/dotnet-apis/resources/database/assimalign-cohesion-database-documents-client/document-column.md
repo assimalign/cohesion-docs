@@ -10,8 +10,8 @@ public sealed record DocumentColumn(string Name, int Ordinal, DatabaseType Type)
 
 ## Behavior and exceptions
 
-Describes a result column's name, zero-based ordinal and shared scalar identity. A heterogeneous
-or unobserved projection can use DatabaseType.Null (unknown); MISSING does not hide an otherwise
+Describes a result column's name, zero-based ordinal and shared scalar identity. A heterogeneous or
+unobserved projection can use DatabaseType.Null (unknown); MISSING does not hide an otherwise
 observed scalar type. The record stores its supplied values without additional validation
 exceptions; the wire decoder validates header structure.
 

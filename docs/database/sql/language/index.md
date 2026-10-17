@@ -67,7 +67,7 @@ The [Functions](functions/index.md) section separates execution support from lex
 The [System views](system-views/index.md) section lists all supported metadata columns.
 
 - **[INFORMATION_SCHEMA](system-views/information-schema.md)** — The standard metadata subset.
-- **[COHESION_SCHEMA](system-views/cohesion-schema.md)** — Index and ownership extensions.
+- **[COHESION_SCHEMA](system-views/cohesion-schema.md)** — Index, ownership, function and type extensions.
 
 ## Errors and exclusions
 

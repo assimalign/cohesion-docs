@@ -16,10 +16,13 @@ public sealed class OqlCaseExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Null Operand means searched CASE with SQL++ truth conversion; otherwise it means simple CASE with structural equality. Branches are ordered WHEN keys and THEN values. Otherwise null means implicit NULL. Unknown conditions fall through; a selected MISSING result stays MISSING. Only the selected result evaluates, but all branches are validated for binding, numeric and aggregate errors.
+Null Operand means searched CASE with SQL++ truth conversion; otherwise it means simple CASE with
+structural equality. Branches are ordered WHEN keys and THEN values. Otherwise null means implicit
+NULL. Unknown conditions fall through; a selected MISSING result stays MISSING. Only the selected
+result evaluates, but all branches are validated for binding, numeric and aggregate errors.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

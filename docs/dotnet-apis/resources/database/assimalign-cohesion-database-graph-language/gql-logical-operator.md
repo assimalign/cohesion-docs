@@ -8,7 +8,8 @@ public enum GqlLogicalOperator { And, Or, Xor }
 
 ## Behavior and exceptions
 
-And/Or/Xor select three-valued logical chains. OR and XOR share text precedence; XOR computes parity unless an operand is unknown. Undefined enum values are rejected by Graph planning with COHDBG001.
+And/Or/Xor select three-valued logical chains. OR and XOR share text precedence; XOR computes parity
+unless an operand is unknown. Undefined enum values are rejected by Graph planning with COHDBG001.
 
 ## Example
 

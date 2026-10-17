@@ -16,10 +16,13 @@ public sealed class OqlInExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Values are a nonempty explicit list; an array-valued item remains one item. Operand MISSING/NULL retains its state. For a present operand, a structural match wins, then NULL, then MISSING, then FALSE. Negated reverses only Boolean results. Invalid context/list shapes are rejected while planning with COHDOC001.
+Values are a nonempty explicit list; an array-valued item remains one item. Operand MISSING/NULL
+retains its state. For a present operand, a structural match wins, then NULL, then MISSING, then
+FALSE. Negated reverses only Boolean results. Invalid context/list shapes are rejected while
+planning with COHDOC001.
 
-These AST constructors retain child references and do not execute a query. Parser-produced lists
-are read-only snapshots. Always inspect statement diagnostics before planning; execution performs
+These AST constructors retain child references and do not execute a query. Parser-produced lists are
+read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
 ## Example

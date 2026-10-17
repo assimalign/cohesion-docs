@@ -27,12 +27,12 @@ projection arrays; protocol 2.0 replaced them with Document objects so MISSING c
 Current startup negotiates shared 2.1. Documents agrees no core Diagnostics capability; Failure
 remains its structured diagnostic channel. Explicit wire transactions are unsupported.
 
-Execute results are ResultHeader, zero or more Document frames, then Complete. INSERT and DDL
-can complete without rows. Commands return StoredDocument or Collection frames as appropriate,
-then Complete. Failure terminates a statement without Complete and retains session reuse.
-Unexpected message order, shared Error, malformed payloads/UTF-8 or inconsistent counts are
-protocol violations. Codecs throw ProtocolException for malformed inputs; the client discards
-partial accumulated results on terminal Failure.
+Execute results are ResultHeader, zero or more Document frames, then Complete. INSERT and DDL can
+complete without rows. Commands return StoredDocument or Collection frames as appropriate, then
+Complete. Failure terminates a statement without Complete and retains session reuse. Unexpected
+message order, shared Error, malformed payloads/UTF-8 or inconsistent counts are protocol
+violations. Codecs throw ProtocolException for malformed inputs; the client discards partial
+accumulated results on terminal Failure.
 
 ## Example
 

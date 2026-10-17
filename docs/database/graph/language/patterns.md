@@ -1,6 +1,6 @@
 # Graph patterns
 
-Graph patterns describe finite chains of labeled nodes and typed relationships with literal properties.
+Graph patterns describe finite chains of labeled nodes and typed relationships with literal or parameter properties.
 
 > **Status:** Implemented.
 
@@ -19,7 +19,7 @@ Graph patterns describe finite chains of labeled nodes and typed relationships w
 
 <relationship_body> ::= [ variable ] [ ":" type_name ] [ property_map ]
 
-<property_map> ::= "{" [ property_name ":" scalar_literal [ , ...n ] ] "}"
+<property_map> ::= "{" [ property_name ":" { scalar_literal | parameter } [ , ...n ] ] "}"
 ```
 
 Double-quoted punctuation in this diagram denotes the literal character or arrow; diagram quotes
@@ -33,7 +33,7 @@ square brackets that surround relationship syntax.
 | Named and anonymous nodes | Supported | Node parentheses are required |
 | Incoming, outgoing, undirected matching | Supported | Relationship brackets are required |
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
-| Literal property maps | Supported | Unique keys and scalar values |
+| Literal/parameter property maps | Supported | Unique keys and scalar values |
 | Quantified or variable-length paths | Recognized, not supported (`COHDBL001`) | Use explicit finite chains |
 | Collection-valued properties in text | Recognized, not supported (`COHDBL001`) | No list or nested map literal |
 
@@ -42,7 +42,7 @@ square brackets that surround relationship syntax.
 - **`variable`** — an optional case-sensitive node or relationship binding.
 - **`label_name`** — a node label; repeated labels each have their own colon.
 - **`type_name`** — an optional matching type, required for relationship insertion.
-- **`property_map`** — an optional map of literal properties with ordinal, unique keys.
+- **`property_map`** — an optional map of scalar literals or parameters with ordinal, unique keys.
 
 ## Remarks
 
@@ -58,6 +58,8 @@ The executor limits intermediate materialized matches to 100,000 per pattern and
 examination to 1,000,000 node/edge candidates per statement, including dead ends.
 Overflow produces `COHDBG004`, without silent truncation. Cancellation is observed during expansion
 and materialization.
+
+[Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
 
@@ -88,4 +90,3 @@ MATCH ()-[r:KNOWS]->() RETURN r
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Patterns.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanner.cs`.
-

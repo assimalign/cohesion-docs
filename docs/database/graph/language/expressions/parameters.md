@@ -15,8 +15,8 @@ $n
 
 Names bind case-sensitively by bare name after stripping one leading sigil from caller keys,
 regardless of the caller dictionary's comparer. Numeric names contain ASCII digits only and are
-names, not positions: $01 binds 01. Identifier names start with a letter or underscore and
-continue with letters/digits/underscores. NULL is a bound value; unused values are ignored.
+names, not positions: $01 binds 01. Identifier names start with a letter or underscore and continue
+with letters/digits/underscores. NULL is a bound value; unused values are ignored.
 
 MATCH/INSERT/CREATE property maps and WHERE operands bind parameters through GraphQueryRequest,
 GraphPathsQueryRequest, session text execution, and GraphConnection parameter maps. Runtime types,

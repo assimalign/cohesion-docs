@@ -16,7 +16,9 @@ public sealed class GqlStringPredicateExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Operator uses GqlStringPredicateOperator.StartsWith, EndsWith or Contains. Comparison is ordinal and case-sensitive; NULL or non-string inputs yield unknown. An undefined enum or malformed operand fails planning with COHDBG001.
+Operator uses GqlStringPredicateOperator.StartsWith, EndsWith or Contains. Comparison is ordinal and
+case-sensitive; NULL or non-string inputs yield unknown. An undefined enum or malformed operand
+fails planning with COHDBG001.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

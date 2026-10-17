@@ -55,8 +55,8 @@ Protocol 2.0 changed projected rows to JSON Document frames; current shared prot
 startup capabilities. Documents uses its Failure frame for structured diagnostics. Model payload
 readers reject malformed UTF-8 rather than replacing characters.
 
-The server streams responses through a bounded buffer; engine queries and client results remain
-materialized. DocumentClient rents authenticated, database-bound connections and exposes QueryAsync,
+The server formatter retains one encoded frame. TCP backpressure bounds queued output; InMemory
+can queue more bytes if its reader stops. Engine queries and client results remain materialized. DocumentClient rents authenticated, database-bound connections and exposes QueryAsync,
 ExecuteAsync, Get/Put/Delete and collection operations. One operation runs at a time. Completed
 statement failures preserve the connection; malformed protocol traffic or unfinished cancellation
 discards it. Explicit wire transactions are unsupported.

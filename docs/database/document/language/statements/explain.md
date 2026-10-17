@@ -10,9 +10,9 @@ EXPLAIN { select_statement | insert_statement } [ ; ]
 
 ## Remarks
 
-Normal binding, parameter validation and provisioning admission apply to the wrapped statement.
-No document is read by its data executor or inserted, even if the surrounding transaction commits.
-DDL, nested EXPLAIN and ANALYZE are excluded with `COHDBL001`. Planning failures keep their codes.
+Normal binding, parameter validation and provisioning admission apply to the wrapped statement. No
+document is read by its data executor or inserted, even if the surrounding transaction commits. DDL,
+nested EXPLAIN and ANALYZE are excluded with `COHDBL001`. Planning failures keep their codes.
 
 The [shared eight-column shape](../../../sql/language/statements/explain.md) is node_id, parent_id,
 operator, target, index, detail, estimated_rows and actual_rows. Nodes appear in depth-first
@@ -30,8 +30,8 @@ EXPLAIN SELECT name FROM items WHERE score >= 2 AND score < 10;
 EXPLAIN INSERT INTO items (KEY, VALUE) VALUES ('fresh', 1);
 ```
 
-The first description includes IndexSeek, target items, index by_score and detail
-`score >= 2 AND score < 10`. The second includes Insert; no fresh document is created.
+The first description includes IndexSeek, target items, index by_score and detail `score >= 2 AND
+score < 10`. The second includes Insert; no fresh document is created.
 
 ## See also
 

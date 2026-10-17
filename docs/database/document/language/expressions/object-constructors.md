@@ -10,11 +10,11 @@ Builds one JSON object from named expressions.
 
 ## Remarks
 
-Names are case-sensitive. MISSING members are omitted; explicit NULL remains. Repeated names
-resolve to the last included value rather than creating duplicate JSON properties. A later
-MISSING does not remove an earlier value. Nested objects follow the same rules. The result can
-be projected or used as an INSERT VALUE. A MISSING whole INSERT value is `COHDOC008`; numeric
-values must fit the decimal domain exactly (`COHDOC007`, SQLSTATE 22003).
+Names are case-sensitive. MISSING members are omitted; explicit NULL remains. Repeated names resolve
+to the last included value rather than creating duplicate JSON properties. A later MISSING does not
+remove an earlier value. Nested objects follow the same rules. The result can be projected or used
+as an INSERT VALUE. A MISSING whole INSERT value is `COHDOC008`; numeric values must fit the decimal
+domain exactly (`COHDOC007`, SQLSTATE 22003).
 
 ## Examples
 
