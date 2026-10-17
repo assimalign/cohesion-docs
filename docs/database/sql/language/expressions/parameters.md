@@ -7,8 +7,10 @@ Binds runtime values to named or numbered placeholders in a SQL statement.
 ## Syntax
 
 ```syntaxsql
+$parameter_name
 @parameter_name
 $parameter_number
+@parameter_number
 ```
 
 ## Arguments
@@ -18,8 +20,14 @@ $parameter_number
 
 ## Remarks
 
-The SQL client normalizes a leading `@` or `$` away from parameter names; bare names travel on
-the wire. Parameters carry values, not identifiers or syntax. Their runtime types matter for
+All three query languages bind by the exact, case-sensitive bare name, ignoring one leading
+`@` or `$` on caller keys, regardless of the dictionary's comparer. `$01` binds key `01`,
+not `1`; numbered names consist only of ASCII digits and are names, not positional slots.
+Named forms start with a letter or underscore and continue with letters, digits or underscores.
+Unused keys are ignored, but normalized collisions always report `COHSQLE023`, even for transaction
+commands. Missing bindings report `COHSQLE020` before any rows are read or written. Supplied NULL
+is a binding. Malformed references, `?` and `:name` report `SQL0003`; unsupported markers share
+the message naming the supported forms. Parameters carry values, not identifiers or syntax. Their runtime types matter for
 conversion and comparison, unlike integer and fractional literals' fixed evaluator types.
 
 A parameter in an ordering expression is a value, not a select-list ordinal. Parameters are excluded
@@ -48,4 +56,3 @@ Bind the bare name `minimum` to `40` to return `2` and `3`, as in the SELECT cli
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/SqlCommand.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
-

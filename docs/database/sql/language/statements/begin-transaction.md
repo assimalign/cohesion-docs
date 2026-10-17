@@ -7,13 +7,16 @@ Starts the session's explicit transaction.
 ## Syntax
 
 ```syntaxsql
-BEGIN [ TRANSACTION ] [ ; ]
+{ BEGIN [ WORK | TRANSACTION ] | START TRANSACTION } [ ; ]
 ```
 
 ## Arguments
 
-The optional `TRANSACTION` keyword changes no semantics. There is no transaction name or
-isolation-level argument in this syntax.
+`WORK` and `TRANSACTION` are optional equivalent suffixes on BEGIN.
+`START TRANSACTION` requires `TRANSACTION`. `START` and `WORK` remain contextual:
+columns named `start` or `work` still bind.
+Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Malformed suffixes report `SQL0003` before transaction state changes.
 
 ## Remarks
 
@@ -34,7 +37,7 @@ Starting from the [conformance fixture](select.md#a-create-the-conformance-fixtu
 statement as a separate request on the same session or client connection:
 
 ```sql
-BEGIN TRANSACTION;
+START TRANSACTION;
 INSERT INTO t VALUES (4, 'new', 1);
 COMMIT TRANSACTION;
 ```
@@ -54,4 +57,3 @@ The inserted row becomes visible to an observing session after commit.
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`
 - **Client lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
 - **Coordinator** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/OVERVIEW.md`
-

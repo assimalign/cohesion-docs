@@ -4,10 +4,12 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-Phase 22 measures 33 of 49 named clauses against the live engine. The 16 excluded names are
+The profile measures 34 of 50 named clauses against the live engine. The 16 excluded names are
 `UNION`, `INTERSECT`, `EXCEPT`, `WITH`, `RECURSIVE`, `WINDOW`, `OVER`,
 `PARTITION`, `CREATE VIEW`, `DROP VIEW`, `NATURAL`, `USING`, `TOP`, `ALL`,
 `FETCH`, and `RETURNING`. Further subset restrictions do not increase that denominator.
+
+[EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
 
 ## Exclusion matrix
 
@@ -28,7 +30,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `LEFT`, `RIGHT`, `FULL` joins, optional `OUTER` | `COHDBL001` | No outer joins |
 | `CROSS JOIN`, comma joins, join without ON | `COHDBL001` | No additional product/join syntax |
 | More than two joined tables | `COHDBL001` | At most one join per SELECT |
-| Join involving `INFORMATION_SCHEMA` or `COHESION_SCHEMA` | `COHDBL001` | Join inputs must be stored tables |
 | Qualified wildcard, such as `t.*` | `COHDBL001` | Use unqualified star or explicit columns |
 | Derived table in FROM or JOIN | `COHDBL001` | No relational subquery sources |
 | Correlated subquery | `COHDBL001` | Inner names must resolve locally |
@@ -51,29 +52,28 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `CREATE COLLATION`, session collation override | `COHDBL001` | Database/column/expression rules only |
 | Collation-aware full-text index | `COHDBL001` or explicit execution error | Not implemented |
 | Index or index-backed constraint under `invariant` | Explicit execution error | Compatibility comparison is scan-only |
-| CAST to approximate numeric, binary, temporal, GUID, or JSON family | `SQL0005` | These target families are recognized but excluded |
-| CAST to an unknown name | `SQL0004` | Target name does not resolve |
+| CAST to an unknown name | `COHSQLE010` | Type/domain does not resolve |
 | Invalid CAST target parameters | `SQL0005` | See the conversion bounds |
-| Unsupported CAST source/target pair or lossy conversion | Execution error | Exact pair and range checks apply |
+| Unsupported CAST source/target pair | `COHSQLE011` | Known source types reject while planning, even on empty input |
 | CAST in DEFAULT or CHECK | Planning error | Conversion support does not broaden these contexts |
-| Nonliteral DEFAULT | Planning error | No functions, parameters, or computed defaults |
+| Nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
 | Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |
 | Aggregate inside aggregate, WHERE, ON, or GROUP BY | Planning error | Aggregate stage restrictions |
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |
 | Projection alias in GROUP BY or HAVING | Binding/planning error when not a valid source name | Output alias scope is ORDER BY |
 | Invalid numeric ORDER BY ordinal | Planning error | Zero, negative, out of range, or noninteger syntax |
 | SELECT without FROM | Planning error | Every executable query needs a relation |
-| `NULLIF`, `TRIM`, `LTRIM`, `RTRIM`, `SUBSTRING`, `REPLACE`, `CONCAT` | Planning/evaluation error; no dedicated language code promised | Recognized scalar names without executor support |
-| `CEILING`, `FLOOR`, `ROUND`, `POWER`, `SQRT`, `MOD` | Planning/evaluation error; no dedicated language code promised | Recognized numeric names without executor support |
-| `NOW`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`, `EXTRACT` | Planning/evaluation error; no dedicated language code promised | Recognized temporal names without executor support |
-| Unary bitwise complement `~` | Evaluation error | Parsed but not evaluated |
+| `NULLIF`, `TRIM`, `LTRIM`, `RTRIM`, `SUBSTRING`, `REPLACE`, `CONCAT` | `COHDBL001` | Recognized scalar names without executor support |
+| `CEILING`, `FLOOR`, `ROUND`, `POWER`, `SQRT`, `MOD` | `COHDBL001` | Recognized numeric names without executor support |
+| `NOW`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`, `EXTRACT` | `COHDBL001` | Recognized temporal names without executor support |
+| Prefix or infix `~` | `COHDBL001` | Recognized unsupported operator |
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `SQL0003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `SQL0003` | No savepoint rollback |
 | `MERGE`, `TRUNCATE`, `GRANT` | `SQL0002` | Unknown leading commands |
 | Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `SQL0002` | Not implemented as statements |
 | DDL in an explicit transaction | `COHSQLT003` | DDL is self-committing |
-| Mutation of a built-in system relation | `ExecutionFailure` on the wire | System views are read-only |
+| Mutation of a built-in system relation | `COHSQLE021` (25006) | System relations are read-only |
 
 The parser can recognize syntax that is later rejected by binding or execution. Conversely, a
 recovered parse tree or a name in the function vocabulary is not evidence of support.
@@ -93,4 +93,3 @@ No code is invented above for restrictions whose source contract promises only a
 - **Parser boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlExecutionSurfaceDiagnosticTests.cs`
 - **Transaction syntax** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

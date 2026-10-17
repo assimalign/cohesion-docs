@@ -19,6 +19,8 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[UPDATE](update.md)** — Assign column values to selected rows.
 - **[DELETE](delete.md)** — Remove selected rows.
 
+- **[EXPLAIN](explain.md)** — Describe a chosen plan without executing it.
+
 ## Transaction control
 
 - **[BEGIN TRANSACTION](begin-transaction.md)** — Begin a session-scoped snapshot transaction.
@@ -27,7 +29,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 33-of-49 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 34-of-50 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 
@@ -35,4 +37,3 @@ execution support; use [diagnostics](../diagnostics.md) and the
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

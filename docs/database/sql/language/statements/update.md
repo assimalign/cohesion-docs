@@ -8,7 +8,7 @@ Changes one or more column values on rows selected from a stored table.
 
 ```syntaxsql
 UPDATE [ schema_name . ] table_name
-SET column_name = expression [ , ...n ]
+SET column_name = { expression | DEFAULT } [ , ...n ]
 [ WHERE search_condition ]
 [ ; ]
 ```
@@ -20,6 +20,12 @@ SET column_name = expression [ , ...n ]
 - **`search_condition`** — An optional predicate restricting the affected rows.
 
 ## Remarks
+
+Qualified references use the target name, or its alias when supplied. An explicit alias hides
+the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
+
+`c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
+No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
 
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
@@ -51,4 +57,3 @@ The update affects one row; the query returns `46`, `45`, and `41`.
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
-

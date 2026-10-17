@@ -18,7 +18,11 @@ Limits the number of returned rows and skips an initial part of the result.
 ## Remarks
 
 Each clause can appear alone. When both are present, write `LIMIT` before `OFFSET`.
-Values must be nonnegative integers. The clauses apply to completed query results, including groups.
+Counts accept 0 through `9223372036854775807` (`Int64.MaxValue`). The clauses apply after
+filtering, grouping and ordering, on table, join and system-relation plans, both in process and
+over the wire. A limit larger than the remaining result keeps every remaining row; an offset
+larger than the result returns no rows. Counts never wrap through an `Int32` cast.
+Invalid counts report `COHSQLE018`; a count expression referring to a column reports `COHSQLE005`.
 
 Use a sufficient `ORDER BY` key for deterministic paging. Without ordering, no particular row order
 is promised. Pagination values are not select-list ordinals. Subqueries as pagination expressions
@@ -36,6 +40,13 @@ SELECT id FROM t ORDER BY id OFFSET 1;
 
 The first query returns `1`, `2`; the second returns `2`, `3`.
 
+```sql
+SELECT id FROM t ORDER BY id LIMIT 9223372036854775807;
+SELECT id FROM t ORDER BY id OFFSET 2147483648;
+```
+
+These return `1`, `2`, `3` and no rows, respectively.
+
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
@@ -44,4 +55,3 @@ The first query returns `1`, `2`; the second returns `2`, `3`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

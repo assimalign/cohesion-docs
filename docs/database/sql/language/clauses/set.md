@@ -7,7 +7,7 @@ Assigns one or more destination columns in an UPDATE statement.
 ## Syntax
 
 ```syntaxsql
-SET column_name = expression [ , ...n ]
+SET column_name = { expression | DEFAULT } [ , ...n ]
 ```
 
 ## Arguments
@@ -16,6 +16,9 @@ SET column_name = expression [ , ...n ]
 - **`expression`** — Its new scalar value, subject to destination conversion and constraints.
 
 ## Remarks
+
+`c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
+No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
 
 The measured `UPDATE` subset accepts multiple assignments and an optional `WHERE`.
 The documented `SET` belongs to `UPDATE`; it is not session configuration or transaction-isolation
@@ -40,4 +43,3 @@ The conformance case changes Ada's age to `46`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
-

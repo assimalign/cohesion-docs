@@ -88,6 +88,14 @@ It returns no rows if that table is absent.
 
 [System views](index.md) · [COHESION_SCHEMA](cohesion-schema.md) · [Data types](../data-types/index.md)
 
+## Joining and snapshots
+
+These read-only relations join with each other or with stored tables through the supported
+two-relation [INNER JOIN](../clauses/join.md). Every system relation in a statement, including
+subqueries and INSERT SELECT sources, reads one immutable catalog image. Snapshot transactions
+use their BEGIN-time image; automatic and ReadCommitted statements capture it at first system
+relation binding. Mutations report `COHSQLE021` (SQLSTATE 25006).
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
@@ -95,4 +103,3 @@ It returns no rows if that table is absent.
 - **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
 - **Execution tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSystemViewTests.cs`
 - **Wire tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSystemViewProtocolTests.cs`
-

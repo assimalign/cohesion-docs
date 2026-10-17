@@ -35,7 +35,7 @@ FROM <table_source>
 | Form | Support | Boundary |
 | --- | --- | --- |
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
-| `JOIN ... ON` | Supported (measured) | Exactly two stored tables; inner join only |
+| `JOIN ... ON` | Supported (measured) | Exactly two stored or system relations; inner join only |
 | `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
@@ -45,7 +45,7 @@ FROM <table_source>
 
 ## Remarks
 
-The Phase 22 contract measures these subsets through the live engine, including wire execution.
+The conformance contract measures these subsets through the live engine, including wire execution.
 Every `SELECT` requires `FROM`; a constant-only query without a relation fails planning.
 Qualification identifies a schema within the current database, never another database.
 

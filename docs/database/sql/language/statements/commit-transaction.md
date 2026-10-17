@@ -7,12 +7,15 @@ Commits the session's active explicit transaction.
 ## Syntax
 
 ```syntaxsql
-COMMIT [ TRANSACTION ] [ ; ]
+{ COMMIT [ WORK | TRANSACTION ] | END } [ ; ]
 ```
 
 ## Arguments
 
-The optional `TRANSACTION` keyword is accepted without a transaction name.
+`WORK` and `TRANSACTION` are optional equivalent suffixes on COMMIT.
+`END` maps to COMMIT and takes no suffix. Without a transaction its `COHSQLT002` message names COMMIT.
+Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Malformed suffixes report `SQL0003` before transaction state changes.
 
 ## Remarks
 
@@ -34,7 +37,7 @@ statement as a separate request on the same session or client connection:
 ```sql
 BEGIN;
 INSERT INTO t VALUES (4, 'new', 1);
-COMMIT;
+END;
 ```
 
 An observing session can now select row `4`.
@@ -52,4 +55,3 @@ An observing session can now select row `4`.
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`
 - **Client lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
 - **Coordinator** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/OVERVIEW.md`
-

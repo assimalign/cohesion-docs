@@ -78,6 +78,14 @@ The result includes `ix_age` and the table's primary-key enforcement index.
 
 [System views](index.md) · [INFORMATION_SCHEMA](information-schema.md) · [CREATE INDEX](../statements/create-index.md)
 
+## Joining and snapshots
+
+These read-only relations join with each other or with stored tables through the supported
+two-relation [INNER JOIN](../clauses/join.md). Every system relation in a statement, including
+subqueries and INSERT SELECT sources, reads one immutable catalog image. Snapshot transactions
+use their BEGIN-time image; automatic and ReadCommitted statements capture it at first system
+relation binding. Mutations report `COHSQLE021` (SQLSTATE 25006).
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
@@ -85,4 +93,3 @@ The result includes `ix_age` and the table's primary-key enforcement index.
 - **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
 - **Execution tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSystemViewTests.cs`
 - **Wire tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSystemViewProtocolTests.cs`
-

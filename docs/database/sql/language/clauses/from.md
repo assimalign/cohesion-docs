@@ -22,8 +22,10 @@ Every executable `SELECT` requires `FROM`. A session cannot select another datab
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 
-An optional supported [JOIN](join.md) adds exactly one more stored table. Comma-separated sources,
-derived tables, and joins involving virtual system relations report `COHDBL001`.
+An optional supported [JOIN](join.md) adds exactly one stored or system relation. Comma-separated
+sources and derived tables report `COHDBL001`. An explicit alias hides the base name in SELECT,
+UPDATE and DELETE: `SELECT t.id FROM t AS x` reports located `COHSQLE015`; use `x.id`.
+Unknown or ambiguous columns fail during planning, including on empty inputs.
 
 ## Examples
 
@@ -43,4 +45,3 @@ This conformance query returns `Ada`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

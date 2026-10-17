@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. Phase 22 measures 33 of 49 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 34 of 50 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -12,15 +12,20 @@ expressions, functions, types, and diagnostics. Start with
 
 The measured surface includes table and index data definition language (DDL), row mutations,
 session transactions, column constraints, and queries over one stored table, one virtual
-system relation, or exactly two stored tables joined with `INNER JOIN ... ON`.
+system relation, or exactly two stored or system relations joined with `INNER JOIN ... ON`.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
 collation, and bounded uncorrelated subqueries. `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
 
-The 33-of-49 measure is not a percentage of complete SQL. The
+The 34-of-50 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the excluded 16 named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in
 [Operators and predicates](language/expressions/operators.md).
+
+[EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
+[CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
+[DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
+share the same behavior in process and through the supported wire codecs.
 
 ## Package responsibilities
 

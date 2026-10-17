@@ -9,7 +9,8 @@ Adds rows from scalar values or a query to a stored table.
 ```syntaxsql
 INSERT INTO [ schema_name . ] table_name
 [ ( column_name [ , ...n ] ) ]
-{ VALUES ( expression [ , ...n ] ) [ , ...n ] | select_statement }
+{ VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
+| DEFAULT VALUES | select_statement }
 [ ; ]
 ```
 
@@ -22,7 +23,9 @@ INSERT INTO [ schema_name . ] table_name
 
 ## Remarks
 
-Without a column list, values map to all destination columns. Omitted columns use their literal
+A whole-item [DEFAULT](../clauses/default.md) requests the destination default;
+`DEFAULT VALUES` inserts one row of defaults. A missing default on a NOT NULL column is
+`COHSQLE024` (SQLSTATE 23502). Without a column list, values map to all destination columns. Omitted columns use their declared
 defaults or nullable `NULL`; an explicit `NULL` does not request the default. Destination coercion,
 nullability, checks, primary and unique keys, and foreign keys apply to every row.
 

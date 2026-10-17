@@ -11,7 +11,7 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 33-of-49 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 34-of-50 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 
@@ -19,4 +19,3 @@ execution support; use [diagnostics](../diagnostics.md) and the
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

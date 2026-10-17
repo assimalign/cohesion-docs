@@ -19,6 +19,9 @@ DELETE FROM [ schema_name . ] table_name
 
 ## Remarks
 
+Qualified references use the target name, or its alias when supplied. An explicit alias hides
+the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
+
 Only rows for which `WHERE` is `TRUE` are selected. The statement reports an affected count.
 Foreign keys default to `ON DELETE RESTRICT`; a declared `ON DELETE CASCADE` removes dependent
 rows. Nullable foreign-key values are allowed.
@@ -47,4 +50,3 @@ The delete affects one row; the query returns `1` and `3`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

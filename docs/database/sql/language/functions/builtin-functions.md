@@ -22,8 +22,8 @@ ABS ( expression )
 ## Remarks
 
 Only the calls in the diagram are advertised as executable scalar functions. The function table in
-`SqlLanguageProfile` is lexical vocabulary, not an execution guarantee or part of the 49-clause
-denominator.
+`SqlLanguageProfile` contains only executable functions. The wider recognized-unsupported
+vocabulary is separate and reports `COHDBL001`.
 
 | Function | Evaluator behavior |
 | --- | --- |
@@ -45,8 +45,8 @@ incompatible nonnumeric alternatives fail planning.
 Recognized but unimplemented scalar names include `NULLIF`, `TRIM`, `LTRIM`, `RTRIM`,
 `SUBSTRING`, `REPLACE`, `CONCAT`, `CEILING`, `FLOOR`, `ROUND`, `POWER`,
 `SQRT`, `MOD`, `NOW`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`,
-and `EXTRACT`. A parsed call can fail in planning or evaluation; it does not inherit support from
-`SELECT`. Unsupported scalar calls have no promised dedicated language diagnostic.
+and `EXTRACT`. These report parse-time `COHDBL001`, including over empty inputs. Unknown
+function names outside that vocabulary report `COHSQLE016` during planning.
 Window-function calls and clauses are explicitly rejected with `COHDBL001`.
 
 ## Examples
@@ -71,4 +71,3 @@ It returns `12` as `Int64`.
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlExpressionEvaluator.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlLanguageProfile.cs`
-
