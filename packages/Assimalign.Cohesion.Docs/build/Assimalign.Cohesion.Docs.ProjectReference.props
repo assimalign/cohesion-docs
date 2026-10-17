@@ -1,11 +1,18 @@
 <Project>
+  <!-- The project-reference equivalent of the package's transitive content registration. The
+       generated catalog names each page by the asset name the Viu Markdown build assigns (hashed by
+       default: the first twelve hex digits of the SHA-256 of the forward-slash source path, plus
+       ".md"), so each file is linked under that same name. Keep this in step with the package's
+       ViuMarkdownAssetNaming; it is the Markdown build's default, hashed. -->
   <PropertyGroup>
     <_CohesionDocsProjectContentRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..\..\..\docs'))</_CohesionDocsProjectContentRoot>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="$(_CohesionDocsProjectContentRoot)**\*.md"
-             Link="wwwroot\_content\Assimalign.Cohesion.Docs\docs\%(RecursiveDir)%(Filename)%(Extension)"
+    <_CohesionDocsProjectMarkdown Include="$(_CohesionDocsProjectContentRoot)**\*.md" />
+    <Content Include="@(_CohesionDocsProjectMarkdown)"
+             Link="wwwroot\_content\Assimalign.Cohesion.Docs\docs\$([MSBuild]::StableStringHash($([System.String]::Copy('$([MSBuild]::MakeRelative('$(_CohesionDocsProjectContentRoot)', '%(FullPath)'))').Replace('\', '/')), 'Sha256').Substring(0, 12).ToLowerInvariant()).md"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
+    <_CohesionDocsProjectMarkdown Remove="@(_CohesionDocsProjectMarkdown)" />
   </ItemGroup>
 </Project>

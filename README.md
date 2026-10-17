@@ -14,7 +14,8 @@ shared Assimalign frontend shell.
 
 ```text
 global.json                                   .NET and Viu SDK selection
-NuGet.config                                  sibling package feeds and local cache
+NuGet.config                                  GitHub Packages feed and local cache
+Directory.Build.props                         Viu, Cohesion Viu, and shared frontend package pins
 CohesionDocs.slnx                              package, tests, and preview application solution
 packages/Assimalign.Cohesion.Docs/
   src/                                         host-neutral Viu micro-frontend package
@@ -37,29 +38,30 @@ docs/
 ## Local development
 
 Use .NET SDK `10.0.400` or a compatible later feature band; `global.json` selects
-`rollForward: latestFeature`. The application pins the Viu SDK and router packages to
-`10.0.0-beta.12`, the Cohesion Viu packages to `10.0.0-beta.5`, and the shared frontend packages to
-`1.0.0-preview.1`. Preview features are enabled because the Cohesion assemblies require them.
+`rollForward: latestFeature`. Preview features are enabled because the Cohesion assemblies require
+them.
 
-No public feed carries the `Assimalign.*` packages, so the four sibling feeds must be packed locally
-first. `NuGet.config` clears inherited sources and maps each package family to its sibling feed:
-`Assimalign.Viu.*` to `../viu/_out/packages`, `Assimalign.Cohesion.Viu.*` to
-`../viu-platforms/_out/packages`, other `Assimalign.Cohesion.*` packages to
-`../cohesion/_out/packages`, and `Assimalign.Frontend.*` to
-`../../assimalign-core/aaln-core-frontend/_out/packages`. Other packages use NuGet.org. Restored
-packages stay in `.nuget/packages`; no GitHub Packages source is configured.
+Every `Assimalign.*` package restores from the Assimalign GitHub Packages feed
+(`https://nuget.pkg.github.com/assimalign/index.json`); no sibling checkout has to be packed first.
+Three pins select the builds, and they move together because each build must depend on the same Viu
+build:
 
-1. **Cohesion** — `pwsh ../cohesion/installer/scripts/Install-Local.ps1` populates
-   `../cohesion/_out/packages` (currently `10.0.1-preview.3.local`).
-2. **Viu** — `pwsh ../viu/scripts/Install-Local.ps1 -Configuration Release` packs the
-   `10.0.0-beta.12` set, including the Browser SDK and runtime pack (needs the `wasm-tools` workload).
-3. **Viu platforms** — `pwsh ../viu-platforms/scripts/Install-Local.ps1 -Configuration Release`
-   produces the `10.0.0-beta.5` Cohesion Viu packages.
-4. **Shared frontend** — `pwsh ../../assimalign-core/aaln-core-frontend/scripts/Install-Local.ps1`
-   produces `Assimalign.Frontend.MicroFrontends` and `Assimalign.Frontend.Components`
-   `1.0.0-preview.1`.
+- the `Assimalign.Viu.Sdk` entry in `global.json` selects the Viu SDK, and `Directory.Build.props`
+  reads it as `ViuVersion` for every Viu package reference (keep `Assimalign.Viu.Sdk.Browser` equal);
+- `CohesionViuVersion` in `Directory.Build.props` selects the viu-platforms build;
+- `FrontendVersion` in `Directory.Build.props` selects the aaln-core-frontend build, published by
+  that repository's Azure pipeline as `1.0.0-preview.1.ci.<run>`.
 
-Once the feeds are ready, run:
+CI pins are temporary: viu and viu-platforms keep only their newest 20 `main` builds. GitHub Packages
+requires a personal access token (classic) with `read:packages`, and the shared frontend packages
+are private to the `assimalign` organization. Never write the token to `NuGet.config`; supply it
+from the environment:
+
+```pwsh
+$env:NuGetPackageSourceCredentials_assimalign = "Username=<github-user>;Password=$(gh auth token);ValidAuthenticationTypes=Basic"
+```
+
+Then run:
 
 ```pwsh
 dotnet run --project app/Assimalign.Cohesion.Docs.App
@@ -85,8 +87,8 @@ and asset paths beneath `_content/Assimalign.Cohesion.Docs/docs/`.
 The package carries every `docs/**/*.md` file under `content/docs/` and supplies a transitive MSBuild
 registration that maps restored content to `wwwroot/_content/Assimalign.Cohesion.Docs/docs/`. The
 landing zone references the package, creates `CohesionDocsMicroFrontend` with its base-addressed
-`HttpClient`, and adds it through `AddMicroFrontends`. The module owns its catalog, HTTP source, and
-renderer, so hosts never call `AddMarkdownContent` for it.
+`HttpClient`, and adds it through `builder.Services.AddMicroFrontends`. The module owns its catalog,
+HTTP source, and renderer, so hosts never call `AddMarkdownContent` for it.
 
 ## Routing and application design
 
@@ -100,8 +102,10 @@ registry.
 The application uses clean web history and `<base href="/">`. Shared micro-frontend infrastructure
 qualifies fragment-only anchors with their page route, waits for asynchronously rendered headings,
 and provides the layout/not-found route, cancellable page loading, table expansion, ordered
-navigation, breadcrumbs, and previous/next links. The preview app only creates one shared component
-factory, registers its landing component and the shared components, and composes the module.
+navigation, breadcrumbs, and previous/next links. The preview app registers everything in
+`builder.Services`: its own components (`AddComponents`), the shared components
+(`AddFrontendComponents`), its landing route (`AddRouting`), and the module (`AddMicroFrontends`),
+then installs the router with `application.UseRouter()` after building.
 
 ## Page format
 

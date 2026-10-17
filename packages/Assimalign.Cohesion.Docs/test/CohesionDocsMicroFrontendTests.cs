@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using Assimalign.Cohesion.DependencyInjection;
+using Assimalign.Cohesion.Viu.Hosting;
 using Assimalign.Cohesion.Viu.Markdown;
 using Assimalign.Frontend;
 using Assimalign.Viu.Components;
 using Assimalign.Viu.Router;
 using Shouldly;
 using Xunit;
+
+using ViuRouter = Assimalign.Viu.Router.Router;
 
 namespace Assimalign.Cohesion.Docs.Tests;
 
@@ -75,6 +79,22 @@ public sealed class CohesionDocsMicroFrontendTests
         layout.Children.ShouldContain(route => route.Path == "database");
         layout.Children.ShouldContain(route => route.Path == "database/sql");
         layout.Children.ShouldNotContain(route => route.Path.StartsWith("cohesion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AddMicroFrontends_RegistersTheModuleAndRoutesItThroughTheApplicationRouter()
+    {
+        ViuApplicationBuilder builder = ViuApplication.CreateBuilder();
+        builder.Services.AddMicroFrontends(microFrontends => microFrontends
+            .Add(new CohesionDocsMicroFrontend()));
+        IServiceProvider services = ((IServiceProviderBuilder)builder.Services).Build();
+
+        services.GetRequiredService<IMicroFrontendCatalog>().Descriptors
+            .ShouldHaveSingleItem().Id.ShouldBe("cohesion");
+        ViuRouter router = services.GetRequiredService<ViuRouter>();
+        router.Resolve("/cohesion").Name.ShouldBe("cohesion:/cohesion");
+        router.Resolve("/cohesion/database/sql").Name.ShouldBe("cohesion:/cohesion/database/sql");
+        router.Resolve("/cohesion/missing-page").Name.ShouldBe("cohesion:not-found");
     }
 
     [Fact]
