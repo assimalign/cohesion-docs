@@ -9,7 +9,7 @@ namespace Assimalign.Cohesion.Docs;
 /// <summary>Provides the Cohesion documentation catalog, content source, routes, and navigation.</summary>
 public sealed class CohesionDocsMicroFrontend : DocumentationMicroFrontend
 {
-    private const string PackageVersion = "1.0.0-preview.1";
+    private const string PackageVersion = "1.0.0-preview.2";
 
     /// <summary>
     /// Creates the Cohesion documentation module with an unconfigured HTTP client for catalog-only
