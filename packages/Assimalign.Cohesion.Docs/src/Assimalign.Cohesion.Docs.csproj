@@ -4,7 +4,7 @@
     <RootNamespace>Assimalign.Cohesion.Docs</RootNamespace>
     <AssemblyName>Assimalign.Cohesion.Docs</AssemblyName>
     <PackageId>Assimalign.Cohesion.Docs</PackageId>
-    <Version>1.0.0-preview.1</Version>
+    <Version>1.0.0-preview.2</Version>
     <Description>Cohesion framework documentation as a build-time Viu micro-frontend.</Description>
     <PackageTags>Assimalign;Cohesion;Viu;MicroFrontends;Documentation;AOT</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -32,8 +32,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="1.0.0-preview.1" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="10.0.0-beta.5" />
+    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="$(FrontendVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="$(CohesionViuVersion)" />
   </ItemGroup>
 
   <ItemGroup>

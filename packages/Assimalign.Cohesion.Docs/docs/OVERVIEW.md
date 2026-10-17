@@ -10,11 +10,22 @@ catalog, HTTP content source, and renderer; a consuming host must not call `AddM
 
 ## Consuming the package
 
-Reference `Assimalign.Cohesion.Docs` version `1.0.0-preview.1`, create the module with the browser
-host's base-addressed `HttpClient`, and add it through `AddMicroFrontends`. Register the shared
-`Assimalign.Frontend.GeneratedViuComponents` on the same `ComponentFactory` used by the
-composition builder. The host document links the shared components utility stylesheet and imports
-the shared frontend JavaScript helper.
+Reference `Assimalign.Cohesion.Docs` version `1.0.0-preview.2`, create the module with the browser
+host's base-addressed `HttpClient`, and add it in the application's services:
+
+```csharp
+builder.Services.AddFrontendComponents();
+builder.Services.AddMicroFrontends(microFrontends => microFrontends
+    .UseShell(ComponentReference.ForName("AppShell"))
+    .Add(new CohesionDocsMicroFrontend(httpClient)));
+
+await using ViuApplication application = builder.Build();
+await application.UseRouter().RunAsync();
+```
+
+`AddMicroFrontends` contributes the module's components and routes and registers the router; the
+host adds any landing route with `builder.Services.AddRouting`. The host document links the shared
+components utility stylesheet and imports the shared frontend JavaScript helper.
 
 Markdown assets are available at
 `/_content/Assimalign.Cohesion.Docs/docs/<repository-relative-path>`. Package consumers receive the
