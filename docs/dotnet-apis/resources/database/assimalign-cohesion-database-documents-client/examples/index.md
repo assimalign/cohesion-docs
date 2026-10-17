@@ -1,14 +1,45 @@
 # Examples
 
-Examples for `Assimalign.Cohesion.Database.Documents.Client` are derived from source documentation and code.
+Use a Documents endpoint with database app already created. The client owns its pool; each rental
+runs one operation at a time. Reference Documents.Client and Connections.Tcp.
 
-> **Status:** Not yet implemented.
+## Query, insert and distinguish MISSING
 
-This project has no implemented usage surface from which to derive a working example. The assembly
-page records the empty project or placeholder contract.
+```csharp
+using System;
+using Assimalign.Cohesion.Connections.Tcp;
+using Assimalign.Cohesion.Database.Client;
+using Assimalign.Cohesion.Database.Documents.Client;
 
-[Assembly overview](../index.md) · [Design](../design.md)
+await using var client = DocumentClient.Create(new() {
+    Settings = DatabaseConnectionSettings.Parse("Database=app;Endpoint=127.0.0.1:5440"),
+    ConnectionFactory = new TcpConnectionFactory()
+});
+await using var connection = await client.ConnectAsync();
+await connection.ExecuteAsync("CREATE COLLECTION IF NOT EXISTS items");
+await connection.ExecuteAsync("INSERT INTO items (KEY, VALUE) VALUES ('a', {'name':'Ada'})");
+var rows = await connection.QueryAsync("SELECT name, absent AS m, NULL AS n FROM items");
+Console.WriteLine(rows[0]["name"]);    // Ada
+Console.WriteLine(rows[0].IsMissing(1)); // True
+Console.WriteLine(rows[0].IsNull(2));    // True
+try {
+    await connection.ExecuteAsync("INSERT INTO items (KEY, VALUE) VALUES ('a', 2)");
+} catch (DocumentClientException failure) {
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHDOC012
+}
+var plan = await connection.QueryAsync("EXPLAIN SELECT name FROM items");
+Console.WriteLine(plan.Columns.Count); // 8; the explained SELECT was not executed
+```
+
+Start with an empty/new collection for the first run. CRUD retains bytes/versions; use PutAsync
+for replacement rather than repeating INSERT. A decoded duplicate-key failure keeps the rental usable.
+
+## Related reference
+
+[DocumentConnection](../document-connection.md) · [DocumentRow](../document-row.md) · [Design](../design.md) · [Assembly](../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/src/Assimalign.Cohesion.Database.Documents.Client.csproj`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentMissingWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentExplainWireTests.cs`.

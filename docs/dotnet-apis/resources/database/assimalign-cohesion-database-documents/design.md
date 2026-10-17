@@ -126,16 +126,16 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation. OQL document `INSERT`, `UPDATE`, and `DELETE` remain unsupported
-everywhere and return the existing `COHDBL001` parse diagnostic. Virtual sources do not provide
+catalog lookup or mutation with COHDOC004. OQL INSERT executes for stored collections;
+UPDATE and DELETE remain COHDBL001. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, CREATE INDEX, and DROP INDEX are executed; DEFINE, ELEMENT, FLATTEN,
-nested queries, document data-mutation statements, and server statements are rejected with
+GROUP BY, HAVING, ORDER BY, INSERT, EXPLAIN, collection and index DDL execute. Nested queries,
+UPDATE/DELETE and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
 
@@ -148,13 +148,13 @@ reflection, schema inference, or runtime code generation is involved. Query JSON
 same 128-level nesting limit as storage validation and index extraction, so every accepted document
 can be queried at its stored depth.
 
-Absent fields, paths through an incompatible shape, and out-of-range array indexes evaluate to null.
-Null and missing share the same group and `IS NULL` behavior. Ordinary comparison with null is
-unknown; WHERE/HAVING retain only true predicates. Equality compares scalar values and structurally
+Absent fields, incompatible traversal, navigation through NULL and out-of-range indices produce
+MISSING. NULL and MISSING have separate grouping and presence tests. WHERE/HAVING use the common
+SQL++ truth conversion, retaining nonzero numbers and nonempty values as TRUE. Equality compares scalar values and structurally
 compares arrays/objects. Range predicates compare only values of the same scalar kind. Arithmetic
 requires decimal operands; invalid numeric input and division by zero fail explicitly.
 
-COUNT(*) counts documents; COUNT(expression) counts nonnull values. SUM and AVG require numeric
+COUNT(*) counts documents; expression aggregates skip both NULL and MISSING. COUNT(expression) counts present nonnull values. SUM and AVG require numeric
 nonnull inputs. SUM, AVG, MIN, and MAX over no nonnull inputs return null; COUNT returns zero.
 Ungrouped aggregate queries yield a single group even for an empty source. Outside aggregate calls,
 grouped projection, HAVING, and ORDER BY expressions must be a group key or an expression built from
@@ -163,7 +163,7 @@ types, and treats qualified and unqualified paths to the same iteration variable
 `Group` values compare structurally.
 
 Results are deterministic. A scan and an index seek both establish ordinal document-ID order before
-filtering and projection. GROUP BY uses the total order null, Boolean, decimal, ordinal string,
+filtering and projection. GROUP BY uses the total order MISSING, NULL, Boolean, decimal, ordinal string,
 array, object. Arrays compare element by element; objects compare property names in ordinal order
 and their values. ORDER BY accepts source expressions or a standalone explicit projection alias;
 alias names take precedence over source fields for that standalone form. It compares its expressions
@@ -238,8 +238,8 @@ Memory-backed databases use the identical storage/transaction implementation ove
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, subquery, external sort, document protocol server/client, replication, security,
-hosting wiring, ApplicationModel integration, or compiled-schema provisioning.
+model, join, subquery or external sort. Document server/client and hosting composition execute;
+replication and model-specific security remain outside this surface.
 
 Co-located tests cover nested/mixed JSON, expected-version writes, explicit commit and rollback,
 both isolation levels, cross-database/session guards, direct-marked schema ownership,
@@ -258,80 +258,23 @@ transaction coordinator flushes logical document commits synchronously in both s
 logical commit batching is not claimed. The WAL flush worker remains the engine-owned implementation
 of the shared storage flush duty.
 
-## `Document` wire family
+## Document wire family and server
 
-`DocumentProtocol.Family` contributes the Documents message vocabulary to the shared
-`ProtocolChannel`. The channel is permanently bound to this family at the endpoint; neither a
-request nor the startup payload can change the model. The shared package owns framing, startup,
-authentication, errors, liveness and termination. Documents owns OQL requests, JSON parameter
-objects and JSON results. This mirrors the shared lexer/parser mechanism and model language profile.
-There is no document server or document client in this increment. The public family and codecs are
-the surface for that work. `DocumentProtocolTests` exercises a complete startup/authentication, OQL
-request, engine execution, nested result and termination exchange over `Connections.InMemory`.
+[DocumentProtocol](document-protocol.md) binds messages 64–72 to one Documents endpoint.
+[DocumentDatabaseServer](document-database-server.md) serves OQL and document/collection commands;
+[DocumentClient](../assimalign-cohesion-database-documents-client/document-client.md) rents authenticated
+connections. Shared protocol 2.1 negotiates startup; Documents retains Failure for structured errors.
 
-The envelope remains protocol **1.0**: unsigned 32-bit big-endian payload length, one message-type
-byte, then exactly that many payload bytes. The length excludes the five-byte header and is at most
-16,777,216. Shared codes 1–4 and 10–13 retain their meaning; 14–63 are reserved. The Documents
-endpoint admits only its family below and the shared codes. Code 64 on another model's endpoint
-belongs to that endpoint's vocabulary. A channel and a client pool cannot switch families. Unknown
-major versions are rejected with shared `UnsupportedVersion`; the negotiated minor is the smaller
-supported/requested minor. No deployed SQL or `Key`-Value frame changes.
+ResultHeader precedes Document objects (whole source values or projections with omitted MISSING),
+then Complete with two Int64 fields: result count and affected count. ResultRow 68 is retired.
+Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
+and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
+payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
+COHDOC001–013, including collection ownership, duplicate keys and LIKE errors.
 
-All lengths and counts below are signed big-endian integers. A string is an `int32` byte length
-followed by that many UTF-8 bytes; a negative length is invalid. No padding is present.
-
-| Byte | Direction | Payload |
-| --- | --- | --- |
-| 64 (`Execute`) | Client → server | Statement string; `int32` parameter-byte length; exactly that many UTF-8 JSON bytes containing one object |
-| 65 (`Document`) | Server → client | Exactly one complete UTF-8 JSON value occupying the entire payload, with no inner length prefix |
-| 66 (`Complete`) | Server → client | Exactly eight bytes: nonnegative `int64` count of `Document` frames emitted for this request |
-
-Payload offsets are zero-based and exclude the shared five-byte frame header. `For` `Execute`, bytes
-0–3 are the signed 32-bit big-endian statement byte length `S`; the `S` UTF-8 statement bytes begin
-at byte 4; bytes `4 + S` –`7 + S` are the signed 32-bit big-endian parameter byte length `P`; and
-the `P` JSON-object bytes begin at byte `8 + S` and consume the rest of the payload. A `Document`
-payload is its complete JSON value from byte 0 through the payload end, without an inner length. A
-`Complete` payload has one exact fixed layout: bytes 0–7 (bits 0–63) are the nonnegative signed
-64-bit result count in big-endian order, and no bytes follow it. The packet view below shows that
-exact fixed `Complete` layout; the variable-length `Execute` and `Document` layouts remain in prose.
-
-```mermaid
-packet-beta
-0-63: "Result count (nonnegative i64, big-endian)"
-```
-
-Parameters are named object members and may themselves contain nested values. An empty parameter set
-is `{}`. A result can be an object, array, string, number, Boolean or null; absent properties stay
-absent. The codec preserves the original bytes, including whitespace and Unicode spelling. JSON
-comments, trailing commas, multiple top-level values, malformed UTF-8 and nesting deeper than 256
-levels are invalid. Extra bytes after the Execute parameter object or Complete count are protocol
-violations. Objects and arrays stay intact; there is no schema header or positional field
-vocabulary.
-
-After the shared Ready message the client sends one Execute and waits for zero or more `Document`
-messages followed by exactly one Complete. A shared Error instead terminates the current exchange;
-no Complete follows it. Statements are serialized on a connection. An empty result has Complete
-count zero. The family does not fragment an individual JSON value: each result must fit one frame;
-only Blob imposes a chunked byte-stream exchange. Session implementations must verify the completion
-count against the number of results received and reject out-of-order messages.
-
-The sequence shows the model-owned result exchange within the shared session lifecycle:
-
-```mermaid
-sequenceDiagram
-    participant Client as Document consumer
-    participant Channel as Shared protocol channel
-    participant Session as Document endpoint
-    Client->>Channel: Startup / authentication
-    Channel->>Session: Shared session handshake
-    Session-->>Client: Ready
-    Client->>Session: Execute (OQL, JSON parameters)
-    loop Each matching document
-        Session-->>Client: Document (nested JSON value)
-    end
-    Session-->>Client: Complete (result count)
-    Client->>Session: Terminate
-```
+The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
+output if its reader stops. Queries and client results remain materialized; explicit wire
+transactions remain unsupported.
 
 ## Phase 29: deferred hosting composition
 
