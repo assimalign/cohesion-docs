@@ -53,6 +53,14 @@ See [DESIGN.md](design.md) for the persistence model and decisions.
 
 [Parent: Database](../index.md)
 
+## Current format boundary
+
+The integration branch uses SQL row-storage format 13 and compiled schema version 7.
+The formats preserve resolved shared type identity/modifiers across contextual multi-word and
+SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
+text. These unreleased formats have no older-format compatibility reader; use this current
+boundary when interpreting historical layout notes above.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/OVERVIEW.md`.

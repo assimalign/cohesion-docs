@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The SQL model's schema authority (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.3). The catalog answers exactly two questions for
+(`cohesion/docs/resources/Database/DESIGN.md`) `3.3). The catalog answers exactly two questions for
 the planner: *what objects exist* (with stable identities) and *what shape are they* — and it must
 answer identically after any crash.
 
@@ -210,6 +210,14 @@ Value/data classes plus the shared codec — no reflection, no serialization lib
 | `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Current format boundary
+
+The integration branch uses SQL row-storage format 13 and compiled schema version 7.
+The formats preserve resolved shared type identity/modifiers across contextual multi-word and
+SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
+text. These unreleased formats have no older-format compatibility reader; use this current
+boundary when interpreting historical layout notes above.
 
 ## Sources
 

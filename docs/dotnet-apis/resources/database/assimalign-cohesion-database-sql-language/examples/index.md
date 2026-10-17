@@ -13,6 +13,13 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## T1 API examples
+
+[SqlLiteralText](../sql-literal-text.md) reads strict typed contents;
+[SqlTypeNames](../sql-type-names.md) resolves multi-word/national-character aliases.
+[SqlDefaultExpression](../sql-default-expression.md) and [SqlExplainExpression](../sql-explain-expression.md)
+show the landed AST forms.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

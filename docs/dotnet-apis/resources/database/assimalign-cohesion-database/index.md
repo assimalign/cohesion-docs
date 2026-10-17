@@ -113,6 +113,8 @@ mutable registry or Use stage.
 
 [Examples](examples/index.md) · [Parent: Database](../index.md)
 
+- **[DatabaseException](database-exception.md)** — Public contract and usage.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/OVERVIEW.md`.

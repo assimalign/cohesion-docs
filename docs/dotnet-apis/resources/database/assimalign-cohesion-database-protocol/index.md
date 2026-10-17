@@ -18,13 +18,24 @@ their message identifiers and payload codecs.
 - **`ProtocolMessageFamily` / `ProtocolChannel`** — immutable endpoint family and validated I/O.
 - **`ProtocolFraming`** — raw stream reader/writer factories for mechanism and diagnostics.
 - **`ProtocolPayload`** — big-endian integers and length-prefixed UTF-8 string primitives.
-- **`ProtocolVersion`** — deployed-compatible version 1.0 negotiation.
+- **`ProtocolVersion`** — current version 2.1 negotiation.
 - **`ProtocolErrorCode` / `ProtocolException`** — shared error taxonomy and framing failures.
 
 This child root has no dependencies on models, the area root, or transports. The area root
 references it. See [design and wire contract](design.md) .
 
 [Parent: Database](../index.md)
+
+- **[ProtocolVersion](protocol-version.md)** — Signature, behavior and validation.
+- **[ProtocolCapability](protocol-capability.md)** — Signature, behavior and validation.
+- **[ProtocolStartupMessage](protocol-startup-message.md)** — Signature, behavior and validation.
+- **[ProtocolReadyMessage](protocol-ready-message.md)** — Signature, behavior and validation.
+- **[ProtocolDiagnostic](protocol-diagnostic.md)** — Signature, behavior and validation.
+- **[ProtocolDiagnosticsMessage](protocol-diagnostics-message.md)** — Signature, behavior and validation.
+- **[ProtocolMessageFamily](protocol-message-family.md)** — Signature, behavior and validation.
+- **[ProtocolChannel](protocol-channel.md)** — Signature, behavior and validation.
+
+- **[ProtocolDiagnosticSeverity](protocol-diagnostic-severity.md)** — Values and usage.
 
 ## Sources
 

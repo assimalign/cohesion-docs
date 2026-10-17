@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The SQL front-end (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.3). The dialect is deliberately fundamental —
+(`cohesion/docs/resources/Database/DESIGN.md`) `3.3). The dialect is deliberately fundamental —
 basic SQL, declared precisely — and structured to be extended without churning what exists
 (open/closed).
 
@@ -80,7 +80,8 @@ feature lands.
 ## Transactions and B7 extension points
 
 `SqlTransactionExpression` identifies `BEGIN`, `COMMIT`, and `ROLLBACK` through
-`SqlQueryCommandType`. The optional `TRANSACTION` token changes no semantics. The executor joins
+`SqlQueryCommandType`. BEGIN/COMMIT/ROLLBACK also accept WORK; START TRANSACTION maps to BEGIN and bare END to COMMIT.
+START/WORK remain contextual. END takes no suffix; unsupported suffixes are SQL0003. The executor joins
 subsequent statements to the session's active scope, and disconnect aborts that transaction. The
 language adds no concurrency machinery. Malformed suffixes produce `SQL0003` instead of silently
 treating `ROLLBACK TO` as a complete rollback.
@@ -108,6 +109,22 @@ unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUn
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
 Foreign keys and checks remain constraint catalog records. Only `ON DELETE CASCADE` and
 `ON DELETE RESTRICT` are accepted; `ON UPDATE` stays outside the profile and reports `COHDBL001`.
+
+## T1 literal, type and request forms
+
+[SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval
+and hexadecimal text, reused by CAST. Typed literals and literal DEFAULTs carry canonical text;
+malformed contents are SQL0008 and year-month intervals COHDBL001. [SqlTypeNames](sql-type-names.md)
+resolves contextual multi-word/national-character and SQL Server lexical aliases without reserving
+new words. TIME WITH TIME ZONE is recognized but rejected with SQL0005.
+
+SqlDefaultExpression is valid only as a whole VALUES item or SET value. SqlInsertExpression exposes
+IsDefaultValues. SqlExplainExpression wraps data statements for planning without execution. The
+profile contains only functions with executors; recognized unsupported calls use COHDBL001.
+Parameter names share SQL/OQL/GQL's ordinal bare-name rules (COHSQLE023 for collisions).
+
+[SQL diagnostics](../../../../database/sql/language/diagnostics.md) lists SQL0008, COHSQLE001–024,
+transaction codes and source SQLSTATE categories; binding spans survive in DatabaseException.
 
 ## AOT posture
 

@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The SQL engine (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.3): parse (`Sql.Language`) → plan (`SqlPlanner`) →
+(`cohesion/docs/resources/Database/DESIGN.md`) `3.3): parse (`Sql.Language`) → plan (`SqlPlanner`) →
 execute (`SqlPlanExecutor`) against shared storage, with the catalog (`Sql.Catalog`) as schema
 authority.
 
@@ -369,7 +369,7 @@ unsupported-clause diagnostics.
 - **SELECT materializes.** Sorting and `DISTINCT` need the full result anyway at
   this stage; `SqlMaterializedResultSet` carries typed columns and evaluated
   rows. Streaming operators arrive with the planner build-out.
-- **Transactions (MVCC session binding, §3.8).** Every statement — explicit
+- **Transactions (MVCC session binding, `3.8).** Every statement — explicit
   transaction or auto-commit — runs under an `ITransactionContext` from the
   database's transaction manager, whose sequences come from the storage's own
   counter (one namespace). The shared `Database.Transactions.TransactionCoordinator` owns
@@ -410,7 +410,7 @@ unsupported-clause diagnostics.
   analyze and scrub records, scrub indexes with the same classification, then
   complete the deferred checkpoint before the existing format upgrades.
 - **`Write` statements execute in two phases; the physical bracket is per
-  statement (§3.8's migration path).** Phase one — no physical bracket: scan
+  statement (`3.8's migration path).** Phase one — no physical bracket: scan
   through the statement snapshot, collect targets, acquire an IntentExclusive
   table lock and an Exclusive lock per target row through the lock manager
   (asynchronous waits, cancellation-honoring; deadlocks detected here,
@@ -600,7 +600,7 @@ duplication/drift cost; **wire-behavior parity is maintained by the protocol con
 E2E suites, not by shared code**. The copies are allowed to be textually near-identical today —
 divergence over time is sanctioned, and no linked-source or shared-internals mechanism may be used
 to fake the independence. The prediction-vs-evidence table from the extraction is preserved in the
-area `DESIGN.md` §3.10. The root contracts
+area `DESIGN.md` `3.10. The root contracts
 (`IDatabaseServer`/`IDatabaseServerContext`/`IDatabaseServerSession`) remain the **only area-wide
 requirement** — every model implements them its own way against `Connections` and the
 `Database.Protocol` child root (via the root's rollup).
@@ -643,8 +643,7 @@ machinery):
 
 - **Version negotiation:** an unknown *major* in `Startup` earns
   `UnsupportedVersion` and a close; the server then speaks
-  `ProtocolVersion.Current` (minors are additive by the protocol's contract, so
-  no per-minor branching yet).
+  the lower peer/server minor, with a validated capability intersection on 2.1.
 - **`Database` binding** resolves on the server's one engine: already-open
   databases first (`TryGetDatabase`), then an open attempt; an exact
   `DatabaseNotFoundException` → wire `DatabaseNotFound` and close. Other open
@@ -874,6 +873,28 @@ enables standalone nested composition and lets the concrete hosting-aware engine
 the same builder from its final configuration and services. The model still sees no DI or
 configuration contract.
 
+## T1 execution contract
+
+LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
+rows and excessive offsets produce none. System relations join stored/system sources through the
+same two-relation binder. The first system binding captures one catalog image shared by all child
+queries and INSERT sources; snapshot transactions supply their BEGIN image. Aliases hide base names
+in SELECT/UPDATE/DELETE and invalid qualifiers use located COHSQLE015.
+
+DEFAULT items, DEFAULT VALUES and SET c = DEFAULT use the omitted-column default path. NOT NULL
+failures are COHSQLE024 (23502). Typed temporal/day-time interval and X/N literals use SqlLiteralText;
+shared binary values detach when supplied to rows. All defined 19-type CAST pairs execute, with
+unsupported pairs rejected during planning as COHSQLE011 (42846). Canonical CAST and concatenation
+text follows [the conversion reference](../../../../database/sql/language/expressions/cast.md).
+
+EXPLAIN performs the wrapped statement's binding, parameter and provisioning admission and returns
+[DatabasePlanDescription](../assimalign-cohesion-database-execution/database-plan-description.md)
+without data execution. Every plan record has a guarded description mapping.
+DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
+4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
+All SQL000x, COHSQLE001–024 and transaction meanings and SQLSTATE categories are in
+[SQL diagnostics](../../../../database/sql/language/diagnostics.md).
+
 ## Error model
 
 `DatabaseException` (area root) for everything user-facing: plan-time validation and execution
@@ -888,7 +909,7 @@ type. `SqlCatalogException` (a `DatabaseException`) surfaces catalog violations 
 ## The MVCC integration (scoped under #862)
 
 The engine is the first adopter of the area's transaction-integration design
-(`resources/Database/DESIGN.md` §3.8), which closes the isolation split-brain in four independently
+(`resources/Database/DESIGN.md` `3.8), which closes the isolation split-brain in four independently
 shippable steps:
 
 1. **Binding — delivered (#907):** `SqlDatabaseSession` begins an
@@ -965,7 +986,7 @@ This package owns the `Sql` request and tabular result codecs; the shared protoc
 mechanism. Wire format
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`) specifies
 every message and scalar component for independent clients. The server binds `SqlProtocol.Family` once
-on accept, retains wire version 1.0 and the existing bytes, and negotiates incompatible majors
+on accept, negotiates shared protocol 2.1 while preserving baseline model bytes, and negotiates incompatible majors
 before authentication. Result materialization belongs to `Database.Sql.Client`. The TCP `Listen`(Uri)
 extension lives in the optional `Database.Sql.Tcp` composition package; this engine references only
 generic Connections.

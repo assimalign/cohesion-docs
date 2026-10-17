@@ -38,7 +38,7 @@ values. `SqlConnection` projects this result into `SqlResultSet`.
 
 `SqlProtocolConnectionExtensions.ExecuteAsync` provides the same operation on a rented
 `IDatabaseConnection` bound to SQL's exact family instance. `DatabaseClientResult` and
-`DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and protocol 1.0 wire
+`DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and baseline model wire
 behavior are unchanged.
 
 The model reference supplies codecs without parsing SQL or inspecting plans. Its transitive assembly
@@ -117,6 +117,14 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 transport contract
+
+SqlResultSet exposes IReadOnlyList<ProtocolDiagnostic> Diagnostics on success. SqlClientException
+preserves the shared failure carrier. Protocol 2.1 sends Warning/Error entries before completion
+or Error; 2.0 retains baseline exchanges without the frame. Overflow preserves a leading prefix
+plus COHDBP001 with exact omission counts, the original outcome and a usable session.
+All SQL codes and SQLSTATE categories are in [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
 ## Sources
 

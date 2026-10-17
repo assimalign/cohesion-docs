@@ -26,7 +26,7 @@ references this package and owns `DatabaseExecutionSession<TRequest>` and
 
 ```csharp
 // session is a SqlDatabaseSession; only SqlQueryRequest or SQL text can be executed here.
-DatabaseResult result = await session.ExecuteAsync(SqlQueryRequest.FromSql("SELECT 1"));
+DatabaseResult result = await session.ExecuteAsync(SqlQueryRequest.FromSql("SELECT id FROM t"));
 if (result is DatabaseResultSet rows)
 {
     await using var resultLifetime = rows;
@@ -44,6 +44,12 @@ offers lifecycle, state and transactions. Use the concrete model session to exec
 See [Design](design.md) for the decisions and deferred result-contract work.
 
 [Examples](examples/index.md) · [Parent: Database](../index.md)
+
+- **[DatabasePlanDescription](database-plan-description.md)** — Public contract and usage.
+
+- **[DatabasePlanNode](database-plan-node.md)** — Public contract and usage.
+
+- **[DatabaseRow](database-row.md)** — Public contract and usage.
 
 ## Sources
 

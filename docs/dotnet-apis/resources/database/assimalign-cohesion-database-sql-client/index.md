@@ -67,6 +67,10 @@ See `docs/DESIGN.md` for the design decisions behind the surface.
 
 [Parent: Database](../index.md)
 
+- **[SqlResultSet](sql-result-set.md)** — Public signature and diagnostics.
+
+- **[SqlClientException](sql-client-exception.md)** — Values and usage.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/OVERVIEW.md`.

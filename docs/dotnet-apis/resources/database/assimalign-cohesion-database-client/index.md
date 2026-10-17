@@ -82,6 +82,10 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 
 [Parent: Database](../index.md)
 
+- **[DatabaseClientException](database-client-exception.md)** — Public signature and diagnostics.
+
+- **[DatabaseConnection](database-connection.md)** — Public signature and diagnostics.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/docs/OVERVIEW.md`.

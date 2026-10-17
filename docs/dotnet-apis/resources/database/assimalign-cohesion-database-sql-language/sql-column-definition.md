@@ -1,0 +1,43 @@
+# SqlColumnDefinition
+
+Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
+
+## Signature
+
+```csharp
+public sealed class SqlColumnDefinition
+{
+    public string ColumnName { get; }
+    public string DataType { get; }
+    public DatabaseTypeInfo? ResolvedType { get; }
+    public bool IsNullable { get; }
+    public bool IsPrimaryKey { get; }
+    public SqlExpression? DefaultValue { get; }
+    public IReadOnlyList<SqlConstraintDefinition> Constraints { get; }
+    public string? CollationName { get; }
+}
+```
+
+## Behavior and exceptions
+
+ResolvedType holds the built-in DatabaseTypeInfo resolved during parsing, including contextual multi-word type names and modifiers. It is null for engine-resolved domains or invalid types, so inspect diagnostics before use. DataType retains the parsed declaration; DefaultValue may contain typed literal nodes. No public constructor is exposed. Invalid modifiers use SQL0005; an unresolved engine type uses COHSQLE010 (42704).
+
+Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
+SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.
+
+## Example
+
+```csharp
+var statement = (SqlQueryStatement)new SqlQueryParser().Parse("CREATE TABLE t (v DOUBLE PRECISION)");
+var table = (SqlCreateTableExpression)statement.SqlExpression;
+Console.WriteLine(table.Columns[0].ResolvedType!.Type); // Float64
+```
+
+## Related reference
+
+[Assembly](index.md) · [SQL language](../../../../database/sql/language/index.md) · [SqlLiteralText](sql-literal-text.md)
+
+## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlColumnDefinition.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlTypeAliasTests.cs`.

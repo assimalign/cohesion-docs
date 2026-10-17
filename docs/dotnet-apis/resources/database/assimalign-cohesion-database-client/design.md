@@ -151,7 +151,7 @@ Connection strings carry database, principal, endpoint, and pool size. Drivers a
 `IDuplexConnectionFactory` options, composed statically. Typed endpoints also support in-memory
 transports. The endpoint selects the model; startup carries no model discriminator.
 
-SQL and `Key`-Value wire bytes stay at version 1.0. Moving APIs is a managed API migration: direct SQL
+SQL and `Key`-Value model payload bytes retain their baseline layout under shared protocol 2.1. Moving APIs is a managed API migration: direct SQL
 callers import `Database.Sql.Client` and bind `SqlProtocol.Family`, or use the existing typed
 client. `DatabaseClientResult` and `DatabaseClientColumn` now live in the SQL client's namespace.
 `New` model clients implement the generic exchange interface using their model's exact family.
@@ -207,6 +207,14 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 transport contract
+
+Startup advertises the composed family's capabilities. Ready applies a validated version and
+intersection once; DatabaseConnection exposes ServerVersion and Capabilities. SQL and GQL adopt
+Diagnostics; Documents retains model Failure and Blob/Key-Value agree no diagnostics. 2.0 retains
+empty Ready; different majors fail. Shared DatabaseClientException maps negotiated wire entries to
+the non-null DatabaseException carrier. Model payload readers reject malformed UTF-8.
 
 ## Sources
 

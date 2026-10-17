@@ -54,6 +54,17 @@ See [DESIGN.md](design.md) for the parser's shape and the decisions behind it.
 
 [Parent: Database](../index.md)
 
+- **[SqlLiteralText](sql-literal-text.md)** — Public contract and usage.
+
+- **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
+- **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
+- **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
+- **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
+- **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
+- **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
+
+- **[SqlLiteralType](sql-literal-type.md)** — Values and usage.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.
