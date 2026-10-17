@@ -6,12 +6,14 @@ OQL expressions combine document paths, scalar values, parameters, operators, an
 
 - **Document access** — [Paths and arrays](paths-and-arrays.md) addresses nested properties and elements.
 - **Evaluation** — [Operators](operators.md) defines arithmetic, comparisons, null tests, and precedence.
+- **Presence** — [MISSING and presence tests](missing.md) separates absent fields from NULL.
+- **Conditional values** — [CASE](case.md) chooses a branch.
+- **JSON objects** — [Object constructors](object-constructors.md) builds keyed values.
 - **Constant values** — [Literals](literals.md) covers strings, decimal numbers, Boolean values, and null.
 - **Bound values** — [Parameters](parameters.md) explains named and numbered markers.
 
 Parentheses group expressions. Aggregate calls are documented under
-[Aggregate functions](../functions/aggregate-functions.md). Nested queries and collection
-constructors are reserved but unsupported. Recursive expression parsing is capped at 128 levels.
+[Aggregate functions](../functions/aggregate-functions.md). Nested queries and array constructors remain unsupported. Recursive expression parsing is capped at 128 levels.
 
 ## See also
 

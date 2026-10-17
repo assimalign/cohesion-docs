@@ -22,8 +22,8 @@ GROUP BY expression [ , ...n ]
 
 ## Remarks
 
-Null and missing values share a group. Group values compare structurally. Group ordering uses the
-total order null, Boolean, decimal, ordinal string, array, object. Arrays compare element by
+MISSING and NULL form separate groups. Group values compare structurally. Ascending ordering uses
+MISSING, NULL, FALSE, TRUE, number, ordinal string, array, object. Arrays compare element by
 element; objects compare ordinal property names and their values.
 
 Outside aggregate calls, grouped projection, `HAVING`, and `ORDER BY` must use group keys or

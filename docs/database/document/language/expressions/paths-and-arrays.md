@@ -22,9 +22,10 @@ have no separator beyond their own dot or brackets.
 
 ## Remarks
 
-An absent field, incompatible intermediate shape, or out-of-range position evaluates to null.
+An absent field, incompatible intermediate shape, navigation through NULL, or out-of-range
+position evaluates to [MISSING](missing.md), distinct from reading an explicit NULL field.
 Bracket strings access properties and integer subscripts access array elements. Neither form
-expands an array into rows. `FLATTEN` is recognized but unsupported.
+expands an array into rows. FLATTEN is usable as a field name; a FLATTEN call remains unsupported.
 
 Index definitions use this path grammar relative to each document, without an iteration alias.
 The parser retains each property or index as an `OqlPathSegment` in an `OqlPathExpression`.

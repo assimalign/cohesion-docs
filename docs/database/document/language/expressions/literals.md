@@ -5,7 +5,7 @@ OQL literal expressions represent strings, decimal numbers, Boolean values, and 
 ## Syntax
 
 ```syntaxsql
-<literal> ::= { string_literal | decimal_literal | TRUE | FALSE | NULL | NIL }
+<literal> ::= { string_literal | decimal_literal | TRUE | FALSE | NULL | NIL | MISSING }
 ```
 
 ## Literal forms
@@ -16,15 +16,17 @@ OQL literal expressions represent strings, decimal numbers, Boolean values, and 
 | Decimal or scientific notation | `decimal`, parsed with invariant culture |
 | `TRUE`, `FALSE` | Boolean value |
 | `NULL`, `NIL` | Null value |
+| `MISSING` | Absent value, distinct from NULL |
 
 Keywords are case-insensitive. Double quotes delimit identifiers, not string values. Unary minus
 and plus are operators applied to numeric expressions.
 
 ## Remarks
 
-Numbers must fit the bounded `decimal` range even if JSON can represent larger numbers. Invalid or
-out-of-range query numbers produce `OQL0004`; the parser does not replace them with infinity or
-text. `UNDEFINED` and collection constructors are reserved but unsupported.
+Numbers retain their digits as JsonElement tokens during parsing. Malformed syntax is `OQL0004`;
+valid numbers that cannot fit decimal exactly, including underflow and lost fractional digits,
+report `COHDOC007` (22003) during planning/evaluation. UNDEFINED remains reserved and unsupported;
+[object constructors](object-constructors.md) execute.
 
 ## Examples
 

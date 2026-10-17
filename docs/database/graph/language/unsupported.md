@@ -16,12 +16,10 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Intermediate projection | Recognized, not supported (`COHDBL001`) | `WITH` |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
 | Set operations and deduplication | Recognized, not supported (`COHDBL001`) | `UNION`, `DISTINCT` |
-| Other predicates | Recognized, not supported (`COHDBL001`) | `OR`, `NOT`, `XOR`, `IN`, `IS NULL` |
 | Functions and aggregation | Recognized, not supported (`COHDBL001`) | `count(a)`, `abs(a.age)` |
 | Wildcard projection | Recognized, not supported (`COHDBL001`) | `RETURN *` |
 | Quantified paths | Recognized, not supported (`COHDBL001`) | `[r*1..3]`, `->{1,3}` |
-| Parameters | Recognized, not supported (`COHDBL001`) | `$age` |
-| Collection literals | Recognized, not supported (`COHDBL001`) | `[1, 2]`, nested property maps |
+| Collection values outside IN | Recognized, not supported (`COHDBL001`) | List/map parameters and nested maps |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |
 | Procedure calls and unwinding | Recognized, not supported (`COHDBL001`) | `CALL`, `UNWIND` |
 | Server, database, graph, or schema selection | Recognized, not supported (`COHDBL001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
@@ -41,10 +39,11 @@ inventory, not a list of implemented features. Malformed or invalid composition 
 GQL cannot select another graph or database. Database lifecycle uses the engine API, explicit
 transactions use the session API, and label/type/index management uses the session-bound schema API.
 
-The current `GraphDatabaseServer` accepts only catalog `SHOW` statements. Other graph queries
-receive `ExecutionFailure` with `The graph wire server supports catalog SHOW statements only.`
-Path codecs are present, but sending `ExecutePaths` to this server produces `ProtocolViolation`
-and closes the session. A general graph query server/client remains outside this delivery.
+GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path queries.
+ExecutePaths accepts one bound node, relationship or path from a read-only MATCH; scalar or mixed
+projections use Execute. GraphClient provides pooled connections, materialized scalar results and
+single-use path streams. RETURN arithmetic/parameters, function calls, LIKE, BETWEEN, EXISTS and
+quantified predicates remain excluded; [WHERE expressions](expressions/operators.md) execute.
 
 Graph-specific security policies, replication, compiled-schema provisioning, configurable graph
 collation, and large property chunking are deferred or out of scope in the engine design.
@@ -65,4 +64,3 @@ Serializable isolation is rejected.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlCapabilityDiagnosticTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlCatalogParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
-

@@ -29,6 +29,8 @@ ordering follows the same group-key restrictions as grouped projections. The exe
 the established document or group order for equal ordering values, yielding deterministic results
 across scans and index seeks. Strings use case-sensitive ordinal order.
 
+[MISSING](../expressions/missing.md) sorts before NULL ascending; descending reverses this order.
+
 ## Examples
 
 The parser conformance corpus covers independent directions:

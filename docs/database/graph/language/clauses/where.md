@@ -1,69 +1,41 @@
 # WHERE
 
-WHERE filters matched graph bindings with scalar comparisons joined by AND.
-
-> **Status:** Implemented.
+Filters MATCH bindings with a scalar Boolean expression.
 
 ## Syntax
 
 ```syntaxsql
-WHERE comparison [ AND comparison ...n ]
-
-<comparison> ::=
-    { operand comparison_operator operand | "(" predicate ")" }
-
-<predicate> ::= comparison [ AND comparison ...n ]
-<operand> ::= { variable "." property_name | scalar_literal }
-<comparison_operator> ::= { = | <> | != | < | <= | > | >= }
+MATCH pattern [ WHERE expression ] RETURN projection
 ```
-
-## Supported clauses
-
-| Construct | Support |
-|---|---|
-| Scalar comparisons and `AND` | Supported |
-| Nested predicate parentheses | Supported |
-| `OR`, `NOT`, `IS NULL`, function calls | Recognized, not supported (`COHDBL001`) |
-| Parameter references | Recognized, not supported (`COHDBL001`) |
-
-## Arguments
-
-- **`variable.property_name`** — a single scalar property on a bound graph variable.
-- **`scalar_literal`** — null, Boolean, signed integer, finite double, or string.
-- **`comparison_operator`** — equality, inequality, or ordering comparison.
 
 ## Remarks
 
-`WHERE` follows `MATCH`. Both property-to-literal and property-to-property comparisons are accepted.
-A bare property is not a Boolean predicate; each scalar comparison requires an operator and two
-operands. Predicates are limited to 128 nesting levels and 128 scalar comparisons.
+Expressions include AND, OR/XOR at one precedence level, NOT, arithmetic, concatenation,
+comparisons, null/truth tests, bracketed IN and string predicates. A bare Boolean property is
+accepted. [Operators](../expressions/operators.md) defines precedence, NULL propagation and value
+errors. Only TRUE retains a binding; evaluated non-Boolean conditions raise `COHDBG013`.
 
-String comparisons use case-sensitive ordinal comparison. The execution corpus verifies that
-`a.absent = NULL` returns no rows in its fixture; do not substitute it for an unsupported
-`IS NULL` predicate.
+Operands can be literals, one-level properties or [parameters](../expressions/parameters.md).
+Index anchors come only from mandatory AND equalities, never from an optional OR/XOR arm or NOT.
+There is no fixed comparison-count limit; recursive depth follows available stack, with GQL0009
+in the parser or COHDBG008 in engine execution.
 
 ## Examples
 
-The parser corpus includes:
+For nodes Alice age 42 and Bob age 17:
 
 ```sql
-MATCH (a) WHERE (a.active = TRUE AND (a.score < 10.5)) RETURN a
+MATCH (a:Person) WHERE a.age / 5 = 8 AND a.absent IS NULL RETURN a.name;
+MATCH (a:Person) WHERE a.name CONTAINS 'lic' OR a.age = 17 RETURN a.name;
 ```
 
-```sql
-MATCH (a) WHERE a.left = a.right RETURN a
-```
+The first returns Alice. The second returns both names; no ordering is promised.
 
 ## See also
 
-- **[Clauses](index.md)** — clause navigation.
-- **[Operators](../expressions/operators.md)** — operator behavior.
-- **[MATCH](../statements/match.md)** — binding patterns.
+[Clauses](index.md) · [Operators](../expressions/operators.md) · [MATCH](../statements/match.md)
 
 ## Sources
 
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs`.
-
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlWhereExpressionTests.cs`.
+- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Expressions.cs`.

@@ -38,7 +38,9 @@ FROM collection_name [ [ AS ] iteration_variable ]
 
 `SELECT *` returns a `document` column containing the complete JSON value. Objects and arrays remain
 `JsonElement` values; scalars become null, Boolean, decimal, or string. Mixed-type result columns use
-`DatabaseType.Null` to indicate an unknown type. Duplicate output names must be resolved with aliases.
+`DatabaseType.Null` to indicate an unknown type. Duplicate output names report `COHDOC003`; resolve them with aliases. Projected MISSING members
+are omitted from JSON objects; explicit NULL members remain. In-process rows distinguish the two
+with SupportsMissing/IsMissing; the wire sends one JSON Document per projected row.
 
 Scans and index seeks establish ordinal document-identifier order before filtering. `ORDER BY`
 preserves established order for ties. Results are materialized and own their JSON values after
@@ -55,6 +57,9 @@ SELECT * FROM people
 ```sql
 SELECT country, COUNT(*) AS total FROM people GROUP BY country HAVING COUNT(*) > 1 ORDER BY total DESC
 ```
+
+[EXPLAIN](explain.md) describes a SELECT without executing it; [INSERT SELECT](insert.md) uses
+its projected names to select document keys and values.
 
 ## See also
 

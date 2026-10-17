@@ -30,6 +30,9 @@ MAX ( expression )
 
 ## Remarks
 
+All expression aggregates skip both NULL and [MISSING](../expressions/missing.md). COUNT(*)
+counts documents independently of their fields.
+
 With no nonnull inputs, `SUM`, `AVG`, `MIN`, and `MAX` return null, while `COUNT` returns zero.
 An ungrouped aggregate query yields one group even for an empty source. `SUM` and `AVG` require
 numeric nonnull values.

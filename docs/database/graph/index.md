@@ -2,7 +2,7 @@
 
 The Graph engine stores property-graph nodes and relationships in database-bound sessions.
 
-> **Status:** Partial. Embedded queries and catalog wire queries are implemented; general graph wire queries are not.
+> **Status:** Partial. Embedded and wire scalar queries, mutations, catalog queries, EXPLAIN and path streams execute.
 
 `Assimalign.Cohesion.Database.Graph` implements an embedded property-graph engine with durable
 catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph Query Language
@@ -43,10 +43,12 @@ with `DatabaseObjectLockedException`.
 
 ## Delivery boundaries
 
-The embedded engine executes the documented GQL subset. `GraphDatabaseServer` exposes only the
-catalog `SHOW` statements over the wire. Path codecs exist, but the current server rejects
-`ExecutePaths`. General graph wire queries, a Graph wire client, graph security-policy integration,
-replication, large property chunking, and compiled-schema provisioning are outside this delivery.
+The embedded engine and GraphDatabaseServer execute the documented GQL subset. GraphClient rents
+database-bound connections for materialized scalar rows and single-use path streams. Parameters
+bind runtime scalars in maps and WHERE. Protocol 2.1 negotiates diagnostics; path completion exposes
+warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
+Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
+large property chunking and compiled-schema provisioning remain outside this delivery.
 
 ## See also
 
@@ -62,4 +64,3 @@ replication, large property chunking, and compiled-schema provisioning are outsi
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Catalog/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Assimalign.Cohesion.Database.Graph.Client.csproj`.
-

@@ -14,6 +14,8 @@ Unknown functions and reserved unimplemented calls such as `ABS` produce `COHDBL
 
 [Language (OQL)](../index.md), [GROUP BY](../clauses/group-by.md), and [Unsupported](../unsupported.md).
 
+[META](meta.md) exposes stored-document keys and versions, including in INSERT SELECT.
+
 ## Sources
 
 - **Function contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.

@@ -4,13 +4,13 @@ GQL expressions provide scalar literals, property references, comparisons, and c
 
 > **Status:** Implemented.
 
-- **[Operators](operators.md)** — comparison operators and `AND`.
+- **[Operators](operators.md)** — Boolean, arithmetic, null/truth, membership and string predicates.
+- **[Parameters](parameters.md)** — runtime scalar bindings in maps and WHERE.
 - **[Literals](literals.md)** — null, Boolean, integer, floating-point, and string values.
 
-The scalar operand grammar permits a literal or exactly one `variable.property` reference.
-Projection additionally permits whole bound variables. The builtin-function table is empty.
-Parameters, function calls, collection literals, and nested property access are outside the
-executable expression surface.
+WHERE accepts literals, parameters and one-level properties in scalar expressions. RETURN still
+projects bound variables/properties only. Lists are restricted to IN's right operand. The builtin
+function table is empty; function calls and nested property access remain unsupported.
 
 ## See also
 
@@ -24,4 +24,3 @@ executable expression surface.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Expressions.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlLanguageProfile.cs`.
-

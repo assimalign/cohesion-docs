@@ -17,6 +17,8 @@ Graph statements match data, mutate bound graphs, or inspect the session databas
 A read or deletion binds variables through `MATCH`. Insertion may stand alone. `SHOW` is a separate
 statement and cannot be combined with graph matching, projection, or mutation.
 
+- **[EXPLAIN](explain.md)** — Return a chosen plan without executing it.
+
 ## See also
 
 - **[Language (GQL)](../index.md)** — reference hub.
@@ -25,4 +27,3 @@ statement and cannot be combined with graph matching, projection, or mutation.
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
-

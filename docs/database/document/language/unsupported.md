@@ -1,50 +1,41 @@
 # Unsupported language features
 
-OQL reserves vocabulary beyond its executable subset and rejects those constructs with explicit diagnostics.
-
-> **Status:** Partial. Recognition of a keyword or function does not imply execution support.
+OQL rejects recognized forms beyond its executable SQL++ subset with coded diagnostics.
 
 ## Language matrix
 
-| Construct | Support | Boundary |
-|---|---|---|
-| `DEFINE` | Recognized, not supported (`COHDBL001`) | Named query definitions |
-| `ELEMENT` | Recognized, not supported (`COHDBL001`) | Singleton extraction |
-| `FLATTEN` | Recognized, not supported (`COHDBL001`) | Collection expansion |
-| Nested `SELECT` | Recognized, not supported (`COHDBL001`) | Reported as `SUBQUERY` |
-| `DISTINCT`, `ALL` | Recognized, not supported (`COHDBL001`) | Projection and aggregate modifiers |
-| `IN`, `EXISTS`, `LIKE`, `BETWEEN` | Recognized, not supported (`COHDBL001`) | Additional predicates |
-| `FOR`, `SOME`, `ANY` | Recognized, not supported (`COHDBL001`) | Quantifiers |
-| `STRUCT`, `LIST`, `SET`, `BAG`, `ARRAY`, `COLLECTION` | Recognized, not supported (`COHDBL001`) | Collection constructors |
-| `FIRST`, `LAST`, `UNIQUE`, `LISTTOSET`, `TYPEOF`, `UNDEFINED` | Recognized, not supported (`COHDBL001`) | Reserved operations and values |
-| `ABS`, unknown function calls | Recognized, not supported (`COHDBL001`) | Only the five documented aggregates execute |
-| `INSERT`, `UPDATE`, `DELETE` | Recognized, not supported (`COHDBL001`) | Use collection API mutations |
-| `CREATE DATABASE`, `DROP DATABASE`, `USE`, `ALTER` | Recognized, not supported (`COHDBL001`) | No server or database administration language |
-| `BEGIN`, `COMMIT`, `ROLLBACK` | Recognized, not supported (`COHDBL001`) | Transactions use engine/session APIs |
-| `WITH`, `JOIN`, `LIMIT`, `OFFSET`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | No corresponding query clauses |
-| General database-qualified source | Not in the language | `other.people` produces `OQL0002` |
-| Multiple statements per parse | Not in the language | Produces `OQL0002` |
-| Negative, fractional, or oversized array subscript | Not in the language | Produces `OQL0002` |
-| `?` parameter marker | Not in the language | Produces `OQL0002` |
+| Construct | Diagnostic | Boundary |
+| --- | --- | --- |
+| Nested SELECT, JOIN, WITH, set operations | COHDBL001 | One collection source; INSERT SELECT is supported |
+| DISTINCT/ALL, LIMIT/OFFSET | COHDBL001 | No deduplication or pagination clauses |
+| IN array form, EXISTS and quantified predicates | COHDBL001 | Use a nonempty parenthesized IN value list |
+| UPDATE/DELETE/UPSERT/RETURNING | COHDBL001 | INSERT is supported; use collection API for replacement/deletion |
+| IS KNOWN/IS UNKNOWN, UNDEFINED | COHDBL001 | MISSING is the absent value; NIL means NULL |
+| FIRST/LAST/UNIQUE, ARRAY/SET constructors | COHDBL001 | Reserved SQL++ forms; object constructors execute |
+| Unknown scalar calls, including ABS | COHDBL001 | Executable function profile contains aggregates and META |
+| CREATE/DROP DATABASE, USE, ALTER | COHDBL001 | Database lifecycle belongs to the API |
+| BEGIN/COMMIT/ROLLBACK | COHDBL001 | Explicit transactions use the session API; no wire transaction command |
+| General database-qualified source | OQL0002 | Sources stay in the session database |
+| Multiple statements, invalid subscripts | OQL0002 | One statement; array indices are nonnegative Int32 |
+| Unsupported parameter marker ? or :name | OQL0002 | Shared supported-form message |
 
-Non-OQL command names are checked in command or clause positions; they are not universally reserved
-document property names. Quoting and properties after dots preserve ordinary field access.
+DEFINE, ELEMENT, FLATTEN, STRUCT, LIST, BAG, LISTTOSET and TYPEOF are ordinary unquoted field
+names. DEFINE is rejected statement-initially; the retired operations remain rejected in call
+position. Quoted names and properties after dots retain field access, including d.end and d.case.
 
 ## Engine limits
 
-Queries materialize input and results, and whole JSON values remain in managed memory. There is no
-external sort or query-cost statistics model. Configurable document collations are deferred;
-strings remain ordinal and case-sensitive. Document protocol server/client, replication, security,
-hosting wiring, ApplicationModel integration, and compiled-schema provisioning are outside the
-current engine implementation.
+Queries materialize input and results in managed memory. Bounded server response buffering does
+not bound query execution memory or pooled-client result materialization. There is no external
+sort or cost-statistics model. Strings use ordinal case-sensitive comparison. Documents protocol
+server/client and hosting composition execute; replication and model-specific security remain
+outside this reference's implemented surface.
 
 ## See also
 
-[Language (OQL)](index.md), [Diagnostics](diagnostics.md), and [Document](../index.md).
+[Language (OQL)](index.md) · [Diagnostics](diagnostics.md) · [Document](../index.md)
 
 ## Sources
 
-- **Reserved vocabulary** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlLanguageProfile.cs`.
-- **Capability validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.cs`.
-- **Rejected forms** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.
-- **Engine limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
+- **Reservations and capabilities** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
+- **Vocabulary** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/Internal/OqlUnsupportedVocabulary.cs`.

@@ -2,7 +2,7 @@
 
 The Documents engine stores versioned JSON documents in named collections within a logical database.
 
-> **Status:** Partial. Local document operations, OQL queries, index definitions, and durable storage are implemented; the document client and protocol server are not implemented.
+> **Status:** Partial. Local and wire document operations, OQL SQL++ queries, collection/index DDL and durable storage execute.
 
 ## Collections and sessions
 
@@ -13,16 +13,17 @@ that session's transaction and remain bound to its lifetime.
 
 Documents contain UTF-8 encoded JavaScript Object Notation (JSON). Object, array, and scalar roots
 are accepted. Collections may contain documents with different shapes; the engine does not infer
-a fixed schema. Missing fields and incompatible path traversal evaluate to null in queries.
+a fixed schema. Absent fields and incompatible traversal evaluate to [MISSING](language/expressions/missing.md),
+distinct from NULL, under SQL++ semantics.
 
 ## Reading and writing
 
 - **Query and index language** — [Object Query Language (OQL)](language/index.md) provides `SELECT`,
-  `CREATE INDEX`, and `DROP INDEX` through the session's parse, plan, and execute pipeline.
+  `INSERT`, `EXPLAIN`, collection DDL, `CREATE INDEX` and `DROP INDEX` through the session's parse, plan, and execute pipeline.
 - **Document replacement** — `IDocumentCollection.PutAsync` replaces the complete JSON value by
   identifier and returns a new version. An optional expected version must match a visible document.
 - **Document deletion** — `IDocumentCollection.DeleteAsync` removes the identified document using
-  the supplied session. OQL does not provide document `INSERT`, `UPDATE`, or `DELETE` statements.
+  the supplied session. OQL provides insert-only [INSERT](language/statements/insert.md); UPDATE and DELETE use the API.
 - **Collection changes** — direct database operations use automatic transactions; operations through
   `session.Database` use its active transaction.
 
@@ -46,6 +47,22 @@ Document content is limited to `Int32.MaxValue` bytes and JSON nesting to 128 le
 String predicates, ordering, and grouping use ordinal, case-sensitive comparison. SQL collations
 do not change document behavior. Schema-owned collections reject collection and index definition
 changes, while their document contents remain mutable.
+
+## Server and pooled client
+
+DocumentDatabaseServer serves OQL and document/collection operations through messages 64–72.
+Protocol 2.0 changed projected rows to JSON Document frames; current shared protocol 2.1 negotiates
+startup capabilities. Documents uses its Failure frame for structured diagnostics. Model payload
+readers reject malformed UTF-8 rather than replacing characters.
+
+The server streams responses through a bounded buffer; engine queries and client results remain
+materialized. DocumentClient rents authenticated, database-bound connections and exposes QueryAsync,
+ExecuteAsync, Get/Put/Delete and collection operations. One operation runs at a time. Completed
+statement failures preserve the connection; malformed protocol traffic or unfinished cancellation
+discards it. Explicit wire transactions are unsupported.
+
+See [DocumentClient](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client.md)
+and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-protocol.md).
 
 ## Reference
 

@@ -1,58 +1,81 @@
-# Operators
+# Operators and predicates
 
-OQL provides scalar arithmetic, comparisons, Boolean operators, and null tests with explicit precedence.
+OQL evaluates arithmetic, comparisons, Boolean operators and predicates under SQL++ NULL and MISSING rules.
 
 ## Syntax
 
 ```syntaxsql
-<binary_expression> ::= expression binary_operator expression
-<binary_operator> ::= { OR | AND | = | != | <> | < | <= | > | >= | + | - | * | / | % }
-<unary_expression> ::= { NOT | + | - } expression
-<null_test> ::= expression IS [ NOT ] NULL
+expression { OR | AND | = | != | <> | < | <= | > | >= | + | - | * | / | % } expression
+{ NOT | + | - } expression
+expression IS [ NOT ] { NULL | MISSING | VALUED }
+expression [ NOT ] IN ( expression [ , ...n ] )
+expression [ NOT ] BETWEEN lower AND upper
+expression [ NOT ] LIKE pattern [ ESCAPE escape_expression ]
 ```
 
 ## Precedence
 
-| Order, lowest first | Operators |
-|---|---|
-| 1 | `OR` |
-| 2 | `AND` |
-| 3 | Comparisons, `IS NULL`, `IS NOT NULL` |
-| 4 | Binary `+`, `-` |
-| 5 | `*`, `/`, `%` |
-| 6 | Unary `+`, `-` |
+Lowest first: OR, AND, comparisons/presence tests/IN/BETWEEN/LIKE, addition/subtraction,
+multiplication/division/remainder, unary signs. NOT wraps comparisons: NOT age < 18 means
+NOT (age < 18). Parentheses override grouping. CASE is a primary expression.
 
-`NOT` wraps comparison-level expressions: `NOT age < 18` means `NOT (age < 18)`.
-Parentheses override grouping. The expression tree normalizes `<>` to `!=`.
+## Comparison, arithmetic and logic
 
-## Remarks
+Arithmetic requires decimal operands. Division/remainder by zero is `COHDOC006` (22012),
+numeric range failure is `COHDOC007` (22003), and invalid operand types are `COHDOC008`.
+Ordinary comparisons and arithmetic propagate MISSING before NULL. String comparison is ordinal
+and case-sensitive; range comparison requires matching scalar kinds. SQL COLLATE does not apply.
 
-Arithmetic requires decimal operands. Invalid numeric input and division by zero fail explicitly.
-Equality compares scalars and structurally compares arrays and objects. Range predicates compare
-only matching scalar kinds. Ordinary comparisons with null are unknown; `WHERE` and `HAVING`
-retain only true. Missing values participate in `IS NULL` in the same way as explicit null.
+Equality compares arrays and objects structurally, independent of object property order.
+A definite structural mismatch is FALSE; otherwise equal structures containing NULL compare as
+NULL. WHERE, HAVING and logical operators use the [shared SQL++ truth rule](missing.md#boolean-contexts),
+so WHERE 1 retains rows. NOT preserves NULL and MISSING.
 
-String comparisons are ordinal and case-sensitive. There is no document collation configuration
-and SQL `COLLATE` does not change this model's string semantics.
+## IN and BETWEEN
+
+IN requires a nonempty parenthesized value list, even for a single array-valued item. It uses
+structural equality. A MISSING left operand yields MISSING; NULL yields NULL. For a present left
+operand, a match wins; without a match a NULL list item wins over a MISSING item, otherwise FALSE.
+NOT IN negates only Boolean results. The unparenthesized array form `x IN d.tags` and subqueries
+remain `COHDBL001`.
+
+BETWEEN tests inclusive same-kind scalar bounds. Any MISSING operand/bound yields MISSING before
+NULL is considered, even when the other bound would exclude the value. NOT BETWEEN preserves
+unknown states. Constant inclusive bounds on an indexed path can supply an index seek.
+
+## LIKE and ESCAPE
+
+LIKE is ordinal and case-sensitive. % matches zero or more Unicode scalars; _ matches one,
+including a supplementary character or newline. Backslash is the default escape; string literals
+do not consume it. ESCAPE accepts one Unicode scalar; an empty string disables escaping. An escape
+quotes the following scalar, including itself, % or _.
+
+MISSING takes precedence; non-string or NULL operands, patterns or escape values give NULL.
+A literal escape longer than one scalar is `OQL0002`. An evaluated invalid escape or a trailing
+pattern escape is `COHDOC013`. LIKE checks the statement cancellation token while compiling and
+matching; cancellation raises OperationCanceledException. NOT LIKE preserves NULL/MISSING.
 
 ## Examples
 
-These arithmetic examples are accepted in the parser corpus:
+For a collection items containing `{"name":"beta","amount":6}`:
 
 ```sql
-SELECT -price + 2 * quantity AS adjusted FROM products
+SELECT amount IN (6, NULL) AS member, amount BETWEEN 3 AND 6 AS bounded,
+       name LIKE 'b_ta' ESCAPE '!' AS matched FROM items;
+SELECT MISSING IN (1) AS m, 0 BETWEEN 1 AND MISSING AS b,
+       NULL LIKE MISSING AS l FROM items;
 ```
 
-```sql
-SELECT price / 2 % 3 FROM products
-```
+The first row is `(TRUE, TRUE, TRUE)`. All three columns in the second row are MISSING, so its
+projected JSON object is `{}`. `name LIKE 'b\%'` matches the literal text b%, not beta.
 
 ## See also
 
-[Expressions](index.md), [Literals](literals.md), and [WHERE](../clauses/where.md).
+[Expressions](index.md) · [MISSING](missing.md) · [CASE](case.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
 
-- **Precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Expressions.cs`.
-- **Evaluation semantics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
-- **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.
+- **Predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Predicates.cs`.
+- **Structural equality** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Values.cs`.
+- **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.
+- **Cancellation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentLikeTests.cs`.

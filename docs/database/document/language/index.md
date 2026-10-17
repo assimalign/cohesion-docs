@@ -1,39 +1,43 @@
 # Language (OQL)
 
-Object Query Language (OQL) queries one document collection and manages its secondary indexes.
+OQL is the Documents engine's executable SQL++ subset, including collection DDL and insert-only DML.
 
-> **Status:** Partial. The documented subset is executable; the full Object Data Management Group language is not implemented.
+> **Status:** Partial. The reference describes behavior implemented on the integration branch.
 
-The parser produces typed statements for the Documents engine. A statement addresses the session's
-database and cannot switch databases or servers. Document replacement and deletion remain collection
-API operations. The grammar adds explicit index data definition language (DDL) to OQL.
+OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
+uses its session database. Replacement and deletion remain collection API operations. Parameters
+share SQL and GQL's case-sensitive bare-name contract.
 
 ## Reference categories
 
-- **Conventions** — [Syntax conventions](syntax-conventions.md) explains diagrams and lexical rules.
-- **Statements** — [SELECT, CREATE INDEX, and DROP INDEX](statements/index.md).
-- **Clauses** — [FROM, WHERE, GROUP BY, HAVING, and ORDER BY](clauses/index.md).
-- **Expressions** — [Paths, operators, literals, and parameters](expressions/index.md).
-- **Functions** — [Aggregate functions](functions/index.md).
-- **Diagnostics** — [Parser errors and locations](diagnostics.md).
-- **Boundaries** — [Unsupported language features](unsupported.md).
+- **Conventions** — [Syntax conventions](syntax-conventions.md).
+- **Statements** — [SELECT, INSERT, EXPLAIN and collection/index DDL](statements/index.md).
+- **Clauses** — [FROM, WHERE, GROUP BY, HAVING and ORDER BY](clauses/index.md).
+- **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
+- **Functions** — [Aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
+- **Diagnostics** — [Parser, planner and execution codes](diagnostics.md).
+- **Boundaries** — [Unsupported forms](unsupported.md).
 
 ## Support matrix
 
 | Construct | Support | Scope |
-|---|---|---|
-| `SELECT`, `FROM`, `WHERE` | Supported | One source, projections, scalar predicates |
-| `GROUP BY`, `HAVING`, `ORDER BY` | Supported | Grouping, aggregate filtering, stable ordering |
-| `CREATE INDEX`, `DROP INDEX` | Supported | One nonunique path index in one collection |
-| `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | Supported | One argument; `COUNT(*)` also accepts a star |
-| `DEFINE`, `ELEMENT`, `FLATTEN`, nested `SELECT` | Recognized, not supported (`COHDBL001`) | Reserved constructs |
-| Document data-mutation statements | Recognized, not supported (`COHDBL001`) | Use the collection API |
+| --- | --- | --- |
+| SELECT/FROM/WHERE | Supported | One source, projections and SQL++ truth conversion |
+| GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
+| MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
+| IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
+| CREATE/DROP COLLECTION | Supported | Conditional, transactional collection DDL |
+| INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
+| EXPLAIN | Supported | SELECT/INSERT plan rows without execution |
+| CREATE/DROP INDEX | Supported | One nonunique path index in a collection |
+| COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
+| META and object constructors | Supported | Stored metadata and keyed JSON objects |
 
 ## See also
 
-[Document](../index.md) describes collections, transaction ownership, storage, and engine limits.
+[Document](../index.md) describes sessions, storage, transport and pooled clients.
 
 ## Sources
 
-- **Language overview** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.
-- **Language contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
+- **Dialect** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DIALECT.md`.
+- **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlExecutionConformanceTests.cs`.

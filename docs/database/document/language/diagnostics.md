@@ -1,41 +1,64 @@
 # Diagnostics
 
-OQL parsing returns stable error codes with absolute source locations instead of accepting malformed statements.
+OQL reports coded parser, planner and execution failures with available source locations.
 
-## Codes
+## Parser codes
 
-| Code | Meaning | Corpus trigger |
-|---|---|---|
-| `COHDBL001` | Recognized construct outside the executable profile | `SELECT DISTINCT name FROM people` |
-| `OQL0001` | Empty or comment-only statement | `-- comment` |
-| `OQL0002` | Invalid syntax, identifier, path, or multiple statements | `SELECT a[-1] FROM people` |
-| `OQL0003` | Unterminated string, quoted identifier, or block comment | `SELECT * FROM people /* unfinished` |
-| `OQL0004` | Invalid or out-of-range decimal literal | `SELECT 1e100 FROM people` |
-| `OQL0005` | More than 128 recursive expression parse levels | Excessively nested parentheses |
-| `OQL0006` | Invalid aggregate arity or star operand | `SELECT SUM(*) FROM people` |
+| Code | Meaning |
+| --- | --- |
+| `COHDBL001` | Recognized form outside the executable SQL++ subset |
+| `OQL0001` | Empty/comment-only statement |
+| `OQL0002` | Malformed syntax, identifier, path, parameter, literal LIKE escape or multiple statements |
+| `OQL0003` | Unterminated string, quoted identifier or block comment |
+| `OQL0004` | Malformed numeric literal syntax |
+| `OQL0005` | More than 128 recursive expression parse levels |
+| `OQL0006` | Invalid aggregate arity or star operand |
 
-## Locations and processing
+Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
+underflows, or loses nonzero fractional digits fails during planning/evaluation as COHDOC007,
+rather than being rounded by the parser.
 
-`OqlQueryStatement` retains diagnostics even for malformed input. Callers must reject statements
-with errors before planning. The engine checks diagnostics for text and directly constructed
-requests. Every error carries zero-based UTF-16 offsets, an exclusive end, and a one-based line
-number. End-of-input errors have both offsets equal to the source length.
+## Engine codes
 
-Capability checks precede syntax parsing, so reserved unsupported constructs receive `COHDBL001`
-instead of incidental syntax errors. Quoted text, comments, and property names after dots do not
-become clause capabilities. A nested `SELECT` is reported as `SUBQUERY` at the inner keyword.
+| Code | Meaning and trigger | SQLSTATE where supplied |
+| --- | --- | --- |
+| `COHDOC001` | Invalid statement, index definition, expression, metadata or grouping context | — |
+| `COHDOC002` | Collection does not exist | — |
+| `COHDOC003` | Duplicate projected name; supply distinct aliases | — |
+| `COHDOC004` | System collection is read-only | — |
+| `COHDOC005` | Referenced parameter has no value | — |
+| `COHDOC006` | Division or remainder by zero | 22012 |
+| `COHDOC007` | Numeric value cannot fit decimal exactly | 22003 |
+| `COHDOC008` | Invalid operand/parameter type, document key or JSON value | — |
+| `COHDOC009` | Caller keys collide after one leading parameter sigil is stripped | — |
+| `COHDOC010` | CREATE COLLECTION finds an existing collection without IF NOT EXISTS | 42P07 |
+| `COHDOC011` | DROP COLLECTION targets a schema-owned collection, including IF EXISTS | — |
+| `COHDOC012` | INSERT encounters a duplicate document key | — |
+| `COHDOC013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
 
-Malformed index definitions use `OQL0002`. Semantic errors such as invalid aggregate placement,
-ownership restrictions, and read-only system collections belong to planning or execution rather
-than these parser codes.
+For example, repeating `INSERT INTO items (KEY, VALUE) VALUES ('a', 1)` on the same visible
+collection reports COHDOC012. A malformed static escape such as ESCAPE 'ab' is OQL0002 instead
+of COHDOC013. Ordinary NULL and MISSING results are values, not diagnostics.
+
+## Locations and wire behavior
+
+DatabaseException.Diagnostics is never null and orders located entries by source start before
+unlocated entries. Offsets are zero-based UTF-16 with exclusive ends; lines are one-based.
+Planner/binder failures retain available AST spans. Query requests reject all parser errors
+before a recovered AST reaches planning. In-process messages are code-free where the carrier
+supplies a separate diagnostic; the server composes CODE: message from the first Error entry.
+
+The Documents model sends terminal Failure (72), carrying the wire error category and coded
+diagnostics with spans. This remains its structured diagnostic path on protocol 2.1; it does not
+negotiate the core Diagnostics frame. Statement refusal preserves the connection; malformed
+UTF-8/payloads and message order are protocol violations. The client exception retains diagnostics.
 
 ## See also
 
-[Language (OQL)](index.md), [Unsupported](unsupported.md), and [Syntax conventions](syntax-conventions.md).
+[Language (OQL)](index.md) · [Parameters](expressions/parameters.md) · [MISSING](expressions/missing.md) · [Unsupported](unsupported.md)
 
 ## Sources
 
-- **Diagnostic contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
-- **Diagnostic construction** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.cs`.
-- **Conformance corpus** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.
-- **Engine validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
+- **Carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlDiagnosticTests.cs` and `OqlDiagnosticsFixPassTests.cs` in the same directory.
+- **Numbers and duplicate keys** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.
+- **Failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Protocol/DocumentProtocolFailureMessage.cs`.

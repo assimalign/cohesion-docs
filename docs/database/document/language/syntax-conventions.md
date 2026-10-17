@@ -26,7 +26,8 @@ accepted forms; rejected constructs belong to the [unsupported matrix](unsupport
   An empty name or a `?` marker is invalid.
 - **Comments** — `--` introduces a line comment; `/* ... */` introduces a block comment, including
   nested block comments.
-- **Numbers** — decimal and scientific notation use invariant culture and must fit `decimal`.
+- **Numbers** — decimal and scientific notation retain digits during parsing; execution requires
+  an exact decimal value (`COHDOC007` for range or lost precision).
 - **Statement boundary** — one trailing semicolon is optional; multiple statements are rejected.
 
 Parentheses group expressions. Array positions are zero-based nonnegative 32-bit integers.
