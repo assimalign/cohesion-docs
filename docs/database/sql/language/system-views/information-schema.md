@@ -60,7 +60,7 @@ type parameters appear in the separate metadata fields where available.
 System relations are virtual, read-only projections of the current database catalog. Names are
 case-insensitive and must include their schema. Supported SELECT projection, aliases, parameters,
 filtering, ordering, distinct results, aggregation, and pagination work over the wire as well.
-The supported two-relation INNER JOIN accepts either stored or system inputs.
+Supported N-way INNER/LEFT/CROSS and comma joins accept stored or system inputs, including USING.
 
 A snapshot-isolation transaction retains its catalog capture from transaction begin.
 Auto-commit and `ReadCommitted` statements capture at first system-relation binding. Each capture includes
@@ -93,7 +93,7 @@ It returns no rows if that table is absent.
 ## Joining and snapshots
 
 These read-only relations join with each other or with stored tables through the supported
-two-relation [INNER JOIN](../clauses/join.md). Every system relation in a statement, including
+[N-way INNER/LEFT/CROSS and comma joins](../clauses/join.md). Every system relation in a statement, including
 subqueries and INSERT SELECT sources, reads one immutable catalog image. Snapshot transactions
 use their BEGIN-time image; automatic and ReadCommitted statements capture it at first system
 relation binding. Mutations report `COHSQLE021` (SQLSTATE 25006).

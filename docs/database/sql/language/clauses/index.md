@@ -7,7 +7,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 ## Query clauses
 
 - **[FROM](from.md)** — Bind one relation in the current database.
-- **[JOIN](join.md)** — Combine exactly two stored or system relations with an inner join.
+- **[JOIN](join.md)** — N-way INNER/LEFT/CROSS joins, USING columns, and comma products.
 - **[WHERE](where.md)** — Filter input rows.
 - **[GROUP BY](group-by.md)** — Group by scalar key expressions.
 - **[HAVING](having.md)** — Filter aggregate results.
@@ -24,7 +24,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 34-of-50 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 35-of-50 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

@@ -13,6 +13,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
 - **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
 - **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
+- **[SqlSelectExpression](sql-select-expression.md)** — SELECT clauses and canonical FROM trees.
+- **[SqlFromItem](sql-from-item.md)** — One comma-separated relation and its joins.
+- **[SqlJoinClause](sql-join-clause.md)** — Join kind, ON predicate and ordered USING names.
 - **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
 - **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
 - **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.

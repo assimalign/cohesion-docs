@@ -20,6 +20,11 @@ examples require their original test project’s dependencies and supporting obj
 [SqlDefaultExpression](../sql-default-expression.md) and [SqlExplainExpression](../sql-explain-expression.md)
 show the landed AST forms.
 
+[SqlSelectExpression](../sql-select-expression.md), [SqlFromItem](../sql-from-item.md) and
+[SqlJoinClause](../sql-join-clause.md) inspect comma grouping and LEFT/CROSS/USING shapes from
+SqlJoinShapeTests. The [JOIN language examples](../../../../../database/sql/language/clauses/join.md#examples)
+show executed values and merged types from SqlNWayJoinTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

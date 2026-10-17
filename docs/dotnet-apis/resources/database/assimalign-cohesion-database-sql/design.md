@@ -133,8 +133,8 @@ relations have no catalog table records to list.
 ### The relation seam and statement snapshot
 
 The binder resolves stored tables and registered system relations through one relation-source
-path. Every system relation can participate on either side of the supported two-relation INNER
-JOIN, with the same column, alias, ambiguity and grouping checks. System sources take no object
+path. Every system relation can participate in N-way INNER/LEFT/CROSS and comma joins,
+with the same column, alias, USING, ambiguity and grouping checks. System sources take no object
 locks and supply no indexes; an eligible stored input can still supply index probes. There are
 no dummy stored objects or synthetic metadata rows.
 
@@ -238,8 +238,8 @@ unsupported-clause diagnostics.
 
 - **Rule-based planning, plan/execute split.** `SqlPlanner` binds the AST against
   the catalog into a small `SqlPlan` IR and rejects everything outside the
-  executor's surface *at plan time with precise messages* (JOIN, GROUP BY,
-  subqueries, aggregates beyond a lone `COUNT(*)`, `INSERT ... SELECT`). The IR
+  executor's surface at plan time with precise messages. N-way joins, grouping, supported
+  subqueries, aggregates and INSERT ... SELECT have executable plan nodes. The IR
   is deliberately thin — a cost-based planner replaces the binding internals
   later without changing the executor seam (#178's plan-stage requirement, MVP
   shape). That promise paid out with index adoption: the IR gained exactly one
@@ -863,9 +863,23 @@ configuration contract.
 
 ## T1 execution contract
 
+FROM binds each comma item's join tree separately before data access. ON sees only that item's
+inputs through the current step. Execution follows written order; only the first INNER pair may
+swap for an index, later steps seek into the added input, and LEFT always preserves its left side.
+Each LEFT step evaluates its residual before NULL extension; WHERE runs after the complete join.
+EXPLAIN emits a JoinStep child and scan/seek access for each step.
+
+USING maintains visible output separately from physical slots: merged names appear once, followed
+by remaining left and right columns. Merged expressions use a common implicit type, retaining
+identical domains and clearing modifiers when types/modifiers differ; qualified columns retain
+their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
+and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
+documents results and NULL behavior. The canonical FROM shape advances SQL row-storage to format
+14; older files are refused without an upgrade path. Compiled schema version remains 7.
+
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
 rows and excessive offsets produce none. System relations join stored/system sources through the
-same two-relation binder. The first system binding captures one catalog image shared by all child
+same N-way binder. The first system binding captures one catalog image shared by all child
 queries and INSERT sources; snapshot transactions supply their BEGIN image. Aliases hide base names
 in SELECT/UPDATE/DELETE and invalid qualifiers use located COHSQLE015.
 
@@ -943,7 +957,7 @@ shippable steps:
 
 ## Non-goals (current cut)
 
-Outer/multi-table joins beyond the supported two-table INNER JOIN, correlated and derived-table
+RIGHT/FULL/NATURAL joins, qualified wildcards, correlated and derived-table
 subqueries, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
 optimization (selection stays rule-based), index seeks for UPDATE/DELETE target collection, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and

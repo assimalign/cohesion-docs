@@ -33,7 +33,8 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   records the canonical document/hash only after live-catalog convergence.
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
   planned rule-based and executed against table scans: `SELECT` with `WHERE`,
-  projection, `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, lone `COUNT(*)`;
+  projection, N-way INNER/LEFT/CROSS/comma joins with ON/USING, grouping and aggregates,
+  `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`;
   `INSERT` (multi-row, defaults, nullability); `UPDATE`/`DELETE` with accurate
   affected counts; `CREATE/ALTER/DROP TABLE`. Unsupported dialect features fail
   at plan time with precise messages.

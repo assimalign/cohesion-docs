@@ -112,6 +112,12 @@ Foreign keys and checks remain constraint catalog records. Only `ON DELETE CASCA
 
 ## T1 literal, type and request forms
 
+[SqlSelectExpression.From](sql-select-expression.md) contains comma-separated [SqlFromItem](sql-from-item.md)
+join trees. Each [SqlJoinClause](sql-join-clause.md) carries ON or ordered UsingColumns; INNER,
+LEFT and CROSS execute, while RIGHT/FULL, NATURAL, derived inputs and qualified wildcards stay
+excluded. The renderer and persisted definitions use this canonical shape. SQL row-storage
+format 14 refuses older files without an upgrade path; compiled schema version remains 7.
+
 [SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval
 and hexadecimal text, reused by CAST. Typed literals and literal DEFAULTs carry canonical text;
 malformed contents are SQL0008 and year-month intervals COHDBL001. [SqlTypeNames](sql-type-names.md)

@@ -29,6 +29,14 @@ flowchart LR
 
 Other model clients do not depend on this package.
 
+## Join results
+
+N-way INNER/LEFT/CROSS/comma joins and USING use the existing SQL result frames. USING wildcard
+columns and later aliases/ordinals count visible output positions. Merged common types and cleared
+character lengths reach client metadata; qualified columns retain their own type/length. LEFT can
+return NULL values, but the wire header carries only name, type and length, without nullability.
+SqlJoinWireTests checks values, multiplicity and metadata over InMemory and loopback TCP.
+
 ## SQL-owned exchange
 
 `SqlClient.Create` binds the pool to `SqlProtocol.Family`. `SqlExecuteExchange` implements

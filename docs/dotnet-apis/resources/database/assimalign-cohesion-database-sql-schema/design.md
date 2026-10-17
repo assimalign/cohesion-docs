@@ -88,7 +88,7 @@ declarations, canonical documents, ownership, validation, and migration planning
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 13 and compiled schema version 7.
+The integration branch uses SQL row-storage format 14 and compiled schema version 7.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current

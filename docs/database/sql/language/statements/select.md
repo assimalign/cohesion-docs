@@ -1,6 +1,6 @@
 # SELECT (Cohesion SQL)
 
-Retrieves rows from one stored table, one system relation, or a two-table inner join.
+Retrieves rows from stored tables and system relations, including N-way joins and products.
 
 > **Status:** Partial. The documented subset is measured against the live SQL engine.
 
@@ -8,8 +8,7 @@ Retrieves rows from one stored table, one system relation, or a two-table inner 
 
 ```syntaxsql
 SELECT [ DISTINCT ] <select_list>
-FROM <table_source>
-[ [ INNER ] JOIN <table_source> ON search_condition ]
+FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 [ WHERE search_condition ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING search_condition ]
@@ -19,6 +18,9 @@ FROM <table_source>
 
 <select_list> ::= { * | expression [ [ AS ] column_alias ] [ , ...n ] }
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
+<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
+           { ON search_condition | USING ( column_name [ , ...n ] ) }
+         | CROSS JOIN <table_source>
 <order_by_item> ::= { expression | column_alias | select_list_ordinal } [ ASC | DESC ]
 ```
 
@@ -35,7 +37,8 @@ FROM <table_source>
 | Form | Support | Boundary |
 | --- | --- | --- |
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
-| `JOIN ... ON` | Supported (measured) | Exactly two stored or system relations; inner join only |
+| INNER/LEFT JOIN ... ON or USING | Supported (measured) | N-way stored/system joins; LEFT supplies NULL for unmatched right columns |
+| CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
 | `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
@@ -53,6 +56,11 @@ Qualification identifies a schema within the current database, never another dat
 pagination. `NULL` sorts first ascending and last descending. Equal ordering keys have no promised
 relative order; supply a tie-breaking key for stable paging. See the individual clause pages for
 alias precedence, grouping validity, collation, and subquery cardinality.
+
+[USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
+expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
+Qualified `t.*` remains `COHDBL001`. The [JOIN examples](../clauses/join.md#examples) cover
+INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Examples
 

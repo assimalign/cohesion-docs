@@ -44,7 +44,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
 | `COHSQLE013` | Invalid statement, expression, DDL or executor query shape | — |
 | `COHSQLE014` | Table does not exist | — |
-| `COHSQLE015` | Unknown/ambiguous column or hidden/unknown qualifier | — |
+| `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
 | `COHSQLE017` | Invalid aggregate placement or grouping expression | — |
 | `COHSQLE018` | Invalid ordering ordinal, row count or CAST declaration | — |

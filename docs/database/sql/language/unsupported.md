@@ -4,9 +4,9 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 34 of 50 named clauses against the live engine. The 16 excluded names are
+The profile measures 35 of 50 named clauses against the live engine. The 15 excluded names are
 `UNION`, `INTERSECT`, `EXCEPT`, `WITH`, `RECURSIVE`, `WINDOW`, `OVER`,
-`PARTITION`, `CREATE VIEW`, `DROP VIEW`, `NATURAL`, `USING`, `TOP`, `ALL`,
+`PARTITION`, `CREATE VIEW`, `DROP VIEW`, `NATURAL`, `TOP`, `ALL`,
 `FETCH`, and `RETURNING`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
@@ -26,10 +26,11 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `CREATE VIEW`, `DROP VIEW` | `COHDBL001` | Built-in system relations do not imply user-defined views |
 | `TOP`, explicit `SELECT ALL`, `FETCH` | `COHDBL001` | Use ordinary SELECT and LIMIT/OFFSET |
 | DML `RETURNING` | `COHDBL001` | Writes return affected counts |
-| `NATURAL JOIN`, `JOIN ... USING` | `COHDBL001` | Only inner joins with ON execute |
-| `LEFT`, `RIGHT`, `FULL` joins, optional `OUTER` | `COHDBL001` | No outer joins |
-| `CROSS JOIN`, comma joins, join without ON | `COHDBL001` | No additional product/join syntax |
-| More than two joined tables | `COHDBL001` | At most one join per SELECT |
+| `NATURAL JOIN`, RIGHT/FULL joins with optional `OUTER` | `COHDBL001` | INNER, LEFT and CROSS execute |
+| INNER/LEFT join without ON or USING | `COHDBL001` | Exactly one condition required |
+| CROSS JOIN with ON or USING | `SQL0003` | Products accept neither condition |
+| Malformed USING list, or both ON and USING | `SQL0003` | One nonempty USING name list or one ON predicate |
+| Missing/repeated/ambiguous USING name, or no common type | `COHSQLE015` | Fails binding even on empty inputs |
 | Qualified wildcard, such as `t.*` | `COHDBL001` | Use unqualified star or explicit columns |
 | Derived table in FROM or JOIN | `COHDBL001` | No relational subquery sources |
 | Correlated subquery | `COHDBL001` | Inner names must resolve locally |

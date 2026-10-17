@@ -45,6 +45,10 @@ remain in input scope; inner queries resolve their own names. Collation follows 
 `NULLS FIRST` and `NULLS LAST` report `COHDBL001`. Derived tables are not supported.
 Ordinals are exclusive to `ORDER BY`; numeric grouping keys do not identify outputs.
 
+With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinals count the
+visible merged output: each USING pair contributes one column. Repeated wildcards each expand
+their visible columns. Out-of-range positions report `COHSQLE018`, even on empty inputs.
+
 ## Examples
 
 ```sql
@@ -58,6 +62,19 @@ ORDER BY years + 1 ASC, 1 DESC;
 
 The identifiers return in order `30`, `10`, `50`, `40`, `20`, unlike insertion order.
 
+```sql
+CREATE TABLE a (id INT NOT NULL);
+CREATE TABLE b (id INT NOT NULL);
+INSERT INTO a VALUES (2), (1);
+INSERT INTO b VALUES (1), (2);
+SELECT *, a.id AS sort, -a.id AS tail
+FROM a JOIN b USING (id) ORDER BY sort;
+SELECT *, -a.id AS sort FROM a LEFT JOIN b USING (id) ORDER BY 2;
+```
+
+The first query returns `(1, 1, -1)`, `(2, 2, -2)` with three columns. The second returns
+`(2, -2)`, `(1, -1)` with two columns; `ORDER BY 3` there would report `COHSQLE018`.
+
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
@@ -66,4 +83,5 @@ The identifiers return in order `30`, `10`, `50`, `40`, `20`, unlike insertion o
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
+- **Wildcard positions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`
 
