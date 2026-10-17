@@ -148,6 +148,20 @@ reflection, schema inference, or runtime code generation is involved. Query JSON
 same 128-level nesting limit as storage validation and index extraction, so every accepted document
 can be queried at its stored depth.
 
+SELECT supports ALL/DISTINCT and VALUE/RAW through [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md).
+VALUE/RAW produces one bare `value` column and normalizes a root MISSING to NULL before DISTINCT,
+projected ordering and completion counting. Named projections omit MISSING object members; array
+elements become JSON null. DISTINCT uses grouping's structural collation, retains the first value,
+and runs after projection and before ordering. Ordering outside the projection after alias rewriting
+is `COHDOC014` (no SQLSTATE). SELECT constructors allow 256 result levels, including nested
+parameters/stored values and a named wrapper; exceeding this is `COHDOC015` at the constructor
+(no SQLSTATE). INSERT retains its 128-level JSON limit and `COHDOC008`.
+
+The internal DocumentRowWriter maps every result to one JSON value on every transport: named lists
+become objects, VALUE/RAW stays bare, mixed star becomes a `document` member and lone star preserves
+stored bytes through DISTINCT and ordering. Bare GetBytes(0) returns JSON bytes, named strings
+unquoted UTF-8 and named NULL/MISSING empty memory. See [SELECT](../../../../database/document/language/statements/select.md).
+
 Absent fields, incompatible traversal, navigation through NULL and out-of-range indices produce
 MISSING. NULL and MISSING have separate grouping and presence tests. WHERE/HAVING use the common
 SQL++ truth conversion, retaining nonzero numbers and nonempty values as TRUE. Equality compares scalar values and structurally
@@ -270,7 +284,8 @@ then Complete with two Int64 fields: result count and affected count. ResultRow 
 Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
 and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
 payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
-COHDOC001–013, including collection ownership, duplicate keys and LIKE errors.
+COHDOC001–015, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering
+and SELECT constructor depth.
 
 The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
 output if its reader stops. Queries and client results remain materialized; explicit wire

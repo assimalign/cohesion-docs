@@ -16,6 +16,9 @@ KEY must evaluate to a nonblank string. VALUE can be any valid JSON value, inclu
 object, array or scalar, but cannot be MISSING. VALUES expressions are column-free and cannot
 use aggregates or source metadata. [Object constructors](../expressions/object-constructors.md)
 produce one keyed object with omitted MISSING members.
+[Array constructors](../expressions/array-constructors.md) preserve element positions and replace
+MISSING with JSON null. INSERT JSON, including nested constructors and parameters, retains its
+128-level storage limit (`COHDOC008`).
 
 INSERT SELECT resolves the named KEY and optional VALUE against SELECT output names,
 case-sensitively. With VALUE, that output is stored as the whole document. Without VALUE, the

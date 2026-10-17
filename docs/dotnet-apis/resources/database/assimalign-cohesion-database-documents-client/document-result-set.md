@@ -18,8 +18,10 @@ public sealed class DocumentResultSet : IReadOnlyList<DocumentRow>
 
 ## Behavior and exceptions
 
-Materialized results own scalar and JSON values. SELECT * sets IsDocumentQuery even when empty;
-Documents then contains whole JSON values, also exposed as the row's single JsonElement. Positional
+Materialized results own scalar and JSON values. Lone SELECT *, VALUE and RAW set IsDocumentQuery
+even when empty; Documents then contains bare JSON values, also exposed as the row's single JsonElement.
+VALUE/RAW names that column `value`; lone star names it `document`. Top-level VALUE MISSING becomes
+JSON null before DISTINCT and completion counts on every transport. Positional
 projections leave Documents empty and use header ordinals to preserve MISSING fields. Projected
 numbers are decimal; objects/arrays are owned JsonElement values. AffectedCount is -1 for reads,
 zero for DDL, and inserted count for INSERT. No disposal is needed. An out-of-range row index throws
@@ -31,6 +33,8 @@ ArgumentOutOfRangeException. Construction is internal.
 var rows = await connection.QueryAsync("SELECT * FROM items");
 Console.WriteLine(rows.IsDocumentQuery); // True, even with no rows
 foreach (var json in rows.Documents) Console.WriteLine(json.GetRawText());
+var missing = await connection.QueryAsync("SELECT DISTINCT RAW MISSING FROM items");
+// For any nonempty items collection: one Documents entry with ValueKind Null.
 ```
 
 ## Related reference

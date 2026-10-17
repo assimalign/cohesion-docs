@@ -26,6 +26,8 @@ ArgumentOutOfRangeException. A subclass opting in implements IsMissingCore.
 For Documents, IsMissing is true only for absence and IsNull only for explicit NULL. GetValue
 returns null for either; check the capability and IsMissing first. MISSING projections are omitted
 from JSON objects on the wire. A column's MISSING cells do not erase its observed scalar type.
+Top-level OQL VALUE/RAW normalizes MISSING to NULL before DISTINCT and counting: SupportsMissing
+remains true, IsMissing is false and IsNull is true. GetBytes(0) for this bare NULL is UTF-8 `null`.
 
 ## Example
 

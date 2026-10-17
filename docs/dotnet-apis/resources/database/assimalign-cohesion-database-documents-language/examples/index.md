@@ -21,6 +21,9 @@ The public AST pages show constructors for [IN](../oql-in-expression.md),
 [collection DDL](../oql-create-collection-expression.md). Execution examples and results appear in
 [OQL](../../../../../database/document/language/index.md).
 
+[OqlSelectExpression](../oql-select-expression.md#example) inspects DISTINCT VALUE/RAW flags;
+[OqlArrayExpression](../oql-array-expression.md#example) inspects nested constructor elements.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.

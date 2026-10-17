@@ -16,7 +16,9 @@ public sealed class OqlObjectExpression : OqlExpression
 
 Members retain named expressions in order. Evaluation omits MISSING, preserves NULL and keeps the
 last included value for a repeated case-sensitive key. A later MISSING does not remove an earlier
-value. Invalid evaluated JSON is COHDOC008.
+value. Objects compose with [arrays](oql-array-expression.md), projections, predicates, grouping
+and INSERT. A SELECT constructor exceeding 256 result levels raises COHDOC015 at the expression
+span; INSERT retains its 128-level JSON limit and COHDOC008.
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are
 read-only snapshots. Always inspect statement diagnostics before planning; execution performs

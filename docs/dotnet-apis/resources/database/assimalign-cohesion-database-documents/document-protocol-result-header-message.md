@@ -15,7 +15,9 @@ public sealed record DocumentProtocolResultHeaderMessage(IReadOnlyList<(string N
 ## Behavior and exceptions
 
 ResultHeader (67) carries ordered column names/types and WholeDocuments. Both result shapes use
-Document frames; WholeDocuments requires exactly one column. Empty names/columns, undefined type
+Document frames; WholeDocuments requires exactly one column and means bare JSON for lone SELECT *,
+VALUE or RAW, including an empty result. VALUE/RAW uses the column name `value`; star uses `document`.
+Top-level MISSING is normalized to NULL by the engine before counting and encoding. Empty names/columns, undefined type
 tags, malformed fields or trailing bytes throw ProtocolException. The client also rejects duplicate
 names and invalid projected object members.
 

@@ -35,6 +35,8 @@ rather than being rounded by the parser.
 | `COHDOC011` | DROP COLLECTION targets a schema-owned collection, including IF EXISTS | — |
 | `COHDOC012` | INSERT encounters a duplicate document key | — |
 | `COHDOC013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
+| `COHDOC014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
+| `COHDOC015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
 
 For example, repeating `INSERT INTO items (KEY, VALUE) VALUES ('a', 1)` on the same visible
 collection reports COHDOC012. A malformed static escape such as ESCAPE 'ab' is OQL0002 instead

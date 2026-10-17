@@ -17,6 +17,11 @@ Projections and [object constructors](object-constructors.md) omit MISSING membe
 Documents rows support `DatabaseRow.SupportsMissing` and `IsMissing(ordinal)`; GetValue returns
 null for either unknown state, while IsNull returns true only for explicit NULL.
 
+For top-level [SELECT VALUE/RAW](../statements/select.md), MISSING becomes NULL before DISTINCT,
+ordering by that projection and result counting on every transport. Its row has IsMissing false
+and IsNull true. [Array constructors](array-constructors.md) replace MISSING elements with JSON
+null while retaining their positions. Named projections and object members still omit MISSING.
+
 | Test | Present non-null value | NULL | MISSING |
 | --- | --- | --- | --- |
 | IS NULL | FALSE | TRUE | MISSING |

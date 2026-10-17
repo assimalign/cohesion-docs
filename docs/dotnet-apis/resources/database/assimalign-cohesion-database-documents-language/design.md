@@ -28,6 +28,13 @@ OqlInExpression, OqlBetweenExpression, OqlLikeExpression and OqlCaseExpression r
 negation, optional escape or ordered branches. LIKE is ordinal, Unicode-scalar based and cancellable.
 Object constructors retain keyed members; META binds stored-document id/version.
 
+[OqlSelectExpression](oql-select-expression.md) carries IsDistinct and IsValue constructor flags.
+ALL is the default; VALUE and RAW share IsValue. Bare MISSING becomes NULL before DISTINCT,
+ordering by that projection and counting. [OqlArrayExpression](oql-array-expression.md) retains
+ordered elements, converting MISSING to JSON null. OqlClauses adds Distinct (`DISTINCT`), SelectValue
+(`SELECT VALUE`), ObjectConstructor (`OBJECT CONSTRUCTOR`) and ArrayConstructor (`ARRAY CONSTRUCTOR`)
+capability names. Constructors validate and group recursively; text parsing keeps the 128-level bound.
+
 ## Names and reservations
 
 Collection, property, alias and parameter names preserve case; keywords are case-insensitive.
@@ -47,7 +54,7 @@ validates every branch and parameter even when CASE/logic would skip it at runti
 SELECT/INSERT, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–013
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–015
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
 
 ## Sources

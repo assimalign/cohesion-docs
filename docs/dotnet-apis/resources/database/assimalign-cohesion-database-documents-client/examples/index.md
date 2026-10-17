@@ -36,6 +36,10 @@ for replacement rather than repeating INSERT. A decoded duplicate-key failure ke
 
 ## Related reference
 
+See [DocumentRow](../document-row.md#example) for VALUE MISSING normalization and JSON bytes,
+and the [SELECT fixture](../../../../../database/document/language/statements/select.md#distinct-and-bare-values)
+for DISTINCT, RAW and constructor results checked over InMemory and TCP.
+
 [DocumentConnection](../document-connection.md) · [DocumentRow](../document-row.md) · [Design](../design.md) · [Assembly](../index.md)
 
 ## Sources

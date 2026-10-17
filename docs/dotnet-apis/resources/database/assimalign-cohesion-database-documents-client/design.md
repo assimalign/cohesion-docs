@@ -18,12 +18,18 @@ stops. One value must fit the shared 16 MiB frame limit.
 
 ## Results and MISSING
 
-QueryAsync returns DocumentResultSet. SELECT * sets IsDocumentQuery even for empty results and
+QueryAsync returns DocumentResultSet. Lone SELECT *, VALUE and RAW set IsDocumentQuery even for empty results and
 retains owned JsonElement values in Documents and the single row cell. Projections use one JSON
 Document object per row and header ordinals. MISSING members are omitted, explicit NULL retained.
 DocumentRow.SupportsMissing is true; IsMissing separates absence from NULL, while GetValue and
 indexers return null for either. Projected numbers are exact decimal, objects/arrays JsonElement.
 Duplicate header names or unknown/duplicate projected members are malformed responses.
+
+VALUE/RAW uses one `value` column. The engine converts top-level MISSING to NULL before DISTINCT,
+projected ordering and result counting. InMemory/TCP and embedded byte results agree. GetBytes(0)
+for bare rows returns JSON, including quoted strings and `null`; lone star preserves raw stored
+bytes. Named strings use unquoted UTF-8 and named NULL/MISSING uses empty memory. SELECT constructors
+execute to 256 levels (`COHDOC015`); DISTINCT ordering outside the projection uses `COHDOC014`.
 
 ExecuteAsync returns affected count: inserted document count, zero for DDL, -1 for reads. Collection
 operations return names; server-side session-bound collection handles do not cross the wire.
@@ -40,7 +46,7 @@ discard it. Mutations canceled after publication can have unknown outcomes.
 
 Server failure text is bounded to 4096 UTF-16 characters and diagnostics to 256, with explicit
 truncation/omission markers. Retained codes/spans stay intact. See the complete
-[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–013 and
+[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–015 and
 parser codes; all these statement refusals use the same structured Failure carrier.
 
 Dispose returns a healthy rental once. Abort discards it. Operation registration shares the

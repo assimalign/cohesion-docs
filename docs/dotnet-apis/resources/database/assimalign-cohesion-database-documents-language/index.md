@@ -13,6 +13,8 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlInsertExpression](oql-insert-expression.md)** — AST members and execution contract.
 - **[OqlMetaExpression](oql-meta-expression.md)** — AST members and execution contract.
 - **[OqlObjectExpression](oql-object-expression.md)** — AST members and execution contract.
+- **[OqlArrayExpression](oql-array-expression.md)** — Ordered constructor and MISSING elements.
+- **[OqlSelectExpression](oql-select-expression.md)** — DISTINCT and VALUE/RAW result flags.
 - **[OqlInExpression](oql-in-expression.md)** — AST members and execution contract.
 - **[OqlBetweenExpression](oql-between-expression.md)** — AST members and execution contract.
 - **[OqlLikeExpression](oql-like-expression.md)** — AST members and execution contract.

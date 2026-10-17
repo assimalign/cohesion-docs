@@ -23,6 +23,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | Construct | Support | Scope |
 | --- | --- | --- |
 | SELECT/FROM/WHERE | Supported | One source, projections and SQL++ truth conversion |
+| [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
@@ -31,7 +32,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | EXPLAIN | Supported | SELECT/INSERT plan rows without execution |
 | CREATE/DROP INDEX | Supported | One nonunique path index in a collection |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
-| META and object constructors | Supported | Stored metadata and keyed JSON objects |
+| META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
 
 ## See also
 

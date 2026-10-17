@@ -30,6 +30,9 @@ the established document or group order for equal ordering values, yielding dete
 across scans and index seeks. Strings use case-sensitive ordinal order.
 
 [MISSING](../expressions/missing.md) sorts before NULL ascending; descending reverses this order.
+With SELECT DISTINCT, every key must match a projected expression after explicit-alias rewriting;
+an outside key fails with `COHDOC014` at that key. Top-level VALUE/RAW normalizes a MISSING projected
+value to NULL before ordering by the matching expression.
 
 ## Examples
 
