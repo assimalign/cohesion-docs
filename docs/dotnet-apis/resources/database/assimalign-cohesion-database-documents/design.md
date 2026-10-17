@@ -192,7 +192,7 @@ transaction; queries never lazily build trees. Dropping an index removes its vis
 the same transaction, so subsequent physical plans stop selecting it while older snapshots retain
 their defined visibility.
 
-Successful index DDL returns a command `QueryResult` with `Success` status and an affected count of
+Successful index DDL returns a command `DatabaseResult` with `Success` status and an affected count of
 zero; index definition changes are not document-row mutations.
 
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
@@ -387,3 +387,9 @@ demonstrated by tests exercising the public factory through that base interface.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Assimalign.Cohesion.Database.Documents.csproj`.
+
+## Session execution (#1576, 2026-10-16)
+
+`DocumentDatabaseSession` derives from `DatabaseLanguageSession<DocumentQueryRequest>` for typed and text
+execution. `DocumentQueryRequest` owns its typed `Statement` and optional `Parameters` over
+the memberless `DatabaseRequest` root. Results use the `DatabaseResult` family.

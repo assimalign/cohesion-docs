@@ -32,7 +32,7 @@ Schema-owned collections reject this operation. Reserved system collections are 
 
 The catalog retains a canonical path without losing property-name punctuation or case. The physical
 planner can choose indexes for equality or range predicates and still reapplies the full predicate.
-A successful statement returns a command `QueryResult` with `Success` and zero affected documents.
+A successful statement returns a command `DatabaseResult` with `Success` and zero affected documents.
 
 ## Examples
 

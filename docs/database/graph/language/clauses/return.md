@@ -31,7 +31,7 @@ RETURN projection [ , ...n ]
 ## Remarks
 
 Projections preserve source order. Whole-element projections expose `GraphNode` or
-`GraphRelationship` objects through `QueryRow.GetValue`; property projections expose scalars.
+`GraphRelationship` objects through `DatabaseRow.GetValue`; property projections expose scalars.
 The execution corpus verifies that an absent property projects null.
 
 `RETURN` may follow a read match or insertion, but cannot follow deletion. It cannot be appended

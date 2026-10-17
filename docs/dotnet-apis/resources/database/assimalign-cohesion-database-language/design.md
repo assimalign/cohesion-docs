@@ -5,8 +5,12 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The shared query-language substrate for database models. It owns model-neutral lexical tokens,
-syntax-tree primitives, diagnostics, and parser orchestration; SQL, OQL, GQL, and future model
+syntax-tree primitives, diagnostic production, and parser orchestration; SQL, OQL, GQL, and future model
 languages own their vocabulary and grammar.
+
+`Diagnostic`, `DiagnosticSeverity` and `DiagnosticLocation` live in `Database.Types`,
+unchanged after #1577 (2026-10-16). Language references Types; Execution needs no language
+dependency to expose diagnostics.
 
 ## Design intent
 

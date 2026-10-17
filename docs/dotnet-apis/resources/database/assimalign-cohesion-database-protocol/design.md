@@ -8,7 +8,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 This child root owns the frame envelope, shared payload primitives, startup and authentication
 exchange, session lifecycle, error taxonomy, and version negotiation. It has no model dependencies.
-As with `Database.Language`'s `TokenLexer`, `Diagnostic`, `QueryLanguageProfile` and `QueryParser`, mechanism
+As with `Database.Language`'s `TokenLexer`, `QueryLanguageProfile` and `QueryParser`, and `Database.Types`' `Diagnostic`, mechanism
 is shared while each model supplies its own grammar: here that grammar is its message family and
 payload codecs.
 

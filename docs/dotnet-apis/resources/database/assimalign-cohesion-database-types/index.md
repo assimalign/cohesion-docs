@@ -53,3 +53,9 @@ See [DESIGN.md](design.md) for the encoding rules and the decisions behind them.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/src/Assimalign.Cohesion.Database.Types.csproj`.
+
+## Shared diagnostics (#1577, 2026-10-16)
+
+`Diagnostic`, `DiagnosticSeverity` and `DiagnosticLocation` moved here unchanged from
+Language. Language parsers and model-neutral execution results share these values;
+Types has no parser or execution dependency.

@@ -1,83 +1,67 @@
-# Assimalign.Cohesion.Database.Execution design
+# Assimalign.Cohesion.Database.Execution — Design
 
-This page describes the boundaries and implementation shape of `Assimalign.Cohesion.Database.Execution`.
+The model-neutral request/result vocabulary (area architecture:
+`cohesion/docs/resources/Database/DESIGN.md` §3.2).
+This package references `Database.Types` only. It has no direct or transitive dependency on
+`Database.Language`, and it owns no planner, executor, parser or transaction pipeline.
 
-> **Status:** Partial.
+## Request and result families
 
-The shared execution substrate (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.2). Planners and model semantics deliberately live
-outside it — this layer owns the *shape* of an execution (context, stages, results) and the
-*guarantees* around its transaction boundary, nothing about what a query means.
+`DatabaseRequest` is a memberless abstract root. A model defines the operations it accepts:
+KeyValuePair requests carry command operands; `SqlQueryRequest` and `DocumentQueryRequest`
+own their typed `Statement` and `Parameters`; `GraphRequest` owns those values for the row
+and path request variants. There is no shared statement property or request-kind discriminator.
 
-## Design intent
+`DatabaseResult` reports status, affected count and diagnostics. `DatabaseResultSet` adds
+columns and streaming `DatabaseRow` values. `DatabaseColumn` describes a column, including
+optional `MaxLength`: the declared character count or binary byte limit, not an individual
+value's size. SQL uses it with the shared `Character` identity for `CHAR(n)` metadata; its
+execution and padding rules remain in the SQL model.
 
-Every engine runs the same flow: a session hands a parsed request to an execution that runs inside a
-transaction scope and yields a result. Centralizing that flow buys uniform boundary semantics (one
-place where auto-commit is correct), a shared extension seam (stages for tracing/retry/timeout that
-work for every model), and a single result vocabulary the wire protocol can serialize without
-knowing models.
+The owner approved all five result-family renames on 2026-10-16 (#1576, #1579).
+The public names are `DatabaseResult`, `DatabaseResultSet`, `DatabaseResultStatus`,
+`DatabaseRow` and `DatabaseColumn`; they all remain in this assembly. There are no aliases
+or compatibility shims. Model-specific language results retain names such as `SqlQueryResult`,
+`DocumentQueryResult` and `GraphPathsQueryResult`.
 
-## Why-this-not-that decisions
+## Session capabilities
 
-- **Middleware-shaped pipeline, not an operator tree.** The repo is middleware-first
-  (the Web area's 2026-07 composition direction), and the concerns this layer owns —
-  cancellation, boundaries, tracing, retry — are cross-cutting wrappers, not data
-  operators. Model planners build operator trees *inside* the terminal delegate;
-  imposing a shared operator algebra here would smuggle model semantics into the
-  kernel (the exact thing the lane guardrail forbids).
-- **`IQueryTransactionScope` instead of referencing `Database.Transactions`.** The
-  dependency direction makes the obvious choice impossible: the area contract root
-  references this project (sessions are typed in `QueryRequest`/`QueryResult`), and
-  `Database.Transactions` references the root — so `Execution → Transactions` would
-  be a cycle. The seam is also *better* than a hard reference: the pipeline needs
-  exactly three things (implicit?, commit, rollback), and engines can satisfy them
-  from `ITransactionContext`+manager, from a raw storage transaction, or from a test
-  double.
-- **Boundary rules enforced at the pipeline edge, not inside stages.** Stages always
-  observe an active scope; exactly one place decides commit/rollback. The rules
-  (#164): implicit + `Success` result → commit; implicit + failed result → rollback
-  (result still returned, not thrown); any exception or cancellation → rollback,
-  then the *original* error propagates — a rollback failure faults the scope but
-  never masks the root cause. Explicit scopes are untouched: the session owns them.
-- **`Rollback` uses `CancellationToken.None`.** An aborted request must still release
-  its transaction; honoring the abort token during cleanup would leak scopes.
-- **`QueryExecutionException` as a local error root.** This project sits below the
-  area root (`DatabaseException` is unavailable by dependency direction), and the
-  exception-root rule scopes roots to the owning library.
-- **Known asymmetry:** `IQueryExecutor.ExecuteAsync` returns `Task<QueryResult>`
-  while the session surface uses `ValueTask` — kept for now; the executor seam
-  predates the pipeline and unifying it is surface churn for zero behavior.
+The capability bases live in the root `Database` assembly, which references this package:
 
-## Lifecycle pattern
+| Base | Capability | Models |
+|---|---|---|
+| `DatabaseSession` | Lifecycle, state and explicit transactions | Every model, including Blob |
+| `DatabaseExecutionSession<TRequest>` | Typed `ExecuteAsync(TRequest, CancellationToken)` | Sql, Documents, Graph and KeyValuePair |
+| `DatabaseLanguageSession<TRequest>` | Typed execution plus `ExecuteAsync(string, parameters, CancellationToken)` | Sql, Documents and Graph |
 
-A `QueryExecutionContext` lives for exactly one execution. The pipeline links the context's
-`RequestAborted` with the per-call token; cancellation between stages is the pipeline's duty,
-cancellation inside long-running work is the operator's. The item bag is engine-private state
-between stages — stages must not require entries earlier stages did not put there.
+Both generic bases constrain `TRequest` to `DatabaseRequest`. Public execution members are
+non-virtual and perform validation and tracing before calling protected abstract cores.
+The language base declares its typed forwarder before its text member and forwards through
+the base's public NVI. Consequently a foreign request fails compilation with the model's
+request type in the diagnostic. A plain root session or Blob session has no execute member.
+KeyValuePair's command parser is an internal wire entry, not a public language capability.
 
-## Non-goals
+## Decisions and remaining work
 
-- **No operator/plan algebra (model** — planners own it; see the lane guardrail).
-- **No retry policy in the box** — retry is a stage an engine registers, because only
-  the engine knows which of its errors are retryable.
-- **No streaming-result buffering** — `QueryResultSet.GetRowsAsync` streams; anything
-  that must buffer does so in a model layer that knows the memory budget.
+- `Diagnostic`, `DiagnosticSeverity` and `DiagnosticLocation` moved unchanged to
+  `Database.Types`. Diagnostics may still be null; non-null diagnostics and further result
+  NVI work remain with #1264.
+- There is no shared execution pipeline. The unused pipeline, transaction-scope and executor
+  abstractions were deleted under #1257. Models own their execution and transaction brackets.
+- There is no exception root here. Model failures use the root assembly's `DatabaseException`
+  family; this lower package cannot reference that root.
+- Text execution retains its existing validation, refusal and tracing order. Parsing every
+  language request before entering the traced execution member is deferred to separate work.
+- Streaming remains the model's responsibility: `DatabaseResultSet.GetRowsAsync` does not
+  introduce shared buffering or choose a model's memory budget.
 
 ## AOT posture
 
-Contracts, sealed data carriers, and delegate composition — no reflection, no expression trees, no
-runtime codegen.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Database.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+Abstract request/result contracts, a sealed column descriptor and ordinary generic session
+bases require no reflection, expression trees, runtime code generation or generic virtual method.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/Assimalign.Cohesion.Database.Execution.csproj`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/docs/DESIGN.md`.
