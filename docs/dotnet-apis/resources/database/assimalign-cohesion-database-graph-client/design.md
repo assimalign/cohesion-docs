@@ -58,14 +58,25 @@ payloads into GraphPath values.
 
 The shared ExecuteStreamingAsync owns frame I/O, applies backpressure, and keeps the connection
 busy through completion. Consuming EOF verifies terminal completion before another operation.
-Disposing an unfinished enumeration cancels the worker and discards the rental. Stream errors,
-including an initial server rejection, discard the connection under the existing shared
-streaming contract. This is intentionally stricter than materialized statement rejection;
-IDatabaseStreamingExchange has no failed-response completion capability.
+Disposing an unfinished enumeration cancels the worker and discards the rental. A terminal refusal before any path output is consumed as a complete rejection and preserves
+the session. The model wrapper throws GraphClientException after the shared worker reaches EOF.
+Transport errors, malformed output and unfinished cancellation/disposal discard the connection.
 
 The client holds a bounded number of path payloads for materialization plus the shared bounded
 byte buffer. The engine currently materializes its path result, so end-to-end server memory still
 depends on the number of matched paths. A single path must fit the existing maximum frame size.
+
+## Parameters and completion diagnostics
+
+Query/Execute/QueryPaths all accept scalar parameter maps. One leading sigil is stripped and
+bare names compare ordinally; runtime types survive the codec. Planner failures preserve
+COHDBG001/003/014. [GraphConnection](graph-connection.md) documents the changed signatures.
+
+QueryPathsAsync returns [GraphPathResult](graph-path-result.md), a single-use stream. Read its
+ProtocolDiagnostic list after EOF; scalar GraphResultSet exposes its list at return. Negotiated
+2.1 sends Warning/Error entries before completion or Error. Bounds are 4,096 entries and 1 MiB;
+COHDBP001 reports a dropped suffix while preserving the original outcome and session. Information
+is omitted; 2.0 retains baseline result/Error bytes. Malformed diagnostic ordering is fatal.
 
 ## Supported surface and limits
 

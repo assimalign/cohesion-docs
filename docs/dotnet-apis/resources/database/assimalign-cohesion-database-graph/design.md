@@ -268,12 +268,20 @@ not included.
 | `COHDBL001` | Unsupported language capability, reported on the parsed statement |
 | `GQL0001`–`GQL0006` | Parser syntax/literal/bound errors; see language design |
 | `GQL0007` | Attempt to mutate catalog introspection results |
-| `COHDBG001` | Invalid pattern, variable binding or traversal specification |
+| `COHDBG001` | Invalid pattern, variable binding, or traversal specification |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Schema/data mismatch, restricted deletion or invalid graph mutation |
-| `COHDBG004` | Path materialization or candidate-expansion limit exceeded |
+| `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
+| `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | `Storage` failure translated at the engine boundary |
+| `COHDBG006` | Storage failure translated at the engine boundary |
+| `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
+| `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
+| `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
+| `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
+| `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
+| `COHDBG012` | Database offline after durable storage failure |
+| `COHDBG013` | Scalar value error: non-Boolean condition, invalid arithmetic/concatenation, zero divisor, overflow or non-finite result |
+| `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 
 Planner/data errors use stable code prefixes on `DatabaseException`. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
@@ -306,8 +314,8 @@ model-scoped bytes for other meanings; shared codes 1–4 and 10–13 retain the
 remain reserved. Bytes 5–9 retain Graph's deployed catalog exchange. The path extension uses 64–66.
 This follows the shared lexer/parser and per-model grammar precedent.
 
-Version **1.0** is retained: the deployed catalog, SQL and `Key`-Value exchanges are byte-for-byte
-unchanged. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
+Current startup negotiates shared protocol **2.1** and optional structured diagnostics. Model
+result/Error payloads retain their baseline encoding. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
 chooses the smaller server/requested minor. The wire envelope is unsigned 32-bit big-endian payload
 length, one type byte, then the payload. The length excludes the five-byte header and cannot exceed
 16,777,216. Integers below are big-endian. A string is a nonnegative signed `int32` UTF-8 byte
@@ -513,6 +521,18 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Database.Graph.Catalog` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 scalar planning and EXPLAIN
+
+WHERE executes the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
+with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE and property maps,
+preserving runtime scalars; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
+binding and provisioning checks, then returns DatabasePlanDescription without executing writes.
+
+Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completion or Error.
+[GraphPathResult](../assimalign-cohesion-database-graph-client/graph-path-result.md) exposes completion
+warnings at EOF. A terminal pre-output path refusal leaves the session usable. See the complete
+[GQL diagnostic table](../../../../database/graph/language/diagnostics.md).
 
 ## Sources
 

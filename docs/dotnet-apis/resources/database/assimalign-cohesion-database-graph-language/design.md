@@ -62,8 +62,8 @@ The builtin-function table is empty because the executor implements no functions
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
-| `MATCH` | Comma-separated finite node/relationship chains; optional labels, type, literal property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
-| `WHERE` | Scalar `=`, `<>`, `!=`, `<`, `<=`, `>`, `>=` comparisons joined by `AND`; predicate parentheses | Filters bound properties against literal or property operands |
+| `MATCH` | Comma-separated finite node/relationship chains; optional labels, type, literal or parameter property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
 | `RETURN` | Bound node/relationship variables or scalar properties, optional `AS` aliases | Projects elements or scalar values in source order |
 | `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
@@ -87,16 +87,15 @@ query       := [ MATCH paths [ WHERE predicate ] ]
                | RETURN projections )
 paths       := path (',' path)*
 path        := node (relationship node)*
-predicate   := comparison ('AND' comparison)*
-comparison  := operand comparison-operator operand | '(' predicate ')'
-operand     := variable '.' property | scalar-literal
+predicate   := scalar-expression
+operand     := variable '.' property | scalar-literal | parameter
 projection  := variable ['.' property] [AS alias]
 catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP)
 ```
 
 A mutation can start without `MATCH`; a read or deletion must bind variables through `MATCH`.
-`Pattern` chains are limited to 64 relationships. Predicates are limited to 128 nesting levels and 128
-scalar comparisons, bounding left-associated conjunction trees as well as parentheses. `Match`
+`Pattern` chains are limited to 64 relationships. Scalar chains have no comparison-count limit;
+recursive depth follows available stack (GQL0009 in parsing, COHDBG008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
 Quantified paths are unsupported, so cycles cannot cause unbounded repetition of a path pattern. The
 executor's trail rule permits repeated nodes but forbids repeated relationship identities within one
@@ -117,16 +116,29 @@ The
 defines ordered result columns, SQL-consistent ownership vocabulary and session snapshot behavior.
 The parser describes only the metadata subject; it never accesses or caches catalog state.
 
+## Scalar AST, parameters and EXPLAIN
+
+[GqlLogicalExpression](gql-logical-expression.md) holds And/Or/Xor chains; OR and XOR share one
+precedence level. Unary, IN/list, null/truth tests and string predicates have typed nodes linked
+from the [assembly index](index.md). Runtime errors use COHDBG013. Property maps hold GqlExpression
+values rather than only literals, including GqlParameterExpression. Bare-name lookup is ordinal
+and strips one sigil; collisions are COHDBG014, missing values COHDBG001, invalid types COHDBG003.
+
+GqlQueryExpression.IsExplain flags a parser-created EXPLAIN wrapper on a data query. Normal binding
+and provisioning admission apply and DatabasePlanDescription is returned without data execution.
+[Language operators](../../../../database/graph/language/expressions/operators.md) specifies exact
+precedence, NULL behavior and all syntax boundaries.
+
 ## Diagnostics and conformance (#194, #195)
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including optional matching, procedures, functions, parameters, collection literals, quantifiers, ordering, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including optional matching, procedures, functions, general collection values, quantifiers, ordering, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
 | `GQL0004` | Invalid or out-of-range numeric literal |
-| `GQL0005` | `Pattern` length, comparison count, or expression nesting limit exceeded |
+| `GQL0005` | 64-relationship pattern bound exceeded |
 | `GQL0006` | Duplicate literal property key |
 | `GQL0007` | `Graph catalog introspection is read-only.`: mutation composed with `SHOW` |
 
@@ -160,6 +172,9 @@ change; keyword recognition alone never enables it.
 | `Assimalign.Cohesion.Database.Language` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../database/graph/language/diagnostics.md),
+including GQL0008/0009 and COHDBG001–014 with available SQLSTATE/GQLSTATUS categories.
 
 ## Sources
 

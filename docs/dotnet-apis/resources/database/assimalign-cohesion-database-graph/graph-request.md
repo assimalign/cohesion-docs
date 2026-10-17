@@ -1,0 +1,40 @@
+# GraphRequest
+
+The common typed request root for graph row and path execution.
+
+Namespace: `Assimalign.Cohesion.Database.Graph`.
+
+## Signature
+
+```csharp
+public abstract class GraphRequest : DatabaseRequest
+{
+    public GqlQueryStatement Statement { get; }
+    public IReadOnlyDictionary<string, object?>? Parameters { get; }
+}
+```
+
+## Behavior and exceptions
+
+Construction is restricted to the two graph request leaves. Their constructors fix statement,
+parameter dictionary and result shape. Statement cannot be null (ArgumentNullException in the leaf
+constructor). Parameters are optional and retain the caller's dictionary; planning normalizes by
+ordinal bare name and validates referenced values. Collisions are COHDBG014, absent references
+COHDBG001 and unsupported/non-finite values COHDBG003. Null is a binding and unused values are ignored.
+
+## Example
+
+```csharp
+GraphRequest request = GraphQueryRequest.FromGql("MATCH (n) WHERE n.age >= $age RETURN n.age",
+    new Dictionary<string, object?> { ["age"] = 18 });
+Console.WriteLine(request.Parameters!["age"]); // 18 (Int32)
+```
+
+## Related reference
+
+[GraphQueryRequest](graph-query-request.md) · [GraphPathsQueryRequest](graph-paths-query-request.md) · [Assembly](index.md)
+
+## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphRequest.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.

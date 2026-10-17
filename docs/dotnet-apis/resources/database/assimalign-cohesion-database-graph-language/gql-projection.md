@@ -13,8 +13,8 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 `GqlQueryExpression` groups finite match paths, a predicate, insertions, deletion variables and
 projections. `GqlPathPattern` holds ordered nodes and relationships; their immutable metadata
 captures labels, direction, type and scalar properties. `GqlProjection` selects a bound element or
-property with an optional alias. Literal, property and binary expression classes describe the
-bounded comparison grammar. Programmatically constructed ASTs receive planner validation too.
+property with an optional alias. Typed logical/unary, IN/list, null/truth, string and parameter nodes describe WHERE
+expressions. Property maps retain GqlExpression values. Programmatically constructed ASTs receive planner validation too.
 
 ## Related reference
 

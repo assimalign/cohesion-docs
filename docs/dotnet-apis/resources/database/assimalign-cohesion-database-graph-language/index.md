@@ -15,6 +15,16 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[`GqlQueryExpression`](gql-query-expression.md)** — Documented public type.
 - **[`GqlQueryParser`](gql-query-parser.md)** — Documented public type.
 - **[`GqlQueryStatement`](gql-query-statement.md)** — Documented public type.
+- **[GqlParameterExpression](gql-parameter-expression.md)** — Scalar AST and validation.
+- **[GqlUnaryExpression](gql-unary-expression.md)** — Scalar AST and validation.
+- **[GqlIsNullExpression](gql-is-null-expression.md)** — Scalar AST and validation.
+- **[GqlTruthTestExpression](gql-truth-test-expression.md)** — Scalar AST and validation.
+- **[GqlListExpression](gql-list-expression.md)** — Scalar AST and validation.
+- **[GqlInExpression](gql-in-expression.md)** — Scalar AST and validation.
+- **[GqlStringPredicateExpression](gql-string-predicate-expression.md)** — Scalar AST and validation.
+- **[GqlLogicalExpression](gql-logical-expression.md)** — Scalar AST and validation.
+- **[GqlLogicalOperator](gql-logical-operator.md)** — Values and usage.
+- **[GqlStringPredicateOperator](gql-string-predicate-operator.md)** — Values and usage.
 
 This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an AST. It depends on
 `Database.Language` for the lexer, parser lifecycle, analyzer pipeline, and diagnostic contracts.

@@ -8,19 +8,23 @@
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[GraphConnection](graph-connection.md)** — Public execution contract.
+- **[GraphResultSet](graph-result-set.md)** — Public execution contract.
+- **[GraphPathResult](graph-path-result.md)** — Public execution contract.
+- **[GraphClientException](graph-client-exception.md)** — Values and usage.
 
 `Assimalign.Cohesion.Database.Graph.Client` is the pooled, transport-independent client for
 `GraphDatabaseServer`. It ships as a NuGet package outside the App.Database shared framework.
-Create an `IGraphClient` through `GraphClient.Create`, supplying `GraphClientOptions` with shared
+Create an `GraphClient` through `GraphClient.Create`, supplying `GraphClientOptions` with shared
 database settings and a Connections transport factory.
 
 ```mermaid
 flowchart LR
-    Caller --> IGraphClient
-    IGraphClient --> IGraphConnection
-    IGraphConnection -->|scalar statements| GraphResultSet
-    IGraphConnection -->|streamed entity projections| GraphPath
-    IGraphConnection --> Core[Database.Client pool]
+    Caller --> GraphClient
+    GraphClient --> GraphConnection
+    GraphConnection -->|scalar statements| GraphResultSet
+    GraphConnection -->|streamed entity projections| GraphPath
+    GraphConnection --> Core[Database.Client pool]
     Core --> Server[GraphDatabaseServer]
 ```
 
@@ -36,12 +40,10 @@ properties. Enumerate to completion to verify the terminal count; abandoning an 
 enumeration discards its connection.
 
 Dispose each connection to return a healthy authenticated session to the pool, and dispose the
-client to close the pool. Scalar parse/execution failures retain the session; path-stream
-failures discard it under the shared streaming contract. Explicit transactions are not exposed:
+client to close the pool. Scalar parse/execution failures retain the session; a terminal pre-output path refusal also preserves it. Unfinished streams discard it. Explicit transactions are not exposed:
 BEGIN/COMMIT/ROLLBACK and the reserved Transaction message are unsupported.
 
-Parameters are encoded using the shared scalar codec, but parameter syntax remains subject to
-the server's advertised GQL subset. The client never parses GQL or retries statements.
+Parameters bind WHERE and property-map values under the shared bare-name contract. The client never parses GQL or retries statements.
 See [design](design.md) for completion and lifetime behavior.
 
 Supply an `IDuplexConnectionFactory` through `GraphClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.

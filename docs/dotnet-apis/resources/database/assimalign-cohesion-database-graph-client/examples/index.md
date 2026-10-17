@@ -13,6 +13,12 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## T1 API examples
+
+[GraphConnection](../graph-connection.md) demonstrates typed scalar parameters and
+[GraphPathResult](../graph-path-result.md) demonstrates completion warnings after EOF.
+Pre-output terminal refusals retain the session; early disposal still discards it.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/OVERVIEW.md`.
