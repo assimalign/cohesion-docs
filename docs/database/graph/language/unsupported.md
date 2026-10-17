@@ -13,11 +13,11 @@ The examples below are rejected forms, not executable syntax diagrams.
 |---|---|---|
 | Optional or mandatory matching | Recognized, not supported (`COHDBL001`) | `OPTIONAL MATCH`, `MANDATORY MATCH` |
 | Sorting and pagination | Recognized, not supported (`COHDBL001`) | `ORDER BY`, `LIMIT`, `OFFSET`, `SKIP` |
-| Intermediate projection | Recognized, not supported (`COHDBL001`) | `WITH` |
+| Intermediate projection and chaining | Recognized, not supported (`COHDBL001`) | `WITH`, `NEXT` |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
-| Set operations and deduplication | Recognized, not supported (`COHDBL001`) | `UNION`, `DISTINCT` |
+| Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |
 | Functions and aggregation | Recognized, not supported (`COHDBL001`) | `count(a)`, `abs(a.age)` |
-| Wildcard projection | Recognized, not supported (`COHDBL001`) | `RETURN *` |
+| Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
 | Quantified paths | Recognized, not supported (`COHDBL001`) | `[r*1..3]`, `->{1,3}` |
 | Collection values outside IN | Recognized, not supported (`COHDBL001`) | List/map parameters and nested maps |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |
@@ -40,10 +40,14 @@ GQL cannot select another graph or database. Database lifecycle uses the engine 
 transactions use the session API, and label/type/index management uses the session-bound schema API.
 
 GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path queries.
-ExecutePaths accepts one bound node, relationship or path from a read-only MATCH; scalar or mixed
-projections use Execute. GraphClient provides pooled connections, materialized scalar results and
-single-use path streams. RETURN arithmetic/parameters, function calls, LIKE, BETWEEN, EXISTS and
-quantified predicates remain excluded; [WHERE expressions](expressions/operators.md) execute.
+ExecutePaths accepts one bare node, relationship or path binding from read-only MATCH, including
+DISTINCT or star over one named binding. Computed, multiple and multi-binding star projections
+report COHDBG001. Execute accepts statically scalar columns; entity results report COHDBG001 with
+the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
+EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
+materialized scalar results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
+star and standalone evaluation execute. Function calls, LIKE, BETWEEN, EXISTS and quantified
+predicates remain excluded; [value expressions](expressions/operators.md) run in WHERE and RETURN.
 
 Graph-specific security policies, replication, compiled-schema provisioning, configurable graph
 collation, and large property chunking are deferred or out of scope in the engine design.

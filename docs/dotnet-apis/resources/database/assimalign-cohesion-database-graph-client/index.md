@@ -43,7 +43,12 @@ Dispose each connection to return a healthy authenticated session to the pool, a
 client to close the pool. Scalar parse/execution failures retain the session; a terminal pre-output path refusal also preserves it. Unfinished streams discard it. Explicit transactions are not exposed:
 BEGIN/COMMIT/ROLLBACK and the reserved Transaction message are unsupported.
 
-Parameters bind WHERE and property-map values under the shared bare-name contract. The client never parses GQL or retries statements.
+Parameters bind WHERE, RETURN and property-map values under the shared bare-name contract.
+RETURN supports standalone/computed expressions, aliases and DISTINCT/ALL. Duplicate final names
+fail COHDBG015 before reads, mutation or output. Wire Execute rejects entity projections before
+writes; QueryPathsAsync accepts one bare binding, including DISTINCT or star over one named binding.
+See [GraphConnection](graph-connection.md) and [RETURN](../../../../database/graph/language/clauses/return.md).
+The client never parses GQL or retries statements.
 See [design](design.md) for completion and lifetime behavior.
 
 Supply an `IDuplexConnectionFactory` through `GraphClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.

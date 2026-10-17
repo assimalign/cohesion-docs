@@ -12,6 +12,8 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[`GqlLanguageProfile`](gql-language-profile.md)** — Documented public type.
 - **[`GqlPathPattern`](gql-path-pattern.md)** — Documented public type.
 - **[`GqlProjection`](gql-projection.md)** — Documented public type.
+- **[GqlVariableExpression](gql-variable-expression.md)** — Bare node, relationship or path binding.
+- **[GqlSetQuantifier](gql-set-quantifier.md)** — ALL or DISTINCT result tuples.
 - **[`GqlQueryExpression`](gql-query-expression.md)** — Documented public type.
 - **[`GqlQueryParser`](gql-query-parser.md)** — Documented public type.
 - **[`GqlQueryStatement`](gql-query-statement.md)** — Documented public type.
@@ -32,8 +34,8 @@ The Graph engine consumes the AST for planning and execution in the session's bo
 
 See the [source-backed usage examples](examples/index.md).
 
-The supported surface is finite `MATCH` paths, scalar Boolean/arithmetic filters with parameters, variable or
-property projection, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
+The supported surface is finite `MATCH` paths, scalar Boolean/arithmetic filters with parameters,
+RETURN expressions/aliases, DISTINCT and star, standalone RETURN, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.
 

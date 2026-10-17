@@ -9,7 +9,7 @@ CREATE is Cohesion's compatibility spelling for graph insertion.
 ```syntaxsql
 [ MATCH match_path [ , ...n ] [ WHERE predicate ] ]
 CREATE insertion_path [ , ...n ]
-[ RETURN projection [ , ...n ] ]
+[ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] } ]
 ```
 
 ## Supported clauses
@@ -24,13 +24,15 @@ CREATE insertion_path [ , ...n ]
 ## Arguments
 
 - **`insertion_path`** — a node/path pattern with scalar literal or parameter properties; created relationships require a type and direction.
-- **`projection`** — a bound variable or scalar property, with optional alias.
+- **`expression`** — a [RETURN value expression](../clauses/return.md), with optional alias.
 
 ## Remarks
 
 This is a Cohesion compatibility extension, not the standard insertion spelling.
 `CREATE` and `INSERT` compile to the same `Creates` abstract syntax tree and transaction path.
 Use [INSERT](insert.md) when choosing the profile's standard insertion verb.
+Its RETURN/DISTINCT ordering and pre-write validation apply here too: duplicate names use
+COHDBG015, and entity columns through wire Execute use COHDBG001 before mutation.
 
 This syntax does not manage databases, graphs, schemas, labels, or indexes.
 Session-bound schema operations are provided by `GraphSchema.Open`.
@@ -44,6 +46,10 @@ The compatibility case in the parser corpus is:
 ```sql
 CREATE (a:Person {name: 'Alice'}) RETURN a
 ```
+
+Embedded rows contain the inserted GraphNode in column `a`. Wire Execute rejects this entity
+projection before writing; `CREATE (a:Person {name:'Alice'}) RETURN a.name AS name` returns
+one scalar row `(Alice)` through either surface.
 
 ## See also
 

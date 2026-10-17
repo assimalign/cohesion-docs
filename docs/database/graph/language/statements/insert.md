@@ -9,7 +9,7 @@ INSERT creates nodes and relationships from graph patterns with scalar literal o
 ```syntaxsql
 [ MATCH match_path [ , ...n ] [ WHERE predicate ] ]
 INSERT insertion_path [ , ...n ]
-[ RETURN projection [ , ...n ] ]
+[ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] } ]
 ```
 
 ## Supported clauses
@@ -17,14 +17,14 @@ INSERT insertion_path [ , ...n ]
 | Clause | Support | Role |
 |---|---|---|
 | `MATCH` and `WHERE` | Supported | Supply existing bound elements |
-| `RETURN` | Supported | Project inserted or matched variables |
+| `RETURN` | Supported | Expressions, aliases, DISTINCT/ALL and named-binding star |
 | `SET`, `REMOVE`, `MERGE` | Recognized, not supported (`COHDBL001`) | No update or merge clause |
 
 ## Arguments
 
 - **`insertion_path`** — nodes and directed, typed relationships with optional literal or parameter property maps.
 - **`match_path`** — a finite pattern supplying existing variables.
-- **`projection`** — a bound variable or scalar property, optionally aliased.
+- **`expression`** — a [RETURN value expression](../clauses/return.md), optionally aliased.
 
 ## Remarks
 
@@ -35,6 +35,12 @@ Bindings preserve runtime types; missing/invalid values and collisions use COHDB
 
 Insertion joins the session transaction. A failed mutation rolls back the owning logical
 transaction, including an explicit transaction.
+
+RETURN expressions evaluate after insertion for every matched binding. DISTINCT removes result
+duplicates after all writes, without reducing insertion counts. Duplicate final column names fail
+COHDBG015 before mutation. Wire Execute accepts scalar result kinds; `INSERT (a:P) RETURN a` or
+`INSERT (a:P) RETURN *` fails COHDBG001 directing callers to ExecutePaths before writing. Path requests require
+a read-only MATCH, so they cannot return insertion results; embedded rows can expose entities.
 
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
@@ -50,6 +56,18 @@ INSERT (a:Person {name: 'Alice', age: -42, active: TRUE, optional: NULL})
 MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}) INSERT (a)-[r:KNOWS]->(b) RETURN r
 ```
 
+That entity projection uses embedded rows. This scalar example runs embedded or over the wire,
+with each statement executed separately in a fresh database:
+
+```sql
+INSERT (:Source), (:Source), (:Source);
+MATCH (a:Source) INSERT (:Output {v:1}) RETURN DISTINCT 1 AS one;
+MATCH (n:Output) RETURN n.v;
+```
+
+The second statement returns one row `(1)` with column `one` but inserts three Output nodes.
+The final query returns three rows containing `1`.
+
 ## See also
 
 - **[Statements](index.md)** — statement navigation.
@@ -62,3 +80,4 @@ MATCH (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}) INSERT (a)-[r:KNOWS]-
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanner.cs`.
+- **DISTINCT after insertion** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

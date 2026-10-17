@@ -17,10 +17,13 @@ public sealed class GraphPathsQueryRequest : GraphRequest
 ## Behavior and exceptions
 
 Statement and Parameters are inherited from GraphRequest. Parameters bind case-sensitive bare names
-in WHERE and property maps, retaining runtime scalar types. Missing/colliding/unsupported values
+in WHERE, RETURN and property maps, retaining runtime scalar types. Missing/colliding/unsupported values
 fail planning with COHDBG001/014/003, including under EXPLAIN. Unused values are ignored. Path
-requests require one bound entity/path from read-only MATCH; scalar/multiple projections, catalog
-statements and mutations fail before output.
+requests require one bare bound entity/path from read-only MATCH, optionally DISTINCT, or star
+over one named binding. Scalar/computed/multiple and multi-binding star projections, catalog
+statements and mutations fail with COHDBG001 before output. Shape checks precede duplicate-name
+checks. DISTINCT uses node/relationship identity or ordered path identities, including traversal
+direction; independent materializations compare equal.
 
 Null statements throw ArgumentNullException. FromGql rejects blank text with ArgumentException,
 parser errors with DatabaseParseException carrying complete diagnostics, and exhausted parsing stack
@@ -45,3 +48,4 @@ var result = await session.ExecuteAsync(request, CancellationToken.None);
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphPathsQueryRequest.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

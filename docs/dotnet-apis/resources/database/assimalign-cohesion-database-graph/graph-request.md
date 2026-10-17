@@ -21,7 +21,9 @@ parameter dictionary and result shape. Statement cannot be null (ArgumentNullExc
 constructor). Parameters are optional and retain the caller's dictionary; planning normalizes by
 ordinal bare name and validates referenced values. Collisions are COHDBG014, absent references
 COHDBG001 and unsupported/non-finite values COHDBG003. Null is a binding and unused values are
-ignored.
+ignored. Parameters can occur in maps, WHERE and RETURN. [Row requests](graph-query-request.md)
+support standalone/computed projections and DISTINCT; [path requests](graph-paths-query-request.md)
+require one bare entity/path binding, including DISTINCT or star over one named binding.
 
 ## Example
 

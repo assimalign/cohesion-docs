@@ -19,6 +19,11 @@ examples require their original test project’s dependencies and supporting obj
 [GraphPathResult](../graph-path-result.md) demonstrates completion warnings after EOF.
 Pre-output terminal refusals retain the session; early disposal still discards it.
 
+Computed/standalone RETURN and parameter runtime types appear in the
+[GraphConnection example](../graph-connection.md#example). [RETURN](../../../../../database/graph/language/clauses/return.md#examples)
+and [INSERT](../../../../../database/graph/language/statements/insert.md#examples) show DISTINCT,
+star, duplicate-name diagnostics and the pre-write scalar gate, checked against GraphReturnWireTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/OVERVIEW.md`.

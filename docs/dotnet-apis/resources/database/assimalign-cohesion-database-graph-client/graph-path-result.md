@@ -26,6 +26,10 @@ connection and throws GraphClientException carrying diagnostics. Transport and m
 failures still discard it. This changes the QueryPathsAsync return type while preserving await
 foreach.
 
+QueryPathsAsync also accepts DISTINCT over one bare bound entity/path, or RETURN * over one named
+binding. Computed/multiple and multi-binding star shapes fail COHDBG001 before path output and
+before duplicate-name checks; completion and reuse rules stay the same.
+
 ## Example
 
 ```csharp

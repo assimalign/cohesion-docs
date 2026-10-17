@@ -1,6 +1,6 @@
 # Parameters
 
-Binds runtime scalar values in GQL WHERE operands and node/relationship property maps.
+Binds runtime scalar values in GQL WHERE, RETURN and node/relationship property maps.
 
 ## Syntax
 
@@ -18,9 +18,12 @@ regardless of the caller dictionary's comparer. Numeric names contain ASCII digi
 names, not positions: $01 binds 01. Identifier names start with a letter or underscore and continue
 with letters/digits/underscores. NULL is a bound value; unused values are ignored.
 
-MATCH/INSERT/CREATE property maps and WHERE operands bind parameters through GraphQueryRequest,
+MATCH/INSERT/CREATE property maps, WHERE operands and RETURN expressions bind parameters through GraphQueryRequest,
 GraphPathsQueryRequest, session text execution, and GraphConnection parameter maps. Runtime types,
-including Int32 and Decimal, are preserved. Schema matching uses typed graph promotion rules.
+including Int32 and Decimal, are preserved. Schema type checks use typed graph promotion rules;
+comparisons, property matching, IN and DISTINCT use exact represented numeric values. Decimal
+`0.1m` and Double `0.1d` compare unequal; Int64 `1` and Double `1.0` compare equal. Arithmetic
+retains its [promotion table](operators.md#arithmetic-and-concatenation).
 
 | Code | Meaning |
 | --- | --- |
@@ -28,7 +31,7 @@ including Int32 and Decimal, are preserved. Schema matching uses typed graph pro
 | COHDBG001 | Referenced binding missing; fails planning before reads or writer locks |
 | COHDBG003 | Referenced value has unsupported type or is non-finite; list/map values excluded |
 | GQL0002 | Malformed reference, bare sigil, identifier/DELETE-position parameter |
-| COHDBL001 | RETURN $p, $$name or a whole property-map parameter |
+| COHDBL001 | $$name or a whole property-map parameter |
 
 EXPLAIN performs the same validation. A pre-output terminal path refusal keeps the wire connection
 usable; unfinished output/cancellation follows the normal discard rule. A failed statement in an
@@ -51,6 +54,12 @@ WHERE $weight = r.weight RETURN a.name, r.weight;
 ```
 
 INSERT affects three entities. MATCH returns (Ada, 2.5), retaining Decimal for weight.
+
+```sql
+RETURN $weight AS weight;
+```
+
+This standalone query returns one row containing Decimal `2.5`, with column name `weight`.
 
 ## See also
 

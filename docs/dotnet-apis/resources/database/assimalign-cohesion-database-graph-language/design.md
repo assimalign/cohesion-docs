@@ -64,7 +64,7 @@ The builtin-function table is empty because the executor implements no functions
 | --- | --- | --- |
 | `MATCH` | Comma-separated finite node/relationship chains; optional labels, type, literal or parameter property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
-| `RETURN` | Bound node/relationship variables or scalar properties, optional `AS` aliases | Projects elements or scalar values in source order |
+| `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
@@ -82,18 +82,20 @@ The grammar is intentionally finite:
 
 ```text
 query       := [ MATCH paths [ WHERE predicate ] ]
-               ( (INSERT | CREATE) paths [ RETURN projections ]
+               ( (INSERT | CREATE) paths [ return ]
                | [ DETACH ] DELETE variables
-               | RETURN projections )
+               | return )
 paths       := path (',' path)*
 path        := node (relationship node)*
 predicate   := scalar-expression
-operand     := variable '.' property | scalar-literal | parameter
-projection  := variable ['.' property] [AS alias]
+operand     := variable | variable '.' property | scalar-literal | parameter
+return      := RETURN [DISTINCT | ALL] ('*' | projection (',' projection)*)
+projection  := value-expression [AS alias]
 catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP)
 ```
 
-A mutation can start without `MATCH`; a read or deletion must bind variables through `MATCH`.
+A mutation or standalone RETURN can start without MATCH; reading graph elements or deleting
+requires MATCH bindings.
 `Pattern` chains are limited to 64 relationships. Scalar chains have no comparison-count limit;
 recursive depth follows available stack (GQL0009 in parsing, COHDBG008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
@@ -117,6 +119,25 @@ defines ordered result columns, SQL-consistent ownership vocabulary and session 
 The parser describes only the metadata subject; it never accesses or caches catalog state.
 
 ## Scalar AST, parameters and EXPLAIN
+
+[GqlProjection](gql-projection.md) now holds a GqlExpression and optional alias, replacing the
+variable/property tuple. [GqlVariableExpression](gql-variable-expression.md) represents a bare
+binding. [GqlQueryExpression](gql-query-expression.md) adds init-only ReturnStar and SetQuantifier
+([All/Distinct](gql-set-quantifier.md)); star expands first named declarations and cannot mix with
+explicit items. Standalone RETURN evaluates once; empty MATCH retains metadata with zero rows.
+Unaliased names use normalized source text, or rendered syntax for source-free nodes. Duplicate
+final names compare ordinally and fail COHDBG015 before reads/writes, even under EXPLAIN.
+
+Comparisons, property matching, IN and DISTINCT share exact represented numeric values across
+runtime types. Decimal 0.1m and Double 0.1d are unequal; Int64 1 and Double 1.0 are equal. Large
+integers and subnormals keep their values and signed zeros agree. DISTINCT groups NULLs; ordinary
+NULL comparisons are UNKNOWN. Arithmetic keeps #1140's promotion: floating operands use Double,
+otherwise decimal/ulong use Decimal, otherwise checked Int64. DISTINCT retains the first tuple's
+runtime types and compares entity/path identities independently of materialization.
+
+Wire Execute validates static scalar result kinds before data access, writer locking or mutation.
+EXPLAIN remains scalar for entity returns. ExecutePaths requires one bare entity/path binding,
+including DISTINCT or star over one binding; invalid shape precedes duplicate-name checks.
 
 [GqlLogicalExpression](gql-logical-expression.md) holds And/Or/Xor chains; OR and XOR share one
 precedence level. Unary, IN/list, null/truth tests and string predicates have typed nodes linked
@@ -174,7 +195,8 @@ change; keyword recognition alone never enables it.
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../database/graph/language/diagnostics.md),
-including GQL0008/0009 and COHDBG001–014 with available SQLSTATE/GQLSTATUS categories.
+including GQL0008/0009 and COHDBG001–015 with available SQLSTATE/GQLSTATUS categories.
+COHDBG015 identifies a duplicate final RETURN column name; the source assigns no SQLSTATE.
 
 ## Sources
 

@@ -37,8 +37,10 @@ response, so the pool may reuse that session. A malformed response, truncated tr
 cancellation, or error after result output cannot certify completion.
 
 Rows require exactly the advertised number of scalar components. Columns preserve wire names
-and shared DatabaseType identities; duplicate names resolve to the first column, with ordinals
-available for unambiguous access. Scalar statements fully materialize before returning.
+and shared DatabaseType identities. The engine rejects duplicate final RETURN names with COHDBG015
+before reads, mutation or output, including implicit/explicit collisions and EXPLAIN; no SQLSTATE
+is assigned. First-column lookup remains for manually constructed duplicate metadata.
+Scalar statements fully materialize before returning.
 MATCH projection metadata remains the engine's DatabaseType.Null (unknown), because graph
 properties may have heterogeneous types. The tuple codec preserves each actual value's runtime
 type. SHOW metadata retains its precisely declared catalog types.
@@ -80,11 +82,21 @@ is omitted; 2.0 retains baseline result/Error bytes. Malformed diagnostic orderi
 
 ## Supported surface and limits
 
+RETURN supports standalone expressions, computed/aliased columns, ALL/DISTINCT and named-binding
+star. DISTINCT compares exact represented numeric values across runtime types, ordinal strings,
+NULL groups and entity/path identities, retaining the first representative's runtime types.
+Numeric comparisons and IN agree: Decimal 0.1m differs from Double 0.1d, while Int64 1 equals
+Double 1.0. Arithmetic keeps its separate promotion. DISTINCT runs after mutations and never
+reduces writes per binding.
+
 ExecutePaths accepts exactly one bound path, node, or relationship projection from a read-only
-MATCH. A node becomes a singleton path; a relationship includes its stored-direction endpoints;
+MATCH, including DISTINCT or star over one named binding. Computed, multiple and multi-binding
+star projections fail COHDBG001 before duplicate-name validation. A node becomes a singleton path; a relationship includes its stored-direction endpoints;
 a named path retains traversal order. Scalar or mixed projections and mutations are rejected,
 so no path is reconstructed from scalar results. Execute serves scalar projection rows and
-mutations; bound entity projections direct callers to ExecutePaths.
+mutations. Its static scalar-kind gate rejects entity projections with COHDBG001 and directs callers
+to ExecutePaths before data access, writer locks or mutation, even on empty matches.
+EXPLAIN descriptions remain scalar for entity RETURN.
 
 Graph transactions remain a deliberate limit: there are no connection transaction members;
 BEGIN, COMMIT, ROLLBACK, and the reserved Transaction message are unsupported. Mutations retain

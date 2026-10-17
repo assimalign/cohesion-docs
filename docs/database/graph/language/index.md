@@ -24,7 +24,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 |---|---|---|
 | `MATCH` | Supported | Finite comma-separated node/relationship chains |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
-| `RETURN` | Supported | Bound variables and one-level properties; optional aliases |
+| `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
 | `INSERT` | Supported | Node/path insertion with literal or parameter properties, optionally after matching |
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |

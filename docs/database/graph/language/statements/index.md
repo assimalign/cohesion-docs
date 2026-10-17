@@ -14,7 +14,8 @@ Graph statements match data, mutate bound graphs, or inspect the session databas
 - **[DETACH DELETE](detach-delete.md)** — deletion with incident-relationship cascading.
 - **[SHOW](show.md)** — read-only catalog metadata.
 
-A read or deletion binds variables through `MATCH`. Insertion may stand alone. `SHOW` is a separate
+A query reading graph elements or a deletion binds variables through `MATCH`. Insertion and
+RETURN may stand alone; standalone RETURN evaluates one row. `SHOW` is a separate
 statement and cannot be combined with graph matching, projection, or mutation.
 
 - **[EXPLAIN](explain.md)** — Return a chosen plan without executing it.

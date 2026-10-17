@@ -14,7 +14,7 @@ public sealed class GqlParameterExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Name is the bare, case-sensitive parameter name. WHERE and property maps retain runtime scalar
+Name is the bare, case-sensitive parameter name. WHERE, RETURN and property maps retain runtime scalar
 types. Missing bindings fail COHDBG001, normalized collisions COHDBG014, unsupported/non-finite
 values COHDBG003 during planning. This constructor retains its inputs; malformed query reference
 syntax is GQL0002.

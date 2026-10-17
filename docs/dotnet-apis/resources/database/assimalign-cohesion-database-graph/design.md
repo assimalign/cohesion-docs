@@ -101,10 +101,12 @@ of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A labe
 records and sorts its matches. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
 normalize integral, decimal and finite floating point values through double conversion. Full scalar
-comparisons filter index candidates, preserving exact integral/decimal comparisons despite key
-collisions. Comparisons involving a floating point operand use double precision, including subnormal
-values. All node creation/deletion paths maintain property indexes. Graph has no property-update
-verb.
+comparisons filter index candidates using exact represented values across all numeric types despite
+key collisions. Equality, inequality, ordering, property matching, IN and DISTINCT agree: Decimal
+0.1m differs from Double 0.1d, while Int64 1 equals Double 1.0. Large integers retain every bit and
+subnormals remain distinct from zero. Signed zeros compare equal; NULL comparisons are UNKNOWN
+while DISTINCT groups NULLs. Arithmetic keeps its own promotion. All node creation/deletion paths
+maintain property indexes. Graph has no property-update verb.
 
 ## Transactions, atomicity and recovery
 
@@ -282,6 +284,7 @@ not included.
 | `COHDBG012` | Database offline after durable storage failure |
 | `COHDBG013` | Scalar value error: non-Boolean condition, invalid arithmetic/concatenation, zero divisor, overflow or non-finite result |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
+| `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 
 Planner/data errors use stable code prefixes on `DatabaseException`. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
@@ -524,10 +527,25 @@ framing, handshake and model messages are unchanged.
 
 ## T1 scalar planning and EXPLAIN
 
-WHERE executes the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
-with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE and property maps,
+WHERE and RETURN execute the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
+with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE, RETURN and property maps,
 preserving runtime scalars; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
 binding and provisioning checks, then returns DatabasePlanDescription without executing writes.
+
+RETURN accepts computed/aliased expressions, DISTINCT/ALL, named-binding star and standalone
+evaluation. Columns follow source item order; star follows first declarations, with a named path
+before its elements. Implicit names use normalized source text, or rendered syntax for source-free
+ASTs. Final duplicate names fail COHDBG015 before execution. DISTINCT compares complete tuples and
+retains the first representative's types; it does not reduce mutation counts. Entity/path equality
+uses identities and ordered traversal, independently of materialization. Arithmetic uses Double
+for floating operands, otherwise Decimal for decimal/ulong, otherwise checked Int64; comparison
+and DISTINCT use exact values as described above.
+
+Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execute checks planned
+result kinds before data reads, writer locks or mutation and rejects non-scalar columns with
+COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
+Path requests require one bare bound entity/path from read-only MATCH, including DISTINCT or
+star over one binding; invalid shapes use COHDBG001 before duplicate-name validation.
 
 Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completion or Error.
 [GraphPathResult](../assimalign-cohesion-database-graph-client/graph-path-result.md) exposes completion

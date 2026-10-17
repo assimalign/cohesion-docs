@@ -1,6 +1,6 @@
 # Operators
 
-GQL WHERE evaluates Boolean, comparison, arithmetic, concatenation and string predicates.
+GQL WHERE and RETURN evaluate Boolean, comparison, arithmetic, concatenation and string predicates.
 
 ## Syntax and precedence
 
@@ -16,7 +16,7 @@ Operators are listed from weakest to strongest; binary runs associate left.
 | 6 | Binary +, -; string + |
 | 7 | *, /, % |
 | 8 | Unary +, - |
-| 9 | Literals, parameters, one-level properties, parentheses |
+| 9 | Literals, parameters, bound variables, one-level properties, parentheses |
 
 ## NULL and truth
 
@@ -29,6 +29,16 @@ is true for NULL. Evaluated non-Boolean logical/WHERE values raise `COHDBG013`.
 Ordinary comparisons involving NULL yield unknown. Incomparable non-null values are unequal;
 incomparable ordering yields unknown. Strings compare ordinally and case-sensitively.
 
+All numeric comparisons (`=`, `<>`, `!=`, `<`, `<=`, `>`, `>=`), property matching and IN use
+exact represented values across runtime numeric types, agreeing with RETURN DISTINCT. Integer
+`1` equals Double `1.0`; Decimal `0.1m` does not equal Double `0.1d`. Large integers above 2^53
+retain every bit and subnormals remain greater than zero. Signed zeros compare equal. These
+examples use .NET type suffixes to describe parameter values; GQL has no `m`/`d` literal suffix.
+Non-finite referenced parameters or programmatic AST literals fail planning with COHDBG003;
+numeric text outside the finite Double range fails parsing with GQL0004. DISTINCT groups NULLs, while
+ordinary comparisons with NULL remain unknown. Bound nodes/relationships compare by identity;
+paths compare their ordered node/relationship identities and traversal direction.
+
 ## Arithmetic and concatenation
 
 Any floating operand promotes to Double; otherwise decimal/ulong promotes to Decimal; other
@@ -36,6 +46,7 @@ integer operands use checked Int64. Integer division truncates toward zero. Rema
 zero, including Int64.MinValue; Int64.MinValue / -1 overflows. Zero divisors, overflow, non-finite
 results and invalid arithmetic types are `COHDBG013`. Arithmetic propagates NULL.
 Concatenation `||` and string + require two strings and propagate NULL.
+This promotion applies to arithmetic; comparisons, IN and DISTINCT use exact value comparison.
 
 ## Membership and string predicates
 
@@ -47,7 +58,7 @@ operands are strings. IN and these string predicates are Cohesion extensions.
 
 LIKE, BETWEEN, regular-expression match, EXISTS, quantified predicates, function calls and nested
 property access remain `COHDBL001`. IN (1, 2) is `GQL0002` naming the required bracketed form.
-RETURN still projects only bound variables/properties, not these scalar expressions.
+[RETURN](../clauses/return.md) accepts these scalar expressions, bound variables and optional aliases.
 
 ## Examples
 
@@ -63,6 +74,17 @@ MATCH (a:Person) WHERE a.age IN [42, NULL] RETURN a.name;
 Results are Alice, no rows, and Alice, respectively. The second WHERE groups as
 (TRUE OR TRUE) XOR TRUE, so OR and XOR's shared precedence matters.
 
+Bind `decimal` to .NET `0.1m` and `double` to .NET `0.1d`:
+
+```sql
+RETURN $decimal = $double AS equal, $decimal <> $double AS different,
+       $decimal < $double AS less, $decimal IN [$double] AS member;
+RETURN 1 = 1.0 AS same;
+```
+
+Results are `(FALSE, TRUE, TRUE, FALSE)` and `(TRUE)`. Inserting both parameter values as a
+property and returning DISTINCT preserves two rows, one Decimal and one Double.
+
 ## See also
 
 [Expressions](index.md) · [WHERE](../clauses/where.md) · [Parameters](parameters.md) · [Diagnostics](../diagnostics.md)
@@ -71,3 +93,4 @@ Results are Alice, no rows, and Alice, respectively. The second WHERE groups as
 
 - **Truth, promotion and failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlWhereExpressionTests.cs`.
 - **Grammar and precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DIALECT.md`.
+- **Exact comparison and DISTINCT** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphNumericComparisonTests.cs`.

@@ -45,7 +45,10 @@ with `DatabaseObjectLockedException`.
 
 The embedded engine and GraphDatabaseServer execute the documented GQL subset. GraphClient rents
 database-bound connections for materialized scalar rows and single-use path streams. Parameters
-bind runtime scalars in maps and WHERE. Protocol 2.1 negotiates diagnostics; path completion exposes
+bind runtime scalars in maps, WHERE and RETURN. [RETURN](language/clauses/return.md) supports
+computed/aliased expressions, DISTINCT, star and standalone evaluation. Numeric comparisons,
+IN and DISTINCT agree on exact represented values; arithmetic keeps its own promotion.
+Wire Execute validates scalar result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
 Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.

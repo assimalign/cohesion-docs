@@ -1,13 +1,14 @@
 # Clauses
 
-GQL clauses filter matched bindings and project graph elements or scalar properties.
+GQL clauses filter matched bindings and project graph bindings or scalar expressions.
 
 > **Status:** Implemented.
 
-- **[WHERE](where.md)** — scalar comparisons and conjunction.
-- **[RETURN](return.md)** — variables, properties, and aliases.
+- **[WHERE](where.md)** — Boolean expressions, arithmetic and exact numeric comparisons.
+- **[RETURN](return.md)** — expressions, aliases, DISTINCT and named-binding star.
 
 `WHERE` follows the matching patterns. `RETURN` finishes a read query or follows insertion.
+RETURN can also stand alone to evaluate one row of expressions.
 Catalog `SHOW` statements cannot carry either clause.
 
 ## See also

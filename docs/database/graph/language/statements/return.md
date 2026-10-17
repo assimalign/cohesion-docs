@@ -1,14 +1,14 @@
 # RETURN
 
-RETURN completes a read query or projects values after insertion.
+RETURN evaluates standalone expressions, completes a read query, or projects values after insertion.
 
 > **Status:** Implemented.
 
 ## Syntax
 
 ```syntaxsql
-MATCH path [ , ...n ] [ WHERE predicate ]
-RETURN variable [ . property_name ] [ AS alias ] [ , ...n ]
+[ MATCH path [ , ...n ] [ WHERE predicate ] ]
+RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 ```
 
 For insertion followed by projection, see [INSERT](insert.md) and [CREATE](create.md).
@@ -19,28 +19,36 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 |---|---|
 | `MATCH` with optional `WHERE` before `RETURN` | Supported |
 | `RETURN` after insertion | Supported |
+| Standalone RETURN | Supported; one row |
+| `DISTINCT`, `ALL`, wildcard, computed expressions | Supported; star cannot mix with explicit items |
 | `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
-| `DISTINCT`, wildcard projection, functions | Recognized, not supported (`COHDBL001`) |
+| Functions and aggregation | Recognized, not supported (`COHDBL001`) |
 
 ## Arguments
 
-- **`variable`** — a node or relationship variable bound by the query.
-- **`property_name`** — one scalar property on that variable.
+- **`expression`** — a scalar expression or bound node/relationship/path variable.
 - **`alias`** — an optional result-column alias.
 
 ## Remarks
 
-`RETURN` is a projection clause rather than a standalone way to evaluate literal expressions.
-Read variables require a `MATCH` binding. See the [RETURN clause](../clauses/return.md) for result
-values and projection limits.
+Without MATCH or insertion, RETURN evaluates once. Bound variables still require a pattern;
+unbound names/parameters fail planning with COHDBG001. `RETURN *` without a named binding is
+GQL0002. Duplicate final names fail with COHDBG015 before reads or mutations, including EXPLAIN.
+Missing properties yield NULL, with no separate MISSING value. DISTINCT compares complete tuples
+using exact numeric equality, ordinal strings, NULL grouping and entity/path identity; arithmetic
+keeps its own promotion. See the [RETURN clause](../clauses/return.md) for naming, examples and
+embedded/wire result limits.
 
 ## Examples
 
-The parser corpus includes:
+These statements need no stored graph elements:
 
 ```sql
-MATCH (a) WHERE a.age >= 18 AND a.name <> 'Bob' RETURN a.name AS name
+RETURN 1 + 1 AS two;
+RETURN DISTINCT 1 = 1.0 AS equal, NULL IS NULL AS absent;
 ```
+
+Results are `(2)` and `(TRUE, TRUE)`, each a single row. DISTINCT preserves the single row.
 
 ## See also
 
@@ -52,4 +60,5 @@ MATCH (a) WHERE a.age >= 18 AND a.name <> 'Bob' RETURN a.name AS name
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.
 

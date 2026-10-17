@@ -25,6 +25,11 @@ or without diagnostics. Unknown-name warnings do not turn success into failure. 
 throws ArgumentOutOfRangeException. Statement failures throw GraphClientException instead of
 returning this successful result.
 
+RETURN columns use explicit aliases or normalized source text. The engine rejects duplicate final
+names with COHDBG015 before output, including collisions between aliases and implicit names. Scalar
+standalone/computed RETURN and DISTINCT use this same container; retained values keep their runtime
+types. This adds no result frame or public member.
+
 ## Example
 
 ```csharp

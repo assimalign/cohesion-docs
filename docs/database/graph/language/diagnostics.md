@@ -45,11 +45,16 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG012` | Database offline after durable storage failure |
 | `COHDBG013` | Scalar value error: non-Boolean condition, invalid arithmetic/concatenation, zero divisor, overflow or non-finite result |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
+| `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 
 Planner rejections carry stable codes in `DatabaseException.Diagnostics`, with available source
 spans and code-free messages. Diagnostics is never null; located entries sort by start offset before
 unlocated entries. The server composes `CODE: message`. Missing parameters use COHDBG001 and
 unsupported/non-finite parameter values use COHDBG003; both fail before execution.
+For example, `RETURN 1 AS x, 2 AS x` reports COHDBG015; `x` and `X` are distinct names.
+Implicit names can also collide with aliases. Path requests check for exactly one bare entity/path
+projection first and retain COHDBG001 for invalid shapes. Wire Execute rejects entity projections
+with COHDBG001 before reads, writer locks or writes, even when no rows would match; use ExecutePaths.
 Kernel aborts surface as `DatabaseTransactionAbortedException`; deadlocks retain their specialized
 subtype. Schema ownership is enforced with `DatabaseObjectLockedException`, rather than a graph
 ownership diagnostic code.

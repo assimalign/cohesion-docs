@@ -1,36 +1,62 @@
 # GqlQueryExpression
 
-The `GqlQueryExpression` type is part of the documented `Assimalign.Cohesion.Database.Graph.Language` API.
-
-> **Status:** Partial.
-
 A finite graph query or read-only catalog statement in one database.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 
-## Documented behavior
-
-`GqlQueryExpression` groups finite match paths, a predicate, insertions, deletion variables and
-projections. `GqlPathPattern` holds ordered nodes and relationships; their immutable metadata
-captures labels, direction, type and scalar properties. `GqlProjection` selects a bound element or
-property with an optional alias. Typed logical/unary, IN/list, null/truth, string and parameter nodes describe WHERE
-expressions. Property maps retain GqlExpression values. Programmatically constructed ASTs receive planner validation too.
-
-## Changed member
+## Signature
 
 ```csharp
-public bool IsExplain { get; private set; }
+public sealed class GqlQueryExpression : GqlExpression
+{
+    public GqlQueryExpression(IReadOnlyList<GqlPathPattern> matches, GqlExpression? predicate,
+        IReadOnlyList<GqlPathPattern> creates, IReadOnlyList<string> deleteVariables,
+        bool detachDelete, IReadOnlyList<GqlProjection> projections, Location? location = null);
+    public IReadOnlyList<GqlPathPattern> Matches { get; }
+    public GqlExpression? Predicate { get; }
+    public IReadOnlyList<GqlPathPattern> Creates { get; }
+    public IReadOnlyList<string> DeleteVariables { get; }
+    public bool DetachDelete { get; }
+    public IReadOnlyList<GqlProjection> Projections { get; }
+    public GqlSetQuantifier SetQuantifier { get; init; }
+    public bool ReturnStar { get; init; }
+    public bool IsExplain { get; private set; }
+    public GqlCatalogSurface? CatalogSurface { get; init; }
+}
 ```
 
-The parser sets this for EXPLAIN; callers cannot set it directly. Planning returns the shared
-eight-column description without executing the data statement.
+## Behavior and exceptions
+
+SetQuantifier defaults to [All](gql-set-quantifier.md). ReturnStar is separate from Projections:
+star requires an empty explicit list and at least one named binding. Expansion follows first
+declarations, including a named path before its elements, skipping anonymous/repeated references.
+Projections now hold [value expressions](gql-projection.md), so empty Matches/Creates with
+projections represents a standalone RETURN evaluated once.
+
+Construction stores the supplied values; validation belongs to the planner. Invalid quantifiers,
+star shapes or DISTINCT without items, unbound names/parameters, and SHOW composed with return
+flags fail COHDBG001 before execution. Duplicate final names use COHDBG015 (no SQLSTATE), even
+under EXPLAIN or on empty matches. Path requests reject invalid projection shapes with COHDBG001
+first. DISTINCT compares complete projected tuples using exact numeric values, ordinal strings,
+NULL grouping and entity/path identities; arithmetic promotion is unchanged. Mutations run for
+every binding before output deduplication.
+
+The parser sets IsExplain; callers cannot set it directly. Planning returns the shared eight-column
+description without data execution. Parser errors remain on statement.Diagnostics.
+
+## Example
 
 ```csharp
-var statement = (GqlQueryStatement)new GqlQueryParser().Parse("EXPLAIN MATCH (n) RETURN n");
-Console.WriteLine(statement.GqlExpression.IsExplain); // True
+var statement = (GqlQueryStatement)new GqlQueryParser().Parse(
+    "EXPLAIN RETURN DISTINCT 1 + 1 AS two");
+var query = statement.GqlExpression;
+Console.WriteLine(query.IsExplain); // True
+Console.WriteLine(query.SetQuantifier); // Distinct
+Console.WriteLine(query.Projections[0].Alias); // two
 ```
 
-Normal binding errors retain COHDBG001 and parser errors remain on statement.Diagnostics.
+Execution describes a Project named `two` and a Distinct operator without evaluating data.
+See [GqlProjection](gql-projection.md#example) for a source-free standalone AST execution.
 
 ## Related reference
 
@@ -42,3 +68,4 @@ Normal binding errors retain COHDBG001 and parser errors remain on statement.Dia
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/Assembly/Assimalign.Cohesion.Database.Graph.Language/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryExpression.cs`.
+- **Execution and validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

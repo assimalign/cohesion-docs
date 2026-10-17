@@ -1,15 +1,15 @@
 # Expressions
 
-GQL expressions provide scalar literals, property references, comparisons, and conjunction.
+GQL expressions provide scalar computation, Boolean predicates, parameters and bound references.
 
 > **Status:** Implemented.
 
 - **[Operators](operators.md)** — Boolean, arithmetic, null/truth, membership and string predicates.
-- **[Parameters](parameters.md)** — runtime scalar bindings in maps and WHERE.
+- **[Parameters](parameters.md)** — runtime scalar bindings in maps, WHERE and RETURN.
 - **[Literals](literals.md)** — null, Boolean, integer, floating-point, and string values.
 
-WHERE accepts literals, parameters and one-level properties in scalar expressions. RETURN still
-projects bound variables/properties only. Lists are restricted to IN's right operand. The builtin
+WHERE and RETURN accept literals, parameters, bound variables and one-level properties in value
+expressions. Lists are restricted to IN's right operand. The builtin
 function table is empty; function calls and nested property access remain unsupported.
 
 ## See also

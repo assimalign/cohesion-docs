@@ -15,7 +15,11 @@ comparisons, null/truth tests, bracketed IN and string predicates. A bare Boolea
 accepted. [Operators](../expressions/operators.md) defines precedence, NULL propagation and value
 errors. Only TRUE retains a binding; evaluated non-Boolean conditions raise `COHDBG013`.
 
-Operands can be literals, one-level properties or [parameters](../expressions/parameters.md).
+Operands can be literals, bound variables, one-level properties or [parameters](../expressions/parameters.md).
+Numeric equality, inequality, ordering and IN compare exact represented values across numeric
+types, agreeing with RETURN DISTINCT. Decimal `0.1m` and Double `0.1d` compare unequal;
+`1 = 1.0` is TRUE. These .NET suffixes describe parameter values. Arithmetic promotion remains
+separate. Bound entities and paths compare by identity, including path traversal direction.
 Index anchors come only from mandatory AND equalities, never from an optional OR/XOR arm or NOT.
 There is no fixed comparison-count limit; recursive depth follows available stack, with GQL0009
 in the parser or COHDBG008 in engine execution.
@@ -39,3 +43,4 @@ The first returns Alice. The second returns both names; no ordering is promised.
 
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlWhereExpressionTests.cs`.
 - **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Expressions.cs`.
+- **Exact comparisons** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphNumericComparisonTests.cs`.

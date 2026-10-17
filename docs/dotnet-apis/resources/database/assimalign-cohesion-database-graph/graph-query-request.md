@@ -17,9 +17,13 @@ public sealed class GraphQueryRequest : GraphRequest
 ## Behavior and exceptions
 
 Statement and Parameters are inherited from GraphRequest. Parameters bind case-sensitive bare
-names in WHERE and property maps, retaining runtime scalar types. Missing/colliding/unsupported
+names in WHERE, RETURN and property maps, retaining runtime scalar types. Missing/colliding/unsupported
 values fail planning with COHDBG001/014/003, including under EXPLAIN. Unused values are ignored.
-Row requests support scalar projections, SHOW, EXPLAIN and mutations; entity results use the path request.
+Embedded row requests support scalar/entity/path projections, standalone RETURN, SHOW, EXPLAIN
+and mutations. RETURN supports expressions, aliases, ALL/DISTINCT and star. Duplicate final
+column names fail COHDBG015 before reads/writes, including empty matches and EXPLAIN; no SQLSTATE
+is assigned. Only the wire Execute exchange requires statically scalar columns: it rejects entity
+results before reads or mutation and directs callers to ExecutePaths. EXPLAIN remains scalar.
 
 Null statements throw ArgumentNullException. FromGql rejects blank text with ArgumentException,
 parser errors with DatabaseParseException carrying complete diagnostics, and exhausted parsing
@@ -44,3 +48,4 @@ var result = await session.ExecuteAsync(request, CancellationToken.None);
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphQueryRequest.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

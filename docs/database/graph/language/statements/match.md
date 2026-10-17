@@ -9,9 +9,11 @@ MATCH binds graph variables using finite node and relationship patterns.
 ```syntaxsql
 MATCH path [ , ...n ]
     [ WHERE predicate ]
-    { RETURN projection [ , ...n ]
-    | { INSERT | CREATE } path [ , ...n ] [ RETURN projection [ , ...n ] ]
+    { <return_clause>
+    | { INSERT | CREATE } path [ , ...n ] [ <return_clause> ]
     | [ DETACH ] DELETE variable [ , ...n ] }
+
+<return_clause> ::= RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 ```
 
 ## Supported clauses
@@ -19,7 +21,7 @@ MATCH path [ , ...n ]
 | Clause | Support | Role |
 |---|---|---|
 | `WHERE` | Supported | Filter matched bindings |
-| `RETURN` | Supported | Project variables or scalar properties |
+| `RETURN` | Supported | Expressions, aliases, DISTINCT/ALL and named-binding star |
 | `INSERT`, `CREATE` | Supported | Mutate from matched bindings |
 | `DELETE`, `DETACH DELETE` | Supported | Delete bound elements |
 | `OPTIONAL MATCH`, `MANDATORY MATCH` | Recognized, not supported (`COHDBL001`) | Outside the profile |
@@ -28,13 +30,17 @@ MATCH path [ , ...n ]
 
 - **`path`** — a node followed by zero or more relationship/node pairs; see [Patterns](../patterns.md).
 - **`predicate`** — the [WHERE expression](../clauses/where.md), including logic, arithmetic and predicates.
-- **`projection`** — a bound variable or `variable.property`, optionally with an `AS` alias.
+- **`expression`** — a [RETURN value expression](../clauses/return.md), optionally with an AS alias.
 
 ## Remarks
 
 `MATCH` must be followed by projection or mutation. Comma-separated paths share variable bindings.
 Repeated variable names enforce element identity equality. A variable cannot represent both a node
 and a relationship.
+
+Result names must be unique ordinally; duplicate RETURN names fail COHDBG015 before data access,
+even on empty matches. WHERE/RETURN numeric comparisons and IN use exact represented values,
+agreeing with DISTINCT; arithmetic keeps its own promotion. See [Operators](../expressions/operators.md).
 
 The planner can anchor at an indexed node in the middle or at either end of a path.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
