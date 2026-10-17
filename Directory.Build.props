@@ -7,7 +7,7 @@
          together. -->
     <_CohesionDocsGlobalJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)global.json'))</_CohesionDocsGlobalJson>
     <ViuVersion>$([System.Text.RegularExpressions.Regex]::Replace($(_CohesionDocsGlobalJson), '(?s)^.*"Assimalign\.Viu\.Sdk"\s*:\s*"([^"]+)".*$', '$1'))</ViuVersion>
-    <CohesionViuVersion>10.0.0-preview.0.ci.5</CohesionViuVersion>
+    <CohesionViuVersion>10.0.0-preview.0.ci.7</CohesionViuVersion>
     <FrontendVersion>1.0.0-preview.1.ci.1</FrontendVersion>
   </PropertyGroup>
 </Project>
