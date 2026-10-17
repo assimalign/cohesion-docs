@@ -23,7 +23,10 @@ requests require one bare bound entity/path from read-only MATCH, optionally DIS
 over one named binding. Scalar/computed/multiple and multi-binding star projections, catalog
 statements and mutations fail with COHDBG001 before output. Shape checks precede duplicate-name
 checks. DISTINCT uses node/relationship identity or ordered path identities, including traversal
-direction; independent materializations compare equal.
+direction; independent materializations compare equal. A returned variable supplied only by optional
+clauses fails with COHDBG001 during planning; it must be bound or constrained by a mandatory clause.
+For example, `MATCH (a:Person) OPTIONAL MATCH (a)-[:KNOWS]->(b) RETURN a` permits a path
+request, while the same request returning `b` is refused even if every person has a match.
 
 Null statements throw ArgumentNullException. FromGql rejects blank text with ArgumentException,
 parser errors with DatabaseParseException carrying complete diagnostics, and exhausted parsing stack

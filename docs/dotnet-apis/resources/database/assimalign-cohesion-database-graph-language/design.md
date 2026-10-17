@@ -46,7 +46,8 @@ flowchart LR
     Executor["Graph executor"] --> Planner
 ```
 
-`GqlQueryExpression` carries match paths, an optional predicate, insertion paths, deletion
+`GqlQueryExpression` carries ordered [GqlMatchClause](gql-match-clause.md) values with paths,
+clause-local predicates and optional flags, plus insertion paths, deletion
 variables, a detach flag, projections, and an optional `GqlCatalogSurface` for dedicated metadata
 statements. Catalog statements cannot carry graph clauses. Every path holds one more node than
 relationship. Anonymous nodes and relationships have a null variable. Relationship directions are
@@ -63,6 +64,7 @@ The builtin-function table is empty because the executor implements no functions
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
 | `MATCH` | Comma-separated finite node/relationship chains; optional labels, type, literal or parameter property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `OPTIONAL MATCH` | Same finite paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
@@ -81,7 +83,7 @@ property access, and return-after-delete are not accepted.
 The grammar is intentionally finite:
 
 ```text
-query       := [ MATCH paths [ WHERE predicate ] ]
+query       := ([OPTIONAL] MATCH paths [ WHERE predicate ])*
                ( (INSERT | CREATE) paths [ return ]
                | [ DETACH ] DELETE variables
                | return )
@@ -154,7 +156,7 @@ precedence, NULL behavior and all syntax boundaries.
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including optional matching, procedures, functions, general collection values, quantifiers, ordering, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, general collection values, quantifiers, ordering, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |

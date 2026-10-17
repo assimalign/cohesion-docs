@@ -54,7 +54,7 @@ A path contains at most 64 relationships. Repeated nodes are permitted; a relati
 cannot repeat within one matched path. Comma-separated paths share variables but keep separate
 relationship-identity sets. Conflicting node/relationship variable kinds fail planning.
 
-The executor limits intermediate materialized matches to 100,000 per pattern and candidate
+The executor limits intermediate materialized matches to 100,000 across clauses and candidate
 examination to 1,000,000 node/edge candidates per statement, including dead ends.
 Overflow produces `COHDBG004`, without silent truncation. Cancellation is observed during expansion
 and materialization.

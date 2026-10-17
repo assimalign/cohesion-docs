@@ -26,6 +26,11 @@ in the parser or COHDBG008 in engine execution.
 
 ## Examples
 
+Each WHERE belongs to the immediately preceding MATCH or OPTIONAL MATCH and sees only variables
+declared through that clause. An optional clause filters its candidates before NULL extension;
+a predicate that fails for all candidates preserves the input with NULL for new bindings. It does
+not filter away that input row. See [MATCH](../statements/match.md#optional-and-repeated-matching).
+
 For nodes Alice age 42 and Bob age 17:
 
 ```sql

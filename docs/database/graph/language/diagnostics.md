@@ -65,7 +65,7 @@ ownership diagnostic code.
 |---|---|---|
 | Relationships in one pattern | 64 | `GQL0005` |
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
-| Materialized intermediate matches | 100,000 per pattern | `COHDBG004` |
+| Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
 | Candidate examinations | 1,000,000 per statement | `COHDBG004` |
 
 ## Negotiated wire diagnostics

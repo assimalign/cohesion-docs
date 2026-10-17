@@ -22,7 +22,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 
 | Construct | Support | Scope |
 |---|---|---|
-| `MATCH` | Supported | Finite comma-separated node/relationship chains |
+| [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Finite chains; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
 | `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
 | `INSERT` | Supported | Node/path insertion with literal or parameter properties, optionally after matching |

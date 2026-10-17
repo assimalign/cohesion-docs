@@ -12,6 +12,10 @@ public sealed class GqlQueryExpression : GqlExpression
     public GqlQueryExpression(IReadOnlyList<GqlPathPattern> matches, GqlExpression? predicate,
         IReadOnlyList<GqlPathPattern> creates, IReadOnlyList<string> deleteVariables,
         bool detachDelete, IReadOnlyList<GqlProjection> projections, Location? location = null);
+    public GqlQueryExpression(IReadOnlyList<GqlMatchClause> matchClauses,
+        IReadOnlyList<GqlPathPattern> creates, IReadOnlyList<string> deleteVariables,
+        bool detachDelete, IReadOnlyList<GqlProjection> projections, Location? location = null);
+    public IReadOnlyList<GqlMatchClause> MatchClauses { get; }
     public IReadOnlyList<GqlPathPattern> Matches { get; }
     public GqlExpression? Predicate { get; }
     public IReadOnlyList<GqlPathPattern> Creates { get; }
@@ -26,6 +30,12 @@ public sealed class GqlQueryExpression : GqlExpression
 ```
 
 ## Behavior and exceptions
+
+[MatchClauses](gql-match-clause.md) preserves source order and each clause's predicate and optional
+flag. The original constructor wraps its matches/predicate in one mandatory clause, except an empty
+match list with no predicate creates no clauses. Matches and Predicate expose data only for exactly
+one mandatory clause; otherwise they return an empty list and null. The planner consumes MatchClauses.
+Malformed clause lists or forward predicate references fail with COHDBG001.
 
 SetQuantifier defaults to [All](gql-set-quantifier.md). ReturnStar is separate from Projections:
 star requires an empty explicit list and at least one named binding. Expansion follows first

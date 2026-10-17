@@ -145,14 +145,18 @@ second time to verify the recovery checkpoint.
 variable kinds and access paths; `GraphPlanExecutor` applies that plan. The planner considers
 literal inline properties and equality predicates joined by `AND` for every node position in a
 pattern. It can anchor at the middle or end, expanding right and then left with appropriately
-reversed directions. Bound variables from earlier comma-separated patterns take precedence over a
-fresh scan. Every selected candidate still passes labels, property predicates and bindings.
+reversed directions. Bound nodes from earlier paths or clauses take precedence over scans and
+seeks at any position; otherwise a bound relationship supplies an adjacent endpoint. NULL bindings
+refuse a later pattern before candidate reads. Each MATCH/OPTIONAL MATCH evaluates its own WHERE
+after joining its paths. A failed mandatory clause drops the row; an optional clause preserves it
+with NULL for new variables. The initial binding table has one empty row. Every selected candidate
+still passes labels, property predicates and bindings.
 
 GQL patterns are finite chains of at most 64 relationships. Each matched path is a trail: an edge
 identity is used at most once within that path; a node may recur. Separate comma-separated paths
 have separate edge sets and share variable bindings. This makes a three-edge cycle a valid three-hop
 result but forbids reusing its first edge on a fourth hop. At most 100,000 intermediate path matches
-materialize per pattern, and a statement examines at most 1,000,000 node/edge candidates, including
+materialize across matching clauses, and a statement examines at most 1,000,000 node/edge candidates, including
 dead ends; either overflow fails with `COHDBG004`, never silent truncation. Cancellation is
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
@@ -545,7 +549,9 @@ Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execu
 result kinds before data reads, writer locks or mutation and rejects non-scalar columns with
 COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
 Path requests require one bare bound entity/path from read-only MATCH, including DISTINCT or
-star over one binding; invalid shapes use COHDBG001 before duplicate-name validation.
+star over one binding; invalid shapes use COHDBG001 before duplicate-name validation. A binding
+supplied only by optional clauses is rejected with COHDBG001 during planning, even when all actual
+rows would match. A mandatory clause may bind or subsequently constrain the returned entity/path.
 
 Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completion or Error.
 [GraphPathResult](../assimalign-cohesion-database-graph-client/graph-path-result.md) exposes completion

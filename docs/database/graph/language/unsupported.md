@@ -11,7 +11,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 
 | Construct | Support | Rejected form |
 |---|---|---|
-| Optional or mandatory matching | Recognized, not supported (`COHDBL001`) | `OPTIONAL MATCH`, `MANDATORY MATCH` |
+| Mandatory keyword | Recognized, not supported (`COHDBL001`) | `MANDATORY MATCH` |
 | Sorting and pagination | Recognized, not supported (`COHDBL001`) | `ORDER BY`, `LIMIT`, `OFFSET`, `SKIP` |
 | Intermediate projection and chaining | Recognized, not supported (`COHDBL001`) | `WITH`, `NEXT` |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
@@ -42,7 +42,8 @@ transactions use the session API, and label/type/index management uses the sessi
 GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path queries.
 ExecutePaths accepts one bare node, relationship or path binding from read-only MATCH, including
 DISTINCT or star over one named binding. Computed, multiple and multi-binding star projections
-report COHDBG001. Execute accepts statically scalar columns; entity results report COHDBG001 with
+report COHDBG001. A path binding supplied only by optional clauses also reports COHDBG001 during
+planning; a mandatory clause must bind or constrain it. Execute accepts statically scalar columns; entity results report COHDBG001 with
 the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
 EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
 materialized scalar results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,

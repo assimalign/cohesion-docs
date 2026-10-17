@@ -6,7 +6,7 @@ Graph statements match data, mutate bound graphs, or inspect the session databas
 
 ## Queries and mutations
 
-- **[MATCH](match.md)** — bind nodes and relationships before projection or mutation.
+- **[MATCH and OPTIONAL MATCH](match.md)** — bind nodes and relationships before projection or mutation.
 - **[RETURN](return.md)** — query composition and result projection.
 - **[INSERT](insert.md)** — insert nodes and relationships.
 - **[CREATE](create.md)** — compatibility spelling for insertion.
