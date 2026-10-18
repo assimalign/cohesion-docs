@@ -37,6 +37,11 @@ Column nullability is declared with `NULL` or `NOT NULL`.
 | `CHECK` | Rejects false, accepts true or unknown |
 | `NOT NULL` | Rejects an explicit null and an omitted value without a non-null default |
 
+Explicit NULL cannot be combined with NOT NULL, PRIMARY KEY or [IDENTITY](clauses/identity.md),
+in either order, including table primary keys and CREATE/ADD/ALTER column definitions. This
+reports `SQL0003`: `Conflicting NULL/NOT NULL declarations for column 'id'.` for a column id.
+An ALTER of an existing primary key to explicit NULL is likewise refused before publication.
+
 Foreign and referenced lists must have the same number of columns. String foreign keys require
 matching effective collations. Parent-key updates that would invalidate references are rejected;
 `ON UPDATE` is recognized but unsupported with `COHDBL001`.

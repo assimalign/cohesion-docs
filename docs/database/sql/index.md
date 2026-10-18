@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 35 of 50 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 36 of 51 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -18,7 +18,7 @@ Queries support filtering, grouping, aggregates, aliases and ordinals in orderin
 collation, and bounded uncorrelated subqueries. `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
 
-The 35-of-50 measure is not a percentage of complete SQL. The
+The 36-of-51 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the excluded 15 named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in
 [Operators and predicates](language/expressions/operators.md).

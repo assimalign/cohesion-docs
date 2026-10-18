@@ -27,6 +27,10 @@ value. `ALTER TABLE ADD COLUMN` and code-first literal defaults remain literal-o
 parameters and subqueries do not become valid default declarations through these DML forms.
 Added-column literal defaults resolve missing trailing fields in old rows without rewriting them.
 
+[Identity columns](identity.md) exclude a declared DEFAULT, but omission or a whole INSERT DEFAULT
+item allocates a value. BY DEFAULT identity also generates for UPDATE SET id = DEFAULT; ALWAYS
+rejects all assignments to the identity column in UPDATE, including DEFAULT (`COHSQLE025`).
+
 A bare DEFAULT in SELECT, a predicate, INSERT SELECT, arithmetic, a function argument, or a
 parenthesized scalar expression is `SQL0003`. Quoted or qualified columns named `default`
 remain ordinary column references. A NOT NULL failure is `COHSQLE024` (SQLSTATE 23502), naming

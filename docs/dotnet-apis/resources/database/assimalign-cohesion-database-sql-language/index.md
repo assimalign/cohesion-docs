@@ -19,6 +19,7 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlDerivedTableReference](sql-derived-table-reference.md)** — Aliased SELECT and optional output renames.
 - **[SqlJoinClause](sql-join-clause.md)** — Join kind, ON predicate and ordered USING names.
 - **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
+- **[SqlIdentityDefinition](sql-identity-definition.md)** — ALWAYS/BY DEFAULT mode and start/increment.
 - **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
 - **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
 - **[SqlLiteralType](sql-literal-type.md)** — Values and usage.

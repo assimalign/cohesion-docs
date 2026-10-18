@@ -11,7 +11,7 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `COHDBL001` | Recognized clause, function, operator or modifier outside the executable profile |
 | `SQL0001` | Empty statement |
 | `SQL0002` | Unknown leading command |
-| `SQL0003` | Malformed syntax, invalid parameter form, leftover text, or bare DEFAULT outside its DML positions |
+| `SQL0003` | Malformed syntax, invalid parameter form, leftover text, bare DEFAULT outside its DML positions, or explicit NULL conflicting with NOT NULL/PRIMARY KEY/IDENTITY |
 | `SQL0004` | Retired; unknown type names now resolve in the engine and use COHSQLE010 |
 | `SQL0005` | Invalid type modifiers or rejected spelling, including TIME WITH TIME ZONE, BIT and SMALLDATETIME |
 | `SQL0006` | Configured expression nesting limit exceeded; default 256 |
@@ -54,6 +54,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE022` | Invalid CAST input text representation | 22P02 |
 | `COHSQLE023` | Parameter keys collide after stripping one sigil, including unused keys | — |
 | `COHSQLE024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
+| `COHSQLE025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
 NOT NULL failures name the column and have no execution-time source span.

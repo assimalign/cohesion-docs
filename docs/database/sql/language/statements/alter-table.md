@@ -11,6 +11,7 @@ ALTER TABLE [ schema_name . ] table_name
 {
     ADD [ COLUMN ] column_definition
   | DROP [ COLUMN ] column_name
+  | ALTER [ COLUMN ] column_definition
   | ADD table_constraint
   | DROP CONSTRAINT constraint_name
 }
@@ -39,6 +40,12 @@ stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update
 
 The emptiness check uses current committed rows. Historical versions visible only to an older
 snapshot can retain a missing `NULL` field after a default-free addition to a currently empty table.
+
+ADD [IDENTITY](../clauses/identity.md) requires no live rows, including when old deleted versions
+remain. A populated-table ADD fails `COHSQLE025`. Full-definition ALTER preserves identity only
+with its existing type, NOT NULL and no DEFAULT; type/nullability/default or generation changes
+fail `COHSQLE025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
+`SQL0003`; ALTER also rejects making an existing primary-key column explicitly NULL.
 
 Defaults must fit destination bounds. Nonliteral defaults, invalid conversions, and out-of-range
 values fail before schema publication. The complete definition is published atomically; a failed

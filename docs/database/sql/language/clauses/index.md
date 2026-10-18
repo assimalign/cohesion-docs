@@ -6,7 +6,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Query clauses
 
-- **[FROM](from.md)** — Bind one relation in the current database.
+- **[FROM](from.md)** — Bind stored, system and derived relations in the current database.
 - **[JOIN](join.md)** — N-way INNER/LEFT/CROSS joins, USING columns, and comma products.
 - **[WHERE](where.md)** — Filter input rows.
 - **[GROUP BY](group-by.md)** — Group by scalar key expressions.
@@ -21,10 +21,11 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[VALUES](values.md)** — Supply scalar insert rows.
 - **[SET](set.md)** — Assign update values.
 - **[DEFAULT](default.md)** — Declare or request a column default.
+- **[IDENTITY](identity.md)** — Generate integer values with durable, noncycling reservations.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 35-of-50 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 36-of-51 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

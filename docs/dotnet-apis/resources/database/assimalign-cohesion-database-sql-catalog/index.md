@@ -8,6 +8,9 @@ The relational catalog of the SQL model: schemas, tables, columns, and constrain
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[SqlCatalog](sql-catalog.md)** — Durable identity allocation without changing DDL generation.
+- **[SqlCatalogIdentity](sql-catalog-identity.md)** — Immutable mode, start and increment.
+- **[SqlCatalogColumn](sql-catalog-column.md)** — Column metadata and identity facet.
 
 The relational catalog of the SQL model: schemas, tables, columns, and constraints
 (`SqlCatalogTable`/`SqlCatalogColumn`), persisted through the storage kernel so metadata gets the
@@ -55,7 +58,7 @@ See [DESIGN.md](design.md) for the persistence model and decisions.
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 14 and compiled schema version 7.
+The integration branch uses SQL row-storage format 15 and compiled schema version 7.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current

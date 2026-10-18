@@ -181,6 +181,19 @@ column, or ownership metadata. See the SQL engine's
 [virtual relation design](../assimalign-cohesion-database-sql/design.md#virtual-system-relations-c1)
 for the query surface and the two deliberately non-standard extension views.
 
+## Identity reservations
+
+[SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
+metadata in table-extension version 5. Counter kind 16 stores kind Int32, table ObjectId Int64,
+and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
+values outside the START/INCREMENT progression. One table can have one signed integer identity.
+
+[AllocateIdentity](sql-catalog.md) self-commits up to 32 values before delivering any, under the
+catalog lock with Int128 intermediate arithmetic. It neither replaces table metadata nor changes
+DdlGeneration/script receipts. Reopen starts after the last reservation, leaving gaps while preventing
+reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
+DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
+
 ## Error model
 
 `SqlCatalogException : DatabaseException` for catalog violations (duplicate or missing
@@ -213,7 +226,7 @@ Value/data classes plus the shared codec — no reflection, no serialization lib
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 14 and compiled schema version 7.
+The integration branch uses SQL row-storage format 15 and compiled schema version 7.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current

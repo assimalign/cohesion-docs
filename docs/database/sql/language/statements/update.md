@@ -26,6 +26,9 @@ the base name; hidden or unknown qualifiers report located `COHSQLE015` before a
 
 `c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
 No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
+For [BY DEFAULT identity](../clauses/identity.md), SET id = DEFAULT allocates a new value.
+ALWAYS rejects every assignment to its identity column, including DEFAULT (`COHSQLE025`);
+updates to other columns still execute.
 
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.

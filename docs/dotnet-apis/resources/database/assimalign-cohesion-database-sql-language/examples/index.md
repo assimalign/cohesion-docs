@@ -32,4 +32,7 @@ gives UPDATE/DELETE results from SqlDmlSubqueryTests.
 
 ## Sources
 
+See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser facets and
+[IDENTITY](../../../../../database/sql/language/clauses/identity.md#examples) for executed generation.
+
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

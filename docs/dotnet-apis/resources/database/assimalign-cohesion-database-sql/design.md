@@ -909,8 +909,35 @@ EXPLAIN performs the wrapped statement's binding, parameter and provisioning adm
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
 4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
-All SQL000x, COHSQLE001–024 and transaction meanings and SQLSTATE categories are in
+All SQL000x, COHSQLE001–025 and transaction meanings and SQLSTATE categories are in
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
+
+## Identity columns and allocation
+
+[IDENTITY](../../../../database/sql/language/clauses/identity.md) supports one built-in signed
+integer column per table. GENERATED ALWAYS and SQL Server IDENTITY refuse explicit INSERT values
+and all UPDATE assignments to the identity column, including DEFAULT; BY DEFAULT accepts explicit
+non-null values without advancing the counter and generates for SET id = DEFAULT. INSERT omission,
+DEFAULT VALUES and whole-item DEFAULT generate per row. Explicit NULL is never generation.
+
+The planner validates type, DEFAULT conflicts, start, increment and the single-identity rule before
+catalog changes (`COHSQLE025`). ADD requires no live rows. ALTER retains the same type and NOT NULL
+or fails the identity contract. Direction-dependent bounds are 1 through the type maximum ascending,
+type minimum through -1 descending; default start follows direction. No cycle, restart, overriding
+or generated key RETURNING is available. COHSQLE025 uses SQLSTATE reference 428C9 for explicit
+ALWAYS assignments; definition/exhaustion failures share the local code. BY DEFAULT NULL uses
+COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY declarations use SQL0003.
+
+Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
+the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
+generated allocations for that identity. Exhaustion rolls back all row writes. SQL format 15 stores
+immutable identity facets in table-extension version 5 and last reserved values in catalog kind 16.
+Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
+compiled schemas have no identity representation. SQL script definitions retain it.
+
+SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smallserial names;
+SQL reports COHDBL001, native construction throws ArgumentException with the IDENTITY suggestion.
+For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
 
 ## Error model
 

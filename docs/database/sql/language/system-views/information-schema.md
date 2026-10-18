@@ -26,7 +26,7 @@ FROM INFORMATION_SCHEMA.view_name
 | Relation | Columns in SELECT * order | Rows |
 | --- | --- | --- |
 | `TABLES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `TABLE_TYPE` | Stored tables; type is `BASE TABLE` |
-| `COLUMNS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_DEFAULT`, `IS_NULLABLE`, `DATA_TYPE`, `CHARACTER_MAXIMUM_LENGTH`, `CHARACTER_OCTET_LENGTH`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `DATETIME_PRECISION` | One row per stored column |
+| `COLUMNS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_DEFAULT`, `IS_NULLABLE`, `DATA_TYPE`, `CHARACTER_MAXIMUM_LENGTH`, `CHARACTER_OCTET_LENGTH`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `DATETIME_PRECISION`, `IS_IDENTITY`, `IDENTITY_GENERATION`, `IDENTITY_START`, `IDENTITY_INCREMENT`, `IDENTITY_MAXIMUM`, `IDENTITY_MINIMUM`, `IDENTITY_CYCLE` | One row per stored column |
 | `TABLE_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `CONSTRAINT_TYPE`, `IS_DEFERRABLE`, `INITIALLY_DEFERRED` | Primary keys, unique indexes/constraints, foreign keys, and explicit checks |
 | `KEY_COLUMN_USAGE` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION` | One row per primary, unique, or foreign-key column, in key order |
 | `REFERENTIAL_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `UNIQUE_CONSTRAINT_CATALOG`, `UNIQUE_CONSTRAINT_SCHEMA`, `UNIQUE_CONSTRAINT_NAME`, `MATCH_OPTION`, `UPDATE_RULE`, `DELETE_RULE` | Foreign keys and their referenced key identities |
@@ -51,8 +51,15 @@ plain strings. Canonical DATA_TYPE names parse in DDL and CAST.
 Inapplicable or unknown metadata is null. `CHARACTER_OCTET_LENGTH` is null because the catalog has
 no character-set byte bound.
 
+The seven [identity](../clauses/identity.md) fields are appended after DATETIME_PRECISION,
+preserving existing ordinals. IS_IDENTITY is `YES`/`NO`; IDENTITY_GENERATION is `ALWAYS` or
+`BY DEFAULT`; IDENTITY_CYCLE is `NO`. Identity option fields are nullable String values, including
+invariant integer text for START/INCREMENT/MAXIMUM/MINIMUM. Bounds follow generation direction,
+not custom options. Nonidentity columns have NULL option fields; identity COLUMN_DEFAULT is NULL
+and IS_NULLABLE is `NO`.
+
 Canonical `DATA_TYPE` values are `BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`,
-`BIGINT`, `REAL`, `DOUBLE PRECISION`, `NUMERIC`, `CHARACTER VARYING`,
+`BIGINT`, `REAL`, `DOUBLE PRECISION`, `NUMERIC`, `CHARACTER`, `CHARACTER VARYING`,
 `BINARY VARYING`, `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP WITH TIME ZONE`,
 `INTERVAL`, `UUID`, `JSON`, and `JSONB`. Alias spelling is not retained;
 type parameters appear in the separate metadata fields where available.
@@ -85,6 +92,17 @@ ORDER BY ORDINAL_POSITION;
 ```
 
 It returns no rows if that table is absent.
+
+For a SMALLINT identity declared with `(INCREMENT BY -1)`:
+
+```sql
+SELECT IS_IDENTITY, IDENTITY_GENERATION, IDENTITY_START, IDENTITY_INCREMENT,
+       IDENTITY_MAXIMUM, IDENTITY_MINIMUM, IDENTITY_CYCLE
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'descending_ids' AND COLUMN_NAME = 'id';
+```
+
+The [identity fixture](../clauses/identity.md#examples) returns
+`(YES, ALWAYS, -1, -1, -1, -32768, NO)`, all as text.
 
 ## See also
 

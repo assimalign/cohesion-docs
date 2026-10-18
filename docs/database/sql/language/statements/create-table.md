@@ -15,7 +15,7 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 <column_definition> ::= column_name data_type
     [ COLLATE collation_name ]
     [ NULL | NOT NULL ]
-    [ DEFAULT literal ]
+    [ { DEFAULT default_expression | identity_clause } ]
     [ <column_constraint> ...n ]
 <column_constraint> ::= [ CONSTRAINT constraint_name ]
     { PRIMARY KEY | UNIQUE | CHECK ( search_condition )
@@ -34,9 +34,10 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 
 - **`table_name`** — A table in the current database; qualification selects its SQL namespace.
 - **`data_type`** — A declared [type name](../data-types/index.md), with permitted parameters.
-- **`literal`** — A default convertible to the column's storage type and within its bounds.
+- **`default_expression`** — A literal or column-free scalar function default convertible to the storage type and within its bounds.
 - **`collation_name`** — A supported string comparison rule.
 - **`constraint_name`** — An optional retained name for a column or table constraint.
+- **`identity_clause`** — A supported [GENERATED or SQL Server IDENTITY declaration](../clauses/identity.md#syntax).
 
 ## Remarks
 
@@ -44,8 +45,12 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 Normal session-created objects have `DatabaseObjectOwner.Adhoc` ownership; compiled-schema
 provisioning creates `DatabaseObjectOwner.Schema` objects.
 
-Columns are nullable unless constrained otherwise. Defaults are literal-only: functions, parameters,
-`CAST`, and other expressions are rejected before mutation. Strings are not truncated and decimal
+Columns are nullable unless constrained otherwise. [IDENTITY](../clauses/identity.md) permits one
+built-in integer generator per table, implies NOT NULL and excludes a DEFAULT declaration.
+Explicit NULL combined with NOT NULL, PRIMARY KEY (including table keys) or IDENTITY in either
+order reports `SQL0003`, naming the column, before any catalog change. This rule also applies to
+ADD and ALTER column definitions. Defaults admit literals and column-free scalar functions;
+parameters, `CAST`, and subqueries are rejected before mutation. Strings are not truncated and decimal
 defaults are not rounded. `UNIQUE` is enforced by a unique catalog index and treats `NULL` as an
 equal key. `CHECK` rejects `FALSE` but accepts `UNKNOWN`.
 

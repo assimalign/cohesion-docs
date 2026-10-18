@@ -29,6 +29,12 @@ A whole-item [DEFAULT](../clauses/default.md) requests the destination default;
 defaults or nullable `NULL`; an explicit `NULL` does not request the default. Destination coercion,
 nullability, checks, primary and unique keys, and foreign keys apply to every row.
 
+For an [identity column](../clauses/identity.md), omission or DEFAULT allocates one value per row,
+including DEFAULT VALUES and omitted INSERT SELECT destinations. ALWAYS rejects explicit values
+(`COHSQLE025`); BY DEFAULT accepts non-null explicit values without advancing the counter.
+Explicit NULL never requests generation. Failed statements can consume values without inserting rows.
+RETURNING and OVERRIDING remain unsupported (`COHDBL001`).
+
 `INSERT ... SELECT` validates output width and declared type compatibility even on empty input.
 It materializes the entire source under the statement snapshot before writing. Reading from the
 destination is therefore supported without feeding newly inserted rows back into the source.
