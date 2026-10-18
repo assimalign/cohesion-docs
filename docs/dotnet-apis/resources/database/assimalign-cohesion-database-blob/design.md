@@ -126,7 +126,10 @@ advance the purge horizon past its selected content.
 Mutations take the shared lock manager's database exclusive lock before physical application. This
 conservative first version serializes writers for the upload lifetime; snapshot readers continue
 concurrently. Under that lock, the engine compares snapshot-visible metadata with the latest state
-and rejects stale writes. A session admits only one active operation/stream. This avoids overlapping
+and rejects stale writes. A writer queued behind another writer sees that writer's committed
+state after lock handoff, including the interval before coordinator untracking. The latest-state
+check preserves its own writes and excludes other active transactions. Container changes, blob
+replacement metadata and deletion use this view. A session admits only one active operation/stream. This avoids overlapping
 uploads in the same transaction replacing the same original version.
 
 Containers carry stable identities distinct from their names, so a dropped and recreated container

@@ -131,7 +131,10 @@ One `TransactionCoordinator` per database owns MVCC, logical undo, journal durab
 management and physical statement brackets. A conservative database writer lock serializes writers
 through their logical commit or rollback; readers use snapshots. Metadata and affected graph records
 are checked against the latest committed view after lock acquisition, so a stale writer cannot
-create an orphan endpoint or bypass a newer schema constraint.
+create an orphan endpoint or bypass a newer schema constraint. A queued writer sees the prior
+writer's committed state after lock handoff, including before coordinator untracking. The latest
+view includes its own writes and excludes other active transactions. Node/relationship metadata
+conflicts, label/type in-use checks and property-metadata validation use this view.
 
 Node creation and label/key metadata participate in the same logical transaction. Relationship
 creation writes its record and both adjacency entries in one physical bracket. Deleting a node with
