@@ -30,9 +30,9 @@ show executed values and merged types from SqlNWayJoinTests.
 renames from the parser. The [DML snapshot example](../../../../../database/sql/language/expressions/subqueries.md#update-and-delete-snapshots)
 gives UPDATE/DELETE results from SqlDmlSubqueryTests.
 
-## Sources
-
 See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser facets and
 [IDENTITY](../../../../../database/sql/language/clauses/identity.md#examples) for executed generation.
+
+## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

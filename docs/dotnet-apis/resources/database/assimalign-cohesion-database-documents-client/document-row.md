@@ -50,7 +50,7 @@ Console.WriteLine(row.IsNull(1));    // True
 var bare = await connection.QueryAsync("SELECT DISTINCT VALUE absent FROM items");
 Console.WriteLine(bare.Count); // 1
 Console.WriteLine(bare[0].IsMissing(0)); // False
-Console.WriteLine(Encoding.UTF8.GetString(bare[0].GetBytes(0).Span)); // null
+Console.WriteLine(System.Text.Encoding.UTF8.GetString(bare[0].GetBytes(0).Span)); // null
 ```
 
 ## Related reference
@@ -61,3 +61,4 @@ Console.WriteLine(Encoding.UTF8.GetString(bare[0].GetBytes(0).Span)); // null
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/src/DocumentRow.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentMissingWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentProjectionWireTests.cs`.

@@ -77,7 +77,9 @@ The builtin-function table is empty because the executor implements no functions
 `-[r:TYPE]-`, including anonymous bracketed relationships. Scalar literals are null, Boolean,
 signed 64-bit integer, finite double, and single-quoted string with doubled-quote escaping. Names
 are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces. A single
-optional trailing semicolon is accepted. Multiple statements, bare relationship arrows, nested
+optional trailing semicolon is accepted. ISO abbreviated `->`, `<-`, `-` and `<->` execute without
+edge variables/types/properties; full bracketed forms carry those details. Cypher doubled-dash
+arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, nested
 property access, and return-after-delete are not accepted.
 
 The grammar is intentionally finite:

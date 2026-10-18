@@ -33,6 +33,10 @@ throws OperationCanceledException. EXPLAIN retains the wrapped statement's plann
 provisioning admission; data execution never runs. Each model's tests guard every concrete plan
 record's description mapping. Documents serializes each description row as a JSON document.
 
+DerivedTable/Subqueries in SQL, ProjectValue/Distinct in OQL and Match/OptionalMatch in GQL all
+retain this shape. See [DatabasePlanNode](database-plan-node.md) for model vocabulary and the
+language EXPLAIN pages for supported statement forms.
+
 ## Example
 
 ```csharp

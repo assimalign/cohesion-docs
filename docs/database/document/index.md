@@ -16,6 +16,11 @@ are accepted. Collections may contain documents with different shapes; the engin
 a fixed schema. Absent fields and incompatible traversal evaluate to [MISSING](language/expressions/missing.md),
 distinct from NULL, under SQL++ semantics.
 
+[SELECT](language/statements/select.md) supports ALL/DISTINCT and VALUE/RAW with object and array
+constructors. A bare top-level MISSING becomes NULL before deduplication and counting on every
+transport; named members preserve absence. SELECT constructors allow 256 result levels, while
+stored/INSERT JSON retains its 128-level limit.
+
 ## Reading and writing
 
 - **Query and index language** — [Object Query Language (OQL)](language/index.md) provides `SELECT`,

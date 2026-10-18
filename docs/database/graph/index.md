@@ -34,6 +34,12 @@ GQL matches finite relationship-unique trails. Typed `TraverseAsync` is a separa
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.
 The two traversal surfaces have different result and repetition rules.
 
+[MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
+variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
+for new variables; its WHERE filters candidates before that extension. Later patterns anchor on
+bound variables before scans or seeks. Path streams require a projected binding constrained by a
+mandatory clause; bindings supplied only by optionals are refused during planning.
+
 ## Storage and catalog
 
 Each persistent database owns `graph.dat`, `graph.log`, and `graph.bak`. Shared kernel components

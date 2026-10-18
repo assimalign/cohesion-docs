@@ -30,6 +30,11 @@ IndexSeek access. GQL standalone RETURN uses a Return root; Project describes ea
 Distinct groups those projections when requested. These are model vocabulary additions without
 changes to DatabasePlanNode or the eight-column result shape.
 
+SQL derived inputs add DerivedTable with a child query plan. OQL VALUE/RAW uses ProjectValue
+for ungrouped projection, with Distinct above projection/Group when requested. GQL adds ordered
+Match/OptionalMatch nodes; OptionalMatch detail names newly nullable variables and its filter and
+matches-nothing flags. These descriptions explain planning without executing the constructs.
+
 ## Example
 
 ```csharp

@@ -47,10 +47,14 @@ top-level query or insert source; level 33 reports `COHDBL001`.
 Correlation, quantified `ANY`/`ALL`/`SOME` comparisons, common table
 expressions, lateral joins, and subqueries in `UPDATE SET`, `VALUES`, `CHECK`,
 `DEFAULT`, or pagination expressions are excluded with `COHDBL001`. Local aliases may shadow
-outer names. Explicit outer qualifiers are diagnosed by parsing; unresolved local names are rejected
-during catalog binding. Actual outer references report `COHDBL001` with
+outer names. An explicit nonlocal qualifier in an ordinary subquery is rejected by parsing with
+`COHDBL001`. For `t.id`, its exact message is
+`Correlated SQL subqueries are not supported: reference 't.id' is outside the subquery's local FROM/JOIN scope.`
+Derived-body references wait for catalog binding. An actual outer reference found there reports
+`COHDBL001` with
 `Correlated subqueries are not supported; a subquery column must resolve in its local FROM/JOIN scope.`
-followed by binding detail. An unresolved name that does not bind outside keeps `COHSQLE015`.
+followed by binding detail. Names reaching binding that do not resolve locally or outside retain
+`COHSQLE015`.
 [Derived tables](../clauses/from.md#derived-tables) use the same context and nesting limit.
 
 UPDATE/DELETE predicate children materialize before any target mutation, including self-reads.

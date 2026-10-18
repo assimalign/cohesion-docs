@@ -30,6 +30,11 @@ QueryPathsAsync also accepts DISTINCT over one bare bound entity/path, or RETURN
 binding. Computed/multiple and multi-binding star shapes fail COHDBG001 before path output and
 before duplicate-name checks; completion and reuse rules stay the same.
 
+A projected binding supplied only by OPTIONAL MATCH is refused during planning with COHDBG001,
+even when every actual row would match; a mandatory clause must bind or constrain it. For example,
+`OPTIONAL MATCH (n:Person) RETURN n` is refused, while
+`MATCH (n:Person) OPTIONAL MATCH (n)-[:KNOWS]->(b) RETURN n` can stream n paths.
+
 ## Example
 
 ```csharp
@@ -47,3 +52,4 @@ foreach (var warning in result.Diagnostics) Console.WriteLine(warning.Code);
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/GraphPathResult.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphWireDiagnosticTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphOptionalMatchWireTests.cs`.

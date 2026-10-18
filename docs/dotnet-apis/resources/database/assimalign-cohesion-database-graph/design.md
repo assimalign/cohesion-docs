@@ -290,7 +290,9 @@ not included.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 
-Planner/data errors use stable code prefixes on `DatabaseException`. Kernel aborts cross the engine
+Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
+Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
+rows; a later unmatched mandatory clause can still empty the result. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
 Ownership uses the shared dedicated exception rather than an invented graph ownership code.
 

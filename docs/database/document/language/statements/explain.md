@@ -21,6 +21,9 @@ SystemCollection, Insert and InsertSelect. IndexSeek reports its selected index 
 Documents sends one JSON Document per row, including explicit null members. A test guard checks
 that every plan record has a description mapping; this does not admit DDL under EXPLAIN.
 
+VALUE/RAW uses ProjectValue for an ungrouped projection. DISTINCT adds a parent Distinct above
+the projection or Group stage, without changing the shared result columns.
+
 ## Examples
 
 For items containing one document and an index by_score on score:

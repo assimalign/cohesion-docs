@@ -24,7 +24,8 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Procedure calls and unwinding | Recognized, not supported (`COHDBL001`) | `CALL`, `UNWIND` |
 | Server, database, graph, or schema selection | Recognized, not supported (`COHDBL001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
 | Transaction statements | Recognized, not supported (`COHDBL001`) | `BEGIN TRANSACTION`, `COMMIT` |
-| Bare relationship arrows | Not in the language | Bracketed relationships are required |
+| Cypher doubled-dash arrows | Rejected (`GQL0008` or `GQL0002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |
+| Tilde edge forms | Recognized, not supported (`COHDBL001`) | Only directed stored relationships, matched in either orientation where requested |
 | Nested property references | Not in the language | More than one property-access step |
 | Multiple statements in a request | Not in the language | Two statements separated by semicolons |
 | Catalog filtering or projection | Not in the language | `SHOW LABELS RETURN label` |

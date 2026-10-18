@@ -24,6 +24,10 @@ reports the chosen index and property bound. A test guard requires every plan re
 Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
 parent when requested. Duplicate final names still fail planning with COHDBG015 before execution.
 
+Repeated matching clauses have source-ordered Match/OptionalMatch nodes. OptionalMatch detail
+reports whether a filter is present, whether the clause matches nothing, and new variables that
+would receive NULL. EXPLAIN itself does not perform matching or null extension.
+
 ## Examples
 
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:

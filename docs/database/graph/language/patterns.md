@@ -15,7 +15,9 @@ Graph patterns describe finite chains of labeled nodes and typed relationships w
 <relationship> ::=
     { "-" "[" relationship_body "]" "->"
     | "<-" "[" relationship_body "]" "-"
-    | "-" "[" relationship_body "]" "-" }
+    | "-" "[" relationship_body "]" "-"
+    | "<-" "[" relationship_body "]" "->"
+    | "->" | "<-" | "-" | "<->" }
 
 <relationship_body> ::= [ variable ] [ ":" type_name ] [ property_map ]
 
@@ -31,7 +33,7 @@ square brackets that surround relationship syntax.
 | Construct | Support | Constraint |
 |---|---|---|
 | Named and anonymous nodes | Supported | Node parentheses are required |
-| Incoming, outgoing, undirected matching | Supported | Relationship brackets are required |
+| Incoming, outgoing, either-direction matching | Supported | Full bracketed or ISO abbreviated arrows |
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
 | Literal/parameter property maps | Supported | Unique keys and scalar values |
 | Quantified or variable-length paths | Recognized, not supported (`COHDBL001`) | Use explicit finite chains |
@@ -49,6 +51,12 @@ square brackets that surround relationship syntax.
 A path always contains one more node than relationship. Anonymous elements have no variable.
 Incoming arrows reverse endpoints relative to consecutive pattern nodes. Matching permits an
 undirected relationship, but insertion requires a direction and a type.
+
+`->` matches an outgoing stored edge and `<-` an incoming one. `-` and `<->` match either
+orientation, as do `-[]-` and `<-[]->`; a self-loop yields one orientation. Abbreviated arrows
+carry no variable, type or property map, so typed/named edges use brackets. Tilde edge forms are
+unsupported (`COHDBL001`). Cypher `(a)-->(b)`/`(a)--(b)` after a pattern element report `GQL0008`
+because `--` starts a comment; use `(a)->(b)`/`(a)-(b)`. Cypher `<--`/`<-->` report `GQL0002`.
 
 A path contains at most 64 relationships. Repeated nodes are permitted; a relationship identity
 cannot repeat within one matched path. Comma-separated paths share variables but keep separate
@@ -85,6 +93,7 @@ MATCH ()-[r:KNOWS]->() RETURN r
 
 ## Sources
 
+- **Direction forms** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlEdgeDirectionParserTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLabelDirectionExecutionTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Patterns.cs`.

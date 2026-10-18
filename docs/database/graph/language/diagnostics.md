@@ -61,6 +61,10 @@ ownership diagnostic code.
 
 ## Boundaries
 
+An unknown label/type in OPTIONAL MATCH still warns with COHDBG010/011, but the clause preserves
+its input with NULL for new variables. It does not empty the whole query. A later mandatory clause
+with an unknown name can still empty it. Optional null extension leaves an explicit transaction active.
+
 | Limit | Value | Error |
 |---|---|---|
 | Relationships in one pattern | 64 | `GQL0005` |

@@ -65,6 +65,11 @@ with other projections is a named `document` member. VALUE/RAW emits one bare JS
 sets IsDocumentQuery for lone star and VALUE/RAW even on an empty result. See
 [DocumentResultSet](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-result-set.md).
 
+VALUE and RAW are reserved: quote a field as `"value"` or `"raw"`, or use `d.value`/`d.raw`.
+Bare reserved fields in these positions report `OQL0002`. After AS, projection labels may use
+reserved words. [Object](../expressions/object-constructors.md) and
+[array constructors](../expressions/array-constructors.md) can shape named or bare projections.
+
 Scans and index seeks establish ordinal document-identifier order before filtering. `ORDER BY`
 preserves established order for ties. Results are materialized and own their JSON values after
 execution, without retaining the transaction or borrowed storage memory.

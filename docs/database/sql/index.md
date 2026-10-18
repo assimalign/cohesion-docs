@@ -18,6 +18,11 @@ Queries support filtering, grouping, aggregates, aliases and ordinals in orderin
 collation, and bounded uncorrelated subqueries. `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
 
+[Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
+uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values. Correlation and
+outer ordering over derived outputs remain excluded. [Identity columns](language/clauses/identity.md)
+generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
+
 The 36-of-51 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the excluded 15 named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in

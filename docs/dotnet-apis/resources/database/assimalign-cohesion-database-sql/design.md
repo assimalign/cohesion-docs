@@ -50,9 +50,11 @@ including empty sources; value conversions use the literal insert rules. Both in
 same preparation, default/nullability/CHECK/FK/UNIQUE validation, locking, index maintenance and
 transactional apply path.
 
-Correlation remains excluded: actual outer references receive `COHDBL001` with
+Correlation remains excluded. Explicit nonlocal qualifiers in ordinary subqueries receive parser
+`COHDBL001`: `Correlated SQL subqueries are not supported: reference 't.id' is outside the subquery's local FROM/JOIN scope.`
+for t.id. Derived-body references wait for binding; actual outer references there receive `COHDBL001` with
 `Correlated subqueries are not supported; a subquery column must resolve in its local FROM/JOIN scope.`
-and binding detail. Unknown/hidden references retain `COHSQLE015`. Parsing and planning enforce at
+and binding detail. Unknown/hidden names reaching binding retain `COHSQLE015`. Parsing and planning enforce at
 most 32 query levels, including derived bodies. UPDATE/DELETE WHERE supports uncorrelated children
 materialized before writes over the pre-statement snapshot, including earlier uncommitted changes.
 Rollback restores target rows and cascades together. UPDATE SET, VALUES, CHECK/DEFAULT and

@@ -22,10 +22,10 @@ examples require their original test project’s dependencies and supporting obj
 GqlReturnParserTests and GraphReturnTests. The [language examples](../../../../../database/graph/language/clauses/return.md#examples)
 give values and wire result limits.
 
-## Sources
-
 See [GqlMatchClause](../gql-match-clause.md#example) for repeated and optional matching clauses,
 and [MATCH](../../../../../database/graph/language/statements/match.md#optional-and-repeated-matching)
 for their results and the bound-anchor measurement.
+
+## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.
