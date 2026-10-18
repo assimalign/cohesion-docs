@@ -33,6 +33,10 @@ MAX ( expression )
 All expression aggregates skip both NULL and [MISSING](../expressions/missing.md). COUNT(*)
 counts documents independently of their fields.
 
+COUNT returns Int64 metadata and CLR long values, including over the wire and for empty grouped
+results. LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond scalars have the same Int64 contract.
+Arithmetic such as COUNT(*) + 1 returns Decimal. See [Scalar functions](scalar-functions.md).
+
 With no nonnull inputs, `SUM`, `AVG`, `MIN`, and `MAX` return null, while `COUNT` returns zero.
 An ungrouped aggregate query yields one group even for an empty source. `SUM` and `AVG` require
 numeric nonnull values.

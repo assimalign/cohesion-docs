@@ -16,7 +16,8 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | FIRST/LAST/UNIQUE, ARRAY comprehensions/SET constructors | COHDBL001 | Reserved SQL++ forms; object and bracketed array constructors execute |
 | Aggregate DISTINCT | COHDBL001 | `COUNT(DISTINCT x)` is outside SELECT-level deduplication |
 | Computed object member names | OQL0002 | Use identifier or string keys, such as `{a: 1}` |
-| Unknown scalar calls, including ABS | COHDBL001 | Executable function profile contains aggregates and META |
+| ARRAY_AGG, REGEXP_LIKE, REGEXP_REPLACE, REGEXP_POSITION | COHDBL001 | Deferred calls; [34 scalar functions](functions/scalar-functions.md) execute |
+| Unknown function names | OQL0008 | Not in the public executable function table |
 | CREATE/DROP DATABASE, USE, ALTER | COHDBL001 | Database lifecycle belongs to the API |
 | BEGIN/COMMIT/ROLLBACK | COHDBL001 | Explicit transactions use the session API; no wire transaction command |
 | General database-qualified source | OQL0002 | Sources stay in the session database |

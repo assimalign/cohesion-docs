@@ -26,6 +26,10 @@ MISSING and true for explicit NULL. GetValue and indexers return null for either
 ordinally; first duplicate name wins at row lookup, though duplicate wire header/projection names
 are rejected. Nested values are owned JsonElement instances. Whole-document rows are never MISSING.
 
+Int64 header columns decode to long. COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond
+functions preserve that type over the wire; GetInt64 reads those cells. Mixed Int64/Decimal columns
+promote to Decimal. See [Scalar functions](../../../../database/document/language/functions/scalar-functions.md).
+
 An invalid ordinal index throws IndexOutOfRangeException. IsMissing validates its ordinal with
 ArgumentOutOfRangeException. Unknown names throw KeyNotFoundException; null names
 ArgumentNullException. A typed numeric/Boolean getter on NULL/MISSING throws

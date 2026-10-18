@@ -22,7 +22,8 @@ QueryAsync returns DocumentResultSet. Lone SELECT *, VALUE and RAW set IsDocumen
 retains owned JsonElement values in Documents and the single row cell. Projections use one JSON
 Document object per row and header ordinals. MISSING members are omitted, explicit NULL retained.
 DocumentRow.SupportsMissing is true; IsMissing separates absence from NULL, while GetValue and
-indexers return null for either. Projected numbers are exact decimal, objects/arrays JsonElement.
+indexers return null for either. Projected numbers are exact Decimal or Int64 according to column
+metadata, objects/arrays JsonElement.
 Duplicate header names or unknown/duplicate projected members are malformed responses.
 
 VALUE/RAW uses one `value` column. The engine converts top-level MISSING to NULL before DISTINCT,
@@ -63,8 +64,14 @@ See [UPDATE](../../../../database/document/language/statements/update.md).
 
 Server failure text is bounded to 4096 UTF-16 characters and diagnostics to 256, with explicit
 truncation/omission markers. Retained codes/spans stay intact. See the complete
-[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–018 and
+[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–019 and
 parser codes; all these statement refusals use the same structured Failure carrier.
+
+The [34 scalar functions](../../../../database/document/language/functions/scalar-functions.md)
+share embedded execution semantics. COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond
+functions decode Int64 columns to long, including metadata on empty grouped results. Mixed numeric
+columns promote to Decimal; heterogeneous columns normalize numeric cells to Decimal. Domain errors
+such as SQRT(-1) retain COHDOC019 (no SQLSTATE) through Failure and leave the connection reusable.
 
 Dispose returns a healthy rental once. Abort discards it. Operation registration shares the
 wrapper's teardown lock, so repeated disposal cannot return a later rental of the same connection.

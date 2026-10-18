@@ -15,7 +15,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 - **Statements** — [SELECT, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
 - **Clauses** — [FROM, WHERE, GROUP BY, HAVING and ORDER BY](clauses/index.md).
 - **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
-- **Functions** — [Aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
+- **Functions** — [34 SQL++ scalars](functions/scalar-functions.md), [aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
 - **Diagnostics** — [Parser, planner and execution codes](diagnostics.md).
 - **Boundaries** — [Unsupported forms](unsupported.md).
 
@@ -36,6 +36,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One nonunique path index in a collection |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
+| [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
 
 ## See also

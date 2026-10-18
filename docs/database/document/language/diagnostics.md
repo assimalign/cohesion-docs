@@ -12,7 +12,8 @@ OQL reports coded parser, planner and execution failures with available source l
 | `OQL0003` | Unterminated string, quoted identifier or block comment |
 | `OQL0004` | Malformed numeric literal syntax |
 | `OQL0005` | More than 128 recursive expression parse levels |
-| `OQL0006` | Invalid aggregate arity or star operand |
+| `OQL0006` | Invalid function arity or star operand; only COUNT accepts star |
+| `OQL0008` | Unknown function name; span covers its name after arguments are parsed |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as COHDOC007,
@@ -28,7 +29,7 @@ rather than being rounded by the parser.
 | `COHDOC004` | System collection is read-only | — |
 | `COHDOC005` | Referenced parameter has no value | — |
 | `COHDOC006` | Division or remainder by zero | 22012 |
-| `COHDOC007` | Numeric value cannot fit decimal exactly | 22003 |
+| `COHDOC007` | Numeric value cannot fit decimal exactly, scalar overflow, or string result/work buffer exceeds 1,048,576 UTF-16 units | 22003 |
 | `COHDOC008` | Invalid operand/parameter type, document key or JSON value | — |
 | `COHDOC009` | Caller keys collide after one leading parameter sigil is stripped | — |
 | `COHDOC010` | CREATE COLLECTION finds an existing collection without IF NOT EXISTS | 42P07 |
@@ -40,6 +41,12 @@ rather than being rounded by the parser.
 | `COHDOC016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `COHDOC017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `COHDOC018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
+| `COHDOC019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
+
+[Scalar functions](functions/scalar-functions.md) validate literal kinds and contexts with
+COHDOC001 before reading documents. A wrong-kind stored argument produces NULL. Fractional
+REPLACE counts use COHDOC008; COHDOC019 has no assigned SQLSTATE. Evaluation failures abort an
+explicit transaction.
 
 For example, repeating `INSERT INTO items (KEY, VALUE) VALUES ('a', 1)` on the same visible
 collection reports COHDOC012. A malformed static escape such as ESCAPE 'ab' is OQL0002 instead

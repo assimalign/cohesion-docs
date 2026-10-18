@@ -81,6 +81,23 @@ Collections created by these APIs have `DatabaseObjectOwner.Adhoc`. A collection
 
 ## OQL query and DDL semantics
 
+### SQL++ scalar functions
+
+The parser, profile and evaluator share [OqlFunctions](../assimalign-cohesion-database-documents-language/oql-functions.md),
+with 34 scalar functions alongside META and five aggregates. See the [scalar reference](../../../../database/document/language/functions/scalar-functions.md)
+for signatures, examples and NULL/MISSING rules. Calls validate every argument/context before reads;
+lazy conditionals evaluate only through their selected argument. Functions are not index seek bounds.
+String indexing counts code points. Constructed strings/work buffers cap at 1,048,576 UTF-16 units.
+ROUND uses exact digits once, including at negative scales. SQRT and fractional POWER calculate in
+double and convert through round-trip text to Decimal. Function domain failures use COHDOC019
+(no assigned SQLSTATE); overflow/string limits use COHDOC007 (22003).
+
+Each explicit transaction captures one UTC clock instant, reused by NOW_STR/NOW_MILLIS across
+statements; autocommit captures one per statement. Strings use yyyy-MM-ddTHH:mm:ss.fffZ.
+COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond calls use Int64/long, including
+empty grouped metadata and wire results. Mixed numeric columns promote to Decimal; heterogeneous
+columns normalize numeric cells to Decimal for embedded/client agreement.
+
 ### Catalog introspection
 
 Collections are already discoverable through `GetCollectionsAsync` and `GetCollectionAsync`. OQL

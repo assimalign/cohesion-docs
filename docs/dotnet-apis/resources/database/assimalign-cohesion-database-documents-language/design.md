@@ -11,8 +11,10 @@ public constructors retain child references and semantic validation belongs to t
 
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
 DocumentQueryRequest and session execution reject all parser errors before planning. Expressions
-have a 128-level recursive parse bound. The executable function profile contains aggregates and
-META; recognized unsupported vocabulary reports COHDBL001 separately.
+have a 128-level recursive parse bound. [OqlFunctions](oql-functions.md) is the immutable table of
+META, five aggregates and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
+records arity, JSON kinds and result type; [OqlCallExpression](oql-call-expression.md) retains calls.
+Unknown calls report OQL0008, invalid arity/star OQL0006 and deferred calls COHDBL001.
 
 ## SQL++ values
 
@@ -77,8 +79,17 @@ validates every branch and parameter even when CASE/logic would skip it at runti
 SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–018
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–019
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
+
+## Scalar evaluation and metadata
+
+[Scalar functions](../../../../database/document/language/functions/scalar-functions.md) propagate
+MISSING before NULL, except TYPE and lazy conditionals. Known incompatible literals fail planning;
+wrong-kind stored values return NULL. SQRT/POWER domain failures and fractional ROUND/TRUNC scales
+use COHDOC019 (no assigned SQLSTATE); fractional REPLACE counts use COHDOC008.
+COUNT/LENGTH/POSITION/ARRAY_LENGTH and epoch milliseconds expose Int64 metadata and long values.
+NOW_STR/NOW_MILLIS share the transaction-start UTC instant; output strings end in Z.
 
 ## Sources
 
