@@ -39,6 +39,8 @@ language EXPLAIN pages for supported statement forms. OQL UPDATE adds an Update 
 child while preserving these columns. See [OQL EXPLAIN](../../../../database/document/language/statements/explain.md)
 and [GQL EXPLAIN](../../../../database/graph/language/statements/explain.md).
 
+OQL UPSERT adds Upsert/UpsertSelect operators while retaining this signature and eight columns.
+
 ## Example
 
 ```csharp

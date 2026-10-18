@@ -23,6 +23,9 @@ Exceeding that limit raises `COHDOC015` at the constructor expression. INSERT re
 128-level JSON storage limit (`COHDOC008`); recursive text parsing has a separate 128-level limit
 (`OQL0005`). Computed member names and path access on constructor results remain unsupported.
 
+Constructors use the shared [RFC 8259 UTF-8 encoder](../statements/select.md#json-bytes).
+INSERT and [UPSERT](../statements/upsert.md) share the 128-level storage bound.
+
 ## Examples
 
 For a nonempty collection items:

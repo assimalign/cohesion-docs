@@ -45,6 +45,9 @@ await foreach (var row in result.GetRowsAsync())
 }
 ```
 
+Documents generated JSON bytes use the shared [RFC 8259 encoder](../../../../database/document/language/statements/select.md#json-bytes),
+including bare VALUE/RAW GetBytes. Unicode stays literal UTF-8 across in-process, InMemory and TCP.
+
 ## Related reference
 
 [Assembly](index.md) · [OQL MISSING](../../../../database/document/language/expressions/missing.md)

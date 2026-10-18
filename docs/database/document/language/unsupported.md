@@ -9,7 +9,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | Nested SELECT, JOIN, WITH, set operations | COHDBL001 | One collection source; INSERT SELECT is supported |
 | LIMIT/OFFSET | COHDBL001 | No pagination clauses; SELECT ALL/DISTINCT execute |
 | IN array form, EXISTS and quantified predicates | COHDBL001 | Use a nonempty parenthesized IN value list |
-| UPSERT/RETURNING | COHDBL001 | INSERT, UPDATE SET/UNSET and DELETE execute; complete replacement uses the collection API |
+| RETURNING/OPTIONS | COHDBL001 | INSERT, [UPSERT](statements/upsert.md), UPDATE SET/UNSET and DELETE execute; no statement TTL/version header |
 | UPDATE USE KEYS, LIMIT or FOR | COHDBL001 | One collection, SET and/or UNSET and optional WHERE |
 | DELETE USE KEYS or LIMIT | COHDBL001 | One collection and optional WHERE; no key-selector or delete pagination |
 | IS KNOWN/IS UNKNOWN, UNDEFINED | COHDBL001 | MISSING is the absent value; NIL means NULL |

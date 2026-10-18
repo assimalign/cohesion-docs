@@ -27,8 +27,9 @@ entire projection object is stored, including the key output and excluding MISSI
 and validated before writes, so newly inserted documents do not feed the source.
 
 INSERT is insert-only; [PutAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-connection.md)
-remains replacement/upsert. A key already visible in the transaction, including a repeated key
-within VALUES or a self-copy, raises DocumentDuplicateKeyException with `COHDOC012`. The statement
+and [UPSERT](upsert.md) provide whole-document replacement. A key already visible in the transaction
+or repeated in one VALUES/SELECT source raises DocumentDuplicateKeyException with `COHDOC012`.
+A repeated key has its own message: `Document key 'a' appears more than once in one statement.` The statement
 rolls back all its writes, versions and index changes. Explicit transaction failure follows the
 Documents transaction rule. Success reports the number inserted.
 
@@ -40,11 +41,14 @@ Documents transaction rule. Success reports the number inserted.
 | `COHDOC005` | Missing parameter |
 | `COHDOC007` (22003) | Number cannot fit the decimal domain exactly, including underflow or lost fractional digits |
 | `COHDOC008` | Invalid/non-string/blank key, MISSING whole value or invalid JSON |
-| `COHDOC012` | Duplicate document key |
+| `COHDOC012` | Existing destination key or repeated key in the statement |
 
-RETURNING and UPSERT remain outside OQL's executable statements. [UPDATE](update.md) changes
+RETURNING remains outside the executable subset. [UPSERT](upsert.md) inserts or replaces whole documents. [UPDATE](update.md) changes
 selected document paths.
 [DELETE](delete.md) removes matching documents through the same transaction pipeline.
+
+Generated INSERT JSON uses the same [RFC 8259 encoder](select.md#json-bytes) as UPSERT,
+constructors and VALUE/RAW rows; Unicode stays literal UTF-8.
 
 ## Examples
 

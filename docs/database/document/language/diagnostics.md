@@ -33,7 +33,7 @@ rather than being rounded by the parser.
 | `COHDOC009` | Caller keys collide after one leading parameter sigil is stripped | — |
 | `COHDOC010` | CREATE COLLECTION finds an existing collection without IF NOT EXISTS | 42P07 |
 | `COHDOC011` | DROP COLLECTION targets a schema-owned collection, including IF EXISTS | — |
-| `COHDOC012` | INSERT encounters a duplicate document key | — |
+| `COHDOC012` | INSERT finds an existing key, or INSERT/UPSERT repeats a key in one statement | — |
 | `COHDOC013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
 | `COHDOC014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
 | `COHDOC015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
@@ -47,6 +47,10 @@ of COHDOC013. Ordinary NULL and MISSING results are values, not diagnostics.
 
 COHDOC016–018 have no assigned SQLSTATE. [UPDATE](statements/update.md) reports target locations
 where available and validates all patched documents before the first write.
+
+INSERT/UPSERT repeated-key failures use `Document key 'a' appears more than once in one statement.`
+(COHDOC012, no SQLSTATE). Other shared key/value, binding and JSON validation messages name the
+written verb, including UPSERT. See [UPSERT diagnostics](statements/upsert.md#diagnostics).
 
 ## Locations and wire behavior
 

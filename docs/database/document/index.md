@@ -24,7 +24,8 @@ stored/INSERT JSON retains its 128-level limit.
 ## Reading and writing
 
 - **Query and index language** — [Object Query Language (OQL)](language/index.md) provides `SELECT`,
-  `INSERT`, `UPDATE`, `DELETE`, `EXPLAIN`, collection DDL, `CREATE INDEX` and `DROP INDEX` through the session's parse, plan, and execute pipeline.
+  `INSERT`, `UPSERT`, `UPDATE`, `DELETE`, `EXPLAIN`, collection DDL, `CREATE INDEX` and `DROP INDEX` through the session's parse, plan, and execute pipeline.
+- **OQL replacement** — [UPSERT](language/statements/upsert.md) inserts absent keys and replaces existing documents whole, maintaining indexes atomically. Repeated keys within one statement fail.
 - **Document replacement** — `IDocumentCollection.PutAsync` replaces the complete JSON value by
   identifier and returns a new version. An optional expected version must match a visible document.
 - **Document deletion** — `IDocumentCollection.DeleteAsync` removes the identified document using

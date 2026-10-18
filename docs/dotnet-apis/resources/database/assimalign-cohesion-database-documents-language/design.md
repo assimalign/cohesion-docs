@@ -6,7 +6,7 @@ OQL parses the Documents engine's executable SQL++ subset into typed statements 
 
 The shared lexer/parser infrastructure owns tokenization, diagnostics and source locations. OQL
 partial parsers own dispatch, SELECT, DDL, DML and expressions. OqlQueryStatement wraps one SELECT,
-INSERT, UPDATE, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
+INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
 public constructors retain child references and semantic validation belongs to the engine.
 
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
@@ -34,6 +34,13 @@ ordering by that projection and counting. [OqlArrayExpression](oql-array-express
 ordered elements, converting MISSING to JSON null. OqlClauses adds Distinct (`DISTINCT`), SelectValue
 (`SELECT VALUE`), ObjectConstructor (`OBJECT CONSTRUCTOR`) and ArrayConstructor (`ARRAY CONSTRUCTOR`)
 capability names. Constructors validate and group recursively; text parsing keeps the 128-level bound.
+
+## Whole-document UPSERT
+
+[OqlUpsertExpression](oql-upsert-expression.md) uses INSERT's KEY/VALUE shapes with a distinct
+OqlClauses.Upsert capability. VALUES or materialized SELECT input replaces whole documents.
+Repeated keys use DocumentDuplicateKeyException/COHDOC012 with a statement-specific message.
+EXPLAIN includes Upsert/UpsertSelect. OPTIONS and RETURNING remain excluded with COHDBL001.
 
 ## Partial updates
 
@@ -67,7 +74,7 @@ EXPLAIN DELETE describes a Delete root and its access child without data executi
 CREATE/DROP COLLECTION retain conditional flags and use the same transactional core as session
 methods. INSERT retains VALUES pairs or SELECT and output names for keys/values. The planner
 validates every branch and parameter even when CASE/logic would skip it at runtime. EXPLAIN wraps
-SELECT/INSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
+SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
 [Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–018

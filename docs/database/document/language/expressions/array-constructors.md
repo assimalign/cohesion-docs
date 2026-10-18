@@ -23,6 +23,9 @@ and the wrapper object for named projections (`COHDOC015` at the constructor). I
 the 128-level JSON storage limit (`COHDOC008`). Text expression parsing is separately limited to
 128 recursive levels (`OQL0005`). These limits have no SQLSTATE assigned by the source.
 
+Constructors use the shared [RFC 8259 UTF-8 encoder](../statements/select.md#json-bytes).
+INSERT and [UPSERT](../statements/upsert.md) share the 128-level storage bound.
+
 ## Examples
 
 For the [SELECT fixture](../statements/select.md#distinct-and-bare-values):

@@ -1,11 +1,11 @@
 # EXPLAIN
 
-Returns the chosen OQL plan without executing its SELECT, INSERT, UPDATE or DELETE.
+Returns the chosen OQL plan without executing its SELECT, INSERT, UPSERT, UPDATE or DELETE.
 
 ## Syntax
 
 ```syntaxsql
-EXPLAIN { select_statement | insert_statement | update_statement | delete_statement } [ ; ]
+EXPLAIN { select_statement | insert_statement | upsert_statement | update_statement | delete_statement } [ ; ]
 ```
 
 ## Remarks
@@ -17,7 +17,7 @@ nested EXPLAIN and ANALYZE are excluded with `COHDBL001`. Planning failures keep
 The [shared eight-column shape](../../../sql/language/statements/explain.md) is node_id, parent_id,
 operator, target, index, detail, estimated_rows and actual_rows. Nodes appear in depth-first
 pre-order; estimates and actual counts are NULL. Operators include CollectionScan, IndexSeek,
-SystemCollection, Insert, InsertSelect, Update and Delete. IndexSeek reports its selected index and bounds.
+SystemCollection, Insert, InsertSelect, Upsert, UpsertSelect, Update and Delete. IndexSeek reports its selected index and bounds.
 Documents sends one JSON Document per row, including explicit null members. A test guard checks
 that every plan record has a description mapping; this does not admit DDL under EXPLAIN.
 
@@ -31,6 +31,9 @@ with detail `filter=True; access=IndexSeek` and its by_score seek, without delet
 EXPLAIN UPDATE emits an Update root and its CollectionScan/IndexSeek child. For example,
 `EXPLAIN UPDATE items SET score = score + 1 WHERE score >= 2` describes the filter and chosen
 access without changing scores.
+
+EXPLAIN UPSERT returns an Upsert root for VALUES or UpsertSelect above its source SELECT plan.
+`EXPLAIN UPSERT INTO items (KEY, VALUE) VALUES ('a', 1);` describes Upsert without replacing a.
 
 ## Examples
 

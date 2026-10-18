@@ -32,7 +32,7 @@ public sealed class DocumentConnection : IAsyncDisposable
 ## Behavior and exceptions
 
 QueryAsync materializes rows or whole documents; ExecuteAsync returns the affected count (-1 for
-queries, zero for DDL, inserted/deleted count for INSERT/DELETE, matched count for UPDATE). Parameters follow case-sensitive bare-name
+queries, zero for DDL, written count for INSERT/UPSERT, deleted count for DELETE, matched count for UPDATE). Parameters follow case-sensitive bare-name
 binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes before
 their first await. Get returns null when absent; Put replaces/upserts and returns a new version;
 Delete returns whether a document existed. Expected versions must match visible content. Collection
@@ -70,6 +70,10 @@ Console.WriteLine(matched); // 1; stored amount is 3
 UPDATE emits no result rows. Invalid path/overlap/stored-JSON results raise DocumentClientException
 with COHDOC016/017/018, respectively, and a completed Failure permits reuse. See
 [UPDATE](../../../../database/document/language/statements/update.md) for NULL/MISSING and version rules.
+
+ExecuteAsync accepts [UPSERT](../../../../database/document/language/statements/upsert.md) and returns
+the number of replaced/inserted pairs, with no rows. COHDOC012 rejects repeated input keys; decoded
+Failure preserves the rental. Generated UTF-8 JSON bytes agree with in-process and InMemory results.
 
 ## Related reference
 

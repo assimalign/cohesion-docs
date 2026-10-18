@@ -126,14 +126,14 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation with COHDOC004. OQL INSERT, UPDATE and DELETE execute for stored collections; system targets use COHDOC004. Virtual sources do not provide
+catalog lookup or mutation with COHDOC004. OQL INSERT, UPSERT, UPDATE and DELETE execute for stored collections; system targets use COHDOC004. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, INSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
+GROUP BY, HAVING, ORDER BY, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
 and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
@@ -366,6 +366,18 @@ demonstrated by tests exercising the public factory through that base interface.
 | `Assimalign.Cohesion.Database.Documents.Catalog` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## UPSERT and generated JSON bytes
+
+[UPSERT](../../../../database/document/language/statements/upsert.md) shares INSERT validation and
+the Put write primitive. Inputs materialize before writes; repeated keys fail COHDOC012 with
+`Document key 'a' appears more than once in one statement.` Whole-document versions and indexes
+change atomically. Shared validation messages name INSERT or UPSERT as written.
+
+One RFC 8259 encoder supplies generated JSON bytes for INSERT, UPSERT, constructors, named
+projections and bare VALUE/RAW rows across in-process, InMemory and TCP paths. Unicode, HTML
+characters and U+2028/U+2029 remain literal UTF-8. Quotes, backslashes and controls escape.
+Raw stored/lone-star bytes retain their exact representation. See [JSON bytes](../../../../database/document/language/statements/select.md#json-bytes).
 
 ## Sources
 

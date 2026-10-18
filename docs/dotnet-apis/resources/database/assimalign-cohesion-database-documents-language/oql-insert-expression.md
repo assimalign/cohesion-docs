@@ -40,6 +40,9 @@ var node = new OqlInsertExpression("items", null,
 Console.WriteLine(node.Values.Count); // 1
 ```
 
+[OqlUpsertExpression](oql-upsert-expression.md) has the same input members with replacement
+semantics. Repeated keys in either statement use COHDOC012 with their own message.
+
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md) · [Language reference](../../../../database/document/language/statements/insert.md)

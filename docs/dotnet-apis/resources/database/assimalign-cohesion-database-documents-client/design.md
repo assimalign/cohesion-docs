@@ -36,6 +36,12 @@ operations return names; server-side session-bound collection handles do not cro
 Get returns null for absence, Put returns the new version, Delete returns whether a document was
 removed. Expected-version checks retain engine semantics. OQL INSERT is insert-only.
 
+[UPSERT](../../../../database/document/language/statements/upsert.md) uses the same Execute exchange,
+returning written-pair count without Document frames. Existing keys are replaced; repeated input
+keys fail COHDOC012, retaining diagnostics and a reusable connection. Generated INSERT/UPSERT,
+constructor and VALUE/RAW bytes use the engine's one RFC 8259 encoder: literal UTF-8 Unicode with
+only quotes, backslashes and control characters escaped. Wire framing is unchanged.
+
 ## Failures and connection reuse
 
 OQL DELETE reports deleted count through Complete, with no Document frames. QueryAsync returns

@@ -74,6 +74,19 @@ Scans and index seeks establish ordinal document-identifier order before filteri
 preserves established order for ties. Results are materialized and own their JSON values after
 execution, without retaining the transaction or borrowed storage memory.
 
+## JSON bytes
+
+Generated document JSON uses one RFC 8259 encoder for INSERT/UPSERT storage, constructors,
+named projections and bare VALUE/RAW byte rows in process, over InMemory and over TCP.
+Unicode, including supplementary characters, remains literal UTF-8; `<`, `>`, `&`, U+2028
+and U+2029 remain literal too. Quotes, backslashes and U+0000–U+001F are escaped. For example,
+`SELECT VALUE 'é東京<&😀' FROM items;` over one source row returns the UTF-8 JSON bytes
+`"é東京<&😀"`. These bytes differ from the previous escaped serializer output.
+Lone-star rows preserve the original stored JSON bytes.
+
+Object members still omit MISSING; array elements and a bare whole MISSING become JSON null.
+This encoding changes bytes without changing NULL/MISSING semantics or the wire payload layout.
+
 ## Examples
 
 These statements are in the parser conformance corpus:

@@ -111,6 +111,9 @@ UPDATE updates UNSET missing_array[0].name;
 The first two statements each affect one document, leaving `extra` as `{"deep":{}}`.
 The third fails with COHDOC016 and changes nothing because missing_array is absent.
 
+Use [UPSERT](upsert.md) for whole-document replacement. Newly encoded SET values use the
+shared [RFC 8259 UTF-8 encoder](select.md#json-bytes).
+
 ## See also
 
 [Statements](index.md) · [DELETE](delete.md) · [WHERE](../clauses/where.md) · [META](../functions/meta.md) · [EXPLAIN](explain.md)

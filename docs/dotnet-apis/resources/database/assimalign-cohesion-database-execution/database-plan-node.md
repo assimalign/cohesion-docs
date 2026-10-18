@@ -42,6 +42,9 @@ SQL correlation adds CorrelatedSubqueries with complete child plans. Non-recursi
 Materialize, CteScan and Constant; reachable materializations precede the enclosing input. These
 operators retain this public node shape and execute no data statement during EXPLAIN.
 
+OQL [UPSERT](../../../../database/document/language/statements/upsert.md) adds Upsert or UpsertSelect
+with its SELECT child. These use the existing public node members.
+
 ## Example
 
 ```csharp

@@ -33,6 +33,9 @@ compares indexed and scanned filtering and demonstrates zero/all-document counts
 The [UPDATE examples](../../../../../database/document/language/statements/update.md#examples)
 show NULL/MISSING handling and invalid missing-array traversal.
 
+See [OqlUpsertExpression](../oql-upsert-expression.md) and [UPSERT](../../../../../database/document/language/statements/upsert.md)
+for replacement, duplicate-key and SELECT-source examples checked against DocumentUpsertTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.

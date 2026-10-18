@@ -10,6 +10,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[OqlCreateCollectionExpression](oql-create-collection-expression.md)** — AST members and execution contract.
 - **[OqlDropCollectionExpression](oql-drop-collection-expression.md)** — AST members and execution contract.
+- **[OqlUpsertExpression](oql-upsert-expression.md)** — Whole-document replacement from VALUES or SELECT.
 - **[OqlInsertExpression](oql-insert-expression.md)** — AST members and execution contract.
 - **[OqlUpdateExpression](oql-update-expression.md)** — Partial updates, removals and filtering.
 - **[OqlUpdateAssignment](oql-update-assignment.md)** — SET path and pre-update value.
@@ -37,7 +38,7 @@ See the [source-backed usage examples](examples/index.md).
 The package references only the shared `Assimalign.Cohesion.Database.Language` package. The
 Documents engine supplies catalog binding, planning, and execution. Queries and index DDL address
 one collection in the session's database. `CREATE INDEX` and `DROP INDEX` use the same
-parse-plan-execute path as `SELECT`; INSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. Replacement uses collection APIs.
+parse-plan-execute path as `SELECT`; INSERT, UPSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. UPSERT replaces whole documents.
 OQL follows the SQL++ MISSING contract. DEFINE/ELEMENT/FLATTEN are ordinary field names;
 their old statement/call positions and subqueries report COHDBL001.
 

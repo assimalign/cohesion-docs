@@ -1,6 +1,6 @@
 # Language (OQL)
 
-OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPDATE and DELETE.
+OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPSERT, UPDATE and DELETE.
 
 > **Status:** Partial. The reference describes behavior implemented on the integration branch.
 
@@ -12,7 +12,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 ## Reference categories
 
 - **Conventions** — [Syntax conventions](syntax-conventions.md).
-- **Statements** — [SELECT, INSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
+- **Statements** — [SELECT, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
 - **Clauses** — [FROM, WHERE, GROUP BY, HAVING and ORDER BY](clauses/index.md).
 - **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
 - **Functions** — [Aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
@@ -32,7 +32,8 @@ share SQL and GQL's case-sensitive bare-name contract.
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
 | [DELETE](statements/delete.md) | Supported | Snapshot filtering, index maintenance and affected count; retains collection/index definitions |
 | [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
-| EXPLAIN | Supported | SELECT/INSERT/UPDATE/DELETE plan rows without execution |
+| [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
+| EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One nonunique path index in a collection |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
