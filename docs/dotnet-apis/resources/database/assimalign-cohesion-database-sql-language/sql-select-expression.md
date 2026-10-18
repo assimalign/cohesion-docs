@@ -17,6 +17,7 @@ public sealed class SqlSelectExpression : SqlQueryExpression
     public SqlExpression? Having { get; }
     public IReadOnlyList<SqlOrderByColumn> OrderBy { get; }
     public SqlExpression? Limit { get; }
+    public SqlLimitSyntaxKind? LimitSyntaxKind { get; }
     public SqlExpression? Offset { get; }
     public bool IsDistinct { get; }
 }
@@ -28,7 +29,7 @@ The parser owns construction. From replaces the former single table and flat joi
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and
-persisted expressions use this same shape. Current SQL storage format 18 includes canonical
+persisted expressions use this same shape. Current SQL storage format 20 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
 refused without an upgrade reader. Compiled schema artifacts remain version 7.
@@ -43,6 +44,20 @@ declaration order, or an empty list. The setter is internal. Each reachable defi
 once before writes; unused definitions bind but do not execute. INSERT's query-source WITH lives
 on SelectSource.CommonTables; a leading WITH lives on the INSERT node. See [WITH](../../../../database/sql/language/clauses/with.md).
 
+Limit and Offset hold normalized count expressions for every paging spelling.
+[SqlLimitSyntaxKind](sql-limit-syntax-kind.md) distinguishes Limit, Fetch and Top, or null without
+a limit. The renderer retains that family and normalizes FETCH to OFFSET before FETCH FIRST and
+TOP to parentheses. Mixed families/repeated clauses report SQL0003; PERCENT, WITH TIES and DML TOP
+report COHDBL001. Invalid count values report COHSQLE018 naming the written clause.
+
+```csharp
+var paging = (SqlSelectExpression)((SqlQueryStatement)new SqlQueryParser().Parse(
+    "SELECT id FROM t FETCH NEXT 2 ROWS ONLY OFFSET 1 ROW")).SqlExpression;
+Console.WriteLine(paging.LimitSyntaxKind); // Fetch
+Console.WriteLine(SqlExpressionRenderer.Render(paging));
+// SELECT id FROM t OFFSET 1 FETCH FIRST 2 ROWS ONLY
+```
+
 ## Example
 
 ```csharp
@@ -54,6 +69,10 @@ Console.WriteLine(select.From[1].Joins.Count); // 2
 Console.WriteLine(SqlExpressionRenderer.Render(select));
 // SELECT * FROM a, b LEFT OUTER JOIN c USING (id, name) CROSS JOIN d
 ```
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## Related reference
 

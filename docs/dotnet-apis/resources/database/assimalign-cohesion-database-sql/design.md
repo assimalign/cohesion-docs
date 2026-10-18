@@ -68,7 +68,7 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
-Current SQL data-storage format is 18. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 20. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
@@ -227,7 +227,7 @@ is a deliberate MVP limitation relative to the standard's
 . Foreign keys store referenced columns rather than an index identity. The views resolve those
 columns to the primary key first (including the legacy fallback), then to a matching unique index
 ordered deterministically by name. Foreign keys report `MATCH_OPTION = 'NONE'`,
-`UPDATE_RULE = 'RESTRICT'`, and `DELETE_RULE = 'RESTRICT'` or `'CASCADE'`. Constraints are
+`UPDATE_RULE = 'RESTRICT'`, and `DELETE_RULE` equal to `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Constraints are
 enforced immediately and are not deferrable.
 
 `Constraint` names remain unique within a table, as the catalog already requires, rather than within
@@ -321,32 +321,16 @@ unsupported-clause diagnostics.
   construction, versions are WAL-covered like all record writes (restart keeps
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
-  worker reclaims below every live horizon). DDL row rewrites (DROP COLUMN)
-  walk *every* stored version, visible or not, preserving stamps.
-- **Migration rule (record-space format version, catalog-persisted).** The
-  catalog stores the record-space format version (kind-4 record): 1 = the
-  pre-MVCC unstamped layout, 2 = stamped rows in the shared page stream, 3 =
-  stamped rows in per-object page chains. Older databases upgrade in place at
-  open, stage by stage, marker written after both stages so each is
-  idempotent across the two-storage crash window: (1 → 2) every record gains
-  a zeroed stamp header (writer 0 = committed bootstrap data, visible to
-  every snapshot) under one storage transaction — idempotent because a
-  version-1 record always begins with the tuple codec's nonzero Int64 tag
-  byte, so an already-stamped record is provably upgraded and skipped on
-  replay; (2 → 3) rows relocate from the shared (owner-zero) pages into their
-  table's chain, stamps preserved verbatim (visibility unchanged), the
-  emptied shared pages released, and rows whose object id no longer exists in
-  the catalog (residue of pre-chain DROP TABLEs) dropped rather than moved —
-  idempotent because the stage reads only owner-zero pages and a moved record
-  lives on an owner-tagged page. Relocation changes row locations, which is
-  safe at upgrade time: nothing persistent references locations (the
-  version-store ledger dies with the process; index entries reference
-  locations only from format 3 onward, and a version-2 database cannot have
-  SQL indexes).
-- **Schema evolution (#1023):** `ADD COLUMN` validates the literal default and
+  worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
+- **Format rule (record-space format version, catalog-persisted).** Only format 20 opens.
+  Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
+  SET DEFAULT and NO ACTION actions. Older and newer versions are refused before opening data
+  files. No upgrade reader exists; export with the writing engine, recreate and reload.
+
+- **Schema evolution (#1023):** `ADD COLUMN` validates the default expression and
   current rows under the exclusive object lock before publishing the complete
   replacement definition in one catalog transaction. Backfill is resolved at
-  read time from persisted column metadata; no existing row bytes, locations or
+  read time from independent frozen missing-value metadata; no existing row bytes, locations or
   MVCC stamps are changed. `SqlRowCodec` reports how many fields were physically
   present, and the executor resolves only the missing tail, on both scans and
   index seeks. Explicit NULLs remain NULL. Default conversion is shared with
@@ -354,15 +338,14 @@ unsupported-clause diagnostics.
   truncation, and decimal rounding or precision loss. Validation scans are
   O(table); there is no physical backfill or cross-storage row/catalog commit.
   A crash before catalog publication leaves the old definition; after publication
-  the same persisted default resolves old rows on reopen. Constrained additions
+  the same frozen missing literal resolves old rows on reopen. Constrained additions
   still build enforcing indexes durably before publication; a crash can leave
   unpublished index pages, never a partly backfilled table.
   Bound plans retain their immutable definition; later statements bind the full
   new definition even with an older row snapshot. NOT NULL without a default
   fails if any current row exists; historical deleted versions can still read
   NULL under an older snapshot after an addition to a currently empty table.
-  `DROP COLUMN` rewrites positional records, materializing surviving defaults
-  while preserving version stamps. DDL is self-committing and refused in explicit
+  `DROP COLUMN` marks physical ordinals dropped in catalog metadata without rewriting versions. DDL is self-committing and refused in explicit
   transactions. Schema-owned tables retain their existing live-session DDL guard.
 - **Expression evaluation** is interpretive with SQL null propagation (nulls
   reject predicates, comparisons with null are null, `AND`/`OR` are three-valued),
@@ -762,7 +745,7 @@ child-first names and cyclic reference graphs provision deterministically.
 `SqlPlanExecutor` enforces checks and outgoing references on inserted or updated rows, and incoming
 references on parent deletes or key changes. Checks reject a false result; SQL unknown/null passes.
 Foreign keys with null components are not checked (MATCH SIMPLE). A non-null child key needs a
-parent visible through the statement snapshot. `Delete` defaults to `RESTRICT`; `CASCADE` recursively
+parent visible through the statement snapshot. SQL `Delete` defaults to `NO ACTION`; `CASCADE` recursively
 collects child deletions into the same statement apply bracket. Parent key updates are restricted
 while referenced. `ON UPDATE` is unsupported and returns `COHDBL001`.
 
@@ -891,7 +874,7 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 18, including the extension-6 missing/default split and T1 identifier
+14; the current SQL format is 20, including the extension-6 missing/default split and T1 identifier
 quoting. Older files are refused without an upgrade reader. Compiled schema version remains 7.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
@@ -932,7 +915,7 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 18 stores
+generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 20 stores
 immutable identity facets within table extension 6 (the identity facet originated in extension 5)
 and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
@@ -1114,7 +1097,27 @@ the transaction. SqlFunctionContext carries it internally; no public clock optio
 [SqlFunctionCollection](sql-function-collection.md) reserves new T1 names at all arities, while
 UPPER/LOWER/LENGTH/ABS retain nonoverlapping application arities. Temporal operators use the same
 planning and evaluation rules; DATE participates in timestamp/instant midnight comparisons and
-CASE/COALESCE calendar promotion. Stable/Volatile defaults are refused with COHDBL001 until #1121.
+CASE/COALESCE calendar promotion. Stable/Volatile defaults execute per row on the transaction clock.
+
+## Expression defaults and referential actions
+
+[DEFAULT](../../../../database/sql/language/clauses/default.md) admits column-free scalar trees
+with arithmetic, CAST and registered calls. Immutable defaults fold and coerce at declaration;
+loaded trees bind without evaluation. Changed implementations can fail later default assignments
+without blocking open, reads or explicit-value writes. Stable and Volatile calls run per assigned
+row with the transaction-start clock, including INSERT SELECT and ON DELETE SET DEFAULT.
+
+ADD COLUMN freezes one nonvolatile result into MissingValueLiteral. Volatile defaults require
+no live rows (COHSQLE027, no SQLSTATE). NULL-producing NOT NULL defaults may be declared, but
+assignments and additions over live rows enforce nullability. SET/DROP DEFAULT never alters
+frozen old-row values. Typed, domain and SDK default surfaces remain literal-only.
+
+[Delete actions](../../../../database/sql/language/constraints.md) include NO ACTION, SET NULL
+and SET DEFAULT through cascade chains. The deletion closure precedes SET updates; deleted
+rows receive no SET assignment. Final child validation and row/index changes share the statement
+rollback bracket. NO ACTION is the omitted SQL action; the catalog constructor's optional
+argument still defaults to Restrict. Compiled schema version 7 continues to model only Restrict
+and Cascade and refuses reconciliation with the newer catalog actions.
 
 ## ALTER rename, defaults and nullability
 
@@ -1125,13 +1128,13 @@ bound identifiers at the persisted parser ceiling. Table renames retained by scr
 are refused with COHSQLD002 after ownership checks. Name collisions use COHSQLE013.
 
 Defaults are validated before publication, including function result assignment compatibility.
-Stable/Volatile calls are COHDBL001 until #1121. Domain DROP DEFAULT re-inherits its default and
+Stable/Volatile calls execute per assigned row; defaults never execute at table open. Domain DROP DEFAULT re-inherits its default and
 SET DEFAULT NULL can preserve an explicit NULL override. Frozen ADD COLUMN missing literals are
 independent and survive later default changes. Narrowing checks them even without live rows.
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 18.
+Format 17 introduced the default/missing split with table extension 6; current format is 20.
 
 ## Declared dependencies
 
@@ -1147,6 +1150,10 @@ Format 17 introduced the default/missing split with table extension 6; current f
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 

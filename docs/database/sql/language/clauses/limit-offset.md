@@ -1,51 +1,69 @@
-# LIMIT and OFFSET (Cohesion SQL)
+# LIMIT, OFFSET, FETCH and TOP (Cohesion SQL)
 
-Limits the number of returned rows and skips an initial part of the result.
+Limits returned rows and skips an initial part of an ordered result.
 
-> **Status:** Partial. The documented subset executes; restrictions are listed below.
+> **Status:** Implemented for the forms below.
 
 ## Syntax
 
 ```syntaxsql
-[ LIMIT nonnegative_integer ] [ OFFSET nonnegative_integer ]
+[ LIMIT count ] [ OFFSET count [ ROW | ROWS ] ]
+[ OFFSET count [ ROW | ROWS ] ] [ LIMIT count ]
+[ OFFSET count [ ROW | ROWS ] ] FETCH { FIRST | NEXT } [ fetch_count ] { ROW | ROWS } ONLY
+FETCH { FIRST | NEXT } [ fetch_count ] { ROW | ROWS } ONLY [ OFFSET count [ ROW | ROWS ] ]
+SELECT [ DISTINCT ] TOP { ( expression ) | integer_literal | parameter } select_list FROM ...
 ```
 
 ## Arguments
 
-- **`LIMIT`** — The maximum number of rows to return.
-- **`OFFSET`** — The number of rows to skip before returning rows.
+- **`count`** — A column-free expression yielding a nonnegative integer through `9223372036854775807`.
+- **`fetch_count`** — A PostgreSQL primary expression (`c_expr`) or signed numeric constant; omission means 1.
+  A compound expression needs parentheses: `(1 + 1)` is accepted, `1 + 1` is `SQL0003`.
+  Parameters, function calls and CASE are primary expressions; signs on nonnumeric operands need parentheses.
+- **`TOP`** — A SQL Server lexical alias for a row limit. Without parentheses it consumes one integer literal or parameter.
 
 ## Remarks
 
-Each clause can appear alone. When both are present, write `LIMIT` before `OFFSET`.
-Counts accept 0 through `9223372036854775807` (`Int64.MaxValue`). The clauses apply after
-filtering, grouping and ordering, on table, join and system-relation plans, both in process and
-over the wire. A limit larger than the remaining result keeps every remaining row; an offset
-larger than the result returns no rows. Counts never wrap through an `Int32` cast.
-Invalid counts report `COHSQLE018`; a count expression referring to a column reports `COHSQLE005`.
+FIRST/NEXT and ROW/ROWS have identical behavior. OFFSET may appear alone. Each SELECT accepts one
+limit family and one OFFSET; LIMIT/OFFSET and FETCH/OFFSET accept either order. TOP cannot combine
+with LIMIT, OFFSET or FETCH. These rules apply inside subqueries, derived tables, CTEs and INSERT
+SELECT as well as at the top level.
 
-Use a sufficient `ORDER BY` key for deterministic paging. Without ordering, no particular row order
-is promised. Pagination values are not select-list ordinals. Subqueries as pagination expressions
-are excluded with `COHDBL001`; ordinary numeric pagination on a query containing subqueries works.
-`TOP` and `FETCH` are recognized but unsupported.
+Paging follows filtering, grouping, ordering and DISTINCT. A zero limit returns no rows; an offset
+at or beyond the result returns no rows. Counts do not wrap through an Int32 cast. Use ORDER BY
+with a sufficient tie-breaking key for deterministic selection. SQL has no MISSING count value;
+NULL and other noninteger counts fail validation.
+
+## Diagnostics
+
+| Code | Meaning and trigger |
+| --- | --- |
+| `SQL0003` | Mixed limit families, repeated clauses, FETCH without ONLY, or malformed count grammar |
+| `COHDBL001` | TOP/FETCH PERCENT, WITH TIES, INSERT/UPDATE/DELETE TOP, or a subquery used as a count |
+| `COHSQLE018` | Negative, NULL, noninteger or out-of-range count; the message names LIMIT, OFFSET, FETCH or TOP |
+| `COHSQLE005` | Count refers to a column when no columns are in scope (SQLSTATE class 42) |
 
 ## Examples
 
-These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
+Using the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture), each
+of the first three statements returns `2`, `3`; the last returns `1`:
 
 ```sql
-SELECT id FROM t ORDER BY id LIMIT 2;
-SELECT id FROM t ORDER BY id OFFSET 1;
+SELECT id FROM t ORDER BY id OFFSET 1 ROW FETCH NEXT (1 + 1) ROWS ONLY;
+SELECT id FROM t ORDER BY id FETCH FIRST 2 ROWS ONLY OFFSET 1 ROW;
+SELECT id FROM t ORDER BY id OFFSET 1 LIMIT 2;
+SELECT TOP (1) id FROM t ORDER BY id;
 ```
 
-The first query returns `1`, `2`; the second returns `2`, `3`.
+`SELECT id FROM t ORDER BY id FETCH FIRST ROW ONLY;` also returns `1`.
 
-```sql
-SELECT id FROM t ORDER BY id LIMIT 9223372036854775807;
-SELECT id FROM t ORDER BY id OFFSET 2147483648;
-```
+The renderer retains the limit family, normalizing FETCH to OFFSET before FETCH FIRST and TOP
+to `TOP (count)`. PERCENT and TIES are ordinary identifiers outside paging suffixes and render
+quoted in persisted SQL (format 19); the current storage format is 20.
 
-These return `1`, `2`, `3` and no rows, respectively.
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## See also
 
@@ -54,4 +72,6 @@ These return `1`, `2`, `3` and no rows, respectively.
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
+- **Paging parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlPagingParserTests.cs`
+- **Paging execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPagingExecutionTests.cs`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

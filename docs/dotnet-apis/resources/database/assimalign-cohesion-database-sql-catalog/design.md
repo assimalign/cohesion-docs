@@ -124,7 +124,7 @@ direct-creation helpers remain internal and are used only by catalog tests.
 
 Table records now append a versioned constraint extension after ownership: version `1`, constraint
 count, and each immutable foreign-key/check definition. A reference stores its ordered local and
-target columns, target SQL namespace/table, and `RESTRICT` or `CASCADE` delete action. A check
+target columns, target SQL namespace/table, and `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT` delete action. A check
 stores its SQL expression. Records ending after the original primary keys or ownership suffix still
 load with no constraints. Unknown extension versions and malformed definitions fail closed. `Column`
 changes retain constraints, and add/drop constraint rewrites use the same WAL-backed,
@@ -238,13 +238,17 @@ changes persisted canonical function-name quoting. SET/DROP DEFAULT cannot chang
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 18 and compiled schema version 7.
+The integration branch uses SQL row-storage format 20 and compiled schema version 7.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current
 boundary when interpreting historical layout notes above.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 

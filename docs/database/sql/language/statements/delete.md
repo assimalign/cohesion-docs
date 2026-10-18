@@ -27,7 +27,7 @@ Qualified references use the target name, or its alias when supplied. An explici
 the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
 
 Only rows for which `WHERE` is `TRUE` are selected. The statement reports an affected count.
-Foreign keys default to `ON DELETE RESTRICT`; a declared `ON DELETE CASCADE` removes dependent
+Foreign keys default to `ON DELETE NO ACTION`; a declared `ON DELETE CASCADE` removes dependent
 rows. Nullable foreign-key values are allowed.
 
 Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
@@ -35,6 +35,9 @@ execute in WHERE. Independent children materialize once; correlated children eva
 candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
 cascades together. `RETURNING` reports `COHDBL001`. Deleting rows does not remove the
 table definition; [DROP TABLE](drop-table.md) is the separate schema operation.
+
+[SET NULL and SET DEFAULT](../constraints.md) update surviving children through cascade chains.
+Defaults use the delete transaction clock; child validation and index changes are atomic with deletion.
 
 ## Examples
 

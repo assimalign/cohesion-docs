@@ -12,7 +12,7 @@ Declares primary keys, unique keys, foreign keys, checks, and column nullability
 [ CONSTRAINT constraint_name ] CHECK ( search_condition )
 [ CONSTRAINT constraint_name ] FOREIGN KEY ( column_name [ , ...n ] )
     REFERENCES [ schema_name . ] table_name ( column_name [ , ...n ] )
-    [ ON DELETE { CASCADE | RESTRICT } ]
+    [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ]
 ```
 
 These are table constraints inside `CREATE TABLE` or after `ALTER TABLE ... ADD`.
@@ -25,7 +25,7 @@ Column nullability is declared with `NULL` or `NOT NULL`.
 - **`constraint_name`** — An optional name retained in catalog metadata.
 - **`column_name`** — A local or referenced key column; key-list order is significant.
 - **`search_condition`** — A deterministic Boolean expression over the current row.
-- **`CASCADE` or `RESTRICT`** — The action on parent deletion; omission means `RESTRICT`.
+- **`ON DELETE`** — The action on parent deletion; omission means `NO ACTION`.
 
 ## Remarks
 
@@ -46,6 +46,25 @@ Foreign and referenced lists must have the same number of columns. String foreig
 matching effective collations. Parent-key updates that would invalidate references are rejected;
 `ON UPDATE` is recognized but unsupported with `COHDBL001`.
 `ON DELETE CASCADE` does not imply `DROP TABLE ... CASCADE` support.
+
+| Delete action | Behavior |
+| --- | --- |
+| CASCADE | Deletes referencing rows, following cascade chains |
+| RESTRICT | Refuses deletion while references remain |
+| NO ACTION | Checks references against the statement's final row set; this is the SQL default |
+| SET NULL | Assigns NULL to every referencing column in surviving child rows |
+| SET DEFAULT | Assigns each referencing column's current default, or NULL when none exists |
+
+SET actions also run for children of cascaded deletions. Rows already in the deletion closure
+are deleted once and do not receive SET assignments. Only referencing columns change. Child
+NOT NULL, CHECK, UNIQUE, domain and foreign-key rules still apply; a default that points to a
+missing or deleted parent fails. Parent and child mutations and index maintenance roll back
+together on failure. Constraints are immediate, with no deferred enforcement. NULL in any
+foreign-key component exempts that row from requiring a parent; SQL has no MISSING key value.
+
+Constraint violations throw SqlConstraintViolationException; an unavailable SET DEFAULT on a NOT NULL column uses
+`COHSQLE024` (23502). Default evaluation retains its normal diagnostic, and an ALWAYS identity
+SET DEFAULT assignment uses `COHSQLE025`. See [Diagnostics](diagnostics.md).
 
 Checks are deterministic, Boolean, and row-local. The supported scalar functions can participate;
 parameters, aggregates, subqueries, and CAST are excluded. Null propagation matters: a check such as
@@ -79,6 +98,24 @@ SELECT pid FROM c;
 
 Only the null child remains.
 
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE parent (id INT PRIMARY KEY);
+INSERT INTO parent VALUES (0), (1);
+CREATE TABLE nullable_child (pid INT REFERENCES parent(id) ON DELETE SET NULL);
+CREATE TABLE default_child (pid INT DEFAULT 0 REFERENCES parent(id) ON DELETE SET DEFAULT);
+INSERT INTO nullable_child VALUES (1);
+INSERT INTO default_child VALUES (1);
+DELETE FROM parent WHERE id = 1;
+SELECT pid FROM nullable_child;
+SELECT pid FROM default_child;
+```
+
+The queries return NULL and `0`, respectively. An omitted action or explicit NO ACTION instead
+refuses the deletion while either child still references `1`; a self-referencing deletion may
+remove both parent and child in the same statement.
+
 ## See also
 
 [Language (SQL)](index.md) · [CREATE TABLE](statements/create-table.md) · [ALTER TABLE](statements/alter-table.md) · [System views](system-views/index.md)
@@ -87,6 +124,7 @@ Only the null child remains.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
+- **Referential action execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferentialActionTests.cs`
 - **Constraint grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Constraints.cs`
 - **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
 - **Collation compatibility** — `cohesion/docs/programs/COLLATION_DESIGN.md`

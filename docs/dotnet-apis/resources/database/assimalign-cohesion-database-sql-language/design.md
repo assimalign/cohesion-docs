@@ -107,8 +107,9 @@ discipline and emits `SQL0003` on malformed input.
 `Unique` AST kind so it can preserve the declaration and name, but execution lowers it to the same
 unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUnique: true)`. This
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
-Foreign keys and checks remain constraint catalog records. Only `ON DELETE CASCADE` and
-`ON DELETE RESTRICT` are accepted; `ON UPDATE` stays outside the profile and reports `COHDBL001`.
+Foreign keys and checks remain constraint catalog records. ON DELETE accepts CASCADE, RESTRICT,
+NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE stays outside the profile
+and reports `COHDBL001`. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
 ## T1 literal, type and request forms
 
@@ -122,7 +123,7 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 18
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 20
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -169,9 +170,13 @@ leaves carry table/column rename names, SET DEFAULT expressions or a column name
 and SET/DROP NOT NULL. They have internal constructors and read-only properties. The engine owns
 validation, ownership checks and atomic publication. RENAME/TO are contextual identifiers.
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
-assignment compatibility; Stable/Volatile calls are refused until #1121. The catalog separates
+assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 18 for canonical function-name quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+format is 20 for persisted referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 

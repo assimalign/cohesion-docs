@@ -31,8 +31,8 @@ ALTER TABLE [ schema_name . ] table_name
 - **`table_constraint`** — A supported table constraint from [CREATE TABLE](create-table.md#syntax).
 - **`column_name` or `constraint_name`** — The existing object to change or remove.
 - **`new_table_name` or `new_column_name`** — An unqualified name; table renames stay in the same schema.
-- **`default_expression`** — A literal, signed/typed literal or column-free Immutable scalar call.
-  ADD COLUMN remains literal-only. Stable/Volatile calls are refused with COHDBL001 until #1121.
+- **`default_expression`** — A column-free scalar expression, including literals, arithmetic, CAST and function calls.
+  See [DEFAULT](../clauses/default.md) for volatility and ADD COLUMN rules.
 
 ## Remarks
 
@@ -56,8 +56,8 @@ by a declared script claim is COHSQLD002 naming that script.
 
 SET DEFAULT changes later omitted-column and whole-item DEFAULT assignments. Function result types
 must satisfy INSERT assignment compatibility (COHSQLE013 naming the column); literals must convert
-within the destination bounds before publication. Stable or Volatile calls, including clocks and
-GEN_RANDOM_UUID, are refused with COHDBL001. General expression defaults remain outside this subset.
+within the destination bounds before publication. Immutable expressions fold at declaration; Stable
+and Volatile calls execute per assigned row using the transaction-start clock. Defaults never run at table open.
 DROP DEFAULT on a domain column re-inherits the domain default. SET DEFAULT NULL preserves an
 explicit NULL override when hiding a domain default. On a NOT NULL column without a usable default,
 later omitted values fail COHSQLE024 (23502).
@@ -74,14 +74,17 @@ refuses primary-key columns (SQL0003). SET/DROP DEFAULT and DROP NOT NULL refuse
 
 ### Added columns and publication
 
-The measured subset includes literal defaults on added columns. Old rows resolve a missing trailing
+ADD COLUMN admits expression defaults. A nonvolatile expression freezes once for old rows;
+a volatile expression is refused on live rows with `COHSQLE027` and admitted on an empty table. Old rows resolve a missing trailing
 field from persisted catalog metadata; their bytes and multi-version concurrency control (MVCC)
 stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update writes the full row.
 
 | Addition | Existing rows | Later insert omitting the column |
 | --- | --- | --- |
 | Nullable, no default or `DEFAULT NULL` | `NULL` | `NULL` |
-| Valid literal default | Default value | Default value |
+| Immutable default | Folded value | Validated declaration value |
+| Stable default | One frozen addition-time value | Per-row value using transaction-start clock |
+| Volatile default | Refused with `COHSQLE027` when live rows exist | Per-row value if added to an empty table |
 | `NOT NULL`, non-null default | Default value | Default value |
 | `NOT NULL`, no non-null default | Rejected if currently committed rows exist | Must supply a value if addition succeeds on an empty table |
 
@@ -94,7 +97,7 @@ with its existing type, NOT NULL and no DEFAULT; type/nullability/default or gen
 fail `COHSQLE025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
 `SQL0003`; ALTER also rejects making an existing primary-key column explicitly NULL.
 
-ADD COLUMN defaults must fit destination bounds. Nonliteral defaults, invalid conversions, and out-of-range
+ADD COLUMN defaults must fit destination bounds. Invalid defaults, invalid conversions, and out-of-range
 values fail before schema publication. The complete definition is published atomically; a failed
 addition leaves schema, rows, and catalog unchanged. Defaults survive catalog reopen.
 
@@ -108,7 +111,7 @@ physical ordinals and dropped-column metadata keep existing row values aligned.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 18 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 20 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version remains 7. Older SQL formats are refused.
 
@@ -117,17 +120,17 @@ canonical function-name quoting. Compiled schema version remains 7. Older SQL fo
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `SQL0003` | Malformed action or DROP NOT NULL on a primary-key column | — |
-| `COHDBL001` | Excluded action/list or Stable/Volatile DEFAULT call | — |
+| `COHDBL001` | Excluded action/list or subquery in DEFAULT | — |
 | `COHSQLE013` | Rename collision, invalid default form or incompatible function result type | — |
 | `COHSQLE014` / `COHSQLE015` | Missing table / missing column | — |
 | `COHSQLE021` | System relation target or attempted rename over a system relation | 25006 |
 | `COHSQLE024` | NOT NULL validation finds NULL | 23502 |
 | `COHSQLE025` | Protected identity facet change | — |
+| `COHSQLE027` | Volatile ADD COLUMN default requires a rewrite because live rows exist | — |
 | `COHSQLD002` | Declared script retains a dependent target for a table rename | — |
 | `COHSQLT003` | DDL inside an explicit transaction; the transaction remains usable | — |
 
-Conversion and length failures retain their [normal codes](../diagnostics.md). No new code is
-introduced by these ALTER actions.
+Conversion and length failures retain their [normal codes](../diagnostics.md). `COHSQLE027` has no assigned SQLSTATE.
 
 ## Examples
 
@@ -173,6 +176,10 @@ ALTER TABLE renamed ALTER score DROP NOT NULL;
 ```
 
 The UPDATE affects one row; each ALTER affects zero rows and changes the nullability facet.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## See also
 

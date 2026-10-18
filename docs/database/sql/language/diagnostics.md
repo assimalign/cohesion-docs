@@ -36,7 +36,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
 | `COHSQLE003` | Invalid operand type, including unsupported temporal arithmetic pairs, nonnumeric arithmetic or non-Boolean NOT | 42804 |
 | `COHSQLE004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
-| `COHSQLE005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET | Class 42 |
+| `COHSQLE005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
 | `COHSQLE006` | No function overload accepts arity/types; unknown or incompatible temporal field value; constant/direct parameter fields fail planning, row-dependent DATE_TRUNC fields fail evaluation | 42883 |
 | `COHSQLE007` | Function or registered conversion implementation failed | 38000 |
 | `COHSQLE008` | Ambiguous overload; CAST an argument to choose | 42725 |
@@ -58,6 +58,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
 | `COHSQLE025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
 | `COHSQLE026` | Duplicate CTE name or unresolved reference to a later sibling; binding fails before reads/writes | — |
+| `COHSQLE027` | ADD COLUMN has a volatile DEFAULT and live rows; a physical rewrite would be required | — |
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
 NOT NULL failures name the column and have no execution-time source span.
@@ -73,9 +74,9 @@ relation receives `COHSQLE026`. No SQLSTATE is assigned to that code.
 | --- | --- | --- |
 | `COHSQLD002` | After ownership checks, ALTER TABLE RENAME finds a declared script retaining the old table or index target; names the script | — |
 
-ALTER adds no codes. SET NOT NULL checks stored and frozen missing values with COHSQLE024 (23502);
+ALTER uses `COHSQLE027` for volatile ADD COLUMN defaults on live rows (no SQLSTATE). SET NOT NULL checks stored and frozen missing values with COHSQLE024 (23502);
 DROP NOT NULL on a primary key uses SQL0003. SET/DROP DEFAULT and DROP NOT NULL on identity
-columns use COHSQLE025. Stable/Volatile calls in any DEFAULT use COHDBL001 until #1121.
+columns use COHSQLE025. Stable/Volatile defaults execute per assignment; subqueries remain COHDBL001.
 
 ## Transactions
 

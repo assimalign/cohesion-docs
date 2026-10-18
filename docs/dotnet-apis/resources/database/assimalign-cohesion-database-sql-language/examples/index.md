@@ -40,6 +40,10 @@ shows changed insert defaults, frozen values, renames and nullability with resul
 [SqlLanguageProfile](../sql-language-profile.md#example) inspects the executable scalar vocabulary;
 [SqlLiteralText](../sql-literal-text.md#example) parses durations used in the new temporal arithmetic.
 
+For executable paging and expression default examples, see [SqlSelectExpression](../sql-select-expression.md),
+[DEFAULT](../../../../../database/sql/language/clauses/default.md) and
+[SqlConstraintDefinition](../sql-constraint-definition.md).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

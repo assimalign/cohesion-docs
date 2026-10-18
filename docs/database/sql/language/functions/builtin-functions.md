@@ -176,15 +176,16 @@ Slicing, trimming and reversal also bound input work buffers; UPPER/LOWER use th
 LENGTH/CHAR_LENGTH count without allocating a rune buffer. Oversized requests use COHSQLE002
 (22003), and long loops observe statement cancellation.
 
-CREATE TABLE and every ALTER DEFAULT path refuse Stable or Volatile calls with COHDBL001 naming
-the function, including calls nested under evaluator forms. This includes clocks and random UUIDs.
-Immutable call defaults are type-checked; ADD COLUMN remains literal-only. Broader default admission
-is not implemented. CHECK also admits only Immutable calls. Volatile calls never supply seek bounds.
+Column DEFAULT expressions admit Stable/Volatile calls and evaluate them per assigned row with
+this transaction clock. Immutable defaults fold at declaration. ADD COLUMN freezes a nonvolatile
+default once and refuses a volatile default on live rows (COHSQLE027). CHECK still admits only
+Immutable calls. Volatile calls never supply seek bounds. See [DEFAULT](../clauses/default.md).
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `SQL0003` | Malformed special-form grammar, unknown EXTRACT field, or parentheses on a bare clock | — |
-| `COHDBL001` | Clock precision, Stable/Volatile DEFAULT call or recognized unsupported function | — |
+| `COHDBL001` | Clock precision or recognized unsupported function | — |
+| `COHSQLE027` | Volatile ADD COLUMN default on live rows requires a rewrite | — |
 | `COHSQLE001` | MOD divisor is zero | 22012 |
 | `COHSQLE002` | Numeric domain/range/overflow, temporal range, negative substring length or string allocation bound | 22003 |
 | `COHSQLE006` | No matching arity/types or incompatible temporal field | 42883 |
@@ -198,7 +199,7 @@ The profile advertises only executable names; recognition alone does not imply s
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application
 overloads at arities unused by the standard library remain possible. Function words remain usable
 as ordinary identifiers without a call, except bare niladic names require quoting to name a column.
-The current SQL storage format is **18**: newly executable names and BOTH/LEADING/TRAILING render
+The current SQL storage format is **20**. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
 quoted as identifiers in persisted CHECK/default/function-body SQL. Format 17 separately introduced
 the default/missing-value split with table extension 6. Compiled schema version remains 7; older
 SQL formats are refused with no upgrade reader.

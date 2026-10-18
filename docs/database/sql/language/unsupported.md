@@ -4,10 +4,9 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 37 of 51 named clauses against the live engine. The 14 excluded names are
-`UNION`, `INTERSECT`, `EXCEPT`, `RECURSIVE`, `WINDOW`, `OVER`,
-`PARTITION`, `CREATE VIEW`, `DROP VIEW`, `NATURAL`, `TOP`, `ALL`,
-`FETCH`, and `RETURNING`. Further subset restrictions do not increase that denominator.
+The profile measures 42 of 54 named clauses against the live engine. The 12 excluded names are
+`UNION`, `INTERSECT`, `EXCEPT`, `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `CREATE VIEW`,
+`DROP VIEW`, `NATURAL`, `ALL`, and `RETURNING`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
 
@@ -24,7 +23,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `WINDOW`, `OVER`, `PARTITION BY` | `COHDBL001` | Window clauses are excluded |
 | `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `COHDBL001` | Window-function calls are rejected even without OVER |
 | `CREATE VIEW`, `DROP VIEW` | `COHDBL001` | Built-in system relations do not imply user-defined views |
-| `TOP`, explicit `SELECT ALL`, `FETCH` | `COHDBL001` | Use ordinary SELECT and LIMIT/OFFSET |
+| TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `COHDBL001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
 | DML `RETURNING` | `COHDBL001` | Writes return affected counts |
 | `NATURAL JOIN`, RIGHT/FULL joins with optional `OUTER` | `COHDBL001` | INNER, LEFT and CROSS execute |
 | INNER/LEFT join without ON or USING | `COHDBL001` | Exactly one condition required |
@@ -39,8 +38,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | LATERAL syntax or a derived body referencing a real sibling relation | `COHDBL001` | Enclosing-query correlation executes; typos retain COHSQLE015 |
 | Subquery in UPDATE SET | `COHDBL001` | Correlated and uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `COHDBL001` | Use INSERT ... SELECT |
-| Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and supported literal/Immutable scalar-call defaults only |
-| Subquery as LIMIT/OFFSET expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
+| Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and column-free scalar expression defaults |
+| Subquery as LIMIT/OFFSET/FETCH/TOP expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `COHDBL001` | Includes expression subqueries and derived bodies beneath the top-level query |
 | Aggregate `DISTINCT` or explicit `ALL` | `COHDBL001` | Top-level SELECT DISTINCT still executes |
 | Aggregate `FILTER`, in-aggregate ORDER BY | `COHDBL001` | Basic aggregate calls only |
@@ -49,7 +48,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Ordered-set `WITHIN GROUP` | `COHDBL001` | No ordered-set aggregates |
 | Standalone numeric GROUP BY key | `COHDBL001` | Output ordinals belong only to ORDER BY |
 | `NULLS FIRST`, `NULLS LAST` | `COHDBL001` | Null first ascending, last descending |
-| Foreign-key `ON UPDATE` | `COHDBL001` | Only ON DELETE CASCADE/RESTRICT |
+| Foreign-key `ON UPDATE` | `COHDBL001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |
 | Unknown or culture-aware collation name | `COHDBL001` | Four declared names only |
 | `CREATE COLLATION`, session collation override | `COHDBL001` | Database/column/expression rules only |
 | Collation-aware full-text index | `COHDBL001` or explicit execution error | Not implemented |
@@ -58,9 +57,10 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Invalid CAST target parameters | `SQL0005` | See the conversion bounds |
 | Unsupported CAST source/target pair | `COHSQLE011` | Known source types reject while planning, even on empty input |
 | ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `COHDBL001` | Table/column RENAME and column default/nullability actions execute |
-| Stable or Volatile calls in DEFAULT | `COHDBL001` | CREATE and ALTER refuse these calls until #1121 |
-| CAST in DEFAULT or CHECK | Planning error | Conversion support does not broaden these contexts |
-| Other nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
+| Volatile ADD COLUMN DEFAULT on a populated table | `COHSQLE027` | Requires no live rows; stable additions freeze one missing value |
+| CAST in CHECK | Planning error | CAST executes in column DEFAULT expressions |
+| Columns, parameters or aggregates in DEFAULT | `COHSQLE013` | Defaults have no column or parameter scope |
+
 | Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |
 | Aggregate inside aggregate, WHERE, ON, or GROUP BY at its own query level | Planning error | Child queries retain independent aggregate levels |
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |

@@ -20,14 +20,14 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 <column_constraint> ::= [ CONSTRAINT constraint_name ]
     { PRIMARY KEY | UNIQUE | CHECK ( search_condition )
     | REFERENCES [ schema_name . ] referenced_table ( column_name [ , ...n ] )
-      [ ON DELETE { CASCADE | RESTRICT } ] }
+      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
 <table_constraint> ::= [ CONSTRAINT constraint_name ]
     { PRIMARY KEY ( column_name [ , ...n ] )
     | UNIQUE ( column_name [ , ...n ] )
     | CHECK ( search_condition )
     | FOREIGN KEY ( column_name [ , ...n ] )
       REFERENCES [ schema_name . ] referenced_table ( column_name [ , ...n ] )
-      [ ON DELETE { CASCADE | RESTRICT } ] }
+      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
 ```
 
 ## Arguments
@@ -49,11 +49,14 @@ Columns are nullable unless constrained otherwise. [IDENTITY](../clauses/identit
 built-in integer generator per table, implies NOT NULL and excludes a DEFAULT declaration.
 Explicit NULL combined with NOT NULL, PRIMARY KEY (including table keys) or IDENTITY in either
 order reports `SQL0003`, naming the column, before any catalog change. This rule also applies to
-ADD and ALTER column definitions. Defaults admit literals and column-free Immutable scalar calls;
-Stable or Volatile calls (including clocks and GEN_RANDOM_UUID) are refused with COHDBL001 until #1121.
-Function result types must satisfy INSERT assignment compatibility (COHSQLE013) before publication;
-parameters, `CAST`, and subqueries are rejected before mutation. Strings are not truncated and decimal
-defaults are not rounded. `UNIQUE` is enforced by a unique catalog index and treats `NULL` as an
+ADD and ALTER column definitions. [Defaults](../clauses/default.md) admit column-free scalar
+expressions, including arithmetic, CAST and Immutable/Stable/Volatile calls. Immutable expressions
+fold at declaration; Stable/Volatile calls run per assigned row on the transaction-start clock.
+Function result types must satisfy INSERT assignment compatibility (`COHSQLE013`); columns,
+parameters and aggregates are invalid defaults, and subqueries receive `COHDBL001`. Strings are
+not truncated and decimal defaults are not rounded. Omitted ON DELETE means NO ACTION.
+
+`UNIQUE` is enforced by a unique catalog index and treats `NULL` as an
 equal key. `CHECK` rejects `FALSE` but accepts `UNKNOWN`.
 
 Data definition language (DDL) is self-committing. It is rejected inside an explicit transaction

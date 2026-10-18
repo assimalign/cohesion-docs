@@ -64,7 +64,7 @@ identity table with SqlSchemaMigrationException / `COHSQLP005` and "Nothing was 
 SQL script-created tables retain their SQL definitions.
 
 [INFORMATION_SCHEMA.COLUMNS](../system-views/information-schema.md) exposes the definition and
-directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 18, with catalog counter kind 16. Table extension 6 retains the identity
+directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 20, with catalog counter kind 16. Table extension 6 retains the identity
 facets and adds frozen missing-value literals; identity counters remain independent of insert defaults.
 
 ## Diagnostics
@@ -103,6 +103,10 @@ SELECT id FROM lexical_ids;
 The queries return `(19, 1)`, `(13, 2)`, `(16, 3)`; then `-1`, `-2`; then `100`.
 `UPDATE lexical_ids SET id = DEFAULT` reports COHSQLE025. `CREATE TABLE bad (id INT NULL IDENTITY)`
 reports SQL0003: `Conflicting NULL/NOT NULL declarations for column 'id'.`
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## See also
 

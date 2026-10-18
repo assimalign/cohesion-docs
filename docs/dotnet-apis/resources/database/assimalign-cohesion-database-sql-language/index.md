@@ -41,6 +41,10 @@ The SQL language front-end of the Cohesion Data Platform: a recursive-descent pa
 type-name translation table (`SqlTypeNames`) binding SQL DDL/CAST type names to the shared type
 system (`Database.Types`).
 
+The [paging syntax kind](sql-limit-syntax-kind.md) preserves LIMIT/FETCH/TOP spelling.
+[SqlConstraintDefinition](sql-constraint-definition.md) retains NO ACTION, SET NULL and SET DEFAULT
+alongside CASCADE/RESTRICT; omitted SQL actions are NO ACTION.
+
 ## Scope
 
 - **Parser** — `SELECT` (joins, grouping, ordering, limits, subqueries), `INSERT`

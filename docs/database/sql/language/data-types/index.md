@@ -66,7 +66,7 @@ built-in signed integer rather than a domain.
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 18; compiled schema artifacts are version 7. Format 17 introduced the
+SQL row-storage is format 20; compiled schema artifacts are version 7. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
@@ -81,6 +81,10 @@ SELECT v, n, stamp FROM aliases;
 
 The row is `(1.25, 'héllo', 2024-01-01 00:00:00)`; canonical catalog names are
 DOUBLE PRECISION, CHARACTER VARYING and TIMESTAMP.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## See also
 

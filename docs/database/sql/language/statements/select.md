@@ -8,13 +8,14 @@ Retrieves rows from stored tables and system relations, including N-way joins an
 
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
-SELECT [ DISTINCT ] <select_list>
+SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 [ WHERE search_condition ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING search_condition ]
 [ ORDER BY <order_by_item> [ , ...n ] ]
-[ LIMIT nonnegative_integer ] [ OFFSET nonnegative_integer ]
+[ LIMIT count_expression ] [ OFFSET count_expression [ ROW | ROWS ] ]
+-- Or OFFSET then LIMIT; or FETCH FIRST/NEXT [count] ROW/ROWS ONLY with OFFSET in either order.
 [ ; ]
 
 <select_list> ::= <select_item> [ , ...n ]
@@ -44,9 +45,9 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 | CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
 | `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
-| `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
+| [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
 | Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
-| `TOP`, `ALL`, `FETCH`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
+| `ALL`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs remains excluded |
 | [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
 | Windows | Recognized, not supported (`COHDBL001`) | No window clauses |
