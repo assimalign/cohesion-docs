@@ -1,6 +1,6 @@
 # JOIN (Cohesion SQL)
 
-Combines stored tables and registered system relations with INNER, LEFT, CROSS, and comma joins.
+Combines stored tables, registered system relations and derived queries with INNER, LEFT, CROSS, and comma joins.
 
 > **Status:** Partial. The documented subset executes; restrictions are listed below.
 
@@ -10,6 +10,7 @@ Combines stored tables and registered system relations with INNER, LEFT, CROSS, 
 FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
+                 | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
 <join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
@@ -17,7 +18,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 ## Arguments
 
-- **`table_source`** — A stored table or an INFORMATION_SCHEMA/COHESION_SCHEMA relation.
+- **`table_source`** — A stored table, INFORMATION_SCHEMA/COHESION_SCHEMA relation or [derived table](from.md#derived-tables).
 - **`search_condition`** — The predicate evaluated for each candidate pair.
 - **`column_name`** — A name occurring exactly once in each input to that USING step.
 

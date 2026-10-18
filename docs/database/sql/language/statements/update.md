@@ -30,7 +30,10 @@ No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
 
-Subqueries in `UPDATE`, including its predicate, and `RETURNING` report `COHDBL001`.
+Uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+execute in WHERE over the pre-statement snapshot, including the target table and the session's
+earlier uncommitted changes. Children materialize before writes. Subqueries in SET, correlation
+and `RETURNING` report `COHDBL001`.
 Changing a referenced parent key may fail foreign-key enforcement; `ON UPDATE` actions are not
 implemented. Row updates remain available on schema-owned tables even though session DDL is restricted.
 

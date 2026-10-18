@@ -32,7 +32,7 @@ manipulation language (DML), and transaction control.
 
 The [Clauses](clauses/index.md) section describes binding and execution rules.
 
-- **Sources and filtering** — [FROM](clauses/from.md), [JOIN](clauses/join.md), and
+- **Sources and filtering** — [FROM and derived tables](clauses/from.md), [JOIN](clauses/join.md), and
   [WHERE](clauses/where.md).
 - **Grouping** — [GROUP BY](clauses/group-by.md) and [HAVING](clauses/having.md).
 - **Result shaping** — [ORDER BY](clauses/order-by.md), [LIMIT/OFFSET](clauses/limit-offset.md),

@@ -50,15 +50,30 @@ including empty sources; value conversions use the literal insert rules. Both in
 same preparation, default/nullability/CHECK/FK/UNIQUE validation, locking, index maintenance and
 transactional apply path.
 
-Correlation is deliberately excluded: qualified outer references receive `COHDBL001` in language
-validation, and catalog binding rejects any nested column that cannot resolve in its local scope.
-Parsing and planning enforce at most 32 subquery levels. UPDATE/DELETE, VALUES, CHECK/DEFAULT and
-LIMIT/OFFSET expression subqueries, quantified comparisons, derived tables, CTEs and lateral joins
-remain outside the profile. SELECT continues to require FROM. Subquery resolution uses AST node
+Correlation remains excluded: actual outer references receive `COHDBL001` with
+`Correlated subqueries are not supported; a subquery column must resolve in its local FROM/JOIN scope.`
+and binding detail. Unknown/hidden references retain `COHSQLE015`. Parsing and planning enforce at
+most 32 query levels, including derived bodies. UPDATE/DELETE WHERE supports uncorrelated children
+materialized before writes over the pre-statement snapshot, including earlier uncommitted changes.
+Rollback restores target rows and cascades together. UPDATE SET, VALUES, CHECK/DEFAULT and
+LIMIT/OFFSET expression subqueries, quantified comparisons, CTEs and lateral joins remain outside
+the profile. SELECT continues to require FROM. Subquery resolution uses AST node
 identity at evaluation time; it needs no language-assembly friend access or public AST constructors.
 See DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`, section
 `subqueries-and-query-source-inserts-1021`) for the exact supported forms and semantics.
+
+### Derived relations
+
+FROM/JOIN/comma inputs accept aliased SELECT bodies, materialized once in the enclosing statement
+context. Full-width renames and nonblank output names are checked before enumeration (`COHSQLE013`).
+Metadata follows each projected expression, including qualified versus merged USING outputs,
+Boolean IN outputs, domains and collation strength. Empty relations retain their metadata.
+System inputs in derived bodies and DML predicates request the same statement catalog image.
+Only a reference that really binds to a sibling reports the LATERAL refusal; typos retain
+`COHSQLE015`. Outer ORDER BY keys depending on derived outputs (including aliases/ordinals) retain
+`COHDBL001`; stored-input keys and ordering inside derived bodies execute. See
+[FROM](../../../../database/sql/language/clauses/from.md#derived-tables).
 
 ## Compiled-schema provisioning
 
@@ -957,8 +972,8 @@ shippable steps:
 
 ## Non-goals (current cut)
 
-RIGHT/FULL/NATURAL joins, qualified wildcards, correlated and derived-table
-subqueries, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
+RIGHT/FULL/NATURAL joins, qualified wildcards, correlated
+subqueries and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
 optimization (selection stays rule-based), index seeks for UPDATE/DELETE target collection, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of

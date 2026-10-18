@@ -10,7 +10,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 public sealed class SqlJoinClause
 {
     public SqlJoinType JoinType { get; }
-    public SqlTableReference Table { get; }
+    public SqlRelationReference Table { get; }
     public SqlExpression? Condition { get; }
     public IReadOnlyList<string> UsingColumns { get; }
 }
@@ -22,6 +22,8 @@ The parser owns construction. Condition holds ON, or null for USING/CROSS. Using
 written order and is empty for ON/CROSS. SqlJoinType has Inner, LeftOuter, RightOuter, FullOuter
 and Cross values; [SupportsJoin](sql-language-profile.md) accepts Inner, LeftOuter and Cross.
 INNER/LEFT require exactly one ON or USING. CROSS accepts neither.
+Table is now a [SqlRelationReference](sql-relation-reference.md), with named-table and
+[derived-query](sql-derived-table-reference.md) leaves. Both use the same join/null-extension rules.
 
 Malformed USING or CROSS with a condition reports SQL0003. Missing INNER/LEFT conditions and
 RIGHT/FULL report COHDBL001. Accessors do not throw validation exceptions. Planning checks USING

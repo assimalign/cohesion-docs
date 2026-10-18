@@ -42,7 +42,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE010` | Unknown type/domain or unavailable stored domain | 42704 |
 | `COHSQLE011` | No conversion for a CAST pair; known pairs checked during planning | 42846 |
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
-| `COHSQLE013` | Invalid statement, expression, DDL or executor query shape | — |
+| `COHSQLE013` | Invalid statement, expression, DDL or executor query shape; derived column list width mismatch or blank output name | — |
 | `COHSQLE014` | Table does not exist | — |
 | `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
@@ -57,6 +57,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
 NOT NULL failures name the column and have no execution-time source span.
+Actual correlated references remain `COHDBL001` with the local FROM/JOIN-scope refusal; derived
+sibling references use its LATERAL refusal. Typos and hidden qualifiers retain `COHSQLE015`.
 
 ## Transactions
 

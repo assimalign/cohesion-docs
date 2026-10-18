@@ -32,15 +32,17 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Malformed USING list, or both ON and USING | `SQL0003` | One nonempty USING name list or one ON predicate |
 | Missing/repeated/ambiguous USING name, or no common type | `COHSQLE015` | Fails binding even on empty inputs |
 | Qualified wildcard, such as `t.*` | `COHDBL001` | Use unqualified star or explicit columns |
-| Derived table in FROM or JOIN | `COHDBL001` | No relational subquery sources |
+| Outer ORDER BY depending on derived outputs | `COHDBL001` | Includes aliases and ordinals; ordering inside derived bodies executes |
+| Derived query without an alias | `SQL0003` | FROM/JOIN derived relations require an alias |
+| Derived column list with wrong width or blank output name | `COHSQLE013` | Rename every output by position |
 | Correlated subquery | `COHDBL001` | Inner names must resolve locally |
 | Quantified `ANY`, `ALL`, `SOME` comparison | `COHDBL001` | Use supported scalar/membership/existence forms |
 | Lateral join | `COHDBL001` | Outside the subquery surface |
-| Subquery in UPDATE or DELETE | `COHDBL001` | SELECT contexts only |
+| Subquery in UPDATE SET | `COHDBL001` | Uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `COHDBL001` | Use INSERT ... SELECT |
 | Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and literal defaults only |
 | Subquery as LIMIT/OFFSET expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
-| Expression-subquery nesting beyond 32 levels | `COHDBL001` | Depth limit beneath the top-level query |
+| Query nesting beyond 32 levels | `COHDBL001` | Includes expression subqueries and derived bodies beneath the top-level query |
 | Aggregate `DISTINCT` or explicit `ALL` | `COHDBL001` | Top-level SELECT DISTINCT still executes |
 | Aggregate `FILTER`, in-aggregate ORDER BY | `COHDBL001` | Basic aggregate calls only |
 | `GROUP BY ()`, `GROUPING SETS`, `ROLLUP`, `CUBE` | `COHDBL001` | One or more ordinary scalar grouping expressions |

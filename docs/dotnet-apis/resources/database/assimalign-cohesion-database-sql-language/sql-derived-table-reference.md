@@ -1,0 +1,54 @@
+# SqlDerivedTableReference
+
+An aliased SELECT used as a relation in FROM, JOIN or a comma-separated item.
+
+Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
+
+## Signature
+
+```csharp
+public sealed class SqlDerivedTableReference : SqlRelationReference
+{
+    public SqlSelectExpression Query { get; }
+    public IReadOnlyList<string> Columns { get; }
+}
+// Alias is inherited from SqlRelationReference.
+```
+
+## Behavior and exceptions
+
+Construction is internal. The parser requires an alias; Columns is empty when names are inherited,
+otherwise it contains ordered output renames. Planning requires a full-width list and nonblank
+output names (`COHSQLE013`), even for an empty body. Duplicate names remain ambiguous on reference
+(`COHSQLE015`). Alias hides underlying qualifiers. The body materializes once in the statement
+context; projected expression types, modifiers, nullability, domains and collation provenance survive.
+
+The accessors do not throw validation exceptions. Missing aliases or malformed lists are `SQL0003`
+parser diagnostics. Query nesting shares the 32-level limit (`COHDBL001`). Actual sibling references
+receive `COHDBL001` naming LATERAL; enclosing-query references receive the correlation refusal.
+Unknown or hidden names keep `COHSQLE015`. Outer ordering depending on derived outputs remains
+`COHDBL001`; ordering inside the body executes. See [FROM](../../../../database/sql/language/clauses/from.md#derived-tables).
+
+## Example
+
+```csharp
+var statement = (SqlQueryStatement)new SqlQueryParser().Parse(
+    "SELECT d.a FROM (SELECT id FROM t) AS d (a);");
+var select = (SqlSelectExpression)statement.SqlExpression;
+var derived = (SqlDerivedTableReference)select.From[0].Table;
+Console.WriteLine(derived.Alias);      // d
+Console.WriteLine(derived.Columns[0]); // a
+Console.WriteLine(derived.Query.From.Count); // 1
+```
+
+For t containing IDs 1, 2 and 3, execution returns those IDs with output name `a`, in unspecified order.
+
+## Related reference
+
+[Assembly](index.md) · [SqlRelationReference](sql-relation-reference.md) · [SqlSelectExpression](sql-select-expression.md)
+
+## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlDerivedTableReference.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlDerivedTableParserTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDerivedTableExecutionTests.cs`.

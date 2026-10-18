@@ -26,7 +26,10 @@ Only rows for which `WHERE` is `TRUE` are selected. The statement reports an aff
 Foreign keys default to `ON DELETE RESTRICT`; a declared `ON DELETE CASCADE` removes dependent
 rows. Nullable foreign-key values are allowed.
 
-Subqueries in `DELETE` and `RETURNING` report `COHDBL001`. Deleting rows does not remove the
+Uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+execute in WHERE. Children materialize against pre-statement values before any deletion, including
+self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
+cascades together. Correlation and `RETURNING` report `COHDBL001`. Deleting rows does not remove the
 table definition; [DROP TABLE](drop-table.md) is the separate schema operation.
 
 ## Examples

@@ -42,7 +42,10 @@ remain in input scope; inner queries resolve their own names. Collation follows 
 | `1 + 1` | Constant scalar expression, not ordinal two |
 | Parameter or numeric literal inside a larger expression | Value, not an output position |
 
-`NULLS FIRST` and `NULLS LAST` report `COHDBL001`. Derived tables are not supported.
+`NULLS FIRST` and `NULLS LAST` report `COHDBL001`. Outer keys depending on [derived-table](from.md#derived-tables)
+outputs also report `COHDBL001`, including through aliases, ordinals, computed expressions and
+merged USING values. The message is `SQL derived-table SUBQUERY output ordering awaits the ordering extension.`
+Stored-input keys execute. Ordering inside a derived body executes, including over nested derived inputs.
 Ordinals are exclusive to `ORDER BY`; numeric grouping keys do not identify outputs.
 
 With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinals count the

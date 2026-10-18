@@ -37,6 +37,8 @@ an execution API. SQL carries the rows through ordinary result frames. A source 
 every concrete plan record to have a description mapping.
 N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
 steps whose inputs will be empty. Plan output uses the same eight columns.
+Derived inputs add a DerivedTable node with their child plan. UPDATE/DELETE predicate subqueries
+are described beneath Subqueries; EXPLAIN does not materialize their data or mutate the target.
 
 ## Examples
 

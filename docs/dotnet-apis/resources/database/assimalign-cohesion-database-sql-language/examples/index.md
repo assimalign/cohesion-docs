@@ -25,6 +25,11 @@ show the landed AST forms.
 SqlJoinShapeTests. The [JOIN language examples](../../../../../database/sql/language/clauses/join.md#examples)
 show executed values and merged types from SqlNWayJoinTests.
 
+[SqlRelationReference](../sql-relation-reference.md#example) inspects named versus derived inputs;
+[SqlDerivedTableReference](../sql-derived-table-reference.md#example) reads query bodies and column
+renames from the parser. The [DML snapshot example](../../../../../database/sql/language/expressions/subqueries.md#update-and-delete-snapshots)
+gives UPDATE/DELETE results from SqlDmlSubqueryTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

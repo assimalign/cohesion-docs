@@ -25,7 +25,8 @@ public sealed class SqlSelectExpression : SqlQueryExpression
 
 The parser owns construction. From replaces the former single table and flat join shape; consume
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
-than comma. Renderer and persisted expressions use this same shape. SQL row-storage format 14
+than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
+SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and persisted expressions use this same shape. SQL row-storage format 14
 records the canonical FROM change; older formats are refused without an upgrade path. Compiled
 schema artifacts remain version 7.
 

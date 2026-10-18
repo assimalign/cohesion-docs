@@ -19,6 +19,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 <select_list> ::= <select_item> [ , ...n ]
 <select_item> ::= * | expression [ [ AS ] column_alias ]
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
+                 | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
 <join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
@@ -28,7 +29,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 ## Arguments
 
 - **`select_list`** — Expressions produce output columns; unqualified `*` expands the input columns.
-- **`table_source`** — A stored table or schema-qualified system relation in the session database.
+- **`table_source`** — A stored table, schema-qualified system relation or [aliased derived query](../clauses/from.md#derived-tables).
 - **`search_condition`** — A predicate; only `TRUE` retains a row, pair, or group.
 - **`select_list_ordinal`** — A one-based output position after wildcard expansion.
 - **`nonnegative_integer`** — The row count for `LIMIT` or skipped count for `OFFSET`.
@@ -45,7 +46,8 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 | `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
 | Uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
 | `TOP`, `ALL`, `FETCH`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
-| `WITH`, windows, derived tables | Recognized, not supported (`COHDBL001`) | No common table expressions or derived relations |
+| Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs remains excluded |
+| `WITH`, windows | Recognized, not supported (`COHDBL001`) | No common table expressions or window clauses |
 
 ## Remarks
 
