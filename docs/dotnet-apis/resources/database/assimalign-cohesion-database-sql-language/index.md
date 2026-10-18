@@ -16,6 +16,8 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlCommonTableExpression](sql-common-table-expression.md)** — Ordered non-recursive WITH definitions.
 - **[SqlUpdateExpression](sql-update-expression.md)** — Target, assignments, predicate and WITH list.
 - **[SqlDeleteExpression](sql-delete-expression.md)** — Target, predicate and WITH list.
+- **[SqlLimitSyntaxKind](sql-limit-syntax-kind.md)** — LIMIT, FETCH and lexical TOP families.
+- **[SqlConstraintDefinition](sql-constraint-definition.md)** — Normalized constraints and all five delete actions.
 - **[SqlSelectExpression](sql-select-expression.md)** — SELECT clauses and canonical FROM trees.
 - **[SqlFromItem](sql-from-item.md)** — One comma-separated relation and its joins.
 - **[SqlRelationReference and SqlTableReference](sql-relation-reference.md)** — Named and derived relation base and named-table leaf.

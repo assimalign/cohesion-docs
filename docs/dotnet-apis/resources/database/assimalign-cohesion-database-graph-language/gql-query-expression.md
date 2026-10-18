@@ -72,6 +72,8 @@ match the distinct nonaggregate projection keys; mismatches and aggregate aliase
 [GqlAggregateExpression](gql-aggregate-expression.md) holds aggregate calls. Grouping occurs before
 projection/DISTINCT/order/page; ExecutePaths refuses GroupBy or aggregate projections with COHDBG001.
 
+The explicit grouping capability is `GqlClauses.GroupBy` (`public const string GroupBy = "GROUP BY"`).
+
 ## Example
 
 ```csharp

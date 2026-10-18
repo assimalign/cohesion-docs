@@ -71,13 +71,38 @@ The insert and update each affect one row. SELECT returns `(7, 'seed', NULL)`.
 `INSERT INTO defaults VALUES (DEFAULT, DEFAULT, DEFAULT)` produces the same row.
 
 ```sql
-CREATE TABLE generated (id INT, n INT DEFAULT 1 + 2, label TEXT DEFAULT UPPER('x'),
+CREATE TABLE expr_defaults (id INT, n INT DEFAULT 1 + 2, label TEXT DEFAULT UPPER('x'),
     c INT DEFAULT CAST('1' AS INT), uid UUID DEFAULT GEN_RANDOM_UUID());
-INSERT INTO generated (id) VALUES (1), (2);
-SELECT id, n, label, c FROM generated ORDER BY id;
+INSERT INTO expr_defaults (id) VALUES (1), (2);
+SELECT id, n, label, c FROM expr_defaults ORDER BY id;
 ```
 
 The result is `(1, 3, 'X', 1)`, `(2, 3, 'X', 1)`; the two stored UUIDs differ.
+
+A Stable default shares the transaction clock across row assignments. Execute separately:
+
+```sql
+CREATE TABLE clock_defaults (id INT, stamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);
+BEGIN;
+INSERT INTO clock_defaults (id) VALUES (1), (2);
+SELECT id, stamp = CURRENT_TIMESTAMP AS same_instant FROM clock_defaults ORDER BY id;
+COMMIT;
+```
+
+SELECT returns `(1, TRUE)`, `(2, TRUE)`.
+
+```sql
+CREATE TABLE fast_default (id INT);
+INSERT INTO fast_default VALUES (1);
+ALTER TABLE fast_default ADD stamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE fast_default ALTER stamp DROP DEFAULT;
+INSERT INTO fast_default (id) VALUES (2);
+SELECT id, stamp IS NULL AS absent FROM fast_default ORDER BY id;
+ALTER TABLE fast_default ADD uid UUID DEFAULT GEN_RANDOM_UUID();
+```
+
+SELECT returns `(1, FALSE)`, `(2, TRUE)`: the old row retains its frozen timestamp after DROP
+DEFAULT. The final addition fails COHSQLE027 because rows exist, leaving the schema unchanged.
 
 ## See also
 

@@ -36,6 +36,8 @@ invalid key/value/depth COHDOC008, missing parameters COHDOC005 and lossy decima
 nested SELECT in VALUES remain COHDBL001. Parser diagnostics become DatabaseParseException at
 execution. EXPLAIN describes Upsert/UpsertSelect without writes.
 
+The statement capability is `OqlClauses.Upsert` (`public const string Upsert = "UPSERT"`).
+
 ## Example
 
 Adapted from OqlDmlParserTests; parsing needs no collection:

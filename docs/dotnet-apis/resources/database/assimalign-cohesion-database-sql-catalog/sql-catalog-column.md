@@ -38,6 +38,12 @@ Null name/type throws ArgumentNullException. Blank name/domain name, collation o
 type, or a blank function identity throws ArgumentException. Invalid identity metadata at publication
 or load throws SqlCatalogException; use no domain or DEFAULT and one built-in integer identity.
 
+DefaultLiteral retains canonical SQL for a scalar expression as well as a literal; DefaultFunctionCalls
+records resolved call identities. SQL DDL folds Immutable defaults at declaration and runs Stable/Volatile
+calls per assignment on the transaction clock. Opening/rebinding never evaluates an expression default.
+ADD COLUMN freezes a nonvolatile result in MissingValueLiteral; a volatile default on live rows uses
+COHSQLE027. See [DEFAULT](../../../../database/sql/language/clauses/default.md).
+
 ## Example
 
 ```csharp

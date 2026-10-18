@@ -10,6 +10,7 @@ The relational catalog of the SQL model: schemas, tables, columns, and constrain
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[SqlCatalog](sql-catalog.md)** — Durable identity allocation without changing DDL generation.
 - **[SqlCatalogIdentity](sql-catalog-identity.md)** — Immutable mode, start and increment.
+- **[SqlCatalogConstraint](sql-catalog-constraint.md)** — Persisted references/checks and five delete actions.
 - **[SqlCatalogColumn](sql-catalog-column.md)** — Column metadata and identity facet.
 
 The relational catalog of the SQL model: schemas, tables, columns, and constraints

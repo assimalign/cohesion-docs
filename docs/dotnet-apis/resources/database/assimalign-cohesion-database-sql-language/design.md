@@ -54,12 +54,13 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   SQL-name → `DatabaseType` mapping (with the `DECIMAL(p[,s])`
   argument-is-precision rule); catalogs and the schema compiler must not grow
   their own copies.
-- **Recognized-but-unsupported tokens stay in the lexer tables.** `UNION`, `WITH`,
+- **Recognized-but-unsupported tokens stay in the lexer tables.** `UNION`, recursive `WITH`,
   and window functions are lexed so diagnostics can
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
-  while reserved future clauses such as set operations, CTEs, windows, `FETCH`,
-  `RETURNING`, `TOP`, unsupported join forms, and views remain absent. `ParseCore` scans a copy of its configured
+  while excluded clauses such as set operations, recursive CTEs, windows,
+  RETURNING, unsupported join forms and views remain absent. Non-recursive WITH, FETCH and
+  lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
   statement, so analyzers observe `COHDBL001` with the token location and the `SQL`
   surface name. An actually unknown leading command still receives `SQL0002`, even

@@ -334,7 +334,7 @@ generation is used.
 existing reference. graph.composite-values adds no message type or protocol version. Negotiated
 Execute/ExecutePaths parameters use its components, including scalar parameters. Result column
 bit 7 marks possible composites. Marked cells use tag 0 plus a scalar component or tag 1 plus a
-little-endian length and GraphValueCodec component; unsigned scalars use the latter. Unmarked
+little-endian length and GraphValueCodec component; unsigned and Decimal scalars use the latter. Unmarked
 scalar columns keep their baseline bytes and avoid a preflight pass. Direct COUNT projection metadata is Int64; other query metadata stays unknown.
 
 Values allow depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes, counting UTF-8,

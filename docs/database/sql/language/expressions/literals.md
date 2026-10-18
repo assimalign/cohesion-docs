@@ -88,11 +88,13 @@ DateOnly 2024-01-01, TimeOnly 10:30:00, a 90-minute TimeSpan, bytes 00 FF and te
 ## Canonical identifier text
 
 The renderer quotes identifiers spelled like recognized vocabulary, including SEARCH/MATERIALIZED,
-newly executable function names and BOTH/LEADING/TRAILING. A column named sign renders as
+newly executable function names, BOTH/LEADING/TRAILING and PERCENT/TIES. A column named sign renders as
 `"sign" >= 0` in a CHECK. Defaults and SQL function bodies use the same renderer. Format 18
 records this canonical quoting change, separately from format 17 (the insert-default/frozen-missing
-split with table extension 6). Earlier SQL formats are refused without an upgrade reader, because
-canonical CHECK text is compared ordinally during schema verification. Compiled schemas stay version 7.
+split with table extension 6). Format 19 added PERCENT/TIES quoting. Current format 20 adds
+persisted NO ACTION, SET NULL and SET DEFAULT actions. Every earlier format is refused at open
+with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
+Compiled schemas stay version 7.
 
 ## Examples
 

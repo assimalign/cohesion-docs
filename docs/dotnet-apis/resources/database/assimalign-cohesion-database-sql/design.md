@@ -389,13 +389,14 @@ unsupported-clause diagnostics.
 - **Shared record-space composition (#918).** `SqlTransactionRecordSpace`
   supplies row reads, transactional updates/deletes, and the existing packed
   location codec to `RecordSpaceVersionStore` in `Database.Transactions`.
-  `SqlRowCodec` retains SQL tuple encoding and legacy-format migration, while
+  `SqlRowCodec` retains SQL tuple encoding, while
   its stamp operations delegate to the shared `RecordVersionStamp` contract
   ([layout](../assimalign-cohesion-database-transactions/design.md#record-stamp-prefix-the-16-byte-contract)).
   `RecordVersionIndex` in Indexing binds each live secondary index to the
   shared undo ledger. Recovery ordering is unchanged: re-attach indexes,
   analyze and scrub records, scrub indexes with the same classification, then
-  complete the deferred checkpoint before the existing format upgrades.
+  complete the deferred checkpoint. The format gate refuses every noncurrent format before
+  data files open; there are no format upgrades.
 - **`Write` statements execute in two phases; the physical bracket is per
   statement (`3.8's migration path).** Phase one — no physical bracket: scan
   through the statement snapshot, collect targets, acquire an IntentExclusive
@@ -963,7 +964,7 @@ shippable steps:
    visibility is correct by construction, no stable row identity is needed
    (the rejected copy-out design required one to key chains across record
    relocation), and the purge worker reclaims dead versions where they lie.
-   See "Row format" and "Migration rule" under the execution model.
+   See "Row format" and "Format rule" under the execution model.
 3. **Row-grain write conflicts — delivered (#909):** exclusive row locks via
    `ILockManager` (the B+Tree uniqueness-lock precedent) replaced page
    conflicts as the user-visible surface — concurrent writers to disjoint rows
