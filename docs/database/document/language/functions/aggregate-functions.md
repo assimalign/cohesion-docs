@@ -26,12 +26,12 @@ MAX ( expression )
 ## Arguments
 
 - **`expression`** — the aggregate's single argument, evaluated over its group.
-- **`*`** — counts documents; accepted only by `COUNT`.
+- **`*`** — counts input rows, including expanded UNNEST rows; accepted only by `COUNT`.
 
 ## Remarks
 
 All expression aggregates skip both NULL and [MISSING](../expressions/missing.md). COUNT(*)
-counts documents independently of their fields.
+counts input rows, including expanded UNNEST rows independently of their fields.
 
 COUNT returns Int64 metadata and CLR long values, including over the wire and for empty grouped
 results. LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond scalars have the same Int64 contract.

@@ -5,6 +5,8 @@ OQL SELECT clauses bind one source, filter documents, form groups, and order the
 ## Clause order
 
 - **Source** — [FROM](from.md) names one collection and an optional iteration variable.
+- **Array expansion** — [UNNEST and LEFT UNNEST](unnest.md) bind ordered array elements before WHERE.
+
 - **Document filter** — [WHERE](where.md) retains documents whose predicate is true.
 - **Grouping** — [GROUP BY](group-by.md) forms groups from expression values.
 - **Group filter** — [HAVING](having.md) filters grouped results.

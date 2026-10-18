@@ -8,7 +8,8 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | --- | --- | --- |
 | Nested SELECT, JOIN, WITH, set operations | COHDBL001 | One collection source; INSERT SELECT is supported |
 | LIMIT m, n and FETCH FIRST | COHDBL001 | Use [LIMIT n OFFSET m](clauses/limit-offset.md); SELECT paging executes |
-| IN array form, EXISTS and quantified predicates | COHDBL001 | Use a nonempty parenthesized IN value list |
+| Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS | COHDBL001 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) with one binding and [array IN](expressions/operators.md#in-and-between) execute |
+| UNNEST in UPDATE/DELETE, NEST, WITHIN, FLATTEN calls | COHDBL001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |
 | RETURNING/OPTIONS | COHDBL001 | INSERT, [UPSERT](statements/upsert.md), UPDATE SET/UNSET and DELETE execute; no statement TTL/version header |
 | UPDATE USE KEYS, LIMIT or FOR | COHDBL001 | One collection, SET and/or UNSET and optional WHERE |
 | DELETE USE KEYS or LIMIT | COHDBL001 | One collection and optional WHERE; no key-selector or delete pagination |

@@ -15,6 +15,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `OQL0006` | Invalid function arity or star operand; only COUNT accepts star |
 | `OQL0007` | Invalid LIMIT/OFFSET count at its operand, during parsing or planning; NULL is invalid |
 | `OQL0008` | Unknown function name; span covers its name after arguments are parsed |
+| `OQL0010` | Duplicate name in one FROM/UNNEST or quantifier binding list; span covers the repeated name or inferred final path step |
 | `OQL0009` | Index exceeds 32 key paths; located at the 33rd path |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
@@ -46,6 +47,7 @@ rather than being rounded by the parser.
 | `COHDOC019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
 | `COHDOC020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
 | `COHDOC021` | Array/object UNIQUE key component | — |
+| `COHDOC023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
 | `COHDOC022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 
 [Scalar functions](functions/scalar-functions.md) validate literal kinds and contexts with
@@ -73,6 +75,10 @@ writes/builds, COHDOC021 for array/object UNIQUE components, and COHDOC022 for d
 path counts outside 1..32. COHDOC021/022 and OQL0009 have no assigned SQLSTATE. Constraints are
 immediate per row; a failed explicit transaction requires RollbackAsync. These constraint failures
 are distinct from DocumentDuplicateKeyException/COHDOC012 (document identity collisions).
+
+[Array bindings](clauses/unnest.md) reserve the unaliased collection name for duplicate checks.
+OQL0010 and COHDOC023 have no assigned SQLSTATE. META on an UNNEST/quantified variable, including
+one shadowing the source alias, uses COHDOC001. Quantifiers may shadow outer bindings.
 
 ## Locations and wire behavior
 

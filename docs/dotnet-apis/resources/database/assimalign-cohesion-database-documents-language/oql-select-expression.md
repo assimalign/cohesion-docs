@@ -13,9 +13,11 @@ public sealed class OqlSelectExpression : OqlExpression
         IReadOnlyList<OqlProjection> projections, OqlExpression? predicate,
         IReadOnlyList<OqlExpression> groupBy, OqlExpression? having,
         IReadOnlyList<OqlOrdering> orderBy, bool isDistinct, bool isValue,
-        OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null);
+        OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
+        IReadOnlyList<OqlUnnestExpression>? unnest = null);
     public string Collection { get; }
     public string? Alias { get; }
+    public IReadOnlyList<OqlUnnestExpression> Unnest { get; }
     public IReadOnlyList<OqlProjection> Projections { get; }
     public OqlExpression? Predicate { get; }
     public IReadOnlyList<OqlExpression> GroupBy { get; }
@@ -46,6 +48,12 @@ Construction stores arguments and does not execute. Engine validation rejects an
 or IsValue with multiple expressions, an alias or star, with DatabaseException `COHDOC001`.
 Under IsDistinct, an ORDER BY expression outside the projection after alias rewriting raises
 `COHDOC014`. Duplicate projected names use `COHDOC003`. Inspect parser diagnostics before planning.
+
+Unnest is the supplied ordered binding list or an empty list when null; direct construction
+retains references. Expansion precedes Predicate. A direct SELECT AST with a repeated binding
+or empty UNNEST name raises DatabaseException/COHDOC023. Parser duplicates use OQL0010, including
+collision with an unaliased collection name. Star with bindings constructs synthetic objects.
+See [OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
 
 ## Example
 

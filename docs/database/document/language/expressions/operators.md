@@ -9,6 +9,7 @@ expression { OR | AND | = | != | <> | < | <= | > | >= | + | - | * | / | % } expr
 { NOT | + | - } expression
 expression IS [ NOT ] { NULL | MISSING | VALUED }
 expression [ NOT ] IN ( expression [ , ...n ] )
+expression [ NOT ] IN array_expression
 expression [ NOT ] BETWEEN lower AND upper
 expression [ NOT ] LIKE pattern [ ESCAPE escape_expression ]
 ```
@@ -33,11 +34,17 @@ so WHERE 1 retains rows. NOT preserves NULL and MISSING.
 
 ## IN and BETWEEN
 
-IN requires a nonempty parenthesized value list, even for a single array-valued item. It uses
+IN accepts a nonempty parenthesized value list or an unparenthesized array operand. Parentheses
+always mean a list, even for a single array-valued item. It uses
 structural equality. A MISSING left operand yields MISSING; NULL yields NULL. For a present left
 operand, a match wins; without a match a NULL list item wins over a MISSING item, otherwise FALSE.
-NOT IN negates only Boolean results. The unparenthesized array form `x IN d.tags` and subqueries
-remain `COHDBL001`.
+NOT IN negates only Boolean results. For array IN, MISSING on either side gives MISSING;
+a NULL/non-array right operand gives NULL. With a valued left operand, a matching element wins;
+without a match, a NULL element gives NULL, otherwise FALSE. NULL IN [] remains NULL on this
+branch, while a valued operand IN [] is FALSE. Nested SELECT remains COHDBL001.
+
+[ANY/SOME/EVERY](quantified-predicates.md) use scoped SATISFIES predicates with different element
+truth handling: NULL/MISSING predicate results are not true.
 
 BETWEEN tests inclusive same-kind scalar bounds. Any MISSING operand/bound yields MISSING before
 NULL is considered, even when the other bound would exclude the value. NOT BETWEEN preserves
@@ -68,6 +75,19 @@ SELECT MISSING IN (1) AS m, 0 BETWEEN 1 AND MISSING AS b,
 
 The first row is `(TRUE, TRUE, TRUE)`. All three columns in the second row are MISSING, so its
 projected JSON object is `{}`. `name LIKE 'b\%'` matches the literal text b%, not beta.
+
+### Array membership
+
+With one document in items:
+
+```sql
+SELECT 2 IN [1, 2, NULL] AS hit, 3 IN [1, NULL] AS unknown,
+       3 IN [] AS empty, NULL IN [] AS null_left,
+       [1, 2] IN ([1, 2]) AS whole_array FROM items;
+```
+
+The row is {"hit":true,"unknown":null,"empty":false,"null_left":null,"whole_array":true}.
+The parenthesized form compares the whole array as one list item.
 
 ## See also
 

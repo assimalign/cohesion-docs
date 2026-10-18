@@ -111,6 +111,20 @@ The catalog stores all index definitions and registrations as v2 and refuses v1 
 writes, with a recreate remedy and no upgrade. UNIQUE failures are COHDOC020 (23505) or
 COHDOC021 (non-scalar component), carried by the catalog-owned constraint exception.
 
+## Array bindings and predicates
+
+[UNNEST/LEFT UNNEST](../../../../database/document/language/clauses/unnest.md) expands arrays before
+WHERE and preserves document-ID/array order. LEFT synthesizes MISSING for empty/non-array inputs;
+star constructs owned objects keyed by binding names. Quantifiers use inner lexical scopes and
+true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
+Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
+
+FROM/UNNEST names are unique, reserving the unaliased source name (OQL0010 in text, COHDOC023
+for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
+an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
+without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
+the profile executes 31 of 32 declared clauses.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.

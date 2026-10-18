@@ -2,7 +2,7 @@
 
 OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPSERT, UPDATE and DELETE.
 
-> **Status:** Partial. The reference describes behavior implemented on the integration branch.
+> **Status:** Partial. The profile executes 31 of 32 declared clauses on the integration branch.
 
 OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
 uses its session database. [UPDATE](statements/update.md) changes selected paths and
@@ -23,7 +23,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 
 | Construct | Support | Scope |
 | --- | --- | --- |
-| SELECT/FROM/WHERE | Supported | One source, projections and SQL++ truth conversion |
+| SELECT/FROM/WHERE | Supported | One collection, ordered UNNEST bindings, projections and SQL++ truth conversion |
 | [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
@@ -36,9 +36,11 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
 | EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One to 32 ordered paths, UNIQUE and conditional DDL |
-| COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
+| COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts input rows, including expanded UNNEST rows |
 | [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
+| [UNNEST/LEFT UNNEST](clauses/unnest.md) | Supported | Array rows; LEFT preserves empty/non-array inputs with MISSING |
+| [ANY/SOME/EVERY](expressions/quantified-predicates.md) and array IN | Supported | Scoped SQL++ predicates and structural membership |
 
 ## See also
 

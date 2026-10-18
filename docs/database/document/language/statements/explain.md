@@ -39,6 +39,10 @@ LIMIT/OFFSET counts are validated without reads and appear as `limit=...; offset
 detail. Composite IndexSeek detail prints every equality-prefix and next-path range bound, such as
 `a = 1 AND b = 2 AND c <= 3`.
 
+[UNNEST](../clauses/unnest.md) adds Unnest/LeftUnnest nodes between projection/grouping and access,
+with each variable in Detail. Virtual-source expansion uses SystemCollectionScan. For example,
+`EXPLAIN SELECT t FROM items d LEFT UNNEST d.tags t` describes LeftUnnest without expansion.
+
 ## Examples
 
 For items containing one document and an index by_score on score:

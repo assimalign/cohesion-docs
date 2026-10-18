@@ -184,7 +184,7 @@ SQL++ truth conversion, retaining nonzero numbers and nonempty values as TRUE. E
 compares arrays/objects. Range predicates compare only values of the same scalar kind. Arithmetic
 requires decimal operands; invalid numeric input and division by zero fail explicitly.
 
-COUNT(*) counts documents; expression aggregates skip both NULL and MISSING. COUNT(expression) counts present nonnull values. SUM and AVG require numeric
+COUNT(*) counts input rows, including expanded UNNEST rows; expression aggregates skip both NULL and MISSING. COUNT(expression) counts present nonnull values. SUM and AVG require numeric
 nonnull inputs. SUM, AVG, MIN, and MAX over no nonnull inputs return null; COUNT returns zero.
 Ungrouped aggregate queries yield a single group even for an empty source. Outside aggregate calls,
 grouped projection, HAVING, and ORDER BY expressions must be a group key or an expression built from
@@ -411,6 +411,20 @@ One RFC 8259 encoder supplies generated JSON bytes for INSERT, UPSERT, construct
 projections and bare VALUE/RAW rows across in-process, InMemory and TCP paths. Unicode, HTML
 characters and U+2028/U+2029 remain literal UTF-8. Quotes, backslashes and controls escape.
 Raw stored/lone-star bytes retain their exact representation. See [JSON bytes](../../../../database/document/language/statements/select.md#json-bytes).
+
+## Array bindings and predicates
+
+[UNNEST/LEFT UNNEST](../../../../database/document/language/clauses/unnest.md) expands arrays before
+WHERE and preserves document-ID/array order. LEFT synthesizes MISSING for empty/non-array inputs;
+star constructs owned objects keyed by binding names. Quantifiers use inner lexical scopes and
+true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
+Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
+
+FROM/UNNEST names are unique, reserving the unaliased source name (OQL0010 in text, COHDOC023
+for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
+an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
+without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
+the profile executes 31 of 32 declared clauses.
 
 ## Sources
 

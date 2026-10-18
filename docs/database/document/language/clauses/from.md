@@ -6,6 +6,7 @@ FROM identifies one collection in the session database and optionally names its 
 
 ```syntaxsql
 FROM collection_name [ [ AS ] iteration_variable ]
+[ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
 
 <collection_name> ::= { identifier | COHESION_SCHEMA . identifier }
 ```
@@ -40,6 +41,11 @@ index ownership follows the collection rather than an independent index owner. `
 See [composite/UNIQUE indexes](../statements/create-index.md).
 `OWNER` is `Adhoc` or `Schema`; `OWNING_SCHEMA` is a schema name or null. Source names are
 case-insensitive, including fully quoted names, while JSON field names remain case-sensitive.
+
+[UNNEST and LEFT UNNEST](unnest.md) can follow the one collection source. They expand arrays
+before WHERE; a missing alias defaults to the final named path step. Bindings must be unique,
+including the reserved unaliased collection name (OQL0010 in text, COHDOC023 in a direct AST).
+The unaliased collection name does not become an implicit path variable.
 
 ## Examples
 

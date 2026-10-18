@@ -86,6 +86,13 @@ and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-
 - **Related language** — [Language (SQL)](../sql/language/index.md).
 - **API reference** — [Database resource packages](../../dotnet-apis/resources/database/index.md).
 
+## Array queries
+
+OQL executes 31 of 32 declared clauses. [UNNEST and LEFT UNNEST](language/clauses/unnest.md)
+expand arrays before filtering; [ANY/SOME/EVERY](language/expressions/quantified-predicates.md)
+and [array IN](language/expressions/operators.md#in-and-between) test elements with SQL++
+NULL/MISSING rules. SELECT * with UNNEST returns synthetic binding objects.
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.

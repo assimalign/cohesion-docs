@@ -13,6 +13,8 @@ OQL expressions combine document paths, scalar values, parameters, operators, an
 - **Constant values** — [Literals](literals.md) covers strings, decimal numbers, Boolean values, and null.
 - **Bound values** — [Parameters](parameters.md) explains named and numbered markers.
 
+- **Array predicates** — [ANY/SOME/EVERY](quantified-predicates.md) test scoped elements; [IN](operators.md#in-and-between) also accepts an array operand.
+
 Parentheses group expressions. Aggregate calls are documented under
 [Aggregate functions](../functions/aggregate-functions.md). Nested queries remain unsupported. Recursive expression parsing is capped at 128 levels.
 

@@ -7,6 +7,7 @@ SELECT projects document expressions from one collection with optional filtering
 ```syntaxsql
 SELECT [ ALL | DISTINCT ] { projection [ , ...n ] | { VALUE | RAW } expression }
 FROM collection_name [ [ AS ] iteration_variable ]
+[ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
 [ WHERE predicate ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING predicate ]
@@ -53,7 +54,7 @@ A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, a
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
 deduplication. Named projections retain their MISSING cells.
 
-Evaluation proceeds through WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
+Evaluation proceeds through UNNEST expansion, WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
 compares complete projected rows using structural equality: numeric 2 and 2.0 compare equal,
 arrays compare by ordered elements, and objects by ordinal keys and their values independently of
 member order. It retains the first representative. Named MISSING and NULL remain distinct;
@@ -61,7 +62,7 @@ VALUE/RAW has already normalized them to NULL. Under DISTINCT every ORDER BY key
 projected expression after alias rewriting, otherwise `COHDOC014` is reported at the ordering key.
 DISTINCT inside an aggregate, such as `COUNT(DISTINCT x)`, remains unsupported (`COHDBL001`).
 
-Results have the same shape on every transport. A lone star returns the stored JSON bytes unchanged,
+Results have the same shape on every transport. A lone star without UNNEST returns the stored JSON bytes unchanged,
 including whitespace and scalar roots. Named projections form one object per row; a star mixed
 with other projections is a named `document` member. VALUE/RAW emits one bare JSON value. The client
 sets IsDocumentQuery for lone star and VALUE/RAW even on an empty result. See
@@ -75,6 +76,10 @@ reserved words. [Object](../expressions/object-constructors.md) and
 Scans and index seeks establish ordinal document-identifier order before filtering. `ORDER BY`
 preserves established order for ties. Results are materialized and own their JSON values after
 execution, without retaining the transaction or borrowed storage memory.
+
+With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by the source and array
+binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
+paging consume expanded rows. Ordinary star without UNNEST still preserves the stored bytes.
 
 ## JSON bytes
 

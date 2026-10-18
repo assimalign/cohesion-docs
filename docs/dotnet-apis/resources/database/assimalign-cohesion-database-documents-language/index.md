@@ -32,6 +32,9 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlLiteralExpression](oql-literal-expression.md)** — AST members and execution contract.
 - **[OqlExplainExpression](oql-explain-expression.md)** — SELECT/INSERT/UPDATE/DELETE wrapper.
 
+- **[OqlUnnestExpression](oql-unnest-expression.md)** — Ordered INNER/LEFT array binding.
+- **[OqlQuantifiedExpression](oql-quantified-expression.md)** — Scoped ANY/SOME/EVERY predicate.
+
 This package parses the Documents engine's executable OQL surface into typed statement and
 expression trees. It provides `OqlLanguageProfile`, stable `OqlClauses` names, `OqlQueryParser`,
 `OqlQueryStatement`, `OqlSelectExpression`, `OqlCreateIndexExpression`, `OqlDropIndexExpression`

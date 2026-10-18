@@ -18,6 +18,10 @@ inside an INSERT SELECT source; it is not a VALUES source.
 In [DELETE](../statements/delete.md), META predicates filter snapshot candidates and do not provide
 a document-key lookup access path.
 
+META on an UNNEST or quantified variable reports COHDOC001, including when a quantifier shadows
+the FROM alias. META() and META(source_alias) still refer to the stored source document after
+expansion.
+
 ## Examples
 
 After `INSERT INTO items (KEY, VALUE) VALUES ('a', {'name':'Ada'})`:

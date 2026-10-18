@@ -34,6 +34,11 @@ returning MISSING. SET can create missing objects; UNSET cannot end in an index.
 Index definitions use this path grammar relative to each document, without an iteration alias.
 The parser retains each property or index as an `OqlPathSegment` in an `OqlPathExpression`.
 
+[UNNEST](../clauses/unnest.md) expands arrays into rows; [quantifiers](quantified-predicates.md)
+bind individual elements for SATISFIES. A path headed by a variable resolves the nearest binding
+before document fields. Without an explicit FROM alias, the collection name remains a document
+field name in paths.
+
 ## Examples
 
 Both examples occur in the parser corpus:
