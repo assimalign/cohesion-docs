@@ -23,7 +23,7 @@ flowchart LR
     Cat --> Types["Database.Types"]
 ```
 
-`IDocumentCatalog` is a new Documents-owned interface. The pre-existing engine, collection, session,
+`DocumentCatalog` is a sealed public type created by Open; it replaces the former interface/factory. The pre-existing engine, collection, session,
 storage-kernel, transaction, and index interfaces are unchanged. Public metadata records are
 immutable values; the implementation and codecs are internal.
 
@@ -50,7 +50,7 @@ rejected for mutation: maintaining its obsolete index set would miss newly commi
 engine performs this check. Catalog methods are lower-level composition seams, like Blob's catalog,
 and do not acquire model locks themselves.
 
-## Record format, version 1
+## Record format, per-kind versions
 
 Every record starts with UInt64 writer at offset 0, UInt64 deleter at 8, byte kind at 16, byte
 format version at 17. All integers are little-endian. Strings are Int32 UTF-8 byte length followed
@@ -64,8 +64,12 @@ The fields below appear consecutively beginning at offset 18. No trailing fields
 | --- | --- | --- |
 | 1 collection | 0 | GUID collection identity; string name; byte owner; nullable string owning schema |
 | 2 document | 0 | GUID collection identity; string document identity; UInt64 version; UInt64 head; Int64 byte length; UInt32 IEEE CRC-32 |
-| 4 index definition | 0 | GUID collection identity; string index name; string field path; UInt64 physical generation identity |
-| 5 physical registration | 1 | UInt64 physical generation identity; Int64 root page; string index name |
+| 4 index definition (v2) | 0 | GUID collection identity; string index name; Int32 path count (1..32); ordered path strings; byte unique flag (0 or 1); UInt64 physical generation identity |
+| 5 physical registration (v2) | 1 | UInt64 physical generation identity; Int64 root page; string index name; byte unique flag (0 or 1) |
+
+Kinds 1 and 2 remain v1. All indexes, including single-path nonunique ones, use v2. V1 index
+records are refused before recovery writes, reporting found/supported versions and requiring
+database recreation with this engine. There is no upgrade path or legacy reader.
 
 Kind 3 content chunks use the format in
 [Documents.Storage](../assimalign-cohesion-database-documents-storage/design.md) . Collection IDs
@@ -86,26 +90,25 @@ plans, and the plan executor invokes this package under the statement's `ITransa
 lock acquisition and ownership enforcement. `IDocumentDatabase` therefore needs no index members,
 and the catalog and B+Tree updates retain the same transaction as the DDL statement.
 
-Each index is a nonunique B+Tree over one case-sensitive field path. The catalog stores that path in
-a lossless canonical form matching OQL's document-path segments. Identifier-safe object names use
-dotted syntax and nonnegative Int32 array subscripts use numeric brackets, for example
-`customer.address.zip` or `items[0].price`. Property names that need escaping, including a root
-name containing punctuation, use bracket-string segments with doubled single quotes, for example
-`customer['address.line']` or `['root.name']`. The planner also recognizes the preceding extension
-API's unquoted, delimiter-free segment encoding when it reads persisted definitions, so an upgrade
-does not turn an existing usable index into a scan. Paths do not support wildcards, array expansion,
-compound keys, unique constraints, or expression indexes. The field path must exist and resolve to a
-boolean, decimal-domain number, or string to produce an entry. Missing fields, null, arrays, and
-objects produce no key; the planner uses a collection scan for null/non-scalar predicates.
+Each index has 1..32 ordered case-sensitive paths and an immutable UNIQUE flag. Paths use lossless
+dotted and bracket-string syntax, including `items[0].price` and `['root.name']`. Wildcards,
+expansion, expression keys and sort directions are excluded. The single-path overload writes v2.
 
-Booleans use `DatabaseKeyWriter.AppendBoolean`. Every numeric spelling normalizes to decimal and
-uses `AppendDecimal`, so `1` and `1.00` are identical index keys. Strings encode UTF-16 code units
-as big-endian bytes, then use the shared writer's escaped binary component. This exactly matches
-OQL's ordinal UTF-16 string comparison, including supplementary characters versus BMP values. The
-type tags give mixed types a deterministic physical ordering; OQL retains its residual predicate and
-does not treat that physical tag ordering as a cross-type relational comparison. An encoded key
-larger than the shared B+Tree's 1,024-byte limit rejects the write/build before metadata
-replacement. There is no lossy truncation or omitted oversized key.
+Leading MISSING omits an entry. Trailing MISSING and explicit NULL have distinct tags. Components
+collate MISSING < NULL < FALSE < TRUE < numbers < ordinal UTF-16 strings < arrays < objects.
+Numbers normalize to Decimal; 1 and 1.00 encode equally. Array/object tags are lossy and the
+executor reapplies the full predicate. The full encoded key must fit 1,024 bytes.
+
+UNIQUE checks run immediately under the caller's database writer lock before publication, using
+latest committed state plus the caller's earlier writes. Keys containing NULL/MISSING never
+conflict. Array/object UNIQUE components use COHDOC021; duplicate valued scalar tuples use
+COHDOC020 (23505), both carried by
+[DocumentConstraintViolationException](document-constraint-violation-exception.md). Failed builds
+publish no definition. Physical trees stay nonunique; the catalog performs uniqueness arbitration.
+
+[SearchIndexAsync](document-catalog.md) accepts a leading scalar equality prefix and a range on the
+next component, returning snapshot-visible candidates in ordinal document-ID order for residual
+filtering. [DocumentIndexMetadata](document-index-metadata.md) copies paths and compares them by value.
 
 `Index` leaf entry references are packed metadata page/slot locations. Leaf entries carry writer and
 deleter stamps through the existing index API. `Create` builds the tree immediately while the caller
@@ -115,7 +118,7 @@ use scans.
 
 ## Mutation, rollback, and recovery
 
-Saving a document prepares old and new scalar keys, then one shared physical statement bracket
+Saving a document prepares old and new composite keys and checks UNIQUE constraints, then one shared physical statement bracket
 tombstones prior metadata, inserts new metadata, tombstones old index entries, inserts new index
 entries, and persists changed root registrations. Deletion tombstones metadata and keys in one
 bracket. The surrounding logical transaction also owns all chunk writes/tombstones. The catalog
@@ -147,7 +150,7 @@ without claiming physical durable-flush support.
 ## Compatibility and error model
 
 Adding/removing fields, changing scalar type, or replacing an object with an array is supported
-without schema migration. Each change creates a new version and updates affected scalar indexes.
+without schema migration. Each change creates a new version and updates affected indexes.
 On-disk record-layout changes require a new format version and explicit migration support; unknown
 versions are rejected. Former raw, unstamped `DocumentStorage` stub files are unsupported as engine
 databases. Catalog format failures raise `DocumentCatalogException`; shared storage corruption

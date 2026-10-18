@@ -89,7 +89,7 @@ validates every branch and parameter even when CASE/logic would skip it at runti
 SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–019
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–022
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
 
 ## Scalar evaluation and metadata
@@ -100,6 +100,16 @@ wrong-kind stored values return NULL. SQRT/POWER domain failures and fractional 
 use COHDOC019 (no assigned SQLSTATE); fractional REPLACE counts use COHDOC008.
 COUNT/LENGTH/POSITION/ARRAY_LENGTH and epoch milliseconds expose Int64 metadata and long values.
 NOW_STR/NOW_MILLIS share the transaction-start UTC instant; output strings end in Z.
+
+## Composite and UNIQUE indexes
+
+[OqlCreateIndexExpression](oql-create-index-expression.md) snapshots ordered Paths and retains
+IsUnique/IfNotExists; Path is its leading member. [OqlDropIndexExpression](oql-drop-index-expression.md)
+adds IfExists while preserving its preceding constructor. The parser caps keys at 32 with OQL0009
+at the 33rd path; direct AST planning uses COHDOC022. Duplicate paths are OQL0002 in text.
+The catalog stores all index definitions and registrations as v2 and refuses v1 before recovery
+writes, with a recreate remedy and no upgrade. UNIQUE failures are COHDOC020 (23505) or
+COHDOC021 (non-scalar component), carried by the catalog-owned constraint exception.
 
 ## Sources
 

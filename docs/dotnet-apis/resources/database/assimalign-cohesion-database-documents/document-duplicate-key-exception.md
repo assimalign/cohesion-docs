@@ -25,6 +25,10 @@ The failed statement's writes, versions and indexes roll back together. PutAsync
 replacement/upsert behavior. The constructor adds no validation exception beyond its value
 arguments. Over the wire, the failure becomes DocumentClientException with COHDOC012.
 
+UNIQUE secondary-index failures use the catalog-owned
+[DocumentConstraintViolationException](../assimalign-cohesion-database-documents-catalog/document-constraint-violation-exception.md):
+COHDOC020 (23505) for duplicate valued scalar tuples or COHDOC021 for array/object components.
+
 ## Example
 
 After creating items in a Documents session:

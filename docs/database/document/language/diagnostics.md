@@ -15,6 +15,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `OQL0006` | Invalid function arity or star operand; only COUNT accepts star |
 | `OQL0007` | Invalid LIMIT/OFFSET count at its operand, during parsing or planning; NULL is invalid |
 | `OQL0008` | Unknown function name; span covers its name after arguments are parsed |
+| `OQL0009` | Index exceeds 32 key paths; located at the 33rd path |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as COHDOC007,
@@ -43,6 +44,9 @@ rather than being rounded by the parser.
 | `COHDOC017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `COHDOC018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
 | `COHDOC019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
+| `COHDOC020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
+| `COHDOC021` | Array/object UNIQUE key component | — |
+| `COHDOC022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 
 [Scalar functions](functions/scalar-functions.md) validate literal kinds and contexts with
 COHDOC001 before reading documents. A wrong-kind stored argument produces NULL. Fractional
@@ -63,6 +67,12 @@ written verb, including UPSERT. See [UPSERT diagnostics](statements/upsert.md#di
 Paging count errors retain OQL0007 and the operand span over the wire; unbound parameters retain
 COHDOC005. Neither code has an assigned SQLSTATE. [LIMIT/OFFSET](clauses/limit-offset.md)
 distinguishes syntax errors (OQL0002) and the unsupported comma spelling (COHDBL001).
+
+[CREATE INDEX](statements/create-index.md) uses COHDOC020 for duplicate valued scalar keys during
+writes/builds, COHDOC021 for array/object UNIQUE components, and COHDOC022 for direct AST/catalog
+path counts outside 1..32. COHDOC021/022 and OQL0009 have no assigned SQLSTATE. Constraints are
+immediate per row; a failed explicit transaction requires RollbackAsync. These constraint failures
+are distinct from DocumentDuplicateKeyException/COHDOC012 (document identity collisions).
 
 ## Locations and wire behavior
 

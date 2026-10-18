@@ -48,7 +48,9 @@ changes raise `DatabaseTransactionAbortedException`.
 ## Storage and indexes
 
 The storage package validates JSON and persists stamped chunk chains. The catalog maintains
-versioned identities and nonunique scalar-path indexes in shared B+Trees. Index creation populates
+versioned identities and [single/composite, optionally UNIQUE indexes](language/statements/create-index.md)
+in shared B+Trees. Index definition and registration records are v2; v1 indexes require database
+recreation with this engine and have no upgrade path. Index creation populates
 existing documents immediately, while replacement and deletion maintain indexes in the same
 transaction as document content.
 

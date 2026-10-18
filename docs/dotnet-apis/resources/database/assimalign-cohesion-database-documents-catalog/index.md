@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.Database.Documents.Catalog
 
-`Assimalign.Cohesion.Database.Documents.Catalog` supplies `IDocumentCatalog`, implemented internally over the same `DocumentStorage` file set as document content.
+`Assimalign.Cohesion.Database.Documents.Catalog` supplies the sealed `DocumentCatalog` over the same `DocumentStorage` file set as document content.
 
 > **Status:** Partial.
 
@@ -8,9 +8,11 @@
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[DocumentCatalog](document-catalog.md)** — Composite build and prefix/range seek overloads.
+- **[DocumentIndexMetadata](document-index-metadata.md)** — Immutable ordered paths and UNIQUE flag.
+- **[DocumentConstraintViolationException](document-constraint-violation-exception.md)** — UNIQUE write/build refusals.
 
-`Assimalign.Cohesion.Database.Documents.Catalog` supplies `IDocumentCatalog`, implemented
-internally over the same `DocumentStorage` file set as document content. It stores collection
+`Assimalign.Cohesion.Database.Documents.Catalog` supplies the sealed `DocumentCatalog` over the same `DocumentStorage` file set as document content. It stores collection
 ownership, versioned document identities/content references, and secondary index definitions. Its
 B+Trees come from `Database.Indexing`, and every data/index mutation joins the caller's
 `ITransactionContext` through `TransactionCoordinator`.
@@ -21,7 +23,8 @@ commit the caller's transaction. The engine takes the logical database's exclusi
 rejects write conflicts and stale index definitions, and enforces schema ownership before calling
 the catalog.
 
-`CreateIndexAsync` builds a scalar-path index immediately. `SaveDocumentAsync` and
+`CreateIndexAsync` builds a single/composite, optionally UNIQUE index immediately. All index records
+are v2; v1 is refused before recovery writes with a recreate remedy and no upgrade. `SaveDocumentAsync` and
 `DeleteDocumentAsync` maintain every visible index alongside metadata writes; queries do not rebuild
 indexes. The Documents engine reaches index creation and deletion through planned OQL `CREATE INDEX`
 and `DROP INDEX` statements; these catalog methods remain lower-level transactional composition

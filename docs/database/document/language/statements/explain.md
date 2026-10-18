@@ -35,6 +35,10 @@ access without changing scores.
 EXPLAIN UPSERT returns an Upsert root for VALUES or UpsertSelect above its source SELECT plan.
 `EXPLAIN UPSERT INTO items (KEY, VALUE) VALUES ('a', 1);` describes Upsert without replacing a.
 
+LIMIT/OFFSET counts are validated without reads and appear as `limit=...; offset=...` in Select
+detail. Composite IndexSeek detail prints every equality-prefix and next-path range bound, such as
+`a = 1 AND b = 2 AND c <= 3`.
+
 ## Examples
 
 For items containing one document and an index by_score on score:

@@ -105,7 +105,7 @@ adds only the catalog facts those handles do not expose, through two virtual doc
 
 | Source | `Document` properties | Cardinality |
 | --- | --- | --- |
-| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `IS_UNIQUE` | One document per visible index definition; `IS_UNIQUE` is Boolean false for the current nonunique indexes |
+| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; PATHS is the ordered array, PATH its first path and IS_UNIQUE the actual flag |
 | `COHESION_SCHEMA.OBJECT_OWNERSHIP` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` | One document per visible collection; `OBJECT_TYPE` is `COLLECTION` |
 
 `COLLECTION_CATALOG` is the bound database name. `OWNER` preserves SQL's `Adhoc` and `Schema`
@@ -150,7 +150,7 @@ mutable `IDocumentCollection` handles.
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
+GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
 and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
@@ -201,9 +201,18 @@ and preserves the established order for ties. This baseline makes identical data
 identical sequences across access paths. Query results are materialized and own their JSON values;
 they do not retain a transaction or borrowed storage memory after execution.
 
+## Result paging
+
+[OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
+carries Limit and Offset. Planning checks nonnegative Int64 counts before collection lookup,
+including EXPLAIN/direct AST calls. Invalid counts, including NULL, use OQL0007; missing parameters
+retain COHDOC005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
+pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes only the page.
+
 ## `Index` planning and writes
 
-`CREATE INDEX <index-name> ON <collection> (<path>)` and `DROP INDEX <index-name> ON <collection>`
+`CREATE [UNIQUE] INDEX [IF NOT EXISTS] <index-name> ON <collection> (<path>, ...)` and
+`DROP INDEX [IF EXISTS] <index-name> ON <collection>`
 are OQL statements. `DocumentPlanner` binds them to catalog-operation plans and
 `DocumentPlanExecutor` executes those plans under the statement's `ITransactionContext`. This
 replaces the former extension-member entry point and leaves the frozen `IDocumentDatabase` member
@@ -226,10 +235,17 @@ Successful index DDL returns a command `DatabaseResult` with `Success` status an
 zero; index definition changes are not document-row mutations.
 
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
-values, reversed operands, and conjunctive bounds. Equality is preferred over a range; ties choose
-ordinal index name. The executor reapplies the full predicate to candidates, preserving mixed-shape
+values, reversed operands, and conjunctive bounds. Choice ranks longest leading equality prefix,
+then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](../assimalign-cohesion-database-documents-catalog/design.md) for
-supported scalar keys, visibility filtering, and restart recovery.
+composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
+records use v2; v1 indexes are refused before recovery writes with a recreate remedy and no upgrade.
+UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
+DocumentConstraintViolationException/COHDOC020 (23505); array/object components use COHDOC021.
+Direct path counts outside 1..32 use COHDOC022. Constraints are immediate per row; failed explicit
+transactions require RollbackAsync. Conditional CREATE keeps any same-named definition; conditional
+DROP ignores an absent index. Snapshot conflicts precede no-ops; an existing schema-owned index
+still refuses DROP. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
 
 ## Data mutation and serialization semantics
 
@@ -327,7 +343,7 @@ then Complete with two Int64 fields: result count and affected count. ResultRow 
 Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
 and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
 payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
-COHDOC001–019, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
+COHDOC001–022, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
 SELECT constructor depth, UPDATE target/overlap/stored-JSON failures and scalar domain errors.
 
 The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
