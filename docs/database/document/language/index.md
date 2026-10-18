@@ -13,7 +13,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 
 - **Conventions** — [Syntax conventions](syntax-conventions.md).
 - **Statements** — [SELECT, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
-- **Clauses** — [FROM, WHERE, GROUP BY, HAVING and ORDER BY](clauses/index.md).
+- **Clauses** — [FROM, WHERE, GROUP BY, HAVING, ORDER BY and LIMIT/OFFSET](clauses/index.md).
 - **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
 - **Functions** — [34 SQL++ scalars](functions/scalar-functions.md), [aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
 - **Diagnostics** — [Parser, planner and execution codes](diagnostics.md).
@@ -26,6 +26,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | SELECT/FROM/WHERE | Supported | One source, projections and SQL++ truth conversion |
 | [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
+| [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
 | CREATE/DROP COLLECTION | Supported | Conditional, transactional collection DDL |

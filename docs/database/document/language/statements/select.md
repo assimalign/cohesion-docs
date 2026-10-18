@@ -11,6 +11,7 @@ FROM collection_name [ [ AS ] iteration_variable ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING predicate ]
 [ ORDER BY expression [ ASC | DESC ] [ , ...n ] ]
+[ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
 [ ; ]
 
 <projection> ::= { * | expression } [ AS output_name ]
@@ -25,6 +26,7 @@ FROM collection_name [ [ AS ] iteration_variable ]
 | `GROUP BY` | Supported | Optional grouping expressions |
 | `HAVING` | Supported | Optional group predicate |
 | `ORDER BY` | Supported | Optional ordering expressions |
+| [LIMIT/OFFSET](../clauses/limit-offset.md) | Supported | Nonnegative Int64 integer literals or parameters; either clause order |
 | `ALL` / `DISTINCT` | Supported | ALL is the default; DISTINCT removes duplicate projected values |
 | `VALUE` / `RAW` | Supported | One bare JSON value per row; RAW is a synonym |
 
@@ -51,7 +53,7 @@ A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, a
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
 deduplication. Named projections retain their MISSING cells.
 
-Evaluation proceeds through WHERE, GROUP BY/HAVING, projection, DISTINCT, then ORDER BY. DISTINCT
+Evaluation proceeds through WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
 compares complete projected rows using structural equality: numeric 2 and 2.0 compare equal,
 arrays compare by ordered elements, and objects by ordinal keys and their values independently of
 member order. It retains the first representative. Named MISSING and NULL remain distinct;

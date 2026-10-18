@@ -86,6 +86,13 @@ and model-specific security policies remain unsupported.
 
 [Assembly](index.md) · [Examples](examples/index.md) · [DocumentProtocol](../assimalign-cohesion-database-documents/document-protocol.md)
 
+## Result paging
+
+OQL [LIMIT/OFFSET](../../../../database/document/language/clauses/limit-offset.md) uses ordinary JSON
+parameters. Complete counts returned Document frames and query AffectedCount stays -1. Empty pages
+retain columns, IsDocumentQuery and static function types. Invalid counts preserve OQL0007 and
+the operand span over InMemory and TCP; the authenticated session remains reusable.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/docs/DESIGN.md`.

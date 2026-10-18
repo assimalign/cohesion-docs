@@ -37,6 +37,16 @@ ordered elements, converting MISSING to JSON null. OqlClauses adds Distinct (`DI
 (`SELECT VALUE`), ObjectConstructor (`OBJECT CONSTRUCTOR`) and ArrayConstructor (`ARRAY CONSTRUCTOR`)
 capability names. Constructors validate and group recursively; text parsing keeps the 128-level bound.
 
+## Result paging
+
+OqlClauses.Limit (`LIMIT`) and Offset (`OFFSET`) enable final SELECT paging.
+[OqlSelectExpression](oql-select-expression.md) retains optional Limit and Offset operands, after
+IsValue in its constructor. Both survive alias rewriting. Counts are nonnegative Int64 integer
+literals or parameters; NULL is invalid. Invalid values use located OQL0007 during parsing or
+planning; missing values use COHDOC005. LIMIT m, n is COHDBL001; use LIMIT n OFFSET m.
+Either clause may come first. INSERT/UPSERT SELECT consumes the final page; DML VALUES, UPDATE
+and DELETE paging remain unsupported.
+
 ## Whole-document UPSERT
 
 [OqlUpsertExpression](oql-upsert-expression.md) uses INSERT's KEY/VALUE shapes with a distinct

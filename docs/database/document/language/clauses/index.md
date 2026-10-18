@@ -10,6 +10,8 @@ OQL SELECT clauses bind one source, filter documents, form groups, and order the
 - **Group filter** — [HAVING](having.md) filters grouped results.
 - **Ordering** — [ORDER BY](order-by.md) sorts by expressions or explicit output aliases.
 
+- **Paging** — [LIMIT and OFFSET](limit-offset.md) slice the ordered result; either may come first.
+
 The order above is the grammar order. `FROM` is required; the other clauses are optional.
 
 ## UPDATE clauses

@@ -13,6 +13,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `OQL0004` | Malformed numeric literal syntax |
 | `OQL0005` | More than 128 recursive expression parse levels |
 | `OQL0006` | Invalid function arity or star operand; only COUNT accepts star |
+| `OQL0007` | Invalid LIMIT/OFFSET count at its operand, during parsing or planning; NULL is invalid |
 | `OQL0008` | Unknown function name; span covers its name after arguments are parsed |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
@@ -58,6 +59,10 @@ where available and validates all patched documents before the first write.
 INSERT/UPSERT repeated-key failures use `Document key 'a' appears more than once in one statement.`
 (COHDOC012, no SQLSTATE). Other shared key/value, binding and JSON validation messages name the
 written verb, including UPSERT. See [UPSERT diagnostics](statements/upsert.md#diagnostics).
+
+Paging count errors retain OQL0007 and the operand span over the wire; unbound parameters retain
+COHDOC005. Neither code has an assigned SQLSTATE. [LIMIT/OFFSET](clauses/limit-offset.md)
+distinguishes syntax errors (OQL0002) and the unsupported comma spelling (COHDBL001).
 
 ## Locations and wire behavior
 
