@@ -25,7 +25,7 @@ flowchart LR
 
 `DocumentCatalog` is a sealed public type created by Open; it replaces the former interface/factory. The pre-existing engine, collection, session,
 storage-kernel, transaction, and index interfaces are unchanged. Public metadata records are
-immutable values; the implementation and codecs are internal.
+immutable values; catalog record representations and codecs are internal.
 
 ## Snapshot directory and ownership
 
@@ -86,7 +86,7 @@ bounded by `SlottedPage.MaxRecordSize`; very long metadata is rejected by the sh
 
 `Index` definitions are lower-level catalog mutations, not a second public engine entry point. The
 Documents planner turns OQL `CREATE INDEX` and `DROP INDEX` expressions into catalog-operation
-plans, and the plan executor invokes this package under the statement's `ITransactionContext` after
+plans, and the plan executor invokes this package under the statement's `TransactionContext` after
 lock acquisition and ownership enforcement. `IDocumentDatabase` therefore needs no index members,
 and the catalog and B+Tree updates retain the same transaction as the DDL statement.
 

@@ -30,7 +30,9 @@ Snapshot and ReadCommitted isolation are supported. Serializable is rejected. Ex
 use the session API; GQL has no transaction-control syntax. Mutations join the session transaction,
 and a mutation failure rolls back the owning logical transaction.
 
-GQL matches finite relationship-unique trails. Typed `TraverseAsync` is a separate breadth-first
+GQL matches bounded relationship-unique trails, including [quantified edges/subpaths](language/patterns.md#quantified-paths)
+and list-valued group variables. [Core scalar functions and CAST](language/functions/scalar-functions.md)
+execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.
 The two traversal surfaces have different result and repetition rules.
 

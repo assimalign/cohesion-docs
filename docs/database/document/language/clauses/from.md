@@ -32,11 +32,12 @@ the following read-only sources from the statement's catalog snapshot:
 
 | Source | Document fields |
 |---|---|
-| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `IS_UNIQUE` |
+| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` |
 | `COHESION_SCHEMA.OBJECT_OWNERSHIP` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` |
 
 `INDEXES` has one document per visible index. `OBJECT_OWNERSHIP` has one per visible collection;
-index ownership follows the collection rather than an independent index owner. `IS_UNIQUE` is false.
+index ownership follows the collection rather than an independent index owner. `PATHS` is the ordered path array, `PATH` its leading element, and `IS_UNIQUE` the actual flag.
+See [composite/UNIQUE indexes](../statements/create-index.md).
 `OWNER` is `Adhoc` or `Schema`; `OWNING_SCHEMA` is a schema name or null. Source names are
 case-insensitive, including fully quoted names, while JSON field names remain case-sensitive.
 

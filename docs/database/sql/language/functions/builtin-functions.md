@@ -197,6 +197,7 @@ Immutable calls. Volatile calls never supply seek bounds. See [DEFAULT](../claus
 | `COHSQLE008` | Equally good overloads; CAST to disambiguate | 42725 |
 | `COHSQLE013` | DEFAULT call result cannot be assigned to the column | — |
 | `COHSQLE016` | Unknown function outside executable and recognized vocabulary | — |
+| `COHSQLE032` | DISTINCT/ALL/ORDER BY specified on a non-aggregate call | — |
 
 These functions introduce no new code. Recognized window functions remain COHDBL001.
 The profile advertises only executable names; recognition alone does not imply support.
@@ -204,7 +205,7 @@ The profile advertises only executable names; recognition alone does not imply s
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application
 overloads at arities unused by the standard library remain possible. Function words remain usable
 as ordinary identifiers without a call, except bare niladic names require quoting to name a column.
-The current SQL storage format is **21**. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
+The current SQL storage format is **22**, which quotes STRING_AGG/LISTAGG identifiers in persisted SQL. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
 quoted as identifiers in persisted CHECK/default/function-body SQL. Format 17 separately introduced
 the default/missing-value split with table extension 6. Compiled schema version remains 7; older
 SQL formats are refused with no upgrade reader.

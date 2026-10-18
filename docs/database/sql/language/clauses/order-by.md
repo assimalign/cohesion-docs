@@ -56,6 +56,9 @@ With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinal
 visible merged output: each USING pair contributes one column. Repeated wildcards each expand
 their visible columns. Out-of-range positions report `COHSQLE018`, even on empty inputs.
 
+[Aggregate input ORDER BY](../functions/aggregate-functions.md#aggregate-modifiers) binds to source
+rows. Unlike this outer clause, its integer keys are constants rather than output ordinals.
+
 ## Examples
 
 ```sql

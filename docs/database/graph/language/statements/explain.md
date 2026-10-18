@@ -25,7 +25,7 @@ operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-fi
 estimated and actual counts are NULL. GQL uses ordinary row-result frames, including for an
 explained statement whose normal projection is a graph entity.
 
-Operators include LabelScan, IndexSeek and one Expand per traversed relationship. An IndexSeek
+Operators include LabelScan, IndexSeek and Expand for fixed or quantified segments. An IndexSeek
 reports the chosen index and property bound. A test guard requires every plan record's mapping.
 Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
 parent when requested. Duplicate final names still fail planning with COHDBG015 before execution.
@@ -43,6 +43,12 @@ without sorting or executing mutations.
 [Grouping](../clauses/group-by.md) adds GroupAggregate with key count and aggregate expressions.
 `EXPLAIN RETURN sum(1 / 0) AS n ORDER BY n` includes `keys=0; aggregates=sum(...)`
 without evaluating the division. Invalid placement/grouped references still fail COHDBG001.
+
+[Quantified expansion](../patterns.md#quantified-paths) describes `quantifier={min,max}; body_hops=n;
+trail=True` on Expand (empty max is unbounded). For example, `EXPLAIN MATCH (a)-[:T]->{1,3}(b)
+RETURN b` includes `quantifier={1,3}; body_hops=1; trail=True`. Scalar calls and CAST receive normal
+signature checks without evaluation: `EXPLAIN RETURN sqrt(-1) AS n` does not evaluate the domain
+error, while proven incompatible `EXPLAIN RETURN abs('x') AS n` fails COHDBG003.
 
 ## Examples
 

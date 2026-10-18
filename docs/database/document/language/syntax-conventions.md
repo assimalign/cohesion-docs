@@ -21,7 +21,7 @@ accepted forms; rejected constructs belong to the [unsupported matrix](unsupport
 
 - **Identifiers** — double quotes delimit identifiers. Collection and property names preserve case;
   empty identifiers are invalid. A property after a dot may use a reserved word.
-  VALUE/RAW are reserved; use `"value"`, `"raw"` or qualified paths for those fields.
+  VALUE/RAW and LIMIT/OFFSET are reserved; use quoted identifiers or qualified paths for those fields.
   After AS, a SELECT projection label may use a reserved word. DISTINCT/ALL are quantifiers
   only immediately after SELECT; misplaced quantifiers report `COHDBL001`.
 - **Strings** — single quotes delimit strings, and a doubled single quote represents one quote.

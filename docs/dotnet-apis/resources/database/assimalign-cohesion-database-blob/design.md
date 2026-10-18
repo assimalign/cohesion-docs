@@ -447,5 +447,7 @@ reject malformed UTF-8. Structured Diagnostics is not a Blob result mechanism.
 
 ## Sources
 
+- **Lock handoff regression** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobLockHandoffTests.cs`.
+
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Assimalign.Cohesion.Database.Blob.csproj`.

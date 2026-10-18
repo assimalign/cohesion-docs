@@ -126,11 +126,35 @@ Results are `('😀B',3)`, `(-3.0,9007199254740993)`, `'XaXbXcX'`, `(2,NULL,NULL
 With a path inserted separately:
 
 ```sql
-INSERT (a:P {name:'A'})-[:T]->(:P {name:'B'});
+INSERT (a:P {name:'A'})-[:T {w:1}]->(:P {name:'B'});
 MATCH p = (a:P {name:'A'})-[:T]->(b) RETURN length(p) AS hops, nodes(p)[1].name AS last;
 ```
 
-The query returns `(1,'B')` through either embedded rows or wire QueryAsync.
+The query returns `(1,'B')` through either embedded rows or wire QueryAsync. With the same
+matched a, r, b and path p, these expressions have the following results:
+
+| Expression | Result |
+| --- | --- |
+| element_id(a) = elementId(a) | TRUE |
+| labels(a) | ['P'] |
+| type(r) | 'T' |
+| properties(a) | {name:'A'} |
+| keys(a) | ['name'] |
+| startNode(r).name, endNode(r).name | 'A', 'B' |
+| path_length(p), length(p) | 1, 1 |
+| nodes(p)[0].name | 'A' |
+| relationships(p)[0].w, edges(p)[0].w | 1, 1 |
+
+Use `MATCH p = (a:P {name:'A'})-[r:T]->(b) RETURN` followed by the desired expression(s).
+List/map row results require composite negotiation over the wire. For standalone calls:
+
+| Statement | Result |
+| --- | --- |
+| RETURN lower('AbC'), upper('AbC'), trim('  x  ') | 'abc', 'ABC', 'x' |
+| RETURN substring('A😀BC',2), size([NULL,1]) | 'BC', 2 |
+| RETURN abs(-2), floor(2.5), ceiling(2.5), round(1.25,1) | 2, 2.0, 3.0, 1.3 |
+| RETURN sqrt(4), ln(1), log(1), log(2,8), mod(5,2) | 2.0, 0.0, 0.0, 3.0, 1 |
+| RETURN toFloat('2'), toBoolean(0), toString(2.0) | 2.0, FALSE, '2.0' |
 
 ## See also
 

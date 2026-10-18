@@ -15,7 +15,7 @@ ORDER BY expression [ ASC | DESC ] [ , ...n ]
 | Source expression | Supported | Evaluates an ordering value |
 | Standalone explicit projection alias | Supported | Resolves the projected expression |
 | `ASC` or `DESC` | Supported | Ascending by default, or descending |
-| `LIMIT`, `OFFSET` | Recognized, not supported (`COHDBL001`) | No pagination clause |
+| [LIMIT/OFFSET](limit-offset.md) | Supported | Final output slice after ordering; either clause order |
 
 ## Arguments
 

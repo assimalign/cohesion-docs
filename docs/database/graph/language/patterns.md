@@ -160,7 +160,14 @@ MATCH (a:V {name:'A'})-[*0]->(b) RETURN b.name;
 ```
 
 The first two queries return B, C, D; the parenthesized query returns C; expansion returns 1, 1;
-the zero-length query returns A. A path request using
+the zero-length query returns A. On the same chain, `->+` returns B, C, D; `->*` or `->{,}`
+returns A, B, C, D; `->{2,}` returns C, D; and `->{,2}` returns A, B, C. For example:
+
+```sql
+MATCH (a:V {name:'A'})-[:T]->*(b) RETURN b.name;
+```
+
+A path request using
 `MATCH p = (a:V {name:'A'})-[:T]->{1,3}(b) RETURN p` returns trails of lengths 1, 2 and 3,
 with every intermediate node in source order.
 

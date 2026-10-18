@@ -51,6 +51,10 @@ uses a Pipeline root and source-ordered stage nodes, including Let, Filter, For/
 Next. Each projection stage describes its own grouping, DISTINCT, ordering and paging. The shared
 signature, NULL estimates and no-execution contract remain unchanged.
 
+OQL paging/composite seeks and GQL quantified expansion add model-defined Detail text to existing
+nodes. The public signature and eight-column result stay the same; see
+[DatabasePlanNode](database-plan-node.md) for the fields and example details.
+
 ## Example
 
 ```csharp

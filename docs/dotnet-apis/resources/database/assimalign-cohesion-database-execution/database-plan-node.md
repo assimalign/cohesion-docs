@@ -54,6 +54,13 @@ source-ordered Let, Filter, For/Unwind, Match/OptionalMatch, With, Return, Next 
 Project/GroupAggregate/Distinct/SortPage children remain local to their stage. These model names
 add no public members or constructor exceptions.
 
+OQL paging adds resolved `limit` and `offset` to Select detail. Composite IndexSeek detail
+lists the leading equality prefix and next-path range, for example `a = 1 AND b = 2 AND c <= 3`.
+GQL quantified Expand nodes report `quantifier={min,max}; body_hops=n; trail=True`, with empty
+max for unbounded repetition. These details use the same public members and eight result columns.
+See [OQL EXPLAIN](../../../../database/document/language/statements/explain.md) and
+[GQL EXPLAIN](../../../../database/graph/language/statements/explain.md).
+
 ## Example
 
 ```csharp

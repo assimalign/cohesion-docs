@@ -23,10 +23,10 @@ path shape validation belongs to the planner and uses COHDBG001 (no SQLSTATE).
 ## Example
 
 ```csharp
-GqlPathElement element = new GqlParenthesizedPathPattern(
-    new GqlPathPattern([], []), new GqlQuantifier(2, 2));
+var query = ((GqlQueryStatement)new GqlQueryParser().Parse(
+    "MATCH (a) ((x)-[r:T]->(y)){2} (b) RETURN b")).GqlExpression;
+GqlPathElement element = query.Matches[0].Elements![1];
 Console.WriteLine(element is GqlParenthesizedPathPattern); // True
-// This incomplete path is only an AST value; executing it fails COHDBG001.
 ```
 
 ## Related reference

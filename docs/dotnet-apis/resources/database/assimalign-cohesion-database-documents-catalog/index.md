@@ -15,7 +15,7 @@
 `Assimalign.Cohesion.Database.Documents.Catalog` supplies the sealed `DocumentCatalog` over the same `DocumentStorage` file set as document content. It stores collection
 ownership, versioned document identities/content references, and secondary index definitions. Its
 B+Trees come from `Database.Indexing`, and every data/index mutation joins the caller's
-`ITransactionContext` through `TransactionCoordinator`.
+`TransactionContext` through `TransactionCoordinator`.
 
 `DocumentCatalog.Open(storage, coordinator)` opens the metadata directory and persisted physical
 trees. `Read` methods accept an explicit visibility snapshot. Mutation methods neither begin nor
