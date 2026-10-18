@@ -19,7 +19,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | NEXT YIELD and FOREACH | Recognized, not supported (`COHDBL001`) | [RETURN … NEXT](clauses/next.md) and [WITH](clauses/with.md) execute |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
 | Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |
-| Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `abs(a.age)`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
+| Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `ELEMENTS()`, temporal constructors, `LOG10`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
 | HAVING | Recognized, not supported (`COHDBL001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
 | Questioned paths, nested quantifiers and subpath assignments/WHERE | Recognized, not supported (`COHDBL001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute |
@@ -36,7 +36,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Catalog filtering or projection | Not in the language | `SHOW LABELS RETURN label` |
 | Catalog mutation composition | Not in the language | `SHOW LABELS DELETE n` produces `GQL0007` |
 
-`GqlLanguageProfile` declares count, sum, avg, min, max, collect_list and collect. Its larger reserved keyword table is a lexical
+`GqlLanguageProfile` declares core scalars, CAST, count, sum, avg, min, max, collect_list and collect. Its larger reserved keyword table is a lexical
 inventory, not a list of implemented features. Malformed or invalid composition generally produces
 `GQL0002`, while catalog mutation composition has its dedicated read-only error.
 
@@ -53,7 +53,7 @@ planning; a mandatory clause must bind or constrain it. Execute accepts scalar a
 the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
 EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
 materialized scalar/list/map results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
-star and standalone evaluation execute. Other scalar calls, LIKE, BETWEEN, EXISTS and quantified
+star and standalone evaluation execute. [Core scalar calls](functions/scalar-functions.md) and [CAST](expressions/cast.md) execute. LIKE, BETWEEN, EXISTS and quantified
 predicates remain excluded; [value expressions](expressions/operators.md) run in WHERE and RETURN.
 
 Graph-specific security policies, replication, compiled-schema provisioning, configurable graph

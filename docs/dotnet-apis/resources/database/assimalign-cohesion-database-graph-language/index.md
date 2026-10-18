@@ -29,6 +29,10 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GqlRelationshipPattern](gql-relationship-pattern.md)** — Quantified path AST contract.
 - **[`GqlPathPattern`](gql-path-pattern.md)** — Documented public type.
 - **[`GqlProjection`](gql-projection.md)** — Documented public type.
+- **[GqlFunctionCallExpression](gql-function-call-expression.md)** — Scalar identity, arguments and niladic clocks.
+- **[GqlScalarFunction](gql-scalar-function.md)** — Executable scalar operations and aliases.
+- **[GqlCastExpression](gql-cast-expression.md)** — Explicit conversion operand/target.
+- **[GqlCastType](gql-cast-type.md)** — Supported scalar conversion identities.
 - **[GqlAggregateExpression](gql-aggregate-expression.md)** — Aggregate operand, function and DISTINCT flag.
 - **[GqlAggregateFunction](gql-aggregate-function.md)** — Six operations, including CollectList/collect.
 - **[GqlVariableExpression](gql-variable-expression.md)** — Bare node, relationship or path binding.
@@ -65,7 +69,7 @@ The Graph engine consumes the AST for planning and execution in the session's bo
 See the [source-backed usage examples](examples/index.md).
 
 The supported surface is fixed/quantified `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
-RETURN expressions/aliases, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
+RETURN expressions/aliases, scalar functions/CAST, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
 DISTINCT and star, standalone RETURN, implicit/ISO GROUP BY, aggregates, ORDER BY, OFFSET/SKIP and LIMIT, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.

@@ -8,6 +8,7 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 - **[Parameters](parameters.md)** — runtime scalar, list and map bindings in maps, WHERE and RETURN.
 - **[Literals](literals.md)** — null, Boolean, integer, floating-point, and string values.
 
+- **[CAST](cast.md)** — SQL-compatible scalar conversion and its difference from Cypher toX calls.
 - **[CASE](case.md)** — searched/simple forms, ISO when-operand lists and lazy result selection.
 - **[COALESCE](coalesce.md)** — first non-NULL value, evaluated left to right.
 - **[NULLIF](nullif.md)** — NULL for TRUE equality, otherwise the first value.
@@ -17,7 +18,8 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 
 WHERE and RETURN accept these value expressions. [Aggregates](../functions/aggregate-functions.md)
 execute in RETURN and use dedicated aggregate nodes; COALESCE/NULLIF are case abbreviations.
-Other scalar function calls remain unsupported.
+[Scalar functions](../functions/scalar-functions.md) and [CAST](cast.md) also execute with plan-time
+signature checks and strict NULL propagation.
 
 ## See also
 

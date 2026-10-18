@@ -58,9 +58,10 @@ comparison yields unknown; otherwise FALSE. A NULL right operand yields NULL, a 
 STARTS WITH, ENDS WITH and CONTAINS use ordinal case-sensitive text and yield unknown unless both
 operands are strings. IN and these string predicates are Cohesion extensions.
 
-LIKE, BETWEEN, regular-expression match, EXISTS, quantified predicates and function calls remain
+LIKE, BETWEEN, regular-expression match, EXISTS and quantified predicates remain
 `COHDBL001`. [CASE](case.md), [COALESCE](coalesce.md) and [NULLIF](nullif.md) execute as special
-expression forms. [Subscripts/member access](property-access.md) compose with lists/maps and entities.
+expression forms. [Scalar calls](../functions/scalar-functions.md) and [CAST](cast.md) execute.
+[Subscripts/member access](property-access.md) compose with lists/maps and entities.
 IN (1, 2) remains malformed; use IN [1, 2], IN ([1, 2]) or a list-valued parameter.
 [RETURN](../clauses/return.md) accepts these scalar expressions, bound variables and optional aliases.
 

@@ -13,7 +13,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 - **[Syntax conventions](syntax-conventions.md)** — diagrams, names, literals, and comments.
 - **[Statements](statements/index.md)** — queries, mutations, and catalog introspection.
 - **[Clauses](clauses/index.md)** — filtering, grouping, projection, ordering and paging.
-- **[Functions](functions/index.md)** — aggregates, exact numeric results and NULL behavior.
+- **[Functions](functions/index.md)** — scalar signatures, transaction clocks, aggregates and NULL behavior.
 - **[Patterns](patterns.md)** — nodes, relationships, maps, directions, and execution bounds.
 - **[Expressions](expressions/index.md)** — operators, CASE/COALESCE/NULLIF, lists, maps and property access.
 - **[Diagnostics](diagnostics.md)** — syntax, capability, planning, and execution errors.
@@ -40,6 +40,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md) | Supported | Lazy conditional values; simple CASE accepts ISO when-operand lists |
 | [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |
 | EXPLAIN | Supported | Chosen data plan without execution |
+| [Scalar functions](functions/scalar-functions.md) and [CAST](expressions/cast.md) | Supported | Plan-time signatures, strict NULLs, code-point substring and transaction-start clocks |
 | [Aggregates](functions/aggregate-functions.md) | Supported | COUNT, SUM, AVG, MIN, MAX, COLLECT_LIST/collect; implicit and [ISO GROUP BY](clauses/group-by.md) |
 | [Quantified paths](patterns.md#quantified-paths) | Supported | ISO edge/subpath and Cypher lengths, trail semantics, list-valued group variables |
 

@@ -17,7 +17,8 @@ GQL reports stable capability, syntax, planning, and execution diagnostics.
 | `GQL0006` | Duplicate literal property or map-constructor key |
 | `GQL0007` | `Graph catalog introspection is read-only.` |
 | `GQL0008` | -- touches a node/subpath, edge filler or postfix/Cypher quantifier and hides an arrow |
-| `GQL0009` | Parsing thread has insufficient stack for nested expressions; engine reports COHDBG008 |
+| `GQL0009` | Parsing thread has insufficient stack for nested expressions/subpaths; engine reports COHDBG008 |
+| `GQL0010` | Unknown function name, reported while parsing |
 
 The parser returns diagnostics on `GqlQueryStatement` rather than throwing for malformed query
 text. Diagnostic locations use zero-based absolute UTF-16 offsets, exclusive end positions, and
@@ -31,9 +32,9 @@ label names, and property keys do not trigger keyword capability checks.
 
 | Code | Meaning |
 |---|---|
-| `COHDBG001` | Invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
+| `COHDBG001` | Invalid hand-built function arity or unbound argument; invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
+| `COHDBG003` | Provably incompatible function/CAST kind or temporal stored property; schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
 | `COHDBG004` | Materialized MATCH/FOR row, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
 | `COHDBG006` | Storage failure translated at the engine boundary |
@@ -43,10 +44,15 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-list FOR/UNWIND input, non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
+| `COHDBG013` | Evaluated value error: non-list FOR/UNWIND input, non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST domain, kind or conversion failure, unsupported computed property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+
+[Scalar calls](functions/scalar-functions.md) use parsed-arity GQL0002 and unknown-name GQL0010;
+hand-built arity/unbound arguments use COHDBG001. Proven incompatible kinds use COHDBG003,
+dynamic kinds and domain/conversion failures COHDBG013. EXPLAIN validates without evaluation.
+These codes have no assigned SQLSTATE; ELEMENTS and recognized unsupported calls use COHDBL001.
 
 [Quantified patterns](patterns.md#diagnostics) use GQL0002 for INSERT/node quantifiers and invalid
 intervals, GQL0004 for Int32 overflow, GQL0005 for text bound sums above 64, and COHDBG001

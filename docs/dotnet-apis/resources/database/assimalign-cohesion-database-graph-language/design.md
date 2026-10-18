@@ -60,7 +60,7 @@ database names have no AST representation.
 
 Only these clauses occur in `GqlLanguageProfile.Clauses`. The larger reserved keyword table is
 retained for tokenization and targeted unsupported diagnostics; it does not advertise capabilities.
-The function table declares count, sum, avg, min, max, collect_list and collect. CASE, COALESCE and NULLIF are special expression forms;
+The function table declares core scalars, CAST, count, sum, avg, min, max, collect_list and collect. CASE, COALESCE and NULLIF are special expression forms;
 COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
@@ -199,7 +199,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
@@ -207,6 +207,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 | `GQL0005` | Text repetition-bound sum exceeds 64 relationships |
 | `GQL0006` | Duplicate literal property key |
 | `GQL0007` | `Graph catalog introspection is read-only.`: mutation composed with `SHOW` |
+| `GQL0010` | Unknown function name; scalar/aggregate arity uses GQL0002 |
 
 Locations use zero-based absolute UTF-16 offsets with exclusive ends and one-based line numbers.
 Capability checks run before syntax parsing, so a recognized unsupported clause does not degrade
@@ -280,6 +281,21 @@ source-ordered lists and RETURN */WITH * include them; FOR/UNWIND retains their 
 Direct invalid shape/bounds, cycles/reused path instances or subpath depth above 128 use COHDBG001;
 text bounds use GQL0002/0004/0005. Runtime qualifying 65th hops use COHDBG004.
 [Patterns](../../../../database/graph/language/patterns.md) records diagnostics and examples.
+
+## Scalar calls and CAST
+
+[GqlFunctionCallExpression](gql-function-call-expression.md) resolves names/aliases to
+[GqlScalarFunction](gql-scalar-function.md), snapshots Arguments and exposes IsNiladic for clocks.
+[GqlCastExpression](gql-cast-expression.md) retains Operand and [GqlCastType](gql-cast-type.md).
+Every expression/shape/grouping/rendering walk includes these nodes. Static enum dispatch keeps
+planning/evaluation compatible with NativeAOT. GQL0010 reports unknown calls; GQL0002 reports
+parsed arity, COHDBG001 direct-AST arity/unbound arguments, COHDBG003 proven incompatible kinds,
+and COHDBG013 dynamic kinds or invalid values. No SQLSTATE is assigned to these codes.
+
+[Scalar functions](../../../../database/graph/language/functions/scalar-functions.md) documents
+signatures, aliases, strict NULL behavior, exact numeric types, zero-based code-point substring
+and the difference between SQL CAST and Neo4j conversions. CURRENT_DATE/CURRENT_TIMESTAMP are
+reserved niladic names; CAST is contextual. ELEMENTS remains COHDBL001.
 
 ## Sources
 

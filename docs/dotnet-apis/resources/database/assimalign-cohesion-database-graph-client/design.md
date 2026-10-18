@@ -178,6 +178,15 @@ composites without negotiation use COHDBG016; negotiated possibly nonempty entit
 COHDBG001. A provably empty Max=0 group can project []. Malformed bounds retain parser diagnostics
 and a reusable session. No capability or wire tag is added.
 
+## Scalar functions and clock results
+
+QueryAsync executes [core functions/CAST](../../../../database/graph/language/functions/scalar-functions.md)
+with the same signatures and NULL rules as embedded calls. DateOnly and DateTimeOffset results use
+existing value tags; labels/keys/properties use negotiated composite values. Dynamic failures use
+COHDBG013 before ResultHeader and preserve the pooled session. Unknown names retain GQL0010 and
+parsed arity GQL0002. Graph wire statements are autocommit, each with one transaction-start clock.
+Computed entity results retain static Execute admission; scalar reads through entities are legal.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/DESIGN.md`.

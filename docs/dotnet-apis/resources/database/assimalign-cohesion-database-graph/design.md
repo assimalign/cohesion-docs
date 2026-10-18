@@ -203,7 +203,7 @@ The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
 is the single executable-language inventory: MATCH, WHERE, LET, FILTER, FOR/UNWIND, WITH, NEXT, RETURN, INSERT, CREATE (compatibility
 extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, six aggregates and
-implicit/ISO GROUP BY execute. Other functions, graph selection and
+implicit/ISO GROUP BY execute. Core scalar functions and CAST execute; graph selection and
 language DDL remain outside the profile.
 Label/type/index management is the session-bound C# schema API. The ISO decision and conformance
 corpus are documented alongside the parser; this is a bounded ISO subset, not a full conformance
@@ -306,9 +306,10 @@ not included.
 | `COHDBL001` | Unsupported language capability, reported on the parsed statement |
 | `GQL0001`–`GQL0006` | Parser syntax/literal/bound errors; see language design |
 | `GQL0007` | Attempt to mutate catalog introspection results |
-| `COHDBG001` | Invalid pattern, variable binding, traversal or grouping/aggregate placement |
+| `GQL0010` | Unknown function spelling; parsed arity uses GQL0002 |
+| `COHDBG001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
+| `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, or invalid graph mutation |
 | `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
 | `COHDBG006` | Storage failure translated at the engine boundary |
@@ -318,7 +319,7 @@ not included.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST kind, conversion or domain failure, computed temporal property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
@@ -644,6 +645,23 @@ relationship before endpoint tests, regardless of LIMIT. EXPLAIN Expand detail r
 Group/singleton conflicts and invalid group access use COHDBG003; invalid direct AST paths use
 COHDBG001. Wire composite admission (COHDBG016) precedes the entity-list gate (COHDBG001).
 No storage/catalog/wire format changes are needed.
+
+## Scalar evaluation and transaction clock
+
+[Scalar functions and CAST](../../../../database/graph/language/functions/scalar-functions.md)
+validate signatures during planning/EXPLAIN, including empty matches. Strict NULL returns NULL;
+dynamic kind/domain/conversion errors use COHDBG013. Proven incompatible kinds use COHDBG003,
+invalid hand-built arity/unbound arguments COHDBG001, and unknown calls GQL0010 (no SQLSTATE).
+Entity result shapes drive static wire admission before reads or writes; scalar properties of
+computed entities remain legal. Composite outputs use the existing negotiation and bounds.
+
+Graph captures one UTC instant before starting a transaction and passes it to every evaluator.
+Explicit transactions reuse it across rows, stages and statements, including ReadCommitted;
+autocommit captures once per statement. The clock seam remains internal and adds no public option.
+CURRENT_DATE returns its UTC DateOnly; CURRENT_TIMESTAMP returns its UTC DateTimeOffset.
+Temporal values compare/order but cannot be stored properties. The language reference documents
+numeric type retention, half-away rounding, code-point substring and SQL CAST/Neo4j conversion
+differences. No catalog/storage/wire format changes are required.
 
 ## Sources
 
