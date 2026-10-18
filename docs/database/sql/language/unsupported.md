@@ -60,7 +60,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CAST in DEFAULT or CHECK | Planning error | Conversion support does not broaden these contexts |
 | Nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
 | Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |
-| Aggregate inside aggregate, WHERE, ON, or GROUP BY | Planning error | Aggregate stage restrictions |
+| Aggregate inside aggregate, WHERE, ON, or GROUP BY at its own query level | Planning error | Child queries retain independent aggregate levels |
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |
 | Projection alias in GROUP BY or HAVING | Binding/planning error when not a valid source name | Output alias scope is ORDER BY |
 | Invalid numeric ORDER BY ordinal | Planning error | Zero, negative, out of range, or noninteger syntax |

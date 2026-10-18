@@ -79,6 +79,18 @@ SELECT id FROM t ORDER BY id;
 The first query returns `3`, the constant aggregate returns `1`, and INSERT affects three rows.
 The final rows are `1, 2, 3, 101, 102, 103`. The INSERT source sees only pre-write rows.
 
+Continuing with the six rows above:
+
+```sql
+WITH s AS (SELECT id FROM t WHERE id >= 100)
+UPDATE t SET id = id + 100 WHERE id IN (SELECT id FROM s);
+WITH s AS (SELECT id FROM t WHERE id >= 200)
+DELETE FROM t WHERE id IN (SELECT id FROM s);
+SELECT id FROM t ORDER BY id;
+```
+
+UPDATE and DELETE each affect three rows; the final rows are 1, 2 and 3.
+
 For declaration-order fallback, in a separate database:
 
 ```sql

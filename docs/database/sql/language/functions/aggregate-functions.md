@@ -18,13 +18,14 @@ MAX ( expression )
 ## Arguments
 
 - **`*`** — Counts every row, including rows whose values are all null.
-- **`expression`** — A per-row argument; it cannot contain another aggregate.
+- **`expression`** — A per-row argument; another aggregate at the same query level is invalid.
 
 ## Remarks
 
 These functions are measured in grouped and ungrouped queries, including multiple projections and
 scalar expressions around aggregate results. Aggregates cannot occur in `WHERE`, `JOIN ... ON`,
-or `GROUP BY`. Columns outside aggregates must satisfy grouping validity.
+or `GROUP BY` at their own query level. A child query in those expressions may aggregate at
+its own level. Columns outside aggregates must satisfy grouping validity.
 
 | Function | Null and empty-input behavior | Result type |
 | --- | --- | --- |

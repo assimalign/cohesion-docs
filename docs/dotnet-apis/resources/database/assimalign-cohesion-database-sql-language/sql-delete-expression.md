@@ -19,7 +19,7 @@ public sealed class SqlDeleteExpression : SqlQueryExpression
 
 Construction and CommonTables mutation are internal to the parser. Table is always a stored-table
 target, even when a CTE has the same name. Where accepts correlated and uncorrelated subqueries;
-all candidate predicates evaluate under the statement snapshot before writes. 
+all candidate predicates evaluate under the statement snapshot before writes.
 [CommonTables](sql-common-table-expression.md) binds in declaration order and materializes reachable
 bodies once before mutation. Unused definitions bind but never execute.
 

@@ -36,3 +36,13 @@ See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser fa
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.
+
+## WITH and correlated query examples
+
+[SqlCommonTableExpression](../sql-common-table-expression.md) inspects a definition and complete
+output renames. [SqlUpdateExpression](../sql-update-expression.md) and
+[SqlDeleteExpression](../sql-delete-expression.md) show leading WITH lists and stored targets.
+[SqlSelectExpression](../sql-select-expression.md) and [SqlInsertExpression](../sql-insert-expression.md)
+expose CommonTables on the statement or insert source. These follow SqlCteParserTests and
+SqlCteExecutionTests. [Language examples](../../../../../database/sql/language/expressions/subqueries.md#correlated-dml-snapshots)
+show pre-statement correlated DML results from SqlSubqueryExecutionTests.Regression.cs.

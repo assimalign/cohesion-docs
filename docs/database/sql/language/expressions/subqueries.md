@@ -55,7 +55,8 @@ accept correlation. CASE, COALESCE and Boolean short-circuiting evaluate only re
 
 A child evaluated over completed outer groups may read grouping-key columns only; another outer
 column reports `COHSQLE017` naming it. Children inside aggregate arguments, WHERE and ON read
-source rows. Aggregate levels follow PostgreSQL: the lowest variable or aggregate dependency
+source rows, including ungrouped columns of that source. Grouped references compare bound
+grouping values and types, including USING merges/coercions. Aggregate levels follow PostgreSQL: the lowest variable or aggregate dependency
 sets the level, including dependencies inside nested queries after adjusting for their depth.
 An aggregate belonging to an outer query level reports `COHDBL001` before grouped-column checks;
 relocating it to that query is excluded. A mixed aggregate with a local dependency remains local.
@@ -105,6 +106,42 @@ SELECT id, x FROM snapshot_rows;
 
 UPDATE affects two rows, DELETE affects two rows and the final row is `(3, 9)`. Each predicate
 uses values from before its own statement, so updates do not feed back into that statement's children.
+
+### Correlated WHERE and JOIN ON
+
+Using the conformance fixture:
+
+```sql
+SELECT a.id FROM t a
+WHERE EXISTS (SELECT b.id FROM t b WHERE b.id = a.id AND b.age > 40)
+ORDER BY a.id;
+SELECT a.id, b.id FROM t a LEFT JOIN t b
+ON a.id = b.id AND EXISTS (SELECT c.id FROM t c WHERE c.id = a.id AND c.age > 40)
+ORDER BY a.id;
+```
+
+The WHERE query returns 2 and 3. The join returns (1, NULL), (2, 2) and (3, 3); the child sees
+only that ON step's candidate pair and enclosing query scopes.
+
+### Correlated DML snapshots
+
+In a fresh database, execute separately:
+
+```sql
+CREATE TABLE chain (id INT);
+INSERT INTO chain VALUES (1), (2), (3);
+UPDATE chain SET id = id + 10
+WHERE EXISTS (SELECT 1 FROM chain p WHERE p.id = chain.id - 1);
+SELECT id FROM chain ORDER BY id;
+```
+
+UPDATE affects two rows and SELECT returns 1, 12 and 13. Each predicate reads the complete
+pre-statement chain. On a fresh chain with 1, 2 and 3, the following DELETE affects one row and
+leaves 2 and 3:
+
+```sql
+DELETE FROM chain WHERE NOT EXISTS (SELECT 1 FROM chain p WHERE p.id = chain.id - 1);
+```
 
 ### Correlation and grouping
 
