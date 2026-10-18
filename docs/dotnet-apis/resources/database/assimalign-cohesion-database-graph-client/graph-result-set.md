@@ -32,6 +32,11 @@ names with COHDBG015 before output, including collisions between aliases and imp
 standalone/computed RETURN and DISTINCT use this same container; retained values keep their runtime
 types. This adds no result frame or public member.
 
+AffectedCount is -1 for a read-only statement and the mutation count for writes, including writes
+with RETURN. It counts created entities plus distinct changed pre-existing entities; a created-then-
+updated entity counts once. Pure no-ops and OPTIONAL NULL update targets count zero. Count remains
+the number of returned rows. ResultComplete carries both without a framing change.
+
 ## Example
 
 ```csharp
@@ -39,6 +44,16 @@ var result = await connection.QueryAsync("MATCH (n:Absent) RETURN n.name");
 Console.WriteLine(result.Count); // 0 when the label is absent
 Console.WriteLine(result.Diagnostics[0].Code); // COHDBG010 with diagnostics negotiated
 ```
+
+```csharp
+await connection.ExecuteAsync("INSERT (:P {x:1}), (:P {x:1})");
+var updated = await connection.QueryAsync("MATCH (a:P) SET a.x=$value RETURN a.x",
+    new Dictionary<string, object?> { ["value"] = 3 });
+Console.WriteLine(updated.Count);         // 2
+Console.WriteLine(updated.AffectedCount); // 2
+```
+
+This follows GraphUpdateWireTests; update failures retain the ready connection.
 
 ## Related reference
 

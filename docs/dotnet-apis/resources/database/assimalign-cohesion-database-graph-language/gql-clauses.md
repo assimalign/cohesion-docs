@@ -21,6 +21,8 @@ public static class GqlClauses
     public const string Unwind = "UNWIND";
     public const string With = "WITH";
     public const string Next = "NEXT";
+    public const string Set = "SET";
+    public const string Remove = "REMOVE";
 }
 ```
 
@@ -49,6 +51,10 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Next)); // Tru
 
 QuantifiedPath enables [quantified edges and subpaths](../../../../database/graph/language/patterns.md).
 The constant adds no exceptions; `Instance.Supports(GqlClauses.QuantifiedPath)` returns true.
+
+Set and Remove are enabled in GqlLanguageProfile.Instance. They name ordered update stages
+following an incoming clause; leading SET/REMOVE remains GQL0002. The constants add no exceptions.
+See [SET](../../../../database/graph/language/clauses/set.md) and [REMOVE](../../../../database/graph/language/clauses/remove.md).
 
 ## Documented behavior
 

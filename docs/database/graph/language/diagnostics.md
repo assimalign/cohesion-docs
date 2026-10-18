@@ -86,6 +86,14 @@ use COHDBG013 before reads or writer locks; non-finite/unsupported CLR inputs re
 [ORDER BY](clauses/order-by.md) and [paging](clauses/limit-offset.md) apply to output after all
 mutations and DISTINCT; LIMIT does not bypass COHDBG004 bounds.
 
+SET/REMOVE add no diagnostic codes. Leading clauses, nested targets, separated + = and property
++= use GQL0002; duplicate map keys GQL0006. Whole-map parameters/expressions, literal composite
+properties and MERGE ON CREATE/ON MATCH SET use COHDBL001. Scalar/path/group targets,
+relationship label changes and computed composite properties use COHDBG003; ExecutePaths with
+updates uses COHDBG001 and SHOW composition GQL0007. No SQLSTATE is assigned to these update
+codes. Stale Snapshot updates surface DatabaseTransactionAbortedException; ReadCommitted
+re-snapshots after the writer lock. See [SET](clauses/set.md) and [REMOVE](clauses/remove.md).
+
 ## Boundaries
 
 An unknown label/type in OPTIONAL MATCH still warns with COHDBG010/011, but the clause preserves

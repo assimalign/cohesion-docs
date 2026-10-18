@@ -52,6 +52,18 @@ execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 local
 SUM preserves exact integral/Decimal work and Decimal scale. Collection results negotiate
 graph.composite-values. Grouping and paging do not reduce input match limits.
 
+## Property and label updates
+
+[SET](language/clauses/set.md) and [REMOVE](language/clauses/remove.md) update scalar properties,
+replace/merge literal maps and add/remove node labels. Mutating RETURN carries affected counts
+in process and on the wire. OPTIONAL NULL targets and pure no-ops count zero; repeated rows
+update the current working copy and count each changed entity once.
+
+Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
+lock and replan before evaluation. Format-2 records keep prior versions visible to old snapshots;
+format 1 is refused before recovery scrub, with no upgrade path. The GQL profile executes 26 of
+33 declared clauses.
+
 ## Storage and catalog
 
 Each persistent database owns `graph.dat`, `graph.log`, and `graph.bak`. Shared kernel components

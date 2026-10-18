@@ -16,6 +16,9 @@ GQL clauses filter matched bindings and project graph bindings or scalar express
 - **[ORDER BY](order-by.md)** — expression keys, direction and explicit NULL placement.
 - **[OFFSET, SKIP and LIMIT](limit-offset.md)** — output paging after ordering.
 
+- **[SET](set.md)** — assign scalar properties, replace/merge maps and add node labels.
+- **[REMOVE](remove.md)** — remove properties or node labels.
+
 `WHERE` follows matching patterns or a WITH tail. `RETURN` finishes a read query or precedes NEXT.
 RETURN can also stand alone to evaluate one row of expressions. Its optional tail is GROUP BY, then ORDER BY,
 then OFFSET/SKIP, then LIMIT; OFFSET/SKIP after LIMIT is invalid.

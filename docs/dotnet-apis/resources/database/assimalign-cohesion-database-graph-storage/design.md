@@ -6,8 +6,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 ## Ownership and composition
 
-The public `IGraphStore` contract is implemented by internal `DefaultGraphStore` and created by
-`GraphStore.Open`. `GraphStorage` is the thin shared-kernel storage subclass. The engine owns its
+The sealed public GraphStore is created by GraphStore.Open. `GraphStorage` is the thin shared-kernel storage subclass. The engine owns its
 storage streams and coordinator; the store owns neither and has no independent disposal or
 background workers. All identities are reserved from the kernel's durable transaction-sequence
 namespace, so rollback and restart do not reuse an identity.
@@ -55,13 +54,14 @@ against a duplicate-key lower-bound seek starting in a later leaf after a shared
 regression creates 240 incident edges, forces splits, reopens the file set, and checks all edges.
 There is no kernel change.
 
-## Version 1 record format
+## Version 2 record format
 
 All multibyte fixed-width values below are little-endian unless a key explicitly says otherwise.
 Every slotted record starts with the shared 16-byte stamp prefix: writer sequence at offsets 0-7,
 deleter sequence at offsets 8-15. Zero deleter means live. Graph records have kind at offset 16,
-format version `1` at offset 17 and a nonzero 64-bit logical identity at offsets 18-25. The
-remaining payload is:
+format version 2 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
+UInt64 revision at offsets 26-33. Revision starts at zero and increases on replacement. The
+remaining payload follows that header:
 
 | Kind | Meaning | Payload after identity |
 | --- | --- | --- |
@@ -88,8 +88,11 @@ Labels are ordinally deduplicated and sorted. The explicit scalar encoding is:
 
 Record length is limited to the shared `SlottedPage.MaxRecordSize`. Unsupported CLR objects,
 non-finite floating values and oversized records fail before insertion. This version does not define
-arrays, nested objects or overflow chains. Nodes and relationships are immutable versions; the
-frozen engine surface has create/delete operations and no property-update member.
+arrays, nested objects or overflow chains. Nodes and relationships are immutable versions.
+UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
+replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
+complete records with caller-reserved identities. Format 1 is refused before recovery scrub with
+the recreation remedy and no upgrade reader. Catalog/registration/B-tree formats are unchanged.
 
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
 version `1`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
@@ -120,7 +123,7 @@ key. Prefix seeks bound the candidate range by node identities zero and `UInt64.
 identity suffix also makes a heavily repeated property value safe across B+Tree leaf splits.
 
 `Index` creation backfills visible nodes under the database writer lock and preserves source record
-stamps. Every subsequent node create/delete maintains all current definitions in its transaction.
+stamps. Every subsequent node create/update/delete maintains all current definitions in its transaction.
 Dropping an index tombstones its logical definition; older snapshots retain the tree and their view.
 This MVP retains dropped physical trees for later reclamation rather than recycling them while
 snapshots may still reference them. An exact seek costs `O(log N + k)` index work for `k`
@@ -132,7 +135,7 @@ matches adds `O(m log m)` CPU work.
 All graph writers acquire the shared database-level exclusive lock and retain it until logical
 commit/rollback; readers use MVCC snapshots. The lock is deliberately coarse for the MVP. After a
 wait, the store checks cancellation and active transaction state and releases a grant received after
-rollback. Endpoint and deletion checks compare the caller's snapshot with the latest committed view
+rollback. Update and deletion checks compare the caller's snapshot with the latest committed view
 while holding the lock; a changed record produces `TransactionAbortedException`. A stale detach
 cannot silently cascade a relationship that appeared after its snapshot.
 
@@ -146,18 +149,33 @@ worker's safe bound passes.
 Opening follows this order:
 
 1. `GraphStorage.Open(..., checkpointOnOpen: false)` runs shared physical recovery.
-2. Construct the coordinator and call `AnalyzeAndScrub()` to undo unproven record writers.
-3. `GraphStore.Open` loads owner-two record directories and owner-one registrations.
-4. `RecoverIndexesAsync(plan.Aborted)` scrubs aborted index writers and deleters.
-5. `CompleteRecovery()` checkpoints after lifecycle classification has been consumed.
+2. Run GraphStore.EnsureIndexFormat before scrub, refusing format-1 graph records and incompatible B-trees.
+3. With the coordinator constructed, call `AnalyzeAndScrub()` to undo unproven record writers.
+4. `GraphStore.Open` loads owner-two record directories and owner-one registrations.
+5. `RecoverIndexesAsync(plan.Aborted)` scrubs aborted index writers and deleters.
+6. `CompleteRecovery()` checkpoints after lifecycle classification has been consumed.
 
 Crash tests ordinarily flush the journal and clone data and journal memory streams without disposing
 the live database. MemoryStream has no durable-flush contract; these serialized images test recovery
 replay and scrub, not physical persistence. They prove committed nodes, relationships and property
 indexes survive while a partially applied logical transaction disappears. The graph store keeps an
-in-memory identity directory rebuilt in `O(V + E + I)` at open; label scans examine `O(V)` records
-and sort their `m` visible matches in `O(m log m)`. Traversal path enumeration and cycle limits are
+identity directory of every retained version rebuilt in O(R log R) for R retained records at open.
+Persisted revisions order each chain newest first; reads select the first visible version. Label
+scans examine node identities and retained versions and sort m visible matches in O(m log m). Traversal path enumeration and cycle limits are
 owned and documented by the Graph root.
+
+## Version publication and isolation
+
+Each replacement encodes the record and new index keys before mutation, moves property-index
+or adjacency entries, and tombstones the old version in one physical bracket. Rollback restores
+stamps/removes new versions. Snapshot pins protect historical versions from purge; reclaimed/reused
+references are removed from the directory. A per-transaction async gate serializes full store
+mutations, including statement views, through directory publication.
+
+Snapshot keeps its horizon and uses first-updater-wins. Original ReadCommitted contexts take a
+fresh snapshot after the writer lock; caller-pinned statement views keep their horizon and may
+conflict. Relationship insertion checks latest endpoint existence, so a concurrent endpoint
+property update alone does not cause a conflict. See [GraphStore](graph-store.md).
 
 ## Declared dependencies
 

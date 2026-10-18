@@ -1,5 +1,15 @@
 # Assimalign.Cohesion.Database.Graph.Language
 
+- **[GqlSetStage](gql-set-stage.md)** — Ordered graph update AST.
+- **[GqlRemoveStage](gql-remove-stage.md)** — Ordered graph update AST.
+- **[GqlSetItem](gql-set-item.md)** — Ordered graph update AST.
+- **[GqlRemoveItem](gql-remove-item.md)** — Ordered graph update AST.
+- **[GqlSetPropertyItem](gql-set-property-item.md)** — Ordered graph update AST.
+- **[GqlSetPropertiesItem](gql-set-properties-item.md)** — Ordered graph update AST.
+- **[GqlSetLabelsItem](gql-set-labels-item.md)** — Ordered graph update AST.
+- **[GqlRemovePropertyItem](gql-remove-property-item.md)** — Ordered graph update AST.
+- **[GqlRemoveLabelsItem](gql-remove-labels-item.md)** — Ordered graph update AST.
+
 This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an AST.
 
 > **Status:** Partial.

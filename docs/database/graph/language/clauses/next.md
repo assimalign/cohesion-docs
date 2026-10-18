@@ -57,6 +57,10 @@ INSERT (:Fresh {k:1}) NEXT MATCH (a:Fresh) RETURN a.k;
 On an initially empty graph, result: `1`. The insert commits with the statement. The equivalent
 INSERT followed directly by MATCH also executes in source order and sees the inserted node.
 
+[SET](set.md) and [REMOVE](remove.md) participate in the same stage order. Later MATCH stages
+see their working copies and introduced labels; carried entity references refresh through lists,
+maps and paths. One final version publishes per updated entity.
+
 ## See also
 
 [WITH](with.md) · [LET](let.md) · [FOR/UNWIND](for.md) · [RETURN](../statements/return.md) · [Clauses](index.md) · [GqlStage .NET API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-language/gql-stage.md)

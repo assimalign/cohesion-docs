@@ -26,6 +26,8 @@ operands use COHDBG001. Every stage materializes eagerly in source order within 
 | [GqlFilterStage](gql-filter-stage.md) | Retain only TRUE predicates |
 | [GqlForStage](gql-for-stage.md) | FOR/UNWIND list expansion |
 | [GqlInsertStage](gql-insert-stage.md) | INSERT/CREATE per input row |
+| [GqlSetStage](gql-set-stage.md) | Property/map/label assignments |
+| [GqlRemoveStage](gql-remove-stage.md) | Remove properties/node labels |
 | [GqlDeleteStage](gql-delete-stage.md) | DELETE/DETACH DELETE |
 | [GqlReturnStage](gql-return-stage.md) | RETURN/WITH projection, grouping and tail |
 | [GqlNextStage](gql-next-stage.md) | Segment boundary |
@@ -40,6 +42,9 @@ foreach (GqlStage stage in query.Stages) Console.WriteLine(stage.GetType().Name)
 ```
 
 Execution returns one row containing 1.
+
+SET/REMOVE are [GqlSetStage](gql-set-stage.md) and [GqlRemoveStage](gql-remove-stage.md), with
+ordered [GqlSetItem](gql-set-item.md)/[GqlRemoveItem](gql-remove-item.md) variants.
 
 ## Related reference
 

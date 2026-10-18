@@ -50,6 +50,10 @@ RETURN b` includes `quantifier={1,3}; body_hops=1; trail=True`. Scalar calls and
 signature checks without evaluation: `EXPLAIN RETURN sqrt(-1) AS n` does not evaluate the domain
 error, while proven incompatible `EXPLAIN RETURN abs('x') AS n` fails COHDBG003.
 
+[SET](../clauses/set.md)/[REMOVE](../clauses/remove.md) add Set/Remove stage nodes under Pipeline,
+with UpdateEntity children naming each target and property/map/label action. For example,
+`EXPLAIN MATCH (n) SET n.x = 1 REMOVE n.old RETURN n.x` describes both actions without writes.
+
 ## Examples
 
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:

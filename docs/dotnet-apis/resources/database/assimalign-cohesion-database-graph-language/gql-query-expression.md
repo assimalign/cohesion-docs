@@ -11,6 +11,8 @@ public sealed class GqlQueryExpression : GqlExpression
 {
     public GqlQueryExpression(IReadOnlyList<GqlStage> stages, Location? location = null);
     public IReadOnlyList<GqlStage> Stages { get; }
+    public IReadOnlyList<GqlSetItem> SetItems { get; }
+    public IReadOnlyList<GqlRemoveItem> RemoveItems { get; }
     public IReadOnlyList<GqlQuerySegment> Segments { get; }
     public GqlQueryExpression(IReadOnlyList<GqlPathPattern> matches, GqlExpression? predicate,
         IReadOnlyList<GqlPathPattern> creates, IReadOnlyList<string> deleteVariables,
@@ -126,6 +128,17 @@ Console.WriteLine(grouped.GroupBy!.Count); // 1
 var emptyKeys = ((GqlQueryStatement)new GqlQueryParser().Parse(
     "MATCH (a) RETURN count(*) GROUP BY ()")).GqlExpression;
 Console.WriteLine(emptyKeys.GroupBy!.Count); // 0
+```
+
+SetItems and RemoveItems flatten their respective stages in source order into a fresh array on
+each access. Execution consumes Stages, preserving interleaving with other clauses. See
+[GqlSetStage](gql-set-stage.md), [GqlRemoveStage](gql-remove-stage.md) and their item variants.
+
+```csharp
+var updates = ((GqlQueryStatement)new GqlQueryParser().Parse(
+    "MATCH (a) SET a.age = 5 REMOVE a.old RETURN a.age")).GqlExpression;
+Console.WriteLine(updates.SetItems.Count);    // 1
+Console.WriteLine(updates.RemoveItems.Count); // 1
 ```
 
 ## Related reference

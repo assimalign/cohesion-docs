@@ -18,7 +18,8 @@ INSERT insertion_path [ , ...n ]
 |---|---|---|
 | `MATCH` and `WHERE` | Supported | Supply existing bound elements |
 | `RETURN` | Supported | Expressions, aliases, DISTINCT/ALL and named-binding star |
-| `SET`, `REMOVE`, `MERGE` | Recognized, not supported (`COHDBL001`) | No update or merge clause |
+| [SET](../clauses/set.md), [REMOVE](../clauses/remove.md) | Supported | Update inserted or existing entities; created-then-updated counts once |
+| MERGE | Recognized, not supported (COHDBL001) | Includes ON CREATE SET and ON MATCH SET |
 
 ## Arguments
 

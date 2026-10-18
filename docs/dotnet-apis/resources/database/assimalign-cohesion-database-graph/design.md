@@ -72,7 +72,9 @@ select a server, another database, or another graph.
 
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
-kind, byte 17 is format version 1, and bytes 18–25 are a nonzero unsigned 64-bit identity. Graph
+kind, byte 17 is format version 2, bytes 18–25 are a nonzero unsigned 64-bit identity and
+bytes 26–33 hold the increasing revision. Format 1 is refused before recovery scrub without
+an upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
 identity. `Database`-local IDs must always be paired with the correct session.
 
@@ -122,8 +124,8 @@ comparisons filter index candidates using exact represented values across all nu
 key collisions. Equality, inequality, ordering, property matching, IN and DISTINCT agree: Decimal
 0.1m differs from Double 0.1d, while Int64 1 equals Double 1.0. Large integers retain every bit and
 subnormals remain distinct from zero. Signed zeros compare equal; NULL comparisons are UNKNOWN
-while DISTINCT groups NULLs. Arithmetic keeps its own promotion. All node creation/deletion paths
-maintain property indexes. Graph has no property-update verb.
+while DISTINCT groups NULLs. Arithmetic keeps its own promotion. All node create/update/delete paths
+maintain property indexes. GQL SET/REMOVE uses storage replacement versions.
 
 ## Transactions, atomicity and recovery
 
@@ -665,6 +667,24 @@ CURRENT_DATE returns its UTC DateOnly; CURRENT_TIMESTAMP returns its UTC DateTim
 Temporal values compare/order but cannot be stored properties. The language reference documents
 numeric type retention, half-away rounding, code-point substring and SQL CAST/Neo4j conversion
 differences. No catalog/storage/wire format changes are required.
+
+## Working copies and update isolation
+
+GQL [SET/REMOVE](../../../../database/graph/language/clauses/set.md) keep statement-local entity
+working copies. Rows observe earlier rows; items execute left to right. Carried lists/maps/paths
+refresh after each stage; later scans, seeks and endpoint functions consult the working copy.
+INSERT reserves stable IDs and publishes final nodes before final relationships. Each changed
+entity publishes one format-2 replacement; type-exact no-ops publish nothing. Changed-then-restored
+entities still count and publish, preserving Snapshot conflicts.
+
+Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency
+entries. ReadCommitted mutations retake the statement snapshot after the writer lock and replan
+against captured parameters; queued increments serialize. GraphDatabase adds no public update
+verb; the sealed [GraphStore](../assimalign-cohesion-database-graph-storage/graph-store.md) adds
+UpdateNodeAsync/UpdateRelationshipAsync and accepts complete records for create.
+
+Row-returning mutations carry direct affected counts through the existing ResultComplete frame.
+EXPLAIN adds Set/Remove stages and UpdateEntity children. No wire-format change is required.
 
 ## Sources
 

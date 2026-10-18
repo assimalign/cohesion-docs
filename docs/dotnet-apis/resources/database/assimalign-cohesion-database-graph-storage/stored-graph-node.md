@@ -1,28 +1,42 @@
 # StoredGraphNode
 
-The `StoredGraphNode` type is part of the documented `Assimalign.Cohesion.Database.Graph.Storage` API.
-
-> **Status:** Partial.
-
-A durable property-graph node.
-
 Namespace: `Assimalign.Cohesion.Database.Graph.Storage`.
 
-## Documented behavior
+## Signature
 
-`GraphStore.Open(GraphStorage, TransactionCoordinator)` returns `IGraphStore`, whose operations
-create/find/delete nodes and relationships, enumerate nodes and incident relationships,
-create/drop/search exact property indexes, and recover index writers. Mutations require an active
-caller transaction and do not commit it. Snapshot reads return immutable `StoredGraphNode` and
-`StoredGraphRelationship` scalar records.
+```csharp
+public readonly record struct StoredGraphNode(ulong Id, IReadOnlyList<string> Labels,
+    IReadOnlyDictionary<string, object?> Properties);
+```
+
+## Behavior and exceptions
+
+This value record carries one entity version. The constructor retains collections without validation.
+Create now accepts the complete record: reserve a nonzero Id from the backing storage's
+ReserveTransactionSequence. The store validates names/scalar properties, copies collections and
+rejects duplicate identities. Updates keep identity.
+Earlier snapshots can read earlier values in the format-2 chain.
+
+[GraphStore](graph-store.md) documents ArgumentException/ArgumentNullException for invalid values,
+ArgumentOutOfRangeException for zero create IDs and GraphElementTooLargeException for bounds.
+Record construction alone does not write storage.
+
+## Example
+
+```csharp
+var record = new StoredGraphNode((ulong)storage.ReserveTransactionSequence(),
+    ["Person"], new Dictionary<string, object?> { ["name"] = "Ada" });
+var stored = await store.CreateNodeAsync(record, context);
+Console.WriteLine(stored.Id == record.Id); // True
+```
+
+This assumes an active caller context; see the [complete example](examples/graph-store-tests.md).
 
 ## Related reference
 
-- **Assembly** — [`Assimalign.Cohesion.Database.Graph.Storage`](index.md).
-- **Design** — [Lifetime and implementation decisions](design.md).
-- **Examples** — [Source-backed usage](examples/index.md).
+[GraphStore](graph-store.md) · [Assembly](index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/docs/Assembly/Assimalign.Cohesion.Database.Graph.Storage/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/StoredGraphNode.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/ValueObjects/StoredGraphNode.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/tests/GraphStoreUpdateTests.cs`.

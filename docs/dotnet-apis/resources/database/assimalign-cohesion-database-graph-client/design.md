@@ -187,6 +187,13 @@ COHDBG013 before ResultHeader and preserve the pooled session. Unknown names ret
 parsed arity GQL0002. Graph wire statements are autocommit, each with one transaction-start clock.
 Computed entity results retain static Execute admission; scalar reads through entities are legal.
 
+## Update counts
+
+SET/REMOVE use ordinary Execute/Query exchanges. GraphResultSet.AffectedCount retains mutation
+counts even with RETURN; read-only rows use -1. Pure no-ops count zero. ExecuteAsync returns the
+count while QueryAsync returns rows and count. Type/label refusals use ExecutionFailure and leave
+the server session ready; framing and protocol negotiation are unchanged.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/DESIGN.md`.

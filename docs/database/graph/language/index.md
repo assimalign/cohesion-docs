@@ -1,8 +1,8 @@
 # Language (GQL)
 
-GQL provides finite graph matching, scalar filtering, insertion, deletion, and catalog discovery.
+GQL provides finite graph matching, scalar filtering, insertion, property/label updates, deletion, and catalog discovery.
 
-> **Status:** Partial. Implements a bounded ISO GQL subset with documented Cohesion extensions.
+> **Status:** Partial. Executes 26 of 33 declared clauses in a bounded ISO GQL subset with Cohesion extensions.
 
 This reference describes the executable Cohesion subset of ISO/IEC 39075:2024.
 `INSERT` is the graph-insertion verb; `CREATE` is a compatibility extension and `SHOW` is a
@@ -31,6 +31,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
 | [ORDER BY](clauses/order-by.md) | Supported | Expression keys, ASC/ASCENDING/DESC/DESCENDING, NULLS FIRST/LAST and stable ties |
 | [OFFSET/SKIP and LIMIT](clauses/limit-offset.md) | Supported | Output paging after RETURN; offset precedes limit |
+| [SET](clauses/set.md), [REMOVE](clauses/remove.md) | Supported | Scalar property replacement/merge and node label changes with affected counts |
 | `INSERT` | Supported | Node/path insertion with row-evaluated scalar properties, optionally after matching or value stages |
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |

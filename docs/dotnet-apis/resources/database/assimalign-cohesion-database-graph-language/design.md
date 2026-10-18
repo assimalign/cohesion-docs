@@ -297,6 +297,16 @@ signatures, aliases, strict NULL behavior, exact numeric types, zero-based code-
 and the difference between SQL CAST and Neo4j conversions. CURRENT_DATE/CURRENT_TIMESTAMP are
 reserved niladic names; CAST is contextual. ELEMENTS remains COHDBL001.
 
+## SET and REMOVE
+
+[GqlSetStage](gql-set-stage.md)/[GqlRemoveStage](gql-remove-stage.md) retain source-ordered items;
+GqlQueryExpression.SetItems/RemoveItems flatten them for inspection. The parser accepts IS or
+colon labels, property assignment and literal-map replacement/merge. Touching += is a GQL-only
+operator token. Scalar right sides retain IS [NOT] LABELED. Leading SET/REMOVE and nested targets
+are GQL0002. Whole-map expressions/parameters and literal composite properties are COHDBL001;
+relationship labels and computed composite properties are COHDBG003. No new code is introduced.
+The profile executes 26 of 33 declared clauses.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.

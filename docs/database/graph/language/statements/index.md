@@ -21,6 +21,9 @@ statement and cannot be combined with graph matching, projection, or mutation.
 
 - **[EXPLAIN](explain.md)** — Return a chosen plan without executing it.
 
+[SET](../clauses/set.md) and [REMOVE](../clauses/remove.md) execute as source-ordered stages after
+an incoming clause, with optional RETURN. They are not standalone leading statements.
+
 ## See also
 
 - **[Language (GQL)](../index.md)** — reference hub.

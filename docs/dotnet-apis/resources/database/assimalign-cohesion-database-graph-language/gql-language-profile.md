@@ -41,6 +41,10 @@ Console.WriteLine(parsed.Diagnostics.Count); // 0
 
 The RETURN executes as one Int64 value, 1.
 
+GqlClauses.Set and GqlClauses.Remove are enabled, bringing execution to 26 of 33 declared clauses.
+They admit property/map/label updates through [GqlSetStage](gql-set-stage.md) and
+[GqlRemoveStage](gql-remove-stage.md); MERGE remains COHDBL001.
+
 ## Related reference
 
 [Assembly](index.md) · [GqlCaseExpression](gql-case-expression.md) · [GqlCoalesceExpression](gql-coalesce-expression.md) · [GqlNullIfExpression](gql-null-if-expression.md) · [Design](design.md)

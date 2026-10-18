@@ -17,13 +17,14 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Standalone ordering and paging | Recognized, not supported (`COHDBL001`) | `MATCH (a) ORDER BY a.age RETURN a`; ordering/paging after RETURN executes |
 | FOR ordinality/offset suffixes | Recognized, not supported (`COHDBL001`) | `FOR x IN xs WITH ORDINALITY i`, `WITH OFFSET i`; [FOR/UNWIND](clauses/for.md) executes |
 | NEXT YIELD and FOREACH | Recognized, not supported (`COHDBL001`) | [RETURN … NEXT](clauses/next.md) and [WITH](clauses/with.md) execute |
-| Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
+| Merge statement | Recognized, not supported (`COHDBL001`) | MERGE, including ON CREATE SET and ON MATCH SET; [SET](clauses/set.md)/[REMOVE](clauses/remove.md) stages execute |
+| Whole-map parameter/expression assignment | Recognized, not supported (`COHDBL001`) | SET n = $p, SET n += properties(other); literal whole maps execute |
 | Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |
 | Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `ELEMENTS()`, temporal constructors, `LOG10`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
 | HAVING | Recognized, not supported (`COHDBL001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
 | Questioned paths, nested quantifiers and subpath assignments/WHERE | Recognized, not supported (`COHDBL001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute |
-| Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE stored properties stay scalar-only |
+| Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE/SET stored properties stay scalar-only |
 | List/pattern comprehensions and slicing | Recognized, not supported (`COHDBL001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`COHDBL001`) | `CALL` |
