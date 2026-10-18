@@ -13,7 +13,7 @@ public sealed class OqlExplainExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Parser-created wrapper around SELECT or INSERT. It has no public constructor. Statement retains the
+Parser-created wrapper around SELECT, INSERT or DELETE. It has no public constructor. Statement retains the
 wrapped AST; planning validates it and returns DatabasePlanDescription without data execution. DDL,
 nested EXPLAIN and ANALYZE report COHDBL001. Parsing returns diagnostics; executing a malformed
 request throws DatabaseParseException before planning.

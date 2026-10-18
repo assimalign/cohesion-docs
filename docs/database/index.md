@@ -24,7 +24,7 @@ typed client carry the same bounded surface over a model-owned wire family.
 ## Document
 
 The Document model stores versioned JSON documents in collections. Its OQL SQL++ subset
-supports MISSING-aware queries, INSERT, EXPLAIN and transactional collection/index definitions. Collection operations
+supports MISSING-aware queries, INSERT, DELETE, EXPLAIN and transactional collection/index definitions. Collection operations
 use database-bound sessions and the shared transaction and storage components.
 
 ## Graph

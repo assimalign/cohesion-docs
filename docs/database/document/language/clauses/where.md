@@ -19,6 +19,8 @@ MISSING before NULL. Equality includes structural values; ordering requires matc
 [IN, BETWEEN, LIKE ESCAPE](../expressions/operators.md), [CASE](../expressions/case.md), arithmetic,
 Boolean operators and [parameters](../expressions/parameters.md) execute in predicates. Applicable
 path equality/range bounds can seek an index; the complete predicate is reapplied to candidates.
+The same filter and access selection applies to [DELETE](../statements/delete.md), which collects
+all matching snapshot identities before deleting. Its NULL/MISSING predicates delete nothing.
 
 ## Examples
 

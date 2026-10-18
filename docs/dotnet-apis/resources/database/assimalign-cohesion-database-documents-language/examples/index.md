@@ -24,6 +24,10 @@ The public AST pages show constructors for [IN](../oql-in-expression.md),
 [OqlSelectExpression](../oql-select-expression.md#example) inspects DISTINCT VALUE/RAW flags;
 [OqlArrayExpression](../oql-array-expression.md#example) inspects nested constructor elements.
 
+[OqlDeleteExpression](../oql-delete-expression.md#example) executes a parameterized metadata delete;
+the [DELETE fixture](../../../../../database/document/language/statements/delete.md#examples)
+compares indexed and scanned filtering and demonstrates zero/all-document counts.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.

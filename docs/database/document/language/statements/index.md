@@ -1,12 +1,13 @@
 # Statements
 
-OQL accepts one SQL++ query, data insertion, collection definition or index statement per parse.
+OQL accepts one SQL++ query, data insertion/deletion, collection definition or index statement per parse.
 
 ## Statements
 
 - **Create a collection** — [CREATE COLLECTION](create-collection.md).
 - **Remove a collection** — [DROP COLLECTION](drop-collection.md).
 - **Insert documents** — [INSERT](insert.md), from VALUES or SELECT.
+- **Delete documents** — [DELETE](delete.md), with an optional predicate and affected count.
 - **Inspect a plan** — [EXPLAIN](explain.md), without execution.
 - **Query documents** — [SELECT](select.md) projects and filters one collection.
 - **Create an index** — [CREATE INDEX](create-index.md) builds a nonunique path index.

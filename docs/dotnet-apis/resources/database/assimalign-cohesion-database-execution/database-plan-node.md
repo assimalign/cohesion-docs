@@ -34,6 +34,7 @@ SQL derived inputs add DerivedTable with a child query plan. OQL VALUE/RAW uses 
 for ungrouped projection, with Distinct above projection/Group when requested. GQL adds ordered
 Match/OptionalMatch nodes; OptionalMatch detail names newly nullable variables and its filter and
 matches-nothing flags. These descriptions explain planning without executing the constructs.
+OQL DELETE adds a Delete root and its CollectionScan/IndexSeek child, with filter/access detail.
 
 ## Example
 

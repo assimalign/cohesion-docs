@@ -29,6 +29,8 @@ try {
 }
 var plan = await connection.QueryAsync("EXPLAIN SELECT name FROM items");
 Console.WriteLine(plan.Columns.Count); // 8; the explained SELECT was not executed
+long removed = await connection.ExecuteAsync("DELETE FROM items WHERE META().id = 'a'");
+Console.WriteLine(removed); // 1; items and any index definitions remain
 ```
 
 Start with an empty/new collection for the first run. CRUD retains bytes/versions; use PutAsync

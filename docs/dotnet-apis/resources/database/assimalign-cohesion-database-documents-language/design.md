@@ -6,7 +6,7 @@ OQL parses the Documents engine's executable SQL++ subset into typed statements 
 
 The shared lexer/parser infrastructure owns tokenization, diagnostics and source locations. OQL
 partial parsers own dispatch, SELECT, DDL, DML and expressions. OqlQueryStatement wraps one SELECT,
-INSERT, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
+INSERT, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
 public constructors retain child references and semantic validation belongs to the engine.
 
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
@@ -48,10 +48,16 @@ Flatten were removed without compatibility aliases. UNDEFINED is reserved and ne
 
 ## Statements and validation
 
+[OqlDeleteExpression](oql-delete-expression.md) retains Collection, Alias, Predicate and Location;
+the public constructor stores arguments and a null predicate selects all documents. OqlClauses.Delete
+is `DELETE`. The engine applies SELECT's parameter/metadata/filter validation without aggregates,
+chooses the existing scan/seek, collects snapshot identities before writes and deletes atomically.
+EXPLAIN DELETE describes a Delete root and its access child without data execution.
+
 CREATE/DROP COLLECTION retain conditional flags and use the same transactional core as session
 methods. INSERT retains VALUES pairs or SELECT and output names for keys/values. The planner
 validates every branch and parameter even when CASE/logic would skip it at runtime. EXPLAIN wraps
-SELECT/INSERT, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
+SELECT/INSERT/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
 [Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–015

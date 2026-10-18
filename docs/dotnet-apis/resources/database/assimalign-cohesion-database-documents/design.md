@@ -126,16 +126,16 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation with COHDOC004. OQL INSERT executes for stored collections;
-UPDATE and DELETE remain COHDBL001. Virtual sources do not provide
+catalog lookup or mutation with COHDOC004. OQL INSERT and DELETE execute for stored collections;
+UPDATE remains COHDBL001. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, INSERT, EXPLAIN, collection and index DDL execute. Nested queries,
-UPDATE/DELETE and database administration statements are rejected with
+GROUP BY, HAVING, ORDER BY, INSERT, DELETE, EXPLAIN, collection and index DDL execute. Nested queries,
+UPDATE and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
 
@@ -224,6 +224,16 @@ Put captures caller memory before awaiting and returns a new version. An optiona
 must match an existing visible document; mismatch fails. Versions use the durable kernel sequence
 allocator, are strictly increasing for successful writes, and may have gaps. `Delete`/reinsert and
 restart never reuse an old version.
+
+[OQL DELETE](../../../../database/document/language/statements/delete.md) chooses the same scan/seek
+as a SELECT filter, reapplies its full predicate and collects matching snapshot identities before
+the first write. META remains a residual filter. The shared delete primitive checks writer and
+snapshot conflicts, tombstones content and removes catalog/index entries in one transaction.
+Rollback restores both documents and index visibility; older snapshots can still read deleted
+documents. A later conflict rolls back earlier deletions; failure in an explicit transaction aborts
+all its work. No WHERE deletes every document while retaining the collection and index definitions.
+Schema ownership permits content deletion, system sources use COHDOC004 and absent targets COHDOC002.
+Success reports deleted count with no Document frames. No format or protocol version changes.
 
 Nested objects, arrays, and scalar roots are accepted. JSON validation and exact byte-preservation
 rules are specified in the

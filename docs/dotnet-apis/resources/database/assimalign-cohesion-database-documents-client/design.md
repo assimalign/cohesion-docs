@@ -31,12 +31,17 @@ for bare rows returns JSON, including quoted strings and `null`; lone star prese
 bytes. Named strings use unquoted UTF-8 and named NULL/MISSING uses empty memory. SELECT constructors
 execute to 256 levels (`COHDOC015`); DISTINCT ordering outside the projection uses `COHDOC014`.
 
-ExecuteAsync returns affected count: inserted document count, zero for DDL, -1 for reads. Collection
+ExecuteAsync returns affected count: inserted/deleted document count, zero for DDL, -1 for reads. Collection
 operations return names; server-side session-bound collection handles do not cross the wire.
 Get returns null for absence, Put returns the new version, Delete returns whether a document was
 removed. Expected-version checks retain engine semantics. OQL INSERT is insert-only.
 
 ## Failures and connection reuse
+
+OQL DELETE reports deleted count through Complete, with no Document frames. QueryAsync returns
+empty rows/Columns/Documents with AffectedCount set; ExecuteAsync returns the count. Predicate
+validation and coded failures retain the existing Failure/reuse contract, including a read-only
+system-target refusal followed by a successful zero-match DELETE on the same rental.
 
 Model Failure (72) terminates a rejected statement without Complete, including after partial rows.
 The client discards accumulated results and throws DocumentClientException, preserving the protocol

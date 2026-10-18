@@ -10,6 +10,8 @@ DROP COLLECTION [ IF EXISTS ] collection_name [ ; ]
 
 ## Remarks
 
+Use [DELETE](delete.md) to remove documents while retaining the collection and its index definitions.
+
 Names are case-sensitive and local to the session database. Success reports affected count zero. IF
 EXISTS ignores an absent collection; it does not permit dropping a schema-owned collection. The
 operation uses the same core as the session API and participates in an explicit transaction or an

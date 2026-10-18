@@ -32,7 +32,7 @@ public sealed class DocumentConnection : IAsyncDisposable
 ## Behavior and exceptions
 
 QueryAsync materializes rows or whole documents; ExecuteAsync returns the affected count (-1 for
-queries, zero for DDL, inserted count for INSERT). Parameters follow case-sensitive bare-name
+queries, zero for DDL, inserted/deleted count for INSERT/DELETE). Parameters follow case-sensitive bare-name
 binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes before
 their first await. Get returns null when absent; Put replaces/upserts and returns a new version;
 Delete returns whether a document existed. Expected versions must match visible content. Collection

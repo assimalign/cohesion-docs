@@ -42,7 +42,8 @@ Documents transaction rule. Success reports the number inserted.
 | `COHDOC008` | Invalid/non-string/blank key, MISSING whole value or invalid JSON |
 | `COHDOC012` | Duplicate document key |
 
-RETURNING, UPSERT, UPDATE and DELETE remain outside OQL's executable statements.
+RETURNING, UPSERT and UPDATE remain outside OQL's executable statements.
+[DELETE](delete.md) removes matching documents through the same transaction pipeline.
 
 ## Examples
 

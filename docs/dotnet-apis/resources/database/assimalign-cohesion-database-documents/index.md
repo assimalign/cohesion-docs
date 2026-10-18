@@ -22,7 +22,7 @@
 
 `Assimalign.Cohesion.Database.Documents` implements named logical databases containing versioned
 UTF-8 JSON documents. Each session is bound to one database. The engine supports document CRUD, an
-OQL SQL++ query, INSERT, EXPLAIN and collection/index DDL subset, secondary B+Tree indexes, snapshot and read-committed
+OQL SQL++ query, INSERT, DELETE, EXPLAIN and collection/index DDL subset, secondary B+Tree indexes, snapshot and read-committed
 transactions, and durable file or in-memory storage.
 
 The public entry point is `DocumentDatabaseEngine.Create(name, options)`. Cast a created database to
