@@ -1,6 +1,6 @@
 # Parameters
 
-Binds runtime scalar values in GQL WHERE, RETURN and node/relationship property maps.
+Binds runtime scalar, list and map values in GQL WHERE, RETURN and node/relationship property maps.
 
 ## Syntax
 
@@ -29,9 +29,17 @@ retains its [promotion table](operators.md#arithmetic-and-concatenation).
 | --- | --- |
 | COHDBG014 | Normalized caller keys collide, including unused keys |
 | COHDBG001 | Referenced binding missing; fails planning before reads or writer locks |
-| COHDBG003 | Referenced value has unsupported type or is non-finite; list/map values excluded |
+| COHDBG003 | Invalid referenced tree: unsupported/non-finite leaf, cycle, dimensions or value bounds; composites in stored pattern properties |
 | GQL0002 | Malformed reference, bare sigil, identifier/DELETE-position parameter |
 | COHDBL001 | $$name or a whole property-map parameter |
+
+[List and map parameters](list-values.md) accept IList (except byte[] binary scalars) and
+IReadOnlyDictionary<string, object?>. Arrays must be zero-based and one-dimensional. Referenced
+trees snapshot once per execution and obey depth 64, 65,536 total values including root, and
+16 MiB encoded bytes. Unused values remain ignored by engine planning. The wire client encodes
+supplied values before sending; graph.composite-values must be negotiated under protocol 2.1.
+Without it, the client refuses composite parameters locally with ExecutionFailure and keeps the
+connection reusable. Stored MATCH/INSERT/CREATE properties remain scalar-only.
 
 EXPLAIN performs the same validation. A pre-output terminal path refusal keeps the wire connection
 usable; unfinished output/cancellation follows the normal discard rule. A failed statement in an

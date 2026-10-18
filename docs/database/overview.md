@@ -173,7 +173,9 @@ startup and remains fixed for the session.
 SQL and GQL negotiate Warning/Error diagnostics; Documents uses its own Failure frame.
 [EXPLAIN](sql/language/statements/explain.md) across all three languages returns one eight-column
 plan shape without executing data statements. DocumentClient serves OQL and document/collection
-operations; GraphPathResult exposes warnings at path completion.
+operations; GraphPathResult exposes warnings at path completion. Graph additionally negotiates
+[graph.composite-values](graph/language/expressions/list-values.md#limits-and-wire-capability)
+for bounded list/map parameters and results, without changing Path payloads.
 
 ## MVP boundaries
 

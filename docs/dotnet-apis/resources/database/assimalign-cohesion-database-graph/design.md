@@ -286,9 +286,10 @@ not included.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Scalar value error: non-Boolean condition, invalid arithmetic/concatenation, zero divisor, overflow or non-finite result |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result or constructed value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
+| `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
 Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
@@ -313,18 +314,36 @@ compiled-schema provisioning remain out of scope. The graph server uses the shar
 rather than adding graph-specific authentication contracts. No reflection or runtime code
 generation is used.
 
+## Composite values and wire framing
+
+[GraphValueCodec](graph-value-codec.md) is public in Graph and shared with its client through the
+existing reference. graph.composite-values adds no message type or protocol version. Negotiated
+Execute/ExecutePaths parameters use its components, including scalar parameters. Result column
+bit 7 marks possible composites. Marked cells use tag 0 plus a scalar component or tag 1 plus a
+little-endian length and GraphValueCodec component; unsigned scalars use the latter. Unmarked
+scalar columns keep their baseline bytes and avoid a preflight pass. Query metadata stays unknown.
+
+Values allow depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes, counting UTF-8,
+escaping and framing. A row also fits 16 MiB. Invalid referenced trees fail planning with COHDBG003;
+constructors enforce bounds during evaluation inside the transaction with COHDBG013. Header sizes
+check before locks and row sizes before commit, so a refused result leaves no statement writes
+committed. Possible composite results without negotiation fail COHDBG016 statically before data
+access, including skipped branches and empty matches. Stored properties/index keys stay scalar;
+there is no catalog/storage format change. Path frames and GraphPathResult are unchanged.
+
 ## Graph wire family
 
 `GraphProtocol.Family` fixes the graph vocabulary for an accepted connection. Shared
 `ProtocolChannel` handles framing and validates every type against the bound family; Graph owns all
 request/result payloads. The endpoint selects Graph before startup. No model discriminator is added
 to startup, and a connection or client pool cannot change families. Other endpoints may use the same
-model-scoped bytes for other meanings; shared codes 1–4 and 10–13 retain their meanings and 14–63
-remain reserved. Bytes 5–9 retain Graph's deployed catalog exchange. The path extension uses 64–66.
+model-scoped bytes for other meanings; shared codes 1–4 and 10–13 retain their meanings.
+Diagnostics uses shared byte 14; 15–63 remain reserved. Bytes 5–9 retain Graph's deployed catalog exchange. The path extension uses 64–66.
 This follows the shared lexer/parser and per-model grammar precedent.
 
-Current startup negotiates shared protocol **2.1** and optional structured diagnostics. Model
-result/Error payloads retain their baseline encoding. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
+Current startup negotiates shared protocol **2.1**, optional structured diagnostics and
+[graph.composite-values](graph-protocol.md). Without composite negotiation, result/parameter
+payloads retain baseline encoding. Error payloads remain unchanged. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
 chooses the smaller server/requested minor. The wire envelope is unsigned 32-bit big-endian payload
 length, one type byte, then the payload. The length excludes the five-byte header and cannot exceed
 16,777,216. Integers below are big-endian. A string is a nonnegative signed `int32` UTF-8 byte
@@ -333,15 +352,15 @@ length followed by those bytes. There is no padding.
 | Byte | Direction | Payload |
 | --- | --- | --- |
 | 5 (`Execute`) | Client → server | GQL string; `int32` parameter count; repeated parameter-name string, `int32` encoded-value byte length, value bytes |
-| 6 (`ResultHeader`) | Server → client | `int32` column count; repeated column-name string and one `DatabaseType` byte |
-| 7 (`ResultRow`) | Server → client | Concatenated self-describing scalar tuple components, exactly one per declared column |
+| 6 (`ResultHeader`) | Server → client | `int32` column count; repeated name string and type byte: DatabaseType in bits 0–6, negotiated composite-column flag in bit 7 |
+| 7 (`ResultRow`) | Server → client | One value per column: unmarked scalar component; marked tag 0 plus scalar, or tag 1 plus little-endian Int32 length and GraphValueCodec component |
 | 8 (`ResultComplete`) | Server → client | `int64` affected count; -1 for a result set |
 | 9 (`Transaction`) | Client → server | Reserved legacy identifier; server rejects it with `ProtocolViolation` |
 | 64 (`ExecutePaths`) | Client → server | The same GQL/parameter payload as byte 5, requesting path-shaped results |
 | 65 (`Path`) | Server → client | Ordered node and relationship sequences in the format below |
 | 66 (`PathsComplete`) | Server → client | Exactly eight bytes: nonnegative `int64` count of Path frames in this exchange |
 
-Catalog parameters and tuples retain `DatabaseValueCodec` encoding; the precise scalar tags,
+Without graph.composite-values, parameters and tuples retain `DatabaseValueCodec` encoding; the precise scalar tags,
 numeric transforms and variable-length escaping are specified in the unchanged SQL scalar wire
 encoding (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`).
 The catalog response is Header, zero or more Row frames, Complete; command responses may have only
@@ -535,7 +554,7 @@ framing, handshake and model messages are unchanged.
 
 WHERE and RETURN execute the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
 with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE, RETURN and property maps,
-preserving runtime scalars; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
+preserving runtime scalar/list/map values; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
 binding and provisioning checks, then returns DatabasePlanDescription without executing writes.
 
 RETURN accepts computed/aliased expressions, DISTINCT/ALL, named-binding star and standalone
@@ -548,7 +567,7 @@ for floating operands, otherwise Decimal for decimal/ulong, otherwise checked In
 and DISTINCT use exact values as described above.
 
 Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execute checks planned
-result kinds before data reads, writer locks or mutation and rejects non-scalar columns with
+result kinds before data reads, writer locks or mutation and rejects possible entity-valued columns with
 COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
 Path requests require one bare bound entity/path from read-only MATCH, including DISTINCT or
 star over one binding; invalid shapes use COHDBG001 before duplicate-name validation. A binding

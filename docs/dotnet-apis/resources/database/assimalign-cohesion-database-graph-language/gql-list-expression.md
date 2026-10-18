@@ -14,9 +14,13 @@ public sealed class GqlListExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Copies Items into a read-only list in source order. The list executes only as IN's right operand. A
-null list, null item or use outside IN is rejected by the planner with COHDBG001. An empty IN list
-is valid and yields FALSE even for NULL.
+Copies Items into a read-only list in source order. Lists execute in every value position and
+materialize as object?[], including nested lists/maps and NULL elements. The constructor defers
+semantic validation; null Items or a missing item expression fails planning with COHDBG001.
+An empty IN list yields FALSE even for NULL. Evaluated bounds use COHDBG013 inside the statement
+transaction, rolling back writes. See [list values](../../../../database/graph/language/expressions/list-values.md)
+for comparison, depth/count/byte limits and the negotiated graph.composite-values capability.
+A possible composite wire result without negotiation uses COHDBG016 before reads/writes.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

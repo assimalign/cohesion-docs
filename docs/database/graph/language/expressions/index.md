@@ -5,12 +5,18 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 > **Status:** Implemented.
 
 - **[Operators](operators.md)** — Boolean, arithmetic, null/truth, membership and string predicates.
-- **[Parameters](parameters.md)** — runtime scalar bindings in maps, WHERE and RETURN.
+- **[Parameters](parameters.md)** — runtime scalar, list and map bindings in maps, WHERE and RETURN.
 - **[Literals](literals.md)** — null, Boolean, integer, floating-point, and string values.
 
-WHERE and RETURN accept literals, parameters, bound variables and one-level properties in value
-expressions. Lists are restricted to IN's right operand. The builtin
-function table is empty; function calls and nested property access remain unsupported.
+- **[CASE](case.md)** — searched/simple forms, ISO when-operand lists and lazy result selection.
+- **[COALESCE](coalesce.md)** — first non-NULL value, evaluated left to right.
+- **[NULLIF](nullif.md)** — NULL for TRUE equality, otherwise the first value.
+- **[List values](list-values.md)** — ordered constructors, membership, comparison and value limits.
+- **[Map values](map-values.md)** — ordinal named entries with nested values.
+- **[Subscripts and property access](property-access.md)** — list indexes, map fields and entity properties.
+
+WHERE and RETURN accept these value expressions. The builtin function table remains empty;
+COALESCE/NULLIF are case abbreviations. Other function calls remain unsupported.
 
 ## See also
 

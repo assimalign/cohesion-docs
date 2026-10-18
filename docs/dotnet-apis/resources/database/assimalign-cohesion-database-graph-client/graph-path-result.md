@@ -35,6 +35,11 @@ even when every actual row would match; a mandatory clause must bind or constrai
 `OPTIONAL MATCH (n:Person) RETURN n` is refused, while
 `MATCH (n:Person) OPTIONAL MATCH (n)-[:KNOWS]->(b) RETURN n` can stream n paths.
 
+Protocol 2.1's graph.composite-values capability changes parameter encoding for path requests,
+including list-valued WHERE parameters, without changing Path payloads or this result type.
+For example, MATCH (n:P) WHERE n.k IN $xs RETURN n can stream paths with a list parameter.
+See [GraphConnection](graph-connection.md) for parameter limits and local capability failures.
+
 ## Example
 
 ```csharp

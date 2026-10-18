@@ -7,9 +7,9 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public sealed class GqlInExpression : GqlExpression
 {
-    public GqlInExpression(GqlExpression operand, GqlListExpression list, Location? location = null);
+    public GqlInExpression(GqlExpression operand, GqlExpression list, Location? location = null);
     public GqlExpression Operand { get; }
-    public GqlListExpression List { get; }
+    public GqlExpression List { get; }
 }
 ```
 
@@ -17,7 +17,9 @@ public sealed class GqlInExpression : GqlExpression
 
 Operand tests membership in List. All list items evaluate before membership, so later errors still
 fail with COHDBG013. A match wins, otherwise NULL operand/item yields unknown; empty-list IN is
-FALSE. Malformed AST operands/list shapes fail COHDBG001.
+FALSE. List is now any GqlExpression, a breaking API change: parameters, constructors and other
+list-valued expressions execute. A NULL list yields NULL, a non-list runtime value COHDBG013.
+Missing AST expressions fail planning with COHDBG001.
 Numeric membership compares exact represented values across runtime types, agreeing with
 comparison operators and RETURN DISTINCT: `1L` matches `1d`, while `0.1m` does not match `0.1d`.
 These are .NET value spellings. NULL membership follows the rules above; DISTINCT groups NULLs.
@@ -31,7 +33,7 @@ before execution. Constructor acceptance alone does not establish a valid execut
 ```csharp
 var node = new GqlInExpression(new GqlLiteralExpression(1L),
     new GqlListExpression([new GqlLiteralExpression(1L)]));
-Console.WriteLine(node.List.Items.Count); // 1
+Console.WriteLine(((GqlListExpression)node.List).Items.Count); // 1
 ```
 
 ## Related reference

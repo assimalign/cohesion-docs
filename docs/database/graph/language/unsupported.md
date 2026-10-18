@@ -1,6 +1,8 @@
 # Unsupported GQL features
 
 The executable GQL subset rejects recognized features outside its bounded profile.
+[CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md),
+[list/map values](expressions/list-values.md) and [subscripts/member access](expressions/property-access.md) execute.
 
 > **Status:** Partial. This matrix records the current executable profile and delivery limits.
 
@@ -19,14 +21,15 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Functions and aggregation | Recognized, not supported (`COHDBL001`) | `count(a)`, `abs(a.age)` |
 | Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
 | Quantified paths | Recognized, not supported (`COHDBL001`) | `[r*1..3]`, `->{1,3}` |
-| Collection values outside IN | Recognized, not supported (`COHDBL001`) | List/map parameters and nested maps |
+| Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE stored properties stay scalar-only |
+| List/pattern comprehensions and slicing | Recognized, not supported (`COHDBL001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |
 | Procedure calls and unwinding | Recognized, not supported (`COHDBL001`) | `CALL`, `UNWIND` |
 | Server, database, graph, or schema selection | Recognized, not supported (`COHDBL001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
 | Transaction statements | Recognized, not supported (`COHDBL001`) | `BEGIN TRANSACTION`, `COMMIT` |
 | Cypher doubled-dash arrows | Rejected (`GQL0008` or `GQL0002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |
 | Tilde edge forms | Recognized, not supported (`COHDBL001`) | Only directed stored relationships, matched in either orientation where requested |
-| Nested property references | Not in the language | More than one property-access step |
+| Direct stored-property chain | Recognized, not supported (`COHDBL001`) | `a.b.c`; nested map member access executes |
 | Multiple statements in a request | Not in the language | Two statements separated by semicolons |
 | Catalog filtering or projection | Not in the language | `SHOW LABELS RETURN label` |
 | Catalog mutation composition | Not in the language | `SHOW LABELS DELETE n` produces `GQL0007` |
@@ -44,10 +47,10 @@ GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path
 ExecutePaths accepts one bare node, relationship or path binding from read-only MATCH, including
 DISTINCT or star over one named binding. Computed, multiple and multi-binding star projections
 report COHDBG001. A path binding supplied only by optional clauses also reports COHDBG001 during
-planning; a mandatory clause must bind or constrain it. Execute accepts statically scalar columns; entity results report COHDBG001 with
+planning; a mandatory clause must bind or constrain it. Execute accepts scalar and negotiated composite columns; entity results report COHDBG001 with
 the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
 EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
-materialized scalar results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
+materialized scalar/list/map results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
 star and standalone evaluation execute. Function calls, LIKE, BETWEEN, EXISTS and quantified
 predicates remain excluded; [value expressions](expressions/operators.md) run in WHERE and RETURN.
 

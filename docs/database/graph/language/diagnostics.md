@@ -14,7 +14,7 @@ GQL reports stable capability, syntax, planning, and execution diagnostics.
 | `GQL0003` | Unterminated string, quoted name, or block comment |
 | `GQL0004` | Invalid or out-of-range numeric literal |
 | `GQL0005` | 64-relationship pattern bound exceeded |
-| `GQL0006` | Duplicate literal property key |
+| `GQL0006` | Duplicate literal property or map-constructor key |
 | `GQL0007` | `Graph catalog introspection is read-only.` |
 | `GQL0008` | Cypher bare arrow after a pattern element conflicts with GQL comment syntax |
 | `GQL0009` | Parsing thread has insufficient stack for nested expressions; engine reports COHDBG008 |
@@ -43,9 +43,10 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Scalar value error: non-Boolean condition, invalid arithmetic/concatenation, zero divisor, overflow or non-finite result |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result or constructed value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
+| `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 
 Planner rejections carry stable codes in `DatabaseException.Diagnostics`, with available source
 spans and code-free messages. Diagnostics is never null; located entries sort by start offset before
@@ -71,6 +72,15 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
 | Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
 | Candidate examinations | 1,000,000 per statement | `COHDBG004` |
+| Composite value depth (root zero) | 64 | Parameter COHDBG003; constructed COHDBG013 |
+| Total values per value, including root | 65,536 | Parameter COHDBG003; constructed COHDBG013 |
+| Encoded value or result-row bytes | 16,777,216 | Parameter COHDBG003; constructed/row COHDBG013 |
+
+Referenced parameter trees snapshot before reads/writes; invalid dimensions, cycles and unsupported
+or non-finite leaves use COHDBG003. Constructed bounds check during evaluation inside the statement
+transaction, before commit. A refused result rolls back its writes. Invalid containers/indexes use
+COHDBG013. [Value limits](expressions/list-values.md#limits-and-wire-capability) include UTF-8,
+escaping and framing. Malformed composite wire components use ProtocolViolation.
 
 ## Negotiated wire diagnostics
 

@@ -27,3 +27,10 @@ star, duplicate-name diagnostics and the pre-write scalar gate, checked against 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/OVERVIEW.md`.
+
+## Conditional and composite values
+
+[GraphRow](../graph-row.md#example) reads a nested map/list result, preserving Decimal and NULL.
+[GraphConnection](../graph-connection.md) covers negotiation and pre-send parameter failures;
+[GraphPathResult](../graph-path-result.md) retains path completion behavior with list-valued filters.
+These follow GraphCompositeWireTests.

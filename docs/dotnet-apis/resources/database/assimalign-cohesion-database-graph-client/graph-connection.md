@@ -15,20 +15,29 @@ public GraphPathResult QueryPathsAsync(string statement,
 
 ## Behavior and exceptions
 
-One authenticated rental runs one active exchange. QueryAsync materializes scalar/SHOW/EXPLAIN rows;
+One authenticated rental runs one active exchange. QueryAsync materializes value/SHOW/EXPLAIN rows;
 ExecuteAsync returns affected entity count (-1 for rows). QueryPathsAsync streams one bound path,
-node or relationship from read-only MATCH. Parameters preserve runtime scalar types and bind
+node or relationship from read-only MATCH. Parameters preserve runtime scalar, list and map types and bind
 case-sensitive bare names in WHERE, RETURN and maps. Missing values, collisions and invalid types reach the
 same engine diagnostics (COHDBG001/014/003) as embedded requests.
 
 RETURN accepts standalone and computed/aliased scalar expressions and DISTINCT/ALL. QueryAsync
-and ExecuteAsync use wire Execute, which rejects any statically non-scalar result with COHDBG001
+and ExecuteAsync use wire Execute, which rejects possible entity-valued results with COHDBG001
 and an ExecutePaths direction before reads, writer locks or writes, including empty matches.
 EXPLAIN remains scalar for entity projections. Final column names must be unique ordinally;
 duplicates fail COHDBG015 before output or mutation, including implicit/explicit collisions and
 EXPLAIN (no SQLSTATE assigned). QueryPathsAsync accepts one bare entity/path binding from read-only
 MATCH, optionally DISTINCT, or star over one named binding. Invalid computed/multiple/star shapes
 use COHDBG001 before duplicate-name checks.
+
+Protocol 2.1 negotiates [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md).
+Lists decode as object?[]; maps as read-only ordinal dictionaries. Values permit depth 64,
+65,536 total values including root and 16 MiB encoded bytes; rows also fit 16 MiB. Without the
+capability, composite parameters throw GraphClientException with ExecutionFailure locally before
+sending; the rental stays reusable. Possible composite results fail with COHDBG016 before reads,
+locks or writes. Invalid/oversized parameter encoding throws DatabaseTypeException locally;
+server parameter validation uses COHDBG003. Constructed value/row limits use COHDBG013 before
+commit, rolling back statement writes. Stored pattern properties stay scalar-only.
 
 Blank statements throw ArgumentException; disposed rentals ObjectDisposedException; overlapping
 exchanges InvalidOperationException. Unfinished cancellation throws OperationCanceledException and

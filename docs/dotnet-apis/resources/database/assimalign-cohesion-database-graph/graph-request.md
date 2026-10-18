@@ -25,6 +25,12 @@ ignored. Parameters can occur in maps, WHERE and RETURN. [Row requests](graph-qu
 support standalone/computed projections and DISTINCT; [path requests](graph-paths-query-request.md)
 require one bare entity/path binding, including DISTINCT or star over one named binding.
 
+Referenced list/map parameter trees are snapshotted once per execution, with depth 64, 65,536
+values including root and 16 MiB encoded bytes. Invalid dimensions/cycles/leaves or bounds use
+COHDBG003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
+use [GraphValueCodec](graph-value-codec.md) only when graph.composite-values is negotiated;
+path payloads are unchanged. Unused values remain ignored by engine planning.
+
 ## Example
 
 ```csharp

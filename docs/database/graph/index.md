@@ -50,11 +50,17 @@ with `DatabaseObjectLockedException`.
 ## Delivery boundaries
 
 The embedded engine and GraphDatabaseServer execute the documented GQL subset. GraphClient rents
-database-bound connections for materialized scalar rows and single-use path streams. Parameters
-bind runtime scalars in maps, WHERE and RETURN. [RETURN](language/clauses/return.md) supports
+database-bound connections for materialized scalar/list/map rows and single-use path streams. Parameters
+bind runtime scalar, list and map values in expressions; stored pattern properties stay scalar-only. [RETURN](language/clauses/return.md) supports
 computed/aliased expressions, DISTINCT, star and standalone evaluation. Numeric comparisons,
 IN and DISTINCT agree on exact represented values; arithmetic keeps its own promotion.
-Wire Execute validates scalar result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics; path completion exposes
+[CASE](language/expressions/case.md), [COALESCE](language/expressions/coalesce.md),
+[NULLIF](language/expressions/nullif.md), [list/map values](language/expressions/list-values.md) and
+[subscripts/member access](language/expressions/property-access.md) execute. Wire Execute validates
+result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics and graph.composite-values;
+[GraphValueCodec](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-value-codec.md)
+provides the bounded value format. Constructed limits fail inside the statement transaction before
+commit. Path payloads stay unchanged; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
 Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.

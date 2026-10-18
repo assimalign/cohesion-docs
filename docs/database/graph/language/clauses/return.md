@@ -9,7 +9,7 @@ RETURN projects expressions or named graph bindings, with optional duplicate eli
 ```syntaxsql
 RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 
-<expression> ::= scalar_expression | bound_variable
+<expression> ::= value_expression | bound_variable
 ```
 
 ## Supported clauses
@@ -26,7 +26,8 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 ## Arguments
 
 - **`expression`** — a [value expression](../expressions/operators.md), including a literal,
-  parameter, one-level property, bound variable, arithmetic, concatenation, null/truth or labeled test.
+  parameter, property, bound variable, CASE/COALESCE/NULLIF, list/map constructor, subscript,
+  arithmetic, concatenation, null/truth or labeled test.
 - **`alias`** — an optional result-column name.
 - **`*`** — every named binding once, in first-declaration order.
 
@@ -56,11 +57,18 @@ A standalone RETURN evaluates once and returns one row. An empty MATCH returns z
 retaining result-column metadata. DISTINCT runs after insertion: it removes output duplicates
 without suppressing writes for matched bindings. No result-row ordering is promised.
 
+Lists and maps are [transient composite values](../expressions/list-values.md), including nested
+values. Equality is structural with UNKNOWN for corresponding NULLs unless a difference makes it
+FALSE; DISTINCT groups corresponding NULLs. CASE result branches preserve the selected runtime
+type without common-type coercion. Composite-capable wire columns require graph.composite-values,
+including skipped branches and empty matches. Evaluated bounds are checked before commit inside
+the statement transaction, so a rejected result rolls back writes.
+
 ### Embedded and wire results
 
 Embedded rows can expose GraphNode, GraphRelationship or GraphPath through DatabaseRow.GetValue.
 The wire Execute exchange, used by GraphConnection.QueryAsync and ExecuteAsync, permits only
-statically scalar result kinds. Entity projections fail before data access, writer locks or
+scalar and negotiated composite result kinds. Entity projections fail before data access, writer locks or
 mutation, even for empty matches; the error directs callers to ExecutePaths. Scalar expressions
 such as `a.age + 1` and `a = b` pass. EXPLAIN returns scalar plan rows even for entity projections.
 
@@ -75,7 +83,8 @@ multi-binding star projections fail the path-request shape check before duplicat
 | `COHDBG015` | Duplicate final column name at the second expression; fails planning before reads/writes, even on empty matches or under EXPLAIN |
 | `COHDBG001` | Unbound variable/parameter, invalid programmatic RETURN shape, invalid path-request projection, or entity result through wire Execute |
 | `COHDBG003` | Path property access, or unsupported/non-finite referenced parameter/programmatic AST literal |
-| `COHDBG013` | Evaluated scalar value error, including arithmetic overflow or zero divisor |
+| `COHDBG013` | Evaluated value/access error, arithmetic failure or constructed value/row limit |
+| `COHDBG016` | Possible composite wire result without negotiated graph.composite-values; before reads/writes, no SQLSTATE |
 | `GQL0002` | Malformed RETURN, mixing star/items, or star without a named binding |
 | `GQL0004` | Numeric text outside the signed Int64 or finite Double range |
 | `COHDBL001` | Functions, aggregation, map projection, or RETURN after deletion |
@@ -108,6 +117,9 @@ path through QueryPathsAsync; wire QueryAsync rejects it with COHDBG001 before r
 The second statement reports COHDBG015. `RETURN 1 AS x, 2 AS X` succeeds with `(1, 2)`.
 
 ## See also
+
+- **[CASE](../expressions/case.md)**, **[COALESCE](../expressions/coalesce.md)** and **[NULLIF](../expressions/nullif.md)** — conditional results.
+- **[List values](../expressions/list-values.md)** and **[Map values](../expressions/map-values.md)** — composition, comparison and limits.
 
 - **[Clauses](index.md)** — clause navigation.
 - **[RETURN statement composition](../statements/return.md)** — complete read syntax.

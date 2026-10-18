@@ -28,7 +28,7 @@ sequenceDiagram
     GraphConnection-->>App: GraphPath enumeration
 ```
 
-## Scalar completion
+## Value completion
 
 GraphExecuteExchange implements IDatabaseProtocolExchange and explicitly reports
 IsResponseComplete. A successful ResultComplete certifies completion. A ParseFailure or
@@ -36,7 +36,8 @@ ExecutionFailure received before any result header is the server's complete reje
 response, so the pool may reuse that session. A malformed response, truncated transport,
 cancellation, or error after result output cannot certify completion.
 
-Rows require exactly the advertised number of scalar components. Columns preserve wire names
+Rows require exactly the advertised number of column values. Negotiated marked columns use
+GraphValueCodec for composite/unsigned values; unmarked columns retain scalar tuple components. Columns preserve wire names
 and shared DatabaseType identities. The engine rejects duplicate final RETURN names with COHDBG015
 before reads, mutation or output, including implicit/explicit collisions and EXPLAIN; no SQLSTATE
 is assigned. First-column lookup remains for manually constructed duplicate metadata.
@@ -48,6 +49,25 @@ type. SHOW metadata retains its precisely declared catalog types.
 GraphClientException preserves the stable ProtocolErrorCode and inner failure. The typed
 connection does not translate error codes into connection health decisions: completion belongs
 to its exchange and pooling belongs to Database.Client.
+
+## Composite negotiation and limits
+
+[GraphProtocol.CompositeValues](../assimalign-cohesion-database-graph/graph-protocol.md) registers
+graph.composite-values under protocol 2.1 independently of diagnostics. With agreement, all request
+parameter components use the public [GraphValueCodec](../assimalign-cohesion-database-graph/graph-value-codec.md).
+Lists decode to object?[], maps to read-only ordinal dictionaries, preserving nested scalar types.
+Result header bit 7 marks possible composite columns and is removed from public GraphColumn.Type.
+Unmarked scalar cells keep baseline bytes. Marked cells accept scalar tag 0 or component tag 1
+with a little-endian byte length. Unsigned values use component tags to retain runtime types.
+
+Limits are depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes per value; rows fit
+16 MiB. Malformed components, flags, UTF-8, duplicate keys or exceeded wire bounds are protocol
+violations. Without agreement, composite parameters fail locally with GraphClientException /
+ExecutionFailure before a frame is sent and preserve reuse; invalid/oversized encoding throws
+DatabaseTypeException. Possible composite results use COHDBG016 before reads/writer locks/writes,
+including skipped arms and empty matches. Parameter validation uses COHDBG003; constructed values
+and row bounds fail COHDBG013 inside the statement transaction before commit. Statement writes
+roll back on a refused result. Stored property maps remain scalar-only. Path payloads are unchanged.
 
 ## Path lifetime
 
@@ -70,7 +90,7 @@ depends on the number of matched paths. A single path must fit the existing maxi
 
 ## Parameters and completion diagnostics
 
-Query/Execute/QueryPaths all accept scalar parameter maps. One leading sigil is stripped and
+Query/Execute/QueryPaths accept scalar, list and map parameters under negotiated graph.composite-values. One leading sigil is stripped and
 bare names compare ordinally; runtime types survive the codec. Planner failures preserve
 COHDBG001/003/014. [GraphConnection](graph-connection.md) documents the changed signatures.
 
@@ -93,8 +113,8 @@ ExecutePaths accepts exactly one bound path, node, or relationship projection fr
 MATCH, including DISTINCT or star over one named binding. Computed, multiple and multi-binding
 star projections fail COHDBG001 before duplicate-name validation. A node becomes a singleton path; a relationship includes its stored-direction endpoints;
 a named path retains traversal order. Scalar or mixed projections and mutations are rejected,
-so no path is reconstructed from scalar results. Execute serves scalar projection rows and
-mutations. Its static scalar-kind gate rejects entity projections with COHDBG001 and directs callers
+so no path is reconstructed from row results. Execute serves scalar/negotiated-composite rows and
+mutations. Its static result-kind gate rejects entity projections with COHDBG001 and directs callers
 to ExecutePaths before data access, writer locks or mutation, even on empty matches.
 EXPLAIN descriptions remain scalar for entity RETURN.
 

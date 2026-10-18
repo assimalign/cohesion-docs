@@ -22,6 +22,13 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GqlUnaryExpression](gql-unary-expression.md)** — Scalar AST and validation.
 - **[GqlIsNullExpression](gql-is-null-expression.md)** — Scalar AST and validation.
 - **[GqlTruthTestExpression](gql-truth-test-expression.md)** — Scalar AST and validation.
+- **[GqlCaseAlternative](gql-case-alternative.md)** — Value expression shape and execution.
+- **[GqlCaseExpression](gql-case-expression.md)** — Value expression shape and execution.
+- **[GqlCoalesceExpression](gql-coalesce-expression.md)** — Value expression shape and execution.
+- **[GqlNullIfExpression](gql-null-if-expression.md)** — Value expression shape and execution.
+- **[GqlMapExpression](gql-map-expression.md)** — Value expression shape and execution.
+- **[GqlSubscriptExpression](gql-subscript-expression.md)** — Value expression shape and execution.
+- **[GqlMemberExpression](gql-member-expression.md)** — Value expression shape and execution.
 - **[GqlListExpression](gql-list-expression.md)** — Scalar AST and validation.
 - **[GqlInExpression](gql-in-expression.md)** — Scalar AST and validation.
 - **[GqlStringPredicateExpression](gql-string-predicate-expression.md)** — Scalar AST and validation.
@@ -36,7 +43,8 @@ The Graph engine consumes the AST for planning and execution in the session's bo
 See the [source-backed usage examples](examples/index.md).
 
 The supported surface is finite `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
-RETURN expressions/aliases, DISTINCT and star, standalone RETURN, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
+RETURN expressions/aliases, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
+DISTINCT and star, standalone RETURN, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.
 

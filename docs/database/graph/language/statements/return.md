@@ -26,7 +26,8 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 
 ## Arguments
 
-- **`expression`** — a scalar expression or bound node/relationship/path variable.
+- **`expression`** — a [value expression](../expressions/index.md), including CASE/COALESCE/NULLIF, lists/maps and access,
+  or a bound node/relationship/path variable.
 - **`alias`** — an optional result-column alias.
 
 ## Remarks

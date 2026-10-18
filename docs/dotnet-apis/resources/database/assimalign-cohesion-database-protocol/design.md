@@ -159,6 +159,10 @@ from an older endpoint means 2.0 with no capabilities. Different majors are refu
 Capability names are ordinal and append-only; model names are scoped with the
 lowercase endpoint family followed by a dot. The core owns `diagnostics` and frame 14.
 
+Graph also registers [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md),
+a payload extension under the same 2.1 negotiation with no new frame types. Diagnostics negotiates
+independently; baseline Graph scalar bytes remain when composites are not agreed.
+
 SQL and Graph register `ProtocolCapability.Diagnostics`. When agreed, one Diagnostics
 frame carries the bounded Warning/Error list immediately before Error on failure,
 or immediately before ResultComplete (PathsComplete for graph paths) on success.

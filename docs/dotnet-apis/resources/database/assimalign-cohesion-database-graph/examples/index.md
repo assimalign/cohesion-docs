@@ -16,3 +16,11 @@ examples require their original test project’s dependencies and supporting obj
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
+
+## Conditional and composite values
+
+[GraphValueCodec](../graph-value-codec.md#example) round-trips nested Decimal/unsigned values.
+[GraphProtocol](../graph-protocol.md#example) shows the capability request;
+[execute](../graph-protocol-execute-message.md#example) and [header](../graph-protocol-result-header-message.md#example)
+examples show the negotiated component/column formats. These follow GraphValueCodecTests and
+GraphCompositeWireTests.

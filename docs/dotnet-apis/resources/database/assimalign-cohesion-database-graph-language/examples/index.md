@@ -29,3 +29,11 @@ for their results and the bound-anchor measurement.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.
+
+## Conditional and composite values
+
+[GqlCaseExpression](../gql-case-expression.md) and [GqlCaseAlternative](../gql-case-alternative.md)
+show ordered simple/searched CASE construction. [COALESCE](../gql-coalesce-expression.md) and
+[NULLIF](../gql-null-if-expression.md) retain case-abbreviation nodes. [Map](../gql-map-expression.md),
+[list](../gql-list-expression.md), [subscript](../gql-subscript-expression.md) and
+[member](../gql-member-expression.md) examples follow GraphValueTests and GqlValueParserTests.

@@ -14,7 +14,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 - **[Statements](statements/index.md)** — queries, mutations, and catalog introspection.
 - **[Clauses](clauses/index.md)** — filtering and projection.
 - **[Patterns](patterns.md)** — nodes, relationships, maps, directions, and execution bounds.
-- **[Expressions](expressions/index.md)** — scalar operators and literals.
+- **[Expressions](expressions/index.md)** — operators, CASE/COALESCE/NULLIF, lists, maps and property access.
 - **[Diagnostics](diagnostics.md)** — syntax, capability, planning, and execution errors.
 - **[Unsupported features](unsupported.md)** — recognized constructs outside the profile.
 
@@ -30,7 +30,9 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |
 | `DETACH DELETE` | Supported | Bound variables; incident relationships cascade |
 | `SHOW` | Supported | Five database-scoped metadata subjects |
-| Parameters | Supported | Scalar values in WHERE and property maps |
+| Parameters | Supported | Scalar/list/map values in expressions; stored pattern properties stay scalar-only |
+| [CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md) | Supported | Lazy conditional values; simple CASE accepts ISO when-operand lists |
+| [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |
 | EXPLAIN | Supported | Chosen data plan without execution |
 | Functions | Recognized, not supported (`COHDBL001`) | No executable function table |
 | Variable-length paths | Recognized, not supported (`COHDBL001`) | Only explicit finite chains |

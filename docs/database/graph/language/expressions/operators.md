@@ -11,12 +11,12 @@ Operators are listed from weakest to strongest; binary runs associate left.
 | 1 | OR, XOR at one level |
 | 2 | AND |
 | 3 | NOT |
-| 4 | =, <>, !=, <, <=, >, >=; IN [items]; STARTS WITH, ENDS WITH, CONTAINS; IS [NOT] NULL/TRUE/FALSE/UNKNOWN |
+| 4 | =, <>, !=, <, <=, >, >=; IN list_expression; STARTS WITH, ENDS WITH, CONTAINS; IS [NOT] NULL/TRUE/FALSE/UNKNOWN |
 | 5 | `\|\|` |
 | 6 | Binary +, -; string + |
 | 7 | *, /, % |
 | 8 | Unary +, - |
-| 9 | Literals, parameters, bound variables, one-level properties, parentheses |
+| 9 | Literals, parameters, bound variables, CASE/COALESCE/NULLIF, list/map constructors, parentheses and postfix subscripts/member access |
 
 ## NULL and truth
 
@@ -50,14 +50,18 @@ This promotion applies to arithmetic; comparisons, IN and DISTINCT use exact val
 
 ## Membership and string predicates
 
-IN requires square brackets. Every item evaluates before membership is tested, so a later value
-error still raises COHDBG013 after an earlier match. Empty-list IN is FALSE even for NULL.
-Otherwise a match wins; then a NULL operand/item yields unknown; otherwise FALSE.
+IN accepts a list-valued expression, including brackets, parameters or parenthesized lists. Every
+item evaluates before membership is tested, so a later value error still raises COHDBG013 after an
+earlier match. Empty-list IN is FALSE even for NULL. Otherwise a match wins; then an unknown element
+comparison yields unknown; otherwise FALSE. A NULL right operand yields NULL, a non-list COHDBG013.
+[Lists and maps](list-values.md#comparison) compare structurally and preserve three-valued equality.
 STARTS WITH, ENDS WITH and CONTAINS use ordinal case-sensitive text and yield unknown unless both
 operands are strings. IN and these string predicates are Cohesion extensions.
 
-LIKE, BETWEEN, regular-expression match, EXISTS, quantified predicates, function calls and nested
-property access remain `COHDBL001`. IN (1, 2) is `GQL0002` naming the required bracketed form.
+LIKE, BETWEEN, regular-expression match, EXISTS, quantified predicates and function calls remain
+`COHDBL001`. [CASE](case.md), [COALESCE](coalesce.md) and [NULLIF](nullif.md) execute as special
+expression forms. [Subscripts/member access](property-access.md) compose with lists/maps and entities.
+IN (1, 2) remains malformed; use IN [1, 2], IN ([1, 2]) or a list-valued parameter.
 [RETURN](../clauses/return.md) accepts these scalar expressions, bound variables and optional aliases.
 
 ## Examples

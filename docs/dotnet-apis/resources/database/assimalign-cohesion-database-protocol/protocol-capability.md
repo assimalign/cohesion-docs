@@ -22,6 +22,10 @@ or hyphens and compare ordinally. Model names begin with lowercase family name p
 extension with no new frame is allowed. Malformed names throw ProtocolException; null messageTypes
 throws ArgumentNullException. Family construction validates scope and ownership.
 
+[GraphProtocol.CompositeValues](../assimalign-cohesion-database-graph/graph-protocol.md) is a
+model-owned example with no new message types: graph.composite-values changes Graph value encoding
+only after protocol 2.1 negotiation. Diagnostics remains independently negotiable.
+
 ## Example
 
 ```csharp

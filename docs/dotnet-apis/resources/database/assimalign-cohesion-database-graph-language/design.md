@@ -59,7 +59,8 @@ database names have no AST representation.
 
 Only these clauses occur in `GqlLanguageProfile.Clauses`. The larger reserved keyword table is
 retained for tokenization and targeted unsupported diagnostics; it does not advertise capabilities.
-The builtin-function table is empty because the executor implements no functions.
+The builtin-function table remains empty. CASE, COALESCE and NULLIF are special expression forms;
+COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
@@ -79,8 +80,8 @@ signed 64-bit integer, finite double, and single-quoted string with doubled-quot
 are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces. A single
 optional trailing semicolon is accepted. ISO abbreviated `->`, `<-`, `-` and `<->` execute without
 edge variables/types/properties; full bracketed forms carry those details. Cypher doubled-dash
-arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, nested
-property access, and return-after-delete are not accepted.
+arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are
+not accepted. Nested map access and entity access through value expressions execute.
 
 The grammar is intentionally finite:
 
@@ -139,7 +140,7 @@ NULL comparisons are UNKNOWN. Arithmetic keeps #1140's promotion: floating opera
 otherwise decimal/ulong use Decimal, otherwise checked Int64. DISTINCT retains the first tuple's
 runtime types and compares entity/path identities independently of materialization.
 
-Wire Execute validates static scalar result kinds before data access, writer locking or mutation.
+Wire Execute validates scalar/negotiated-composite result kinds before data access, writer locking or mutation.
 EXPLAIN remains scalar for entity returns. ExecutePaths requires one bare entity/path binding,
 including DISTINCT or star over one binding; invalid shape precedes duplicate-name checks.
 
@@ -154,11 +155,35 @@ and provisioning admission apply and DatabasePlanDescription is returned without
 [Language operators](../../../../database/graph/language/expressions/operators.md) specifies exact
 precedence, NULL behavior and all syntax boundaries.
 
+## Conditional and composite ASTs
+
+[GqlCaseExpression](gql-case-expression.md) carries a nullable simple operand, ordered
+[GqlCaseAlternative](gql-case-alternative.md) values and optional Otherwise. The parser expands ISO
+WHEN operand lists into alternatives sharing Then; Comparison retains explicit comparisons/null
+tests. The operand evaluates once and only the selected branch evaluates. [COALESCE](gql-coalesce-expression.md)
+selects the first non-NULL value lazily; [NULLIF](gql-null-if-expression.md) evaluates both operands
+once. Selected runtime types survive without common-type coercion; metadata remains unknown.
+Planning validates skipped bindings and shapes.
+
+[GqlListExpression](gql-list-expression.md) works in every value position. [GqlMapExpression](gql-map-expression.md)
+creates ordinal named values. [GqlSubscriptExpression](gql-subscript-expression.md) and
+[GqlMemberExpression](gql-member-expression.md) consume containers or read entity properties.
+[GqlInExpression.List](gql-in-expression.md) changes from GqlListExpression to GqlExpression,
+allowing list-valued parameters and computed inputs. Missing keys/out-of-range indexes are NULL;
+invalid accesses use COHDBG013. Equality is structural with FALSE dominating UNKNOWN; DISTINCT
+groups corresponding NULLs. Exact numeric comparison survives inside containers.
+
+Referenced parameters snapshot once; invalid leaves/cycles/dimensions or bounds use COHDBG003.
+Constructed limits use COHDBG013 inside the statement transaction, rolling back writes. Limits
+are root depth zero through 64, 65,536 total values and 16 MiB encoded bytes. Pattern property maps
+stay scalar-only. See [value rules](../../../../database/graph/language/expressions/list-values.md).
+No new plan record is required; EXPLAIN renders the expressions through existing Project nodes.
+
 ## Diagnostics and conformance (#194, #195)
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, general collection values, quantifiers, ordering, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, quantifiers, ordering, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
@@ -199,8 +224,9 @@ change; keyword recognition alone never enables it.
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../database/graph/language/diagnostics.md),
-including GQL0008/0009 and COHDBG001–015 with available SQLSTATE/GQLSTATUS categories.
-COHDBG015 identifies a duplicate final RETURN column name; the source assigns no SQLSTATE.
+including GQL0008/0009 and COHDBG001–016 with available SQLSTATE/GQLSTATUS categories.
+COHDBG015 identifies a duplicate final RETURN column name. COHDBG016 rejects possible composite
+wire results without graph.composite-values before reads/writes; neither has an assigned SQLSTATE.
 
 ## Sources
 

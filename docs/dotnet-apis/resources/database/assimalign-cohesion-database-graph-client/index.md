@@ -9,6 +9,7 @@
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[GraphConnection](graph-connection.md)** — Public execution contract.
+- **[GraphRow](graph-row.md)** — Scalar, list and map cells by ordinal/name.
 - **[GraphResultSet](graph-result-set.md)** — Public execution contract.
 - **[GraphPathResult](graph-path-result.md)** — Public execution contract.
 - **[GraphClientException](graph-client-exception.md)** — Values and usage.
@@ -47,7 +48,11 @@ Parameters bind WHERE, RETURN and property-map values under the shared bare-name
 RETURN supports standalone/computed expressions, aliases and DISTINCT/ALL. Duplicate final names
 fail COHDBG015 before reads, mutation or output. Wire Execute rejects entity projections before
 writes; QueryPathsAsync accepts one bare binding, including DISTINCT or star over one named binding.
-See [GraphConnection](graph-connection.md) and [RETURN](../../../../database/graph/language/clauses/return.md).
+Lists materialize as object?[] and maps as read-only ordinal dictionaries. Protocol 2.1 negotiates
+graph.composite-values; possible unnegotiated composite results fail COHDBG016 before writes,
+and the client refuses composite parameters locally before sending. Depth/count/encoded-byte
+limits are enforced before commit. See [GraphRow](graph-row.md), [GraphValueCodec](../assimalign-cohesion-database-graph/graph-value-codec.md),
+[GraphConnection](graph-connection.md) and [RETURN](../../../../database/graph/language/clauses/return.md).
 The client never parses GQL or retries statements.
 See [design](design.md) for completion and lifetime behavior.
 
