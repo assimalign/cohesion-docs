@@ -184,8 +184,9 @@ existing public interfaces and does not infer paths from scalar rows.
 The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
 is the single executable-language inventory: MATCH, WHERE, RETURN, INSERT, CREATE (compatibility
-extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, functions,
-variable-length paths, aggregations, graph selection and language DDL are not advertised.
+extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, six aggregates and
+implicit/ISO GROUP BY execute. Other functions, variable-length paths, graph selection and
+language DDL remain outside the profile.
 Label/type/index management is the session-bound C# schema API. The ISO decision and conformance
 corpus are documented alongside the parser; this is a bounded ISO subset, not a full conformance
 claim.
@@ -287,7 +288,7 @@ not included.
 | `COHDBL001` | Unsupported language capability, reported on the parsed statement |
 | `GQL0001`–`GQL0006` | Parser syntax/literal/bound errors; see language design |
 | `GQL0007` | Attempt to mutate catalog introspection results |
-| `COHDBG001` | Invalid pattern, variable binding, or traversal specification |
+| `COHDBG001` | Invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `COHDBG002` | Unknown label or relationship type |
 | `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
 | `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
@@ -299,7 +300,7 @@ not included.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result or constructed value/row limit |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
@@ -334,7 +335,7 @@ existing reference. graph.composite-values adds no message type or protocol vers
 Execute/ExecutePaths parameters use its components, including scalar parameters. Result column
 bit 7 marks possible composites. Marked cells use tag 0 plus a scalar component or tag 1 plus a
 little-endian length and GraphValueCodec component; unsigned scalars use the latter. Unmarked
-scalar columns keep their baseline bytes and avoid a preflight pass. Query metadata stays unknown.
+scalar columns keep their baseline bytes and avoid a preflight pass. Direct COUNT projection metadata is Int64; other query metadata stays unknown.
 
 Values allow depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes, counting UTF-8,
 escaping and framing. A row also fits 16 MiB. Invalid referenced trees fail planning with COHDBG003;
@@ -591,6 +592,26 @@ Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completi
 [GraphPathResult](../assimalign-cohesion-database-graph-client/graph-path-result.md) exposes completion
 warnings at EOF. A terminal pre-output path refusal leaves the session usable. See the complete
 [GQL diagnostic table](../../../../database/graph/language/diagnostics.md).
+
+## Aggregation and grouped results
+
+The [aggregate pipeline](../../../../database/graph/language/functions/aggregate-functions.md)
+uses exact numeric/structural grouping and DISTINCT keys. Every nonaggregate RETURN item becomes
+an implicit key; ISO GROUP BY lists those keys or names, with () for no keys. A keyless empty
+input produces the aggregate identities. GroupAggregate precedes projection, DISTINCT and sorting;
+ORDER BY honors aliases that shadow input variables. Match bounds and mutation inputs are unchanged.
+
+COUNT returns Int64, with Int64 wire metadata for a direct COUNT projection. SUM retains exact
+integral and Decimal subtotals, promotes once to Double for floating inputs, and uses Decimal if
+any retained input is Decimal/UInt64. Decimal SUM retains input scale; AVG returns Double unless
+Decimal is present and rounds a Decimal average once. Invalid operands/overflow use COHDBG013.
+COLLECT_LIST skips NULL, preserves order and observes composite limits during accumulation.
+Malformed/nested/misplaced aggregates and group mismatches use COHDBG001; no SQLSTATE is assigned.
+
+Negotiated GraphValueCodec tag 7 preserves Decimal's four 32-bit words, including scale. Lists
+require graph.composite-values; COUNT does not. ExecutePaths keeps its projection-shape rejection.
+EXPLAIN adds GroupAggregate without evaluating arguments, and aggregate value failures roll back
+statement mutations. GraphAggregateTests and GraphAggregateWireTests cover local and both transports.
 
 ## Sources
 

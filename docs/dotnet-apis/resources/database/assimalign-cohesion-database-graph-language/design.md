@@ -59,7 +59,7 @@ database names have no AST representation.
 
 Only these clauses occur in `GqlLanguageProfile.Clauses`. The larger reserved keyword table is
 retained for tokenization and targeted unsupported diagnostics; it does not advertise capabilities.
-The builtin-function table remains empty. CASE, COALESCE and NULLIF are special expression forms;
+The function table declares count, sum, avg, min, max, collect_list and collect. CASE, COALESCE and NULLIF are special expression forms;
 COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
@@ -68,6 +68,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `OPTIONAL MATCH` | Same finite paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
+| `GROUP BY` | RETURN names or equivalent expressions, including () | Same exact keys as implicit aggregation; grouping before projection |
 | `ORDER BY` | Keys with ASC/ASCENDING/DESC/DESCENDING and NULLS FIRST/LAST | Sorts projected rows/paths after DISTINCT; stable ties |
 | `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; output only, with full materialization |
 | `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
@@ -97,6 +98,7 @@ path        := node (relationship node)*
 predicate   := scalar-expression
 operand     := variable | variable '.' property | scalar-literal | parameter
 return      := RETURN [DISTINCT | ALL] ('*' | projection (',' projection)*)
+               [GROUP BY (grouping-key (',' grouping-key)* | '()')]
                [ORDER BY sort-item (',' sort-item)*]
                [(OFFSET | SKIP) page-value] [LIMIT page-value]
 projection  := value-expression [AS alias]
@@ -249,6 +251,14 @@ order. Mutations precede projection, DISTINCT, sort, offset and limit. Every key
 retained row and nested map keys are cached. Sort preparation/comparisons observe cancellation.
 Full materialization and match/candidate caps remain in force. EXPLAIN describes SortPage and
 SortKey without execution. See the [language rules](../../../../database/graph/language/clauses/order-by.md).
+
+## Aggregates and grouping
+
+[GqlAggregateExpression](gql-aggregate-expression.md) and [GqlAggregateFunction](gql-aggregate-function.md)
+represent six aggregates; collect aliases CollectList. GqlQueryExpression.GroupBy distinguishes
+implicit grouping (null), explicit no keys ([]) and supplied expressions. Plain names bind RETURN
+aliases first. Grouping and DISTINCT use exact numeric/structural equality; grouped ORDER BY honors
+shadowing aliases. See [aggregate results, diagnostics and examples](../../../../database/graph/language/functions/aggregate-functions.md).
 
 ## Sources
 

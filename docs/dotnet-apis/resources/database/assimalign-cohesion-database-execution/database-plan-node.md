@@ -45,6 +45,9 @@ operators retain this public node shape and execute no data statement during EXP
 OQL [UPSERT](../../../../database/document/language/statements/upsert.md) adds Upsert or UpsertSelect
 with its SELECT child. These use the existing public node members.
 
+GQL [GROUP BY](../../../../database/graph/language/clauses/group-by.md) adds GroupAggregate. Its
+Detail reports `keys=...; aggregates=...`; the node is described without reading matches.
+
 ## Example
 
 ```csharp

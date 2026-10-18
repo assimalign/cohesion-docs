@@ -34,6 +34,10 @@ SortKey child per key with expression, direction and NULL placement. For example
 `offset=0; limit=1` and a descending, NULL-last key. Counts and key bindings are validated
 without sorting or executing mutations.
 
+[Grouping](../clauses/group-by.md) adds GroupAggregate with key count and aggregate expressions.
+`EXPLAIN RETURN sum(1 / 0) AS n ORDER BY n` includes `keys=0; aggregates=sum(...)`
+without evaluating the division. Invalid placement/grouped references still fail COHDBG001.
+
 ## Examples
 
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:

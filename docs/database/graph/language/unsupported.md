@@ -18,7 +18,8 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Intermediate projection and chaining | Recognized, not supported (`COHDBL001`) | `WITH`, `NEXT` |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
 | Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |
-| Functions and aggregation | Recognized, not supported (`COHDBL001`) | `count(a)`, `abs(a.age)` |
+| Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `abs(a.age)`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
+| HAVING | Recognized, not supported (`COHDBL001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
 | Quantified paths | Recognized, not supported (`COHDBL001`) | `[r*1..3]`, `->{1,3}` |
 | Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE stored properties stay scalar-only |
@@ -34,7 +35,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Catalog filtering or projection | Not in the language | `SHOW LABELS RETURN label` |
 | Catalog mutation composition | Not in the language | `SHOW LABELS DELETE n` produces `GQL0007` |
 
-`GqlLanguageProfile` has an empty function table. Its larger reserved keyword table is a lexical
+`GqlLanguageProfile` declares count, sum, avg, min, max, collect_list and collect. Its larger reserved keyword table is a lexical
 inventory, not a list of implemented features. Malformed or invalid composition generally produces
 `GQL0002`, while catalog mutation composition has its dedicated read-only error.
 
@@ -51,7 +52,7 @@ planning; a mandatory clause must bind or constrain it. Execute accepts scalar a
 the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
 EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
 materialized scalar/list/map results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
-star and standalone evaluation execute. Function calls, LIKE, BETWEEN, EXISTS and quantified
+star and standalone evaluation execute. Other scalar calls, LIKE, BETWEEN, EXISTS and quantified
 predicates remain excluded; [value expressions](expressions/operators.md) run in WHERE and RETURN.
 
 Graph-specific security policies, replication, compiled-schema provisioning, configurable graph

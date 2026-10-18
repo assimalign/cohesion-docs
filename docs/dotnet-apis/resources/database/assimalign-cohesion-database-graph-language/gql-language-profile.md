@@ -17,7 +17,8 @@ public static class GqlLanguageProfile
 
 Instance is the shared immutable GQL profile. Its clauses advertise CASE alongside matching,
 projection, ORDER BY, OFFSET/SKIP, LIMIT, mutations, SHOW, EXPLAIN and label expressions. CASE/WHEN/THEN/ELSE/END and
-COALESCE/NULLIF are keywords; the function table remains empty. COALESCE and NULLIF parse into
+COALESCE/NULLIF are keywords; the function table contains count, sum, avg, min, max, collect_list
+and collect. GqlClauses.GroupBy advertises ISO GROUP BY. COALESCE and NULLIF parse into
 case-abbreviation nodes, without registry function calls. Reserved vocabulary is larger than the
 executable profile; recognized excluded constructs produce COHDBL001. NULLS, FIRST and LAST
 are contextual words outside Keywords; first and last remain usable variable names.
@@ -32,7 +33,7 @@ See [GQL diagnostics](../../../../database/graph/language/diagnostics.md).
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Case)); // True
-Console.WriteLine(GqlLanguageProfile.Instance.Functions.Length);       // 0
+Console.WriteLine(GqlLanguageProfile.Instance.Functions.Length);       // 7
 var parsed = new GqlQueryParser().Parse("RETURN CASE 42 WHEN 17, 42 THEN 1 END");
 Console.WriteLine(parsed.Diagnostics.Count); // 0
 ```

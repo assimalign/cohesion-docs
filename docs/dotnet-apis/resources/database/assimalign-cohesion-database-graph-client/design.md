@@ -42,7 +42,8 @@ and shared DatabaseType identities. The engine rejects duplicate final RETURN na
 before reads, mutation or output, including implicit/explicit collisions and EXPLAIN; no SQLSTATE
 is assigned. First-column lookup remains for manually constructed duplicate metadata.
 Scalar statements fully materialize before returning.
-MATCH projection metadata remains the engine's DatabaseType.Null (unknown), because graph
+Direct COUNT projections report Int64 metadata; other MATCH projection metadata remains
+DatabaseType.Null (unknown), because graph
 properties may have heterogeneous types. The tuple codec preserves each actual value's runtime
 type. SHOW metadata retains its precisely declared catalog types.
 
@@ -155,6 +156,11 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+[GQL aggregates](../../../../database/graph/language/functions/aggregate-functions.md) return Int64 counts,
+promoted numeric results and negotiated lists through QueryAsync. Decimal parameters/results keep
+scale in GraphValueCodec tag 7. Overflow uses COHDBG013 before ResultHeader and preserves a reusable
+authenticated session. Aggregate QueryPathsAsync requests use COHDBG001.
 
 ## Sources
 

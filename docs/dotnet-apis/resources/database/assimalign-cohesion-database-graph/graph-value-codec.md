@@ -20,7 +20,7 @@ public static class GraphValueCodec
 ## Behavior and exceptions
 
 Encode emits one complete component. Scalars use DatabaseValueCodec components, with explicit
-unsigned tags to preserve Byte, UInt16, UInt32 and UInt64. Lists accept BCL IList except byte[]
+unsigned tags to preserve Byte, UInt16, UInt32 and UInt64, and tag 7 for exact Decimal bits/scale. Lists accept BCL IList except byte[]
 binary scalars; arrays must be one-dimensional and zero-based. Maps accept
 IReadOnlyDictionary<string, object?>. Decode returns object?[] and read-only ordinal string maps,
 retaining scalar runtime types. This is a transient wire format, not an index-key or stored-property
@@ -47,11 +47,16 @@ the surrounding Graph execute/header payload's big-endian lengths.
 | 4 | UInt16 in two little-endian bytes |
 | 5 | UInt32 in four little-endian bytes |
 | 6 | UInt64 in eight little-endian bytes |
+| 7 | Decimal lo/mid/hi/flags: four little-endian Int32 words, preserving sign and scale |
 
 The server validates parameter bounds during planning with COHDBG003. Constructed values and row
 sizes check within the statement transaction before commit with COHDBG013. An unnegotiated possible
 composite result uses COHDBG016 before reads/writes (no SQLSTATE). Low-level malformed wire
 components become ProtocolViolation. The standalone codec reports its exceptions above.
+
+Decimal tag 7 is 17 bytes including the tag. Decode rejects truncated words, reserved flag bits
+or scale above 28 with ProtocolException. Negotiated Decimal parameters and aggregate results use
+this representation, so `0.00m` keeps scale 2; it is not an index-key encoding.
 
 ## Example
 

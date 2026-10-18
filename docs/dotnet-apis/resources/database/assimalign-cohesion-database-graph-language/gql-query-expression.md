@@ -24,6 +24,7 @@ public sealed class GqlQueryExpression : GqlExpression
     public IReadOnlyList<GqlProjection> Projections { get; }
     public GqlSetQuantifier SetQuantifier { get; init; }
     public bool ReturnStar { get; init; }
+    public IReadOnlyList<GqlExpression>? GroupBy { get; init; }
     public IReadOnlyList<GqlSortItem> OrderBy { get; init; } // defaults to []
     public GqlExpression? Offset { get; init; }
     public GqlExpression? Limit { get; init; }
@@ -65,6 +66,12 @@ supported path returns too and never reduces mutations or match/candidate bounds
 The parser sets IsExplain; callers cannot set it directly. Planning returns the shared eight-column
 description without data execution. Parser errors remain on statement.Diagnostics.
 
+GroupBy is null for implicit grouping, an empty list for GROUP BY (), or explicit grouping
+names/expressions. Plain names resolve to nonaggregate RETURN names first. Explicit keys must
+match the distinct nonaggregate projection keys; mismatches and aggregate aliases use COHDBG001.
+[GqlAggregateExpression](gql-aggregate-expression.md) holds aggregate calls. Grouping occurs before
+projection/DISTINCT/order/page; ExecutePaths refuses GroupBy or aggregate projections with COHDBG001.
+
 ## Example
 
 ```csharp
@@ -81,6 +88,15 @@ See [GqlProjection](gql-projection.md#example) for a source-free standalone AST 
 
 See [GqlSortItem](gql-sort-item.md#example) for AST inspection of directions, NULL placement
 and parameterized paging.
+
+```csharp
+var grouped = ((GqlQueryStatement)new GqlQueryParser().Parse(
+    "MATCH (a) RETURN a.active AS active, count(*) AS n GROUP BY active")).GqlExpression;
+Console.WriteLine(grouped.GroupBy!.Count); // 1
+var emptyKeys = ((GqlQueryStatement)new GqlQueryParser().Parse(
+    "MATCH (a) RETURN count(*) GROUP BY ()")).GqlExpression;
+Console.WriteLine(emptyKeys.GroupBy!.Count); // 0
+```
 
 ## Related reference
 

@@ -16,7 +16,7 @@ At least two operands are required. Later operands do not evaluate once a non-NU
 all bindings and AST shapes still validate during planning. All NULL operands produce NULL.
 Missing properties are NULL; GQL has no MISSING value. The selected runtime type is preserved,
 including lists, maps and entity values. No common-type coercion occurs; metadata remains unknown.
-COALESCE is a case abbreviation, independent of the empty function registry.
+COALESCE is a case abbreviation, separate from aggregate function calls.
 
 Malformed arity/syntax reports GQL0002; invalid programmatic shape or unbound names report
 COHDBG001. Evaluated value failures/limits use COHDBG013. A possible composite result over an

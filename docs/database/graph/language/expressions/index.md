@@ -15,8 +15,9 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 - **[Map values](map-values.md)** — ordinal named entries with nested values.
 - **[Subscripts and property access](property-access.md)** — list indexes, map fields and entity properties.
 
-WHERE and RETURN accept these value expressions. The builtin function table remains empty;
-COALESCE/NULLIF are case abbreviations. Other function calls remain unsupported.
+WHERE and RETURN accept these value expressions. [Aggregates](../functions/aggregate-functions.md)
+execute in RETURN and use dedicated aggregate nodes; COALESCE/NULLIF are case abbreviations.
+Other scalar function calls remain unsupported.
 
 ## See also
 

@@ -62,6 +62,12 @@ diagnostic codes, and the conformance corpus's relationship to ISO GQL.
 
 [Parent: Database](../index.md)
 
+## Aggregate nodes
+
+- **[GqlAggregateExpression](gql-aggregate-expression.md)** — Operand, function and DISTINCT flag.
+- **[GqlAggregateFunction](gql-aggregate-function.md)** — Count, Sum, Avg, Min, Max and CollectList.
+- **[GqlQueryExpression.GroupBy](gql-query-expression.md)** — Implicit, ISO named and empty grouping keys.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.

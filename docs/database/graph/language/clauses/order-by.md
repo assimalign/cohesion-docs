@@ -50,12 +50,18 @@ map keys, including nested maps, are cached in ordinal order. Sort preparation a
 observe cancellation, which follows ordinary statement rollback behavior. No catalog or wire
 format change is required.
 
+With [grouping](group-by.md), ORDER BY sees computed aggregate results and RETURN aliases, which
+shadow input variables even inside expressions. A reused input expression is recomputed if an alias
+redefines one of its variables. Ungrouped references and aggregates absent from RETURN fail
+COHDBG001. For example, `MATCH (a:Person) RETURN count(*) AS n ORDER BY n + 1` returns the
+single group with count 3 from the [Person fixture](../functions/aggregate-functions.md#examples).
+
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
 | `GQL0002` | Malformed key/null placement, or ORDER BY after paging |
-| `COHDBL001` | Standalone ordering before RETURN; WITH and aggregate ordering are outside this profile |
+| `COHDBL001` | Standalone ordering before RETURN or intermediate WITH composition |
 | `COHDBG001` | Invalid/unbound key or a DISTINCT key referring to a hidden binding; no SQLSTATE assigned |
 | `COHDBG003` | Label test on a computed alias evaluates to a non-entity |
 | `COHDBG004` | Existing match/candidate cap exceeded despite LIMIT |

@@ -31,7 +31,7 @@ label names, and property keys do not trigger keyword capability checks.
 
 | Code | Meaning |
 |---|---|
-| `COHDBG001` | Invalid pattern, variable binding, traversal or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
+| `COHDBG001` | Invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
 | `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
 | `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
@@ -43,7 +43,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result or constructed value/row limit |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
@@ -99,6 +99,12 @@ Malformed UTF-8, diagnostics or ordering are protocol violations.
 GraphPathResult.Diagnostics finalizes at EOF. Unknown-name reads can complete with warnings and
 zero paths. A terminal rejection before path output retains the connection; cancellation or an
 unfinished path stream discards it.
+
+Aggregates add no codes or SQLSTATE categories. Wrong arity, SUM(*) and COUNT(DISTINCT/ALL *)
+use GQL0002. Nested/misplaced aggregates, GROUP BY mismatch/aggregate aliases, hidden group sort
+references and aggregate path requests use COHDBG001. SUM/AVG overflow, nonnumeric arguments and
+COLLECT_LIST bounds use COHDBG013. Unnegotiated wire COLLECT_LIST uses COHDBG016 before output.
+See [aggregate diagnostics](functions/aggregate-functions.md#diagnostics).
 
 ## See also
 

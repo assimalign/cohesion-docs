@@ -8,6 +8,7 @@ RETURN projects expressions or named graph bindings, with optional duplicate eli
 
 ```syntaxsql
 RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
+[ GROUP BY { grouping_name_or_expression [ , ...n ] | () } ]
 [ ORDER BY sort_item [ , ...n ] ]
 [ { OFFSET | SKIP } count ] [ LIMIT count ]
 
@@ -22,7 +23,7 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 | Literals, parameters, properties and computed expressions | Supported; same value expressions as WHERE |
 | `AS` aliases | Supported |
 | `ALL`, `DISTINCT`, `*` | Supported; ALL is the default, star cannot mix with explicit items |
-| Functions and aggregation | Recognized, not supported (`COHDBL001`) |
+| [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](../clauses/group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
 | [ORDER BY](order-by.md), [OFFSET/SKIP and LIMIT](limit-offset.md) | Supported after RETURN; offset precedes limit |
 
 ## Arguments
@@ -55,8 +56,8 @@ The first representative retains its runtime types. Nodes/relationships compare 
 paths compare ordered node/relationship identities, including traversal direction.
 
 RETURN may stand alone, finish a read match, or follow insertion. It cannot follow deletion or SHOW.
-A standalone RETURN evaluates once and returns one row. An empty MATCH returns zero rows while
-retaining result-column metadata. DISTINCT runs after insertion: it removes output duplicates
+A standalone RETURN evaluates once and returns one row. An empty nongrouped MATCH returns zero rows while
+retaining result-column metadata; a keyless aggregate instead returns one row. DISTINCT runs after insertion: it removes output duplicates
 without suppressing writes for matched bindings. Sorting follows DISTINCT, then OFFSET/SKIP and
 LIMIT. Without ORDER BY there is no result-order guarantee. Paging never suppresses mutations.
 
@@ -90,10 +91,15 @@ multi-binding star projections fail the path-request shape check before duplicat
 | `COHDBG016` | Possible composite wire result without negotiated graph.composite-values; before reads/writes, no SQLSTATE |
 | `GQL0002` | Malformed RETURN, mixing star/items, or star without a named binding |
 | `GQL0004` | Numeric text outside the signed Int64 or finite Double range |
-| `COHDBL001` | Functions, aggregation, map projection, or RETURN after deletion |
+| `COHDBL001` | Unsupported scalar/statistical calls, HAVING, map projection, or RETURN after deletion |
 
 The source assigns no SQLSTATE to COHDBG015. Wire failures retain ExecutionFailure and a usable
 connection when rejected before output; negotiated diagnostics preserve the engine code and span.
+
+[Aggregates](../functions/aggregate-functions.md) run over implicit or explicit groups before
+projection, DISTINCT and paging. COUNT is Int64, including on the wire; SUM/AVG use the documented
+numeric promotion. A keyless aggregate returns one row even for an empty match, while keyed empty
+matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names to RETURN aliases.
 
 ## Examples
 

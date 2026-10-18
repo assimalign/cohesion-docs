@@ -9,6 +9,7 @@ RETURN evaluates standalone expressions, completes a read query, or projects val
 ```syntaxsql
 [ MATCH path [ , ...n ] [ WHERE predicate ] ]
 RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
+[ GROUP BY { grouping_name_or_expression [ , ...n ] | () } ]
 [ ORDER BY sort_item [ , ...n ] ]
 [ { OFFSET | SKIP } count ] [ LIMIT count ]
 ```
@@ -24,7 +25,7 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 | Standalone RETURN | Supported; one row |
 | `DISTINCT`, `ALL`, wildcard, computed expressions | Supported; star cannot mix with explicit items |
 | `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
-| Functions and aggregation | Recognized, not supported (`COHDBL001`) |
+| [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](../clauses/group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
 
 ## Arguments
 
@@ -42,6 +43,11 @@ using exact numeric equality, ordinal strings, NULL grouping and entity/path ide
 keeps its own promotion. See the [RETURN clause](../clauses/return.md) for naming, examples and
 embedded/wire result limits. [ORDER BY](../clauses/order-by.md) sorts after DISTINCT, followed by
 [OFFSET/SKIP and LIMIT](../clauses/limit-offset.md). Paging never reduces mutations.
+
+[Aggregates](../functions/aggregate-functions.md) run over implicit or explicit groups before
+projection, DISTINCT and paging. COUNT is Int64, including on the wire; SUM/AVG use the documented
+numeric promotion. A keyless aggregate returns one row even for an empty match, while keyed empty
+matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names to RETURN aliases.
 
 ## Examples
 

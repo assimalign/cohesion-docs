@@ -45,6 +45,11 @@ mandatory clause; bindings supplied only by optionals are refused during plannin
 offset precedes limit. The output tail follows all mutations and DISTINCT, with full materialization
 and existing match/candidate caps. Default NULL order is last ascending, first descending.
 
+[Aggregates](language/functions/aggregate-functions.md) and [GROUP BY](language/clauses/group-by.md)
+execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 locally and on the wire;
+SUM preserves exact integral/Decimal work and Decimal scale. Collection results negotiate
+graph.composite-values. Grouping and paging do not reduce input match limits.
+
 ## Storage and catalog
 
 Each persistent database owns `graph.dat`, `graph.log`, and `graph.bak`. Shared kernel components

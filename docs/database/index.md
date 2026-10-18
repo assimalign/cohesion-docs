@@ -31,7 +31,7 @@ use database-bound sessions and the shared transaction and storage components.
 
 The Graph model stores nodes, relationships, and properties with durable adjacency and property
 indexes. Its Graph Query Language (GQL) subset provides bounded traversal, projection, mutation,
-and catalog operations; it does not claim complete standard GQL coverage.
+aggregation, grouping and catalog operations; it does not claim complete standard GQL coverage.
 
 ## Key-Value Pair
 

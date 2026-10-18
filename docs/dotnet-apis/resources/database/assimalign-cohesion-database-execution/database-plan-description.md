@@ -41,6 +41,9 @@ and [GQL EXPLAIN](../../../../database/graph/language/statements/explain.md).
 
 OQL UPSERT adds Upsert/UpsertSelect operators while retaining this signature and eight columns.
 
+GQL grouping adds GroupAggregate with key count and aggregate text. EXPLAIN validates placement
+without evaluating aggregate operands; the public plan signature and columns stay the same.
+
 ## Example
 
 ```csharp

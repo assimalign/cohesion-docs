@@ -6,13 +6,14 @@ GQL clauses filter matched bindings and project graph bindings or scalar express
 
 - **[WHERE](where.md)** — Boolean expressions, arithmetic and exact numeric comparisons.
 - **[RETURN](return.md)** — expressions, aliases, DISTINCT and named-binding star.
+- **[GROUP BY](group-by.md)** — Implicit or ISO grouping, RETURN aliases and the empty grouping set.
 - **[ORDER BY](order-by.md)** — expression keys, direction and explicit NULL placement.
 - **[OFFSET, SKIP and LIMIT](limit-offset.md)** — output paging after ordering.
 
 `WHERE` follows the matching patterns. `RETURN` finishes a read query or follows insertion.
-RETURN can also stand alone to evaluate one row of expressions. Its optional tail is ORDER BY,
+RETURN can also stand alone to evaluate one row of expressions. Its optional tail is GROUP BY, then ORDER BY,
 then OFFSET/SKIP, then LIMIT; OFFSET/SKIP after LIMIT is invalid.
-Catalog `SHOW` statements cannot carry either clause.
+Catalog SHOW statements cannot carry these clauses.
 
 ## See also
 

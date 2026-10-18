@@ -45,6 +45,10 @@ including list-valued WHERE parameters, without changing Path payloads or this r
 For example, MATCH (n:P) WHERE n.k IN $xs RETURN n can stream paths with a list parameter.
 See [GraphConnection](graph-connection.md) for parameter limits and local capability failures.
 
+Aggregate projections and explicit GROUP BY are rejected with COHDBG001 before any Path frame;
+use QueryAsync for grouped rows. A decoded refusal preserves the pooled session. Path payload and
+completion diagnostics stay the same.
+
 ## Example
 
 ```csharp
