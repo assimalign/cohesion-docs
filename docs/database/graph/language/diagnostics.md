@@ -13,10 +13,10 @@ GQL reports stable capability, syntax, planning, and execution diagnostics.
 | `GQL0002` | Malformed supported syntax/composition, including ORDER BY after paging, repeated paging clauses, OFFSET/SKIP after LIMIT or a noninteger/negative literal count |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
 | `GQL0004` | Invalid or out-of-range numeric literal |
-| `GQL0005` | 64-relationship pattern bound exceeded |
+| `GQL0005` | Text repetition-bound sum exceeds 64 relationships |
 | `GQL0006` | Duplicate literal property or map-constructor key |
 | `GQL0007` | `Graph catalog introspection is read-only.` |
-| `GQL0008` | Cypher bare arrow after a pattern element conflicts with GQL comment syntax |
+| `GQL0008` | -- touches a node/subpath, edge filler or postfix/Cypher quantifier and hides an arrow |
 | `GQL0009` | Parsing thread has insufficient stack for nested expressions; engine reports COHDBG008 |
 
 The parser returns diagnostics on `GqlQueryStatement` rather than throwing for malformed query
@@ -34,7 +34,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG001` | Invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
 | `COHDBG003` | Schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
-| `COHDBG004` | Materialized MATCH/FOR row or candidate-expansion limit exceeded |
+| `COHDBG004` | Materialized MATCH/FOR row, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
 | `COHDBG006` | Storage failure translated at the engine boundary |
 | `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
@@ -47,6 +47,12 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+
+[Quantified patterns](patterns.md#diagnostics) use GQL0002 for INSERT/node quantifiers and invalid
+intervals, GQL0004 for Int32 overflow, GQL0005 for text bound sums above 64, and COHDBG001
+for invalid direct AST shapes/bounds. Group/singleton conflicts, group property maps, direct group
+member access and group deletion use COHDBG003. Questioned/nested quantifiers and subpath
+assignment/WHERE use COHDBL001. These codes have no assigned SQLSTATE.
 
 [Composition](clauses/next.md) adds no new codes. Dropped/unbound names and aggregate calls in WITH
 WHERE use COHDBG001; duplicate carried bindings use COHDBG015, including under EXPLAIN. Leading/
@@ -82,7 +88,8 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 
 | Limit | Value | Error |
 |---|---|---|
-| Relationships in one pattern | 64 | `GQL0005` |
+| Text repetition-bound sum | 64 relationships | `GQL0005` |
+| Runtime trail length | 64; qualifying 65th edge fails before endpoint tests | `COHDBG004` |
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
 | Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
 | Candidate examinations | 1,000,000 per statement | `COHDBG004` |

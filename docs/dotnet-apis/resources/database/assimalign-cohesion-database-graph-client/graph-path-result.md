@@ -55,6 +55,12 @@ entity kinds, for example `MATCH (a:P) WITH collect(a) AS ns UNWIND ns AS n RETU
 node path per P node. Any write stage or optional-only final entity is COHDBG001. Final lists of
 nodes/relationships cannot be streamed as row values yet (COHDBG001; #1662); path payloads remain unchanged.
 
+[Quantified paths](../../../../database/graph/language/patterns.md#quantified-paths) stream complete
+source-ordered trails in existing Path frames, including intermediate nodes and zero-length paths.
+Stored relationship directions survive right-side index anchors. A zero-length path has one node
+and no relationships. Group lists can flow through FOR/UNWIND to scalar row results; possibly
+nonempty entity lists remain COHDBG001 on Execute even after composite negotiation.
+
 ## Example
 
 ```csharp

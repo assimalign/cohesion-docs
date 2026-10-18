@@ -21,6 +21,12 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GqlClauses`](gql-clauses.md)** — Documented public type.
 - **[`GqlLanguageProfile`](gql-language-profile.md)** — Documented public type.
+- **[GqlQuantifier](gql-quantifier.md)** — Quantified path AST contract.
+- **[GqlPathElement](gql-path-element.md)** — Quantified path AST contract.
+- **[GqlPathNode](gql-path-node.md)** — Quantified path AST contract.
+- **[GqlPathRelationship](gql-path-relationship.md)** — Quantified path AST contract.
+- **[GqlParenthesizedPathPattern](gql-parenthesized-path-pattern.md)** — Quantified path AST contract.
+- **[GqlRelationshipPattern](gql-relationship-pattern.md)** — Quantified path AST contract.
 - **[`GqlPathPattern`](gql-path-pattern.md)** — Documented public type.
 - **[`GqlProjection`](gql-projection.md)** — Documented public type.
 - **[GqlAggregateExpression](gql-aggregate-expression.md)** — Aggregate operand, function and DISTINCT flag.
@@ -58,7 +64,7 @@ The Graph engine consumes the AST for planning and execution in the session's bo
 
 See the [source-backed usage examples](examples/index.md).
 
-The supported surface is finite `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
+The supported surface is fixed/quantified `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
 RETURN expressions/aliases, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
 DISTINCT and star, standalone RETURN, implicit/ISO GROUP BY, aggregates, ORDER BY, OFFSET/SKIP and LIMIT, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces

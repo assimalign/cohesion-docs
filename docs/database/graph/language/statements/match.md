@@ -1,6 +1,6 @@
 # MATCH
 
-MATCH binds graph variables using finite node and relationship patterns.
+MATCH binds graph variables using fixed or quantified node and relationship patterns.
 
 > **Status:** Implemented.
 
@@ -29,7 +29,7 @@ MATCH binds graph variables using finite node and relationship patterns.
 
 ## Arguments
 
-- **`path`** — a node followed by zero or more relationship/node pairs; see [Patterns](../patterns.md).
+- **`path`** — fixed/quantified edges and parenthesized segments; see [Patterns](../patterns.md).
 - **`predicate`** — the [WHERE expression](../clauses/where.md), including logic, arithmetic and predicates.
 - **`expression`** — a [RETURN value expression](../clauses/return.md), optionally with an AS alias.
 
@@ -48,7 +48,7 @@ agreeing with DISTINCT; arithmetic keeps its own promotion. See [Operators](../e
 
 OPTIONAL MATCH evaluates all its paths and then its WHERE for each input row. If none survives,
 it preserves exactly one input row and assigns NULL to every newly declared node, relationship
-and path variable. Existing bindings survive. A leading OPTIONAL MATCH starts with one empty row,
+and path variable, including new group variables. Existing bindings survive. A leading OPTIONAL MATCH starts with one empty row,
 so an empty graph still returns one NULL row. A mandatory MATCH with no rows empties the result;
 a later optional cannot restore it. A NULL binding cannot match a later pattern. Property access
 and label tests on a NULL binding yield NULL; `IS NULL` yields TRUE. Graph has no MISSING value.

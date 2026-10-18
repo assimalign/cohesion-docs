@@ -170,6 +170,14 @@ require graph.composite-values, and entities use QueryPathsAsync. Final node/rel
 remain COHDBG001 (#1662), even with that capability. A decoded composition refusal preserves
 the session. QueryPathsAsync accepts read-only composition only and refuses any write stage.
 
+## Quantified paths
+
+QueryPathsAsync streams complete quantified trails through existing Path payloads, including
+zero-length matches. QueryAsync can project scalar values after group expansion. Possible
+composites without negotiation use COHDBG016; negotiated possibly nonempty entity lists use
+COHDBG001. A provably empty Max=0 group can project []. Malformed bounds retain parser diagnostics
+and a reusable session. No capability or wire tag is added.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/DESIGN.md`.

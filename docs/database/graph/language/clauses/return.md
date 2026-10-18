@@ -38,7 +38,7 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 
 RETURN may precede [NEXT](next.md); [WITH](with.md) uses the same projection machinery between
 stages. Only aliased items and bare-variable projections carry names to later stages. Star includes
-LET/FOR values and preserves the preceding projection order. Entity kinds and NULL optionality
+LET/FOR values and quantified group lists, and preserves the preceding projection order. Entity kinds and NULL optionality
 survive boundaries. Duplicate carried names use COHDBG015 after decoding variable names.
 
 Columns preserve item order. An alias names its column exactly; otherwise the name is normalized

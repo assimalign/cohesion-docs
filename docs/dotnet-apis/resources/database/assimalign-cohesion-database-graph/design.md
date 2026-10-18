@@ -169,7 +169,8 @@ after joining its paths. A failed mandatory clause drops the row; an optional cl
 with NULL for new variables. The initial binding table has one empty row. Every selected candidate
 still passes labels, property predicates and bindings.
 
-GQL patterns are finite chains of at most 64 relationships. Each matched path is a trail: an edge
+GQL patterns have fixed/quantified edges and parenthesized segments with repetition-bound sums
+of at most 64 relationships. Each matched path is a trail: an edge
 identity is used at most once within that path; a node may recur. Separate comma-separated paths
 have separate edge sets and share variable bindings. This makes a three-edge cycle a valid three-hop
 result but forbids reusing its first edge on a fourth hop. At most 100,000 intermediate path matches
@@ -202,7 +203,7 @@ The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
 is the single executable-language inventory: MATCH, WHERE, LET, FILTER, FOR/UNWIND, WITH, NEXT, RETURN, INSERT, CREATE (compatibility
 extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, six aggregates and
-implicit/ISO GROUP BY execute. Other functions, variable-length paths, graph selection and
+implicit/ISO GROUP BY execute. Other functions, graph selection and
 language DDL remain outside the profile.
 Label/type/index management is the session-bound C# schema API. The ISO decision and conformance
 corpus are documented alongside the parser; this is a bounded ISO subset, not a full conformance
@@ -308,7 +309,7 @@ not included.
 | `COHDBG001` | Invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `COHDBG002` | Unknown label or relationship type |
 | `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
-| `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
+| `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
 | `COHDBG006` | Storage failure translated at the engine boundary |
 | `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
@@ -629,6 +630,20 @@ Negotiated GraphValueCodec tag 7 preserves Decimal's four 32-bit words, includin
 require graph.composite-values; COUNT does not. ExecutePaths keeps its projection-shape rejection.
 EXPLAIN adds GroupAggregate without evaluating arguments, and aggregate value failures roll back
 statement mutations. GraphAggregateTests and GraphAggregateWireTests cover local and both transports.
+
+## Quantified expansion
+
+[Quantified paths](../../../../database/graph/language/patterns.md#quantified-paths) enumerate trails,
+with lists for variables inside repeated segments. Zero repetitions join both outer endpoint
+constraints on one node and bind empty lists. Source order survives right/left index anchoring.
+Only outer singleton entities can anchor. Repeated property maps apply at every occurrence.
+The heap-based expansion frontier retains depth-proportional search state; materialized results
+still have the existing budgets. Runtime unbounded paths fail COHDBG004 at a qualifying 65th
+relationship before endpoint tests, regardless of LIMIT. EXPLAIN Expand detail reports
+`quantifier={min,max}; body_hops=n; trail=True`; an empty max means unbounded.
+Group/singleton conflicts and invalid group access use COHDBG003; invalid direct AST paths use
+COHDBG001. Wire composite admission (COHDBG016) precedes the entity-list gate (COHDBG001).
+No storage/catalog/wire format changes are needed.
 
 ## Sources
 

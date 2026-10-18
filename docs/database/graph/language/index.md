@@ -23,7 +23,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 
 | Construct | Support | Scope |
 |---|---|---|
-| [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Finite chains; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
+| [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Fixed/quantified paths; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
 | [LET](clauses/let.md), [FILTER](clauses/filter.md) | Supported | Sequential value bindings and TRUE-only stage filtering |
 | [FOR / UNWIND](clauses/for.md) | Supported | Eager list expansion; NULL gives no rows; proven entity kinds survive |
@@ -41,7 +41,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |
 | EXPLAIN | Supported | Chosen data plan without execution |
 | [Aggregates](functions/aggregate-functions.md) | Supported | COUNT, SUM, AVG, MIN, MAX, COLLECT_LIST/collect; implicit and [ISO GROUP BY](clauses/group-by.md) |
-| Variable-length paths | Recognized, not supported (`COHDBL001`) | Only explicit finite chains |
+| [Quantified paths](patterns.md#quantified-paths) | Supported | ISO edge/subpath and Cypher lengths, trail semantics, list-valued group variables |
 
 The keyword table is larger than the executable clause list. Recognition does not imply support.
 The parser conformance corpus checks the subset's syntax and abstract syntax tree; it is not an

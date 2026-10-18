@@ -50,8 +50,8 @@ flowchart LR
 [GqlQuerySegment](gql-query-segment.md) views. Its compatibility facade exposes match clauses,
 clause-local predicates and optional flags, insertion paths, deletion
 variables, a detach flag, projections, and an optional `GqlCatalogSurface` for dedicated metadata
-statements. Catalog statements cannot carry graph clauses. Every path holds one more node than
-relationship. Anonymous nodes and relationships have a null variable. Relationship directions are
+statements. Catalog statements cannot carry graph clauses. Paths without parenthesized elements retain chain lists with one more node than relationship;
+parenthesized paths use source-ordered Elements and empty chain lists. Anonymous nodes and relationships have a null variable. Relationship directions are
 relative to consecutive pattern nodes; incoming arrows reverse that relationship's endpoints. A
 scalar property reference always contains a variable and exactly one property key; qualified
 database names have no AST representation.
@@ -65,8 +65,8 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
-| `MATCH` | Comma-separated finite node/relationship chains; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
-| `OPTIONAL MATCH` | Same finite paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
+| `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `OPTIONAL MATCH` | Same fixed/quantified paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
 | `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list COHDBG013; proven entity kinds retained |
@@ -90,7 +90,7 @@ edge variables/types/properties; full bracketed forms carry those details. Cyphe
 arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are
 not accepted. Nested map access and entity access through value expressions execute.
 
-The grammar is intentionally finite:
+The stage grammar is:
 
 ```text
 query       := stage+   // RETURN finishes a segment or precedes NEXT; writes can also finish
@@ -101,7 +101,10 @@ stage       := [OPTIONAL] MATCH paths [ WHERE predicate ]
              | (INSERT | CREATE) paths | [DETACH] DELETE variables
              | return | WITH projection-and-tail [WHERE predicate] | NEXT
 paths       := path (',' path)*
-path        := node (relationship node)*
+path        := path-primary ((relationship [quantifier] path-primary) | parenthesized | node)*
+path-primary:= node | parenthesized
+parenthesized := '(' path ')' [quantifier]
+quantifier  := '{' integer [',' [integer]] '}' | '{,' [integer] '}' | '+' | '*'
 predicate   := scalar-expression
 operand     := variable | variable '.' property | scalar-literal | parameter
 return      := RETURN [DISTINCT | ALL] ('*' | projection (',' projection)*)
@@ -114,7 +117,7 @@ catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJ
 
 Value pipelines, mutations and standalone RETURN can start without MATCH. Reading/deleting
 entities requires a binding from matching or a proven entity carried through projection/UNWIND.
-`Pattern` chains are limited to 64 relationships. Scalar chains have no comparison-count limit;
+Pattern repetition-bound sums are limited to 64 relationships. Scalar chains have no comparison-count limit;
 recursive depth follows available stack (GQL0009 in parsing, COHDBG008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
 Quantified paths are unsupported, so cycles cannot cause unbounded repetition of a path pattern. The
@@ -196,12 +199,12 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, quantifiers, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
 | `GQL0004` | Invalid or out-of-range numeric literal |
-| `GQL0005` | 64-relationship pattern bound exceeded |
+| `GQL0005` | Text repetition-bound sum exceeds 64 relationships |
 | `GQL0006` | Duplicate literal property key |
 | `GQL0007` | `Graph catalog introspection is read-only.`: mutation composed with `SHOW` |
 
@@ -266,6 +269,17 @@ represent six aggregates; collect aliases CollectList. GqlQueryExpression.GroupB
 implicit grouping (null), explicit no keys ([]) and supplied expressions. Plain names bind RETURN
 aliases first. Grouping and DISTINCT use exact numeric/structural equality; grouped ORDER BY honors
 shadowing aliases. See [aggregate results, diagnostics and examples](../../../../database/graph/language/functions/aggregate-functions.md).
+
+## Quantified paths
+
+[GqlPathPattern](gql-path-pattern.md) adds source-ordered Elements. The closed
+[GqlPathElement](gql-path-element.md) family contains node, relationship and parenthesized leaves;
+[GqlQuantifier](gql-quantifier.md) carries inclusive Min/Max, null Max meaning unbounded.
+[GqlRelationshipPattern](gql-relationship-pattern.md) adds Quantifier. Group declarations bind
+source-ordered lists and RETURN */WITH * include them; FOR/UNWIND retains their entity kinds.
+Direct invalid shape/bounds, cycles/reused path instances or subpath depth above 128 use COHDBG001;
+text bounds use GQL0002/0004/0005. Runtime qualifying 65th hops use COHDBG004.
+[Patterns](../../../../database/graph/language/patterns.md) records diagnostics and examples.
 
 ## Sources
 

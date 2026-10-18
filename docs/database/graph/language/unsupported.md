@@ -22,7 +22,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `abs(a.age)`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
 | HAVING | Recognized, not supported (`COHDBL001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`COHDBL001`) | `RETURN a {.name}` |
-| Quantified paths | Recognized, not supported (`COHDBL001`) | `[r*1..3]`, `->{1,3}` |
+| Questioned paths, nested quantifiers and subpath assignments/WHERE | Recognized, not supported (`COHDBL001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute |
 | Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE stored properties stay scalar-only |
 | List/pattern comprehensions and slicing | Recognized, not supported (`COHDBL001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |

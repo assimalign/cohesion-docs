@@ -13,6 +13,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public static class GqlClauses
 {
+    public const string QuantifiedPath = "QUANTIFIED PATH";
     public const string GroupBy = "GROUP BY";
     public const string Let = "LET";
     public const string Filter = "FILTER";
@@ -45,6 +46,9 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Let)); // True
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Unwind)); // True
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Next)); // True
 ```
+
+QuantifiedPath enables [quantified edges and subpaths](../../../../database/graph/language/patterns.md).
+The constant adds no exceptions; `Instance.Supports(GqlClauses.QuantifiedPath)` returns true.
 
 ## Documented behavior
 

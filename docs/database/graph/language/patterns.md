@@ -1,6 +1,6 @@
 # Graph patterns
 
-Graph patterns describe finite chains of labeled nodes and typed relationships with scalar expression properties.
+Graph patterns describe fixed or quantified paths of labeled nodes and typed relationships with scalar expression properties.
 
 > **Status:** Implemented.
 
@@ -8,7 +8,10 @@ Graph patterns describe finite chains of labeled nodes and typed relationships w
 
 ```syntaxsql
 <paths> ::= path [ , ...n ]
-<path> ::= node [ relationship node ...n ]
+<path> ::= path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
+<path_primary> ::= node | parenthesized
+<parenthesized> ::= "(" path ")" [ quantifier ]
+<quantifier> ::= "{" m [ "," [ n ] ] "}" | "{," [ n ] "}" | "+" | "*"
 
 <node> ::= "(" [ variable ] [ ":" label_name ...n ] [ property_map ] ")"
 
@@ -19,7 +22,8 @@ Graph patterns describe finite chains of labeled nodes and typed relationships w
     | "<-" "[" relationship_body "]" "->"
     | "->" | "<-" | "-" | "<->" }
 
-<relationship_body> ::= [ variable ] [ ":" type_name ] [ property_map ]
+<relationship_body> ::= [ variable ] [ ":" type_name ] [ cypher_length ] [ property_map ]
+<cypher_length> ::= "*" [ m ] [ ".." [ n ] ]
 
 <property_map> ::= "{" [ property_name ":" scalar_expression [ , ...n ] ] "}"
 ```
@@ -36,7 +40,7 @@ square brackets that surround relationship syntax.
 | Incoming, outgoing, either-direction matching | Supported | Full bracketed or ISO abbreviated arrows |
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
 | Scalar expression property maps | Supported | Unique keys and scalar values evaluated per incoming row |
-| Quantified or variable-length paths | Recognized, not supported (`COHDBL001`) | Use explicit finite chains |
+| Quantified edges/subpaths and Cypher bracketed lengths | Supported | Relationship-unique trails; group bindings are lists; maximum 64 hops |
 | Collection-valued properties in text | Recognized, not supported (`COHDBL001`) | No list or nested map literal |
 
 ## Arguments
@@ -67,7 +71,9 @@ carry no variable, type or property map, so typed/named edges use brackets. Tild
 unsupported (`COHDBL001`). Cypher `(a)-->(b)`/`(a)--(b)` after a pattern element report `GQL0008`
 because `--` starts a comment; use `(a)->(b)`/`(a)-(b)`. Cypher `<--`/`<-->` report `GQL0002`.
 
-A path contains at most 64 relationships. Repeated nodes are permitted; a relationship identity
+A matched path contains at most 64 relationships. Written repetition-bound sums are checked
+before execution: fixed edges contribute one, finite repetitions contribute upper bound times
+body edge count, and unbounded repetitions contribute their lower bound times body edge count. Repeated nodes are permitted; a relationship identity
 cannot repeat within one matched path. Comma-separated paths share variables but keep separate
 relationship-identity sets. Conflicting node/relationship variable kinds fail planning.
 
@@ -77,6 +83,54 @@ Overflow produces `COHDBG004`, without silent truncation. Cancellation is observ
 and materialization.
 
 [Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
+
+## Quantified paths
+
+| Form | Inclusive repetitions |
+| --- | --- |
+| `->{m}`, `->{m,n}`, `->{m,}`, `->{,n}`, `->{,}` | m..m, m..n, m..unbounded, 0..n, 0..unbounded |
+| `->+`, `->*` | 1..unbounded, 0..unbounded |
+| `-[r:T*]->`, `-[*..n]->` | 1..unbounded, 1..n |
+| `-[*m]->`, `-[*m..n]->`, `-[*m..]->` | m..m, m..n, m..unbounded |
+
+A quantifier follows an ISO edge or a parenthesized subpath. Cypher lengths sit inside brackets,
+after the type and before the property map. ISO {0}/{0,0} are invalid; Cypher [*0] is valid.
+Zero repetitions test both outer endpoints on the same node, produce a one-node path and empty
+group lists. OPTIONAL MATCH with no match binds new variables to NULL; GQL has no MISSING value.
+
+In `(a) ((x)-[r:T]->(y)){2} (b)`, each y joins the next x. Every repeated map is tested at
+each occurrence. Variables declared inside a quantified segment bind source-ordered lists of
+nodes or relationships. RETURN * and WITH * include them in declaration order. FOR/UNWIND
+preserves their entity kinds, including across WITH/NEXT. Indexing a group can select an entity;
+direct `r.w`, deleting r, a singleton/group name conflict or a repeated map referencing a group
+uses COHDBG003.
+
+Unbounded quantifiers stop when no unused relationship qualifies. A qualifying 65th edge raises
+COHDBG004 before testing its endpoint; endpoint filters and LIMIT cannot suppress that error.
+Bare unbounded quantifiers use implicit trail semantics. Relationship uniqueness is per path,
+so separate comma paths may reuse an edge; this differs from Neo4j's clause-wide default.
+
+In-process rows may contain entity lists. Wire Execute requires graph.composite-values for
+possible composites (COHDBG016 without it), then refuses possibly nonempty entity lists with
+COHDBG001. A provably empty Max=0 group can return [] when negotiated. Expand groups with
+FOR/UNWIND and project scalar properties, or use QueryPathsAsync for one named full path.
+No new wire encoding is required.
+
+## Diagnostics
+
+| Code | Meaning and trigger |
+| --- | --- |
+| GQL0002 | Reversed bounds, ISO {0}/{0,0}, node quantifier or INSERT/CREATE quantifier |
+| GQL0004 | Bound outside Int32 |
+| GQL0005 | Text repetition-bound sum above 64 |
+| GQL0008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
+| GQL0009 | Parser stack guard while nesting subpaths; engine translates to COHDBG008 (54001) |
+| COHDBL001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, explicit path modes/search prefixes |
+| COHDBG001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
+| COHDBG003 | Invalid use of group variables as described above |
+| COHDBG004 | Runtime 64-hop, 100,000-binding or 1,000,000-candidate limit |
+
+No SQLSTATE is assigned here except COHDBG008's 54001.
 
 ## Examples
 
@@ -92,6 +146,24 @@ It also accepts anonymous nodes:
 MATCH ()-[r:KNOWS]->() RETURN r
 ```
 
+### Repeated segments and groups
+
+Execute separately:
+
+```sql
+INSERT (a:V {name:'A'})-[:T {w:1}]->(b:V {name:'B'})-[:T {w:1}]->(c:V {name:'C'})-[:T {w:2}]->(:V {name:'D'});
+MATCH (a:V {name:'A'})-[:T]->{1,3}(b) RETURN b.name;
+MATCH (a:V {name:'A'})-[:T*1..3]->(b) RETURN b.name;
+MATCH (a:V {name:'A'}) ((x)-[r:T]->(y)){2} (b) RETURN b.name;
+MATCH (a:V {name:'A'})-[r:T]->{2}(b) WITH * UNWIND r AS e RETURN e.w;
+MATCH (a:V {name:'A'})-[*0]->(b) RETURN b.name;
+```
+
+The first two queries return B, C, D; the parenthesized query returns C; expansion returns 1, 1;
+the zero-length query returns A. A path request using
+`MATCH p = (a:V {name:'A'})-[:T]->{1,3}(b) RETURN p` returns trails of lengths 1, 2 and 3,
+with every intermediate node in source order.
+
 ## See also
 
 - **[Language (GQL)](index.md)** — reference hub.
@@ -101,6 +173,9 @@ MATCH ()-[r:KNOWS]->() RETURN r
 - **[Diagnostics](diagnostics.md)** — bound and binding failures.
 
 ## Sources
+
+- **Quantified execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlQuantifiedPathTests.cs`.
+- **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQuantifiedPathParserTests.cs`.
 
 - **Direction forms** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlEdgeDirectionParserTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLabelDirectionExecutionTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
