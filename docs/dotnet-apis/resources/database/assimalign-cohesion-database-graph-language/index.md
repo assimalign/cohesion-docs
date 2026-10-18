@@ -15,6 +15,9 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GqlVariableExpression](gql-variable-expression.md)** — Bare node, relationship or path binding.
 - **[GqlSetQuantifier](gql-set-quantifier.md)** — ALL or DISTINCT result tuples.
 - **[`GqlQueryExpression`](gql-query-expression.md)** — Documented public type.
+- **[GqlSortItem](gql-sort-item.md)** — Sort expression, direction and NULL placement.
+- **[GqlSortDirection](gql-sort-direction.md)** — Ascending or descending comparison.
+- **[GqlNullOrdering](gql-null-ordering.md)** — Default or explicit NULL placement.
 - **[GqlMatchClause](gql-match-clause.md)** — Ordered MATCH paths, predicate and optional flag.
 - **[`GqlQueryParser`](gql-query-parser.md)** — Documented public type.
 - **[`GqlQueryStatement`](gql-query-statement.md)** — Documented public type.
@@ -44,7 +47,7 @@ See the [source-backed usage examples](examples/index.md).
 
 The supported surface is finite `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
 RETURN expressions/aliases, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
-DISTINCT and star, standalone RETURN, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
+DISTINCT and star, standalone RETURN, ORDER BY, OFFSET/SKIP and LIMIT, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
 cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.
 

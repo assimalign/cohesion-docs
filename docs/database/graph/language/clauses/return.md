@@ -8,6 +8,8 @@ RETURN projects expressions or named graph bindings, with optional duplicate eli
 
 ```syntaxsql
 RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
+[ ORDER BY sort_item [ , ...n ] ]
+[ { OFFSET | SKIP } count ] [ LIMIT count ]
 
 <expression> ::= value_expression | bound_variable
 ```
@@ -21,7 +23,7 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 | `AS` aliases | Supported |
 | `ALL`, `DISTINCT`, `*` | Supported; ALL is the default, star cannot mix with explicit items |
 | Functions and aggregation | Recognized, not supported (`COHDBL001`) |
-| `ORDER BY`, `LIMIT`, `OFFSET`, `SKIP` | Recognized, not supported (`COHDBL001`) |
+| [ORDER BY](order-by.md), [OFFSET/SKIP and LIMIT](limit-offset.md) | Supported after RETURN; offset precedes limit |
 
 ## Arguments
 
@@ -55,7 +57,8 @@ paths compare ordered node/relationship identities, including traversal directio
 RETURN may stand alone, finish a read match, or follow insertion. It cannot follow deletion or SHOW.
 A standalone RETURN evaluates once and returns one row. An empty MATCH returns zero rows while
 retaining result-column metadata. DISTINCT runs after insertion: it removes output duplicates
-without suppressing writes for matched bindings. No result-row ordering is promised.
+without suppressing writes for matched bindings. Sorting follows DISTINCT, then OFFSET/SKIP and
+LIMIT. Without ORDER BY there is no result-order guarantee. Paging never suppresses mutations.
 
 Lists and maps are [transient composite values](../expressions/list-values.md), including nested
 values. Equality is structural with UNKNOWN for corresponding NULLs unless a difference makes it

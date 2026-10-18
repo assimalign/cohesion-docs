@@ -24,6 +24,9 @@ public sealed class GqlQueryExpression : GqlExpression
     public IReadOnlyList<GqlProjection> Projections { get; }
     public GqlSetQuantifier SetQuantifier { get; init; }
     public bool ReturnStar { get; init; }
+    public IReadOnlyList<GqlSortItem> OrderBy { get; init; } // defaults to []
+    public GqlExpression? Offset { get; init; }
+    public GqlExpression? Limit { get; init; }
     public bool IsExplain { get; private set; }
     public GqlCatalogSurface? CatalogSurface { get; init; }
 }
@@ -51,6 +54,14 @@ first. DISTINCT compares complete projected tuples using exact numeric values, o
 NULL grouping and entity/path identities; arithmetic promotion is unchanged. Mutations run for
 every binding before output deduplication.
 
+[OrderBy](gql-sort-item.md) retains priority-ordered keys; Offset and Limit are literal or
+parameter expressions, with null meaning no offset/limit clause. Text SKIP populates Offset.
+Counts require integral CLR values from zero through Int64.MaxValue. Invalid bound counts use
+COHDBG013 before reads/writes, unsupported/non-finite CLR inputs COHDBG003 and missing parameters
+COHDBG001. These codes have no assigned SQLSTATE. Malformed sort shapes or hidden DISTINCT
+references also use COHDBG001. Sorting follows DISTINCT, then offset and limit; it applies to
+supported path returns too and never reduces mutations or match/candidate bounds.
+
 The parser sets IsExplain; callers cannot set it directly. Planning returns the shared eight-column
 description without data execution. Parser errors remain on statement.Diagnostics.
 
@@ -67,6 +78,9 @@ Console.WriteLine(query.Projections[0].Alias); // two
 
 Execution describes a Project named `two` and a Distinct operator without evaluating data.
 See [GqlProjection](gql-projection.md#example) for a source-free standalone AST execution.
+
+See [GqlSortItem](gql-sort-item.md#example) for AST inspection of directions, NULL placement
+and parameterized paging.
 
 ## Related reference
 

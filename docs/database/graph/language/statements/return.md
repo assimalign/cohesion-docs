@@ -9,6 +9,8 @@ RETURN evaluates standalone expressions, completes a read query, or projects val
 ```syntaxsql
 [ MATCH path [ , ...n ] [ WHERE predicate ] ]
 RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
+[ ORDER BY sort_item [ , ...n ] ]
+[ { OFFSET | SKIP } count ] [ LIMIT count ]
 ```
 
 For insertion followed by projection, see [INSERT](insert.md) and [CREATE](create.md).
@@ -38,7 +40,8 @@ GQL0002. Duplicate final names fail with COHDBG015 before reads or mutations, in
 Missing properties yield NULL, with no separate MISSING value. DISTINCT compares complete tuples
 using exact numeric equality, ordinal strings, NULL grouping and entity/path identity; arithmetic
 keeps its own promotion. See the [RETURN clause](../clauses/return.md) for naming, examples and
-embedded/wire result limits.
+embedded/wire result limits. [ORDER BY](../clauses/order-by.md) sorts after DISTINCT, followed by
+[OFFSET/SKIP and LIMIT](../clauses/limit-offset.md). Paging never reduces mutations.
 
 ## Examples
 

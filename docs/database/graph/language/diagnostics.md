@@ -10,7 +10,7 @@ GQL reports stable capability, syntax, planning, and execution diagnostics.
 |---|---|
 | `COHDBL001` | Recognized construct outside the executable profile |
 | `GQL0001` | Empty statement |
-| `GQL0002` | Malformed supported syntax or invalid statement composition |
+| `GQL0002` | Malformed supported syntax/composition, including ORDER BY after paging, repeated paging clauses, OFFSET/SKIP after LIMIT or a noninteger/negative literal count |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
 | `GQL0004` | Invalid or out-of-range numeric literal |
 | `GQL0005` | 64-relationship pattern bound exceeded |
@@ -31,7 +31,7 @@ label names, and property keys do not trigger keyword capability checks.
 
 | Code | Meaning |
 |---|---|
-| `COHDBG001` | Invalid pattern, variable binding, or traversal specification |
+| `COHDBG001` | Invalid pattern, variable binding, traversal or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
 | `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
 | `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
@@ -59,6 +59,12 @@ with COHDBG001 before reads, writer locks or writes, even when no rows would mat
 Kernel aborts surface as `DatabaseTransactionAbortedException`; deadlocks retain their specialized
 subtype. Schema ownership is enforced with `DatabaseObjectLockedException`, rather than a graph
 ownership diagnostic code.
+
+Ordering and paging add no codes or SQLSTATE categories. Missing key/count parameters retain
+COHDBG001. Invalid bound count values (NULL, negative, floating, nonnumeric or out of Int64 range)
+use COHDBG013 before reads or writer locks; non-finite/unsupported CLR inputs retain COHDBG003.
+[ORDER BY](clauses/order-by.md) and [paging](clauses/limit-offset.md) apply to output after all
+mutations and DISTINCT; LIMIT does not bypass COHDBG004 bounds.
 
 ## Boundaries
 

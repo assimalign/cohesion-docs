@@ -16,10 +16,11 @@ public static class GqlLanguageProfile
 ## Behavior and exceptions
 
 Instance is the shared immutable GQL profile. Its clauses advertise CASE alongside matching,
-projection, mutations, SHOW, EXPLAIN and label expressions. CASE/WHEN/THEN/ELSE/END and
+projection, ORDER BY, OFFSET/SKIP, LIMIT, mutations, SHOW, EXPLAIN and label expressions. CASE/WHEN/THEN/ELSE/END and
 COALESCE/NULLIF are keywords; the function table remains empty. COALESCE and NULLIF parse into
 case-abbreviation nodes, without registry function calls. Reserved vocabulary is larger than the
-executable profile; recognized excluded constructs produce COHDBL001.
+executable profile; recognized excluded constructs produce COHDBL001. NULLS, FIRST and LAST
+are contextual words outside Keywords; first and last remain usable variable names.
 
 The static accessor introduces no validation exceptions. GqlQueryParser returns diagnostics for
 malformed text, including GQL0002 for malformed conditional/composite syntax and GQL0006 for

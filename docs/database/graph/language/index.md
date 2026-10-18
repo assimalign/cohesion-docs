@@ -12,7 +12,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 
 - **[Syntax conventions](syntax-conventions.md)** — diagrams, names, literals, and comments.
 - **[Statements](statements/index.md)** — queries, mutations, and catalog introspection.
-- **[Clauses](clauses/index.md)** — filtering and projection.
+- **[Clauses](clauses/index.md)** — filtering, projection, ordering and paging.
 - **[Patterns](patterns.md)** — nodes, relationships, maps, directions, and execution bounds.
 - **[Expressions](expressions/index.md)** — operators, CASE/COALESCE/NULLIF, lists, maps and property access.
 - **[Diagnostics](diagnostics.md)** — syntax, capability, planning, and execution errors.
@@ -25,6 +25,8 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Finite chains; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
 | `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
+| [ORDER BY](clauses/order-by.md) | Supported | Expression keys, ASC/ASCENDING/DESC/DESCENDING, NULLS FIRST/LAST and stable ties |
+| [OFFSET/SKIP and LIMIT](clauses/limit-offset.md) | Supported | Output paging after RETURN; offset precedes limit |
 | `INSERT` | Supported | Node/path insertion with literal or parameter properties, optionally after matching |
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |

@@ -30,6 +30,11 @@ QueryPathsAsync also accepts DISTINCT over one bare bound entity/path, or RETURN
 binding. Computed/multiple and multi-binding star shapes fail COHDBG001 before path output and
 before duplicate-name checks; completion and reuse rules stay the same.
 
+The supported path query tail applies DISTINCT, [ORDER BY](../../../../database/graph/language/clauses/order-by.md),
+OFFSET/SKIP and LIMIT before converting projected bindings to paths. For example,
+`MATCH (a:Person) RETURN a ORDER BY a.age DESC SKIP 1 LIMIT 1` returns Isolated from the
+[Person fixture](../../../../database/graph/language/clauses/order-by.md#examples).
+
 A projected binding supplied only by OPTIONAL MATCH is refused during planning with COHDBG001,
 even when every actual row would match; a mandatory clause must bind or constrain it. For example,
 `OPTIONAL MATCH (n:Person) RETURN n` is refused, while

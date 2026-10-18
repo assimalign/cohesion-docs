@@ -185,7 +185,7 @@ The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
 is the single executable-language inventory: MATCH, WHERE, RETURN, INSERT, CREATE (compatibility
 extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, functions,
-variable-length paths, aggregations, ordering, graph selection and language DDL are not advertised.
+variable-length paths, aggregations, graph selection and language DDL are not advertised.
 Label/type/index management is the session-bound C# schema API. The ISO decision and conformance
 corpus are documented alongside the parser; this is a bounded ISO subset, not a full conformance
 claim.
@@ -255,6 +255,19 @@ An attempt to append a mutation clause returns `GQL0007: Graph catalog introspec
 before any writer lock or data mutation; hand-built ASTs have the same protection. Unsupported read
 composition returns the ordinary syntax/binding diagnostic. Since no synthetic graph objects are
 created, ordinary graph writes cannot address or change these result rows.
+
+## Ordering and paging
+
+The common row/path tail projects, removes DISTINCT duplicates, caches each sort key, sorts,
+offsets and limits. Mutations run for every matched binding before this tail; paging does not reduce
+the match or candidate caps. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
+comparison is exact, ties retain input order and nested map keys are canonicalized once for sorting.
+Preparation and comparisons check cancellation; comparer cancellation reaches ordinary rollback
+without a List.Sort wrapper. EXPLAIN maps SortPage and SortKey. Invalid dynamic counts use
+COHDBG013 before reads/writer locks, unsupported/non-finite CLR inputs COHDBG003 and missing
+parameters COHDBG001. No new code, SQLSTATE, catalog format or wire version is introduced.
+See [ORDER BY](../../../../database/graph/language/clauses/order-by.md) and
+[OFFSET/SKIP and LIMIT](../../../../database/graph/language/clauses/limit-offset.md).
 
 ## Metadata and diagnostics
 

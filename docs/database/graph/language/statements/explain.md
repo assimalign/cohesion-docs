@@ -28,6 +28,12 @@ Repeated matching clauses have source-ordered Match/OptionalMatch nodes. Optiona
 reports whether a filter is present, whether the clause matches nothing, and new variables that
 would receive NULL. EXPLAIN itself does not perform matching or null extension.
 
+ORDER BY and paging add a SortPage node with `offset` and `limit` (ALL when absent), plus a
+SortKey child per key with expression, direction and NULL placement. For example,
+`EXPLAIN RETURN 1 AS n ORDER BY n DESC NULLS LAST OFFSET 0 LIMIT 1` reports
+`offset=0; limit=1` and a descending, NULL-last key. Counts and key bindings are validated
+without sorting or executing mutations.
+
 ## Examples
 
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:

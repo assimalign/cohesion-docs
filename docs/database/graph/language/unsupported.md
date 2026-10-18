@@ -14,7 +14,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Construct | Support | Rejected form |
 |---|---|---|
 | Mandatory keyword | Recognized, not supported (`COHDBL001`) | `MANDATORY MATCH` |
-| Sorting and pagination | Recognized, not supported (`COHDBL001`) | `ORDER BY`, `LIMIT`, `OFFSET`, `SKIP` |
+| Standalone ordering and paging | Recognized, not supported (`COHDBL001`) | `MATCH (a) ORDER BY a.age RETURN a`; ordering/paging after RETURN executes |
 | Intermediate projection and chaining | Recognized, not supported (`COHDBL001`) | `WITH`, `NEXT` |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
 | Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |

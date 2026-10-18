@@ -35,7 +35,8 @@ independent of entry order. IN, simple CASE and NULLIF share this rule. Numbers 
 represented values: 1 equals 1.0; Decimal 0.1m and Double 0.1d parameters differ.
 DISTINCT compares the same structures but groups corresponding NULLs and retains runtime types.
 List ordering comparisons are lexicographic; an encountered NULL or incomparable pair yields
-UNKNOWN. ORDER BY remains unsupported.
+UNKNOWN. [ORDER BY](../clauses/order-by.md) instead uses a total family/container order,
+including lexicographic lists, with nested NULL last ascending.
 
 ## Limits and wire capability
 

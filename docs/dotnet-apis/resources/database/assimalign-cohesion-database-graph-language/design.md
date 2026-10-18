@@ -68,6 +68,8 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `OPTIONAL MATCH` | Same finite paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
+| `ORDER BY` | Keys with ASC/ASCENDING/DESC/DESCENDING and NULLS FIRST/LAST | Sorts projected rows/paths after DISTINCT; stable ties |
+| `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; output only, with full materialization |
 | `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
@@ -95,6 +97,8 @@ path        := node (relationship node)*
 predicate   := scalar-expression
 operand     := variable | variable '.' property | scalar-literal | parameter
 return      := RETURN [DISTINCT | ALL] ('*' | projection (',' projection)*)
+               [ORDER BY sort-item (',' sort-item)*]
+               [(OFFSET | SKIP) page-value] [LIMIT page-value]
 projection  := value-expression [AS alias]
 catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP)
 ```
@@ -183,7 +187,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, quantifiers, ordering, set operations, and server/session scope |
+| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, functions, stored composite properties, comprehensions/slicing, quantifiers, standalone ordering/paging before RETURN, set operations, and server/session scope |
 | `GQL0001` | Empty statement |
 | `GQL0002` | Malformed supported syntax or invalid statement composition |
 | `GQL0003` | Unterminated string, quoted name, or block comment |
@@ -227,6 +231,24 @@ Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../d
 including GQL0008/0009 and COHDBG001–016 with available SQLSTATE/GQLSTATUS categories.
 COHDBG015 identifies a duplicate final RETURN column name. COHDBG016 rejects possible composite
 wire results without graph.composite-values before reads/writes; neither has an assigned SQLSTATE.
+
+## Ordering and paging
+
+[GqlQueryExpression](gql-query-expression.md) adds OrderBy, Offset and Limit init properties.
+[GqlSortItem](gql-sort-item.md) carries a key and the [direction](gql-sort-direction.md) and
+[NULL placement](gql-null-ordering.md) enums. Default NULL placement is last ASC/first DESC.
+OFFSET/SKIP must precede LIMIT. Dynamic counts require an integral CLR value in nonnegative Int64
+range (COHDBG013); unsupported/non-finite CLR inputs use COHDBG003 and missing parameters COHDBG001.
+DISTINCT keys can reference only projected values, including projected entities and structurally
+matching computed expressions. Hidden bindings are COHDBG001, including on empty graphs.
+
+The total ascending order is map, node, relationship, list, path, string, Boolean, number, NULL.
+Numeric comparison is exact. Lists compare lexicographically; maps compare count, ordinal sorted
+keys and values; paths compare starting node, relationship sequence and length. Ties retain input
+order. Mutations precede projection, DISTINCT, sort, offset and limit. Every key evaluates once per
+retained row and nested map keys are cached. Sort preparation/comparisons observe cancellation.
+Full materialization and match/candidate caps remain in force. EXPLAIN describes SortPage and
+SortKey without execution. See the [language rules](../../../../database/graph/language/clauses/order-by.md).
 
 ## Sources
 

@@ -26,6 +26,10 @@ See [GqlMatchClause](../gql-match-clause.md#example) for repeated and optional m
 and [MATCH](../../../../../database/graph/language/statements/match.md#optional-and-repeated-matching)
 for their results and the bound-anchor measurement.
 
+[GqlSortItem](../gql-sort-item.md#example) and its enum pages inspect parsed ORDER BY keys.
+The [ordering fixture](../../../../../database/graph/language/clauses/order-by.md#examples)
+shows NULL placement, aliases, SKIP and LIMIT with exact result sequences.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.

@@ -102,6 +102,10 @@ examines 2,002 candidates in the test corpus, down from 1,003,002 before bound-n
 The 100,000 intermediate-binding and 1,000,000 statement-candidate limits still apply across clauses
 (`COHDBG004`); this is a measured fixture, not a general complexity guarantee.
 
+The RETURN tail accepts [ORDER BY](../clauses/order-by.md) and
+[OFFSET/SKIP before LIMIT](../clauses/limit-offset.md), including supported path projections.
+Paging does not reduce matching bounds.
+
 ## See also
 
 - **[Statements](index.md)** — statement navigation.
