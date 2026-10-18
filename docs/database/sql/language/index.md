@@ -2,7 +2,7 @@
 
 Reference for Cohesion's declared SQL dialect and its measured execution boundaries.
 
-> **Status:** Partial. The profile measures 36 of 51 declared clauses against the live engine.
+> **Status:** Partial. The profile measures 37 of 51 declared clauses against the live engine.
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
@@ -32,7 +32,7 @@ manipulation language (DML), and transaction control.
 
 The [Clauses](clauses/index.md) section describes binding and execution rules.
 
-- **Sources and filtering** — [FROM and derived tables](clauses/from.md), [JOIN](clauses/join.md), and
+- **Sources and filtering** — [WITH](clauses/with.md), [FROM and derived tables](clauses/from.md), [JOIN](clauses/join.md), and
   [WHERE](clauses/where.md).
 - **Grouping** — [GROUP BY](clauses/group-by.md) and [HAVING](clauses/having.md).
 - **Result shaping** — [ORDER BY](clauses/order-by.md), [LIMIT/OFFSET](clauses/limit-offset.md),

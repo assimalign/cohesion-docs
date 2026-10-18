@@ -7,6 +7,7 @@ Retrieves rows from stored tables and system relations, including N-way joins an
 ## Syntax
 
 ```syntaxsql
+[ WITH common_table_expression [ , ...n ] ]
 SELECT [ DISTINCT ] <select_list>
 FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 [ WHERE search_condition ]
@@ -44,15 +45,20 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 | `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
-| Uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
+| Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
 | `TOP`, `ALL`, `FETCH`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs remains excluded |
-| `WITH`, windows | Recognized, not supported (`COHDBL001`) | No common table expressions or window clauses |
+| [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
+| Windows | Recognized, not supported (`COHDBL001`) | No window clauses |
 
 ## Remarks
 
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
+
 The conformance contract measures these subsets through the live engine, including wire execution.
-Every `SELECT` requires `FROM`; a constant-only query without a relation fails planning.
+Every ordinary `SELECT` requires `FROM`; only a [CTE definition root](../clauses/with.md) may
+omit it and use one implicit row.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes

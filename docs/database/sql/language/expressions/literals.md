@@ -85,6 +85,15 @@ SELECT DATE '2024-01-01', TIME '10:30', INTERVAL '1:30' HOUR TO MINUTE,
 On the [fixture](../statements/select.md#a-create-the-conformance-fixture), the single row contains
 DateOnly 2024-01-01, TimeOnly 10:30:00, a 90-minute TimeSpan, bytes 00 FF and text héllo.
 
+## Canonical identifier text
+
+The renderer quotes identifiers spelled like recognized vocabulary, including SEARCH and
+MATERIALIZED. For a column named search, a CHECK expression renders `"search" >= 0` rather than
+`search >= 0`. Defaults and SQL function bodies use the same renderer. SQL data-storage format
+16 refuses older files without an upgrade path because canonical CHECK text is compared ordinally
+during compiled-schema verification. There is no catalog tuple layout change; compiled schema
+artifacts remain version 7.
+
 ## Examples
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
@@ -100,6 +109,8 @@ This adapts the dialect's literal forms to one row of the conformance fixture.
 [Expressions](index.md) · [SELECT](../statements/select.md) · [Data types](../data-types/index.md)
 
 ## Sources
+
+- **Canonical names and format 16** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteStorageFormatTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

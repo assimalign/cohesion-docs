@@ -46,7 +46,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE014` | Table does not exist | — |
 | `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
-| `COHSQLE017` | Invalid aggregate placement or grouping expression | — |
+| `COHSQLE017` | Invalid aggregate placement/grouping, including a non-grouping outer column referenced from a completed group | — |
 | `COHSQLE018` | Invalid ordering ordinal, row count or CAST declaration | — |
 | `COHSQLE019` | Duplicate target column/table binding or ambiguous output alias | — |
 | `COHSQLE020` | Missing parameter, checked before reading or writing rows | — |
@@ -55,11 +55,15 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE023` | Parameter keys collide after stripping one sigil, including unused keys | — |
 | `COHSQLE024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
 | `COHSQLE025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
+| `COHSQLE026` | Duplicate CTE name or unresolved reference to a later sibling; binding fails before reads/writes | — |
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
 NOT NULL failures name the column and have no execution-time source span.
-Actual correlated references remain `COHDBL001` with the local FROM/JOIN-scope refusal; derived
-sibling references use its LATERAL refusal. Typos and hidden qualifiers retain `COHSQLE015`.
+Correlated references resolve through enclosing query scopes. A real derived sibling reference
+uses `COHDBL001` naming LATERAL; unknown, ambiguous or hidden names retain `COHSQLE015`.
+An aggregate assigned to an outer level uses `COHDBL001` before grouped-column validation.
+For WITH, a later sibling's name reads a stored table when one exists; only a missing future
+relation receives `COHSQLE026`. No SQLSTATE is assigned to that code.
 
 ## Transactions
 

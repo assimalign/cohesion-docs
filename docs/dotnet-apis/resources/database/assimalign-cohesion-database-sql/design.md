@@ -29,53 +29,50 @@ DIALECT.md
 
 ## Subquery and insert-source operators (#1021)
 
-`SqlPlanner.Subqueries.cs` binds each uncorrelated child SELECT in its own local scope and lowers
-its use sites to typed slots. `SqlSubqueryPlan` owns those child plans and the enclosing relation
-plan. `SqlPlanExecutor.Subqueries.cs` executes each child with the enclosing `SqlStatementContext`,
-materializes its results, and supplies typed constants or an IN value list by AST node identity
-while the enclosing plan runs. Expression evaluation never opens a query, session, transaction, or
-read view. Keeping the expression trees preserves grouping's expression-ordinal bindings, including
-subqueries in HAVING and aggregate arguments.
+The planner binds child SELECTs through a lexical scope chain and lowers their use sites to typed
+slots. Independent children materialize once; correlated children execute for each reached outer
+row under the same statement context. Frame-local slots keep nested results independent. CASE,
+COALESCE and Boolean preparation preserve lazy evaluation. Projection and ordering retain each
+row's child values before sorting. Retained BYTEA cells copy on delivery.
 
-Scalar children require one output column and at most one row; an empty result is a typed null. IN
-children require one column and preserve SQL three-valued membership, including unknown for
-nonmatches against a null-containing set and false for membership in an empty set. EXISTS tests row
-existence. Output types and string collations cross the materialization boundary. Nested system-view
-queries trigger one statement catalog capture, just like outer system views.
+Local names and aliases shadow outer ones, including across multiple levels. Ambiguity and hidden
+qualifiers use COHSQLE015. Children over completed groups may read outer grouping-key columns only
+(COHSQLE017 otherwise); aggregate arguments read source rows. Aggregate levels follow the lowest
+variable or aggregate dependency, including nested queries after adjusting levels. An outer-level
+aggregate receives COHDBL001 before grouping checks; mixed local dependencies can keep it local.
+See [Subqueries](../../../../database/sql/language/expressions/subqueries.md) for examples.
 
-`SqlInsertSelectPlan` holds the destination binding and a query source. Its executor reads the
-entire source before staging any destination writes, so self-inserts read the original statement
-snapshot exactly once. Source width and declared type compatibility are validated before execution,
-including empty sources; value conversions use the literal insert rules. Both insert forms call the
-same preparation, default/nullability/CHECK/FK/UNIQUE validation, locking, index maintenance and
-transactional apply path.
+Scalar queries require one column and at most one row; zero rows produce typed NULL. IN preserves
+three-valued membership, and EXISTS tests row existence. Types and collations cross materialization.
+All children share the statement's MVCC and catalog snapshots. UPDATE/DELETE predicate children
+finish for every candidate before writes; prior uncommitted session changes remain visible.
+INSERT SELECT materializes the complete source before applying destination coercion, defaults and
+constraints. Failure leaves no partial row changes.
 
-Correlation remains excluded. Explicit nonlocal qualifiers in ordinary subqueries receive parser
-`COHDBL001`: `Correlated SQL subqueries are not supported: reference 't.id' is outside the subquery's local FROM/JOIN scope.`
-for t.id. Derived-body references wait for binding; actual outer references there receive `COHDBL001` with
-`Correlated subqueries are not supported; a subquery column must resolve in its local FROM/JOIN scope.`
-and binding detail. Unknown/hidden names reaching binding retain `COHSQLE015`. Parsing and planning enforce at
-most 32 query levels, including derived bodies. UPDATE/DELETE WHERE supports uncorrelated children
-materialized before writes over the pre-statement snapshot, including earlier uncommitted changes.
-Rollback restores target rows and cascades together. UPDATE SET, VALUES, CHECK/DEFAULT and
-LIMIT/OFFSET expression subqueries, quantified comparisons, CTEs and lateral joins remain outside
-the profile. SELECT continues to require FROM. Subquery resolution uses AST node
-identity at evaluation time; it needs no language-assembly friend access or public AST constructors.
-See DIALECT.md
-(`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`, section
-`subqueries-and-query-source-inserts-1021`) for the exact supported forms and semantics.
+### WITH and derived relations
 
-### Derived relations
+[WITH](../../../../database/sql/language/clauses/with.md) binds all definitions in declaration order,
+including unused bodies. Read names prefer visible CTEs; qualified reads and DML targets use the
+catalog. Self and later-sibling names fall back to stored tables; only missing future relations use
+COHSQLE026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
+rules. Reachable definitions materialize once in declaration order before any DML write. Unused
+bodies do not evaluate counts or seek bounds. A FROM-less definition root uses one implicit row;
+ordinary nested queries still require FROM. With, Materialize, CteScan and Constant describe these
+plans without executing them.
 
-FROM/JOIN/comma inputs accept aliased SELECT bodies, materialized once in the enclosing statement
-context. Full-width renames and nonblank output names are checked before enumeration (`COHSQLE013`).
-Metadata follows each projected expression, including qualified versus merged USING outputs,
-Boolean IN outputs, domains and collation strength. Empty relations retain their metadata.
-System inputs in derived bodies and DML predicates request the same statement catalog image.
-Only a reference that really binds to a sibling reports the LATERAL refusal; typos retain
-`COHSQLE015`. Outer ORDER BY keys depending on derived outputs (including aliases/ordinals) retain
-`COHDBL001`; stored-input keys and ordering inside derived bodies execute. See
-[FROM](../../../../database/sql/language/clauses/from.md#derived-tables).
+Derived FROM/JOIN/comma relations reuse typed output metadata, including modifiers, domains,
+nullability and collation provenance. Uncorrelated relations cache once per statement; correlated
+derived bodies evaluate per enclosing frame. Only a reference that binds to a real sibling gets
+the LATERAL refusal; typos retain COHSQLE015. Outer ordering over derived outputs stays COHDBL001.
+CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
+levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
+nested/recursive CTEs and explicit LATERAL remain excluded.
+
+SQL data-storage format 16 is required because newly recognized SEARCH/MATERIALIZED identifiers
+render quoted in persisted expressions: `search >= 0` becomes `"search" >= 0`. Ordinal CHECK-text
+comparison would otherwise report schema drift. DEFAULTs and function bodies share the renderer.
+There is no tuple layout change or upgrade path; older formats are refused. Compiled schemas stay
+version 7. Evidence: SqlCteStorageFormatTests, SqlCteExecutionTests and SqlSubqueryExecutionTests.
 
 ## Compiled-schema provisioning
 
@@ -911,7 +908,7 @@ EXPLAIN performs the wrapped statement's binding, parameter and provisioning adm
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
 4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
-All SQL000x, COHSQLE001–025 and transaction meanings and SQLSTATE categories are in
+All SQL000x, COHSQLE001–026 and transaction meanings and SQLSTATE categories are in
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
 ## Identity columns and allocation
@@ -932,7 +929,7 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. SQL format 15 stores
+generated allocations for that identity. Exhaustion rolls back all row writes. SQL format 16 stores
 immutable identity facets in table-extension version 5 and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
 compiled schemas have no identity representation. SQL script definitions retain it.
@@ -1001,8 +998,7 @@ shippable steps:
 
 ## Non-goals (current cut)
 
-RIGHT/FULL/NATURAL joins, qualified wildcards, correlated
-subqueries and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
+RIGHT/FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
 optimization (selection stays rule-based), index seeks for UPDATE/DELETE target collection, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of

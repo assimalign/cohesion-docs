@@ -24,7 +24,7 @@ all assignments to its identity column, including DEFAULT, with `COHSQLE025`.
 
 The measured `UPDATE` subset accepts multiple assignments and an optional `WHERE`.
 The documented `SET` belongs to `UPDATE`; it is not session configuration or transaction-isolation
-syntax. SET subqueries and DML `RETURNING` are outside the executable subset; uncorrelated
+syntax. SET subqueries and DML `RETURNING` are outside the executable subset; correlated and uncorrelated
 subqueries execute in the UPDATE WHERE predicate.
 
 ## Examples

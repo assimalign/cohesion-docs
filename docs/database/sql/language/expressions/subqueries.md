@@ -1,6 +1,6 @@
 # Subqueries (Cohesion SQL)
 
-Embeds an uncorrelated query as a scalar, membership test, or existence test.
+Embeds a correlated or uncorrelated query as a scalar, membership test, or existence test.
 
 > **Status:** Partial. This page describes the executable subset and its boundaries.
 
@@ -20,7 +20,7 @@ expression [ NOT ] IN ( select_statement )
 ## Remarks
 
 Scalar and membership queries must return exactly one column. `EXISTS` accepts any valid select
-list. Every child query requires `FROM`; its references must resolve within its own query scope.
+list. Every expression child requires `FROM`. Names bind locally first, then in enclosing query scopes.
 
 | Form | Result |
 | --- | --- |
@@ -34,7 +34,8 @@ list. Every child query requires `FROM`; its references must resolve within its 
 | `NOT IN` | Negates `TRUE`/`FALSE`; preserves `UNKNOWN`; empty result is `TRUE` |
 | `EXISTS` / `NOT EXISTS` | Test whether rows exist; a projected null still counts as a row |
 
-Child results are materialized before the containing relational plan executes. They share the
+Independent children materialize once per statement. Correlated children evaluate for each outer
+row when their expression is reached, including repeated or NULL correlation values. They share the
 outer statement's multi-version concurrency control (MVCC) snapshot and transaction context.
 System-relation children use the same statement catalog snapshot. Type and collation survive
 materialization, including empty and null scalar results.
@@ -44,23 +45,33 @@ ordinary numeric pagination and UPDATE/DELETE WHERE. At most 32 query levels, in
 bodies, are allowed beneath the
 top-level query or insert source; level 33 reports `COHDBL001`.
 
-Correlation, quantified `ANY`/`ALL`/`SOME` comparisons, common table
-expressions, lateral joins, and subqueries in `UPDATE SET`, `VALUES`, `CHECK`,
-`DEFAULT`, or pagination expressions are excluded with `COHDBL001`. Local aliases may shadow
-outer names. An explicit nonlocal qualifier in an ordinary subquery is rejected by parsing with
-`COHDBL001`. For `t.id`, its exact message is
-`Correlated SQL subqueries are not supported: reference 't.id' is outside the subquery's local FROM/JOIN scope.`
-Derived-body references wait for catalog binding. An actual outer reference found there reports
-`COHDBL001` with
-`Correlated subqueries are not supported; a subquery column must resolve in its local FROM/JOIN scope.`
-followed by binding detail. Names reaching binding that do not resolve locally or outside retain
-`COHSQLE015`.
-[Derived tables](../clauses/from.md#derived-tables) use the same context and nesting limit.
+### Scope and aggregate levels
 
-UPDATE/DELETE predicate children materialize before any target mutation, including self-reads.
-They see the session's uncommitted changes from earlier statements. Rollback restores target rows
-and cascades together. System inputs share the same statement catalog capture. Scalar cardinality
-and NULL membership rules above apply unchanged; SET expressions remain row-local.
+Local names and aliases shadow outer names, including names two or more levels out. A local
+qualifier with no matching column stops lookup; it cannot fall back to the same qualifier outside.
+Unknown/hidden qualifiers and ambiguity within a scope report located `COHSQLE015`, even on empty input.
+SELECT lists, WHERE, HAVING, JOIN ON, grouping expressions, ordering and UPDATE/DELETE WHERE
+accept correlation. CASE, COALESCE and Boolean short-circuiting evaluate only reached children.
+
+A child evaluated over completed outer groups may read grouping-key columns only; another outer
+column reports `COHSQLE017` naming it. Children inside aggregate arguments, WHERE and ON read
+source rows. Aggregate levels follow PostgreSQL: the lowest variable or aggregate dependency
+sets the level, including dependencies inside nested queries after adjusting for their depth.
+An aggregate belonging to an outer query level reports `COHDBL001` before grouped-column checks;
+relocating it to that query is excluded. A mixed aggregate with a local dependency remains local.
+
+Quantified ANY/ALL/SOME comparisons, LATERAL syntax and subqueries in UPDATE SET, VALUES,
+CHECK, DEFAULT or pagination expressions remain `COHDBL001`. [WITH](../clauses/with.md) is supported
+before data statements; nested and recursive WITH remain excluded. A [derived body](../clauses/from.md#derived-tables)
+may correlate to enclosing queries, but a real sibling relation reference requires unsupported
+LATERAL. A typo keeps `COHSQLE015`. SQL has NULL, with no separate MISSING value.
+
+### UPDATE and DELETE snapshots
+
+Predicate children evaluate before any target mutation, including self-reads. Independent children
+materialize once; correlated children run for each candidate row. They see the session's earlier
+uncommitted changes. Rollback restores target rows and cascades together. Scalar cardinality and
+NULL membership rules above apply unchanged; SET expressions remain row-local.
 
 [INSERT ... SELECT](../statements/insert.md) materializes its complete source before writes and
 uses destination coercion, defaults, and constraints atomically for the inserted rows.
@@ -79,7 +90,7 @@ ORDER BY id;
 
 The fixture returns `(2, 45)` and `(3, 45)`.
 
-### UPDATE and DELETE snapshots
+### Snapshot example
 
 Execute each statement separately in a fresh table:
 
@@ -95,11 +106,34 @@ SELECT id, x FROM snapshot_rows;
 UPDATE affects two rows, DELETE affects two rows and the final row is `(3, 9)`. Each predicate
 uses values from before its own statement, so updates do not feed back into that statement's children.
 
+### Correlation and grouping
+
+Execute separately in a fresh database, as in the correlation tests:
+
+```sql
+CREATE TABLE sales (id INT, k INT, amount INT);
+CREATE TABLE labels (k INT, threshold INT);
+INSERT INTO sales VALUES (1, 1, 4), (2, 1, 6), (3, 2, 8), (4, 3, 3);
+INSERT INTO labels VALUES (1, 9), (2, 10);
+SELECT s.k, SUM(s.amount), (SELECT l.threshold FROM labels l WHERE l.k = s.k)
+FROM sales s GROUP BY s.k
+HAVING SUM(s.amount) > (SELECT l.threshold FROM labels l WHERE l.k = s.k)
+ORDER BY s.k;
+```
+
+The result is `(1, 10, 9)`. The child reads the completed outer grouping key k.
+`SELECT (SELECT SUM(s.amount) FROM labels l) FROM sales s` reports COHDBL001:
+SUM depends only on the outer query. `SUM(l.threshold + s.amount)` in that child has a local
+dependency and remains at the child's level when the surrounding query is otherwise valid.
+
 ## See also
 
 [Expressions](index.md) · [SELECT](../statements/select.md) · [Data types](../data-types/index.md)
 
 ## Sources
+
+- **Correlation, scope, groups and DML** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSubqueryExecutionTests.Correlation.cs`.
+- **Aggregate levels** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSubqueryExecutionTests.Regression.cs`.
 
 - **DML snapshots** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSubqueryTests.cs`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

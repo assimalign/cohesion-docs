@@ -38,7 +38,12 @@ every concrete plan record to have a description mapping.
 N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
 steps whose inputs will be empty. Plan output uses the same eight columns.
 Derived inputs add a DerivedTable node with their child plan. UPDATE/DELETE predicate subqueries
-are described beneath Subqueries; EXPLAIN does not materialize their data or mutate the target.
+are described beneath Subqueries or CorrelatedSubqueries; EXPLAIN does not materialize their data or mutate the target.
+
+[WITH](../clauses/with.md) descriptions add With, Materialize and CteScan operators. Constant
+marks a FROM-less CTE body. `EXPLAIN WITH a AS (SELECT 1 AS id) SELECT * FROM a` yields
+With → Materialize → Constant, followed by Select → CteScan, without evaluating the body.
+CorrelatedSubqueries retains the complete child plans evaluated for each outer row.
 
 ## Examples
 

@@ -7,6 +7,7 @@ Adds rows from scalar values or a query to a stored table.
 ## Syntax
 
 ```syntaxsql
+[ WITH common_table_expression [ , ...n ] ]
 INSERT INTO [ schema_name . ] table_name
 [ ( column_name [ , ...n ] ) ]
 { VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
@@ -22,6 +23,9 @@ INSERT INTO [ schema_name . ] table_name
 - **`select_statement`** — A query within the supported [SELECT](select.md) subset.
 
 ## Remarks
+
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 A whole-item [DEFAULT](../clauses/default.md) requests the destination default;
 `DEFAULT VALUES` inserts one row of defaults. A missing default on a NOT NULL column is
@@ -41,7 +45,8 @@ destination is therefore supported without feeding newly inserted rows back into
 Any failure leaves none of the query-source statement's rows inserted.
 
 Subqueries inside `VALUES` and data manipulation language (DML) `RETURNING` report `COHDBL001`.
-Use `INSERT ... SELECT` when input comes from a query.
+Use `INSERT ... SELECT` when input comes from a query. The source may also start with WITH:
+`INSERT INTO target WITH c AS (SELECT ...) SELECT ... FROM c`.
 
 ## Examples
 

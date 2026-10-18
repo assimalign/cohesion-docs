@@ -64,7 +64,7 @@ identity table with SqlSchemaMigrationException / `COHSQLP005` and "Nothing was 
 SQL script-created tables retain their SQL definitions.
 
 [INFORMATION_SCHEMA.COLUMNS](../system-views/information-schema.md) exposes the definition and
-directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 15, with catalog counter kind 16.
+directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 16, with catalog counter kind 16.
 
 ## Diagnostics
 

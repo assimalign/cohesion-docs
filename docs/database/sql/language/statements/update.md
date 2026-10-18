@@ -7,6 +7,7 @@ Changes one or more column values on rows selected from a stored table.
 ## Syntax
 
 ```syntaxsql
+[ WITH common_table_expression [ , ...n ] ]
 UPDATE [ schema_name . ] table_name
 SET column_name = { expression | DEFAULT } [ , ...n ]
 [ WHERE search_condition ]
@@ -21,6 +22,9 @@ SET column_name = { expression | DEFAULT } [ , ...n ]
 
 ## Remarks
 
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
+
 Qualified references use the target name, or its alias when supplied. An explicit alias hides
 the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
 
@@ -33,10 +37,10 @@ updates to other columns still execute.
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
 
-Uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE over the pre-statement snapshot, including the target table and the session's
-earlier uncommitted changes. Children materialize before writes. Subqueries in SET, correlation
-and `RETURNING` report `COHDBL001`.
+earlier uncommitted changes. Independent children materialize once; correlated children evaluate
+for each candidate row before writes. Subqueries in SET and `RETURNING` report `COHDBL001`.
 Changing a referenced parent key may fail foreign-key enforcement; `ON UPDATE` actions are not
 implemented. Row updates remain available on schema-owned tables even though session DDL is restricted.
 

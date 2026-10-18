@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 36 of 51 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 37 of 51 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -15,16 +15,17 @@ session transactions, column constraints, and queries over stored tables and vir
 relations with N-way [INNER, LEFT, CROSS and comma joins](language/clauses/join.md).
 INNER/LEFT accept ON or USING; USING merges each named pair into one common-typed visible column.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
-collation, and bounded uncorrelated subqueries. `INSERT ... SELECT` uses transactional destination
+collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
 
 [Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
-uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values. Correlation and
-outer ordering over derived outputs remain excluded. [Identity columns](language/clauses/identity.md)
+correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values.
+[WITH](language/clauses/with.md) defines non-recursive query relations before SELECT, INSERT,
+UPDATE or DELETE. Outer ordering over derived outputs remains excluded. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
-The 36-of-51 measure is not a percentage of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the excluded 15 named clauses and the further
+The 37-of-51 measure is not a percentage of complete SQL. The
+[unsupported matrix](language/unsupported.md) lists the excluded 14 named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in
 [Operators and predicates](language/expressions/operators.md).
 

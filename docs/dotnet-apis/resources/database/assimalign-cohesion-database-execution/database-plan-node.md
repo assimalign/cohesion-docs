@@ -36,6 +36,10 @@ Match/OptionalMatch nodes; OptionalMatch detail names newly nullable variables a
 matches-nothing flags. These descriptions explain planning without executing the constructs.
 OQL DELETE adds a Delete root and its CollectionScan/IndexSeek child, with filter/access detail.
 
+SQL correlation adds CorrelatedSubqueries with complete child plans. Non-recursive WITH adds With,
+Materialize, CteScan and Constant; reachable materializations precede the enclosing input. These
+operators retain this public node shape and execute no data statement during EXPLAIN.
+
 ## Example
 
 ```csharp

@@ -177,7 +177,7 @@ operations; GraphPathResult exposes warnings at path completion.
 
 ## MVP boundaries
 
-The current SQL contract measures 36 of 51 declared clauses. Document and Graph have their own
+The current SQL contract measures 37 of 51 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization, and replication/governance
 contracts do not imply operational implementations.

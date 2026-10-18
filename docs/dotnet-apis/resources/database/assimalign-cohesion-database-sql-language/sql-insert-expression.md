@@ -7,6 +7,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 ```csharp
 public sealed class SqlInsertExpression : SqlQueryExpression
 {
+    public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<IReadOnlyList<SqlExpression>>? Values { get; }
@@ -24,6 +25,11 @@ SQL0003; NOT NULL failures use COHSQLE024 (23502).
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.
+
+CommonTables contains [SqlCommonTableExpression](sql-common-table-expression.md) definitions in
+declaration order, or an empty list. The setter is internal. Each reachable definition materializes
+once before writes; unused definitions bind but do not execute. INSERT's query-source WITH lives
+on SelectSource.CommonTables; a leading WITH lives on the INSERT node. See [WITH](../../../../database/sql/language/clauses/with.md).
 
 ## Example
 

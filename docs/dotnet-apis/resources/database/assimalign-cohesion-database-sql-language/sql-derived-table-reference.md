@@ -20,12 +20,12 @@ public sealed class SqlDerivedTableReference : SqlRelationReference
 Construction is internal. The parser requires an alias; Columns is empty when names are inherited,
 otherwise it contains ordered output renames. Planning requires a full-width list and nonblank
 output names (`COHSQLE013`), even for an empty body. Duplicate names remain ambiguous on reference
-(`COHSQLE015`). Alias hides underlying qualifiers. The body materializes once in the statement
-context; projected expression types, modifiers, nullability, domains and collation provenance survive.
+(`COHSQLE015`). Alias hides underlying qualifiers. An independent body materializes once per statement; a correlated body evaluates for each
+enclosing frame in the same statement context; projected expression types, modifiers, nullability, domains and collation provenance survive.
 
 The accessors do not throw validation exceptions. Missing aliases or malformed lists are `SQL0003`
 parser diagnostics. Query nesting shares the 32-level limit (`COHDBL001`). Actual sibling references
-receive `COHDBL001` naming LATERAL; enclosing-query references receive the correlation refusal.
+receive `COHDBL001` naming LATERAL; enclosing-query references bind through lexical parents and execute for each outer row.
 Unknown or hidden names keep `COHSQLE015`. Outer ordering depending on derived outputs remains
 `COHDBL001`; ordering inside the body executes. See [FROM](../../../../database/sql/language/clauses/from.md#derived-tables).
 

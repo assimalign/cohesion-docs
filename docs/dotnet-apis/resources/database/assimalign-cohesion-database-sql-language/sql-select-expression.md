@@ -9,6 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 ```csharp
 public sealed class SqlSelectExpression : SqlQueryExpression
 {
+    public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public IReadOnlyList<SqlSelectColumn> Columns { get; }
     public IReadOnlyList<SqlFromItem> From { get; }
     public SqlExpression? Where { get; }
@@ -27,14 +28,19 @@ The parser owns construction. From replaces the former single table and flat joi
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and
-persisted expressions use this same shape. SQL row-storage format 15 retains canonical FROM trees
-and adds identity metadata/counters; older formats are refused without an upgrade path. Compiled
-schema artifacts remain version 7.
+persisted expressions use this same shape. SQL row-storage format 16 accounts for the new
+canonical quoting of recognized identifiers such as search and materialized; older formats are
+refused without an upgrade path. Compiled schema artifacts remain version 7.
 
 The node's accessors add no validation exceptions. Parser.Parse returns diagnostics for invalid
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.
 Unknown/out-of-scope names and invalid USING pairs fail planning with COHSQLE015; duplicate
 bindings use COHSQLE019. Qualified `t.*` remains COHDBL001.
+
+CommonTables contains [SqlCommonTableExpression](sql-common-table-expression.md) definitions in
+declaration order, or an empty list. The setter is internal. Each reachable definition materializes
+once before writes; unused definitions bind but do not execute. INSERT's query-source WITH lives
+on SelectSource.CommonTables; a leading WITH lives on the INSERT node. See [WITH](../../../../database/sql/language/clauses/with.md).
 
 ## Example
 

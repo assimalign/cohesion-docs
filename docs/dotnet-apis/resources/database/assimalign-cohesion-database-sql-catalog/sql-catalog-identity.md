@@ -27,7 +27,7 @@ and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
 Table-extension version 5 stores the definition; catalog kind 16 stores the last durable reserved
-value. SQL format 15 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
+value. SQL format 16 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
 
 ## Example
 

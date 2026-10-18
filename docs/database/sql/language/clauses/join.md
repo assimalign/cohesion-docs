@@ -18,7 +18,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 ## Arguments
 
-- **`table_source`** — A stored table, INFORMATION_SCHEMA/COHESION_SCHEMA relation or [derived table](from.md#derived-tables).
+- **`table_source`** — A stored table, [CTE](with.md), INFORMATION_SCHEMA/COHESION_SCHEMA relation or [derived table](from.md#derived-tables).
 - **`search_condition`** — The predicate evaluated for each candidate pair.
 - **`column_name`** — A name occurring exactly once in each input to that USING step.
 

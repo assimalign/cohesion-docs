@@ -95,7 +95,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports COHDBL001, including quoted names.
 
-The integration branch uses SQL row-storage format 15 and compiled schema version 7.
+The integration branch uses SQL row-storage format 16 and compiled schema version 7.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current

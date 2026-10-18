@@ -55,6 +55,17 @@ Aggregate `DISTINCT`/`ALL`, `FILTER`, in-aggregate `ORDER BY`, empty grouping se
 `GROUPING SETS`, `ROLLUP`, `CUBE`, grouping functions, windows, and ordered-set
 `WITHIN GROUP` forms report `COHDBL001`.
 
+## Correlated query levels
+
+A subquery over completed groups can reference only outer grouping-key columns (COHSQLE017
+otherwise). Within an aggregate argument, a child instead reads the outer source row. The lowest
+variable or aggregate dependency determines an aggregate's query level, including dependencies in
+nested queries adjusted for nesting depth. An outer-level aggregate is refused with COHDBL001
+before grouping checks; moving it to the enclosing query is outside this subset. Mixed local and
+outer dependencies remain local when the lowest dependency is local. See
+[Subqueries](../expressions/subqueries.md#correlation-and-grouping) for an executable example and
+an outer-only aggregate rejection.
+
 ## Examples
 
 With the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture):

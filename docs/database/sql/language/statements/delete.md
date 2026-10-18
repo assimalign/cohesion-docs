@@ -7,6 +7,7 @@ Removes rows selected from a stored table.
 ## Syntax
 
 ```syntaxsql
+[ WITH common_table_expression [ , ...n ] ]
 DELETE FROM [ schema_name . ] table_name
 [ WHERE search_condition ]
 [ ; ]
@@ -19,6 +20,9 @@ DELETE FROM [ schema_name . ] table_name
 
 ## Remarks
 
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
+
 Qualified references use the target name, or its alias when supplied. An explicit alias hides
 the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
 
@@ -26,10 +30,10 @@ Only rows for which `WHERE` is `TRUE` are selected. The statement reports an aff
 Foreign keys default to `ON DELETE RESTRICT`; a declared `ON DELETE CASCADE` removes dependent
 rows. Nullable foreign-key values are allowed.
 
-Uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
-execute in WHERE. Children materialize against pre-statement values before any deletion, including
-self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
-cascades together. Correlation and `RETURNING` report `COHDBL001`. Deleting rows does not remove the
+Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+execute in WHERE. Independent children materialize once; correlated children evaluate for each
+candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
+cascades together. `RETURNING` reports `COHDBL001`. Deleting rows does not remove the
 table definition; [DROP TABLE](drop-table.md) is the separate schema operation.
 
 ## Examples

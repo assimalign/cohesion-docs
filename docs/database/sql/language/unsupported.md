@@ -4,8 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 36 of 51 named clauses against the live engine. The 15 excluded names are
-`UNION`, `INTERSECT`, `EXCEPT`, `WITH`, `RECURSIVE`, `WINDOW`, `OVER`,
+The profile measures 37 of 51 named clauses against the live engine. The 14 excluded names are
+`UNION`, `INTERSECT`, `EXCEPT`, `RECURSIVE`, `WINDOW`, `OVER`,
 `PARTITION`, `CREATE VIEW`, `DROP VIEW`, `NATURAL`, `TOP`, `ALL`,
 `FETCH`, and `RETURNING`. Further subset restrictions do not increase that denominator.
 
@@ -20,7 +20,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
 | `UNION`, `INTERSECT`, `EXCEPT` | `COHDBL001` | Set operations are excluded |
-| `WITH`, `WITH RECURSIVE` | `COHDBL001` | Common table expressions are excluded |
+| Recursive/nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `COHDBL001` | Non-recursive [WITH](clauses/with.md) before SELECT/INSERT/UPDATE/DELETE executes |
 | `WINDOW`, `OVER`, `PARTITION BY` | `COHDBL001` | Window clauses are excluded |
 | `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `COHDBL001` | Window-function calls are rejected even without OVER |
 | `CREATE VIEW`, `DROP VIEW` | `COHDBL001` | Built-in system relations do not imply user-defined views |
@@ -35,10 +35,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Outer ORDER BY depending on derived outputs | `COHDBL001` | Includes aliases and ordinals; ordering inside derived bodies executes |
 | Derived query without an alias | `SQL0003` | FROM/JOIN derived relations require an alias |
 | Derived column list with wrong width or blank output name | `COHSQLE013` | Rename every output by position |
-| Correlated subquery | `COHDBL001` | Inner names must resolve locally |
 | Quantified `ANY`, `ALL`, `SOME` comparison | `COHDBL001` | Use supported scalar/membership/existence forms |
-| Lateral join | `COHDBL001` | Outside the subquery surface |
-| Subquery in UPDATE SET | `COHDBL001` | Uncorrelated UPDATE/DELETE WHERE subqueries execute |
+| LATERAL syntax or a derived body referencing a real sibling relation | `COHDBL001` | Enclosing-query correlation executes; typos retain COHSQLE015 |
+| Subquery in UPDATE SET | `COHDBL001` | Correlated and uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `COHDBL001` | Use INSERT ... SELECT |
 | Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and literal defaults only |
 | Subquery as LIMIT/OFFSET expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
@@ -65,7 +64,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |
 | Projection alias in GROUP BY or HAVING | Binding/planning error when not a valid source name | Output alias scope is ORDER BY |
 | Invalid numeric ORDER BY ordinal | Planning error | Zero, negative, out of range, or noninteger syntax |
-| SELECT without FROM | Planning error | Every executable query needs a relation |
+| SELECT without FROM outside a CTE definition root | `COHSQLE013` | A CTE root alone can use one implicit row |
+| Aggregate belonging to an outer query level | `COHDBL001` | Aggregate relocation is excluded; mixed local/outer dependencies can remain local |
 | `NULLIF`, `TRIM`, `LTRIM`, `RTRIM`, `SUBSTRING`, `REPLACE`, `CONCAT` | `COHDBL001` | Recognized scalar names without executor support |
 | `CEILING`, `FLOOR`, `ROUND`, `POWER`, `SQRT`, `MOD` | `COHDBL001` | Recognized numeric names without executor support |
 | `NOW`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`, `EXTRACT` | `COHDBL001` | Recognized temporal names without executor support |

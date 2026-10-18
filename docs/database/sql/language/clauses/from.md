@@ -15,13 +15,13 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 ## Arguments
 
-- **`table_name`** — A stored table or one of the named virtual system relations.
+- **`table_name`** — A stored table, a visible [CTE](with.md), or one of the named virtual system relations.
 - **`schema_name`** — A SQL namespace inside the session's database.
 - **`table_alias`** — An optional name used to qualify column references.
 
 ## Remarks
 
-Every executable `SELECT` requires `FROM`. A session cannot select another database through
+Every ordinary `SELECT` requires `FROM`; a [CTE definition root](with.md) can omit it. A session cannot select another database through
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 
@@ -41,7 +41,8 @@ output by position: it must have exactly the output width, unlike a partial Post
 Shorter/longer lists and empty or whitespace-only output names fail planning with `COHSQLE013`,
 including empty inputs. Duplicate output names remain ambiguous when referenced (`COHSQLE015`).
 
-The body runs once in the enclosing statement context. Its WHERE, GROUP BY/HAVING, ORDER BY and
+An independent body runs once in the enclosing statement context; a correlated body runs again
+for each enclosing evaluation frame. Its WHERE, GROUP BY/HAVING, ORDER BY and
 LIMIT/OFFSET apply before the enclosing query reads its rows. Derived, stored and system inputs
 can join each other, including LEFT's NULL extension. Types, length/precision/scale, nullability,
 domains and collation provenance follow the projected expression and survive empty materialization.
@@ -51,8 +52,8 @@ An IN/NOT IN projection is Boolean, regardless of the membership element type. S
 Each body has its own FROM scope. A real sibling reference fails `COHDBL001` with
 `A derived table cannot reference sibling relations without LATERAL.` followed by the binding
 detail at the offending reference. A typo or nonexistent/hidden qualifier keeps `COHSQLE015`.
-An actual enclosing-query reference receives the ordinary [correlation refusal](../expressions/subqueries.md),
-not the sibling/LATERAL message. Explicit LATERAL syntax remains unsupported. Derived bodies and
+An enclosing-query reference from a body nested in a subquery follows the ordinary
+[correlation scope chain](../expressions/subqueries.md) and executes for each outer row. Explicit LATERAL syntax remains unsupported. Derived bodies and
 expression subqueries share the 32-level nesting limit (`COHDBL001` at level 33).
 
 Outer [ORDER BY](order-by.md) keys depending on derived outputs remain unsupported (`COHDBL001`),
