@@ -160,7 +160,15 @@ framing, handshake and model messages are unchanged.
 [GQL aggregates](../../../../database/graph/language/functions/aggregate-functions.md) return Int64 counts,
 promoted numeric results and negotiated lists through QueryAsync. Decimal parameters/results keep
 scale in GraphValueCodec tag 7. Overflow uses COHDBG013 before ResultHeader and preserves a reusable
-authenticated session. Aggregate QueryPathsAsync requests use COHDBG001.
+authenticated session. Final aggregate QueryPathsAsync projections use COHDBG001; intermediate
+WITH collect followed by UNWIND may produce a single mandatory entity/path final column.
+
+[Linear composition](../../../../database/graph/language/clauses/next.md) shares embedded stage
+semantics over InMemory/TCP without new frames. WITH WHERE filters after paging; carried COUNT
+columns remain Int64. Scalar final columns need no composite capability, possible list/map results
+require graph.composite-values, and entities use QueryPathsAsync. Final node/relationship lists
+remain COHDBG001 (#1662), even with that capability. A decoded composition refusal preserves
+the session. QueryPathsAsync accepts read-only composition only and refuses any write stage.
 
 ## Sources
 

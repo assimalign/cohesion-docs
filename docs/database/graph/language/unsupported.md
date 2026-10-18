@@ -15,7 +15,8 @@ The examples below are rejected forms, not executable syntax diagrams.
 |---|---|---|
 | Mandatory keyword | Recognized, not supported (`COHDBL001`) | `MANDATORY MATCH` |
 | Standalone ordering and paging | Recognized, not supported (`COHDBL001`) | `MATCH (a) ORDER BY a.age RETURN a`; ordering/paging after RETURN executes |
-| Intermediate projection and chaining | Recognized, not supported (`COHDBL001`) | `WITH`, `NEXT` |
+| FOR ordinality/offset suffixes | Recognized, not supported (`COHDBL001`) | `FOR x IN xs WITH ORDINALITY i`, `WITH OFFSET i`; [FOR/UNWIND](clauses/for.md) executes |
+| NEXT YIELD and FOREACH | Recognized, not supported (`COHDBL001`) | [RETURN … NEXT](clauses/next.md) and [WITH](clauses/with.md) execute |
 | Property updates and merge | Recognized, not supported (`COHDBL001`) | `SET`, `REMOVE`, `MERGE` |
 | Set operations | Recognized, not supported (`COHDBL001`) | `UNION` |
 | Unsupported scalar/statistical calls | Recognized, not supported (`COHDBL001`) | `abs(a.age)`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
@@ -25,7 +26,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Stored composite property values | Recognized, not supported (`COHDBL001`) for syntax; `COHDBG003` for parameters | MATCH/INSERT/CREATE stored properties stay scalar-only |
 | List/pattern comprehensions and slicing | Recognized, not supported (`COHDBL001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`COHDBL001`) | `DELETE a RETURN a` |
-| Procedure calls and unwinding | Recognized, not supported (`COHDBL001`) | `CALL`, `UNWIND` |
+| Procedure calls | Recognized, not supported (`COHDBL001`) | `CALL` |
 | Server, database, graph, or schema selection | Recognized, not supported (`COHDBL001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
 | Transaction statements | Recognized, not supported (`COHDBL001`) | `BEGIN TRANSACTION`, `COMMIT` |
 | Cypher doubled-dash arrows | Rejected (`GQL0008` or `GQL0002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |
@@ -45,7 +46,7 @@ GQL cannot select another graph or database. Database lifecycle uses the engine 
 transactions use the session API, and label/type/index management uses the session-bound schema API.
 
 GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path queries.
-ExecutePaths accepts one bare node, relationship or path binding from read-only MATCH, including
+ExecutePaths accepts one bare node, relationship or path binding from a read-only composed query, including
 DISTINCT or star over one named binding. Computed, multiple and multi-binding star projections
 report COHDBG001. A path binding supplied only by optional clauses also reports COHDBG001 during
 planning; a mandatory clause must bind or constrain it. Execute accepts scalar and negotiated composite columns; entity results report COHDBG001 with
@@ -60,6 +61,11 @@ collation, and large property chunking are deferred or out of scope in the engin
 Serializable isolation is rejected.
 
 ## See also
+
+Final lists of nodes/relationships remain outside wire Execute, even with graph.composite-values
+(COHDBG001; #1662). Intermediate collect and UNWIND preserve entity kinds and can produce scalar
+properties or a single mandatory final entity through ExecutePaths. A write anywhere in a composed
+statement excludes ExecutePaths. [Linear composition](clauses/next.md) documents the eager stage order.
 
 - **[Language (GQL)](index.md)** — supported reference.
 - **[Graph](../index.md)** — engine status.

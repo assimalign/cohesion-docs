@@ -20,7 +20,9 @@ and structural value equality. See [aggregate results](../../../../database/grap
 
 The enum itself adds no exceptions. A programmatic value outside the enum is COHDBG001 during
 planning; numeric failures/overflow are COHDBG013 during evaluation. Wire lists require
-GraphProtocol.CompositeValues. Aggregate path requests retain COHDBG001.
+GraphProtocol.CompositeValues. Final aggregate path projections retain COHDBG001; intermediate
+WITH collect followed by FOR/UNWIND can produce one mandatory final entity/path. Final lists of
+nodes/relationships remain unavailable over the wire (COHDBG001; #1662).
 
 ## Example
 

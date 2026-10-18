@@ -24,7 +24,7 @@ identity and ordered path identities compare independently of object materializa
 
 An embedded [GqlProjection](gql-projection.md) can return the bound object in a DatabaseRow.
 Wire Execute refuses entity kinds with COHDBG001 before reads or writes; ExecutePaths requires
-exactly one bare binding from read-only MATCH. Star over one named binding expands to that form.
+exactly one bare binding from read-only composition. Star over one named binding expands to that form.
 
 ## Example
 

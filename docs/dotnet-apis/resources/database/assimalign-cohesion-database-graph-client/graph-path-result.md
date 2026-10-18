@@ -45,9 +45,15 @@ including list-valued WHERE parameters, without changing Path payloads or this r
 For example, MATCH (n:P) WHERE n.k IN $xs RETURN n can stream paths with a list parameter.
 See [GraphConnection](graph-connection.md) for parameter limits and local capability failures.
 
-Aggregate projections and explicit GROUP BY are rejected with COHDBG001 before any Path frame;
+Final aggregate projections and explicit GROUP BY are rejected with COHDBG001 before any Path frame;
 use QueryAsync for grouped rows. A decoded refusal preserves the pooled session. Path payload and
 completion diagnostics stay the same.
+
+Read-only [composed queries](../../../../database/graph/language/clauses/next.md) can carry a mandatory
+entity/path through WITH or RETURN … NEXT. Intermediate collect followed by UNWIND retains proven
+entity kinds, for example `MATCH (a:P) WITH collect(a) AS ns UNWIND ns AS n RETURN n` streams one
+node path per P node. Any write stage or optional-only final entity is COHDBG001. Final lists of
+nodes/relationships cannot be streamed as row values yet (COHDBG001; #1662); path payloads remain unchanged.
 
 ## Example
 

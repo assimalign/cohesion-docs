@@ -84,6 +84,10 @@ with those two elements, rather than two columns.
 
 ## See also
 
+[FOR/UNWIND](../clauses/for.md) expands lists; NULL gives zero rows and a non-list is COHDBG013.
+Proven node/relationship kinds survive expansion, but final entity lists cannot cross the wire
+(COHDBG001; #1662), even with graph.composite-values. Project scalar properties after expansion.
+
 [Expressions](index.md) · [Map values](map-values.md) · [Property access](property-access.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources

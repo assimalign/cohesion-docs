@@ -25,10 +25,13 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 |---|---|---|
 | [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Finite chains; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
+| [LET](clauses/let.md), [FILTER](clauses/filter.md) | Supported | Sequential value bindings and TRUE-only stage filtering |
+| [FOR / UNWIND](clauses/for.md) | Supported | Eager list expansion; NULL gives no rows; proven entity kinds survive |
+| [WITH](clauses/with.md), [RETURN … NEXT](clauses/next.md) | Supported | Intermediate projection, scoped carry-forward and one statement transaction |
 | `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
 | [ORDER BY](clauses/order-by.md) | Supported | Expression keys, ASC/ASCENDING/DESC/DESCENDING, NULLS FIRST/LAST and stable ties |
 | [OFFSET/SKIP and LIMIT](clauses/limit-offset.md) | Supported | Output paging after RETURN; offset precedes limit |
-| `INSERT` | Supported | Node/path insertion with literal or parameter properties, optionally after matching |
+| `INSERT` | Supported | Node/path insertion with row-evaluated scalar properties, optionally after matching or value stages |
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |
 | `DETACH DELETE` | Supported | Bound variables; incident relationships cascade |

@@ -59,8 +59,11 @@ COLLECT_LIST requires graph.composite-values on protocol 2.1, even for an empty 
 lists have depth 64, 65,536 total values including the root, and 16 MiB encoded-byte bounds, checked
 during accumulation (COHDBG013). Exact Decimal bits and scale survive negotiated parameters and
 results. Scalar COUNT needs no composite capability. Embedded aggregates may select or collect
-entities; entity results remain outside wire Execute. ExecutePaths rejects grouping/aggregate
-projections with its existing COHDBG001 path-shape error.
+entities; final lists of nodes/relationships remain outside wire Execute (COHDBG001; #1662), even
+with composite negotiation. Intermediate [WITH](../clauses/with.md) aggregation can collect
+entities and [FOR/UNWIND](../clauses/for.md) retains proven element kinds. ExecutePaths rejects
+final grouping/aggregate projections with COHDBG001, but permits such intermediate stages when
+the final column is one mandatory bare entity/path and the statement has no writes.
 
 Grouping and LIMIT do not reduce the 100,000-match input cap. Aggregate result errors roll back
 statement mutations. EXPLAIN describes GroupAggregate without evaluating arguments.

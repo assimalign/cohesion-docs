@@ -16,14 +16,14 @@ CREATE insertion_path [ , ...n ]
 
 | Construct | Support |
 |---|---|
-| Node/path insertion with literal or parameter properties | Supported |
+| Node/path insertion with scalar expression properties | Supported |
 | Preceding `MATCH` and `WHERE` | Supported |
 | Following `RETURN` | Supported |
 | `CREATE DATABASE`, `CREATE GRAPH` | Recognized, not supported (`COHDBL001`) |
 
 ## Arguments
 
-- **`insertion_path`** — a node/path pattern with scalar literal or parameter properties; created relationships require a type and direction.
+- **`insertion_path`** — a node/path pattern with scalar expression properties from the incoming scope; created relationships require a type and direction.
 - **`expression`** — a [RETURN value expression](../clauses/return.md), with optional alias.
 
 ## Remarks

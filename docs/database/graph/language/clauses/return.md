@@ -36,6 +36,11 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 
 ## Remarks
 
+RETURN may precede [NEXT](next.md); [WITH](with.md) uses the same projection machinery between
+stages. Only aliased items and bare-variable projections carry names to later stages. Star includes
+LET/FOR values and preserves the preceding projection order. Entity kinds and NULL optionality
+survive boundaries. Duplicate carried names use COHDBG015 after decoding variable names.
+
 Columns preserve item order. An alias names its column exactly; otherwise the name is normalized
 source text, with comments removed and token spacing normalized, preserving spelling, quoted text
 and grouping. Thus `a . age /* comment */ + 1` names `a.age + 1`. This naming rule is a Cohesion
@@ -77,7 +82,7 @@ mutation, even for empty matches; the error directs callers to ExecutePaths. Sca
 such as `a.age + 1` and `a = b` pass. EXPLAIN returns scalar plan rows even for entity projections.
 
 ExecutePaths/QueryPathsAsync accepts exactly one bare node, relationship or path binding from a
-read-only MATCH, optionally DISTINCT, or star over one named binding. Computed, multiple or
+read-only composition, optionally DISTINCT, or star over one named binding. Computed, multiple or
 multi-binding star projections fail the path-request shape check before duplicate-name checks.
 
 ## Diagnostics

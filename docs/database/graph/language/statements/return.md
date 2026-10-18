@@ -35,7 +35,7 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 
 ## Remarks
 
-Without MATCH or insertion, RETURN evaluates once. Bound variables still require a pattern;
+Without incoming stages, RETURN evaluates once. LET/FOR can also supply value variables;
 unbound names/parameters fail planning with COHDBG001. `RETURN *` without a named binding is
 GQL0002. Duplicate final names fail with COHDBG015 before reads or mutations, including EXPLAIN.
 Missing properties yield NULL, with no separate MISSING value. DISTINCT compares complete tuples
@@ -48,6 +48,10 @@ embedded/wire result limits. [ORDER BY](../clauses/order-by.md) sorts after DIST
 projection, DISTINCT and paging. COUNT is Int64, including on the wire; SUM/AVG use the documented
 numeric promotion. A keyless aggregate returns one row even for an empty match, while keyed empty
 matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names to RETURN aliases.
+
+[RETURN … NEXT](../clauses/next.md) carries projected aliases and bare-variable bindings into a
+following segment. [WITH](../clauses/with.md) projects intermediate rows and applies WHERE after
+its paging. Every stage materializes in source order; only final columns govern wire admission.
 
 ## Examples
 

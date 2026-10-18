@@ -17,7 +17,7 @@ public GraphPathResult QueryPathsAsync(string statement,
 
 One authenticated rental runs one active exchange. QueryAsync materializes value/SHOW/EXPLAIN rows;
 ExecuteAsync returns affected entity count (-1 for rows). QueryPathsAsync streams one bound path,
-node or relationship from read-only MATCH. Parameters preserve runtime scalar, list and map types and bind
+node or relationship from read-only composition. Parameters preserve runtime scalar, list and map types and bind
 case-sensitive bare names in WHERE, RETURN and maps. Missing values, collisions and invalid types reach the
 same engine diagnostics (COHDBG001/014/003) as embedded requests.
 
@@ -27,8 +27,13 @@ and an ExecutePaths direction before reads, writer locks or writes, including em
 EXPLAIN remains scalar for entity projections. Final column names must be unique ordinally;
 duplicates fail COHDBG015 before output or mutation, including implicit/explicit collisions and
 EXPLAIN (no SQLSTATE assigned). QueryPathsAsync accepts one bare entity/path binding from read-only
-MATCH, optionally DISTINCT, or star over one named binding. Invalid computed/multiple/star shapes
+composition, optionally DISTINCT, or star over one named binding. Invalid computed/multiple/star shapes
 use COHDBG001 before duplicate-name checks.
+
+LET/FILTER/FOR/UNWIND, WITH and RETURN … NEXT run as eager stages. WITH WHERE filters after
+paging. Only final columns determine wire admission; intermediate collect/UNWIND preserves proven
+entity kinds. Any write stage excludes QueryPathsAsync. Final node/relationship lists remain
+COHDBG001 (#1662), even with graph.composite-values. See [stage rules](../../../../database/graph/language/clauses/next.md).
 
 Protocol 2.1 negotiates [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md).
 Lists decode as object?[]; maps as read-only ordinal dictionaries. Values permit depth 64,

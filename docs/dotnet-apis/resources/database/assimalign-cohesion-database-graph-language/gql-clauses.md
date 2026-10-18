@@ -14,6 +14,12 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 public static class GqlClauses
 {
     public const string GroupBy = "GROUP BY";
+    public const string Let = "LET";
+    public const string Filter = "FILTER";
+    public const string For = "FOR";
+    public const string Unwind = "UNWIND";
+    public const string With = "WITH";
+    public const string Next = "NEXT";
 }
 ```
 
@@ -28,6 +34,17 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.GroupBy)); // 
 
 See [GROUP BY](../../../../database/graph/language/clauses/group-by.md) for result examples and
 [GqlQueryExpression.GroupBy](gql-query-expression.md) for the parsed key list.
+
+The six composition names are enabled in GqlLanguageProfile.Instance. FOR/UNWIND share
+GqlForStage; WITH/RETURN share GqlReturnStage. NEXT marks a segment boundary. The constants
+add no exceptions. [Composition](../../../../database/graph/language/clauses/next.md) documents
+scope, NULL handling and diagnostics; standalone ordering/page stages remain COHDBL001.
+
+```csharp
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Let)); // True
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Unwind)); // True
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Next)); // True
+```
 
 ## Documented behavior
 

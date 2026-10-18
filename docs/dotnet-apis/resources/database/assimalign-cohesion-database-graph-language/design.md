@@ -46,8 +46,9 @@ flowchart LR
     Executor["Graph executor"] --> Planner
 ```
 
-`GqlQueryExpression` carries ordered [GqlMatchClause](gql-match-clause.md) values with paths,
-clause-local predicates and optional flags, plus insertion paths, deletion
+`GqlQueryExpression` carries source-ordered [GqlStage](gql-stage.md) operations and NEXT-separated
+[GqlQuerySegment](gql-query-segment.md) views. Its compatibility facade exposes match clauses,
+clause-local predicates and optional flags, insertion paths, deletion
 variables, a detach flag, projections, and an optional `GqlCatalogSurface` for dedicated metadata
 statements. Catalog statements cannot carry graph clauses. Every path holds one more node than
 relationship. Anonymous nodes and relationships have a null variable. Relationship directions are
@@ -64,14 +65,17 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
-| `MATCH` | Comma-separated finite node/relationship chains; optional labels, type, literal or parameter property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `MATCH` | Comma-separated finite node/relationship chains; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
 | `OPTIONAL MATCH` | Same finite paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
+| `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
+| `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list COHDBG013; proven entity kinds retained |
+| `WITH`, `NEXT` | Intermediate projection or RETURN/write segment boundary | Eager materialization; WITH WHERE after paging; projected scope only carried forward |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `GROUP BY` | RETURN names or equivalent expressions, including () | Same exact keys as implicit aggregation; grouping before projection |
 | `ORDER BY` | Keys with ASC/ASCENDING/DESC/DESCENDING and NULLS FIRST/LAST | Sorts projected rows/paths after DISTINCT; stable ties |
 | `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; output only, with full materialization |
-| `INSERT` | Literal node/path insertion, optionally following a match | Inserts nodes and relationships transactionally |
+| `INSERT` | Node/path insertion with row-evaluated scalar maps | Inserts nodes and relationships transactionally per input row |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
 | `DETACH DELETE` | Bound node/relationship variables following a match | Deletes incident relationships with the node in one transaction |
@@ -89,10 +93,13 @@ not accepted. Nested map access and entity access through value expressions exec
 The grammar is intentionally finite:
 
 ```text
-query       := ([OPTIONAL] MATCH paths [ WHERE predicate ])*
-               ( (INSERT | CREATE) paths [ return ]
-               | [ DETACH ] DELETE variables
-               | return )
+query       := stage+   // RETURN finishes a segment or precedes NEXT; writes can also finish
+stage       := [OPTIONAL] MATCH paths [ WHERE predicate ]
+             | LET variable '=' expression (',' variable '=' expression)*
+             | FILTER [WHERE] predicate
+             | FOR variable IN expression | UNWIND expression AS variable
+             | (INSERT | CREATE) paths | [DETACH] DELETE variables
+             | return | WITH projection-and-tail [WHERE predicate] | NEXT
 paths       := path (',' path)*
 path        := node (relationship node)*
 predicate   := scalar-expression
@@ -105,8 +112,8 @@ projection  := value-expression [AS alias]
 catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP)
 ```
 
-A mutation or standalone RETURN can start without MATCH; reading graph elements or deleting
-requires MATCH bindings.
+Value pipelines, mutations and standalone RETURN can start without MATCH. Reading/deleting
+entities requires a binding from matching or a proven entity carried through projection/UNWIND.
 `Pattern` chains are limited to 64 relationships. Scalar chains have no comparison-count limit;
 recursive depth follows available stack (GQL0009 in parsing, COHDBG008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.

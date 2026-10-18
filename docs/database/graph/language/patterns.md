@@ -1,6 +1,6 @@
 # Graph patterns
 
-Graph patterns describe finite chains of labeled nodes and typed relationships with literal or parameter properties.
+Graph patterns describe finite chains of labeled nodes and typed relationships with scalar expression properties.
 
 > **Status:** Implemented.
 
@@ -21,7 +21,7 @@ Graph patterns describe finite chains of labeled nodes and typed relationships w
 
 <relationship_body> ::= [ variable ] [ ":" type_name ] [ property_map ]
 
-<property_map> ::= "{" [ property_name ":" { scalar_literal | parameter } [ , ...n ] ] "}"
+<property_map> ::= "{" [ property_name ":" scalar_expression [ , ...n ] ] "}"
 ```
 
 Double-quoted punctuation in this diagram denotes the literal character or arrow; diagram quotes
@@ -35,7 +35,7 @@ square brackets that surround relationship syntax.
 | Named and anonymous nodes | Supported | Node parentheses are required |
 | Incoming, outgoing, either-direction matching | Supported | Full bracketed or ISO abbreviated arrows |
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
-| Literal/parameter property maps | Supported | Unique keys and scalar values |
+| Scalar expression property maps | Supported | Unique keys and scalar values evaluated per incoming row |
 | Quantified or variable-length paths | Recognized, not supported (`COHDBL001`) | Use explicit finite chains |
 | Collection-valued properties in text | Recognized, not supported (`COHDBL001`) | No list or nested map literal |
 
@@ -44,9 +44,18 @@ square brackets that surround relationship syntax.
 - **`variable`** — an optional case-sensitive node or relationship binding.
 - **`label_name`** — a node label; repeated labels each have their own colon.
 - **`type_name`** — an optional matching type, required for relationship insertion.
-- **`property_map`** — an optional map of scalar literals or parameters with ordinal, unique keys.
+- **`property_map`** — an optional map of scalar expressions with ordinal, unique keys.
 
 ## Remarks
+
+MATCH inline maps are predicates on the complete bound clause, including references to later
+comma-separated pattern parts. INSERT/CREATE maps see only incoming stage bindings; references
+to variables being created in that stage use COHDBG001. Only literal/parameter equalities provide
+index seek bounds. List/map property syntax remains COHDBL001; evaluated composite values use
+COHDBG003. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md) for row-supplied values.
+
+For example, on P nodes with k values 1 and 2,
+`LET value = 2 MATCH (n:P {k:value}) RETURN n.k;` returns `2`.
 
 A path always contains one more node than relationship. Anonymous elements have no variable.
 Incoming arrows reverse endpoints relative to consecutive pattern nodes. Matching permits an

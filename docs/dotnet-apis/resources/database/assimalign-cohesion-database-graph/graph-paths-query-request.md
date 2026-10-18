@@ -19,7 +19,7 @@ public sealed class GraphPathsQueryRequest : GraphRequest
 Statement and Parameters are inherited from GraphRequest. Parameters bind case-sensitive bare names
 in WHERE, RETURN and property maps, retaining runtime scalar, list and map types. Missing/colliding/unsupported values
 fail planning with COHDBG001/014/003, including under EXPLAIN. Unused values are ignored. Path
-requests require one bare bound entity/path from read-only MATCH, optionally DISTINCT, or star
+requests require one bare bound entity/path from read-only composition, optionally DISTINCT, or star
 over one named binding. Scalar/computed/multiple and multi-binding star projections, catalog
 statements and mutations fail with COHDBG001 before output. Shape checks precede duplicate-name
 checks. DISTINCT uses node/relationship identity or ordered path identities, including traversal

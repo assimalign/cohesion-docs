@@ -33,8 +33,8 @@ label names, and property keys do not trigger keyword capability checks.
 |---|---|
 | `COHDBG001` | Invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Schema/data mismatch, restricted deletion, or invalid graph mutation |
-| `COHDBG004` | Materialized path-match or candidate-expansion limit exceeded |
+| `COHDBG003` | Schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
+| `COHDBG004` | Materialized MATCH/FOR row or candidate-expansion limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
 | `COHDBG006` | Storage failure translated at the engine boundary |
 | `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
@@ -43,10 +43,18 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
+| `COHDBG013` | Evaluated value error: non-list FOR/UNWIND input, non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+
+[Composition](clauses/next.md) adds no new codes. Dropped/unbound names and aggregate calls in WITH
+WHERE use COHDBG001; duplicate carried bindings use COHDBG015, including under EXPLAIN. Leading/
+trailing NEXT, NEXT after bare MATCH and WITH immediately followed by NEXT are GQL0002. FOR
+WITH ORDINALITY/OFFSET, NEXT YIELD, CALL and FOREACH retain COHDBL001. NULL FOR/UNWIND inputs
+give zero rows; non-lists use COHDBG013. These composition codes have no assigned SQLSTATE.
+Final lists of nodes/relationships over wire Execute remain COHDBG001 (#1662), even with composite
+negotiation. A read-only composed query may carry one mandatory final entity through ExecutePaths.
 
 Planner rejections carry stable codes in `DatabaseException.Diagnostics`, with available source
 spans and code-free messages. Diagnostics is never null; located entries sort by start offset before
@@ -102,7 +110,7 @@ unfinished path stream discards it.
 
 Aggregates add no codes or SQLSTATE categories. Wrong arity, SUM(*) and COUNT(DISTINCT/ALL *)
 use GQL0002. Nested/misplaced aggregates, GROUP BY mismatch/aggregate aliases, hidden group sort
-references and aggregate path requests use COHDBG001. SUM/AVG overflow, nonnumeric arguments and
+references and final aggregate path projections use COHDBG001. SUM/AVG overflow, nonnumeric arguments and
 COLLECT_LIST bounds use COHDBG013. Unnegotiated wire COLLECT_LIST uses COHDBG016 before output.
 See [aggregate diagnostics](functions/aggregate-functions.md#diagnostics).
 

@@ -6,6 +6,17 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
+- **[GqlStage](gql-stage.md)** — Source-ordered stage family and eager execution.
+- **[GqlMatchStage](gql-match-stage.md)** — MATCH/OPTIONAL MATCH over incoming rows.
+- **[GqlLetStage](gql-let-stage.md)** — Sequential value bindings.
+- **[GqlFilterStage](gql-filter-stage.md)** — TRUE-only stage filtering.
+- **[GqlForStage](gql-for-stage.md)** — FOR/UNWIND expansion and entity kinds.
+- **[GqlInsertStage](gql-insert-stage.md)** — Per-row INSERT/CREATE patterns.
+- **[GqlDeleteStage](gql-delete-stage.md)** — Bound deletion and scope removal.
+- **[GqlReturnStage](gql-return-stage.md)** — RETURN/WITH projection and per-stage tails.
+- **[GqlNextStage](gql-next-stage.md)** — Segment boundary.
+- **[GqlQuerySegment](gql-query-segment.md)** — Stages between NEXT boundaries.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GqlClauses`](gql-clauses.md)** — Documented public type.

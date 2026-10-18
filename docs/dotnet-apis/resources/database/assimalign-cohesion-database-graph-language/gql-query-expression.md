@@ -9,6 +9,9 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 ```csharp
 public sealed class GqlQueryExpression : GqlExpression
 {
+    public GqlQueryExpression(IReadOnlyList<GqlStage> stages, Location? location = null);
+    public IReadOnlyList<GqlStage> Stages { get; }
+    public IReadOnlyList<GqlQuerySegment> Segments { get; }
     public GqlQueryExpression(IReadOnlyList<GqlPathPattern> matches, GqlExpression? predicate,
         IReadOnlyList<GqlPathPattern> creates, IReadOnlyList<string> deleteVariables,
         bool detachDelete, IReadOnlyList<GqlProjection> projections, Location? location = null);
@@ -35,10 +38,23 @@ public sealed class GqlQueryExpression : GqlExpression
 
 ## Behavior and exceptions
 
+Stages is the planner/executor input. The stage constructor rejects a null list with
+ArgumentNullException, retains the supplied list, and initializes compatibility summaries:
+MatchClauses collects match stages, Creates/DeleteVariables collect writes, and return flags/tails
+come from a final GqlReturnStage. Supply per-stage tails on GqlReturnStage for explicit pipelines.
+The original constructors expose a single-segment stage facade without changing call sites.
+Segments splits at NEXT and excludes the boundaries. See [GqlStage](gql-stage.md) for all leaves.
+
+Planning validates each incoming scope before execution. Missing mandatory stage operands and
+invalid boundaries use COHDBG001; text leading/trailing NEXT or WITH immediately followed by NEXT
+uses GQL0002. LET/FOR rebinding and deleted-variable reuse use COHDBG003. Only aliased/bare-variable
+projection names carry forward; duplicate carried names use COHDBG015. WITH WHERE runs after its
+sort/page and has its own DISTINCT/grouping scope. All these codes have no assigned SQLSTATE.
+
 [MatchClauses](gql-match-clause.md) preserves source order and each clause's predicate and optional
 flag. The original constructor wraps its matches/predicate in one mandatory clause, except an empty
 match list with no predicate creates no clauses. Matches and Predicate expose data only for exactly
-one mandatory clause; otherwise they return an empty list and null. The planner consumes MatchClauses.
+one mandatory clause; otherwise they return an empty list and null. The planner consumes Stages.
 Malformed clause lists or forward predicate references fail with COHDBG001.
 
 SetQuantifier defaults to [All](gql-set-quantifier.md). ReturnStar is separate from Projections:
@@ -70,11 +86,23 @@ GroupBy is null for implicit grouping, an empty list for GROUP BY (), or explici
 names/expressions. Plain names resolve to nonaggregate RETURN names first. Explicit keys must
 match the distinct nonaggregate projection keys; mismatches and aggregate aliases use COHDBG001.
 [GqlAggregateExpression](gql-aggregate-expression.md) holds aggregate calls. Grouping occurs before
-projection/DISTINCT/order/page; ExecutePaths refuses GroupBy or aggregate projections with COHDBG001.
+projection/DISTINCT/order/page. ExecutePaths refuses final GroupBy/aggregate projections with
+COHDBG001, but intermediate collect/UNWIND can carry proven entity kinds to one mandatory final
+entity/path column. Any write stage excludes ExecutePaths. Entity lists cannot be final wire
+results (COHDBG001; #1662), even with composite negotiation.
 
 The explicit grouping capability is `GqlClauses.GroupBy` (`public const string GroupBy = "GROUP BY"`).
 
 ## Example
+
+```csharp
+var composed = ((GqlQueryStatement)new GqlQueryParser().Parse(
+    "LET x = 1 RETURN x NEXT LET y = x + 1 RETURN y")).GqlExpression;
+Console.WriteLine(composed.Stages.Count); // 5
+Console.WriteLine(composed.Segments.Count); // 2
+```
+
+Execution returns one row containing 2.
 
 ```csharp
 var statement = (GqlQueryStatement)new GqlQueryParser().Parse(

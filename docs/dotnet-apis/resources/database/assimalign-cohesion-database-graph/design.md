@@ -4,6 +4,23 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Linear composition
+
+The planner/executor consumes [GqlStage](../assimalign-cohesion-database-graph-language/gql-stage.md)
+in source order. LET adds sequential bindings, FILTER retains TRUE and FOR/UNWIND expands lists
+(NULL gives zero rows; non-list COHDBG013). WITH or RETURN … NEXT retains only referenceable
+projected names, preserving entity kinds, optionality, possible composites and Int64 COUNT types.
+WITH ORDER BY/WHERE can see incoming names only without DISTINCT/aggregation; WHERE executes
+after sorting/paging. A write anywhere locks before the first stage. Every stage materializes
+eagerly and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
+starts one empty row and no scope. FOR shares the 100,000-row bound with matching.
+
+Proven node/relationship list elements survive UNWIND and can anchor MATCH/DELETE. Intermediate
+collect/UNWIND is valid for read-only ExecutePaths with one mandatory final entity/path. Writes
+exclude ExecutePaths; final entity lists remain outside wire Execute (COHDBG001; #1662). No catalog
+format or wire frame changes. See [language rules](../../../../database/graph/language/clauses/next.md)
+and [diagnostics](../../../../database/graph/language/diagnostics.md).
+
 ## String comparison and collation (#1025)
 
 Graph remains ordinal-only. String property predicates use case-sensitive .NET ordinal (UTF-16
@@ -183,7 +200,7 @@ existing public interfaces and does not infer paths from scalar rows.
 
 The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
-is the single executable-language inventory: MATCH, WHERE, RETURN, INSERT, CREATE (compatibility
+is the single executable-language inventory: MATCH, WHERE, LET, FILTER, FOR/UNWIND, WITH, NEXT, RETURN, INSERT, CREATE (compatibility
 extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, six aggregates and
 implicit/ISO GROUP BY execute. Other functions, variable-length paths, graph selection and
 language DDL remain outside the profile.
@@ -583,7 +600,7 @@ and DISTINCT use exact values as described above.
 Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execute checks planned
 result kinds before data reads, writer locks or mutation and rejects possible entity-valued columns with
 COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
-Path requests require one bare bound entity/path from read-only MATCH, including DISTINCT or
+Path requests require one bare bound entity/path from read-only composition, including DISTINCT or
 star over one binding; invalid shapes use COHDBG001 before duplicate-name validation. A binding
 supplied only by optional clauses is rejected with COHDBG001 during planning, even when all actual
 rows would match. A mandatory clause may bind or subsequently constrain the returned entity/path.

@@ -10,6 +10,10 @@ MATCH pattern [ WHERE expression ] RETURN projection
 
 ## Remarks
 
+[WITH WHERE](with.md) is a different stage position: it runs after projection, ordering and paging.
+[FILTER](filter.md) independently filters the current bindings after any preceding stage. Both keep
+only TRUE; neither changes OPTIONAL MATCH's own predicate-before-NULL-extension rule.
+
 Expressions include AND, OR/XOR at one precedence level, NOT, arithmetic, concatenation,
 comparisons, null/truth tests, bracketed IN and string predicates. A bare Boolean property is
 accepted. [Operators](../expressions/operators.md) defines precedence, NULL propagation and value

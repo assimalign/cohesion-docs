@@ -77,6 +77,10 @@ large property chunking and compiled-schema provisioning remain outside this del
 
 ## See also
 
+[Linear composition](language/clauses/next.md) executes LET, FILTER, FOR/UNWIND, RETURN … NEXT
+and Cypher WITH as eager stages. WITH WHERE filters after paging. Intermediate entity lists may
+be unwound, but final entity lists remain unavailable over the wire (COHDBG001; #1662).
+
 - **[Database](../index.md)** — engine navigation.
 - **[Database overview](../overview.md)** — shared database model.
 - **[Database APIs](../../dotnet-apis/resources/database/index.md)** — resource reference.

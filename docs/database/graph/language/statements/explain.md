@@ -10,7 +10,13 @@ EXPLAIN { match_statement | return_statement | insert_statement | create_stateme
 
 ## Remarks
 
-DELETE statements include their required preceding MATCH. SHOW is not admitted under EXPLAIN.
+EXPLAIN also accepts [linear composition](../clauses/next.md). Such plans have a Pipeline root
+with stage count/write flag and source-ordered Let, Filter, For/Unwind, Match/OptionalMatch,
+With, Return, Next and write-stage nodes as applicable. Each projection stage retains its own
+GroupAggregate/Distinct/SortPage details. For example, `EXPLAIN LET x = 1 RETURN x;` describes
+Pipeline → Let and Return, with a Project child named x, without evaluating rows.
+
+DELETE statements include their preceding entity bindings. SHOW is not admitted under EXPLAIN.
 Normal parameter checks, binding, planning and provisioning admission apply. Mutation plans change
 neither nodes nor relationships, including if an explicit transaction subsequently commits.
 Nested EXPLAIN and EXPLAIN ANALYZE report COHDBL001. Plans use the

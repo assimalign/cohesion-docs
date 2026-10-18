@@ -1,6 +1,6 @@
 # INSERT
 
-INSERT creates nodes and relationships from graph patterns with scalar literal or parameter properties.
+INSERT creates nodes and relationships from graph patterns with scalar expression properties.
 
 > **Status:** Implemented.
 
@@ -22,7 +22,7 @@ INSERT insertion_path [ , ...n ]
 
 ## Arguments
 
-- **`insertion_path`** — nodes and directed, typed relationships with optional literal or parameter property maps.
+- **`insertion_path`** — nodes and directed, typed relationships with optional scalar expression property maps.
 - **`match_path`** — a finite pattern supplying existing variables.
 - **`expression`** — a [RETURN value expression](../clauses/return.md), optionally aliased.
 
@@ -40,7 +40,13 @@ RETURN expressions evaluate after insertion for every matched binding. DISTINCT 
 duplicates after all writes, without reducing insertion counts. Duplicate final column names fail
 COHDBG015 before mutation. Wire Execute accepts scalar result kinds; `INSERT (a:P) RETURN a` or
 `INSERT (a:P) RETURN *` fails COHDBG001 directing callers to ExecutePaths before writing. Path requests require
-a read-only MATCH, so they cannot return insertion results; embedded rows can expose entities.
+a read-only composed statement, so they cannot return insertion results; embedded rows can expose entities.
+
+[FOR/UNWIND](../clauses/for.md) can supply rows to INSERT. Inline maps evaluate scalar expressions
+against the incoming scope; newly inserted variables in the same stage are not available there
+(COHDBG001). Lists/maps remain invalid stored properties. A later MATCH sees source-ordered writes,
+including introduced labels/types. [NEXT](../clauses/next.md) after a write without RETURN starts
+one empty binding with no scope.
 
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
