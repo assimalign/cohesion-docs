@@ -27,6 +27,10 @@ position evaluates to [MISSING](missing.md), distinct from reading an explicit N
 Bracket strings access properties and integer subscripts access array elements. Neither form
 expands an array into rows. FLATTEN is usable as a field name; a FLATTEN call remains unsupported.
 
+[UPDATE targets](../statements/update.md#set-and-unset-paths) use this grammar with stricter
+shape rules: missing arrays, out-of-range indices and incompatible traversal fail instead of
+returning MISSING. SET can create missing objects; UNSET cannot end in an index.
+
 Index definitions use this path grammar relative to each document, without an iteration alias.
 The parser retains each property or index as an `OqlPathSegment` in an `OqlPathExpression`.
 

@@ -13,7 +13,7 @@ public sealed class OqlExplainExpression : OqlExpression
 
 ## Behavior and exceptions
 
-Parser-created wrapper around SELECT, INSERT or DELETE. It has no public constructor. Statement retains the
+Parser-created wrapper around SELECT, INSERT, UPDATE or DELETE. It has no public constructor. Statement retains the
 wrapped AST; planning validates it and returns DatabasePlanDescription without data execution. DDL,
 nested EXPLAIN and ANALYZE report COHDBL001. Parsing returns diagnostics; executing a malformed
 request throws DatabaseParseException before planning.
@@ -29,7 +29,7 @@ Console.WriteLine(explain.Statement is OqlSelectExpression); // True
 
 ## Related reference
 
-[Assembly](index.md) · [EXPLAIN](../../../../database/document/language/statements/explain.md)
+[Assembly](index.md) · [OqlUpdateExpression](oql-update-expression.md) · [EXPLAIN](../../../../database/document/language/statements/explain.md)
 
 ## Sources
 

@@ -79,7 +79,7 @@ range deletion produces the same results without by_amount.
 
 ## See also
 
-[Statements](index.md) · [WHERE](../clauses/where.md) · [META](../functions/meta.md) · [EXPLAIN](explain.md) · [DROP COLLECTION](drop-collection.md)
+[Statements](index.md) · [UPDATE](update.md) · [WHERE](../clauses/where.md) · [META](../functions/meta.md) · [EXPLAIN](explain.md) · [DROP COLLECTION](drop-collection.md)
 
 ## Sources
 

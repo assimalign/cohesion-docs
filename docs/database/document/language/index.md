@@ -1,17 +1,18 @@
 # Language (OQL)
 
-OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT and DELETE.
+OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPDATE and DELETE.
 
 > **Status:** Partial. The reference describes behavior implemented on the integration branch.
 
 OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
-uses its session database. Replacement remains a collection API operation; [DELETE](statements/delete.md) removes matching documents. Parameters
+uses its session database. [UPDATE](statements/update.md) changes selected paths and
+[DELETE](statements/delete.md) removes matching documents. Parameters
 share SQL and GQL's case-sensitive bare-name contract.
 
 ## Reference categories
 
 - **Conventions** — [Syntax conventions](syntax-conventions.md).
-- **Statements** — [SELECT, INSERT, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
+- **Statements** — [SELECT, INSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
 - **Clauses** — [FROM, WHERE, GROUP BY, HAVING and ORDER BY](clauses/index.md).
 - **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
 - **Functions** — [Aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
@@ -30,7 +31,8 @@ share SQL and GQL's case-sensitive bare-name contract.
 | CREATE/DROP COLLECTION | Supported | Conditional, transactional collection DDL |
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
 | [DELETE](statements/delete.md) | Supported | Snapshot filtering, index maintenance and affected count; retains collection/index definitions |
-| EXPLAIN | Supported | SELECT/INSERT/DELETE plan rows without execution |
+| [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
+| EXPLAIN | Supported | SELECT/INSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One nonunique path index in a collection |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts documents |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |

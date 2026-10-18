@@ -6,7 +6,7 @@ OQL parses the Documents engine's executable SQL++ subset into typed statements 
 
 The shared lexer/parser infrastructure owns tokenization, diagnostics and source locations. OQL
 partial parsers own dispatch, SELECT, DDL, DML and expressions. OqlQueryStatement wraps one SELECT,
-INSERT, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
+INSERT, UPDATE, DELETE, EXPLAIN, collection DDL or index DDL root. Parser-produced lists are read-only snapshots;
 public constructors retain child references and semantic validation belongs to the engine.
 
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
@@ -35,6 +35,16 @@ ordered elements, converting MISSING to JSON null. OqlClauses adds Distinct (`DI
 (`SELECT VALUE`), ObjectConstructor (`OBJECT CONSTRUCTOR`) and ArrayConstructor (`ARRAY CONSTRUCTOR`)
 capability names. Constructors validate and group recursively; text parsing keeps the 128-level bound.
 
+## Partial updates
+
+[OqlUpdateExpression](oql-update-expression.md) retains Collection, Alias, Assignments, Unset and
+Predicate. [OqlUpdateAssignment](oql-update-assignment.md) retains a Path and Value. OqlClauses.Update
+and OqlClauses.Unset enable UPDATE and UNSET. SET precedes optional UNSET; UNSET alone is valid.
+Every value reads the original document. Invalid targets/shapes use COHDOC016, normalized overlaps
+COHDOC017 and invalid/deep patched JSON COHDOC018; none has an assigned SQLSTATE. Missing arrays
+and out-of-range indices fail for removals too. SET-to-MISSING removes named members or writes null
+to existing array elements. USE KEYS, RETURNING, LIMIT, FOR and nested queries remain COHDBL001.
+
 ## Names and reservations
 
 Collection, property, alias and parameter names preserve case; keywords are case-insensitive.
@@ -57,10 +67,10 @@ EXPLAIN DELETE describes a Delete root and its access child without data executi
 CREATE/DROP COLLECTION retain conditional flags and use the same transactional core as session
 methods. INSERT retains VALUES pairs or SELECT and output names for keys/values. The planner
 validates every branch and parameter even when CASE/logic would skip it at runtime. EXPLAIN wraps
-SELECT/INSERT/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
+SELECT/INSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–015
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–018
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
 
 ## Sources

@@ -28,6 +28,11 @@ The public AST pages show constructors for [IN](../oql-in-expression.md),
 the [DELETE fixture](../../../../../database/document/language/statements/delete.md#examples)
 compares indexed and scanned filtering and demonstrates zero/all-document counts.
 
+[OqlUpdateExpression](../oql-update-expression.md#example) executes a snapshot field swap;
+[OqlUpdateAssignment](../oql-update-assignment.md#example) inspects nested and array targets.
+The [UPDATE examples](../../../../../database/document/language/statements/update.md#examples)
+show NULL/MISSING handling and invalid missing-array traversal.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.

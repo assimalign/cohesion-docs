@@ -38,9 +38,16 @@ rather than being rounded by the parser.
 | `COHDOC014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
 | `COHDOC015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
 
+| `COHDOC016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
+| `COHDOC017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
+| `COHDOC018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
+
 For example, repeating `INSERT INTO items (KEY, VALUE) VALUES ('a', 1)` on the same visible
 collection reports COHDOC012. A malformed static escape such as ESCAPE 'ab' is OQL0002 instead
 of COHDOC013. Ordinary NULL and MISSING results are values, not diagnostics.
+
+COHDOC016–018 have no assigned SQLSTATE. [UPDATE](statements/update.md) reports target locations
+where available and validates all patched documents before the first write.
 
 ## Locations and wire behavior
 

@@ -12,6 +12,11 @@ OQL SELECT clauses bind one source, filter documents, form groups, and order the
 
 The order above is the grammar order. `FROM` is required; the other clauses are optional.
 
+## UPDATE clauses
+
+[SET and UNSET](../statements/update.md#set-and-unset-paths) assign original-document values or
+remove named members. SET precedes UNSET when both occur, followed by an optional WHERE.
+
 ## See also
 
 [Language (OQL)](../index.md) and [SELECT](../statements/select.md).

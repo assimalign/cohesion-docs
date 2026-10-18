@@ -11,6 +11,8 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlCreateCollectionExpression](oql-create-collection-expression.md)** — AST members and execution contract.
 - **[OqlDropCollectionExpression](oql-drop-collection-expression.md)** — AST members and execution contract.
 - **[OqlInsertExpression](oql-insert-expression.md)** — AST members and execution contract.
+- **[OqlUpdateExpression](oql-update-expression.md)** — Partial updates, removals and filtering.
+- **[OqlUpdateAssignment](oql-update-assignment.md)** — SET path and pre-update value.
 - **[OqlDeleteExpression](oql-delete-expression.md)** — Target, alias and optional predicate.
 - **[OqlMetaExpression](oql-meta-expression.md)** — AST members and execution contract.
 - **[OqlObjectExpression](oql-object-expression.md)** — AST members and execution contract.
@@ -22,7 +24,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlCaseExpression](oql-case-expression.md)** — AST members and execution contract.
 - **[OqlMissingExpression](oql-missing-expression.md)** — AST members and execution contract.
 - **[OqlLiteralExpression](oql-literal-expression.md)** — AST members and execution contract.
-- **[OqlExplainExpression](oql-explain-expression.md)** — SELECT/INSERT/DELETE wrapper.
+- **[OqlExplainExpression](oql-explain-expression.md)** — SELECT/INSERT/UPDATE/DELETE wrapper.
 
 This package parses the Documents engine's executable OQL surface into typed statement and
 expression trees. It provides `OqlLanguageProfile`, stable `OqlClauses` names, `OqlQueryParser`,
@@ -35,7 +37,7 @@ See the [source-backed usage examples](examples/index.md).
 The package references only the shared `Assimalign.Cohesion.Database.Language` package. The
 Documents engine supplies catalog binding, planning, and execution. Queries and index DDL address
 one collection in the session's database. `CREATE INDEX` and `DROP INDEX` use the same
-parse-plan-execute path as `SELECT`; INSERT, DELETE, collection DDL and EXPLAIN also execute. Replacement uses collection APIs.
+parse-plan-execute path as `SELECT`; INSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. Replacement uses collection APIs.
 OQL follows the SQL++ MISSING contract. DEFINE/ELEMENT/FLATTEN are ordinary field names;
 their old statement/call positions and subqueries report COHDBL001.
 

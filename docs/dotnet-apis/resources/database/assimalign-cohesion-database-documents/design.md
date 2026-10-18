@@ -126,16 +126,15 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation with COHDOC004. OQL INSERT and DELETE execute for stored collections;
-UPDATE remains COHDBL001. Virtual sources do not provide
+catalog lookup or mutation with COHDOC004. OQL INSERT, UPDATE and DELETE execute for stored collections; system targets use COHDOC004. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, INSERT, DELETE, EXPLAIN, collection and index DDL execute. Nested queries,
-UPDATE and database administration statements are rejected with
+GROUP BY, HAVING, ORDER BY, INSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
+and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
 
@@ -242,6 +241,23 @@ fields and changing a scalar's type are supported complete-document replacements
 compiled schema migration and update indexes in the same transaction. The new shape can change
 predicate membership and projection types by the explicit mixed-shape rules above.
 
+## Partial updates
+
+[OQL UPDATE](../../../../database/document/language/statements/update.md) freezes candidates and every
+SET value from the statement snapshot before writing. It reapplies the full filter after any index
+seek. SET/UNSET changes content, versions and indexes atomically; failure rolls back the statement or
+aborts the entire explicit transaction. Every match gets a higher version, including an unchanged
+match. Completion reports the matched count without Document frames. EXPLAIN adds an Update root
+and scan/seek child. No storage or protocol version changes.
+
+Untouched property names and values retain their original UTF-8 bytes. Whitespace around rewritten
+container members can normalize; surviving members keep order and new members append in target
+order. Missing objects can be created for SET. Every index requires an existing in-range array,
+including removal paths beneath missing members. UNSET of an absent member is a no-op; UNSET cannot
+end in an index. SET-to-MISSING removes object members or writes null to existing array elements.
+COHDOC016 identifies invalid targets/shapes, COHDOC017 normalized duplicate/prefix overlaps and
+COHDOC018 invalid stored JSON or a patched depth beyond 128. No SQLSTATE is assigned to these codes.
+
 ## Lifecycle and durability
 
 `DocumentDatabaseEngine.Create` starts four engine-owned workers: checkpoint, write-ahead-log flush,
@@ -294,8 +310,8 @@ then Complete with two Int64 fields: result count and affected count. ResultRow 
 Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
 and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
 payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
-COHDOC001–015, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering
-and SELECT constructor depth.
+COHDOC001–018, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
+SELECT constructor depth and UPDATE target, overlap and stored-JSON failures.
 
 The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
 output if its reader stops. Queries and client results remain materialized; explicit wire
