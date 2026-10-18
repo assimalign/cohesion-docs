@@ -45,6 +45,12 @@ marks a FROM-less CTE body. `EXPLAIN WITH a AS (SELECT 1 AS id) SELECT * FROM a`
 With → Materialize → Constant, followed by Select → CteScan, without evaluating the body.
 CorrelatedSubqueries retains the complete child plans evaluated for each outer row.
 
+[Set-operation](../clauses/set-operations.md) bodies use Union, Intersect and Except nodes with
+operand plans beneath them. Compatible same-quantifier UNION chains may have N children.
+Combined ordering/paging and DISTINCT state appear in detail. For example, after creating
+`a(id INT)` and `b(id INT)`, `EXPLAIN SELECT id FROM a UNION ALL SELECT id FROM b;`
+returns a Union node with two Select/TableScan operand plans, without reading their rows.
+
 ## Examples
 
 On the [fixture](select.md#a-create-the-conformance-fixture):

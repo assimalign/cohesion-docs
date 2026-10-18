@@ -48,6 +48,12 @@ with its SELECT child. These use the existing public node members.
 GQL [GROUP BY](../../../../database/graph/language/clauses/group-by.md) adds GroupAggregate. Its
 Detail reports `keys=...; aggregates=...`; the node is described without reading matches.
 
+SQL set-operation descriptions use Union/Intersect/Except with operand children and combined
+ordering/paging details. GQL linear composition uses Pipeline with `stages`/`writes` detail and
+source-ordered Let, Filter, For/Unwind, Match/OptionalMatch, With, Return, Next and write nodes.
+Project/GroupAggregate/Distinct/SortPage children remain local to their stage. These model names
+add no public members or constructor exceptions.
+
 ## Example
 
 ```csharp

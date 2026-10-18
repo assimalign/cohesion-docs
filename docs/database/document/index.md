@@ -23,6 +23,11 @@ stored/INSERT JSON retains its 128-level limit.
 
 ## Reading and writing
 
+[34 SQL++ scalar functions](language/functions/scalar-functions.md) provide string, exact numeric,
+date, type, array and conditional operations. NULL and MISSING retain their separate rules.
+NOW_STR/NOW_MILLIS share the transaction-start UTC clock; COUNT/LENGTH/POSITION and other
+integer-result functions preserve Int64 metadata and long values locally and over the wire.
+
 - **Query and index language** — [Object Query Language (OQL)](language/index.md) provides `SELECT`,
   `INSERT`, `UPSERT`, `UPDATE`, `DELETE`, `EXPLAIN`, collection DDL, `CREATE INDEX` and `DROP INDEX` through the session's parse, plan, and execute pipeline.
 - **OQL replacement** — [UPSERT](language/statements/upsert.md) inserts absent keys and replaces existing documents whole, maintaining indexes atomically. Repeated keys within one statement fail.

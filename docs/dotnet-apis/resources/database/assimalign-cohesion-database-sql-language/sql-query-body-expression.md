@@ -32,9 +32,9 @@ The following properties now accept this base instead of SqlSelectExpression:
 | SqlCommonTableExpression | Body |
 | SqlDerivedTableReference | Query |
 | SqlInsertExpression | SelectSource (nullable) |
-| SqlSubqueryExpression | Select |
-| SqlExistsExpression | Subquery |
-| SqlInExpression | Subquery (nullable; Values is used for a value list) |
+| [SqlSubqueryExpression](sql-subquery-expression.md) | Select |
+| [SqlExistsExpression](sql-exists-expression.md) | Subquery |
+| [SqlInExpression](sql-in-expression.md) | Subquery (nullable; Values is used for a value list) |
 
 Inspect the body type before accessing SELECT-only Columns/From. Unknown literals, common output
 types, NULL equality and query positions follow the [set-operation reference](../../../../database/sql/language/clauses/set-operations.md).

@@ -29,6 +29,10 @@ from JSON objects on the wire. A column's MISSING cells do not erase its observe
 Top-level OQL VALUE/RAW normalizes MISSING to NULL before DISTINCT and counting: SupportsMissing
 remains true, IsMissing is false and IsNull is true. GetBytes(0) for this bare NULL is UTF-8 `null`.
 
+OQL COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond calls expose Int64 columns with
+long values, in-process and over the wire; use GetInt64 for those cells. Their ordinary NULL/MISSING
+rules still apply. Mixed Int64/Decimal columns promote to Decimal. See [scalar result types](../../../../database/document/language/functions/scalar-functions.md).
+
 ## Example
 
 With a Documents session and one stored `{}` document in items:

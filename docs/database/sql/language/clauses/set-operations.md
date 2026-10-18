@@ -97,7 +97,7 @@ Result: `2`. `SELECT id FROM a WHERE id IN ((SELECT id FROM b)) ORDER BY id;` re
 
 ## See also
 
-[SELECT](../statements/select.md) · [WITH](with.md) · [Subqueries](../expressions/subqueries.md) · [ORDER BY](order-by.md) · [Clauses](index.md)
+[SELECT](../statements/select.md) · [WITH](with.md) · [Subqueries](../expressions/subqueries.md) · [ORDER BY](order-by.md) · [Clauses](index.md) · [Query body .NET API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-language/sql-query-body-expression.md)
 
 ## Sources
 

@@ -59,7 +59,7 @@ INSERT followed directly by MATCH also executes in source order and sees the ins
 
 ## See also
 
-[WITH](with.md) · [LET](let.md) · [FOR/UNWIND](for.md) · [RETURN](../statements/return.md) · [Clauses](index.md)
+[WITH](with.md) · [LET](let.md) · [FOR/UNWIND](for.md) · [RETURN](../statements/return.md) · [Clauses](index.md) · [GqlStage .NET API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-language/gql-stage.md)
 
 ## Sources
 

@@ -96,7 +96,7 @@ are values rather than errors. See [Diagnostics](../diagnostics.md).
 
 ## See also
 
-[Functions](index.md) · [Aggregates](aggregate-functions.md) · [MISSING](../expressions/missing.md)
+[Functions](index.md) · [Aggregates](aggregate-functions.md) · [MISSING](../expressions/missing.md) · [OqlFunctions .NET API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-language/oql-functions.md)
 
 ## Sources
 

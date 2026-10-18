@@ -11,6 +11,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlQueryBodyExpression](sql-query-body-expression.md)** — Shared SELECT/set body and tail.
 - **[SqlSetOperationExpression](sql-set-operation-expression.md)** — Left/right operands and ALL flag.
 - **[SqlSetOperator](sql-set-operator.md)** — UNION, EXCEPT and INTERSECT identities.
+- **[SqlSubqueryExpression](sql-subquery-expression.md)** — SELECT/set bodies in scalar positions.
+- **[SqlInExpression](sql-in-expression.md)** — Value lists or SELECT/set membership.
+- **[SqlExistsExpression](sql-exists-expression.md)** — Row existence over SELECT/set bodies.
 
 - **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.

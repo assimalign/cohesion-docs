@@ -44,6 +44,13 @@ OQL UPSERT adds Upsert/UpsertSelect operators while retaining this signature and
 GQL grouping adds GroupAggregate with key count and aggregate text. EXPLAIN validates placement
 without evaluating aggregate operands; the public plan signature and columns stay the same.
 
+SQL [set operations](../../../../database/sql/language/clauses/set-operations.md) add Union,
+Intersect and Except descriptions with operand children. Compatible UNION chains can expose
+several children under one node. GQL [composition](../../../../database/graph/language/clauses/next.md)
+uses a Pipeline root and source-ordered stage nodes, including Let, Filter, For/Unwind, With and
+Next. Each projection stage describes its own grouping, DISTINCT, ordering and paging. The shared
+signature, NULL estimates and no-execution contract remain unchanged.
+
 ## Example
 
 ```csharp

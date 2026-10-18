@@ -327,8 +327,8 @@ then Complete with two Int64 fields: result count and affected count. ResultRow 
 Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
 and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
 payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
-COHDOC001–018, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
-SELECT constructor depth and UPDATE target, overlap and stored-JSON failures.
+COHDOC001–019, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
+SELECT constructor depth, UPDATE target/overlap/stored-JSON failures and scalar domain errors.
 
 The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
 output if its reader stops. Queries and client results remain materialized; explicit wire
