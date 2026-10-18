@@ -66,6 +66,11 @@ All five extension relations join through the same binder, including the functio
 relations. SQL-defined entries read the statement catalog image; native registrations are frozen
 at engine build.
 
+FUNCTIONS includes the executable T1 scalar overloads. Stable clocks and Volatile GEN_RANDOM_UUID
+have their declared volatility; COALESCE, NULLIF, CASE, CAST and EXTRACT appear as SPECIAL FORM
+rows with type/count/volatility/NULL-behavior fields NULL. This distinguishes evaluator forms from
+catalog functions. Renames expose the new table/column names without changing generated index names.
+
 ## Examples
 
 This example adapts the conformance index setup:

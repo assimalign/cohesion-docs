@@ -17,8 +17,8 @@ public static class SqlLanguageProfile
 
 ## Behavior and exceptions
 
-Instance lists the five aggregates, COALESCE, CAST, UPPER, LOWER, LENGTH and ABS as executable
-functions/forms. The separate read-only vocabulary lists recognized unsupported spellings for parser
+Instance lists the 42 executable T1 scalar names, the five aggregates and CAST. COALESCE, NULLIF,
+CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a function-table name. The separate read-only vocabulary lists recognized unsupported spellings for parser
 diagnostics and identifier quoting. Unsupported calls report COHDBL001 before planning; an unknown
 function outside that vocabulary reports COHSQLE016 during planning. Recognition is not an execution
 promise. SupportsJoin returns true for Inner, LeftOuter and Cross over N-way stored/system
@@ -33,8 +33,14 @@ Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.LeftOuter)); // Tr
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.Cross)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.FullOuter)); // False
 var statement = new SqlQueryParser().Parse("SELECT SQRT(id) FROM t;");
-Console.WriteLine(statement.Diagnostics[0].Code); // COHDBL001
+Console.WriteLine(statement.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error)); // 0
+Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC")); // True
 ```
+
+TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
+read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
+quoting includes those names and BOTH/LEADING/TRAILING, requiring SQL storage format 18.
+See [scalar contracts](../../../../database/sql/language/functions/builtin-functions.md).
 
 ## Related reference
 

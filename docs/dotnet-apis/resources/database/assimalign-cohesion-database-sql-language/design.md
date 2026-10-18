@@ -122,10 +122,11 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. SQL row-storage format 16
-refuses older files without an upgrade path: new vocabulary such as SEARCH/MATERIALIZED now
-renders quoted when used as an identifier in persisted CHECKs, defaults and function bodies.
-No tuple layout changes; compiled schema version remains 7.
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 18
+quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
+persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
+table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
+an upgrade reader; compiled schema version remains 7.
 
 [SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval
 and hexadecimal text, reused by CAST. Typed literals and literal DEFAULTs carry canonical text;

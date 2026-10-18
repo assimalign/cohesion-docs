@@ -28,9 +28,10 @@ The parser owns construction. From replaces the former single table and flat joi
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and
-persisted expressions use this same shape. SQL row-storage format 16 accounts for the new
-canonical quoting of recognized identifiers such as search and materialized; older formats are
-refused without an upgrade path. Compiled schema artifacts remain version 7.
+persisted expressions use this same shape. Current SQL storage format 18 includes canonical
+quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
+default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
+refused without an upgrade reader. Compiled schema artifacts remain version 7.
 
 The node's accessors add no validation exceptions. Parser.Parse returns diagnostics for invalid
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.

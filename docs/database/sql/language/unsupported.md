@@ -68,9 +68,10 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Invalid numeric ORDER BY ordinal | Planning error | Zero, negative, out of range, or noninteger syntax |
 | SELECT without FROM outside a CTE definition root | `COHSQLE013` | A CTE root alone can use one implicit row |
 | Aggregate belonging to an outer query level | `COHDBL001` | Aggregate relocation is excluded; mixed local/outer dependencies can remain local |
-| `NULLIF`, `TRIM`, `LTRIM`, `RTRIM`, `SUBSTRING`, `REPLACE`, `CONCAT` | `COHDBL001` | Recognized scalar names without executor support |
-| `CEILING`, `FLOOR`, `ROUND`, `POWER`, `SQRT`, `MOD` | `COHDBL001` | Recognized numeric names without executor support |
-| `NOW`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`, `EXTRACT` | `COHDBL001` | Recognized temporal names without executor support |
+| Parentheses on bare CURRENT_*/LOCAL* clock forms | `SQL0003` | Use bare names; NOW() is a call |
+| Precision on CURRENT_TIME/CURRENT_TIMESTAMP/LOCALTIME/LOCALTIMESTAMP | `COHDBL001` | Transaction-start UTC clock at existing precision |
+| UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `COHSQLE006` (42883) | Signatures reject incompatible inputs during planning |
+| Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `COHSQLE003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
 | Prefix or infix `~` | `COHDBL001` | Recognized unsupported operator |
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `SQL0003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |

@@ -37,6 +37,9 @@ See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser fa
 inspect parser payloads from SqlAlterTableParserTests. The [ALTER example](../../../../../database/sql/language/statements/alter-table.md#change-an-insert-default-without-changing-old-missing-fields)
 shows changed insert defaults, frozen values, renames and nullability with results.
 
+[SqlLanguageProfile](../sql-language-profile.md#example) inspects the executable scalar vocabulary;
+[SqlLiteralText](../sql-literal-text.md#example) parses durations used in the new temporal arithmetic.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

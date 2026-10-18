@@ -55,7 +55,9 @@ The [Expressions](expressions/index.md) section covers the executable scalar sub
 The [Functions](functions/index.md) section separates execution support from lexical recognition.
 
 - **Aggregation** — [Aggregate functions](functions/aggregate-functions.md).
-- **Scalar calls** — [Builtin functions](functions/builtin-functions.md).
+- **Scalar calls** — [42 T1 builtin names](functions/builtin-functions.md), with planning-time signatures,
+  transaction-start clocks and bounded string results.
+- **Temporal operators** — [Day-time INTERVAL arithmetic](expressions/operators.md#temporal-arithmetic).
 
 ## Types and constraints
 

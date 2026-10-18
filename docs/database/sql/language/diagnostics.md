@@ -20,7 +20,9 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `SQL0100` | Information: optional terminating semicolon omitted |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports SQL0008 before execution.
-Recognized unsupported functions such as SQRT report COHDBL001, including over an empty table.
+Recognized unsupported window functions such as RANK report COHDBL001, including over an empty
+table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
+COHSQLE006 before reading rows.
 Only executable functions appear in the language profile's function table.
 
 ## Planning and execution diagnostics
@@ -31,11 +33,11 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHSQLE001` | Division or remainder by zero | 22012 |
-| `COHSQLE002` | Numeric overflow or unrepresentable numeric value; non-finite float to integer | 22003 |
-| `COHSQLE003` | Invalid operand type, including nonnumeric arithmetic or non-Boolean NOT | 42804 |
+| `COHSQLE002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
+| `COHSQLE003` | Invalid operand type, including unsupported temporal arithmetic pairs, nonnumeric arithmetic or non-Boolean NOT | 42804 |
 | `COHSQLE004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `COHSQLE005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET | Class 42 |
-| `COHSQLE006` | No function overload accepts the arguments | 42883 |
+| `COHSQLE006` | No function overload accepts arity/types; unknown or incompatible temporal field value; constant/direct parameter fields fail planning, row-dependent DATE_TRUNC fields fail evaluation | 42883 |
 | `COHSQLE007` | Function or registered conversion implementation failed | 38000 |
 | `COHSQLE008` | Ambiguous overload; CAST an argument to choose | 42725 |
 | `COHSQLE009` | Persisted call's required function implementation is unavailable or incompatible | 42883 |

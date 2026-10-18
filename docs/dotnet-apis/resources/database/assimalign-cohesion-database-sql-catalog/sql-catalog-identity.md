@@ -26,8 +26,8 @@ identity per table, signed built-in integer storage, direction-dependent bounds,
 and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
-Table-extension version 5 stores the definition; catalog kind 16 stores the last durable reserved
-value. SQL format 16 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
+Table extension 6 stores the definition (the identity facet originated in extension 5); catalog kind 16 stores the last durable reserved
+value. Current SQL format 18 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
 
 ## Example
 

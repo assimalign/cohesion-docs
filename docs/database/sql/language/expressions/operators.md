@@ -62,6 +62,44 @@ supplying unsafe index bounds.
 Strings use effective collation; Boolean false sorts before true. Incompatible type families
 raise a query error.
 
+## Temporal arithmetic
+
+Day-time [INTERVAL literals](literals.md) and stored/parameter durations use TimeSpan precision.
+The following pairs execute; operands keep their written order.
+
+| Operands | Result |
+| --- | --- |
+| DATE + or - signed integer | DATE, adding/subtracting days |
+| DATE - DATE | INTEGER day count |
+| DATE + or - INTERVAL | TIMESTAMP at midnight plus/minus the duration |
+| TIMESTAMP + or - INTERVAL | TIMESTAMP |
+| TIMESTAMPTZ + or - INTERVAL | TIMESTAMPTZ; UTC instant arithmetic |
+| TIMESTAMP/TIMESTAMPTZ - either timestamp type | INTERVAL; zone-less timestamp is interpreted at +00:00 |
+| INTERVAL + or - INTERVAL, unary - INTERVAL | INTERVAL |
+
+NULL operands propagate NULL. Other temporal arithmetic pairs fail planning with COHSQLE003
+(42804), including empty inputs: TIME + INTERVAL, TIMESTAMP - DATE, INTERVAL + integer and
+multiplication/division/remainder over temporal values are excluded. Overflow or results outside
+years 1..9999 use COHSQLE002 (22003). TIMESTAMPTZ keeps its written offset when its resulting
+local clock fits; otherwise it uses +00:00.
+
+DATE compares with TIMESTAMP/TIMESTAMPTZ at midnight. A zone-less TIMESTAMP reads as UTC when
+compared with an instant. Equal calendar values share hashes in DISTINCT/GROUP BY. CASE and
+COALESCE promote calendar alternatives to TIMESTAMP, or TIMESTAMPTZ when an instant occurs.
+[Clock functions](../functions/builtin-functions.md#clock-temporal-and-uuid-functions) use one
+transaction-start instant for seek bounds and residual predicates.
+
+```sql
+SELECT DATE '2024-03-04' + 2,
+       DATE '2024-03-04' - DATE '2024-03-01',
+       DATE '2024-03-04' + INTERVAL '1' HOUR,
+       INTERVAL '1' DAY + INTERVAL '2' HOUR
+FROM t WHERE id = 1;
+```
+
+On the conformance fixture, this returns DATE 2024-03-06, INTEGER 3, TIMESTAMP 2024-03-04 01:00:00
+and a 26-hour TimeSpan. SELECTing `-INTERVAL '1' DAY` from the same row returns minus one day.
+
 ## Examples
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
@@ -81,5 +119,6 @@ These conformance queries exercise predicates and row arithmetic.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
+- **Temporal execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1TemporalTests.cs`.
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlExpressionEvaluator.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Expressions.cs`

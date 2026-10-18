@@ -184,7 +184,7 @@ for the query surface and the two deliberately non-standard extension views.
 ## Identity reservations
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
-metadata in table-extension version 5. Counter kind 16 stores kind Int32, table ObjectId Int64,
+metadata in table extension 6 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
 and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
 values outside the START/INCREMENT progression. One table can have one signed integer identity.
 
@@ -238,7 +238,9 @@ changes persisted canonical function-name quoting. SET/DROP DEFAULT cannot chang
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 16 and compiled schema version 7.
+The integration branch uses SQL row-storage format 18 and compiled schema version 7.
+Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
+separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current

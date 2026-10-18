@@ -7,7 +7,7 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 ## Function groups
 
 - **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, and MAX.
-- **[Builtin functions](builtin-functions.md)** — Separate executable scalar calls from lexical vocabulary.
+- **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.
 
 ## Scope
 

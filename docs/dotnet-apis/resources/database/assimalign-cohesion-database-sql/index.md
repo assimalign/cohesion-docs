@@ -6,6 +6,8 @@ The SQL engine manages databases and executes SQL over shared storage, catalog, 
 
 ## Reference pages
 
+- **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
+- **[SqlFunctionContext](sql-function-context.md)** — Database, collation and cancellation context.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

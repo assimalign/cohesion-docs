@@ -87,12 +87,12 @@ DateOnly 2024-01-01, TimeOnly 10:30:00, a 90-minute TimeSpan, bytes 00 FF and te
 
 ## Canonical identifier text
 
-The renderer quotes identifiers spelled like recognized vocabulary, including SEARCH and
-MATERIALIZED. For a column named search, a CHECK expression renders `"search" >= 0` rather than
-`search >= 0`. Defaults and SQL function bodies use the same renderer. SQL data-storage format
-16 refuses older files without an upgrade path because canonical CHECK text is compared ordinally
-during compiled-schema verification. There is no catalog tuple layout change; compiled schema
-artifacts remain version 7.
+The renderer quotes identifiers spelled like recognized vocabulary, including SEARCH/MATERIALIZED,
+newly executable function names and BOTH/LEADING/TRAILING. A column named sign renders as
+`"sign" >= 0` in a CHECK. Defaults and SQL function bodies use the same renderer. Format 18
+records this canonical quoting change, separately from format 17 (the insert-default/frozen-missing
+split with table extension 6). Earlier SQL formats are refused without an upgrade reader, because
+canonical CHECK text is compared ordinally during schema verification. Compiled schemas stay version 7.
 
 ## Examples
 
@@ -110,7 +110,8 @@ This adapts the dialect's literal forms to one row of the conformance fixture.
 
 ## Sources
 
-- **Canonical names and format 16** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteStorageFormatTests.cs`.
+- **Function-name quoting and format 18** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1StorageFormatTests.cs`.
+- **Canonical names** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteStorageFormatTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

@@ -34,7 +34,9 @@ null date/time/timestamp input fails the respective grammar with FormatException
 
 The SQL parser converts malformed literal contents to SQL0008 and unsupported year-month forms to
 COHDBL001. CAST reuses these strict readers, with CAST's own diagnostic mapping. String assignment
-retains its separate SqlTemporalText input acceptance.
+retains its separate SqlTemporalText input acceptance. Day-time TimeSpan results participate in
+[temporal arithmetic and fields](../../../../database/sql/language/expressions/operators.md#temporal-arithmetic);
+this does not add year/month intervals or a time-zone setting.
 
 ## Example
 

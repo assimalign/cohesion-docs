@@ -34,6 +34,11 @@ boundaries inside supported clauses. Later comparison work is documented in
 [DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
 share the same behavior in process and through the supported wire codecs.
 
+[ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
+SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
+execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
+SQL storage format is 18; compiled schemas remain version 7.
+
 ## Package responsibilities
 
 | Package | Responsibility |

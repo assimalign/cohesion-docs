@@ -68,11 +68,13 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
-SQL data-storage format 16 is required because newly recognized SEARCH/MATERIALIZED identifiers
-render quoted in persisted expressions: `search >= 0` becomes `"search" >= 0`. Ordinal CHECK-text
-comparison would otherwise report schema drift. DEFAULTs and function bodies share the renderer.
-There is no tuple layout change or upgrade path; older formats are refused. Compiled schemas stay
-version 7. Evidence: SqlCteStorageFormatTests, SqlCteExecutionTests and SqlSubqueryExecutionTests.
+Current SQL data-storage format is 18. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
+quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
+Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
+`"sign" >= 0`). Defaults and function bodies share the renderer. Older formats are refused without
+an upgrade reader; compiled schemas stay version 7. Evidence: SqlT1StorageFormatTests,
+SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
 ## Compiled-schema provisioning
 
@@ -888,8 +890,9 @@ by remaining left and right columns. Merged expressions use a common implicit ty
 identical domains and clearing modifiers when types/modifiers differ; qualified columns retain
 their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
-documents results and NULL behavior. The canonical FROM shape advances SQL row-storage to format
-14; older files are refused without an upgrade path. Compiled schema version remains 7.
+documents results and NULL behavior. The canonical FROM shape originated in format
+14; the current SQL format is 18, including the extension-6 missing/default split and T1 identifier
+quoting. Older files are refused without an upgrade reader. Compiled schema version remains 7.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
 rows and excessive offsets produce none. System relations join stored/system sources through the
@@ -929,8 +932,9 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. SQL format 16 stores
-immutable identity facets in table-extension version 5 and last reserved values in catalog kind 16.
+generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 18 stores
+immutable identity facets within table extension 6 (the identity facet originated in extension 5)
+and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
 compiled schemas have no identity representation. SQL script definitions retain it.
 
@@ -1094,6 +1098,23 @@ returning `ValueTask<IDuplexConnection>`; the base handles shared accept dispatc
 connection tracking. Custom byte-pipe connections derive from `DuplexConnection` or implement
 `IDuplexConnection`. Built-in duplex listeners already satisfy the new contract. Database wire
 framing, handshake and model messages are unchanged.
+
+## T1 scalars and transaction clock
+
+The [42 scalar names](../../../../database/sql/language/functions/builtin-functions.md) execute via
+the existing reflection-free catalog. NULLIF and EXTRACT join COALESCE/CASE/CAST as evaluator forms.
+TRIM/SUBSTRING/POSITION grammar normalizes onto calls. Signatures bind before reads, even on empty
+input. UPPER/LOWER are text-only with TEXT results; LENGTH/CHAR_LENGTH count Unicode scalars.
+String-producing builtins cap results/work buffers at 1,048,576 UTF-16 units and observe cancellation.
+Numeric domain/range and allocation-bound failures retain COHSQLE002; MOD by zero is COHSQLE001.
+
+A session captures one UTC instant at BEGIN/API transaction start or automatic statement start.
+Bound calls, seek bounds, correlated children and SQL function bodies use that instant throughout
+the transaction. SqlFunctionContext carries it internally; no public clock option/member is added.
+[SqlFunctionCollection](sql-function-collection.md) reserves new T1 names at all arities, while
+UPPER/LOWER/LENGTH/ABS retain nonoverlapping application arities. Temporal operators use the same
+planning and evaluation rules; DATE participates in timestamp/instant midnight comparisons and
+CASE/COALESCE calendar promotion. Stable/Volatile defaults are refused with COHDBL001 until #1121.
 
 ## ALTER rename, defaults and nullability
 

@@ -30,7 +30,9 @@ See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 16 and compiled schema version 7.
+The integration branch uses SQL row-storage format 18 and compiled schema version 7.
+Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
+separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
 SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
 text. These unreleased formats have no older-format compatibility reader; use this current
