@@ -37,7 +37,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
 SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 21; compiled schemas remain version 7.
+SQL storage format is 22; compiled schemas remain version 7.
 
 ## Package responsibilities
 
@@ -86,7 +86,7 @@ Transactions use `BEGIN`, `COMMIT`, and `ROLLBACK` on one connection rather than
 wire transaction payload.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

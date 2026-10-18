@@ -82,7 +82,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are COHDBL001.
-The engine seeds and protects dbo, persists namespaces in format 21 records of kind 15, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 22, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include COHSQLE028–031 and their source SQLSTATE categories.
 
@@ -138,7 +138,7 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 21
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 22
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -187,11 +187,21 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 21 for persisted namespaces, following format 20 for referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+format is 22 for STRING_AGG/LISTAGG identifier quoting, after format 21 for persisted namespaces, following format 20 for referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
+
+## Aggregate call modifiers
+
+[SqlFunctionCallExpression](sql-function-call-expression.md) carries Quantifier, OrderBy and
+HasWithinGroupOrdering. The catalog decides aggregate identity; scalar modifiers use COHSQLE032,
+as do DISTINCT ordering keys absent from arguments (no assigned SQLSTATE). Rendering, depth,
+structural equality and persisted validation include order keys. LISTAGG WITHIN GROUP uses the
+same ordered input shape; explicit ALL renders but executes like Default. STRING_AGG and LISTAGG
+join the executable function profile; no named clause is added. Storage format 22 quotes their
+names as identifiers in persisted SQL; compiled schema version stays 7. There is no upgrade reader.
 
 ## Sources
 

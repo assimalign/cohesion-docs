@@ -17,7 +17,7 @@ public static class SqlLanguageProfile
 
 ## Behavior and exceptions
 
-Instance lists the 42 executable T1 scalar names, the five aggregates and CAST. COALESCE, NULLIF,
+Instance lists the 42 executable T1 scalar names, the seven aggregates (including STRING_AGG/LISTAGG) and CAST. COALESCE, NULLIF,
 CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a function-table name. The separate read-only vocabulary lists recognized unsupported spellings for parser
 diagnostics and identifier quoting. Unsupported calls report COHDBL001 before planning; an unknown
 function outside that vocabulary reports COHSQLE016 during planning. Recognition is not an execution
@@ -40,7 +40,7 @@ Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC"));
 TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
-Current storage format is 21, with no upgrade path from an earlier format. The executable
+Current storage format is 22, with no upgrade path from an earlier format. The executable
 profile now measures 47 of 56 declared clauses, including FETCH, lexical TOP and all five delete actions.
 See [scalar contracts](../../../../database/sql/language/functions/builtin-functions.md).
 

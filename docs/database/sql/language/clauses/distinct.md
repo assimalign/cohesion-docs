@@ -22,7 +22,8 @@ Top-level `DISTINCT` executes with the supported query surface. String equality 
 the same effective collation. `NULL` values form one distinct class. Numeric equality uses the shared
 value comparator, so signed zeros form one class and all floating-point NaNs form one class.
 
-`DISTINCT` inside an aggregate is a different feature and reports `COHDBL001`.
+[Aggregate DISTINCT](../functions/aggregate-functions.md#aggregate-modifiers) removes duplicate
+argument tuples within each group; it executes independently of SELECT DISTINCT.
 Explicit `SELECT ALL` is also unsupported; omit the modifier to retain duplicates.
 
 ## Examples

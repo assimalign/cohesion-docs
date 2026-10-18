@@ -32,7 +32,7 @@ MissingValueLiteral is the frozen canonical ADD COLUMN literal used for physical
 fields; null means a missing field reads NULL. It is independent of the current insert DefaultLiteral
 and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows never executes the
 insert default. Later type narrowing validates the frozen literal even without live rows. Table
-extension 6 persists this split, introduced by format 17; current SQL storage format is 21.
+extension 6 persists this split, introduced by format 17; current SQL storage format is 22.
 
 Null name/type throws ArgumentNullException. Blank name/domain name, collation on a non-string
 type, or a blank function identity throws ArgumentException. Invalid identity metadata at publication
@@ -63,7 +63,7 @@ Console.WriteLine(extra.MissingValueLiteral); // 7: old missing fields
 See [allocation](sql-catalog.md#example) for publishing the column and obtaining values.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Related reference

@@ -111,7 +111,7 @@ physical ordinals and dropped-column metadata keep existing row values aligned.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 21 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 22 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version remains 7. Older SQL formats are refused.
 
@@ -178,7 +178,7 @@ ALTER TABLE renamed ALTER score DROP NOT NULL;
 The UPDATE affects one row; each ALTER affects zero rows and changes the nullability facet.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

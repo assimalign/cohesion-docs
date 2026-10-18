@@ -245,7 +245,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 21 and compiled schema version 7.
+The integration branch uses SQL row-storage format 22 and compiled schema version 7.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -254,7 +254,7 @@ text. These unreleased formats have no older-format compatibility reader; use th
 boundary when interpreting historical layout notes above.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources

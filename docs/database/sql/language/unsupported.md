@@ -42,11 +42,11 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and column-free scalar expression defaults |
 | Subquery as LIMIT/OFFSET/FETCH/TOP expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `COHDBL001` | Includes expression subqueries and derived bodies beneath the top-level query |
-| Aggregate `DISTINCT` or explicit `ALL` | `COHDBL001` | Top-level SELECT DISTINCT still executes |
-| Aggregate `FILTER`, in-aggregate ORDER BY | `COHDBL001` | Basic aggregate calls only |
+| Aggregate FILTER | `COHDBL001` | DISTINCT/ALL and input ORDER BY execute on any aggregate |
+| DISTINCT/ALL/ORDER BY on a scalar call, or DISTINCT key absent from arguments | `COHSQLE032` | Catalog-aware validation before input reads |
 | `GROUP BY ()`, `GROUPING SETS`, `ROLLUP`, `CUBE` | `COHDBL001` | One or more ordinary scalar grouping expressions |
 | `GROUPING`, `GROUPING_ID` | `COHDBL001` | Grouping extensions are excluded |
-| Ordered-set `WITHIN GROUP` | `COHDBL001` | No ordered-set aggregates |
+| Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `COHDBL001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `COHDBL001` | Output ordinals belong only to ORDER BY |
 | `NULLS FIRST`, `NULLS LAST` | `COHDBL001` | Null first ascending, last descending |
 | Foreign-key `ON UPDATE` | `COHDBL001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |

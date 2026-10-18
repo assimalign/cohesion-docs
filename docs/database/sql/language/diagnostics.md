@@ -63,6 +63,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE029` | CREATE SCHEMA finds an existing namespace without IF NOT EXISTS | 42P06 |
 | `COHSQLE030` | DROP SCHEMA RESTRICT finds dependent objects; message offers CASCADE | 2BP01 |
 | `COHSQLE031` | DROP SCHEMA targets dbo, required by code-first provisioning | — |
+| `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 
 [Set operations](clauses/set-operations.md) use COHSQLE013 for unequal widths, COHSQLE018 for
 combined ORDER BY expressions/qualified names/invalid ordinals, and COHSQLE019 for ambiguous
@@ -77,6 +78,11 @@ uses `COHDBL001` naming LATERAL; unknown, ambiguous or hidden names retain `COHS
 An aggregate assigned to an outer level uses `COHDBL001` before grouped-column validation.
 For WITH, a later sibling's name reads a stored table when one exists; only a missing future
 relation receives `COHSQLE026`. No SQLSTATE is assigned to that code.
+
+[Aggregate modifiers and text concatenation](functions/aggregate-functions.md) use SQL0003 for
+quantified star or malformed LISTAGG ordering, COHSQLE006 (42883) for arity/type mismatch,
+COHSQLE002 (22003) for output above 1,048,576 UTF-16 units, and COHDBL001 for nonconstant
+delimiters or ON OVERFLOW. COHSQLE032 has no assigned SQLSTATE.
 
 ## DDL dependencies
 

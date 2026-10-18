@@ -92,7 +92,7 @@ newly executable function names, BOTH/LEADING/TRAILING and PERCENT/TIES. A colum
 `"sign" >= 0` in a CHECK. Defaults and SQL function bodies use the same renderer. Format 18
 records this canonical quoting change, separately from format 17 (the insert-default/frozen-missing
 split with table extension 6). Format 19 added PERCENT/TIES quoting. Format 20 added
-persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open
+persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 7.
 

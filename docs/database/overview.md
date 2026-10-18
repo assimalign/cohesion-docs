@@ -179,7 +179,7 @@ for bounded list/map parameters and results, without changing Path payloads.
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in storage format 21;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 22;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.

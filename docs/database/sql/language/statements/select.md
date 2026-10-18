@@ -43,7 +43,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
 | INNER/LEFT JOIN ... ON or USING | Supported (measured) | N-way stored/system joins; LEFT supplies NULL for unmatched right columns |
 | CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
-| `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
+| `GROUP BY`, `HAVING`, [aggregates](../functions/aggregate-functions.md) | Supported (measured) | DISTINCT/ALL and input ORDER BY; STRING_AGG and LISTAGG concatenate text |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
 | Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |

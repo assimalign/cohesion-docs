@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is COHSQLE031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 21 persists namespaces as record kind 15; compiled schema artifacts remain version 7.
+Storage format 22 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 7.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports COHSQLS005
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -106,7 +106,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports COHDBL001, including quoted names.
 
-The integration branch uses SQL row-storage format 21 and compiled schema version 7.
+The integration branch uses SQL row-storage format 22 and compiled schema version 7.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -115,7 +115,7 @@ text. These unreleased formats have no older-format compatibility reader; use th
 boundary when interpreting historical layout notes above.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG identifiers in persisted SQL. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources
