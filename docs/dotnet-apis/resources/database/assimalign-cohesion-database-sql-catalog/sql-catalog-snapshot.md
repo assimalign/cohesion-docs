@@ -11,6 +11,7 @@ public sealed class SqlCatalogSnapshot
 {
     public IReadOnlyList<SqlCatalogNamespace> Namespaces { get; }
     public IReadOnlyList<SqlCatalogTable> Tables { get; }
+    public IReadOnlyList<SqlCatalogView> Views { get; }
     public IReadOnlyList<SqlCatalogFunction> Functions { get; }
     public IReadOnlyList<SqlCatalogDomain> Domains { get; }
     public Collation DefaultCollation { get; }
@@ -27,6 +28,10 @@ includes empty namespaces. The capture owns no storage/disposal lifetime. GetInd
 empty list when absent; TryGetTable compares schema/name without case and returns false/null
 when absent. These members declare no validation exceptions. Capturing an offline catalog throws
 StorageOfflineException. INFORMATION_SCHEMA.SCHEMATA projects Namespaces from the statement capture.
+
+Views contains the immutable [SqlCatalogView](sql-catalog-view.md) definitions present at capture.
+Later replacement or DROP leaves that list intact. Captures include view definitions alongside tables,
+functions, domains and namespaces.
 
 ## Example
 

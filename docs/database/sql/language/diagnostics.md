@@ -48,11 +48,11 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
 | `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
-| `COHSQLE017` | Invalid aggregate placement/grouping, including a non-grouping outer column referenced from a completed group | — |
+| `COHSQLE017` | Invalid aggregate placement/grouping, including RETURNING or a non-grouping outer column referenced from a completed group | — |
 | `COHSQLE018` | Invalid ordering ordinal, row count or CAST declaration | — |
 | `COHSQLE019` | Duplicate target column/table binding or ambiguous output alias | — |
 | `COHSQLE020` | Missing parameter, checked before reading or writing rows | — |
-| `COHSQLE021` | Mutation targets a read-only system relation | 25006 |
+| `COHSQLE021` | Mutation or table DDL targets a read-only system relation or persisted view | 25006 |
 | `COHSQLE022` | Invalid CAST input text representation | 22P02 |
 | `COHSQLE023` | Parameter keys collide after stripping one sigil, including unused keys | — |
 | `COHSQLE024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
@@ -63,6 +63,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE029` | CREATE SCHEMA finds an existing namespace without IF NOT EXISTS | 42P06 |
 | `COHSQLE030` | DROP SCHEMA RESTRICT finds dependent objects; message offers CASCADE | 2BP01 |
 | `COHSQLE031` | DROP SCHEMA targets dbo, required by code-first provisioning | — |
+| `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 
 [Set operations](clauses/set-operations.md) use COHSQLE013 for unequal widths, COHSQLE018 for
@@ -88,7 +89,7 @@ delimiters or ON OVERFLOW. COHSQLE032 has no assigned SQLSTATE.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHSQLD002` | After ownership checks, ALTER TABLE RENAME finds a declared script retaining the old table or index target; names the script | — |
+| `COHSQLD002` | View dependency blocks DROP TABLE/FUNCTION/DOMAIN/VIEW RESTRICT, table rename, or drop/rename/type-facet changes to a referenced column; also ALTER TABLE RENAME retained by a declared script; names the dependent view/script | — |
 | `COHSQLS005` | Declared migration script attempts DROP SCHEMA CASCADE over typed schema objects; declare the change in the typed schema; rejected before opening or writing | — |
 
 ALTER uses `COHSQLE027` for volatile ADD COLUMN defaults on live rows (no SQLSTATE). SET NOT NULL checks stored and frozen missing values with COHSQLE024 (23502);

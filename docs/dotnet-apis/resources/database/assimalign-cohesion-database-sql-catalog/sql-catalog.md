@@ -134,6 +134,45 @@ expected argument; the earlier definition is stale after publication.
 
 [Assembly](index.md) · [Design](design.md) · [SqlCatalogColumn](sql-catalog-column.md) · [SqlCatalogIdentity](sql-catalog-identity.md)
 
+## View members
+
+```csharp
+public IReadOnlyList<SqlCatalogView> Views { get; }
+public bool TryGetView(string schema, string name, out SqlCatalogView view);
+public ValueTask CreateViewAsync(SqlCatalogView view, bool orReplace = false,
+    CancellationToken cancellationToken = default);
+public ValueTask CreateViewAsync(SqlCatalogView view, bool orReplace,
+    SqlCatalogScriptPublication publication, CancellationToken cancellationToken = default);
+public ValueTask DropViewAsync(string schema, string name, bool cascade = false,
+    CancellationToken cancellationToken = default);
+public ValueTask DropViewAsync(string schema, string name, bool cascade,
+    SqlCatalogScriptPublication publication, CancellationToken cancellationToken = default);
+```
+
+Views returns an immutable capture; TryGetView compares namespace/name without case and returns
+false/null when absent. Offline access throws StorageOfflineException. Create accepts an
+engine-validated [SqlCatalogView](sql-catalog-view.md); it checks relation collisions, live
+dependencies, cycles and compatible append-only replacement. View-specific refusals and records
+larger than 8,092 bytes throw SqlCatalogException with COHSQLE033. Drop refuses absence/table
+targets with COHSQLE033 and RESTRICT dependencies with COHSQLD002. CASCADE removes dependent
+views atomically. Script-publication overloads commit receipt and definition/absence together.
+
+Null view/publication throws ArgumentNullException; stale publication uses SqlCatalogException.
+Cancellation before publication throws OperationCanceledException and persistence failures
+StorageException. Catalog calls do not perform engine SQL binding, ownership admission or object
+locking.
+
+After creating v through session SQL:
+
+```csharp
+var before = database.Catalog.CaptureSnapshot();
+await database.Catalog.DropViewAsync("dbo", "v");
+Console.WriteLine(before.Views.Any(v => v.Name == "v")); // True
+Console.WriteLine(database.Catalog.TryGetView("dbo", "v", out _)); // False
+```
+
+This follows immutable captures in SqlViewTests.Persistence and the catalog removal implementation.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/src/SqlCatalog.Identity.cs`.

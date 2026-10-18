@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 47 of 56 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 50 of 56 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -21,11 +21,11 @@ validation. Literal added-column defaults resolve old-row reads without rewritin
 [Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
 correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values.
 [WITH](language/clauses/with.md) defines non-recursive query relations before SELECT, INSERT,
-UPDATE or DELETE. Outer ordering over derived outputs remains excluded. [Identity columns](language/clauses/identity.md)
+UPDATE or DELETE. Outer ordering over derived outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
-The 47-of-56 measure is not a percentage of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the excluded 14 named clauses and the further
+The 50-of-56 measure is not a percentage of complete SQL. The
+[unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in
 [Operators and predicates](language/expressions/operators.md).
 
@@ -37,7 +37,12 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
 SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 22; compiled schemas remain version 7.
+SQL storage format is 24; compiled schemas remain version 7.
+
+[Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
+with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
+returns direct write rows and affected counts. [ORDER BY](language/clauses/order-by.md) supports
+NULLS FIRST/LAST in every ordering position.
 
 ## Package responsibilities
 
@@ -87,7 +92,7 @@ wire transaction payload.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

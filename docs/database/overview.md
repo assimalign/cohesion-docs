@@ -179,12 +179,12 @@ for bounded list/map parameters and results, without changing Path payloads.
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 22;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 24;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 47 of 56 declared clauses. Document and Graph have their own
+The current SQL contract measures 50 of 56 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization, and replication/governance
 contracts do not imply operational implementations.

@@ -47,6 +47,14 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
 - **[SqlLiteralType](sql-literal-type.md)** — Values and usage.
 
+- **[SqlCreateViewExpression](sql-create-view-expression.md)** — Parsed view or ordering contract.
+
+- **[SqlDropViewExpression](sql-drop-view-expression.md)** — Parsed view or ordering contract.
+
+- **[SqlOrderByColumn](sql-order-by-column.md)** — Parsed view or ordering contract.
+
+- **[SqlNullPlacement](sql-null-placement.md)** — Parsed view or ordering contract.
+
 The SQL language front-end of the Cohesion Data Platform: a recursive-descent parser
 (`SqlQueryParser`) producing a full clause-level AST over the shared lexer infrastructure
 (`Database.Language`), the declared dialect contract (DIALECT.md

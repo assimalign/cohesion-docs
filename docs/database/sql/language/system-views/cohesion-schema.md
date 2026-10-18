@@ -86,6 +86,9 @@ ORDER BY INDEX_NAME, ORDINAL_POSITION;
 
 The result includes `ix_age` and the table's primary-key enforcement index.
 
+OBJECT_OWNERSHIP also includes [persisted views](../statements/create-view.md): session-created
+views are Adhoc and declared-script views use Schema ownership.
+
 ## See also
 
 [System views](index.md) · [INFORMATION_SCHEMA](information-schema.md) · [CREATE INDEX](../statements/create-index.md)

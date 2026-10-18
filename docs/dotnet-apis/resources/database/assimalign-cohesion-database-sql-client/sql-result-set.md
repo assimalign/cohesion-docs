@@ -12,6 +12,7 @@ public sealed class SqlResultSet : IReadOnlyList<SqlRow>
     public IReadOnlyList<ProtocolDiagnostic> Diagnostics { get; }
     public IReadOnlyList<SqlColumn> Columns { get; }
     public int Count { get; }
+    public long AffectedCount { get; }
     public SqlRow this[int index] { get; }
 }
 ```
@@ -24,6 +25,12 @@ without the capability. Information, including SQL0100, is never sent. An invali
 through the underlying collection; statement failures throw SqlClientException instead of returning
 a successful result. Direct construction is unavailable.
 
+AffectedCount preserves ResultComplete's long value: -1 for SELECT and n for a write,
+including RETURNING. Count is the number of returned rows. Empty RETURNING writes keep typed
+columns with Count/AffectedCount zero. Results own their values and survive a later ROLLBACK.
+QueryAsync returns rows and count; ExecuteAsync still buffers/transfers returned rows before
+discarding them; ExecuteScalarAsync reads the first cell.
+
 ## Example
 
 For a stored table t:
@@ -34,6 +41,16 @@ Console.WriteLine(plan.Columns.Count); // 8
 foreach (var diagnostic in plan.Diagnostics) Console.WriteLine(diagnostic.Code);
 // Normally empty; overflow notices, when supplied by a result, retain COHDBP001.
 ```
+
+```csharp
+await connection.ExecuteAsync("CREATE TABLE returned_ids (id INT GENERATED ALWAYS AS IDENTITY, name TEXT);");
+var inserted = await connection.QueryAsync(
+    "INSERT INTO returned_ids (name) VALUES ('x'), ('y') RETURNING id, name;");
+Console.WriteLine(inserted.AffectedCount); // 2
+Console.WriteLine(inserted[0].GetInt32(0)); // 1
+```
+
+This follows SqlReturningWireTests over InMemory and TCP.
 
 ## Related reference
 

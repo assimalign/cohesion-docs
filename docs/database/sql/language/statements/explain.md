@@ -51,6 +51,11 @@ Combined ordering/paging and DISTINCT state appear in detail. For example, after
 `a(id INT)` and `b(id INT)`, `EXPLAIN SELECT id FROM a UNION ALL SELECT id FROM b;`
 returns a Union node with two Select/TableScan operand plans, without reading their rows.
 
+ORDER BY detail records effective placement for every key, for example
+`order_by=[ASC NULLS FIRST, DESC NULLS LAST]`. DML with [RETURNING](../clauses/returning.md)
+adds the expanded count and output names, such as `returning=2; columns=id, name`, without
+executing projections.
+
 ## Examples
 
 On the [fixture](select.md#a-create-the-conformance-fixture):

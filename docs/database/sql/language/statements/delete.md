@@ -10,6 +10,7 @@ Removes rows selected from a stored table.
 [ WITH common_table_expression [ , ...n ] ]
 DELETE FROM [ schema_name . ] table_name
 [ WHERE search_condition ]
+[ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
 ```
 
@@ -33,7 +34,8 @@ rows. Nullable foreign-key values are allowed.
 Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE. Independent children materialize once; correlated children evaluate for each
 candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
-cascades together. `RETURNING` reports `COHDBL001`. Deleting rows does not remove the
+cascades together. [RETURNING](../clauses/returning.md) projects old values of directly targeted
+rows and excludes cascade/child-action rows. Deleting rows does not remove the
 table definition; [DROP TABLE](drop-table.md) is the separate schema operation.
 
 [SET NULL and SET DEFAULT](../constraints.md) update surviving children through cascade chains.

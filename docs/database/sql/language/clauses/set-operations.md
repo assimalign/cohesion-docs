@@ -8,7 +8,7 @@ Combine query rows by position, with DISTINCT or bag multiplicities.
 
 ```syntaxsql
 query_body { UNION | INTERSECT | EXCEPT } [ ALL | DISTINCT ] query_body
-[ ORDER BY { output_name | ordinal } [ ASC | DESC ] [ , ...n ] ]
+[ ORDER BY { output_name | ordinal } [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ]
 [ LIMIT count_expression ] [ OFFSET count_expression [ ROW | ROWS ] ]
 -- OFFSET/FETCH is also accepted. Parentheses group query bodies and their own tails.
 ```
@@ -70,7 +70,7 @@ results materialize in memory, with no spilling or streaming guarantee.
 | COHSQLE018 | Combined ordering uses an expression, qualified/missing name or invalid ordinal; also invalid paging counts | — |
 | COHSQLE019 | Ambiguous combined output name | — |
 | SQL0003 | Operand tail appears before another operator without parentheses | — |
-| COHDBL001 | CORRESPONDING, including BY forms, or explicit NULL ordering | — |
+| COHDBL001 | CORRESPONDING, including BY forms | — |
 
 Nested/recursive WITH and LATERAL retain their existing exclusions. See [Diagnostics](../diagnostics.md).
 

@@ -25,6 +25,8 @@ same page/WAL durability as data, plus persistence for the physical index regist
 retains a Restrict default; SQL syntax defaults to NoAction. Compiled schema version 7 still
 models only Restrict/Cascade.
 
+- **[SqlCatalogView](sql-catalog-view.md)** — Canonical view body, frozen columns and resolved dependencies.
+
 ## Scope
 
 - **Metadata model** — table descriptions with stable `ObjectId`s, ordered columns
@@ -69,7 +71,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 22 and compiled schema version 7.
+The integration branch uses SQL row-storage format 24 and compiled schema version 7.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -79,7 +81,7 @@ boundary when interpreting historical layout notes above.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources

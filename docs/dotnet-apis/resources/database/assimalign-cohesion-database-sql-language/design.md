@@ -59,7 +59,7 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
   while excluded clauses such as recursive CTEs, windows,
-  RETURNING, unsupported join forms and views remain absent. Non-recursive WITH, FETCH and
+  and unsupported join forms remain absent. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
   statement, so analyzers observe `COHDBL001` with the token location and the `SQL`
@@ -74,7 +74,7 @@ consumers existed.
 
 ## Non-goals (current dialect)
 
-Recursive/nested CTEs, window functions, views, `ON UPDATE`, `MERGE`, `RETURNING`, savepoints,
+Recursive/nested CTEs, window functions, `ON UPDATE`, `MERGE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -82,7 +82,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are COHDBL001.
-The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 22, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 24, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include COHSQLE028–031 and their source SQLSTATE categories.
 
@@ -138,7 +138,7 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 22
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 24
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -187,11 +187,11 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 22 for STRING_AGG/LISTAGG identifier quoting, after format 21 for persisted namespaces, following format 20 for referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+format is 24 for persisted NULL placement, following format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after format 21 for persisted namespaces, following format 20 for referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Aggregate call modifiers
@@ -201,8 +201,20 @@ HasWithinGroupOrdering. The catalog decides aggregate identity; scalar modifiers
 as do DISTINCT ordering keys absent from arguments (no assigned SQLSTATE). Rendering, depth,
 structural equality and persisted validation include order keys. LISTAGG WITHIN GROUP uses the
 same ordered input shape; explicit ALL renders but executes like Default. STRING_AGG and LISTAGG
-join the executable function profile; no named clause is added. Storage format 22 quotes their
+join the executable function profile; no named clause is added. Format 22 introduced quoting for their
 names as identifiers in persisted SQL; compiled schema version stays 7. There is no upgrade reader.
+
+## Views, NULL placement and RETURNING
+
+[CREATE](sql-create-view-expression.md)/[DROP VIEW](sql-drop-view-expression.md) use typed nodes.
+Bodies use the existing query-body grammar. The engine persists expanded bound inputs and output
+aliases remain output references. [SqlOrderByColumn](sql-order-by-column.md) independently retains
+Default/First/Last placement; the renderer emits only written modifiers. Current format 24 admits
+those persisted modifiers, following format 23's view records.
+
+DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
+are contextual refusals; ordinary identifier quoting is unchanged. Subqueries and windows remain
+excluded there, while aggregates are refused by the planner with COHSQLE017.
 
 ## Sources
 

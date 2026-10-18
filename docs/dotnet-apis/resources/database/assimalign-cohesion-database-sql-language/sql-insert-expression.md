@@ -9,6 +9,7 @@ public sealed class SqlInsertExpression : SqlQueryExpression
 {
     public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
+    public IReadOnlyList<SqlSelectColumn>? Returning { get; }
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<IReadOnlyList<SqlExpression>>? Values { get; }
     public SqlQueryBodyExpression? SelectSource { get; }
@@ -41,6 +42,18 @@ on SelectSource.CommonTables; a leading WITH lives on the INSERT node. See [WITH
 var statement = (SqlQueryStatement)new SqlQueryParser().Parse("INSERT INTO t DEFAULT VALUES");
 var node = (SqlInsertExpression)statement.SqlExpression;
 Console.WriteLine(node.IsDefaultValues); // True
+```
+
+Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
+binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
+DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
+use COHSQLE017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use COHDBL001.
+See [RETURNING](../../../../database/sql/language/clauses/returning.md).
+
+```csharp
+var returningStatement = (SqlQueryStatement)new SqlQueryParser().Parse(
+    "INSERT INTO t VALUES (1) RETURNING id;");
+Console.WriteLine(((SqlInsertExpression)returningStatement.SqlExpression).Returning!.Count); // 1
 ```
 
 ## Related reference

@@ -111,9 +111,15 @@ physical ordinals and dropped-column metadata keep existing row values aligned.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 22 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 24 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version remains 7. Older SQL formats are refused.
+
+### View dependencies
+
+[Persisted views](create-view.md) block table rename and drop/rename of columns they read.
+ALTER COLUMN also refuses changes to those columns' type, length, precision or scale with
+COHSQLD002. Default and nullability changes retain their usual validation.
 
 ## Diagnostics
 
@@ -179,7 +185,7 @@ The UPDATE affects one row; each ALTER affects zero rows and changes the nullabi
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

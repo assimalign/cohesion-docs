@@ -12,8 +12,8 @@ DROP SCHEMA [ IF EXISTS ] schema_name [ RESTRICT | CASCADE ] [ ; ]
 
 ## Remarks
 
-RESTRICT is the default and refuses a namespace containing tables. CASCADE drops its contained
-tables and indexes in one catalog publication, including identity state. If a table outside the
+RESTRICT is the default and refuses a namespace containing tables or views. CASCADE drops its contained
+views, tables and indexes, plus external views depending on its tables or views in one catalog publication, including identity state. If a table outside the
 namespace has an FK into it, CASCADE removes that FK and preserves the outside table and its data.
 Ownership checks cover the namespace, contained objects and affected outside tables. A refusal,
 conflict or cancellation before publication leaves the complete catalog intact.

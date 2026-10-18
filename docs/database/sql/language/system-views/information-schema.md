@@ -16,7 +16,7 @@ FROM INFORMATION_SCHEMA.view_name
 
 ## Arguments
 
-- **`view_name`** — One of the seven relation names below.
+- **`view_name`** — One of the eight relation names below.
 - **`select_list`** — Metadata columns or expressions; `*` uses the listed column order.
 - **Query clauses** — This abbreviated diagram uses the ordinary supported
   [SELECT](../statements/select.md) grammar.
@@ -26,11 +26,12 @@ FROM INFORMATION_SCHEMA.view_name
 | Relation | Columns in SELECT * order | Rows |
 | --- | --- | --- |
 | `SCHEMATA` | `CATALOG_NAME`, `SCHEMA_NAME`, `SCHEMA_OWNER`, `DEFAULT_CHARACTER_SET_CATALOG`, `DEFAULT_CHARACTER_SET_SCHEMA`, `DEFAULT_CHARACTER_SET_NAME`, `SQL_PATH` | Persisted namespaces, including empty namespaces and dbo |
-| `TABLES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `TABLE_TYPE` | Stored tables; type is `BASE TABLE` |
-| `COLUMNS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_DEFAULT`, `IS_NULLABLE`, `DATA_TYPE`, `CHARACTER_MAXIMUM_LENGTH`, `CHARACTER_OCTET_LENGTH`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `DATETIME_PRECISION`, `IS_IDENTITY`, `IDENTITY_GENERATION`, `IDENTITY_START`, `IDENTITY_INCREMENT`, `IDENTITY_MAXIMUM`, `IDENTITY_MINIMUM`, `IDENTITY_CYCLE` | One row per stored column |
+| `TABLES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `TABLE_TYPE` | Stored tables (BASE TABLE) and persisted views (VIEW) |
+| `COLUMNS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_DEFAULT`, `IS_NULLABLE`, `DATA_TYPE`, `CHARACTER_MAXIMUM_LENGTH`, `CHARACTER_OCTET_LENGTH`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `DATETIME_PRECISION`, `IS_IDENTITY`, `IDENTITY_GENERATION`, `IDENTITY_START`, `IDENTITY_INCREMENT`, `IDENTITY_MAXIMUM`, `IDENTITY_MINIMUM`, `IDENTITY_CYCLE` | One row per stored-table or frozen view column |
 | `TABLE_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `CONSTRAINT_TYPE`, `IS_DEFERRABLE`, `INITIALLY_DEFERRED` | Primary keys, unique indexes/constraints, foreign keys, and explicit checks |
 | `KEY_COLUMN_USAGE` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION` | One row per primary, unique, or foreign-key column, in key order |
 | `REFERENTIAL_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `UNIQUE_CONSTRAINT_CATALOG`, `UNIQUE_CONSTRAINT_SCHEMA`, `UNIQUE_CONSTRAINT_NAME`, `MATCH_OPTION`, `UPDATE_RULE`, `DELETE_RULE` | Foreign keys and their referenced key identities |
+| `VIEWS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `VIEW_DEFINITION`, `CHECK_OPTION`, `IS_UPDATABLE` | Canonical persisted view definitions; CHECK_OPTION is NONE and IS_UPDATABLE is NO |
 | `CHECK_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `CHECK_CLAUSE` | Persisted explicit check expressions |
 
 ## Remarks
@@ -86,7 +87,11 @@ table-definition binding rule described under [ALTER TABLE](../statements/alter-
 Data manipulation and table/index DDL targeting the named relations fail with
 `System view '<SCHEMA>.<VIEW>' is read-only.`, including colliding creates and
 `IF [NOT] EXISTS` forms. The wire error is `ExecutionFailure`.
-User-defined `CREATE VIEW` and `DROP VIEW` remain unsupported.
+[CREATE VIEW](../statements/create-view.md) and [DROP VIEW](../statements/drop-view.md) manage
+persisted read-only views. Their COLUMNS rows use frozen type/length/precision/scale without binding
+the body; IS_NULLABLE is always YES and COLUMN_DEFAULT is NULL. CASE, COALESCE and set branches
+keep facets only when all types/domains/modifiers agree; NULLIF keeps its first argument's facets.
+Metadata enumeration still works when a recoverable body bind failure prevents reading a view.
 
 ## Examples
 

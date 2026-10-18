@@ -26,9 +26,11 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[DEFAULT](default.md)** — Declare or request a column default.
 - **[IDENTITY](identity.md)** — Generate integer values with durable, noncycling reservations.
 
+- **[RETURNING](returning.md)** — Return each directly written row's scalar projection.
+
 ## Scope
 
-The [dialect hub](../index.md) describes the 47-of-56 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 50-of-56 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

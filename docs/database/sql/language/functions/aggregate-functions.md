@@ -8,9 +8,9 @@ Summarizes rows using COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG.
 
 ```syntaxsql
 COUNT ( * )
-aggregate_name ( [ DISTINCT | ALL ] expression [ ORDER BY key [ ASC | DESC ] [ , ...n ] ] )
-STRING_AGG ( [ DISTINCT | ALL ] value, delimiter [ ORDER BY key [ ASC | DESC ] [ , ...n ] ] )
-LISTAGG ( [ DISTINCT | ALL ] value [ , delimiter ] ) WITHIN GROUP ( ORDER BY key [ ASC | DESC ] [ , ...n ] )
+aggregate_name ( [ DISTINCT | ALL ] expression [ ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ] )
+STRING_AGG ( [ DISTINCT | ALL ] value, delimiter [ ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ] )
+LISTAGG ( [ DISTINCT | ALL ] value [ , delimiter ] ) WITHIN GROUP ( ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] )
 ```
 
 ## Arguments
@@ -59,7 +59,9 @@ grows with the number of distinct values in each group. Neither quantifier accep
 
 Every aggregate, including application aggregates, accepts input ORDER BY. Order-insensitive
 aggregates ignore the order. Keys bind to source rows, may contain supported subqueries, and
-use stable sorting with NULL first in ASC and last in DESC. An integer key is a constant,
+use stable sorting with NULL first in ASC and last in DESC by default. Each key accepts
+NULLS FIRST/LAST independently of direction, including STRING_AGG input keys and LISTAGG
+WITHIN GROUP keys. An integer key is a constant,
 never a projection ordinal. With DISTINCT each key must structurally match an argument after
 column binding (COHSQLE032). DISTINCT, ALL or ORDER BY on a scalar function is also COHSQLE032,
 with no assigned SQLSTATE. Invalid aggregate arity uses COHSQLE006 (42883).
@@ -134,6 +136,17 @@ SELECT STRING_AGG(name, ',' ORDER BY 1) FROM agg;
 Results are `(2, 4, 4)`, `('a,b,c', 'a,b,c', 'abc')`, and `'c,a,b'`.
 The constant ORDER BY 1 preserves input order. SUM results are Decimal. A DISTINCT call such as
 `STRING_AGG(DISTINCT name, ',' ORDER BY name)` is valid; replacing its key with id uses COHSQLE032.
+
+### NULL placement in aggregate inputs
+
+```sql
+CREATE TABLE texts (name TEXT, x INT);
+INSERT INTO texts VALUES ('z', NULL), ('a', 1);
+SELECT STRING_AGG(name, ',' ORDER BY x NULLS LAST),
+       LISTAGG(name, ',') WITHIN GROUP (ORDER BY x NULLS FIRST) FROM texts;
+```
+
+The result is ('a,z', 'z,a'). NULL values of name are still skipped.
 
 ## See also
 

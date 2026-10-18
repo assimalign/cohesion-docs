@@ -11,6 +11,7 @@ public sealed class SqlDeleteExpression : SqlQueryExpression
 {
     public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
+    public IReadOnlyList<SqlSelectColumn>? Returning { get; }
     public SqlExpression? Where { get; }
 }
 ```
@@ -39,6 +40,18 @@ Console.WriteLine(node.Table.TableName); // t
 ```
 
 With stored t containing IDs 1, 2 and 3, execution affects three rows and leaves t empty.
+
+Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
+binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
+DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
+use COHSQLE017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use COHDBL001.
+See [RETURNING](../../../../database/sql/language/clauses/returning.md).
+
+```csharp
+var returningStatement = (SqlQueryStatement)new SqlQueryParser().Parse(
+    "DELETE FROM t RETURNING id;");
+Console.WriteLine(((SqlDeleteExpression)returningStatement.SqlExpression).Returning!.Count); // 1
+```
 
 ## Related reference
 

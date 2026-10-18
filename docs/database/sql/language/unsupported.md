@@ -4,9 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 47 of 56 named clauses against the live engine. The 9 excluded names are
-`RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `CREATE VIEW`,
-`DROP VIEW`, `NATURAL`, `ALL`, and `RETURNING`. Further subset restrictions do not increase that denominator.
+The profile measures 50 of 56 named clauses against the live engine. The 6 excluded names are
+`RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
 
@@ -23,20 +22,19 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Recursive/nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `COHDBL001` | Non-recursive [WITH](clauses/with.md) before SELECT/INSERT/UPDATE/DELETE executes |
 | `WINDOW`, `OVER`, `PARTITION BY` | `COHDBL001` | Window clauses are excluded |
 | `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `COHDBL001` | Window-function calls are rejected even without OVER |
-| `CREATE VIEW`, `DROP VIEW` | `COHDBL001` | Built-in system relations do not imply user-defined views |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `COHDBL001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
-| DML `RETURNING` | `COHDBL001` | Writes return affected counts |
 | `NATURAL JOIN`, RIGHT/FULL joins with optional `OUTER` | `COHDBL001` | INNER, LEFT and CROSS execute |
 | INNER/LEFT join without ON or USING | `COHDBL001` | Exactly one condition required |
 | CROSS JOIN with ON or USING | `SQL0003` | Products accept neither condition |
 | Malformed USING list, or both ON and USING | `SQL0003` | One nonempty USING name list or one ON predicate |
 | Missing/repeated/ambiguous USING name, or no common type | `COHSQLE015` | Fails binding even on empty inputs |
 | Qualified wildcard, such as `t.*` | `COHDBL001` | Use unqualified star or explicit columns |
-| Outer ORDER BY depending on derived outputs | `COHDBL001` | Includes aliases and ordinals; ordering inside derived bodies executes |
 | Derived query without an alias | `SQL0003` | FROM/JOIN derived relations require an alias |
 | Derived column list with wrong width or blank output name | `COHSQLE013` | Rename every output by position |
 | Quantified `ANY`, `ALL`, `SOME` comparison | `COHDBL001` | Use supported scalar/membership/existence forms |
 | LATERAL syntax or a derived body referencing a real sibling relation | `COHDBL001` | Enclosing-query correlation executes; typos retain COHSQLE015 |
+| OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries/windows in RETURNING | `COHDBL001` | [RETURNING](clauses/returning.md) supports target-row scalar projections |
+| MATERIALIZED, RECURSIVE, TEMP/TEMPORARY views, CREATE VIEW IF NOT EXISTS, view options/CHECK OPTION | `COHDBL001` | [Persisted read-only views](statements/create-view.md) execute |
 | Subquery in UPDATE SET | `COHDBL001` | Correlated and uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `COHDBL001` | Use INSERT ... SELECT |
 | Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and column-free scalar expression defaults |
@@ -48,7 +46,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `GROUPING`, `GROUPING_ID` | `COHDBL001` | Grouping extensions are excluded |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `COHDBL001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `COHDBL001` | Output ordinals belong only to ORDER BY |
-| `NULLS FIRST`, `NULLS LAST` | `COHDBL001` | Null first ascending, last descending |
 | Foreign-key `ON UPDATE` | `COHDBL001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |
 | Unknown or culture-aware collation name | `COHDBL001` | Four declared names only |
 | `CREATE COLLATION`, session collation override | `COHDBL001` | Database/column/expression rules only |

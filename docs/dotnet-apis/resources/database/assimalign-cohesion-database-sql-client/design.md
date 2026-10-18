@@ -134,6 +134,13 @@ or Error; 2.0 retains baseline exchanges without the frame. Overflow preserves a
 plus COHDBP001 with exact omission counts, the original outcome and a usable session.
 All SQL codes and SQLSTATE categories are in [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
+## RETURNING results
+
+QueryAsync returns [SqlResultSet.AffectedCount](sql-result-set.md) with buffered RETURNING rows.
+ExecuteAsync receives and buffers those rows before discarding them; ExecuteScalarAsync returns
+the first cell. ResultComplete already carries the count; framing and protocol version are unchanged.
+Server projection errors occur before the result header and leave the connection usable.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`.

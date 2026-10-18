@@ -11,6 +11,7 @@ Changes one or more column values on rows selected from a stored table.
 UPDATE [ schema_name . ] table_name
 SET column_name = { expression | DEFAULT } [ , ...n ]
 [ WHERE search_condition ]
+[ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
 ```
 
@@ -40,7 +41,8 @@ destination coercion and constraint enforcement. A `CAST` runs before destinatio
 Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE over the pre-statement snapshot, including the target table and the session's
 earlier uncommitted changes. Independent children materialize once; correlated children evaluate
-for each candidate row before writes. Subqueries in SET and `RETURNING` report `COHDBL001`.
+for each candidate row before writes. Subqueries in SET and RETURNING report COHDBL001.
+[RETURNING](../clauses/returning.md) projects the new values; SET expressions read original values.
 Changing a referenced parent key may fail foreign-key enforcement; `ON UPDATE` actions are not
 implemented. Row updates remain available on schema-owned tables even though session DDL is restricted.
 

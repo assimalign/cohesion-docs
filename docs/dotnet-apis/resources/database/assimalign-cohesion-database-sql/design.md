@@ -14,7 +14,8 @@ COHSQLE028 (3F000), duplicate CREATE COHSQLE029 (42P06), and RESTRICT dependenci
 (2BP01); reads/DML retain COHSQLE014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
-Storage format 22 is current and quotes STRING_AGG/LISTAGG identifiers in persisted SQL.
+Storage format 24 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
+format 23 introduced views and format 24 persists explicit NULL placement.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
@@ -90,7 +91,7 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
-Current SQL data-storage format is 22. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 24. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
@@ -344,7 +345,7 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 22 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 24 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
   SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer versions are refused before opening data
   files. No upgrade reader exists; export with the writing engine, recreate and reload.
@@ -897,7 +898,7 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 22, including the extension-6 missing/default split and T1 identifier
+14; the current SQL format is 24, including the extension-6 missing/default split and T1 identifier
 quoting. Older files are refused without an upgrade reader. Compiled schema version remains 7.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
@@ -938,7 +939,7 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 22 stores
+generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 24 stores
 immutable identity facets within table extension 6 (the identity facet originated in extension 5)
 and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
@@ -1157,7 +1158,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 22.
+Format 17 introduced the default/missing split with table extension 6; current format is 24.
 
 ## Declared dependencies
 
@@ -1176,7 +1177,7 @@ Format 17 introduced the default/missing split with table extension 6; current f
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Aggregate modifiers and text results
@@ -1188,6 +1189,22 @@ Scalar modifiers and invalid DISTINCT order keys use COHSQLE032 (no SQLSTATE). S
 LISTAGG return nullable String, skip NULL values and accept only literal/parameter delimiters.
 Their 1,048,576 UTF-16-unit output cap uses COHSQLE002 (22003); incompatible signatures use
 COHSQLE006 (42883). ON OVERFLOW stays COHDBL001. Wire metadata/framing need no changes.
+
+## Persisted views, ordering and RETURNING
+
+[Read-only views](../../../../database/sql/language/statements/create-view.md) persist canonical bound
+bodies, expanded stars, frozen columns and pinned function identities. Each reference materializes
+once in the caller snapshot, without predicate pushdown. Recoverable bind failures are isolated to
+reads; cancellation, stack exhaustion, memory, storage and I/O failures propagate.
+
+Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
+inputs and set results. EXPLAIN describes each effective placement. Storage format 24 persists the
+modifier; format 23 introduced catalog views. Earlier formats are refused.
+
+[RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
+apply after index checks, including immutable calls. Rows buffer until apply/commit completes;
+projection failure rolls back that whole statement. DatabaseResultSet.AffectedCount counts direct
+writes and remains -1 for SELECT. EXPLAIN describes projection width/names without evaluation.
 
 ## Sources
 

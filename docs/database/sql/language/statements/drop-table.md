@@ -39,6 +39,9 @@ DROP TABLE IF EXISTS t;
 
 The second statement succeeds although the table is already absent.
 
+A [persisted view](create-view.md) depending on the table blocks DROP with COHSQLD002.
+DROP TABLE targeting a view instead reports COHSQLE021 (25006); use [DROP VIEW](drop-view.md).
+
 ## See also
 
 [CREATE TABLE](create-table.md) · [Transactions](begin-transaction.md) · [System views](../system-views/index.md)

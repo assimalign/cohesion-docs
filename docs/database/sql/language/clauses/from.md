@@ -18,7 +18,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 Derived query bodies may be [set operations](set-operations.md); their common output types and
 first-input names become the derived relation's columns. Existing alias and outer-ordering rules apply.
 
-- **`table_name`** — A stored table, a visible [CTE](with.md), or one of the named virtual system relations.
+- **`table_name`** — A stored table, a [persisted view](../statements/create-view.md), a visible [CTE](with.md), or one of the named virtual system relations.
 - **`schema_name`** — A SQL namespace inside the session's database.
 - **`table_alias`** — An optional name used to qualify column references.
 
@@ -59,9 +59,8 @@ An enclosing-query reference from a body nested in a subquery follows the ordina
 [correlation scope chain](../expressions/subqueries.md) and executes for each outer row. Explicit LATERAL syntax remains unsupported. Derived bodies and
 expression subqueries share the 32-level nesting limit (`COHDBL001` at level 33).
 
-Outer [ORDER BY](order-by.md) keys depending on derived outputs remain unsupported (`COHDBL001`),
-including aliases and ordinals that project them. Keys depending on stored inputs execute, as does
-ordering inside a derived body, even when that body contains another derived input.
+Outer [ORDER BY](order-by.md) accepts derived outputs, including aliases and ordinals, with
+per-key NULLS FIRST/LAST. Ordering inside nested derived bodies follows the same rules.
 
 ## Examples
 
@@ -91,7 +90,7 @@ SELECT d.id FROM (SELECT id FROM t ORDER BY id DESC LIMIT 1) AS d;
 ```
 
 Results are `(1, Ada)`, `2`, `2` and `3`. `SELECT d.id FROM (SELECT id FROM t) d ORDER BY d.id`
-reports `COHDBL001`: `SQL derived-table SUBQUERY output ordering awaits the ordering extension.`
+returns 1, 2, 3.
 
 ## See also
 

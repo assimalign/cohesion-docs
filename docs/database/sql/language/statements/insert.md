@@ -12,6 +12,7 @@ INSERT INTO [ schema_name . ] table_name
 [ ( column_name [ , ...n ] ) ]
 { VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
 | DEFAULT VALUES | select_statement }
+[ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
 ```
 
@@ -41,14 +42,15 @@ For an [identity column](../clauses/identity.md), omission or DEFAULT allocates 
 including DEFAULT VALUES and omitted INSERT SELECT destinations. ALWAYS rejects explicit values
 (`COHSQLE025`); BY DEFAULT accepts non-null explicit values without advancing the counter.
 Explicit NULL never requests generation. Failed statements can consume values without inserting rows.
-RETURNING and OVERRIDING remain unsupported (`COHDBL001`).
+[RETURNING](../clauses/returning.md) retrieves allocated identities and stored values.
+OVERRIDING remains unsupported (`COHDBL001`).
 
 `INSERT ... SELECT` validates output width and declared type compatibility even on empty input.
 It materializes the entire source under the statement snapshot before writing. Reading from the
 destination is therefore supported without feeding newly inserted rows back into the source.
 Any failure leaves none of the query-source statement's rows inserted.
 
-Subqueries inside `VALUES` and data manipulation language (DML) `RETURNING` report `COHDBL001`.
+Subqueries inside VALUES or RETURNING report COHDBL001.
 Use `INSERT ... SELECT` when input comes from a query. The source may also start with WITH:
 `INSERT INTO target WITH c AS (SELECT ...) SELECT ... FROM c`.
 
