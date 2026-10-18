@@ -32,7 +32,7 @@ public sealed class DocumentConnection : IAsyncDisposable
 ## Behavior and exceptions
 
 QueryAsync materializes rows or whole documents; ExecuteAsync returns the affected count (-1 for
-queries, zero for DDL, inserted/deleted count for INSERT/DELETE). Parameters follow case-sensitive bare-name
+queries, zero for DDL, inserted/deleted count for INSERT/DELETE, matched count for UPDATE). Parameters follow case-sensitive bare-name
 binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes before
 their first await. Get returns null when absent; Put replaces/upserts and returns a new version;
 Delete returns whether a document existed. Expected versions must match visible content. Collection
@@ -58,6 +58,18 @@ Console.WriteLine(deleted); // True
 ```
 
 connection is rented from [DocumentClient](document-client.md); DocumentId has an implicit string conversion.
+
+After putting `{"amount":2}` under key one, this partial update affects one document:
+
+```csharp
+await connection.PutAsync("items", "one", "{\"amount\":2}"u8.ToArray());
+long matched = await connection.ExecuteAsync("UPDATE items SET amount = amount + 1");
+Console.WriteLine(matched); // 1; stored amount is 3
+```
+
+UPDATE emits no result rows. Invalid path/overlap/stored-JSON results raise DocumentClientException
+with COHDOC016/017/018, respectively, and a completed Failure permits reuse. See
+[UPDATE](../../../../database/document/language/statements/update.md) for NULL/MISSING and version rules.
 
 ## Related reference
 

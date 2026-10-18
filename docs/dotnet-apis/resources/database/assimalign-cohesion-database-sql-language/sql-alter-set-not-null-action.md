@@ -1,6 +1,8 @@
 # SqlAlterSetNotNullAction
 
-Requires non-null live and future values. The executor validates current live rows, including frozen missing fields, under the table lock before publishing. Failure preserves the old definition; no row rewrite is performed.
+Requires non-null live and future values. The executor validates current live rows, including frozen
+missing fields, under the table lock before publishing. Failure preserves the old definition; no row
+rewrite is performed.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 

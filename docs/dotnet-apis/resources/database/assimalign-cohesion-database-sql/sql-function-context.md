@@ -61,5 +61,6 @@ for clock values; the function test clock seam remains internal.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Functions/SqlFunctionContext.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Functions/SqlScalarFunction.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlFunctionExtensibilityTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlFunctionCancellationTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlFunctionExtensibilityTests.Contracts.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1TemporalTests.cs`.

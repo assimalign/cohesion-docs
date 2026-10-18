@@ -1,6 +1,9 @@
 # SqlAlterSetDefaultAction
 
-Retains the column and parsed default expression. The engine accepts signed/typed literals or column-free Immutable scalar calls, checking literal conversion/bounds and function result assignment compatibility before publication. Later omitted-column/DEFAULT writes use it; frozen old-row missing values are unchanged. An explicit NULL can hide a domain default.
+Retains the column and parsed default expression. The engine accepts signed/typed literals or
+column-free Immutable scalar calls, checking literal conversion/bounds and function result
+assignment compatibility before publication. Later omitted-column/DEFAULT writes use it; frozen
+old-row missing values are unchanged. An explicit NULL can hide a domain default.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -20,7 +23,9 @@ This parser-created action has no public constructor. Its read-only properties r
 payload; property access performs no execution or semantic validation. It is the Action of a
 [SqlAlterTableExpression](sql-alter-table-expression.md).
 
-Invalid default forms or incompatible result types use COHSQLE013; Stable/Volatile calls use COHDBL001 until #1121. Identity columns refuse this facet with COHSQLE025. Conversion failures retain their normal codes.
+Invalid default forms or incompatible result types use COHSQLE013; Stable/Volatile calls use
+COHDBL001 until #1121. Identity columns refuse this facet with COHSQLE025. Conversion failures
+retain their normal codes.
 Engine failures are DatabaseException diagnostics. No SQLSTATE is assigned above unless stated.
 All actions retain ownership checks and refuse explicit transactions with COHSQLT003, leaving
 that transaction usable. Malformed text returns parser diagnostics; execution rejects it with

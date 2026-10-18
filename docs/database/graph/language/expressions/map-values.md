@@ -44,6 +44,9 @@ RETURN {k: NULL} <> {j: NULL};
 
 Results are 1, NULL, NULL and TRUE. `RETURN {k: [1, NULL]}` returns one map cell with a two-element list.
 
+[ORDER BY](../clauses/order-by.md) compares maps by member count, sorted ordinal keys and then
+corresponding values. Nested values use the same total order, with NULL last ascending.
+
 ## See also
 
 [Expressions](index.md) · [List values](list-values.md) · [Property access](property-access.md)

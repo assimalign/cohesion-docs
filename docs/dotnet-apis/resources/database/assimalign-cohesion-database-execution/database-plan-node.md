@@ -34,7 +34,9 @@ SQL derived inputs add DerivedTable with a child query plan. OQL VALUE/RAW uses 
 for ungrouped projection, with Distinct above projection/Group when requested. GQL adds ordered
 Match/OptionalMatch nodes; OptionalMatch detail names newly nullable variables and its filter and
 matches-nothing flags. These descriptions explain planning without executing the constructs.
-OQL DELETE adds a Delete root and its CollectionScan/IndexSeek child, with filter/access detail.
+OQL DELETE adds a Delete root and UPDATE an Update root, each with a CollectionScan/IndexSeek child
+and filter/access detail. GQL ordering/paging adds SortPage with offset/limit and SortKey children
+with expression/direction/NULL placement. No new public node members are required.
 
 SQL correlation adds CorrelatedSubqueries with complete child plans. Non-recursive WITH adds With,
 Materialize, CteScan and Constant; reachable materializations precede the enclosing input. These

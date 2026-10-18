@@ -61,7 +61,9 @@ KeyValuePair's command parser is an internal wire entry, not a public language c
 eight-column shape without defining a shared operator algebra. Nodes retain model vocabulary;
 estimated/actual rows remain NULL. EXPLAIN performs normal binding/admission without data execution.
 [DatabaseRow](database-row.md) has an opt-in MISSING capability used only by Documents rows;
-unsupported models throw NotSupportedException from IsMissing.
+unsupported models throw NotSupportedException from IsMissing. OQL UPDATE descriptions use an Update
+root with CollectionScan/IndexSeek access. GQL ordering/paging adds SortPage (offset/limit) and SortKey
+(expression/direction/NULL placement). These preserve the existing public node/result signatures.
 
 ## AOT posture
 

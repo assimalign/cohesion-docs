@@ -49,9 +49,15 @@ category and DatabaseException.Diagnostics. A fully decoded Failure certifies a 
 Shared Error, invalid order/counts/UTF-8/JSON, truncation, transport loss and unfinished cancellation
 discard it. Mutations canceled after publication can have unknown outcomes.
 
+OQL UPDATE also uses Complete without Document frames; AffectedCount is the matched count,
+including unchanged matches. Every match receives a new version. QueryAsync returns empty Columns,
+Documents and rows. SET/UNSET path failures (COHDOC016), target overlaps (COHDOC017) and invalid/deep
+patched storage JSON (COHDOC018) have no assigned SQLSTATE and use the same reusable Failure path.
+See [UPDATE](../../../../database/document/language/statements/update.md).
+
 Server failure text is bounded to 4096 UTF-16 characters and diagnostics to 256, with explicit
 truncation/omission markers. Retained codes/spans stay intact. See the complete
-[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–015 and
+[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–018 and
 parser codes; all these statement refusals use the same structured Failure carrier.
 
 Dispose returns a healthy rental once. Abort discards it. Operation registration shares the

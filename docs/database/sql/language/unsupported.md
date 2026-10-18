@@ -60,7 +60,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `COHDBL001` | Table/column RENAME and column default/nullability actions execute |
 | Stable or Volatile calls in DEFAULT | `COHDBL001` | CREATE and ALTER refuse these calls until #1121 |
 | CAST in DEFAULT or CHECK | Planning error | Conversion support does not broaden these contexts |
-| Nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
+| Other nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
 | Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |
 | Aggregate inside aggregate, WHERE, ON, or GROUP BY at its own query level | Planning error | Child queries retain independent aggregate levels |
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |

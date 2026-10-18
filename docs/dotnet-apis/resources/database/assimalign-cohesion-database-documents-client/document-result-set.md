@@ -24,9 +24,12 @@ VALUE/RAW names that column `value`; lone star names it `document`. Top-level VA
 JSON null before DISTINCT and completion counts on every transport. Positional
 projections leave Documents empty and use header ordinals to preserve MISSING fields. Projected
 numbers are decimal; objects/arrays are owned JsonElement values. AffectedCount is -1 for reads,
-zero for DDL, and inserted/deleted count for INSERT/DELETE. No disposal is needed. An out-of-range row index throws
+zero for DDL, and inserted/deleted count for INSERT/DELETE and matched count for UPDATE. No disposal is needed. An out-of-range row index throws
 ArgumentOutOfRangeException. Construction is internal.
-DELETE has no columns, rows or Documents and reports deleted count in AffectedCount, including zero.
+DELETE and UPDATE have no columns, rows or Documents and report deleted/matched count in
+AffectedCount, including zero. UPDATE counts unchanged matches too and advances their versions.
+The [partial-update reference](../../../../database/document/language/statements/update.md) gives
+path, NULL/MISSING and failure behavior.
 
 ## Example
 

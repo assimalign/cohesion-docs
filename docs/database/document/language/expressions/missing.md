@@ -74,6 +74,10 @@ Projected JSON objects are `{"id":"a"}`, `{"id":"b","v":null}` and `{"id":"c","v
 filter returns a; the aggregate row is `(1, 3)`. The wire carries projected results as Document
 frames, preserving the distinction rather than replacing missing cells with NULL.
 
+[UPDATE SET/UNSET](../statements/update.md#set-and-unset-paths) uses MISSING as removal for named
+members and JSON null for existing array elements. Removing an absent member is a no-op, but a
+missing array or out-of-range index fails for both SET and UNSET.
+
 ## See also
 
 [Operators](operators.md) · [WHERE](../clauses/where.md) · [DatabaseRow](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-row.md)

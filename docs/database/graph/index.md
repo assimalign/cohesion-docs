@@ -40,6 +40,11 @@ for new variables; its WHERE filters candidates before that extension. Later pat
 bound variables before scans or seeks. Path streams require a projected binding constrained by a
 mandatory clause; bindings supplied only by optionals are refused during planning.
 
+[ORDER BY](language/clauses/order-by.md) supports explicit NULL placement and stable ties.
+[OFFSET/SKIP and LIMIT](language/clauses/limit-offset.md) page rows or supported path returns;
+offset precedes limit. The output tail follows all mutations and DISTINCT, with full materialization
+and existing match/candidate caps. Default NULL order is last ascending, first descending.
+
 ## Storage and catalog
 
 Each persistent database owns `graph.dat`, `graph.log`, and `graph.bak`. Shared kernel components

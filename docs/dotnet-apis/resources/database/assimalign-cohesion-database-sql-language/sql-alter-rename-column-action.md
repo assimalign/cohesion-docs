@@ -1,6 +1,8 @@
 # SqlAlterRenameColumnAction
 
-Renames one column while preserving its physical ordinal. Primary-key/index column lists, local/incoming/self-referencing foreign keys and bound CHECK identifiers change atomically. Literal text, function names, type names and collations in CHECKs retain their meaning.
+Renames one column while preserving its physical ordinal. Primary-key/index column lists,
+local/incoming/self-referencing foreign keys and bound CHECK identifiers change atomically. Literal
+text, function names, type names and collations in CHECKs retain their meaning.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 

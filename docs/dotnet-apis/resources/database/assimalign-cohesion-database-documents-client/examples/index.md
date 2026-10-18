@@ -44,6 +44,12 @@ for DISTINCT, RAW and constructor results checked over InMemory and TCP.
 
 [DocumentConnection](../document-connection.md) · [DocumentRow](../document-row.md) · [Design](../design.md) · [Assembly](../index.md)
 
+After inserting the fixture documents, [DocumentConnection](../document-connection.md) can run
+`UPDATE items d SET d.nested.score = 9, d.tags = ['red'] UNSET d.category WHERE category = 'z'`.
+The wire test has two matching documents: QueryAsync returns AffectedCount 2 with empty Columns,
+Documents and rows. A later invalid `name.first` target reports COHDOC016 through ExecutionFailure,
+and `UPDATE items UNSET tags WHERE nested.score = 9` succeeds with count 2 on the same connection.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

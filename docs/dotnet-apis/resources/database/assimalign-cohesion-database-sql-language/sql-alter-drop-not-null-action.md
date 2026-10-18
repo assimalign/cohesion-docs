@@ -1,6 +1,7 @@
 # SqlAlterDropNotNullAction
 
-Allows future NULL values on an ordinary column. The default and frozen missing value remain unchanged. A primary-key or identity column cannot become nullable.
+Allows future NULL values on an ordinary column. The default and frozen missing value remain
+unchanged. A primary-key or identity column cannot become nullable.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
