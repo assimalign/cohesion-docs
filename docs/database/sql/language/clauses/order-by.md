@@ -21,6 +21,10 @@ ORDER BY <order_by_item> [ , ...n ]
 
 ## Remarks
 
+After [UNION/INTERSECT/EXCEPT](set-operations.md), ordering accepts first-operand output names or
+positive one-based ordinals only. Expressions and qualified names use COHSQLE018; ambiguous
+output names use COHSQLE019. Parenthesized operands can retain their own ordinary SELECT ordering.
+
 Keys compare left to right. `NULL` sorts first ascending and last descending. Equal keys have
 no promised relative order; add a tie-breaker for stable paging. Ordering evaluates after grouping
 and `HAVING`, before pagination, and composes with `DISTINCT` and supported system relations,

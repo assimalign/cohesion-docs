@@ -4,8 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 42 of 54 named clauses against the live engine. The 12 excluded names are
-`UNION`, `INTERSECT`, `EXCEPT`, `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `CREATE VIEW`,
+The profile measures 47 of 56 named clauses against the live engine. The 9 excluded names are
+`RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `CREATE VIEW`,
 `DROP VIEW`, `NATURAL`, `ALL`, and `RETURNING`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
@@ -18,7 +18,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
-| `UNION`, `INTERSECT`, `EXCEPT` | `COHDBL001` | Set operations are excluded |
+| CORRESPONDING [BY (...)] | `COHDBL001` | Contextual exclusion after a set operator; [UNION/INTERSECT/EXCEPT](clauses/set-operations.md) execute |
+| CREATE SCHEMA AUTHORIZATION or nested CREATE/GRANT elements | `COHDBL001` | [CREATE SCHEMA](statements/create-schema.md) accepts a namespace name and existence guard |
 | Recursive/nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `COHDBL001` | Non-recursive [WITH](clauses/with.md) before SELECT/INSERT/UPDATE/DELETE executes |
 | `WINDOW`, `OVER`, `PARTITION BY` | `COHDBL001` | Window clauses are excluded |
 | `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `COHDBL001` | Window-function calls are rejected even without OVER |

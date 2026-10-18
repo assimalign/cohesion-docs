@@ -11,12 +11,16 @@ public sealed class SqlInsertExpression : SqlQueryExpression
     public SqlTableReference Table { get; }
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<IReadOnlyList<SqlExpression>>? Values { get; }
-    public SqlSelectExpression? SelectSource { get; }
+    public SqlQueryBodyExpression? SelectSource { get; }
     public bool IsDefaultValues { get; }
 }
 ```
 
 ## Behavior and exceptions
+
+SelectSource accepts a SELECT or [set-operation body](sql-query-body-expression.md), with the same
+atomic INSERT/default/constraint rules. For example, parsing `INSERT INTO t SELECT id FROM a UNION ALL SELECT id FROM b;`
+produces SqlSetOperationExpression in SelectSource. Width/type mismatches fail before writes.
 
 IsDefaultValues identifies INSERT DEFAULT VALUES, inserting one row with every column omitted. Both
 Values and SelectSource are null in that form; the optional column list is retained. Ordinary VALUES

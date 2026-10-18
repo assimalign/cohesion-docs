@@ -4,6 +4,27 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## SQL namespaces and set operations
+
+[CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) persists namespaces;
+[DROP SCHEMA](../../../../database/sql/language/statements/drop-schema.md) defaults to RESTRICT.
+dbo is seeded at database creation and cannot be dropped (COHSQLE031); code-first provisioning
+stays pinned to dbo. AUTHORIZATION/nested elements use COHDBL001. Missing DDL namespaces use
+COHSQLE028 (3F000), duplicate CREATE COHSQLE029 (42P06), and RESTRICT dependencies COHSQLE030
+(2BP01); reads/DML retain COHSQLE014 (42P01). CASCADE publishes contained-table/index removal
+and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
+objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
+Storage format 21 adds namespace records of kind 15; every earlier format is refused with no upgrade path.
+
+[Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
+position through SqlQueryBodyExpression. Types/widths validate before reads, including unknown
+literal coercion, unconstrained CHAR outputs and COHSQLE003 mismatches (42804). Conversion precedes
+tuple comparison; NULLs compare equal and one common collation governs the output. Combined
+ORDER BY uses first-input output names or ordinals only. CORRESPONDING remains COHDBL001.
+Compatible UNION chains flatten into one N-way materialization; INTERSECT/EXCEPT use hash counts.
+All operands share a statement snapshot/catalog capture. ROUND at negative scales compares the
+original exact remainder once, avoiding double rounding (#1661).
+
 The SQL engine (area architecture: resources/`Database`/DESIGN.md
 (`cohesion/docs/resources/Database/DESIGN.md`) `3.3): parse (`Sql.Language`) → plan (`SqlPlanner`) →
 execute (`SqlPlanExecutor`) against shared storage, with the catalog (`Sql.Catalog`) as schema
@@ -68,7 +89,7 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
-Current SQL data-storage format is 20. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 21. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
@@ -138,7 +159,7 @@ objects.
 
 ## Virtual system relations (C1)
 
-The catalog is the sole data source for six `INFORMATION_SCHEMA` relations and two Cohesion
+The catalog is the sole data source for seven `INFORMATION_SCHEMA` relations and two Cohesion
 extensions. Their complete MVP column matrix is in DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`, section
 `system-view-matrix-c1`). Every row describes an object in the session's current database. The
@@ -322,9 +343,9 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 20 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 21 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
-  SET DEFAULT and NO ACTION actions. Older and newer versions are refused before opening data
+  SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer versions are refused before opening data
   files. No upgrade reader exists; export with the writing engine, recreate and reload.
 
 - **Schema evolution (#1023):** `ADD COLUMN` validates the default expression and
@@ -875,7 +896,7 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 20, including the extension-6 missing/default split and T1 identifier
+14; the current SQL format is 21, including the extension-6 missing/default split and T1 identifier
 quoting. Older files are refused without an upgrade reader. Compiled schema version remains 7.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
@@ -895,7 +916,7 @@ EXPLAIN performs the wrapped statement's binding, parameter and provisioning adm
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
 4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
-All SQL000x, COHSQLE001–026 and transaction meanings and SQLSTATE categories are in
+All SQL000x, COHSQLE001–031 and transaction meanings and SQLSTATE categories are in
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
 ## Identity columns and allocation
@@ -916,7 +937,7 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 20 stores
+generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 21 stores
 immutable identity facets within table extension 6 (the identity facet originated in extension 5)
 and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
@@ -1135,7 +1156,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 20.
+Format 17 introduced the default/missing split with table extension 6; current format is 21.
 
 ## Declared dependencies
 
@@ -1153,7 +1174,7 @@ Format 17 introduced the default/missing split with table extension 6; current f
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources

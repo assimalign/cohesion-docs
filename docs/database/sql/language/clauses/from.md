@@ -15,6 +15,9 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 ## Arguments
 
+Derived query bodies may be [set operations](set-operations.md); their common output types and
+first-input names become the derived relation's columns. Existing alias and outer-ordering rules apply.
+
 - **`table_name`** — A stored table, a visible [CTE](with.md), or one of the named virtual system relations.
 - **`schema_name`** — A SQL namespace inside the session's database.
 - **`table_alias`** — An optional name used to qualify column references.

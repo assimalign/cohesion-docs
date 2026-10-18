@@ -91,8 +91,8 @@ The renderer quotes identifiers spelled like recognized vocabulary, including SE
 newly executable function names, BOTH/LEADING/TRAILING and PERCENT/TIES. A column named sign renders as
 `"sign" >= 0` in a CHECK. Defaults and SQL function bodies use the same renderer. Format 18
 records this canonical quoting change, separately from format 17 (the insert-default/frozen-missing
-split with table extension 6). Format 19 added PERCENT/TIES quoting. Current format 20 adds
-persisted NO ACTION, SET NULL and SET DEFAULT actions. Every earlier format is refused at open
+split with table extension 6). Format 19 added PERCENT/TIES quoting. Format 20 added
+persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 7.
 

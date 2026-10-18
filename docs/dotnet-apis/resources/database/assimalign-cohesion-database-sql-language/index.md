@@ -6,6 +6,12 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlCreateSchemaExpression](sql-create-schema-expression.md)** — Namespace name and existence guard.
+- **[SqlDropSchemaExpression](sql-drop-schema-expression.md)** — RESTRICT/CASCADE namespace removal.
+- **[SqlQueryBodyExpression](sql-query-body-expression.md)** — Shared SELECT/set body and tail.
+- **[SqlSetOperationExpression](sql-set-operation-expression.md)** — Left/right operands and ALL flag.
+- **[SqlSetOperator](sql-set-operator.md)** — UNION, EXCEPT and INTERSECT identities.
+
 - **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.

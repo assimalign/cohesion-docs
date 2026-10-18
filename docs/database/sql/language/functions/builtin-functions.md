@@ -97,6 +97,11 @@ retain their family for ABS/ROUND/FLOOR/CEILING/CEIL. Two-argument ROUND accepts
 inputs only; scale can be negative. Exact midpoint rounding is away from zero; approximate
 midpoints round to even.
 
+Negative-scale exact ROUND uses the original digits once: after creating `t(id INT)` and inserting
+one row, `SELECT ROUND(4.9999999999999999999999999999,-1), ROUND(5.0,-1) FROM t;`
+returns `(0, 10)`. The implementation compares the exact remainder rather than first rounding
+a division result. The same rule applies to both signs and every supported negative scale (#1661).
+
 | Signature | Result type and behavior | Example expression → result |
 | --- | --- | --- |
 | `ABS(numeric)` | Numeric absolute value; BIGINT minimum overflows | `ABS(i)` → 2 (BIGINT) |
@@ -199,7 +204,7 @@ The profile advertises only executable names; recognition alone does not imply s
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application
 overloads at arities unused by the standard library remain possible. Function words remain usable
 as ordinary identifiers without a call, except bare niladic names require quoting to name a column.
-The current SQL storage format is **20**. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
+The current SQL storage format is **21**. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
 quoted as identifiers in persisted CHECK/default/function-body SQL. Format 17 separately introduced
 the default/missing-value split with table extension 6. Compiled schema version remains 7; older
 SQL formats are refused with no upgrade reader.

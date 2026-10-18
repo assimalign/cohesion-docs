@@ -4,7 +4,44 @@ The concrete durable SQL catalog; its identity allocator reserves values indepen
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Catalog`.
 
-## Changed member
+## Namespace members
+
+```csharp
+public IReadOnlyList<SqlCatalogNamespace> Namespaces { get; }
+public ValueTask CreateSchemaAsync(SqlCatalogNamespace schema, CancellationToken cancellationToken = default);
+public ValueTask CreateSchemaAsync(SqlCatalogNamespace schema, SqlCatalogScriptPublication publication,
+    CancellationToken cancellationToken = default);
+public ValueTask DropSchemaAsync(string name, bool cascade = false, CancellationToken cancellationToken = default);
+public ValueTask DropSchemaAsync(string name, bool cascade, SqlCatalogScriptPublication publication,
+    CancellationToken cancellationToken = default);
+public SqlCatalogSnapshot CaptureSnapshot();
+```
+
+Namespaces is an immutable current capture. [CaptureSnapshot](sql-catalog-snapshot.md) captures
+namespace/table/index/function/domain descriptions and default collation together. Namespace
+creation/deletion commits durably before publication; DdlGeneration advances with publication.
+CASCADE drops contained tables/indexes/identity counters and removes incoming FKs while preserving
+outside tables. Receipt overloads validate the target, preceding receipt and generation atomically;
+a guarded absent drop can publish its absence receipt.
+
+Null required objects throw ArgumentNullException; blank drop names ArgumentException. Duplicates,
+missing namespaces, RESTRICT dependencies, oversized records and stale publications use
+SqlCatalogException. Cancellation before publication uses OperationCanceledException; persistence
+uses StorageException and offline access StorageOfflineException. The SQL executor owns locks,
+ownership and dbo/virtual-namespace protection; direct catalog operations serialize publication only.
+
+```csharp
+await catalog.CreateSchemaAsync(new SqlCatalogNamespace("sales"));
+var capture = catalog.CaptureSnapshot();
+await catalog.DropSchemaAsync("sales", cascade: true);
+Console.WriteLine(capture.Namespaces.Any(s => s.Name == "sales")); // True
+Console.WriteLine(catalog.Namespaces.Any(s => s.Name == "sales")); // False
+```
+
+This follows SqlCatalogNamespaceTests with an open catalog. Low-level open does not seed dbo;
+SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
+
+## Identity member
 
 ```csharp
 public sealed partial class SqlCatalog

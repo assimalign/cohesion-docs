@@ -19,7 +19,9 @@ DROP TABLE [ IF EXISTS ] [ schema_name . ] table_name [ ; ]
 
 A fresh catalog snapshot no longer includes the dropped table's columns, constraints, indexes, or
 ownership rows. System relations remain read-only, including with `IF EXISTS`.
-`DROP TABLE ... CASCADE` is not supported; the supported `CASCADE` is a foreign-key deletion action.
+`DROP TABLE ... CASCADE` is not supported. [DROP SCHEMA CASCADE](drop-schema.md) removes a
+namespace's contained tables/indexes and incoming FKs atomically. A table drop leaves its namespace.
+Missing namespaces use COHSQLE028 (3F000), except DROP TABLE IF EXISTS missing.t remains a no-op.
 
 This data definition language (DDL) statement commits independently and is rejected within an
 explicit transaction with `COHSQLT003`. Ordinary sessions cannot drop schema-owned tables.

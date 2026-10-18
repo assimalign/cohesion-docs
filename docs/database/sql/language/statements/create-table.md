@@ -41,6 +41,10 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 
 ## Remarks
 
+The namespace must already exist; use [CREATE SCHEMA](create-schema.md). Unqualified names use dbo,
+and code-first provisioning remains pinned to dbo. Missing namespaces use COHSQLE028 (3F000)
+for DDL; ordinary reads/DML retain COHSQLE014 (42P01).
+
 `IF NOT EXISTS` permits an already existing table. It does not make system relations writable.
 Normal session-created objects have `DatabaseObjectOwner.Adhoc` ownership; compiled-schema
 provisioning creates `DatabaseObjectOwner.Schema` objects.

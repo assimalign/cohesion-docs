@@ -17,6 +17,10 @@ INSERT INTO [ schema_name . ] table_name
 
 ## Arguments
 
+The query source may be a [set-operation body](../clauses/set-operations.md), including a
+parenthesized body. All source rows stage before atomic destination writes; common-type and
+width validation happens before reads/writes.
+
 - **`table_name`** — The destination stored table in the current database.
 - **`column_name`** — Destination columns in the order of the supplied values or query outputs.
 - **`expression`** — A literal, parameter, or executable scalar expression without a subquery.

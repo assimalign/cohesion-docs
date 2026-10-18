@@ -59,10 +59,10 @@ SELECT TOP (1) id FROM t ORDER BY id;
 
 The renderer retains the limit family, normalizing FETCH to OFFSET before FETCH FIRST and TOP
 to `TOP (count)`. PERCENT and TIES are ordinary identifiers outside paging suffixes and render
-quoted in persisted SQL (format 19); the current storage format is 20.
+quoted in persisted SQL (format 19); the current storage format is 21.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

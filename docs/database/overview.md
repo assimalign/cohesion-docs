@@ -179,7 +179,7 @@ for bounded list/map parameters and results, without changing Path payloads.
 
 ## MVP boundaries
 
-The current SQL contract measures 42 of 54 declared clauses. Document and Graph have their own
+The current SQL contract measures 47 of 56 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization, and replication/governance
 contracts do not imply operational implementations.

@@ -23,6 +23,11 @@ WITH cte_name AS ( select_statement ) [ , ...n ] select_statement
 
 ## Remarks
 
+CTE bodies and the statement query may be [set operations](set-operations.md), including N-way
+UNION/INTERSECT/EXCEPT with ALL/DISTINCT. Every top-level operand of a CTE definition may omit
+FROM; nested derived/scalar bodies retain ordinary FROM rules. Common types and output names
+are resolved before the definition materializes.
+
 Definitions bind in declaration order. A body can read earlier CTEs. An unqualified read resolves
 an already-visible CTE before a stored table; schema qualification bypasses CTE lookup. A
 non-recursive self-reference or a later sibling's name reads a same-named stored table when one

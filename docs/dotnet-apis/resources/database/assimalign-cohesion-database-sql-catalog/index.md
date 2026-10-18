@@ -6,6 +6,9 @@ The relational catalog of the SQL model: schemas, tables, columns, and constrain
 
 ## Reference pages
 
+- **[SqlCatalogNamespace](sql-catalog-namespace.md)** — Persisted namespace and compiled ownership.
+- **[SqlCatalogSnapshot](sql-catalog-snapshot.md)** — Atomic immutable capture, including empty namespaces.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[SqlCatalog](sql-catalog.md)** — Durable identity allocation without changing DDL generation.
@@ -66,7 +69,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 20 and compiled schema version 7.
+The integration branch uses SQL row-storage format 21 and compiled schema version 7.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -75,7 +78,7 @@ text. These unreleased formats have no older-format compatibility reader; use th
 boundary when interpreting historical layout notes above.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources

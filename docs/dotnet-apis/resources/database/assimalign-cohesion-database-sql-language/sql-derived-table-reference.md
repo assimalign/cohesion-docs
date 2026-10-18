@@ -1,6 +1,6 @@
 # SqlDerivedTableReference
 
-An aliased SELECT used as a relation in FROM, JOIN or a comma-separated item.
+An aliased query body used as a relation in FROM, JOIN or a comma-separated item.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -9,7 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 ```csharp
 public sealed class SqlDerivedTableReference : SqlRelationReference
 {
-    public SqlSelectExpression Query { get; }
+    public SqlQueryBodyExpression Query { get; }
     public IReadOnlyList<string> Columns { get; }
 }
 // Alias is inherited from SqlRelationReference.
@@ -38,10 +38,14 @@ var select = (SqlSelectExpression)statement.SqlExpression;
 var derived = (SqlDerivedTableReference)select.From[0].Table;
 Console.WriteLine(derived.Alias);      // d
 Console.WriteLine(derived.Columns[0]); // a
-Console.WriteLine(derived.Query.From.Count); // 1
+Console.WriteLine(((SqlSelectExpression)derived.Query).From.Count); // 1
 ```
 
 For t containing IDs 1, 2 and 3, execution returns those IDs with output name `a`, in unspecified order.
+
+Query also accepts [set bodies](sql-set-operation-expression.md), such as
+`SELECT d.id FROM (SELECT id FROM a UNION SELECT id FROM b) d;`. Their synthesized output metadata
+retains common types, modifiers and collation rather than borrowing physical source ordinals.
 
 ## Related reference
 

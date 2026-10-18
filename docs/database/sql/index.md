@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 42 of 54 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 47 of 56 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -24,7 +24,7 @@ correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-s
 UPDATE or DELETE. Outer ordering over derived outputs remains excluded. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
-The 42-of-54 measure is not a percentage of complete SQL. The
+The 47-of-56 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the excluded 14 named clauses and the further
 boundaries inside supported clauses. Later comparison work is documented in
 [Operators and predicates](language/expressions/operators.md).
@@ -37,7 +37,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
 SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 20; compiled schemas remain version 7.
+SQL storage format is 21; compiled schemas remain version 7.
 
 ## Package responsibilities
 
@@ -86,10 +86,14 @@ Transactions use `BEGIN`, `COMMIT`, and `ROLLBACK` on one connection rather than
 wire transaction payload.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also
+
+[CREATE SCHEMA](language/statements/create-schema.md) and [DROP SCHEMA](language/statements/drop-schema.md)
+manage persisted namespaces. dbo is seeded and protected; code-first provisioning stays in dbo.
+[Set operations](language/clauses/set-operations.md) compose query bodies in every query position.
 
 [Database](../index.md) · [Overview](../overview.md) · [Database .NET APIs](../../dotnet-apis/resources/database/index.md)
 

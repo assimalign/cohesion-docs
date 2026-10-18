@@ -17,6 +17,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[LIMIT, OFFSET, FETCH and TOP](limit-offset.md)** — Limit and skip returned rows.
 - **[COLLATE](collate.md)** — Choose effective string comparison rules.
 - **[DISTINCT](distinct.md)** — Deduplicate projected rows.
+- **[UNION, INTERSECT and EXCEPT](set-operations.md)** — Combine query bodies with ALL/DISTINCT.
 
 ## Write and definition clauses
 
@@ -27,7 +28,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 42-of-54 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 47-of-56 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

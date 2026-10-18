@@ -6,12 +6,12 @@ Reference for read-only virtual relations describing the session database's cata
 
 ## Metadata families
 
-- **[INFORMATION_SCHEMA](information-schema.md)** — Inspect stored tables, columns, and constraints.
+- **[INFORMATION_SCHEMA](information-schema.md)** — Inspect persisted namespaces, stored tables, columns, and constraints.
 - **[COHESION_SCHEMA](cohesion-schema.md)** — Inspect indexes, ownership, functions and types.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 42-of-54 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 47-of-56 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

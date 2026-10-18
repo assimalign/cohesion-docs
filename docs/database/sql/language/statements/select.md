@@ -47,7 +47,8 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
 | Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
-| `ALL`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
+| `UNION`, `INTERSECT`, `EXCEPT` [ALL / DISTINCT] | Supported | [Set operations](../clauses/set-operations.md) in every query position; combined ORDER BY uses output names/ordinals |
+| SELECT ALL | Recognized, not supported (`COHDBL001`) | ALL as a set quantifier executes |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs remains excluded |
 | [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
 | Windows | Recognized, not supported (`COHDBL001`) | No window clauses |

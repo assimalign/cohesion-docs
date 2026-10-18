@@ -40,8 +40,8 @@ Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC"));
 TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
-Current storage format is 20, with no upgrade path from an earlier format. The executable
-profile now measures 42 of 54 declared clauses, including FETCH, lexical TOP and all five delete actions.
+Current storage format is 21, with no upgrade path from an earlier format. The executable
+profile now measures 47 of 56 declared clauses, including FETCH, lexical TOP and all five delete actions.
 See [scalar contracts](../../../../database/sql/language/functions/builtin-functions.md).
 
 ## Related reference

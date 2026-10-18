@@ -27,7 +27,7 @@ and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
 Table extension 6 stores the definition (the identity facet originated in extension 5); catalog kind 16 stores the last durable reserved
-value. Current SQL format 20 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
+value. Current SQL format 21 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
 
 ## Example
 
@@ -47,7 +47,7 @@ These calls allocate values without inserting rows. After reopening, the test's 
 is 260 because the first 32-value reservation ended at 255.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
-SET DEFAULT and NO ACTION delete actions. Every earlier format is refused at open; there is no
+SET DEFAULT and NO ACTION delete actions. Format 21 adds namespace records of kind 15. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Related reference

@@ -1,6 +1,6 @@
 # SqlCommonTableExpression
 
-One named non-recursive SELECT definition in a statement's WITH list.
+One named non-recursive query definition in a statement's WITH list.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -11,7 +11,7 @@ public sealed class SqlCommonTableExpression
 {
     public string Name { get; }
     public IReadOnlyList<string> Columns { get; }
-    public SqlSelectExpression Body { get; }
+    public SqlQueryBodyExpression Body { get; }
     public Location Location { get; }
 }
 ```
@@ -39,10 +39,14 @@ var select = (SqlSelectExpression)statement.SqlExpression;
 var cte = select.CommonTables[0];
 Console.WriteLine(cte.Name);       // a
 Console.WriteLine(cte.Columns[0]); // n
-Console.WriteLine(cte.Body.From.Count); // 0
+Console.WriteLine(((SqlSelectExpression)cte.Body).From.Count); // 0
 ```
 
 Execution returns one row containing Int64 1.
+
+Body may also be [SqlSetOperationExpression](sql-set-operation-expression.md). For example,
+`WITH a AS (SELECT 1 AS n UNION ALL SELECT 2 AS n) SELECT n FROM a;` has a set body and returns
+1 and 2. Each definition's root operands may omit FROM; nested children retain ordinary rules.
 
 ## Related reference
 

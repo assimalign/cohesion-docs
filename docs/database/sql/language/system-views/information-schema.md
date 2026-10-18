@@ -16,7 +16,7 @@ FROM INFORMATION_SCHEMA.view_name
 
 ## Arguments
 
-- **`view_name`** — One of the six relation names below.
+- **`view_name`** — One of the seven relation names below.
 - **`select_list`** — Metadata columns or expressions; `*` uses the listed column order.
 - **Query clauses** — This abbreviated diagram uses the ordinary supported
   [SELECT](../statements/select.md) grammar.
@@ -25,6 +25,7 @@ FROM INFORMATION_SCHEMA.view_name
 
 | Relation | Columns in SELECT * order | Rows |
 | --- | --- | --- |
+| `SCHEMATA` | `CATALOG_NAME`, `SCHEMA_NAME`, `SCHEMA_OWNER`, `DEFAULT_CHARACTER_SET_CATALOG`, `DEFAULT_CHARACTER_SET_SCHEMA`, `DEFAULT_CHARACTER_SET_NAME`, `SQL_PATH` | Persisted namespaces, including empty namespaces and dbo |
 | `TABLES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `TABLE_TYPE` | Stored tables; type is `BASE TABLE` |
 | `COLUMNS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `COLUMN_DEFAULT`, `IS_NULLABLE`, `DATA_TYPE`, `CHARACTER_MAXIMUM_LENGTH`, `CHARACTER_OCTET_LENGTH`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `DATETIME_PRECISION`, `IS_IDENTITY`, `IDENTITY_GENERATION`, `IDENTITY_START`, `IDENTITY_INCREMENT`, `IDENTITY_MAXIMUM`, `IDENTITY_MINIMUM`, `IDENTITY_CYCLE` | One row per stored column |
 | `TABLE_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `CONSTRAINT_TYPE`, `IS_DEFERRABLE`, `INITIALLY_DEFERRED` | Primary keys, unique indexes/constraints, foreign keys, and explicit checks |
@@ -33,6 +34,13 @@ FROM INFORMATION_SCHEMA.view_name
 | `CHECK_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `CHECK_CLAUSE` | Persisted explicit check expressions |
 
 ## Remarks
+
+SCHEMATA reads the captured namespace list independently of tables. CATALOG_NAME and SCHEMA_NAME
+are nonnull String columns; the other five columns are nullable String and currently NULL.
+SQL principals, default character sets and SQL paths are not implemented. On a new database,
+`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA;` returns `dbo`.
+[CREATE SCHEMA](../statements/create-schema.md) adds rows and [DROP SCHEMA](../statements/drop-schema.md)
+removes them; dropping the last table leaves its namespace visible.
 
 These are a minimum viable product (MVP) subset of International Organization for Standardization
 (ISO) 9075-11 layouts. No Cohesion-only columns are appended. Virtual relations themselves are not

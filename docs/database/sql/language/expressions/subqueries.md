@@ -19,6 +19,11 @@ expression [ NOT ] IN ( select_statement )
 
 ## Remarks
 
+[Set operations](../clauses/set-operations.md) execute in scalar, IN/NOT IN and EXISTS/NOT EXISTS
+positions, including correlated operands. `IN ((SELECT …))` is membership; a query followed by
+arithmetic or a list comma remains a scalar expression. Set outputs retain common type and
+collation metadata; ordinary scalar-cardinality and NULL rules below still apply.
+
 Scalar and membership queries must return exactly one column. `EXISTS` accepts any valid select
 list. Every expression child requires `FROM`. Names bind locally first, then in enclosing query scopes.
 

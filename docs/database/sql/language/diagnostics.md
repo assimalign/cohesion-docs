@@ -34,7 +34,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | --- | --- | --- |
 | `COHSQLE001` | Division or remainder by zero | 22012 |
 | `COHSQLE002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
-| `COHSQLE003` | Invalid operand type, including unsupported temporal arithmetic pairs, nonnumeric arithmetic or non-Boolean NOT | 42804 |
+| `COHSQLE003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic or non-Boolean NOT | 42804 |
 | `COHSQLE004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `COHSQLE005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
 | `COHSQLE006` | No function overload accepts arity/types; unknown or incompatible temporal field value; constant/direct parameter fields fail planning, row-dependent DATE_TRUNC fields fail evaluation | 42883 |
@@ -45,7 +45,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE011` | No conversion for a CAST pair; known pairs checked during planning | 42846 |
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
 | `COHSQLE013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
-| `COHSQLE014` | Table does not exist | — |
+| `COHSQLE014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
 | `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
 | `COHSQLE017` | Invalid aggregate placement/grouping, including a non-grouping outer column referenced from a completed group | — |
@@ -59,6 +59,16 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
 | `COHSQLE026` | Duplicate CTE name or unresolved reference to a later sibling; binding fails before reads/writes | — |
 | `COHSQLE027` | ADD COLUMN has a volatile DEFAULT and live rows; a physical rewrite would be required | — |
+| `COHSQLE028` | Missing namespace in schema/table/index DDL; DROP TABLE IF EXISTS remains a no-op | 3F000 |
+| `COHSQLE029` | CREATE SCHEMA finds an existing namespace without IF NOT EXISTS | 42P06 |
+| `COHSQLE030` | DROP SCHEMA RESTRICT finds dependent objects; message offers CASCADE | 2BP01 |
+| `COHSQLE031` | DROP SCHEMA targets dbo, required by code-first provisioning | — |
+
+[Set operations](clauses/set-operations.md) use COHSQLE013 for unequal widths, COHSQLE018 for
+combined ORDER BY expressions/qualified names/invalid ordinals, and COHSQLE019 for ambiguous
+output names. CORRESPONDING uses COHDBL001. [Schema DDL](statements/create-schema.md) rejects
+AUTHORIZATION and nested schema elements with COHDBL001. DROP revalidation after a concurrent
+dependency change uses COHSQLE013; schema ownership retains DatabaseObjectLockedException.
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
 NOT NULL failures name the column and have no execution-time source span.
@@ -73,6 +83,7 @@ relation receives `COHSQLE026`. No SQLSTATE is assigned to that code.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHSQLD002` | After ownership checks, ALTER TABLE RENAME finds a declared script retaining the old table or index target; names the script | — |
+| `COHSQLS005` | Declared migration script attempts DROP SCHEMA CASCADE over typed schema objects; declare the change in the typed schema; rejected before opening or writing | — |
 
 ALTER uses `COHSQLE027` for volatile ADD COLUMN defaults on live rows (no SQLSTATE). SET NOT NULL checks stored and frozen missing values with COHSQLE024 (23502);
 DROP NOT NULL on a primary key uses SQL0003. SET/DROP DEFAULT and DROP NOT NULL on identity
