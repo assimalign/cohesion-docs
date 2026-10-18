@@ -21,6 +21,13 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlRelationReference and SqlTableReference](sql-relation-reference.md)** — Named and derived relation base and named-table leaf.
 - **[SqlDerivedTableReference](sql-derived-table-reference.md)** — Aliased SELECT and optional output renames.
 - **[SqlJoinClause](sql-join-clause.md)** — Join kind, ON predicate and ordered USING names.
+- **[SqlAlterTableExpression](sql-alter-table-expression.md)** — Table and one typed ALTER action.
+- **[SqlAlterRenameTableAction](sql-alter-rename-table-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterRenameColumnAction](sql-alter-rename-column-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterSetDefaultAction](sql-alter-set-default-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterDropDefaultAction](sql-alter-drop-default-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterSetNotNullAction](sql-alter-set-not-null-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterDropNotNullAction](sql-alter-drop-not-null-action.md)** — Parsed ALTER payload and execution contract.
 - **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
 - **[SqlIdentityDefinition](sql-identity-definition.md)** — ALWAYS/BY DEFAULT mode and start/increment.
 - **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.

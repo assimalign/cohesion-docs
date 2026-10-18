@@ -161,6 +161,17 @@ codegen.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## ALTER actions and missing values
+
+[SqlAlterTableExpression](sql-alter-table-expression.md) exposes Table and Action; its new action
+leaves carry table/column rename names, SET DEFAULT expressions or a column name for DROP DEFAULT
+and SET/DROP NOT NULL. They have internal constructors and read-only properties. The engine owns
+validation, ownership checks and atomic publication. RENAME/TO are contextual identifiers.
+Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
+assignment compatibility; Stable/Volatile calls are refused until #1121. The catalog separates
+insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
+format is 18 for canonical function-name quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`.

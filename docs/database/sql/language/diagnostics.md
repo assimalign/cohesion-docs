@@ -42,7 +42,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE010` | Unknown type/domain or unavailable stored domain | 42704 |
 | `COHSQLE011` | No conversion for a CAST pair; known pairs checked during planning | 42846 |
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
-| `COHSQLE013` | Invalid statement, expression, DDL or executor query shape; derived column list width mismatch or blank output name | — |
+| `COHSQLE013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
 | `COHSQLE014` | Table does not exist | — |
 | `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
@@ -64,6 +64,16 @@ uses `COHDBL001` naming LATERAL; unknown, ambiguous or hidden names retain `COHS
 An aggregate assigned to an outer level uses `COHDBL001` before grouped-column validation.
 For WITH, a later sibling's name reads a stored table when one exists; only a missing future
 relation receives `COHSQLE026`. No SQLSTATE is assigned to that code.
+
+## DDL dependencies
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHSQLD002` | After ownership checks, ALTER TABLE RENAME finds a declared script retaining the old table or index target; names the script | — |
+
+ALTER adds no codes. SET NOT NULL checks stored and frozen missing values with COHSQLE024 (23502);
+DROP NOT NULL on a primary key uses SQL0003. SET/DROP DEFAULT and DROP NOT NULL on identity
+columns use COHSQLE025. Stable/Volatile calls in any DEFAULT use COHDBL001 until #1121.
 
 ## Transactions
 

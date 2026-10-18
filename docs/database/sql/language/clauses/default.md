@@ -22,10 +22,15 @@ column's declared default, or NULL if no default exists and the column allows NU
 requests NULL and does not request a default. Typed temporal, interval, binary and national
 string [literals](../expressions/literals.md) work in literal declarations.
 
-`CREATE TABLE` also admits column-free scalar function defaults; they execute for each omitted
-value. `ALTER TABLE ADD COLUMN` and code-first literal defaults remain literal-only. CAST,
+`CREATE TABLE` and `ALTER COLUMN SET DEFAULT` also admit column-free Immutable scalar function
+calls, with result types checked for INSERT assignment compatibility before publication (COHSQLE013).
+They execute for each omitted value. Stable or Volatile calls, including clocks and GEN_RANDOM_UUID,
+are refused in CREATE and ALTER with COHDBL001 until #1121. `ALTER TABLE ADD COLUMN` and code-first literal defaults remain literal-only. CAST,
 parameters and subqueries do not become valid default declarations through these DML forms.
-Added-column literal defaults resolve missing trailing fields in old rows without rewriting them.
+Added-column literal defaults freeze missing trailing fields in old rows without rewriting them.
+[SET/DROP DEFAULT](../statements/alter-table.md#defaults-and-nullability) changes later assignments,
+never those frozen values. DROP DEFAULT re-inherits a domain default; SET DEFAULT NULL preserves an
+explicit NULL override when hiding one.
 
 [Identity columns](identity.md) exclude a declared DEFAULT, but omission or a whole INSERT DEFAULT
 item allocates a value. BY DEFAULT identity also generates for UPDATE SET id = DEFAULT; ALWAYS

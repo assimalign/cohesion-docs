@@ -14,6 +14,9 @@ examples require their original test project’s dependencies and supporting obj
 See [SqlCatalog](../sql-catalog.md#example) and [SqlCatalogIdentity](../sql-catalog-identity.md#example)
 for the reservation/reopen fixture: 100 and 105 before reopen, 260 after the unused reservation is skipped.
 
+[Rename members](../sql-catalog.md#rename-example) preserve ObjectId and primary keys;
+[SqlCatalogColumn](../sql-catalog-column.md#example) separates insert and frozen missing values.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/OVERVIEW.md`.

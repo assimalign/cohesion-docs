@@ -39,7 +39,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | LATERAL syntax or a derived body referencing a real sibling relation | `COHDBL001` | Enclosing-query correlation executes; typos retain COHSQLE015 |
 | Subquery in UPDATE SET | `COHDBL001` | Correlated and uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `COHDBL001` | Use INSERT ... SELECT |
-| Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and literal defaults only |
+| Subquery in CHECK or DEFAULT | `COHDBL001` | Row-local checks and supported literal/Immutable scalar-call defaults only |
 | Subquery as LIMIT/OFFSET expression | `COHDBL001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `COHDBL001` | Includes expression subqueries and derived bodies beneath the top-level query |
 | Aggregate `DISTINCT` or explicit `ALL` | `COHDBL001` | Top-level SELECT DISTINCT still executes |
@@ -57,6 +57,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CAST to an unknown name | `COHSQLE010` | Type/domain does not resolve |
 | Invalid CAST target parameters | `SQL0005` | See the conversion bounds |
 | Unsupported CAST source/target pair | `COHSQLE011` | Known source types reject while planning, even on empty input |
+| ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `COHDBL001` | Table/column RENAME and column default/nullability actions execute |
+| Stable or Volatile calls in DEFAULT | `COHDBL001` | CREATE and ALTER refuse these calls until #1121 |
 | CAST in DEFAULT or CHECK | Planning error | Conversion support does not broaden these contexts |
 | Nonliteral ADD COLUMN DEFAULT | `COHSQLE013` | Literal-only path; CREATE TABLE also admits scalar function defaults |
 | Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |

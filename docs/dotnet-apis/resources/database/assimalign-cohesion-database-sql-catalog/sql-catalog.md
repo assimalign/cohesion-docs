@@ -48,6 +48,51 @@ Console.WriteLine(catalog.DdlGeneration == generation); // True
 
 The co-located reservation/reopen test then allocates 260 from the reopened table description.
 
+## Rename members
+
+```csharp
+public ValueTask<SqlCatalogTable> RenameTableAsync(SqlCatalogTable expected, string newName,
+    IReadOnlyDictionary<string, string> checkExpressions, CancellationToken cancellationToken = default);
+public ValueTask<SqlCatalogTable> RenameTableAsync(SqlCatalogTable expected, string newName,
+    IReadOnlyDictionary<string, string> checkExpressions, SqlCatalogScriptPublication publication,
+    CancellationToken cancellationToken = default);
+public ValueTask<SqlCatalogTable> RenameColumnAsync(SqlCatalogTable expected, string columnName, string newName,
+    IReadOnlyDictionary<string, string> checkExpressions, CancellationToken cancellationToken = default);
+public ValueTask<SqlCatalogTable> RenameColumnAsync(SqlCatalogTable expected, string columnName, string newName,
+    IReadOnlyDictionary<string, string> checkExpressions, SqlCatalogScriptPublication publication,
+    CancellationToken cancellationToken = default);
+```
+
+Supply the current immutable expected table and engine-rendered canonical text for every CHECK.
+The catalog does not parse SQL. Table/column definitions, incoming/self FKs and index column lists
+publish in one catalog transaction, preserving ObjectId, physical ordinals, row versions and trees.
+Generated constraint/index names stay unchanged. Publication overloads also validate the expected
+script target, preceding receipt and generation. DdlGeneration advances after publication.
+
+Null arguments throw ArgumentNullException, blank required names ArgumentException; stale definitions,
+collisions or incomplete/oversized CHECK metadata throw SqlCatalogException. Invalid UTF-16 uses
+DatabaseTypeException, persistence StorageException and cancellation before publication
+OperationCanceledException. The SQL engine performs ownership/dependency checks and rewrites CHECK
+identifiers before calling these members.
+
+### Rename example
+
+With an open concrete catalog, adapted from SqlCatalogTests.Rename:
+
+```csharp
+var parent = await catalog.CreateTableAsync("dbo", "p", [
+    new SqlCatalogColumn("id", new DatabaseTypeInfo(DatabaseType.Int32), isNullable: false)
+], ["id"], CancellationToken.None);
+var id = parent.ObjectId;
+parent = await catalog.RenameTableAsync(parent, "renamed", new Dictionary<string, string>());
+parent = await catalog.RenameColumnAsync(parent, "id", "key_id", new Dictionary<string, string>());
+Console.WriteLine(parent.ObjectId == id); // True
+Console.WriteLine(parent.PrimaryKeyColumns[0]); // key_id
+```
+
+This table has no CHECKs, so the dictionaries are empty. Use each returned definition as the next
+expected argument; the earlier definition is stale after publication.
+
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md) · [SqlCatalogColumn](sql-catalog-column.md) · [SqlCatalogIdentity](sql-catalog-identity.md)
@@ -55,4 +100,6 @@ The co-located reservation/reopen test then allocates 260 from the reopened tabl
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/src/SqlCatalog.Identity.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/src/SqlCatalog.Rename.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/tests/SqlCatalogTests.Rename.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/tests/SqlCatalogTests.Identity.cs`.

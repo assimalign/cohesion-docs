@@ -224,6 +224,18 @@ Value/data classes plus the shared codec — no reflection, no serialization lib
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## Renames and frozen missing values
+
+[SqlCatalog.RenameTableAsync and RenameColumnAsync](sql-catalog.md#rename-members) require the
+current immutable table and canonical CHECK text supplied by the engine. One transaction carries
+incoming/self foreign keys, primary keys and index column lists, preserving IDs, ordinals and trees.
+Generated names stay unchanged. Stale definitions/collisions or incomplete CHECK metadata fail closed.
+
+[SqlCatalogColumn.MissingValueLiteral](sql-catalog-column.md) is captured by ADD COLUMN and is
+independent of DefaultLiteral for future inserts. Table extension 6 appends one optional frozen
+literal per live column after identity facets. Format 17 introduced this split; format 18 separately
+changes persisted canonical function-name quoting. SET/DROP DEFAULT cannot change old missing reads.
+
 ## Current format boundary
 
 The integration branch uses SQL row-storage format 16 and compiled schema version 7.

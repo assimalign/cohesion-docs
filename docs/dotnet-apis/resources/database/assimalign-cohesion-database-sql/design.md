@@ -1095,6 +1095,23 @@ connection tracking. Custom byte-pipe connections derive from `DuplexConnection`
 `IDuplexConnection`. Built-in duplex listeners already satisfy the new contract. Database wire
 framing, handshake and model messages are unchanged.
 
+## ALTER rename, defaults and nullability
+
+[ALTER TABLE](../../../../database/sql/language/statements/alter-table.md) adds table/column rename
+and column SET/DROP DEFAULT and SET/DROP NOT NULL. Renames publish CHECK, FK and index references
+in one catalog transaction; physical identity, rows and trees stay intact. CHECK rewriting changes
+bound identifiers at the persisted parser ceiling. Table renames retained by script target claims
+are refused with COHSQLD002 after ownership checks. Name collisions use COHSQLE013.
+
+Defaults are validated before publication, including function result assignment compatibility.
+Stable/Volatile calls are COHDBL001 until #1121. Domain DROP DEFAULT re-inherits its default and
+SET DEFAULT NULL can preserve an explicit NULL override. Frozen ADD COLUMN missing literals are
+independent and survive later default changes. Narrowing checks them even without live rows.
+SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
+Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
+inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
+Format 17 introduced the default/missing split with table extension 6; current format is 18.
+
 ## Declared dependencies
 
 | Reference | Kind |

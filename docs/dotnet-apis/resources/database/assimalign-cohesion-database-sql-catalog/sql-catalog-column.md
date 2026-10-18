@@ -11,9 +11,12 @@ public sealed class SqlCatalogColumn
 {
     public SqlCatalogColumn(string name, DatabaseTypeInfo type, bool isNullable = true,
         string? defaultLiteral = null, Collation? collation = null, string? domainName = null,
-        IReadOnlyList<string>? defaultFunctionCalls = null, SqlCatalogIdentity? identity = null);
+        IReadOnlyList<string>? defaultFunctionCalls = null, SqlCatalogIdentity? identity = null,
+        string? missingValueLiteral = null);
     public SqlCatalogIdentity? Identity { get; }
     public bool IsNullable { get; }
+    public string? DefaultLiteral { get; }
+    public string? MissingValueLiteral { get; }
 }
 ```
 
@@ -24,6 +27,12 @@ forces IsNullable false even if isNullable is true. The facet is immutable and s
 durable allocation counter. Existing name/type/default/collation/domain metadata remains available.
 DefaultFunctionCalls is copied into a read-only collection; identity validity is checked when the
 catalog publishes/loads the table, not fully by this constructor.
+
+MissingValueLiteral is the frozen canonical ADD COLUMN literal used for physically absent trailing
+fields; null means a missing field reads NULL. It is independent of the current insert DefaultLiteral
+and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows never executes the
+insert default. Later type narrowing validates the frozen literal even without live rows. Table
+extension 6 persists this split, introduced by format 17; current SQL storage format is 18.
 
 Null name/type throws ArgumentNullException. Blank name/domain name, collation on a non-string
 type, or a blank function identity throws ArgumentException. Invalid identity metadata at publication
@@ -38,6 +47,13 @@ Console.WriteLine(column.IsNullable); // False
 Console.WriteLine(column.Identity!.Start); // 100
 ```
 
+```csharp
+var extra = new SqlCatalogColumn("v", new DatabaseTypeInfo(DatabaseType.Int32),
+    defaultLiteral: "9", missingValueLiteral: "7");
+Console.WriteLine(extra.DefaultLiteral);      // 9: future omitted-column writes
+Console.WriteLine(extra.MissingValueLiteral); // 7: old missing fields
+```
+
 See [allocation](sql-catalog.md#example) for publishing the column and obtaining values.
 
 ## Related reference
@@ -48,3 +64,4 @@ See [allocation](sql-catalog.md#example) for publishing the column and obtaining
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/src/SqlCatalogColumn.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/tests/SqlCatalogTests.Identity.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/tests/SqlCatalogTests.Rename.cs`.

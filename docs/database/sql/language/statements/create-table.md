@@ -49,7 +49,9 @@ Columns are nullable unless constrained otherwise. [IDENTITY](../clauses/identit
 built-in integer generator per table, implies NOT NULL and excludes a DEFAULT declaration.
 Explicit NULL combined with NOT NULL, PRIMARY KEY (including table keys) or IDENTITY in either
 order reports `SQL0003`, naming the column, before any catalog change. This rule also applies to
-ADD and ALTER column definitions. Defaults admit literals and column-free scalar functions;
+ADD and ALTER column definitions. Defaults admit literals and column-free Immutable scalar calls;
+Stable or Volatile calls (including clocks and GEN_RANDOM_UUID) are refused with COHDBL001 until #1121.
+Function result types must satisfy INSERT assignment compatibility (COHSQLE013) before publication;
 parameters, `CAST`, and subqueries are rejected before mutation. Strings are not truncated and decimal
 defaults are not rounded. `UNIQUE` is enforced by a unique catalog index and treats `NULL` as an
 equal key. `CHECK` rejects `FALSE` but accepts `UNKNOWN`.

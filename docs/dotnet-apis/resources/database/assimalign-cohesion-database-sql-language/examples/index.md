@@ -33,6 +33,10 @@ gives UPDATE/DELETE results from SqlDmlSubqueryTests.
 See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser facets and
 [IDENTITY](../../../../../database/sql/language/clauses/identity.md#examples) for executed generation.
 
+[SqlAlterTableExpression](../sql-alter-table-expression.md#example) and the six linked action pages
+inspect parser payloads from SqlAlterTableParserTests. The [ALTER example](../../../../../database/sql/language/statements/alter-table.md#change-an-insert-default-without-changing-old-missing-fields)
+shows changed insert defaults, frozen values, renames and nullability with results.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

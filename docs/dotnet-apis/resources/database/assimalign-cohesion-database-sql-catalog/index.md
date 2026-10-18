@@ -44,6 +44,9 @@ See the [source-backed usage examples](examples/index.md).
 
 See [DESIGN.md](design.md) for the persistence model and decisions.
 
+The catalog supports [atomic table/column rename](sql-catalog.md#rename-members) and a separate
+[frozen missing-value literal](sql-catalog-column.md) for ADD COLUMN history.
+
 ## Project references
 
 | Reference | Kind |
