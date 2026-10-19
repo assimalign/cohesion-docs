@@ -34,6 +34,9 @@ SET/WHERE, DO SELECT and MySQL/SQLite alternate spellings use COHDBL001. Executi
 DatabaseException with COHSQLE035 (42P10) for an absent/nonunique arbiter or untargeted DO UPDATE,
 and COHSQLE036 (21000) for affecting a row twice. Duplicate SET targets use COHSQLE019; ambiguous
 target/EXCLUDED columns use COHSQLE015 and aggregates use COHSQLE017.
+Constraint failures use [SqlConstraintViolationException](../assimalign-cohesion-database-sql/sql-constraint-violation-exception.md)
+with one Error diagnostic: COHSQLE037 (23505) for uniqueness, COHSQLE038 (23514) for CHECK/domain
+checks, COHSQLE039 (23503) for foreign keys, or COHSQLE024 (23502) for NOT NULL.
 
 EXCLUDED holds values after coercion/default/identity allocation. SET expressions all read the
 original target plus proposal. A false/UNKNOWN filter locks but skips the row. RETURNING exposes

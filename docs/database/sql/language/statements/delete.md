@@ -41,6 +41,13 @@ table definition; [DROP TABLE](drop-table.md) is the separate schema operation.
 [SET NULL and SET DEFAULT](../constraints.md) update surviving children through cascade chains.
 Defaults use the delete transaction clock; child validation and index changes are atomic with deletion.
 
+A NO ACTION/RESTRICT refusal reports `COHSQLE039` (23503), naming the foreign key and child
+table without key values. Child SET actions can instead fail with `COHSQLE037` (23505) for
+uniqueness, `COHSQLE038` (23514) for CHECK/domain checks, or `COHSQLE024` (23502) for NOT NULL;
+a missing replacement parent also uses COHSQLE039. Each constraint exception carries one Error
+diagnostic. The statement rolls back parent and child changes together, leaving an explicit
+transaction usable. See [Diagnostics](../diagnostics.md).
+
 ## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
@@ -62,3 +69,5 @@ The delete affects one row; the query returns `1` and `3`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
+- **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
+- **Child actions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferentialActionTests.cs`.

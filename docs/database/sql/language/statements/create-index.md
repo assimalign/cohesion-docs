@@ -29,6 +29,10 @@ Unique indexes treat `NULL` as an equal key. String keys use the column's effect
 `invariant` is scan-only and cannot back an index or index-backed constraint. Predicates whose
 collation differs from the index use a scan.
 
+Duplicate keys during a unique-index build or a later write report `COHSQLE037` (SQLSTATE
+23505). The constraint exception carries one Error diagnostic naming the index and table
+without key values; a failed build leaves the index unpublished. See [Diagnostics](../diagnostics.md).
+
 Index DDL is self-committing and is rejected inside an explicit transaction with `COHSQLT003`.
 
 ## Examples
@@ -40,7 +44,7 @@ CREATE UNIQUE INDEX ix_name ON t(name);
 SELECT id FROM t WHERE name = 'Ada';
 ```
 
-A subsequent insert of another `Ada` name violates the unique index.
+A subsequent insert of another `Ada` name reports COHSQLE037 (23505) without inserting a row.
 
 ## See also
 
@@ -53,4 +57,5 @@ A subsequent insert of another `Ada` name violates the unique index.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Ddl.cs`
+- **Duplicate keys** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCollationIndexTests.cs`.
 

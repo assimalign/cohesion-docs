@@ -49,6 +49,12 @@ keys may swap; a final dangling reference fails atomically. See the
 [final-row examples](../constraints.md#update-final-row-examples). ON UPDATE actions are not implemented.
 Row updates remain available on schema-owned tables even though session DDL is restricted.
 
+Constraint failures carry one Error diagnostic: `COHSQLE037` (23505) for duplicate primary,
+unique or unique-index keys, `COHSQLE038` (23514) for CHECK/domain checks, `COHSQLE039` (23503)
+for a missing parent or a parent-key change that leaves references, and `COHSQLE024` (23502)
+for NOT NULL. Messages name the constraint and table without key values. Failure rolls back
+the statement and leaves an explicit transaction usable. See [Diagnostics](../diagnostics.md).
+
 ## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
@@ -72,3 +78,4 @@ The update affects one row; the query returns `46`, `45`, and `41`.
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
+- **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

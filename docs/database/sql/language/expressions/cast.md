@@ -63,6 +63,11 @@ Application-registered casts and domains use the same conversion path.
 Invalid value text uses `COHSQLE022` (22P02). Unknown type names use `COHSQLE010` (42704);
 invalid target modifiers use `SQL0005`. CAST remains excluded from DEFAULT declarations and CHECK.
 
+A domain check that rejects the converted value reports `COHSQLE038` (23514) through
+SqlConstraintViolationException with exactly one Error diagnostic. Its message names the domain
+without key values or a table, because CAST writes no table. The session attaches the statement
+span when available; the error also reaches clients as ExecutionFailure with a usable connection.
+
 ## Text output and concatenation
 
 CAST to TEXT and `||` use the same rendering: shortest round-trip floats; `yyyy-MM-dd` dates;
@@ -84,6 +89,17 @@ FROM t WHERE id = 1;
 
 The row contains Decimal `1.25`, timestamp `2024-01-01 00:00:00`, and text `\x00ff`.
 
+Execute separately in a fresh database:
+
+```sql
+CREATE DOMAIN positive AS INT CHECK(VALUE > 0);
+CREATE TABLE domain_values (id INT);
+INSERT INTO domain_values VALUES (1);
+SELECT CAST(0 AS positive) FROM domain_values;
+```
+
+The SELECT reports COHSQLE038 (23514), naming `positive`; the stored row remains unchanged.
+
 ## See also
 
 [Expressions](index.md) · [Literals](literals.md) · [Data types](../data-types/index.md) · [Diagnostics](../diagnostics.md)
@@ -94,3 +110,4 @@ The row contains Decimal `1.25`, timestamp `2024-01-01 00:00:00`, and text `\x00
 - **Conversions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlStandardCasts.cs`.
 - **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastConverter.cs`.
 - **Text output** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastText.cs`.
+- **Domain diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

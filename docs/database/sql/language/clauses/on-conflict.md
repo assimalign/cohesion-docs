@@ -116,13 +116,18 @@ See [transactions](../statements/begin-transaction.md).
 | --- | --- | --- |
 | COHSQLE035 | No matching unique index, unknown/nonunique constraint target, legacy primary key without an index, or DO UPDATE without a target; fails planning | 42P10 |
 | COHSQLE036 | A DO UPDATE proposal would affect a row already inserted or updated by this statement | 21000 |
+| COHSQLE037 | Unique/primary-key or unique-index violation outside the handled conflict, including DO UPDATE violating a second unique index | 23505 |
+| COHSQLE038 | A proposed or updated row fails a CHECK/domain check; proposed checks run even for DO NOTHING | 23514 |
+| COHSQLE039 | An inserted/updated row lacks a parent, or a referenced parent key would be removed | 23503 |
+| COHSQLE024 | A proposed or updated row violates NOT NULL | 23502 |
 | COHSQLE015 | Unknown/hidden qualifier or ambiguous target/EXCLUDED column | — |
 | COHSQLE019 | Duplicate whole-column SET targets, rejected before writes | — |
 | COHSQLE017 | Aggregate in conflict SET/WHERE | — |
 | COHDBL001 | Expression/COLLATE/order/operator-class/partial-WHERE inference, DO SELECT, subqueries in conflict SET/WHERE, or EXCLUDED pseudo-relation in RETURNING | — |
 | COHDBL001 | MySQL ON DUPLICATE KEY UPDATE or SQLite INSERT OR IGNORE/REPLACE; message suggests ON CONFLICT | — |
 
-Ordinary expression, identity and constraint diagnostics retain their codes. MERGE remains SQL0002.
+Each constraint exception carries exactly one Error diagnostic, naming the constraint and table
+without key values. Ordinary expression and identity diagnostics retain their codes. MERGE remains SQL0002.
 Execution failures cross the wire as ExecutionFailure; capability refusals use ParseFailure.
 Completed failures leave the connection usable. The client does not retry transactions automatically.
 
@@ -173,4 +178,5 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertConcurrencyTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertDefaultConcurrencyTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlUpsertWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.

@@ -134,6 +134,14 @@ or Error; 2.0 retains baseline exchanges without the frame. Overflow preserves a
 plus COHDBP001 with exact omission counts, the original outcome and a usable session.
 All SQL codes and SQLSTATE categories are in [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
+Constraint failures use ExecutionFailure with one negotiated Error diagnostic: COHSQLE037 (23505)
+for UNIQUE/PRIMARY KEY/unique indexes, COHSQLE038 (23514) for CHECK/domain checks including CAST,
+and COHSQLE039 (23503) for foreign keys in either direction. NOT NULL retains COHSQLE024 (23502).
+Messages name the constraint and table without key values; domain CAST/function checks name the
+domain without a table. Available statement spans survive both transports. The rejected statement
+rolls back while the connection and explicit transaction remain usable. See
+[SqlClientException](sql-client-exception.md) for handling and protocol 2.0 behavior.
+
 ## RETURNING results
 
 QueryAsync returns [SqlResultSet.AffectedCount](sql-result-set.md) with buffered RETURNING rows.

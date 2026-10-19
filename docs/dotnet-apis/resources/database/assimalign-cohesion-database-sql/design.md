@@ -963,8 +963,17 @@ For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before
 ## Error model
 
 `DatabaseException` (area root) for everything user-facing: plan-time validation and execution
-errors. Named integrity violations use `SqlConstraintViolationException`, a `DatabaseException`
-carrying the constraint, table and safe offending value. `Parse` failures (`SqlQueryRequest.FromSql`,
+errors. Named integrity violations use [SqlConstraintViolationException](sql-constraint-violation-exception.md),
+a DatabaseException carrying the constraint, table and safe offending value. It supplies exactly
+one Error diagnostic: COHSQLE037 (23505) for UNIQUE/PRIMARY KEY/unique indexes, COHSQLE038 (23514)
+for CHECK/domain checks (including CAST and function domain arguments/results), COHSQLE039 (23503)
+for either direction of foreign-key enforcement, or COHSQLE024 (23502) for NOT NULL. Messages omit
+key values. Domain CAST/function checks name the domain without a table. The session attaches an
+available statement span, preserving the original cause or thrown violation as the inner exception;
+construction without source text remains unlocated. SQLSTATE is a documented category, with no
+separate member on the exception or diagnostic. The existing server path sends ExecutionFailure,
+the code-prefixed message and negotiated diagnostics, leaving the session and explicit transaction
+usable. `Parse` failures (`SqlQueryRequest.FromSql`,
 and therefore the session's text-execute seam) throw the root's `DatabaseParseException` so callers
 — the wire-protocol server in particular — can distinguish fix-the-text errors (`ParseFailure` on
 the wire) from execution errors without model knowledge. Opening a database absent from the storage

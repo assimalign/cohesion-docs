@@ -133,6 +133,9 @@ COHSQLD002. Default and nullability changes retain their usual validation.
 | `COHSQLE024` | NOT NULL validation finds NULL | 23502 |
 | `COHSQLE025` | Protected identity facet change | — |
 | `COHSQLE027` | Volatile ADD COLUMN default requires a rewrite because live rows exist | — |
+| `COHSQLE037` | Existing/defaulted rows violate a new PRIMARY KEY, UNIQUE constraint or unique index | 23505 |
+| `COHSQLE038` | Existing/defaulted rows violate a CHECK or domain check | 23514 |
+| `COHSQLE039` | Existing/defaulted rows lack a referenced foreign-key parent | 23503 |
 | `COHSQLD002` | Declared script retains a dependent target for a table rename | — |
 | `COHSQLT003` | DDL inside an explicit transaction; the transaction remains usable | — |
 

@@ -70,9 +70,21 @@ missing or deleted parent fails. Parent and child mutations and index maintenanc
 together on failure. Constraints are immediate, with no deferred enforcement. NULL in any
 foreign-key component exempts that row from requiring a parent; SQL has no MISSING key value.
 
-Constraint violations throw SqlConstraintViolationException; an unavailable SET DEFAULT on a NOT NULL column uses
-`COHSQLE024` (23502). Default evaluation retains its normal diagnostic, and an ALWAYS identity
-SET DEFAULT assignment uses `COHSQLE025`. See [Diagnostics](diagnostics.md).
+Constraint violations throw [SqlConstraintViolationException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-constraint-violation-exception.md)
+with exactly one Error diagnostic. Messages name the constraint and table without key values;
+domain CAST and function checks name the domain without a table. Available statement spans reach
+clients with negotiated diagnostics. The rejected statement rolls back; the session and an explicit
+transaction remain usable.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHSQLE037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key | 23505 |
+| `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
+| `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
+| `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
+
+Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
+uses `COHSQLE025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
 
 Checks are deterministic, Boolean, and row-local. The supported scalar functions can participate;
 parameters, aggregates, subqueries, and CAST are excluded. Null propagation matters: a check such as
@@ -94,7 +106,7 @@ CREATE TABLE c (code INT CHECK(code > 0));
 INSERT INTO c VALUES (1), (NULL);
 ```
 
-A later `INSERT INTO c VALUES (0);` fails the check.
+A later `INSERT INTO c VALUES (0);` fails with COHSQLE038 (23514); the two earlier rows remain.
 
 Starting from a separate database with the
 [conformance fixture](statements/select.md#a-create-the-conformance-fixture):
@@ -149,7 +161,7 @@ UPDATE moved_rows SET id = CASE WHEN id = 1 THEN 10 ELSE id END,
 SELECT id, parent FROM moved_rows ORDER BY id;
 ```
 
-UPDATE throws SqlConstraintViolationException because final key 1 is absent. SELECT still returns
+UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still returns
 `(1, NULL)`, `(2, NULL)`. Both examples behave the same with explicit ON DELETE RESTRICT.
 
 ## See also
@@ -163,6 +175,7 @@ UPDATE throws SqlConstraintViolationException because final key 1 is absent. SEL
 - **Referential action execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferentialActionTests.cs`
 - **Final UPDATE rows** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpdateForeignKeyTests.cs`.
 - **Wire enforcement** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlUpdateForeignKeyWireTests.cs`.
+- **Coded violations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstraintDiagnosticTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
 - **Constraint grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Constraints.cs`
 - **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
 - **Collation compatibility** — `cohesion/docs/programs/COLLATION_DESIGN.md`

@@ -8,6 +8,7 @@ The SQL engine manages databases and executes SQL over shared storage, catalog, 
 
 - **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
 - **[SqlFunctionContext](sql-function-context.md)** — Database, collation and cancellation context.
+- **[SqlConstraintViolationException](sql-constraint-violation-exception.md)** — Named integrity failures and their single coded diagnostic.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

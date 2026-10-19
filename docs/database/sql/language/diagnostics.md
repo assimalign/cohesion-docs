@@ -68,6 +68,16 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
+| `COHSQLE037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
+| `COHSQLE038` | Table CHECK or domain-check violation on a write, CAST to a domain, or function domain argument/result | 23514 |
+| `COHSQLE039` | FOREIGN KEY violation: missing parent on INSERT/UPDATE or a referenced key protected by NO ACTION/RESTRICT on DELETE/UPDATE, including final-row checks | 23503 |
+
+Each SqlConstraintViolationException carries exactly one Error diagnostic. Messages name the
+constraint and schema-qualified table without key values; domain CAST and function checks name
+the domain without a table. The session attaches the enclosing statement span when available;
+construction without source text leaves the diagnostic unlocated. NOT NULL retains COHSQLE024
+(23502); its column-assignment failures can remain unlocated. SQLSTATE is a documented mapping,
+not a separate field on the diagnostic or SQL exception.
 
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with SQL0003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
@@ -82,7 +92,7 @@ AUTHORIZATION and nested schema elements with COHDBL001. DROP revalidation after
 dependency change uses COHSQLE013; schema ownership retains DatabaseObjectLockedException.
 
 For example, `SELECT t.id FROM t AS x;` reports located COHSQLE015 because the alias hides t.
-NOT NULL failures name the column and have no execution-time source span.
+NOT NULL failures name the column; ordinary column-assignment failures have no execution-time source span.
 Correlated references resolve through enclosing query scopes. A real derived sibling reference
 uses `COHDBL001` naming LATERAL; unknown, ambiguous or hidden names retain `COHSQLE015`.
 An aggregate assigned to an outer level uses `COHDBL001` before grouped-column validation.
@@ -149,4 +159,5 @@ retain the wire category, structured diagnostics and connection usability.
 - **Codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
 - **Spans and carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDiagnosticTests.cs` and `SqlDiagnosticsFixPassTests.cs` in the same directory.
 - **NOT NULL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDefaultAssignmentTests.cs`.
+- **Constraints and wire delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstraintDiagnosticTests.cs`, `SqlLanguageConformanceTests.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
 - **Negotiation and bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/DESIGN.md`.

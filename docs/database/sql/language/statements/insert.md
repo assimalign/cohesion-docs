@@ -58,6 +58,12 @@ It materializes the entire source under the statement snapshot before writing. R
 destination is therefore supported without feeding newly inserted rows back into the source.
 Any failure leaves none of the query-source statement's rows inserted.
 
+Constraint failures carry one Error diagnostic: `COHSQLE037` (23505) for a duplicate primary,
+unique or unique-index key, `COHSQLE038` (23514) for a CHECK/domain check, `COHSQLE039` (23503)
+for a missing foreign-key parent, or `COHSQLE024` (23502) for NOT NULL. Messages name the
+constraint and table without key values. The statement rolls back and an explicit transaction
+remains usable. See [Diagnostics](../diagnostics.md) for wire delivery and source spans.
+
 Subqueries inside VALUES or RETURNING report COHDBL001.
 Use `INSERT ... SELECT` when input comes from a query. The source may also start with WITH:
 `INSERT INTO target WITH c AS (SELECT ...) SELECT ... FROM c`.
@@ -90,3 +96,4 @@ Execute each statement separately; the insert reports the number of inserted row
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSubqueryExecutionTests.cs`
+- **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
