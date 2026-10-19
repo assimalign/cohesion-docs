@@ -55,6 +55,10 @@ OQL paging/composite seeks and GQL quantified expansion add model-defined Detail
 nodes. The public signature and eight-column result stay the same; see
 [DatabasePlanNode](database-plan-node.md) for the fields and example details.
 
+SQL ordering/RETURNING adds per-key NULL placement and projection count/names in Detail.
+OQL Unnest/LeftUnnest and GQL Set/Remove/UpdateEntity use the same public description shape.
+See [DatabasePlanNode](database-plan-node.md) and each language's EXPLAIN page for examples.
+
 ## Example
 
 ```csharp

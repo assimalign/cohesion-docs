@@ -70,6 +70,11 @@ foreach (var warning in result.Diagnostics) Console.WriteLine(warning.Code);
 // With no Absent label: zero paths, then COHDBG010 on negotiated diagnostics.
 ```
 
+[SET](../../../../database/graph/language/clauses/set.md) and
+[REMOVE](../../../../database/graph/language/clauses/remove.md) are write stages and therefore
+refused by QueryPathsAsync/ExecutePaths with COHDBG001 before mutation. Use QueryAsync for
+scalar RETURN rows and their affected count.
+
 ## Related reference
 
 [GraphConnection](graph-connection.md) · [ProtocolDiagnostic](../assimalign-cohesion-database-protocol/protocol-diagnostic.md) · [Design](design.md)

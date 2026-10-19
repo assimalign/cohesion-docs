@@ -61,6 +61,13 @@ max for unbounded repetition. These details use the same public members and eigh
 See [OQL EXPLAIN](../../../../database/document/language/statements/explain.md) and
 [GQL EXPLAIN](../../../../database/graph/language/statements/explain.md).
 
+SQL [NULL placement](../../../../database/sql/language/clauses/order-by.md) appears per key in
+Detail, for example `order_by=[ASC NULLS FIRST, DESC NULLS LAST]`. DML RETURNING adds projection
+count/names, such as `returning=2; columns=id, name`. OQL expansion adds Unnest/LeftUnnest nodes
+with variable names and SystemCollectionScan for expanded virtual sources. GQL updates add
+Set/Remove stage nodes and UpdateEntity children describing property/map/label targets.
+These remain descriptions with no execution or new public members.
+
 ## Example
 
 ```csharp

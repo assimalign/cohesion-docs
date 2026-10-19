@@ -52,6 +52,18 @@ await foreach (var row in result.GetRowsAsync())
 Documents generated JSON bytes use the shared [RFC 8259 encoder](../../../../database/document/language/statements/select.md#json-bytes),
 including bare VALUE/RAW GetBytes. Unicode stays literal UTF-8 across in-process, InMemory and TCP.
 
+[LEFT UNNEST](../../../../database/document/language/clauses/unnest.md) preserves empty/non-array
+inputs with a MISSING binding. In a named projection IsMissing is true and IsNull false;
+an actual NULL array element instead sets IsNull true. Synthetic star omits MISSING bindings.
+For example, with the same session:
+
+```csharp
+await using var expanded = (DatabaseResultSet)await session.ExecuteAsync(
+    "SELECT t FROM items d LEFT UNNEST [] t", cancellationToken: CancellationToken.None);
+await foreach (var row in expanded.GetRowsAsync())
+    Console.WriteLine(row.IsMissing(0)); // True for each source document
+```
+
 ## Related reference
 
 [Assembly](index.md) · [OQL MISSING](../../../../database/document/language/expressions/missing.md)

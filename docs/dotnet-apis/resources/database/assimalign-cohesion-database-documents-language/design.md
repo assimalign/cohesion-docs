@@ -125,6 +125,23 @@ an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and Sy
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
 the profile executes 31 of 32 declared clauses.
 
+## Array clause constants
+
+```csharp
+public static class OqlClauses
+{
+    public const string Unnest = "UNNEST";
+    public const string LeftUnnest = "LEFT UNNEST";
+    public const string Any = "ANY ... SATISFIES";
+    public const string Every = "EVERY ... SATISFIES";
+}
+```
+
+These constant reads have no exceptions. SOME uses Any. OqlLanguageProfile.Instance advertises
+all four; `OqlLanguageProfile.Instance.Supports(OqlClauses.LeftUnnest)` returns true. IN's existing
+capability now also admits an array operand. Malformed text still returns parser diagnostics;
+duplicate bindings use OQL0010 and direct SELECT AST duplicates/empty names use COHDOC023.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.

@@ -8,7 +8,7 @@ Adds rows from scalar values or a query to a stored table.
 
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
-INSERT INTO [ schema_name . ] table_name
+INSERT INTO [ schema_name . ] table_name [ [ AS ] table_alias ]
 [ ( column_name [ , ...n ] ) ]
 { VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
 | DEFAULT VALUES | select_statement }

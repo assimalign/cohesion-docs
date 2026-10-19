@@ -8,7 +8,7 @@ Changes one or more column values on rows selected from a stored table.
 
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
-UPDATE [ schema_name . ] table_name
+UPDATE [ schema_name . ] table_name [ [ AS ] table_alias ]
 SET column_name = { expression | DEFAULT } [ , ...n ]
 [ WHERE search_condition ]
 [ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]

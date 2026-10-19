@@ -52,7 +52,7 @@ executing the write or projection.
 A target actually named or aliased old/new masks that pseudo-relation name. Ordinary output/old/new
 identifiers retain their quoting rules. UPDATE accepts bare output as a target alias; DELETE needs
 AS output because its bare spelling is reserved for OUTPUT detection. Other expression and write
-diagnostics retain their codes. ON CONFLICT is outside this branch's executable subset.
+diagnostics retain their codes.
 
 ## Examples
 

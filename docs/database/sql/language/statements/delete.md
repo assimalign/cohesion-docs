@@ -8,7 +8,7 @@ Removes rows selected from a stored table.
 
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
-DELETE FROM [ schema_name . ] table_name
+DELETE FROM [ schema_name . ] table_name [ [ AS ] table_alias ]
 [ WHERE search_condition ]
 [ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
