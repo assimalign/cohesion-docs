@@ -291,10 +291,10 @@ later batch failed: the full ledger is requeued, already-undone versions are ski
 remaining work completes. Recovery scrub keeps at most 64 replacement payloads in memory. The ledger
 and prune candidates still scale with record count.
 
-Transaction recovery consumes `StorageJournal.ReadSequential` for the shared journal implementation
-and falls back to the existing `IStorageJournal.ReadAll` contract for custom journals. This changes
-no public interface. Only sequence classification survives iteration; physical page-image payloads
-are not retained.
+Transaction recovery consumes [StorageJournal.ReadSequential](../assimalign-cohesion-database-storage/storage-journal.md#sequential-reads-and-payload-ownership)
+with owned public payloads across the assembly boundary. Storage's internal borrowed reader does
+not cross that boundary. Only sequence classification survives iteration; physical page payloads
+are not retained. This later transaction-classification read verifies checksums afresh.
 
 The safe prune bound starts at `max(manager.OldestActive, recoveredSequenceFloor)` and is reduced to
 every open context's `Snapshot.Minimum`. A snapshot captured while an older writer was active can

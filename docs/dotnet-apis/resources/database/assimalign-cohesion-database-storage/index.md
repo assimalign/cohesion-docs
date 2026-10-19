@@ -7,6 +7,7 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a buffer pool with
@@ -26,7 +27,7 @@ projects, never here.
   `IStorageFreeSpaceMap` allocation tracking, rebuilt from page headers on open.
 - **Records** — `Storage` abstract base with insert/read/update/delete over slotted
   pages and `IStorageUnitIterator` full scans.
-- **Journal** — `IStorageJournal` write-ahead logging with begin/commit/rollback
+- **Journal** — [StorageJournal](storage-journal.md) write-ahead logging with begin/commit/rollback
   markers, CRC-protected frames, and recovery replay of committed operations.
 - **File set** — each storage instance owns three streams: data (`.dat`), journal
   (`.log`), and backup (`.bak`), wrapped by `StorageStream`.
@@ -49,9 +50,11 @@ See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 
 Model packages can chain records larger than a page while retaining the shared kernel. Deleting a
 record releases its page transactionally once its last live slot disappears.
-`StorageJournal.ReadSequential` permits startup recovery without materializing WAL page payloads;
-`ReadAll` remains available for callers that need a materialized snapshot. See
-[DESIGN.md](design.md) for replay and reclamation.
+[StorageJournal.ReadSequential](storage-journal.md#sequential-reads-and-payload-ownership) streams
+records with owned payloads. Storage recovery uses an internal borrowed reader and combines
+checksum verification, commit classification and page planning during initialization, followed by
+ordered replay. ReadAll returns a materialized snapshot. Appends can proceed during a durable
+flush; failed writes/fsync still take the database offline. See [design](design.md) for replay and reclamation.
 
 ## Project references
 
