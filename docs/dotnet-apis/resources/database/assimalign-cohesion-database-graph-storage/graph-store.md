@@ -14,8 +14,13 @@ public sealed partial class GraphStore
     public ValueTask<StoredGraphNode> CreateNodeAsync(StoredGraphNode node,
         TransactionContext context, CancellationToken cancellationToken = default);
     public ValueTask<StoredGraphRelationship> CreateRelationshipAsync(
-        StoredGraphRelationship relationship, TransactionContext context,
+        StoredGraphRelationship relationship, Guid typeId, TransactionContext context,
         CancellationToken cancellationToken = default);
+    public ValueTask<IReadOnlyList<StoredGraphRelationship>> GetIncidentAsync(ulong nodeId,
+        TransactionSnapshot snapshot, CancellationToken cancellationToken = default);
+    public IAsyncEnumerable<StoredGraphRelationship> GetIncidentAsync(ulong nodeId,
+        GraphIncidentDirection direction, IReadOnlyCollection<Guid>? typeIds,
+        TransactionSnapshot snapshot, CancellationToken cancellationToken = default);
     public ValueTask<StoredGraphNode?> UpdateNodeAsync(ulong id, IReadOnlyList<string> labels,
         IReadOnlyDictionary<string, object?> properties, TransactionContext context,
         CancellationToken cancellationToken = default);
@@ -32,6 +37,9 @@ active caller transaction and leave commit/rollback to it. Create now takes comp
 [StoredGraphNode](stored-graph-node.md)/[StoredGraphRelationship](stored-graph-relationship.md)
 records. Reserve their nonzero IDs from the backing storage's ReserveTransactionSequence before
 creation; do not invent or recycle IDs. Creation copies values and refuses an existing identity.
+CreateRelationshipAsync also requires a nonempty catalog type GUID. The store persists it separately
+from the type name and preserves it through property updates. It does not verify that typeId matches
+relationship.Type; the engine supplies that pairing from Graph.Catalog.
 
 UpdateNodeAsync replaces the complete labels/properties and UpdateRelationshipAsync replaces
 properties while preserving identity, endpoints and type. Each returns the stored replacement or
@@ -39,18 +47,18 @@ null when absent. Every storage update publishes a new version, even for equal v
 engine filters pure no-op assignments before calling storage. Low-level maps retain explicit NULL;
 GQL SET removes NULL keys before publication.
 
-Format 2 persists revision-ordered MVCC chains. Old snapshots keep earlier records/index entries;
+Format 3 persists revision-ordered MVCC chains. Old snapshots keep earlier records/index entries;
 rollback removes replacements and restores stamps. Node updates maintain every property index;
-relationship updates move both adjacency entries (one for a self-loop). Replacements validate
+relationship updates move both direction-specific adjacency entries, including for a self-loop. Replacements validate
 encoding/index keys before mutation. Snapshot updates are first-updater-wins. With the original
 ReadCommitted transaction context, the store refreshes after acquiring the writer lock. A caller-pinned
 statement view retains its horizon and may conflict; the caller chooses whether to refresh/retry.
 
 | Exception | Trigger |
 | --- | --- |
-| ArgumentNullException | Required collections/context or Open storage/coordinator is null |
-| ArgumentOutOfRangeException | Create identity is zero |
-| ArgumentException | Duplicate create identity, blank name/key, unsupported scalar or non-finite float |
+| ArgumentNullException | Required collections/context, incident-read snapshot or Open storage/coordinator is null |
+| ArgumentOutOfRangeException | Create identity is zero or incident direction is undefined |
+| ArgumentException | Duplicate create identity, empty type GUID, blank name/key, unsupported scalar or non-finite float |
 | InvalidOperationException | Inactive transaction; relationship endpoint absent in the current committed view |
 | TransactionAbortedException | Changed/deleted entity since Snapshot or transaction ended while awaiting the writer lock |
 | GraphElementTooLargeException | Entity exceeds 8,092 bytes or indexed scalar prefix exceeds 1,016 bytes |
@@ -58,8 +66,24 @@ statement view retains its horizon and may conflict; the caller chooses whether 
 | StorageException | Storage, decoding or I/O failure |
 
 EnsureIndexFormat checks graph record and B-tree formats before logical recovery scrub.
-Format 1 records throw StorageCorruptionException with the recreation remedy; no upgrade reader
-exists. Open also validates the record format.
+Records and tree registrations must be format 3. Older formats throw StorageCorruptionException
+with COHDBG017 and the recreation remedy; no upgrade reader exists. Open also validates these
+formats. The engine preserves COHDBG017 in DatabaseException.Diagnostics; no SQLSTATE is assigned.
+
+## Incident reads
+
+The streaming overload uses [GraphIncidentDirection](graph-incident-direction.md) relative to
+nodeId and catalog type IDs to seek only selected adjacency ranges. A null typeIds selection reads
+all types, an empty collection reads none, and duplicate IDs do not duplicate visits. Both returns
+a self-loop once. Retain the snapshot throughout enumeration and dispose the enumerator on early
+exit; await foreach handles disposal. Cross-range order is unspecified. The original unfiltered
+list overload selects Both/all types and sorts by relationship identity.
+
+Validation occurs during enumeration. A null snapshot throws ArgumentNullException; an undefined
+direction throws ArgumentOutOfRangeException. Cancellation throws OperationCanceledException,
+including for an empty selection. Malformed selected records/keys can throw StorageCorruptionException.
+Enumeration takes no graph writer lock. The shared B+Tree still materializes each selected reference
+range when opening its cursor; cancellation cannot interrupt that collection. See [design](design.md).
 
 ## Example
 
@@ -80,10 +104,11 @@ for coordinator lifetime and historical reads.
 
 ## Related reference
 
-[Assembly](index.md) · [Design](design.md) · [StoredGraphNode](stored-graph-node.md) · [StoredGraphRelationship](stored-graph-relationship.md)
+[Assembly](index.md) · [Design](design.md) · [StoredGraphNode](stored-graph-node.md) · [StoredGraphRelationship](stored-graph-relationship.md) · [GraphIncidentDirection](graph-incident-direction.md)
 
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/GraphStore.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/GraphStore.Updates.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/tests/GraphStoreUpdateTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/tests/GraphStoreAdjacencyTests.cs`.

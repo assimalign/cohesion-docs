@@ -26,8 +26,9 @@ var alice = await store.CreateNodeAsync(
     new StoredGraphNode(Reserve(), ["Person"], Props("name", "Alice")), seed);
 var bob = await store.CreateNodeAsync(
     new StoredGraphNode(Reserve(), ["Person"], Props("name", "Bob")), seed);
+Guid typeId = Guid.Parse("10000000-0000-0000-0000-000000000001");
 var edge = await store.CreateRelationshipAsync(
-    new StoredGraphRelationship(Reserve(), alice.Id, bob.Id, "KNOWS", Props("since", 2020)), seed);
+    new StoredGraphRelationship(Reserve(), alice.Id, bob.Id, "KNOWS", Props("since", 2020)), typeId, seed);
 await coordinator.CommitAsync(seed);
 
 var old = await coordinator.BeginAsync(IsolationLevel.Snapshot);
@@ -41,9 +42,18 @@ Console.WriteLine(store.FindRelationship(edge.Id, old.Snapshot)!.Value.Propertie
 var current = await coordinator.BeginAsync(IsolationLevel.Snapshot);
 Console.WriteLine(store.FindNode(alice.Id, current.Snapshot)!.Value.Properties["name"]); // Ada
 Console.WriteLine(store.FindRelationship(edge.Id, current.Snapshot)!.Value.Properties["since"]); // 2024
+await foreach (var selected in store.GetIncidentAsync(alice.Id,
+    GraphIncidentDirection.Outgoing, [typeId, typeId], current.Snapshot))
+{
+    Console.WriteLine(selected.Id == edge.Id); // True, once
+}
 await coordinator.CommitAsync(current);
 await coordinator.CommitAsync(old);
 ```
+
+The GUID is supplied explicitly at this low level; the engine resolves it from the catalog and
+the store does not validate its pairing with the type name. The selected read follows
+GraphStoreAdjacencyTests and returns only outgoing KNOWS edges for Alice, without duplicate visits.
 
 Old snapshots retain index and adjacency entries along with records. Rollback restores earlier
 versions; a stale Snapshot updater throws TransactionAbortedException. Low-level Update always

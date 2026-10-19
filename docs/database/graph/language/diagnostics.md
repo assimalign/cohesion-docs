@@ -48,6 +48,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity GQL0002 and unknown-name GQL0010;
 hand-built arity/unbound arguments use COHDBG001. Proven incompatible kinds use COHDBG003,
@@ -94,6 +95,10 @@ updates uses COHDBG001 and SHOW composition GQL0007. No SQLSTATE is assigned to 
 codes. Stale Snapshot updates surface DatabaseTransactionAbortedException; ReadCommitted
 re-snapshots after the writer lock. See [SET](clauses/set.md) and [REMOVE](clauses/remove.md).
 
+COHDBG017 is an open-time format refusal before logical recovery scrub. Graph.Storage throws
+StorageCorruptionException with the code in its message; the engine retains an Error diagnostic in
+DatabaseException.Diagnostics and a code-free Message. Recreate the database with this engine.
+
 ## Boundaries
 
 An unknown label/type in OPTIONAL MATCH still warns with COHDBG010/011, but the clause preserves
@@ -106,7 +111,7 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 | Runtime trail length | 64; qualifying 65th edge fails before endpoint tests | `COHDBG004` |
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
 | Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
-| Candidate examinations | 1,000,000 per statement | `COHDBG004` |
+| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including dead ends; overflow reports actual physical/viable totals | `COHDBG004` |
 | Composite value depth (root zero) | 64 | Parameter COHDBG003; constructed COHDBG013 |
 | Total values per value, including root | 65,536 | Parameter COHDBG003; constructed COHDBG013 |
 | Encoded value or result-row bytes | 16,777,216 | Parameter COHDBG003; constructed/row COHDBG013 |

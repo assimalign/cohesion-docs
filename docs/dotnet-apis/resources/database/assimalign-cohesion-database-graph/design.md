@@ -72,9 +72,9 @@ select a server, another database, or another graph.
 
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
-kind, byte 17 is format version 2, bytes 18–25 are a nonzero unsigned 64-bit identity and
-bytes 26–33 hold the increasing revision. Format 1 is refused before recovery scrub without
-an upgrade path. Graph
+kind, byte 17 is format version 3, bytes 18–25 are a nonzero unsigned 64-bit identity and
+bytes 26–33 hold the increasing revision. Older records and tree registrations are refused before logical recovery scrub with
+COHDBG017; recreate the database because there is no upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
 identity. `Database`-local IDs must always be paired with the correct session.
 
@@ -82,7 +82,7 @@ identity. `Database`-local IDs must always be paired with the correct session.
 | --- | --- |
 | Owner 0, catalog | Catalog-specific version, discriminant and encoded definition; see Graph.Catalog's format |
 | Owner 2, kind 1 | Common graph header, label count and strings, then scalar property map |
-| Owner 2, kind 2 | Common graph header, source ID, target ID, type string, scalar property map |
+| Owner 2, kind 2 | Common graph header, source ID, target ID, catalog type GUID, type string, scalar property map |
 | Owner 2, kind 3 | Common graph header, indexed label and property key |
 | Owner 1, kind 4 | Zero stamps, kind/version, tree object ID, signed 64-bit root page; 34 bytes total |
 
@@ -94,10 +94,12 @@ format reference for another reader. Properties support null, Boolean, string, i
 finite floating point values. Records fit one shared slotted page; oversized records are rejected
 before publication. Large graph properties/chunking are deferred.
 
-The adjacency B+Tree contains one entry per incident endpoint, keyed by `(node ID, relationship ID)`
-and pointing to the relationship's packed physical record location `(page ID << 16) | slot`. A
-self-loop has one entry. The relationship record carries both directed endpoints and its type;
-direction/type filtering occurs after the node-prefix seek. Composite keys avoid duplicate-key
+The adjacency B+Tree keys (node ID, direction, catalog type GUID, relationship ID) and points to
+the relationship's packed physical location (page ID << 16) | slot. Every relationship has an
+outgoing and incoming entry, including a self-loop. Fixed/quantified hops select direction and
+catalog IDs before decoding records, reversing direction left of the anchor. Boolean expressions
+select the visible types they accept; wildcard/untyped hops read all types. Pending INSERT edges
+use the same selection. Both-direction reads return self-loops once. Composite keys avoid duplicate-key
 boundary ambiguity after B+Tree splits. A node identity map reconstructed from records at open
 provides constant-time identity lookup followed by a stamped page read.
 
@@ -106,7 +108,7 @@ carry endpoint identities referring to node records.
 
 ```mermaid
 flowchart LR
-    Adj["Adjacency B+Tree: node ID, relationship ID"] --> Rel["Stamped relationship record"]
+    Adj["Adjacency B+Tree: node, direction, type ID, relationship"] --> Rel["Stamped relationship record"]
     Rel --> Src["Source node record"]
     Rel --> Dst["Target node record"]
     Prop["Property B+Tree: scalar, node ID"] --> Src
@@ -114,8 +116,8 @@ flowchart LR
     Reg --> Prop
 ```
 
-An incident lookup costs `O(log E + degree)` index work plus one record read per incident edge;
-deterministic result ordering adds `O(degree log degree)` CPU work. Direct traversal costs the sum
+For t selected direction/type ranges and r retained entries, incident lookup costs O(t log E + r)
+index work and decodes k visible references. Deterministic identity ordering adds O(k log k) CPU work. Direct traversal costs the sum
 of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan examines node
 records and sorts its matches. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
@@ -184,13 +186,24 @@ dead ends; either overflow fails with `COHDBG004`, never silent truncation. Canc
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
 
+Physical work charges visited anchors and selected visible relationships as DFS visits them,
+including dead ends; range loading charges nothing. Viable work counts hops passing trail, binding,
+relationship and safe endpoint checks before state copying. COHDBG004 includes actual physical and
+viable totals when the 1,000,000 physical cap is exceeded. The 100,000-binding and 64-hop limits
+remain. Ranges and decoded relationships are materialized before visits, so this budget does not
+bound range loading or decoding. EXPLAIN Expand describes
+`adjacency=(node,direction,type_id,relationship)`, effective seek_direction, type_filter,
+`physical=visited_candidates; viable=accepted_hops; physical_limit=1000000`; it executes no hops
+and reports no runtime totals. EXPLAIN ANALYZE remains unsupported.
+
 `TraverseAsync` implements the frozen `GraphTraversal` contract separately: breadth-first traversal,
 an explicit nonnegative maximum depth, a visited-node set seeded with the start, and no repeated
 nodes. It excludes the start even when a cycle or self-loop reaches it. Incident edges are ordered
 by identity, making the breadth-first result deterministic. Its result contains visited nodes; GQL's
 projected `a,r,b` values expose the actual frozen `GraphNode` /`GraphRelationship` objects through
 `DatabaseRow.GetValue`. Property projections return scalars. This does not add a path member to the
-frozen traversal contract.
+frozen traversal contract. It uses the same filtered adjacency lookup, resolves type names through
+the catalog (an unknown type visits nothing), and has no candidate-expansion cap.
 
 `GraphPathsQueryRequest.FromGql` selects real path execution through the existing
 `GraphDatabaseSession.ExecuteAsync(GraphRequest)` capability. Row and path requests
@@ -328,6 +341,7 @@ not included.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
 Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
@@ -674,7 +688,7 @@ GQL [SET/REMOVE](../../../../database/graph/language/clauses/set.md) keep statem
 working copies. Rows observe earlier rows; items execute left to right. Carried lists/maps/paths
 refresh after each stage; later scans, seeks and endpoint functions consult the working copy.
 INSERT reserves stable IDs and publishes final nodes before final relationships. Each changed
-entity publishes one format-2 replacement; type-exact no-ops publish nothing. Changed-then-restored
+entity publishes one format-3 replacement; type-exact no-ops publish nothing. Changed-then-restored
 entities still count and publish, preserving Snapshot conflicts.
 
 Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency

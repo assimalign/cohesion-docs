@@ -23,50 +23,58 @@ owner 0 is Graph.Catalog metadata, owner 1 is physical B+Tree registrations, and
 nodes, relationships and logical property-index definitions. Shared B+Tree pages use the kernel's
 `PageType.Index` format.
 
-One relationship record contains both directed endpoint identities. One shared adjacency B+Tree,
-registered under object ID `UInt64.MaxValue` and name `graph`, maps
-`(incident node identity, relationship identity)` to the relationship's packed physical location.
-Both identities are unsigned 64-bit big-endian components, making each key exactly 16 bytes.
-Non-self relationships have two entries, one per endpoint. A self-loop has one entry. Direction and
-relationship type are read from the relationship record; direction filtering belongs to traversal
-execution.
+One relationship record contains both directed endpoints and a catalog type GUID supplied to
+CreateRelationshipAsync. The store does not verify the GUID/name pairing; the engine resolves it
+from Graph.Catalog. The shared adjacency B+Tree, registered under object ID UInt64.MaxValue and
+name graph, maps (node, direction, type ID, relationship ID) to a packed physical location.
+Each 33-byte key contains an unsigned big-endian UInt64 node, direction byte (1 outgoing, 2 incoming),
+a 16-byte big-endian GUID and unsigned big-endian UInt64 relationship. Every relationship has two
+entries, including a self-loop. Both-direction reads skip the incoming self-loop before decoding
+it again, without retaining a set proportional to outgoing degree.
 
 The diagram shows the same layout: each node's adjacency prefix selects references to relationship
 records, and each relationship record contains both endpoints.
 
 ```mermaid
 flowchart LR
-    X["B+Tree prefix A"] --> R["Relationship record: A, B, type, properties"]
-    Y["B+Tree prefix B"] --> R
+    X["B+Tree A, outgoing, type ID"] --> R["Relationship record: A, B, type ID, type, properties"]
+    Y["B+Tree B, incoming, type ID"] --> R
     R --> A["Node A record"]
     R --> B["Node B record"]
 ```
 
-An incident lookup seeks from `(node, 0)` through `(node, UInt64.MaxValue)` inclusively. It costs
-`O(log E + d)` B+Tree work and at most `d` record reads for a node of degree `d`, where `E`
-includes retained relationship versions. Materialization sorts the visible results by relationship
-identity, adding `O(d log d)` CPU work in the worst case. Work includes retained MVCC tombstones
-until purge; it never includes an unrelated node's adjacency range. Creating or deleting a
-relationship maintains both entries in its record's single physical statement bracket.
+The filtered [GetIncidentAsync](graph-store.md#incident-reads) streams closed ranges from
+(node, direction, type ID, 0) through (node, direction, type ID, UInt64.MaxValue).
+Null types select all types in the requested directions; empty selects none; duplicate IDs add no
+visits. For t selected type/direction ranges and r retained entries, work is O(t log E + r).
+Only snapshot-visible references are decoded; unrelated directions/types add no relationship decodes.
+The streaming API specifies no cross-range ordering. The unfiltered list overload and engine sort
+visible relationships by identity.
+
+The shared B+Tree currently collects an entire selected key/reference range under its read latch
+when opening a cursor. Cancellation is checked before each range but cannot interrupt that
+collection. The engine then collects and sorts decoded relationships before visiting them: its
+candidate budget bounds visits, not range loading or decoding. Creating, replacing or deleting
+relationships maintains both direction-specific entries in one physical statement bracket.
 
 Compound keys make every current relationship entry distinct. This is also deliberate protection
 against a duplicate-key lower-bound seek starting in a later leaf after a shared B+Tree split. A
 regression creates 240 incident edges, forces splits, reopens the file set, and checks all edges.
 There is no kernel change.
 
-## Version 2 record format
+## Version 3 record format
 
 All multibyte fixed-width values below are little-endian unless a key explicitly says otherwise.
 Every slotted record starts with the shared 16-byte stamp prefix: writer sequence at offsets 0-7,
 deleter sequence at offsets 8-15. Zero deleter means live. Graph records have kind at offset 16,
-format version 2 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
+format version 3 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
 UInt64 revision at offsets 26-33. Revision starts at zero and increases on replacement. The
 remaining payload follows that header:
 
 | Kind | Meaning | Payload after identity |
 | --- | --- | --- |
 | 1 | Node | Int32 label count, label strings, property map |
-| 2 | Relationship | UInt64 source, UInt64 target, type string, property map |
+| 2 | Relationship | UInt64 source, UInt64 target, 16-byte catalog type GUID (Guid.ToByteArray order), type string, property map |
 | 3 | Property index definition | Label string, property-key string |
 
 A property map is an Int32 count followed by ordinally sorted `(key string, scalar)` pairs. Counts
@@ -91,11 +99,14 @@ non-finite floating values and oversized records fail before insertion. This ver
 arrays, nested objects or overflow chains. Nodes and relationships are immutable versions.
 UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
-complete records with caller-reserved identities. Format 1 is refused before recovery scrub with
-the recreation remedy and no upgrade reader. Catalog/registration/B-tree formats are unchanged.
+complete records with caller-reserved identities. Formats 1 and 2 are refused before logical
+recovery scrub with COHDBG017 and the recreation remedy; there is no upgrade reader. Graph records
+and tree registrations use version 3; catalog and B-tree page formats are unchanged. The low-level
+StorageCorruptionException carries the code in its message; the engine preserves it in
+DatabaseException.Diagnostics without assigning a SQLSTATE.
 
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
-version `1`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
+version `3`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
 distinguishes it. `Root` registrations change in the same bracket as a split and are reloaded after
 physical statement rollback. They are physical infrastructure, so logical rollback leaves an unused
 tree available for recovery; logical property-index definitions remain stamped and determine
@@ -149,7 +160,7 @@ worker's safe bound passes.
 Opening follows this order:
 
 1. `GraphStorage.Open(..., checkpointOnOpen: false)` runs shared physical recovery.
-2. Run GraphStore.EnsureIndexFormat before scrub, refusing format-1 graph records and incompatible B-trees.
+2. Run GraphStore.EnsureIndexFormat before scrub, refusing older graph records/registrations with COHDBG017 and incompatible B-trees.
 3. With the coordinator constructed, call `AnalyzeAndScrub()` to undo unproven record writers.
 4. `GraphStore.Open` loads owner-two record directories and owner-one registrations.
 5. `RecoverIndexesAsync(plan.Aborted)` scrubs aborted index writers and deleters.

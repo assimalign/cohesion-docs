@@ -15,7 +15,7 @@ This value record carries one entity version. The constructor retains collection
 Create now accepts the complete record: reserve a nonzero Id from the backing storage's
 ReserveTransactionSequence. The store validates names/scalar properties, copies collections and
 rejects duplicate identities. Updates keep identity.
-Earlier snapshots can read earlier values in the format-2 chain.
+Earlier snapshots can read earlier values in the format-3 chain.
 
 [GraphStore](graph-store.md) documents ArgumentException/ArgumentNullException for invalid values,
 ArgumentOutOfRangeException for zero create IDs and GraphElementTooLargeException for bounds.

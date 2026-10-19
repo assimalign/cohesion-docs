@@ -45,8 +45,9 @@ a mutation failure rolls back the owning logical transaction.
 
 ## Isolation and storage
 
-Graph records use format 2 MVCC version chains; format 1 is refused before recovery scrub, with
-the remedy to recreate the database and no upgrade reader. Older snapshots retain prior property,
+Graph records use format 3 MVCC version chains; older records and tree registrations are refused
+before logical recovery scrub with [COHDBG017](../diagnostics.md), the remedy to recreate the
+database and no upgrade reader. Older snapshots retain prior property,
 label, index and adjacency versions. Rollback restores old stamps and removes replacements.
 
 Snapshot writers use first-updater-wins: changing an entity committed since the writer's snapshot
