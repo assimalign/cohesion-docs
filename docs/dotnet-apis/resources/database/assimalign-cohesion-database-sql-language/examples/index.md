@@ -49,6 +49,11 @@ For executable paging and expression default examples, see [SqlSelectExpression]
 the predicate nodes from SqlPredicateParserTests. The [predicate examples](../../../../../database/sql/language/expressions/operators.md)
 give executed truth tables, precedence and ESCAPE results from SqlPredicateExecutionTests.
 
+[SqlOnConflictClause](../sql-on-conflict-clause.md), [SqlOnConflictTargetKind](../sql-on-conflict-target-kind.md)
+and [SqlOnConflictAction](../sql-on-conflict-action.md) inspect SqlInsertParserTests shapes.
+[ON CONFLICT examples](../../../../../database/sql/language/clauses/on-conflict.md#examples) show
+inserted/updated/skipped results checked against SqlUpsertExecutionTests and SqlUpsertWireTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

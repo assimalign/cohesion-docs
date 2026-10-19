@@ -22,6 +22,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 ## Write and definition clauses
 
 - **[VALUES](values.md)** — Supply scalar insert rows.
+- **[ON CONFLICT](on-conflict.md)** — Skip unique conflicts or update with target and EXCLUDED values.
 - **[SET](set.md)** — Assign update values.
 - **[DEFAULT](default.md)** — Declare or request a column default.
 - **[IDENTITY](identity.md)** — Generate integer values with durable, noncycling reservations.
@@ -30,7 +31,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 50-of-56 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

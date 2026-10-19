@@ -184,10 +184,14 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 50 of 56 declared clauses. Document and Graph have their own
+The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization, and replication/governance
 contracts do not imply operational implementations.
+
+SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
+[distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
+foreign-key validation for multi-row UPDATE. OQL executes 31 of 32 declared clauses and GQL 26 of 33.
 
 The Phase 29 hosting implementation supersedes older eager-builder examples in the program plan.
 It adds no ApplicationModel functionality; that work remains deferred by the hosting design.

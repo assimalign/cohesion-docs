@@ -44,6 +44,13 @@ first Boolean result. Completed postfix tests may also continue: `NULL IS NULL =
 The lower BETWEEN bound accepts restricted comparison/distinct expressions.
 Prefix/infix `~`, binary `&`, `|`, `<<`, `>>`, and `::` casts report `COHDBL001`.
 
+```sql
+SELECT 1 = 1 IS TRUE, TRUE = 'abc' LIKE 'a%', 1 IN (1) IN (TRUE), 'x' || 1 + 2
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+The result is `(TRUE, TRUE, TRUE, 'x3')`.
+
 Comparison with a null operand yields `UNKNOWN`; `IS NULL` and `IS NOT NULL` test nullness.
 `BETWEEN` includes its lower and upper bounds and returns unknown with a null operand or bound.
 Only true conditions retain rows in `WHERE`, `ON`, and `HAVING`.

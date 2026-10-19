@@ -40,7 +40,9 @@ boundary when interpreting historical layout notes above.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Sources

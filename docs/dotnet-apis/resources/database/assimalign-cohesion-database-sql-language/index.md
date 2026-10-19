@@ -28,6 +28,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
 - **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
 - **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
+- **[SqlOnConflictClause](sql-on-conflict-clause.md)** — Unique arbiter, action, assignments, filter and EXCLUDED.
+- **[SqlOnConflictTargetKind](sql-on-conflict-target-kind.md)** — All indexes, column-set or named-index arbitration.
+- **[SqlOnConflictAction](sql-on-conflict-action.md)** — DO NOTHING or DO UPDATE.
 - **[SqlCommonTableExpression](sql-common-table-expression.md)** — Ordered non-recursive WITH definitions.
 - **[SqlUpdateExpression](sql-update-expression.md)** — Target, assignments, predicate and WITH list.
 - **[SqlDeleteExpression](sql-delete-expression.md)** — Target, predicate and WITH list.
@@ -73,7 +76,7 @@ alongside CASCADE/RESTRICT; omitted SQL actions are NO ACTION.
 ## Scope
 
 - **Parser** — `SELECT` (joins, grouping, ordering, limits, subqueries), `INSERT`
-  (multi-row, `INSERT ... SELECT`), `UPDATE`, `DELETE`, `CREATE/ALTER/DROP TABLE`,
+  (multi-row, `INSERT ... SELECT`, ON CONFLICT and RETURNING), `UPDATE`, `DELETE`, `CREATE/ALTER/DROP TABLE`,
   and a full expression grammar (precedence, `CASE`, `CAST`, predicates,
   parameters). Error-tolerant: malformed input yields diagnostics, never
   exceptions.

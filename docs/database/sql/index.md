@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 50 of 56 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 51 of 57 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -24,7 +24,13 @@ correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-s
 UPDATE or DELETE. Outer ordering over derived outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
-The 50-of-56 measure is not a percentage of complete SQL. The
+[ON CONFLICT](language/clauses/on-conflict.md) executes DO NOTHING or targeted DO UPDATE SET/WHERE
+with EXCLUDED over VALUES, DEFAULT VALUES and query sources. RETURNING includes inserted/updated
+rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or updates the newest
+committed row. Multi-row UPDATE checks foreign keys against its
+[final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
+
+The 51-of-57 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
@@ -92,7 +98,9 @@ wire transaction payload.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 50 of 56 named clauses against the live engine. The 6 excluded names are
+The profile measures 51 of 57 named clauses against the live engine. The 6 excluded names are
 `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
@@ -17,6 +17,10 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
+| MySQL ON DUPLICATE KEY UPDATE; SQLite INSERT OR IGNORE/REPLACE | `COHDBL001` | Use [ON CONFLICT](clauses/on-conflict.md) DO NOTHING/targeted DO UPDATE |
+| ON CONFLICT expression/COLLATE/order/operator-class/partial-WHERE inference; DO SELECT | `COHDBL001` | Plain column-set or named unique-index arbitration executes |
+| Subqueries in ON CONFLICT DO UPDATE SET/WHERE; EXCLUDED pseudo-relation in RETURNING | `COHDBL001` | Target plus EXCLUDED is available in scalar conflict actions; RETURNING sees only target values |
+| Missing/nonunique ON CONFLICT arbiter or untargeted DO UPDATE | `COHSQLE035` (42P10) | Untargeted DO NOTHING uses all unique indexes |
 | CORRESPONDING [BY (...)] | `COHDBL001` | Contextual exclusion after a set operator; [UNION/INTERSECT/EXCEPT](clauses/set-operations.md) execute |
 | CREATE SCHEMA AUTHORIZATION or nested CREATE/GRANT elements | `COHDBL001` | [CREATE SCHEMA](statements/create-schema.md) accepts a namespace name and existence guard |
 | Recursive/nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `COHDBL001` | Non-recursive [WITH](clauses/with.md) before SELECT/INSERT/UPDATE/DELETE executes |

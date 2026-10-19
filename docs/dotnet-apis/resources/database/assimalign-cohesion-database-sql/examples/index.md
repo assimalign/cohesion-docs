@@ -20,6 +20,11 @@ registers an application function; [SqlFunctionContext](../sql-function-context.
 the public collation/cancellation contract. [ALTER TABLE](../../../../../database/sql/language/statements/alter-table.md#examples)
 covers renames, defaults and nullability.
 
+[ON CONFLICT](../../../../../database/sql/language/clauses/on-conflict.md#examples) covers skipped,
+updated and inserted rows with RETURNING, query sources and DEFAULT VALUES, checked against
+SqlUpsertExecutionTests/SqlUpsertWireTests. [Final-row foreign keys](../../../../../database/sql/language/constraints.md#update-final-row-examples)
+shows self-reference moves and rejected dangling references from SqlUpdateForeignKeyTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/OVERVIEW.md`.

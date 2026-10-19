@@ -24,6 +24,11 @@ read the original row. DELETE returns old values for directly targeted rows; cas
 SET NULL/DEFAULT child updates do not contribute rows. UPDATE/DELETE output order is unspecified.
 NULL follows the selected expressions' ordinary rules; SQL has no MISSING value.
 
+[ON CONFLICT](on-conflict.md) returns inserted and post-update rows in proposal source order.
+DO NOTHING and FALSE/UNKNOWN update filters return no row and contribute no affected count.
+The EXCLUDED pseudo-relation is outside RETURNING scope (COHDBL001); a real target named or
+aliased excluded can still qualify its own returned columns.
+
 Projection runs per row inside the write after that row's mutation and index checks. Even immutable
 calls execute there. Any constraint or projection error rolls the entire statement back, including
 inside BEGIN; earlier successful statements remain. Results buffer until apply completes and

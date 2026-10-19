@@ -148,6 +148,20 @@ both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests
 42804) are ExecutionFailure responses; data and the connection remain usable. No client API or
 protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
 
+## ON CONFLICT and final foreign-key checks
+
+Existing requests carry VALUES/SELECT/DEFAULT VALUES ON CONFLICT and RETURNING. QueryAsync returns
+inserted/post-update rows with their combined affected count; skips and false/UNKNOWN filters
+contribute neither. COHSQLE035 (42P10), COHSQLE036 (21000) and ordinary constraint failures are
+ExecutionFailure responses with usable connections; MySQL/SQLite alternatives and excluded
+inference/action forms are COHDBL001 ParseFailure. No protocol or client API change is required.
+
+Multi-row UPDATE final-state foreign-key behavior is the same on both transports. Tests select
+Snapshot/ReadCommitted through the server-session API; SQL BEGIN adds no isolation syntax.
+Snapshot newer-conflict aborts and detected deadlocks require callers to roll back and retry the
+complete transaction. The client does not retry it automatically. See
+[ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`.

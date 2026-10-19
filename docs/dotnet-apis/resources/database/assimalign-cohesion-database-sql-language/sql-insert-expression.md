@@ -10,6 +10,7 @@ public sealed class SqlInsertExpression : SqlQueryExpression
     public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
     public IReadOnlyList<SqlSelectColumn>? Returning { get; }
+    public SqlOnConflictClause? OnConflict { get; }
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<IReadOnlyList<SqlExpression>>? Values { get; }
     public SqlQueryBodyExpression? SelectSource { get; }
@@ -27,6 +28,13 @@ IsDefaultValues identifies INSERT DEFAULT VALUES, inserting one row with every c
 Values and SelectSource are null in that form; the optional column list is retained. Ordinary VALUES
 may contain SqlDefaultExpression items. The parser owns construction. Invalid DEFAULT placement is
 SQL0003; NOT NULL failures use COHSQLE024 (23502).
+
+OnConflict is null for an ordinary INSERT, otherwise the parser-owned
+[SqlOnConflictClause](sql-on-conflict-clause.md). It applies to VALUES, DEFAULT VALUES and query
+sources. Execution binds an arbiter and the original target plus EXCLUDED proposal; RETURNING
+projects only inserted/post-update target rows and counts them together. Missing arbiters use
+COHSQLE035 (42P10); repeated row effects use COHSQLE036 (21000). See
+[ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md) for constraint and retry rules.
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.
@@ -56,6 +64,14 @@ var returningStatement = (SqlQueryStatement)new SqlQueryParser().Parse(
 Console.WriteLine(((SqlInsertExpression)returningStatement.SqlExpression).Returning!.Count); // 1
 ```
 
+```csharp
+var upsert = (SqlQueryStatement)new SqlQueryParser().Parse(
+    "INSERT INTO t VALUES (1, 20) ON CONFLICT (id) DO UPDATE SET age = EXCLUDED.age RETURNING id;");
+var conflict = ((SqlInsertExpression)upsert.SqlExpression).OnConflict!;
+Console.WriteLine(conflict.TargetKind); // Columns
+Console.WriteLine(conflict.Action); // DoUpdate
+```
+
 ## Related reference
 
 [Assembly](index.md) · [SQL language](../../../../database/sql/language/index.md) · [SqlLiteralText](sql-literal-text.md)
@@ -64,3 +80,4 @@ Console.WriteLine(((SqlInsertExpression)returningStatement.SqlExpression).Return
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/Expressions/SqlInsertExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlDefaultParserTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlInsertParserTests.cs`.

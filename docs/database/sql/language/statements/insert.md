@@ -12,6 +12,9 @@ INSERT INTO [ schema_name . ] table_name [ [ AS ] table_alias ]
 [ ( column_name [ , ...n ] ) ]
 { VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
 | DEFAULT VALUES | select_statement }
+[ ON CONFLICT [ ( column_name [ , ...n ] ) | ON CONSTRAINT constraint_name ]
+    { DO NOTHING | DO UPDATE SET column_name = { expression | DEFAULT } [ , ...n ]
+        [ WHERE search_condition ] } ]
 [ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
 ```
@@ -36,7 +39,12 @@ A whole-item [DEFAULT](../clauses/default.md) requests the destination default;
 `DEFAULT VALUES` inserts one row of defaults. A missing default on a NOT NULL column is
 `COHSQLE024` (SQLSTATE 23502). Without a column list, values map to all destination columns. Omitted columns use their declared
 defaults or nullable `NULL`; an explicit `NULL` does not request the default. Destination coercion,
-nullability, checks, primary and unique keys, and foreign keys apply to every row.
+nullability, checks, primary and unique keys, and foreign keys apply to written rows.
+[ON CONFLICT](../clauses/on-conflict.md) skips or updates unique-key conflicts for every source
+form. Proposed NOT NULL/domain/CHECK validation still precedes arbitration; foreign keys validate
+only rows actually written. DO UPDATE requires an arbiter and exposes target plus EXCLUDED values.
+RETURNING includes inserted/updated rows and their combined count, excluding skips. See the clause
+for COHSQLE035 (42P10), COHSQLE036 (21000), isolation and transaction retry rules.
 
 For an [identity column](../clauses/identity.md), omission or DEFAULT allocates one value per row,
 including DEFAULT VALUES and omitted INSERT SELECT destinations. ALWAYS rejects explicit values
@@ -73,7 +81,7 @@ Execute each statement separately; the insert reports the number of inserted row
 
 ## See also
 
-[VALUES](../clauses/values.md) · [SELECT](select.md) · [Constraints](../constraints.md)
+[VALUES](../clauses/values.md) · [ON CONFLICT](../clauses/on-conflict.md) · [SELECT](select.md) · [Constraints](../constraints.md)
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 

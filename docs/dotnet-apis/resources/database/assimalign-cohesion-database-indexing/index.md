@@ -6,12 +6,14 @@ Shared index infrastructure for every Cohesion database engine: order-preserving
 
 ## Reference pages
 
+- **[BTreeIndex](b-tree-index.md)** — Latest live unique-entry lookup, transaction locks and failures.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 Shared index infrastructure for every Cohesion database engine: order-preserving byte-comparable
 keys, index and cursor contracts, and per-database index management. B+Tree is the first physical
-structure; hash indexes follow post-MVP.
+structure; hash indexes follow post-MVP. BTreeIndex.FindLiveEntryAsync supplies latest-state
+unique-key arbitration for SQL ON CONFLICT without applying snapshot visibility.
 
 ## Scope
 

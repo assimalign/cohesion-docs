@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Index Key Tests](index-key-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Indexing` through its co-located test source.
+- **[BTreeIndex live-entry lookup](../b-tree-index.md#example)** — Own writes and tombstones, adapted from BTreeIndexTests.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

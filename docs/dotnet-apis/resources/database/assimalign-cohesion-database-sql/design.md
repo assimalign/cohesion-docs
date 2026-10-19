@@ -15,7 +15,7 @@ COHSQLE028 (3F000), duplicate CREATE COHSQLE029 (42P06), and RESTRICT dependenci
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
 Storage format 25 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
-format 23 introduced views and format 24 persists explicit NULL placement.
+format 23 introduced views and format 24 introduced explicit NULL placement.
 Format 25 admits distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
@@ -499,7 +499,7 @@ binds them.
   The ledger route was chosen for live rollback (surgical, O(transaction
   effects)) and the tree walk for open-time scrub (the ledger dies with the
   process) — both end in the same physical operations.
-- **The lock-ordering rule** (uniform across INSERT/UPDATE/DELETE so cycles stay
+- **The lock-ordering rule** (ordinary INSERT/UPDATE/DELETE, with exceptions below so cycles stay
   detectable and rare): phase one acquires the adjacent tables' IntentShared
   locks in object-id order, then the table's IntentExclusive lock, then row
   Exclusive locks sorted by packed location, then **parent-row Shared locks
@@ -514,10 +514,12 @@ binds them.
   invisible to deadlock detection). Non-unique indexes take no key locks. `Key`
   locks and row locks share the `LockResource.Entry` space; a hash/location
   collision only over-locks, and the class ordering keeps acquisition globally
-  consistent. **The one deliberate exception is the cascade walk**, which locks
+  consistent. **The first deliberate exception is the cascade walk**, which locks
   rows in discovery order because the closure it is discovering is what
   determines the lock set; see "Referential enforcement locks parent rows" under
-  constraints for why that trade was taken and what it costs.
+  constraints for why that trade was taken and what it costs. ON CONFLICT is the second:
+  proposal and replacement keys precede conflicting row locks. Its detected deadlocks require
+  rollback/retry of the complete transaction; see the execution contract below.
 - **Uniqueness = the B+Tree's latest-state check under the exclusive hashed-key
   lock** (never snapshot visibility — write skew; the recorded #851 lesson).
   Violations surface as the area root's `DatabaseException` at the model
@@ -771,9 +773,16 @@ child-first names and cyclic reference graphs provision deterministically.
 `SqlPlanExecutor` enforces checks and outgoing references on inserted or updated rows, and incoming
 references on parent deletes or key changes. Checks reject a false result; SQL unknown/null passes.
 Foreign keys with null components are not checked (MATCH SIMPLE). A non-null child key needs a
-parent visible through the statement snapshot. SQL `Delete` defaults to `NO ACTION`; `CASCADE` recursively
+parent visible through the statement snapshot or its final pending replacements. ReadCommitted
+ON CONFLICT refreshes committed visibility after arbitration. SQL `Delete` defaults to `NO ACTION`; `CASCADE` recursively
 collects child deletions into the same statement apply bracket. Parent key updates are restricted
-while referenced. `ON UPDATE` is unsupported and returns `COHDBL001`.
+while referenced in the final state. Multi-row UPDATE excludes all replaced old versions and
+contributes every final replacement to outgoing/incoming NO ACTION/RESTRICT checks. Self-references
+may move with their keys; mutually referenced keys may swap when final keys remain valid. UPDATE
+tombstones all old row/index versions before inserting replacements in the same rollback bracket,
+so uniqueness also validates the final swap. A removed key cannot authorize a dangling child. These
+rules hold under Snapshot and ReadCommitted. ON CONFLICT shares the final-reference view.
+`ON UPDATE` is unsupported and returns `COHDBL001`.
 
 Checks require Boolean predicates made from supported deterministic row expressions. Parameters,
 subqueries, aggregates, unsupported functions and casts are rejected during binding. Multiple
@@ -1179,7 +1188,9 @@ Format 17 introduced the default/missing split with table extension 6; current f
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Aggregate modifiers and text results
@@ -1200,8 +1211,9 @@ once in the caller snapshot, without predicate pushdown. Recoverable bind failur
 reads; cancellation, stack exhaustion, memory, storage and I/O failures propagate.
 
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
-inputs and set results. EXPLAIN describes each effective placement. Storage format 24 persists the
-modifier; format 23 introduced catalog views. Earlier formats are refused.
+inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
+modifiers after format 23's catalog views. Current format 25 adds the predicate forms below and
+refuses all earlier formats.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
 apply after index checks, including immutable calls. Rows buffer until apply/commit completes;
@@ -1223,6 +1235,42 @@ evaluation. The iterative matcher observes cancellation without data-dependent r
 and case-insensitive matching retain the last percent continuation, while accent-insensitive and
 linguistic matching retain visited token/input suffixes. Storage format 25 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
+
+## ON CONFLICT execution
+
+[ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md) binds all exact column-set
+unique indexes, one named unique index, or all unique indexes for untargeted DO NOTHING. The plan
+retains the complete unique-index directory and revalidates metadata identities after obtaining IX.
+Concurrent unique-index creation/drop/replacement during that wait aborts retryably before default
+or identity evaluation. Missing arbiters use COHSQLE035 (42P10); repeated row effects use COHSQLE036
+(21000). Duplicate whole-column SET targets fail binding with COHSQLE019.
+
+VALUES, DEFAULT VALUES and materialized SELECT sources share source-order proposal/default/conflict
+projection evaluation. EXCLUDED supplies coerced/defaulted/generated proposed values beside the
+original target. Proposed NOT NULL/domain/CHECK validation precedes arbitration; foreign keys
+validate only writes. A pending per-index/key map records earlier proposals and source-order rekeys.
+DO NOTHING and false/UNKNOWN filters produce no returned row or affected count. All row/index writes
+and RETURNING evaluations share one ApplyStatementAsync bracket.
+
+Without requested side-effecting defaults, every proposal's keys from every unique index acquire
+one sorted batch. Requested identities or recursively non-immutable default calls, conservatively
+including STABLE, use source-order per-proposal default evaluation and sorted key acquisition.
+Constants and immutable defaults retain the complete batch, including reloaded definitions.
+[BTreeIndex.FindLiveEntryAsync](../assimalign-cohesion-database-indexing/b-tree-index.md) re-grants
+key locks outside the apply gate. Old/new replacement keys precede sorted conflicting rows and
+reference locks. The table remains IX; unrelated different-key inserts/upserts can progress.
+
+Snapshot aborts retryably on a newer committed conflict, even for autocommit DO NOTHING or a false
+filter. ReadCommitted skips or updates the newest committed row and refreshes FK committed
+visibility. A rollback clears index entries before releasing locks. Live entries pointing at
+missing/undecodable rows raise StorageCorruptionException, not a serialization retry.
+
+Reversed side-effecting-default proposal orders can deadlock, as can key-before-row cycles with
+ordinary UPDATE/DELETE and referential SET NULL/DEFAULT. Even unchanged unique values need key
+locks because UPDATE re-points entries to a new heap location. The lock manager detects victims;
+callers roll back and retry the entire transaction, including earlier statements. There is no
+internal row-wait/re-arbitration loop, speculative default allocation or default replay, and no
+lock wait inside the apply gate. Format 25, catalog layout and wire framing remain unchanged.
 
 ## Sources
 

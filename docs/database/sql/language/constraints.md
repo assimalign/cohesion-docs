@@ -47,6 +47,14 @@ matching effective collations. Parent-key updates that would invalidate referenc
 `ON UPDATE` is recognized but unsupported with `COHDBL001`.
 `ON DELETE CASCADE` does not imply `DROP TABLE ... CASCADE` support.
 
+Multi-row UPDATE validates outgoing and incoming NO ACTION/RESTRICT references against the
+statement's final rows. Old replaced versions are excluded and every final replacement contributes
+its keys. A self-reference can move with its parent key, and mutually referenced keys can swap
+when the final state is consistent. A removed key cannot authorize a dangling child; another
+replacement retaining that key can satisfy the reference. Snapshot and ReadCommitted use the
+same pending-row rules. A failure rolls back the statement and leaves an explicit transaction
+usable. [ON CONFLICT DO UPDATE](clauses/on-conflict.md) shares this final-reference view.
+
 | Delete action | Behavior |
 | --- | --- |
 | CASCADE | Deletes referencing rows, following cascade chains |
@@ -118,6 +126,32 @@ The queries return NULL and `0`, respectively. An omitted action or explicit NO 
 refuses the deletion while either child still references `1`; a self-referencing deletion may
 remove both parent and child in the same statement.
 
+## UPDATE final-row examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE self_rows (id INT PRIMARY KEY, parent INT REFERENCES self_rows(id));
+INSERT INTO self_rows VALUES (1, 1);
+UPDATE self_rows SET id = 10, parent = 10;
+SELECT id, parent FROM self_rows;
+```
+
+UPDATE affects one row; SELECT returns `(10, 10)`. With initial rows `(1, 2)`, `(2, 1)`,
+`UPDATE self_rows SET id = 3 - id, parent = 3 - parent` affects two rows and preserves the
+final set `(1, 2)`, `(2, 1)`, including unique-key enforcement.
+
+```sql
+CREATE TABLE moved_rows (id INT PRIMARY KEY, parent INT REFERENCES moved_rows(id));
+INSERT INTO moved_rows VALUES (1, NULL), (2, NULL);
+UPDATE moved_rows SET id = CASE WHEN id = 1 THEN 10 ELSE id END,
+    parent = CASE WHEN id = 2 THEN 1 ELSE parent END;
+SELECT id, parent FROM moved_rows ORDER BY id;
+```
+
+UPDATE throws SqlConstraintViolationException because final key 1 is absent. SELECT still returns
+`(1, NULL)`, `(2, NULL)`. Both examples behave the same with explicit ON DELETE RESTRICT.
+
 ## See also
 
 [Language (SQL)](index.md) · [CREATE TABLE](statements/create-table.md) · [ALTER TABLE](statements/alter-table.md) · [System views](system-views/index.md)
@@ -127,6 +161,8 @@ remove both parent and child in the same statement.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Referential action execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferentialActionTests.cs`
+- **Final UPDATE rows** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpdateForeignKeyTests.cs`.
+- **Wire enforcement** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlUpdateForeignKeyWireTests.cs`.
 - **Constraint grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Constraints.cs`
 - **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
 - **Collation compatibility** — `cohesion/docs/programs/COLLATION_DESIGN.md`

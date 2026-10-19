@@ -43,8 +43,11 @@ execute in WHERE over the pre-statement snapshot, including the target table and
 earlier uncommitted changes. Independent children materialize once; correlated children evaluate
 for each candidate row before writes. Subqueries in SET and RETURNING report COHDBL001.
 [RETURNING](../clauses/returning.md) projects the new values; SET expressions read original values.
-Changing a referenced parent key may fail foreign-key enforcement; `ON UPDATE` actions are not
-implemented. Row updates remain available on schema-owned tables even though session DDL is restricted.
+Foreign keys and incoming NO ACTION/RESTRICT checks use the statement's final replacements, rather
+than old rows that are being replaced. A self-reference may move with its key and mutually referenced
+keys may swap; a final dangling reference fails atomically. See the
+[final-row examples](../constraints.md#update-final-row-examples). ON UPDATE actions are not implemented.
+Row updates remain available on schema-owned tables even though session DDL is restricted.
 
 ## Examples
 

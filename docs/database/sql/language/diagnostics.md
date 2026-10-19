@@ -66,6 +66,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+| `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
+| `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
 
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with SQL0003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
@@ -112,6 +114,14 @@ columns use COHSQLE025. Stable/Volatile defaults execute per assignment; subquer
 | `COHSQLT003` | DDL inside an explicit transaction |
 
 A malformed transaction spelling reports SQL0003 before changing transaction state.
+
+[ON CONFLICT](clauses/on-conflict.md) uses DatabaseTransactionAbortedException for a newer
+committed Snapshot conflict or invalidated unique-index directory, and DatabaseTransactionDeadlockException
+for detected row/key or reversed side-effecting-default proposal cycles. Roll back and retry the
+entire transaction, including earlier statements. ReadCommitted instead skips/updates the newest
+committed conflict. Ordinary constraint failures and COHSQLE035/036 roll back the statement;
+their wire ExecutionFailure leaves the connection usable. MySQL ON DUPLICATE KEY UPDATE,
+SQLite INSERT OR IGNORE/REPLACE, unsupported inference and subqueries in conflict actions use COHDBL001.
 
 ## Locations and wire behavior
 
