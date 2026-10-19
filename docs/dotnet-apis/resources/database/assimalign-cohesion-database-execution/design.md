@@ -1,7 +1,7 @@
 # Assimalign.Cohesion.Database.Execution — Design
 
 The model-neutral request/result vocabulary (area architecture:
-`cohesion/docs/resources/Database/DESIGN.md` §3.2).
+`cohesion/docs/resources/Database/DESIGN.md` `3.2).
 This package references `Database.Types` only. It has no direct or transitive dependency on
 `Database.Language`, and it owns no planner, executor, parser or transaction pipeline.
 
@@ -44,8 +44,8 @@ KeyValuePair's command parser is an internal wire entry, not a public language c
 ## Decisions and remaining work
 
 - `Diagnostic`, `DiagnosticSeverity` and `DiagnosticLocation` moved unchanged to
-  `Database.Types`. Diagnostics may still be null; non-null diagnostics and further result
-  NVI work remain with #1264.
+  `Database.Types`. DatabaseResult.Diagnostics remains nullable in the abstract result contract;
+  DatabaseException.Diagnostics is always non-null.
 - There is no shared execution pipeline. The unused pipeline, transaction-scope and executor
   abstractions were deleted under #1257. Models own their execution and transaction brackets.
 - There is no exception root here. Model failures use the root assembly's `DatabaseException`
@@ -54,6 +54,16 @@ KeyValuePair's command parser is an internal wire entry, not a public language c
   language request before entering the traced execution member is deferred to separate work.
 - Streaming remains the model's responsibility: `DatabaseResultSet.GetRowsAsync` does not
   introduce shared buffering or choose a model's memory budget.
+
+## Plan descriptions and MISSING
+
+[DatabasePlanDescription](database-plan-description.md) materializes model plan nodes in the shared
+eight-column shape without defining a shared operator algebra. Nodes retain model vocabulary;
+estimated/actual rows remain NULL. EXPLAIN performs normal binding/admission without data execution.
+[DatabaseRow](database-row.md) has an opt-in MISSING capability used only by Documents rows;
+unsupported models throw NotSupportedException from IsMissing. OQL UPDATE descriptions use an Update
+root with CollectionScan/IndexSeek access. GQL ordering/paging adds SortPage (offset/limit) and SortKey
+(expression/direction/NULL placement). These preserve the existing public node/result signatures.
 
 ## AOT posture
 

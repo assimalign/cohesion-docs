@@ -6,25 +6,32 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Query clauses
 
-- **[FROM](from.md)** — Bind one relation in the current database.
-- **[JOIN](join.md)** — Combine exactly two stored tables with an inner join.
+- **[WITH](with.md)** — Define ordered, non-recursive query relations for one statement.
+
+- **[FROM](from.md)** — Bind stored, system and derived relations in the current database.
+- **[JOIN](join.md)** — N-way INNER/LEFT/CROSS joins, USING columns, and comma products.
 - **[WHERE](where.md)** — Filter input rows.
 - **[GROUP BY](group-by.md)** — Group by scalar key expressions.
 - **[HAVING](having.md)** — Filter aggregate results.
 - **[ORDER BY](order-by.md)** — Sort by source expressions, aliases, and ordinals.
-- **[LIMIT and OFFSET](limit-offset.md)** — Limit and skip returned rows.
+- **[LIMIT, OFFSET, FETCH and TOP](limit-offset.md)** — Limit and skip returned rows.
 - **[COLLATE](collate.md)** — Choose effective string comparison rules.
 - **[DISTINCT](distinct.md)** — Deduplicate projected rows.
+- **[UNION, INTERSECT and EXCEPT](set-operations.md)** — Combine query bodies with ALL/DISTINCT.
 
 ## Write and definition clauses
 
 - **[VALUES](values.md)** — Supply scalar insert rows.
+- **[ON CONFLICT](on-conflict.md)** — Skip unique conflicts or update with target and EXCLUDED values.
 - **[SET](set.md)** — Assign update values.
-- **[DEFAULT](default.md)** — Declare a literal column default.
+- **[DEFAULT](default.md)** — Declare or request a column default.
+- **[IDENTITY](identity.md)** — Generate integer values with durable, noncycling reservations.
+
+- **[RETURNING](returning.md)** — Return each directly written row's scalar projection.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 33-of-49 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 
@@ -32,4 +39,3 @@ execution support; use [diagnostics](../diagnostics.md) and the
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

@@ -28,6 +28,23 @@ See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 
 [Parent: Database](../index.md)
 
+## Current format boundary
+
+The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
+separately changes quoting for newly executable function names in persisted canonical SQL.
+The formats preserve resolved shared type identity/modifiers across contextual multi-word and
+SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
+text. These unreleased formats have no older-format compatibility reader; use this current
+boundary when interpreting historical layout notes above.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/docs/OVERVIEW.md`.

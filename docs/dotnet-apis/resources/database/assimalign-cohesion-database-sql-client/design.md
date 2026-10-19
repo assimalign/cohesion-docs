@@ -29,6 +29,14 @@ flowchart LR
 
 Other model clients do not depend on this package.
 
+## Join results
+
+N-way INNER/LEFT/CROSS/comma joins and USING use the existing SQL result frames. USING wildcard
+columns and later aliases/ordinals count visible output positions. Merged common types and cleared
+character lengths reach client metadata; qualified columns retain their own type/length. LEFT can
+return NULL values, but the wire header carries only name, type and length, without nullability.
+SqlJoinWireTests checks values, multiplicity and metadata over InMemory and loopback TCP.
+
 ## SQL-owned exchange
 
 `SqlClient.Create` binds the pool to `SqlProtocol.Family`. `SqlExecuteExchange` implements
@@ -38,7 +46,7 @@ values. `SqlConnection` projects this result into `SqlResultSet`.
 
 `SqlProtocolConnectionExtensions.ExecuteAsync` provides the same operation on a rented
 `IDatabaseConnection` bound to SQL's exact family instance. `DatabaseClientResult` and
-`DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and protocol 1.0 wire
+`DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and baseline model wire
 behavior are unchanged.
 
 The model reference supplies codecs without parsing SQL or inspecting plans. Its transitive assembly
@@ -117,6 +125,50 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 transport contract
+
+SqlResultSet exposes IReadOnlyList<ProtocolDiagnostic> Diagnostics on success. SqlClientException
+preserves the shared failure carrier. Protocol 2.1 sends Warning/Error entries before completion
+or Error; 2.0 retains baseline exchanges without the frame. Overflow preserves a leading prefix
+plus COHDBP001 with exact omission counts, the original outcome and a usable session.
+All SQL codes and SQLSTATE categories are in [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
+
+Constraint failures use ExecutionFailure with one negotiated Error diagnostic: COHSQLE037 (23505)
+for UNIQUE/PRIMARY KEY/unique indexes, COHSQLE038 (23514) for CHECK/domain checks including CAST,
+and COHSQLE039 (23503) for foreign keys in either direction. NOT NULL retains COHSQLE024 (23502).
+Messages name the constraint and table without key values; domain CAST/function checks name the
+domain without a table. Available statement spans survive both transports. The rejected statement
+rolls back while the connection and explicit transaction remain usable. See
+[SqlClientException](sql-client-exception.md) for handling and protocol 2.0 behavior.
+
+## RETURNING results
+
+QueryAsync returns [SqlResultSet.AffectedCount](sql-result-set.md) with buffered RETURNING rows.
+ExecuteAsync receives and buffers those rows before discarding them; ExecuteScalarAsync returns
+the first cell. ResultComplete already carries the count; framing and protocol version are unchanged.
+Server projection errors occur before the result header and leave the connection usable.
+
+## Predicate diagnostics
+
+Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
+both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
+42804) are ExecutionFailure responses; data and the connection remain usable. No client API or
+protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
+
+## ON CONFLICT and final foreign-key checks
+
+Existing requests carry VALUES/SELECT/DEFAULT VALUES ON CONFLICT and RETURNING. QueryAsync returns
+inserted/post-update rows with their combined affected count; skips and false/UNKNOWN filters
+contribute neither. COHSQLE035 (42P10), COHSQLE036 (21000) and ordinary constraint failures are
+ExecutionFailure responses with usable connections; MySQL/SQLite alternatives and excluded
+inference/action forms are COHDBL001 ParseFailure. No protocol or client API change is required.
+
+Multi-row UPDATE final-state foreign-key behavior is the same on both transports. Tests select
+Snapshot/ReadCommitted through the server-session API; SQL BEGIN adds no isolation syntax.
+Snapshot newer-conflict aborts and detected deadlocks require callers to roll back and retry the
+complete transaction. The client does not retry it automatically. See
+[ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
 
 ## Sources
 

@@ -7,7 +7,7 @@ Examples for `Assimalign.Cohesion.Database.Graph.Storage` are derived from sourc
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
-- **[Graph Store Tests](graph-store-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Graph.Storage` through its co-located test source.
+- **[Graph Store Tests](graph-store-tests.md)** — Complete create/update/snapshot example checked against GraphStoreTests and GraphStoreUpdateTests.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

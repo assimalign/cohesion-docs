@@ -7,12 +7,14 @@ Aborts the session's active explicit transaction.
 ## Syntax
 
 ```syntaxsql
-ROLLBACK [ TRANSACTION ] [ ; ]
+ROLLBACK [ WORK | TRANSACTION ] [ ; ]
 ```
 
 ## Arguments
 
-The optional `TRANSACTION` keyword changes no semantics; no savepoint target is accepted.
+`WORK` and `TRANSACTION` are optional equivalent suffixes on ROLLBACK.
+Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Malformed suffixes report `SQL0003` before transaction state changes.
 
 ## Remarks
 
@@ -35,7 +37,7 @@ statement as a separate request on the same session or client connection:
 BEGIN;
 INSERT INTO t VALUES (4, 'new', 1);
 DELETE FROM t WHERE id = 2;
-ROLLBACK;
+ROLLBACK WORK;
 SELECT id FROM t ORDER BY id;
 ```
 
@@ -54,4 +56,3 @@ The final query returns the original identifiers `1`, `2`, and `3`.
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`
 - **Client lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
 - **Coordinator** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/OVERVIEW.md`
-

@@ -6,6 +6,9 @@ The SQL engine manages databases and executes SQL over shared storage, catalog, 
 
 ## Reference pages
 
+- **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
+- **[SqlFunctionContext](sql-function-context.md)** — Database, collation and cancellation context.
+- **[SqlConstraintViolationException](sql-constraint-violation-exception.md)** — Named integrity failures and their single coded diagnostic.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
@@ -33,9 +36,12 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   records the canonical document/hash only after live-catalog convergence.
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
   planned rule-based and executed against table scans: `SELECT` with `WHERE`,
-  projection, `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, lone `COUNT(*)`;
-  `INSERT` (multi-row, defaults, nullability); `UPDATE`/`DELETE` with accurate
-  affected counts; `CREATE/ALTER/DROP TABLE`. Unsupported dialect features fail
+  projection, N-way INNER/LEFT/CROSS/comma joins with ON/USING, grouping and aggregates,
+  `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`;
+  `INSERT` (multi-row, defaults, nullability and [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md));
+  `UPDATE`/`DELETE` with accurate affected counts and DML RETURNING; `CREATE/ALTER/DROP TABLE`.
+  NULL-safe distinct predicates, Boolean tests and LIKE ESCAPE follow PostgreSQL precedence.
+  Multi-row UPDATE foreign keys validate final replacement rows. Unsupported dialect features fail
   at plan time with precise messages.
 - **Typed rows** — rows encode with the shared self-describing tuple codec,
   prefixed by the owning table's object id (tables share one record space and

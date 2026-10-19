@@ -5,8 +5,9 @@ Key-Value Pair carries text commands and scalar results over its model-owned pro
 > **Status:** Implemented. The transaction message identifier is reserved without an implemented payload.
 
 `KeyValueProtocol.Family` is fixed when the endpoint accepts a connection. Protocol version
-`1.0` retains the established identifiers, payload bytes, ordering, authentication, and error
-codes. The shared Database protocol owns framing, startup, errors, and lifecycle; the model
+`2.1` negotiates startup capabilities while retaining established model payload bytes and ordering.
+Key-Value agrees no Diagnostics capability; 2.0 sends an empty Ready and different majors are
+refused. Refusals use `COHKV001`–`019` in existing Error text. The shared Database protocol owns framing, startup, errors, and lifecycle; the model
 owns execution and tabular result codecs.
 
 ## Exchange
@@ -25,7 +26,7 @@ messages, and invalid ordering close it. There is no pipelining or multiplexing.
 The frame is a four-byte unsigned payload length, one-byte message type, then the payload.
 The maximum payload is `16,777,216` bytes. Fixed integers are big-endian. A string is a
 nonnegative signed 32-bit UTF-8 byte length followed by its bytes. Counts are nonnegative
-signed 32-bit integers. Payloads contain no padding.
+signed 32-bit integers. Malformed UTF-8 is rejected. Payloads contain no padding.
 
 | Identifier | Direction | Payload |
 |---|---|---|

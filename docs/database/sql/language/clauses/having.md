@@ -21,7 +21,7 @@ and before ordering, `OFFSET`, and `LIMIT`. An ungrouped aggregate can have `HAV
 
 Output aliases are not bound here: repeat the grouping expression or aggregate. A column outside
 an aggregate must satisfy grouping validity. Invalid ungrouped references are planning errors even
-when no input rows exist. A supported uncorrelated subquery may participate in the predicate.
+when no input rows exist. A supported correlated or uncorrelated subquery may participate in the predicate.
 
 ## Examples
 

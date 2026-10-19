@@ -32,6 +32,9 @@ Projection aliases are outside grouping's alias-binding scope. Standalone numeri
 (`GROUP BY 1`) report `COHDBL001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 Empty grouping sets, `GROUPING SETS`, `ROLLUP`, `CUBE`, and grouping functions are excluded.
 
+[Aggregate calls](../functions/aggregate-functions.md) accept DISTINCT/ALL and input ORDER BY.
+STRING_AGG and LISTAGG concatenate ordered text within each group.
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).

@@ -13,6 +13,35 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## RETURN API examples
+
+[GqlProjection](../gql-projection.md) executes a source-free computed expression;
+[GqlQueryExpression](../gql-query-expression.md) inspects standalone RETURN DISTINCT and EXPLAIN.
+[GqlVariableExpression](../gql-variable-expression.md) reads a bare binding and
+[GqlSetQuantifier](../gql-set-quantifier.md) constructs DISTINCT output. These examples follow
+GqlReturnParserTests and GraphReturnTests. The [language examples](../../../../../database/graph/language/clauses/return.md#examples)
+give values and wire result limits.
+
+See [GqlMatchClause](../gql-match-clause.md#example) for repeated and optional matching clauses,
+and [MATCH](../../../../../database/graph/language/statements/match.md#optional-and-repeated-matching)
+for their results and the bound-anchor measurement.
+
+[GqlSortItem](../gql-sort-item.md#example) and its enum pages inspect parsed ORDER BY keys.
+The [ordering fixture](../../../../../database/graph/language/clauses/order-by.md#examples)
+shows NULL placement, aliases, SKIP and LIMIT with exact result sequences.
+
+See [GqlAggregateExpression](../gql-aggregate-expression.md) for parser inspection and Decimal
+execution, and [GROUP BY](../../../../../database/graph/language/clauses/group-by.md) for implicit,
+RETURN-alias and empty-set examples checked against GraphAggregateTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.
+
+## Conditional and composite values
+
+[GqlCaseExpression](../gql-case-expression.md) and [GqlCaseAlternative](../gql-case-alternative.md)
+show ordered simple/searched CASE construction. [COALESCE](../gql-coalesce-expression.md) and
+[NULLIF](../gql-null-if-expression.md) retain case-abbreviation nodes. [Map](../gql-map-expression.md),
+[list](../gql-list-expression.md), [subscript](../gql-subscript-expression.md) and
+[member](../gql-member-expression.md) examples follow GraphValueTests and GqlValueParserTests.

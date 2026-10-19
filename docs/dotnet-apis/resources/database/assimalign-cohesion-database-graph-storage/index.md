@@ -10,7 +10,7 @@
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GraphStorage`](graph-storage.md)** — Documented public type.
 - **[`GraphStore`](graph-store.md)** — Documented public type.
-- **[`IGraphStore`](i-graph-store.md)** — Documented public type.
+- **[IGraphStore migration](i-graph-store.md)** — Use the sealed GraphStore and concrete contexts.
 - **[`StoredGraphNode`](stored-graph-node.md)** — Documented public type.
 - **[`StoredGraphRelationship`](stored-graph-relationship.md)** — Documented public type.
 
@@ -20,11 +20,11 @@ explicit binary codecs without reflection.
 
 `GraphStorage` owns the data, journal and backup streams and delegates page allocation, checksums
 and physical recovery to `Database.Storage`. Construct a `TransactionCoordinator` from its
-`WriteAheadJournal` and `Records`, then use `GraphStore.Open` to obtain an `IGraphStore`. Every
-mutation takes the caller's `ITransactionContext` and leaves commit or rollback to that caller.
+`WriteAheadJournal` and `Records`, then use `GraphStore.Open` to obtain a sealed `GraphStore`. Every
+mutation takes the caller's `TransactionContext` and leaves commit or rollback to that caller.
 Reads take an immutable `TransactionSnapshot`.
 
-The store exposes creation, lookup, restricted or cascading deletion, incident-edge lookup, and
+The store exposes creation, versioned node/relationship updates, lookup, restricted or cascading deletion, incident-edge lookup, and
 exact node-property index creation/search/drop. An incident-edge lookup is a B+Tree range seek and
 does not scan every relationship. Property index searches return scalar-verified candidates in
 identity order. The graph root maps storage DTO identities to the frozen `GraphNodeId` and
@@ -36,6 +36,11 @@ available to `Graph.Catalog` through the low-level record seam.
 
 See [DESIGN.md](design.md) for the binary format, adjacency costs, numeric index semantics,
 transaction lifecycle, recovery sequence and current limits.
+
+Creation accepts complete StoredGraphNode/StoredGraphRelationship records with IDs reserved
+from the backing storage. UpdateNodeAsync replaces labels/properties and UpdateRelationshipAsync
+replaces properties. Format 2 retains snapshot-visible version chains; format 1 is refused without
+an upgrade path. See [changed signatures](graph-store.md).
 
 ## Project references
 

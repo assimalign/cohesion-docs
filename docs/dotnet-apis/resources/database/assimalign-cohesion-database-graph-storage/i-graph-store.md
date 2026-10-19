@@ -1,28 +1,28 @@
-# IGraphStore
+# IGraphStore migration
 
-The `IGraphStore` type is part of the documented `Assimalign.Cohesion.Database.Graph.Storage` API.
+The integration branch exposes the sealed [GraphStore](graph-store.md), with concrete
+TransactionContext parameters. IGraphStore and DefaultGraphStore are absent.
 
-> **Status:** Partial.
+## Updated usage
 
-Transactional graph records, adjacency, and exact node-property indexes.
+```csharp
+GraphStore store = GraphStore.Open(storage, coordinator);
+TransactionContext context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
+ulong id = (ulong)storage.ReserveTransactionSequence();
+var node = await store.CreateNodeAsync(new StoredGraphNode(id, ["P"],
+    new Dictionary<string, object?>()), context);
+await coordinator.CommitAsync(context);
+```
 
-Namespace: `Assimalign.Cohesion.Database.Graph.Storage`.
-
-## Documented behavior
-
-`GraphStore.Open(GraphStorage, TransactionCoordinator)` returns `IGraphStore`, whose operations
-create/find/delete nodes and relationships, enumerate nodes and incident relationships,
-create/drop/search exact property indexes, and recover index writers. Mutations require an active
-caller transaction and do not commit it. Snapshot reads return immutable `StoredGraphNode` and
-`StoredGraphRelationship` scalar records.
+Creation takes a complete record with a reserved ID. See [GraphStore](graph-store.md) for
+changed create/update signatures, exceptions and MVCC behavior, and the
+[complete example](examples/graph-store-tests.md) for storage lifetime.
 
 ## Related reference
 
-- **Assembly** — [`Assimalign.Cohesion.Database.Graph.Storage`](index.md).
-- **Design** — [Lifetime and implementation decisions](design.md).
-- **Examples** — [Source-backed usage](examples/index.md).
+[Assembly](index.md) · [GraphStore](graph-store.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/docs/Assembly/Assimalign.Cohesion.Database.Graph.Storage/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/IGraphStore.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/GraphStore.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/tests/GraphStoreTests.cs`.

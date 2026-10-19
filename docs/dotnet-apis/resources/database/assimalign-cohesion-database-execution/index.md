@@ -4,6 +4,12 @@ The model-neutral request/result vocabulary of the Cohesion Data Platform:
 `DatabaseRequest`, `DatabaseResult`, `DatabaseResultSet`, `DatabaseResultStatus`,
 `DatabaseRow` and `DatabaseColumn`.
 
+## Reference pages
+
+- **[DatabasePlanDescription](database-plan-description.md)** — Public contract and usage.
+- **[DatabasePlanNode](database-plan-node.md)** — Public contract and usage.
+- **[DatabaseRow](database-row.md)** — Public contract and usage.
+
 ## Scope
 
 - **Requests:** `DatabaseRequest` has no members. Model requests own their inputs. Language
@@ -26,7 +32,7 @@ references this package and owns `DatabaseExecutionSession<TRequest>` and
 
 ```csharp
 // session is a SqlDatabaseSession; only SqlQueryRequest or SQL text can be executed here.
-DatabaseResult result = await session.ExecuteAsync(SqlQueryRequest.FromSql("SELECT 1"));
+DatabaseResult result = await session.ExecuteAsync(SqlQueryRequest.FromSql("SELECT id FROM t"));
 if (result is DatabaseResultSet rows)
 {
     await using var resultLifetime = rows;

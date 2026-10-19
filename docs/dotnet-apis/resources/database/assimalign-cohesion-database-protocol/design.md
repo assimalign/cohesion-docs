@@ -69,7 +69,8 @@ deferred handshake discriminator.
 | 11 | Core: Ping |
 | 12 | Core: Pong |
 | 13 | Core: Terminate |
-| 14–63 | Reserved for future shared mechanism |
+| 14 | Core Diagnostics, gated by agreement |
+| 15–63 | Reserved for future shared mechanism |
 | 64–255 | Model family |
 
 A single contiguous model range would have renumbered deployed messages unnecessarily. Instead, 5–9
@@ -124,7 +125,7 @@ packet-beta
 ```
 
 The existing trust handshake sends an empty Authenticate and AuthenticateResponse; authenticators
-receive response evidence as opaque bytes. Ready is empty in 1.0. Ping, Pong, and Terminate have
+receive response evidence as opaque bytes. Ready is empty on negotiated 2.0; 2.1 carries the agreement. Ping, Pong, and Terminate have
 empty payloads. Error is `u16 code + string message`. Codes are append-only: Internal=0,
 UnsupportedVersion=1, AuthenticationFailed=2, NotAuthorized=3, DatabaseNotFound=4, ParseFailure=5,
 ExecutionFailure=6, TransactionAborted=7, ProtocolViolation=8, Unavailable=9. Statement failures can
@@ -132,19 +133,7 @@ leave a session ready; framing, handshake, or ordering violations terminate it.
 
 ## Version decision
 
-`ProtocolVersion.Current` remains **1.0**. SQL and `Key`-Value deployed clients retain exactly the same
-header, message identifiers, handshake, payload encodings, and exchange order. `New` families are
-additive on separately selected model endpoints; no existing endpoint silently reinterprets an
-identifier. Moving CLR types between assemblies is a source/package migration, not a wire-format
-change.
-
-`TryNegotiate` rejects any major other than 1 and chooses the minimum peer/server minor. Model
-servers return UnsupportedVersion before authentication for incompatible majors. Version 1.0 Ready
-stays empty, so no new version field is sent to old clients; success accepts the 1.0 baseline. A
-future minor requiring capabilities must negotiate them explicitly before use. An incompatible
-change to an existing endpoint's meaning or payload requires a deliberate major bump; changing only
-framing is not the sole reason to bump a major. Unknown identifiers never trigger a fallback to
-another family.
+Current is 2.1; different majors fail and the lower minor is selected. 2.0 retains empty Ready.
 
 ## Extending a model
 
@@ -159,6 +148,84 @@ shared wire taxonomy; the client core translates it to `DatabaseClientException`
 outside this package and outside engine packages.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Protocol 2.1 negotiation
+
+
+The shared protocol is 2.1. Startup optionally appends the client's capability names;
+Ready returns the agreed version and the two-sided intersection. A negotiated 2.0
+session retains empty Ready and the existing model and Error bytes. An empty Ready
+from an older endpoint means 2.0 with no capabilities. Different majors are refused.
+Capability names are ordinal and append-only; model names are scoped with the
+lowercase endpoint family followed by a dot. The core owns `diagnostics` and frame 14.
+
+Graph also registers [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md),
+a payload extension under the same 2.1 negotiation with no new frame types. Diagnostics negotiates
+independently; baseline Graph scalar bytes remain when composites are not agreed.
+
+SQL and Graph register `ProtocolCapability.Diagnostics`. When agreed, one Diagnostics
+frame carries the bounded Warning/Error list immediately before Error on failure,
+or immediately before ResultComplete (PathsComplete for graph paths) on success.
+Information, including SQL0100, is never sent. Error and result payloads are unchanged.
+Statement failures leave the server session ready. Model clients validate diagnostic
+ordering and preserve every code, severity, message, nullable offset and source line.
+
+### Startup extension and Ready
+
+The unchanged Startup prefix is `u16 major + u16 minor + string database + string principal`.
+For 2.1, append `u16 capabilityCount + capabilityCount * string name`. An absent
+extension is an empty list. The 2.0 decoder stops after principal, accepting a 2.1
+Startup; a 2.0 client sends the original four fields. Ready in 2.1 is
+`u16 major + u16 minor + u16 capabilityCount + capabilityCount * string name`.
+Both lists allow at most 64 unique names of 1..128 ASCII characters from
+`a-z`, `0-9`, `.` and `-`; the extension/Ready bound is 16,384 bytes. Trailing
+bytes, duplicates, malformed UTF-8, unsupported versions and unsolicited agreements
+are ProtocolViolation; the client discards a failed handshake's transport.
+
+`ProtocolMessageFamily` registers immutable capability descriptors alongside model
+identifiers. A model capability begins with its lowercase family name and a dot;
+it can gate only that family's identifiers. `ProtocolChannel.Negotiate` selects
+the intersection, and `SetAgreement` applies it exactly once. Read and write gates
+reject Diagnostics, and any model capability's added frames, until agreed. A
+capability may describe a payload extension with no new frame. Existing frames
+must keep their baseline encoding when the relevant capability was not agreed.
+
+### Diagnostics payload
+
+All numbers are big-endian. The payload is `i32 entryCount`, followed by entries:
+`u8 severity + string code + string message + i32 start + i32 end + i32 line`.
+Severity is Warning=1 or Error=2; other values are invalid. Both offsets are -1
+for an unlocated diagnostic, otherwise 0 <= start <= end; end is exclusive and
+line is one-based. Entry order is the producer's source order. The maximum is
+4,096 entries and 1,048,576 encoded bytes. Counts, truncation, invalid strings,
+invalid spans/lines, trailing bytes and size violations throw ProtocolException,
+translated by the endpoint/client to ProtocolViolation. Outbound overflow follows the explicit prefix-and-notice policy below.
+
+Outbound SQL and Graph diagnostics are preflighted before any result or Error output.
+If the filtered Warning/Error list exceeds 4,096 entries or 1,048,576 encoded bytes,
+the endpoint retains the longest leading prefix that fits both limits with a final
+Warning notice, code COHDBP001. The notice counts toward both limits and states the
+retained count, original filtered count and omitted count. Once an entry does not fit,
+it and every following entry are omitted, even if a later entry would fit. Entries
+are never shortened. A 4,097-entry list of small diagnostics therefore keeps the first
+4,095 and the notice; a first entry larger than the byte limit leaves only the notice.
+The original failure still sends exactly one Error with its original error category
+and message. Success still sends its result and normal completion with the bounded
+warning list. Overflow alone never terminates the session or changes transaction state.
+Malformed incoming diagnostic frames remain fatal protocol violations.
+
+Null diagnostic codes and messages encode as zero-length strings; zero-length strings
+decode as null. An empty diagnostic code is never a valid code. Unlocated offsets
+remain null. Ready.Capabilities and Diagnostics.Entries reject null at construction
+and through init/with assignment. Capability-name byte lengths are checked against
+the 128-character ASCII bound before decoding or allocating a name string.
+
+Protocol owns ProtocolDiagnostic and ProtocolDiagnosticSeverity with no Language
+or Types reference. Servers translate their carrier; the shared client maps the
+wire values into the existing DatabaseException.Diagnostics collection. Success
+result objects expose the ProtocolDiagnostic values directly. Codecs use checked
+span reads and static encoding, with no reflection or runtime discovery.
+
 
 ## Sources
 

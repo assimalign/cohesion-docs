@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. Phase 22 measures 33 of 49 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 51 of 57 declared language clauses against the live engine.
 
 ## Language reference
 
@@ -11,16 +11,44 @@ expressions, functions, types, and diagnostics. Start with
 [SELECT](language/statements/select.md) for a fixture and complete typed-client query example.
 
 The measured surface includes table and index data definition language (DDL), row mutations,
-session transactions, column constraints, and queries over one stored table, one virtual
-system relation, or exactly two stored tables joined with `INNER JOIN ... ON`.
+session transactions, column constraints, and queries over stored tables and virtual system
+relations with N-way [INNER, LEFT, CROSS and comma joins](language/clauses/join.md).
+INNER/LEFT accept ON or USING; USING merges each named pair into one common-typed visible column.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
-collation, and bounded uncorrelated subqueries. `INSERT ... SELECT` uses transactional destination
+collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
 
-The 33-of-49 measure is not a percentage of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the excluded 16 named clauses and the further
-boundaries inside supported clauses. Later comparison work is documented in
-[Operators and predicates](language/expressions/operators.md).
+[Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
+correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values.
+[WITH](language/clauses/with.md) defines non-recursive query relations before SELECT, INSERT,
+UPDATE or DELETE. Outer ordering over derived outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
+generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
+
+[ON CONFLICT](language/clauses/on-conflict.md) executes DO NOTHING or targeted DO UPDATE SET/WHERE
+with EXCLUDED over VALUES, DEFAULT VALUES and query sources. RETURNING includes inserted/updated
+rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or updates the newest
+committed row. Multi-row UPDATE checks foreign keys against its
+[final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
+
+The 51-of-57 measure is not a percentage of complete SQL. The
+[unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
+boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
+describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
+
+[EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
+[CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
+[DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
+share the same behavior in process and through the supported wire codecs.
+
+[ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
+SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
+execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
+SQL storage format is 25; compiled schemas remain version 7.
+
+[Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
+with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
+returns direct write rows and affected counts. [ORDER BY](language/clauses/order-by.md) supports
+NULLS FIRST/LAST in every ordering position.
 
 ## Package responsibilities
 
@@ -68,7 +96,18 @@ usable session. Protocol errors close it. There is no pipelining or multiplexing
 Transactions use `BEGIN`, `COMMIT`, and `ROLLBACK` on one connection rather than a separate
 wire transaction payload.
 
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
+
 ## See also
+
+[CREATE SCHEMA](language/statements/create-schema.md) and [DROP SCHEMA](language/statements/drop-schema.md)
+manage persisted namespaces. dbo is seeded and protected; code-first provisioning stays in dbo.
+[Set operations](language/clauses/set-operations.md) compose query bodies in every query position.
 
 [Database](../index.md) · [Overview](../overview.md) · [Database .NET APIs](../../dotnet-apis/resources/database/index.md)
 

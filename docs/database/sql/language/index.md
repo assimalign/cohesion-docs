@@ -2,7 +2,7 @@
 
 Reference for Cohesion's declared SQL dialect and its measured execution boundaries.
 
-> **Status:** Partial. Phase 22 measures 33 of 49 declared clauses against the live engine.
+> **Status:** Partial. The profile measures 51 of 57 declared clauses against the live engine.
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
@@ -18,7 +18,8 @@ restrictions on their reference pages.
 The [Statements](statements/index.md) section groups data definition language (DDL), data
 manipulation language (DML), and transaction control.
 
-- **DDL** — [CREATE TABLE](statements/create-table.md), [ALTER TABLE](statements/alter-table.md),
+- **DDL** — [CREATE SCHEMA](statements/create-schema.md), [DROP SCHEMA](statements/drop-schema.md),
+  [CREATE TABLE](statements/create-table.md), [ALTER TABLE](statements/alter-table.md),
   [DROP TABLE](statements/drop-table.md), [CREATE INDEX](statements/create-index.md), and
   [DROP INDEX](statements/drop-index.md).
 - **DML** — [SELECT](statements/select.md), [INSERT](statements/insert.md),
@@ -26,17 +27,24 @@ manipulation language (DML), and transaction control.
 - **Transactions** — [BEGIN](statements/begin-transaction.md),
   [COMMIT](statements/commit-transaction.md), and [ROLLBACK](statements/rollback-transaction.md).
 
+[EXPLAIN](statements/explain.md) describes SELECT/INSERT/UPDATE/DELETE without execution.
+
+- **Views** — [CREATE [OR REPLACE] VIEW](statements/create-view.md) and [DROP VIEW](statements/drop-view.md).
+- **Write results** — [INSERT/UPDATE/DELETE RETURNING](clauses/returning.md) returns rows and affected counts.
+- **Conflicting inserts** — [ON CONFLICT](clauses/on-conflict.md) skips conflicts or updates the newest eligible row with EXCLUDED.
+
 ## Clauses
 
 The [Clauses](clauses/index.md) section describes binding and execution rules.
 
-- **Sources and filtering** — [FROM](clauses/from.md), [JOIN](clauses/join.md), and
+- **Sources and filtering** — [WITH](clauses/with.md), [FROM and derived tables](clauses/from.md), [JOIN](clauses/join.md), and
   [WHERE](clauses/where.md).
 - **Grouping** — [GROUP BY](clauses/group-by.md) and [HAVING](clauses/having.md).
+- **Set operations** — [UNION, INTERSECT and EXCEPT](clauses/set-operations.md), with ALL/DISTINCT in every query position.
 - **Result shaping** — [ORDER BY](clauses/order-by.md), [LIMIT/OFFSET](clauses/limit-offset.md),
   [DISTINCT](clauses/distinct.md), and [COLLATE](clauses/collate.md).
 - **Writes and defaults** — [VALUES](clauses/values.md), [SET](clauses/set.md), and
-  [DEFAULT](clauses/default.md).
+  [DEFAULT](clauses/default.md); [IDENTITY](clauses/identity.md) generates integer column values.
 
 ## Expressions
 
@@ -44,6 +52,8 @@ The [Expressions](expressions/index.md) section covers the executable scalar sub
 
 - **Computation** — [Operators and predicates](expressions/operators.md),
   [CASE](expressions/case.md), and [CAST](expressions/cast.md).
+- **Predicates** — [NULL-safe distinct tests, Boolean tests and LIKE ESCAPE](expressions/operators.md)
+  follow PostgreSQL precedence, with eager invalid-escape diagnostics.
 - **Nested queries** — [Subqueries](expressions/subqueries.md).
 - **Values and names** — [Literals and identifiers](expressions/literals.md) and
   [Parameters](expressions/parameters.md).
@@ -53,7 +63,9 @@ The [Expressions](expressions/index.md) section covers the executable scalar sub
 The [Functions](functions/index.md) section separates execution support from lexical recognition.
 
 - **Aggregation** — [Aggregate functions](functions/aggregate-functions.md).
-- **Scalar calls** — [Builtin functions](functions/builtin-functions.md).
+- **Scalar calls** — [42 T1 builtin names](functions/builtin-functions.md), with planning-time signatures,
+  transaction-start clocks and bounded string results.
+- **Temporal operators** — [Day-time INTERVAL arithmetic](expressions/operators.md#temporal-arithmetic).
 
 ## Types and constraints
 
@@ -65,7 +77,7 @@ The [Functions](functions/index.md) section separates execution support from lex
 The [System views](system-views/index.md) section lists all supported metadata columns.
 
 - **[INFORMATION_SCHEMA](system-views/information-schema.md)** — The standard metadata subset.
-- **[COHESION_SCHEMA](system-views/cohesion-schema.md)** — Index and ownership extensions.
+- **[COHESION_SCHEMA](system-views/cohesion-schema.md)** — Index, ownership, function and type extensions.
 
 ## Errors and exclusions
 
@@ -84,4 +96,3 @@ typed-client program.
 - **Profile and vocabulary** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlLanguageProfile.cs`
 - **Parser architecture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

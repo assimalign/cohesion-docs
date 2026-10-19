@@ -1,25 +1,57 @@
 # GraphQueryRequest
 
-The `GraphQueryRequest` type is part of the documented `Assimalign.Cohesion.Database.Graph` API.
-
-> **Status:** Partial.
-
-A parsed, database-scoped GQL statement.
-
 Namespace: `Assimalign.Cohesion.Database.Graph`.
 
-## Documented behavior
+## Signature
 
-- **`GraphQueryRequest.FromGql(text)`** — parses a request and throws `DatabaseParseException` for an
-  error diagnostic. `IDatabaseSession.ExecuteAsync(string)` uses the same parser.
+```csharp
+public sealed class GraphQueryRequest : GraphRequest
+{
+    public GraphQueryRequest(GqlQueryStatement statement,
+        IReadOnlyDictionary<string, object?>? parameters = null);
+    public static GraphQueryRequest FromGql(string gql,
+        IReadOnlyDictionary<string, object?>? parameters = null);
+}
+```
+
+## Behavior and exceptions
+
+Statement and Parameters are inherited from GraphRequest. Parameters bind case-sensitive bare
+names in WHERE, RETURN and property maps, retaining runtime scalar, list and map types. Missing/colliding/unsupported
+values fail planning with COHDBG001/014/003, including under EXPLAIN. Unused values are ignored.
+Embedded row requests support scalar/entity/path projections, standalone RETURN, SHOW, EXPLAIN
+and mutations. RETURN supports expressions, aliases, ALL/DISTINCT and star. Duplicate final
+column names fail COHDBG015 before reads/writes, including empty matches and EXPLAIN; no SQLSTATE
+is assigned. Only the wire Execute exchange accepts scalar and negotiated composite columns: it rejects entity
+results before reads or mutation and directs callers to ExecutePaths. EXPLAIN remains scalar.
+
+Null statements throw ArgumentNullException. FromGql rejects blank text with ArgumentException,
+parser errors with DatabaseParseException carrying complete diagnostics, and exhausted parsing
+stack with DatabaseException COHDBG008 (SQLSTATE 54001). A graph session accepts both leaves via
+DatabaseLanguageSession<GraphRequest>; other models' requests do not compile.
+
+Referenced list/map parameter trees are snapshotted once per execution, with depth 64, 65,536
+values including root and 16 MiB encoded bytes. Invalid dimensions/cycles/leaves or bounds use
+COHDBG003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
+use [GraphValueCodec](graph-value-codec.md) only when graph.composite-values is negotiated;
+path payloads are unchanged. Unused values remain ignored by engine planning.
+
+## Example
+
+```csharp
+var request = GraphQueryRequest.FromGql(
+    "MATCH (n:P {name:$name}) RETURN n.name",
+    new Dictionary<string, object?> { ["name"] = "Ada" });
+var result = await session.ExecuteAsync(request, CancellationToken.None);
+// Matches the stored Ada node, with scalar row results.
+```
 
 ## Related reference
 
-- **Assembly** — [`Assimalign.Cohesion.Database.Graph`](index.md).
-- **Design** — [Lifetime and implementation decisions](design.md).
-- **Examples** — [Source-backed usage](examples/index.md).
+[GraphRequest](graph-request.md) · [Assembly](index.md) · [GQL parameters](../../../../database/graph/language/expressions/parameters.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphQueryRequest.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphQueryRequest.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

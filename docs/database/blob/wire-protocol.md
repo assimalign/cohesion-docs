@@ -2,7 +2,7 @@
 
 Blob uses the shared database envelope with a fixed endpoint message family and bounded content chunks.
 
-> **Status:** Implemented. The documented wire version is 1.0.
+> **Status:** Implemented. Shared startup negotiates protocol 2.1; Blob model payloads retain their baseline layout.
 
 `BlobProtocol.Family` binds a `ProtocolChannel` to Blob for its whole lifetime. The endpoint
 selects the model before startup; startup has no model discriminator. The database selected
@@ -30,17 +30,18 @@ In the table, `text` means a signed 32-bit UTF-8 byte length followed by those b
 
 | Identifier | Message | Payload |
 |---|---|---|
-| 1 | `Startup` | Unsigned 16-bit major, unsigned 16-bit minor, `text database`, `text principal` |
+| 1 | `Startup` | Unsigned 16-bit major, unsigned 16-bit minor, `text database`, `text principal`; optional 2.1 capability count/names |
 | 2 | `Authenticate` | Empty for the trust handshake |
 | 3 | `AuthenticateResponse` | Opaque authenticator evidence; empty for trust |
-| 4 | `Ready` | Empty in version 1.0 |
+| 4 | `Ready` | Empty for negotiated 2.0; version/capabilities in 2.1 |
 | 10 | `Error` | Unsigned 16-bit code, `text message` |
 | 11 | `Ping` | Empty |
 | 12 | `Pong` | Empty |
 | 13 | `Terminate` | Empty |
 
-Version negotiation rejects a major other than 1 and selects the minimum peer/server minor.
-Version 1.0 `Ready` contains no negotiated-version field. `Ping` and `Pong` are available
+Version negotiation rejects a major other than 2 and selects the minimum peer/server minor.
+Negotiated 2.0 uses empty Ready. Protocol 2.1 returns the version and an empty capability list for
+Blob; the model does not adopt Diagnostics. Different majors are refused. `Ping` and `Pong` are available
 between operations.
 
 ## Blob messages

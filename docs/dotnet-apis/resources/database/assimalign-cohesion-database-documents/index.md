@@ -8,13 +8,24 @@
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[DocumentDatabaseServer](document-database-server.md)** and [options](document-database-server-options.md).
+- **[DocumentProtocol](document-protocol.md)** — Messages 64–72 and codec references.
+- **[DocumentDuplicateKeyException](document-duplicate-key-exception.md)** — Insert-only duplicate keys.
+- **[DocumentProtocolCollectionMessage](document-protocol-collection-message.md)** — Wire payload codec.
+- **[DocumentProtocolCommandMessage](document-protocol-command-message.md)** — Wire payload codec.
+- **[DocumentProtocolCompleteMessage](document-protocol-complete-message.md)** — Wire payload codec.
+- **[DocumentProtocolExecuteMessage](document-protocol-execute-message.md)** — Wire payload codec.
+- **[DocumentProtocolFailureMessage](document-protocol-failure-message.md)** — Wire payload codec.
+- **[DocumentProtocolResultHeaderMessage](document-protocol-result-header-message.md)** — Wire payload codec.
+- **[DocumentProtocolResultMessage](document-protocol-result-message.md)** — Wire payload codec.
+- **[DocumentProtocolStoredDocumentMessage](document-protocol-stored-document-message.md)** — Wire payload codec.
 
 `Assimalign.Cohesion.Database.Documents` implements named logical databases containing versioned
 UTF-8 JSON documents. Each session is bound to one database. The engine supports document CRUD, an
-explicit OQL query and index-DDL subset, secondary B+Tree indexes, snapshot and read-committed
+OQL SQL++ query, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL subset, secondary B+Tree indexes, snapshot and read-committed
 transactions, and durable file or in-memory storage.
 
-The public entry point is `DocumentDatabaseEngine.Create(options)`. Cast a created database to
+The public entry point is `DocumentDatabaseEngine.Create(name, options)`. Cast a created database to
 `IDocumentDatabase`, create a collection, and use a session with the existing `IDocumentCollection`
 methods. `session.Database` carries collection changes into the session transaction. `Index`
 definitions are changed with OQL on the session, using its active transaction or an automatic

@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The key-value engine (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.3, generality report §3.10): an ordered key space
+(`cohesion/docs/resources/Database/DESIGN.md`) `3.3, generality report `3.10): an ordered key space
 over the shared kernel, and the **second model engine** — built deliberately as the proof that the
 kernel is model-general, not SQL-shaped.
 
@@ -89,7 +89,7 @@ the one-sequence-namespace pairing, and the per-statement bracket/apply-gate mod
     same taxonomy as SQL. Rejected alternative: throwing on CAS misses (an
     exception storm on a hot upsert path) or folding conflicts into
     `applied=false` (hides real contention and breaks retry semantics).
-- **Transactions.** Identical binding to the SQL engine's (§3.8): per-database
+- **Transactions.** Identical binding to the SQL engine's (`3.8): per-database
   `Database.Transactions.TransactionCoordinator` (manager + lock manager + record-space
   version store + gated journal-bound log, one sequence namespace with storage),
   explicit transactions and auto-commit both ride manager contexts, `Snapshot`
@@ -182,7 +182,7 @@ duplication is the owner's decision (2026-07-14), made with this model's extract
 hand:** the extraction into a shared `Database.Server` was executed and then reversed on review —
 model independence outweighs the duplication/drift cost, and wire-behavior parity is held by the
 protocol contract plus each model's E2E suite, not by shared code (the preserved
-prediction-vs-evidence table and the full placement history live in the area `DESIGN.md` §3.10 and
+prediction-vs-evidence table and the full placement history live in the area `DESIGN.md` `3.10 and
 decision log). The copy is textually near-identical to `Database.Sql` 's today; divergence over time
 is sanctioned — that is the point. The pump passes the protocol's existing Execute message to the internal `ExecuteCommandTextAsync` entry, and the model's
 result sets ride the generic result framing (`ResultComplete` carries the set's real `AffectedCount`
@@ -226,7 +226,7 @@ request whose storage does not exist; `DatabaseParseException` for grammar viola
 /`DatabaseTransactionDeadlockException` (retryable) for MVCC conflicts — kernel exceptions are
 translated at the model boundary, never leaked raw.
 
-## Shared MVCC composition (#918 — area DESIGN §3.10)
+## Shared MVCC composition (#918 — area DESIGN `3.10)
 
 `TransactionCoordinator` and `RecordSpaceVersionStore` now live in the existing
 `Database.Transactions` child root. `KeyValueTransactionRecordSpace` supplies entry reads,
@@ -276,7 +276,7 @@ This package owns the KeyValuePair request and tabular result codecs; the shared
 only mechanism. Wire format
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/WIRE-PROTOCOL.md`)
 specifies every message and scalar component for independent clients. The server binds
-`KeyValueProtocol.Family` once on accept, retains wire version 1.0 and the existing bytes, and
+`KeyValueProtocol.Family` once on accept, negotiates shared protocol 2.1 while preserving baseline model bytes, and
 negotiates incompatible majors before authentication. Result materialization belongs to
 `Database.KeyValuePair.Client`. Transport listeners remain supplied through generic
 IDuplexConnectionListener.
@@ -366,6 +366,14 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## T1 transport contract
+
+All parser refusals carry COHKV001–018; uncoded execution failure uses COHKV019. The existing Error
+payload contains CODE: message. Parse/Execution failures preserve session readiness. Protocol 2.1
+agrees an empty capability list; 2.0 retains empty Ready. Core Diagnostics is rejected in either
+direction. The complete [Key-Value codes](../../../../database/key-value-pair/diagnostics.md) map
+each refusal to its condition.
 
 ## Sources
 

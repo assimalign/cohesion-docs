@@ -81,6 +81,23 @@ Collections created by these APIs have `DatabaseObjectOwner.Adhoc`. A collection
 
 ## OQL query and DDL semantics
 
+### SQL++ scalar functions
+
+The parser, profile and evaluator share [OqlFunctions](../assimalign-cohesion-database-documents-language/oql-functions.md),
+with 34 scalar functions alongside META and five aggregates. See the [scalar reference](../../../../database/document/language/functions/scalar-functions.md)
+for signatures, examples and NULL/MISSING rules. Calls validate every argument/context before reads;
+lazy conditionals evaluate only through their selected argument. Functions are not index seek bounds.
+String indexing counts code points. Constructed strings/work buffers cap at 1,048,576 UTF-16 units.
+ROUND uses exact digits once, including at negative scales. SQRT and fractional POWER calculate in
+double and convert through round-trip text to Decimal. Function domain failures use COHDOC019
+(no assigned SQLSTATE); overflow/string limits use COHDOC007 (22003).
+
+Each explicit transaction captures one UTC clock instant, reused by NOW_STR/NOW_MILLIS across
+statements; autocommit captures one per statement. Strings use yyyy-MM-ddTHH:mm:ss.fffZ.
+COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond calls use Int64/long, including
+empty grouped metadata and wire results. Mixed numeric columns promote to Decimal; heterogeneous
+columns normalize numeric cells to Decimal for embedded/client agreement.
+
 ### Catalog introspection
 
 Collections are already discoverable through `GetCollectionsAsync` and `GetCollectionAsync`. OQL
@@ -88,7 +105,7 @@ adds only the catalog facts those handles do not expose, through two virtual doc
 
 | Source | `Document` properties | Cardinality |
 | --- | --- | --- |
-| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `IS_UNIQUE` | One document per visible index definition; `IS_UNIQUE` is Boolean false for the current nonunique indexes |
+| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; PATHS is the ordered array, PATH its first path and IS_UNIQUE the actual flag |
 | `COHESION_SCHEMA.OBJECT_OWNERSHIP` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` | One document per visible collection; `OBJECT_TYPE` is `COLLECTION` |
 
 `COLLECTION_CATALOG` is the bound database name. `OWNER` preserves SQL's `Adhoc` and `Schema`
@@ -126,16 +143,15 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation. OQL document `INSERT`, `UPDATE`, and `DELETE` remain unsupported
-everywhere and return the existing `COHDBL001` parse diagnostic. Virtual sources do not provide
+catalog lookup or mutation with COHDOC004. OQL INSERT, UPSERT, UPDATE and DELETE execute for stored collections; system targets use COHDOC004. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
 
 The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
-GROUP BY, HAVING, ORDER BY, CREATE INDEX, and DROP INDEX are executed; DEFINE, ELEMENT, FLATTEN,
-nested queries, document data-mutation statements, and server statements are rejected with
+GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
+and database administration statements are rejected with
 `COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
 
@@ -148,13 +164,27 @@ reflection, schema inference, or runtime code generation is involved. Query JSON
 same 128-level nesting limit as storage validation and index extraction, so every accepted document
 can be queried at its stored depth.
 
-Absent fields, paths through an incompatible shape, and out-of-range array indexes evaluate to null.
-Null and missing share the same group and `IS NULL` behavior. Ordinary comparison with null is
-unknown; WHERE/HAVING retain only true predicates. Equality compares scalar values and structurally
+SELECT supports ALL/DISTINCT and VALUE/RAW through [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md).
+VALUE/RAW produces one bare `value` column and normalizes a root MISSING to NULL before DISTINCT,
+projected ordering and completion counting. Named projections omit MISSING object members; array
+elements become JSON null. DISTINCT uses grouping's structural collation, retains the first value,
+and runs after projection and before ordering. Ordering outside the projection after alias rewriting
+is `COHDOC014` (no SQLSTATE). SELECT constructors allow 256 result levels, including nested
+parameters/stored values and a named wrapper; exceeding this is `COHDOC015` at the constructor
+(no SQLSTATE). INSERT retains its 128-level JSON limit and `COHDOC008`.
+
+The internal DocumentRowWriter maps every result to one JSON value on every transport: named lists
+become objects, VALUE/RAW stays bare, mixed star becomes a `document` member and lone star preserves
+stored bytes through DISTINCT and ordering. Bare GetBytes(0) returns JSON bytes, named strings
+unquoted UTF-8 and named NULL/MISSING empty memory. See [SELECT](../../../../database/document/language/statements/select.md).
+
+Absent fields, incompatible traversal, navigation through NULL and out-of-range indices produce
+MISSING. NULL and MISSING have separate grouping and presence tests. WHERE/HAVING use the common
+SQL++ truth conversion, retaining nonzero numbers and nonempty values as TRUE. Equality compares scalar values and structurally
 compares arrays/objects. Range predicates compare only values of the same scalar kind. Arithmetic
 requires decimal operands; invalid numeric input and division by zero fail explicitly.
 
-COUNT(*) counts documents; COUNT(expression) counts nonnull values. SUM and AVG require numeric
+COUNT(*) counts input rows, including expanded UNNEST rows; expression aggregates skip both NULL and MISSING. COUNT(expression) counts present nonnull values. SUM and AVG require numeric
 nonnull inputs. SUM, AVG, MIN, and MAX over no nonnull inputs return null; COUNT returns zero.
 Ungrouped aggregate queries yield a single group even for an empty source. Outside aggregate calls,
 grouped projection, HAVING, and ORDER BY expressions must be a group key or an expression built from
@@ -163,7 +193,7 @@ types, and treats qualified and unqualified paths to the same iteration variable
 `Group` values compare structurally.
 
 Results are deterministic. A scan and an index seek both establish ordinal document-ID order before
-filtering and projection. GROUP BY uses the total order null, Boolean, decimal, ordinal string,
+filtering and projection. GROUP BY uses the total order MISSING, NULL, Boolean, decimal, ordinal string,
 array, object. Arrays compare element by element; objects compare property names in ordinal order
 and their values. ORDER BY accepts source expressions or a standalone explicit projection alias;
 alias names take precedence over source fields for that standalone form. It compares its expressions
@@ -171,9 +201,18 @@ and preserves the established order for ties. This baseline makes identical data
 identical sequences across access paths. Query results are materialized and own their JSON values;
 they do not retain a transaction or borrowed storage memory after execution.
 
+## Result paging
+
+[OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
+carries Limit and Offset. Planning checks nonnegative Int64 counts before collection lookup,
+including EXPLAIN/direct AST calls. Invalid counts, including NULL, use OQL0007; missing parameters
+retain COHDOC005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
+pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes only the page.
+
 ## `Index` planning and writes
 
-`CREATE INDEX <index-name> ON <collection> (<path>)` and `DROP INDEX <index-name> ON <collection>`
+`CREATE [UNIQUE] INDEX [IF NOT EXISTS] <index-name> ON <collection> (<path>, ...)` and
+`DROP INDEX [IF EXISTS] <index-name> ON <collection>`
 are OQL statements. `DocumentPlanner` binds them to catalog-operation plans and
 `DocumentPlanExecutor` executes those plans under the statement's `ITransactionContext`. This
 replaces the former extension-member entry point and leaves the frozen `IDocumentDatabase` member
@@ -196,14 +235,21 @@ Successful index DDL returns a command `DatabaseResult` with `Success` status an
 zero; index definition changes are not document-row mutations.
 
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
-values, reversed operands, and conjunctive bounds. Equality is preferred over a range; ties choose
-ordinal index name. The executor reapplies the full predicate to candidates, preserving mixed-shape
+values, reversed operands, and conjunctive bounds. Choice ranks longest leading equality prefix,
+then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](../assimalign-cohesion-database-documents-catalog/design.md) for
-supported scalar keys, visibility filtering, and restart recovery.
+composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
+records use v2; v1 indexes are refused before recovery writes with a recreate remedy and no upgrade.
+UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
+DocumentConstraintViolationException/COHDOC020 (23505); array/object components use COHDOC021.
+Direct path counts outside 1..32 use COHDOC022. Constraints are immediate per row; failed explicit
+transactions require RollbackAsync. Conditional CREATE keeps any same-named definition; conditional
+DROP ignores an absent index. Snapshot conflicts precede no-ops; an existing schema-owned index
+still refuses DROP. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
 
 ## Data mutation and serialization semantics
 
-OQL now includes index DDL but no document data-mutation clauses. The existing collection API
+OQL INSERT provides insert-only VALUES/SELECT writes with duplicate-key diagnostics. The collection API
 provides deterministic mutation semantics: Put replaces the complete JSON value by ordinal identity,
 `Delete` removes that identity, and each operation either completes in its transaction or rolls back.
 Put captures caller memory before awaiting and returns a new version. An optional expected version
@@ -211,12 +257,39 @@ must match an existing visible document; mismatch fails. Versions use the durabl
 allocator, are strictly increasing for successful writes, and may have gaps. `Delete`/reinsert and
 restart never reuse an old version.
 
+[OQL DELETE](../../../../database/document/language/statements/delete.md) chooses the same scan/seek
+as a SELECT filter, reapplies its full predicate and collects matching snapshot identities before
+the first write. META remains a residual filter. The shared delete primitive checks writer and
+snapshot conflicts, tombstones content and removes catalog/index entries in one transaction.
+Rollback restores both documents and index visibility; older snapshots can still read deleted
+documents. A later conflict rolls back earlier deletions; failure in an explicit transaction aborts
+all its work. No WHERE deletes every document while retaining the collection and index definitions.
+Schema ownership permits content deletion, system sources use COHDOC004 and absent targets COHDOC002.
+Success reports deleted count with no Document frames. No format or protocol version changes.
+
 Nested objects, arrays, and scalar roots are accepted. JSON validation and exact byte-preservation
 rules are specified in the
 [storage format](../assimalign-cohesion-database-documents-storage/design.md) . Adding/removing
 fields and changing a scalar's type are supported complete-document replacements. They need no
 compiled schema migration and update indexes in the same transaction. The new shape can change
 predicate membership and projection types by the explicit mixed-shape rules above.
+
+## Partial updates
+
+[OQL UPDATE](../../../../database/document/language/statements/update.md) freezes candidates and every
+SET value from the statement snapshot before writing. It reapplies the full filter after any index
+seek. SET/UNSET changes content, versions and indexes atomically; failure rolls back the statement or
+aborts the entire explicit transaction. Every match gets a higher version, including an unchanged
+match. Completion reports the matched count without Document frames. EXPLAIN adds an Update root
+and scan/seek child. No storage or protocol version changes.
+
+Untouched property names and values retain their original UTF-8 bytes. Whitespace around rewritten
+container members can normalize; surviving members keep order and new members append in target
+order. Missing objects can be created for SET. Every index requires an existing in-range array,
+including removal paths beneath missing members. UNSET of an absent member is a no-op; UNSET cannot
+end in an index. SET-to-MISSING removes object members or writes null to existing array elements.
+COHDOC016 identifies invalid targets/shapes, COHDOC017 normalized duplicate/prefix overlaps and
+COHDOC018 invalid stored JSON or a patched depth beyond 128. No SQLSTATE is assigned to these codes.
 
 ## Lifecycle and durability
 
@@ -238,8 +311,8 @@ Memory-backed databases use the identical storage/transaction implementation ove
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, subquery, external sort, document protocol server/client, replication, security,
-hosting wiring, ApplicationModel integration, or compiled-schema provisioning.
+model, join, subquery or external sort. Document server/client and hosting composition execute;
+replication and model-specific security remain outside this surface.
 
 Co-located tests cover nested/mixed JSON, expected-version writes, explicit commit and rollback,
 both isolation levels, cross-database/session guards, direct-marked schema ownership,
@@ -258,80 +331,24 @@ transaction coordinator flushes logical document commits synchronously in both s
 logical commit batching is not claimed. The WAL flush worker remains the engine-owned implementation
 of the shared storage flush duty.
 
-## `Document` wire family
+## Document wire family and server
 
-`DocumentProtocol.Family` contributes the Documents message vocabulary to the shared
-`ProtocolChannel`. The channel is permanently bound to this family at the endpoint; neither a
-request nor the startup payload can change the model. The shared package owns framing, startup,
-authentication, errors, liveness and termination. Documents owns OQL requests, JSON parameter
-objects and JSON results. This mirrors the shared lexer/parser mechanism and model language profile.
-There is no document server or document client in this increment. The public family and codecs are
-the surface for that work. `DocumentProtocolTests` exercises a complete startup/authentication, OQL
-request, engine execution, nested result and termination exchange over `Connections.InMemory`.
+[DocumentProtocol](document-protocol.md) binds messages 64–72 to one Documents endpoint.
+[DocumentDatabaseServer](document-database-server.md) serves OQL and document/collection commands;
+[DocumentClient](../assimalign-cohesion-database-documents-client/document-client.md) rents authenticated
+connections. Shared protocol 2.1 negotiates startup; Documents retains Failure for structured errors.
 
-The envelope remains protocol **1.0**: unsigned 32-bit big-endian payload length, one message-type
-byte, then exactly that many payload bytes. The length excludes the five-byte header and is at most
-16,777,216. Shared codes 1–4 and 10–13 retain their meaning; 14–63 are reserved. The Documents
-endpoint admits only its family below and the shared codes. Code 64 on another model's endpoint
-belongs to that endpoint's vocabulary. A channel and a client pool cannot switch families. Unknown
-major versions are rejected with shared `UnsupportedVersion`; the negotiated minor is the smaller
-supported/requested minor. No deployed SQL or `Key`-Value frame changes.
+ResultHeader precedes Document objects (whole source values or projections with omitted MISSING),
+then Complete with two Int64 fields: result count and affected count. ResultRow 68 is retired.
+Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
+and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
+payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
+COHDOC001–022, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
+SELECT constructor depth, UPDATE target/overlap/stored-JSON failures and scalar domain errors.
 
-All lengths and counts below are signed big-endian integers. A string is an `int32` byte length
-followed by that many UTF-8 bytes; a negative length is invalid. No padding is present.
-
-| Byte | Direction | Payload |
-| --- | --- | --- |
-| 64 (`Execute`) | Client → server | Statement string; `int32` parameter-byte length; exactly that many UTF-8 JSON bytes containing one object |
-| 65 (`Document`) | Server → client | Exactly one complete UTF-8 JSON value occupying the entire payload, with no inner length prefix |
-| 66 (`Complete`) | Server → client | Exactly eight bytes: nonnegative `int64` count of `Document` frames emitted for this request |
-
-Payload offsets are zero-based and exclude the shared five-byte frame header. `For` `Execute`, bytes
-0–3 are the signed 32-bit big-endian statement byte length `S`; the `S` UTF-8 statement bytes begin
-at byte 4; bytes `4 + S` –`7 + S` are the signed 32-bit big-endian parameter byte length `P`; and
-the `P` JSON-object bytes begin at byte `8 + S` and consume the rest of the payload. A `Document`
-payload is its complete JSON value from byte 0 through the payload end, without an inner length. A
-`Complete` payload has one exact fixed layout: bytes 0–7 (bits 0–63) are the nonnegative signed
-64-bit result count in big-endian order, and no bytes follow it. The packet view below shows that
-exact fixed `Complete` layout; the variable-length `Execute` and `Document` layouts remain in prose.
-
-```mermaid
-packet-beta
-0-63: "Result count (nonnegative i64, big-endian)"
-```
-
-Parameters are named object members and may themselves contain nested values. An empty parameter set
-is `{}`. A result can be an object, array, string, number, Boolean or null; absent properties stay
-absent. The codec preserves the original bytes, including whitespace and Unicode spelling. JSON
-comments, trailing commas, multiple top-level values, malformed UTF-8 and nesting deeper than 256
-levels are invalid. Extra bytes after the Execute parameter object or Complete count are protocol
-violations. Objects and arrays stay intact; there is no schema header or positional field
-vocabulary.
-
-After the shared Ready message the client sends one Execute and waits for zero or more `Document`
-messages followed by exactly one Complete. A shared Error instead terminates the current exchange;
-no Complete follows it. Statements are serialized on a connection. An empty result has Complete
-count zero. The family does not fragment an individual JSON value: each result must fit one frame;
-only Blob imposes a chunked byte-stream exchange. Session implementations must verify the completion
-count against the number of results received and reject out-of-order messages.
-
-The sequence shows the model-owned result exchange within the shared session lifecycle:
-
-```mermaid
-sequenceDiagram
-    participant Client as Document consumer
-    participant Channel as Shared protocol channel
-    participant Session as Document endpoint
-    Client->>Channel: Startup / authentication
-    Channel->>Session: Shared session handshake
-    Session-->>Client: Ready
-    Client->>Session: Execute (OQL, JSON parameters)
-    loop Each matching document
-        Session-->>Client: Document (nested JSON value)
-    end
-    Session-->>Client: Complete (result count)
-    Client->>Session: Terminate
-```
+The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
+output if its reader stops. Queries and client results remain materialized; explicit wire
+transactions remain unsupported.
 
 ## Phase 29: deferred hosting composition
 
@@ -382,6 +399,32 @@ demonstrated by tests exercising the public factory through that base interface.
 | `Assimalign.Cohesion.Database.Documents.Catalog` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## UPSERT and generated JSON bytes
+
+[UPSERT](../../../../database/document/language/statements/upsert.md) shares INSERT validation and
+the Put write primitive. Inputs materialize before writes; repeated keys fail COHDOC012 with
+`Document key 'a' appears more than once in one statement.` Whole-document versions and indexes
+change atomically. Shared validation messages name INSERT or UPSERT as written.
+
+One RFC 8259 encoder supplies generated JSON bytes for INSERT, UPSERT, constructors, named
+projections and bare VALUE/RAW rows across in-process, InMemory and TCP paths. Unicode, HTML
+characters and U+2028/U+2029 remain literal UTF-8. Quotes, backslashes and controls escape.
+Raw stored/lone-star bytes retain their exact representation. See [JSON bytes](../../../../database/document/language/statements/select.md#json-bytes).
+
+## Array bindings and predicates
+
+[UNNEST/LEFT UNNEST](../../../../database/document/language/clauses/unnest.md) expands arrays before
+WHERE and preserves document-ID/array order. LEFT synthesizes MISSING for empty/non-array inputs;
+star constructs owned objects keyed by binding names. Quantifiers use inner lexical scopes and
+true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
+Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
+
+FROM/UNNEST names are unique, reserving the unaliased source name (OQL0010 in text, COHDOC023
+for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
+an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
+without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
+the profile executes 31 of 32 declared clauses.
 
 ## Sources
 

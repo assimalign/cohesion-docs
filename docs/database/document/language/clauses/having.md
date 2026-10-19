@@ -24,7 +24,8 @@ HAVING predicate
 
 The Documents planner validates aggregate placement and grouping consistency. Outside aggregate
 calls, expressions must use group keys or expressions built from group keys and constants.
-Null comparisons are unknown and do not retain a group. `WHERE` filters source documents;
+NULL and MISSING conditions do not retain a group. Conditions use the
+[SQL++ truth conversion](../expressions/missing.md#boolean-contexts); nonzero COUNT(*) is true. `WHERE` filters source documents;
 `HAVING` supplies the group predicate.
 
 ## Examples

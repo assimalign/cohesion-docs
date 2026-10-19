@@ -121,6 +121,15 @@ node id). Making the reference generic (`IIndex<TReference>`) would infect every
 layout with a type parameter for zero runtime benefit — models already own both sides of the
 mapping.
 
+## Latest live-entry lookup
+
+[BTreeIndex.FindLiveEntryAsync](b-tree-index.md) returns the latest live reference for a complete
+unique key, without snapshot filtering. With the configured LockManager, it acquires the exclusive
+hashed entry lock before the tree's read latch, retaining it until transaction completion;
+pre-held locks re-grant. SQL calls it outside the physical apply gate after pre-acquiring proposal
+keys. Tombstones/rolled-back inserts return null, and rolled-back deletes restore the original
+reference. A nonunique index raises InvalidOperationException. There is no page-layout change.
+
 ## Error model
 
 `IndexException` is the package's own exception root and inherits `Exception` directly, not the

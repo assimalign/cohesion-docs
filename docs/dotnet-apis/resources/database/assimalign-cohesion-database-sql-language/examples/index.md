@@ -13,6 +13,57 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## T1 API examples
+
+[SqlLiteralText](../sql-literal-text.md) reads strict typed contents;
+[SqlTypeNames](../sql-type-names.md) resolves multi-word/national-character aliases.
+[SqlDefaultExpression](../sql-default-expression.md) and [SqlExplainExpression](../sql-explain-expression.md)
+show the landed AST forms.
+
+[SqlSelectExpression](../sql-select-expression.md), [SqlFromItem](../sql-from-item.md) and
+[SqlJoinClause](../sql-join-clause.md) inspect comma grouping and LEFT/CROSS/USING shapes from
+SqlJoinShapeTests. The [JOIN language examples](../../../../../database/sql/language/clauses/join.md#examples)
+show executed values and merged types from SqlNWayJoinTests.
+
+[SqlRelationReference](../sql-relation-reference.md#example) inspects named versus derived inputs;
+[SqlDerivedTableReference](../sql-derived-table-reference.md#example) reads query bodies and column
+renames from the parser. The [DML snapshot example](../../../../../database/sql/language/expressions/subqueries.md#update-and-delete-snapshots)
+gives UPDATE/DELETE results from SqlDmlSubqueryTests.
+
+See [SqlIdentityDefinition](../sql-identity-definition.md#example) for parser facets and
+[IDENTITY](../../../../../database/sql/language/clauses/identity.md#examples) for executed generation.
+
+[SqlAlterTableExpression](../sql-alter-table-expression.md#example) and the six linked action pages
+inspect parser payloads from SqlAlterTableParserTests. The [ALTER example](../../../../../database/sql/language/statements/alter-table.md#change-an-insert-default-without-changing-old-missing-fields)
+shows changed insert defaults, frozen values, renames and nullability with results.
+
+[SqlLanguageProfile](../sql-language-profile.md#example) inspects the executable scalar vocabulary;
+[SqlLiteralText](../sql-literal-text.md#example) parses durations used in the new temporal arithmetic.
+
+For executable paging and expression default examples, see [SqlSelectExpression](../sql-select-expression.md),
+[DEFAULT](../../../../../database/sql/language/clauses/default.md) and
+[SqlConstraintDefinition](../sql-constraint-definition.md).
+
+[SqlDistinctExpression](../sql-distinct-expression.md), [SqlBooleanTestExpression](../sql-boolean-test-expression.md),
+[SqlTruthValue](../sql-truth-value.md) and [SqlLikeExpression](../sql-like-expression.md) inspect
+the predicate nodes from SqlPredicateParserTests. The [predicate examples](../../../../../database/sql/language/expressions/operators.md)
+give executed truth tables, precedence and ESCAPE results from SqlPredicateExecutionTests.
+
+[SqlOnConflictClause](../sql-on-conflict-clause.md), [SqlOnConflictTargetKind](../sql-on-conflict-target-kind.md)
+and [SqlOnConflictAction](../sql-on-conflict-action.md) inspect SqlInsertParserTests shapes.
+[ON CONFLICT examples](../../../../../database/sql/language/clauses/on-conflict.md#examples) show
+inserted/updated/skipped results checked against SqlUpsertExecutionTests and SqlUpsertWireTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.
+
+## WITH and correlated query examples
+
+[SqlCommonTableExpression](../sql-common-table-expression.md) inspects a definition and complete
+output renames. [SqlUpdateExpression](../sql-update-expression.md) and
+[SqlDeleteExpression](../sql-delete-expression.md) show leading WITH lists and stored targets.
+[SqlSelectExpression](../sql-select-expression.md) and [SqlInsertExpression](../sql-insert-expression.md)
+expose CommonTables on the statement or insert source. These follow SqlCteParserTests and
+SqlCteExecutionTests. [Language examples](../../../../../database/sql/language/expressions/subqueries.md#correlated-dml-snapshots)
+show pre-statement correlated DML results from SqlSubqueryExecutionTests.Regression.cs.

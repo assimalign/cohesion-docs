@@ -15,7 +15,7 @@ resulting `IDatabaseTransaction` from the contract root.
 
 Readers never block writers and writers never block readers — the OLTP profile all five models
 share. Locking is retained only where MVCC cannot arbitrate: write-write conflicts, in
-`ILockManager`, with intent modes so object-level operations (drop table, reindex) coexist with
+`LockManager`, with intent modes so object-level operations (drop table, reindex) coexist with
 entry-level writes.
 
 ## A child root — no area dependency
@@ -97,6 +97,32 @@ and wait-for-graph deadlock detection: a request that would close a cycle aborts
 model and the victim is retryable by construction. Waits are `TaskCompletionSource` -based and honor
 cancellation.
 
+### Unwritten statement marks
+
+[LockManager.MarkStatement(owner)](lock-manager.md#statement-marks) returns an allocation-free
+[LockStatementMark](lock-statement-mark.md) identifying the manager, owner and grant boundary.
+ReleaseSince(mark) removes resources first granted after that boundary and wakes their FIFO
+queues without ending the owner. Re-grants and upgrades retain the resource's first grant stamp,
+so earlier resources keep every mode, including upgrades taken after the mark. Default/foreign
+marks throw ArgumentException. Callers serialize requests within an owner, release with no pending
+requests and no writes since the mark, and use marks within one transaction lifetime. An abandoned
+writer retains its grants until deferred undo completes.
+
+SQL [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries)
+releases its unwritten arbitration before a contended row wait, keeps the granted row and takes
+a new retry mark before restarting. Later back-offs retain earlier waited rows, allowing the
+waiter to progress. Successful waits retain those rows until transaction end. Preparation failure
+uses the original statement mark to release all its new grants, including retained wait rows;
+earlier grants and their upgrades survive. Once apply begins, transaction-duration locking applies.
+No heap/index or ledger mutation and no RETURNING projection precedes final apply; identities and
+non-immutable defaults may run again during restart.
+
+The ordinary wait path retains cancellation, abandonment and deadlock detection. Snapshot rejects
+a committed changed row; ReadCommitted re-arbitrates; rollback undoes stamps before release.
+Two multi-row upserts reaching keys or retained rows in opposite orders can still deadlock, as in
+PostgreSQL; the victim must roll back/retry its complete transaction. Locks from earlier transaction
+work can also participate in cycles.
+
 ## The WAL binding
 
 `Storage` owns the physical journal (`Database.Storage`); `ITransactionLog` is the *logical* seam:
@@ -150,7 +176,7 @@ this package exactly as shaped:
   embedded working state): row versions live in data pages as stamped records,
   and the store is the *ledger* of each writer's effects, which is what makes
   `PurgeWriterAsync` a physical logical-undo and `PruneAsync` a physical
-  space reclamation. `ILockManager` arbitrates row-grain write conflicts
+  space reclamation. `LockManager` arbitrates row-grain write conflicts
   (exclusive locks on row identity, intent locks at table grain for DDL — the
   B+Tree uniqueness precedent generalized), and deadlock victims cross the
   model boundary as the root's `DatabaseTransactionDeadlockException`.

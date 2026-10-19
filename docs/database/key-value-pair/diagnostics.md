@@ -4,10 +4,38 @@ Key-Value Pair distinguishes invalid commands, conditional misses, execution fai
 
 > **Status:** Implemented.
 
-The command parser raises `DatabaseParseException`; it does not assign an OQL-style or
-GQL-style diagnostic identifier. The wire uses the shared `ProtocolErrorCode` values.
+The command parser raises `DatabaseParseException` with a coded diagnostic. The wire uses the shared `ProtocolErrorCode` values.
 The typed client preserves the code in `KeyValueClientException.Code` and supplies a
 model-specific category in `KeyValueClientException.Kind`.
+
+## Diagnostic codes
+
+| Code | Meaning |
+| --- | --- |
+| `COHKV001` | Empty command |
+| `COHKV002` | Attempted catalog mutation |
+| `COHKV003` | Unknown command verb |
+| `COHKV004` | Request-constructor validation failed |
+| `COHKV005` | Invalid PUT arity |
+| `COHKV006` | PUT requires IF |
+| `COHKV007` | Invalid DELETE arity |
+| `COHKV008` | DELETE requires IF |
+| `COHKV009` | SCAN clause operand missing |
+| `COHKV010` | Repeated SCAN clause |
+| `COHKV011` | Unknown SCAN clause |
+| `COHKV012` | Byte operand required |
+| `COHKV013` | Integer etag required |
+| `COHKV014` | Nonnegative LIMIT literal required |
+| `COHKV015` | Nonnegative integer LIMIT parameter required |
+| `COHKV016` | Parameter reference required |
+| `COHKV017` | Parameter value missing |
+| `COHKV018` | Command arity mismatch |
+| `COHKV019` | Execution failure without an engine diagnostic |
+
+Parser refusals use ParseFailure and leave the session ready. Execution errors without an engine
+code use COHKV019. Wire Error text is CODE: message, with the existing layout; Key-Value does not
+negotiate the core Diagnostics capability. For example GET without its operand reports COHKV018;
+PUT KEYSPACES @value reports COHKV002. Conditional misses remain successful outcomes.
 
 ## Command failures
 
@@ -29,7 +57,7 @@ the model boundary.
 Attempts such as `PUT KEYSPACES @value` or `delete keyspaces` produce the stable message:
 
 ```text
-The KEYSPACES catalog surface is read-only.
+COHKV002: The KEYSPACES catalog surface is read-only.
 ```
 
 This check concerns the command text. A parameter-bound key containing those bytes remains
@@ -60,7 +88,7 @@ that every model path emits it; the key-value write-conflict contract uses `Exec
 
 - **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/KeyValueCommandParser.cs`.
 - **Engine errors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
-- **Wire codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/ProtocolErrorCode.cs`.
+- **Wire codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/Exceptions/ProtocolErrorCode.cs`.
 - **Client categories** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/KeyValueClientErrorKind.cs`.
 - **Client mapping** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/Exceptions/KeyValueClientException.cs`.
 - **Read-only conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIntrospectionTests.cs`.

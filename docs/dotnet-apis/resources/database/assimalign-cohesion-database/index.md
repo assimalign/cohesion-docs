@@ -18,6 +18,10 @@ child-owned vocabulary the contracts speak (`TransactionId` and `TransactionStat
 
 Database instances expose a nullable immutable `Provisioning` observation for model-owned deferred work: operation/object, step position, row progress and failure code. Hosting consumes it through the root. Application Build accepts a caller cancellation token, handed to engine factories through their application context (49a).
 
+## Reference pages
+
+- **[DatabaseException](database-exception.md)** — Public contract and usage.
+
 ## Scope
 
 - **Root bases (concrete-types plan, phases 3 and 6, #1259 and #1262)** — `DatabaseEngine`,

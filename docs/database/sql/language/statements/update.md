@@ -7,9 +7,11 @@ Changes one or more column values on rows selected from a stored table.
 ## Syntax
 
 ```syntaxsql
-UPDATE [ schema_name . ] table_name
-SET column_name = expression [ , ...n ]
+[ WITH common_table_expression [ , ...n ] ]
+UPDATE [ schema_name . ] table_name [ [ AS ] table_alias ]
+SET column_name = { expression | DEFAULT } [ , ...n ]
 [ WHERE search_condition ]
+[ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
 ```
 
@@ -21,12 +23,37 @@ SET column_name = expression [ , ...n ]
 
 ## Remarks
 
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
+
+Qualified references use the target name, or its alias when supplied. An explicit alias hides
+the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
+
+`c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
+No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
+For [BY DEFAULT identity](../clauses/identity.md), SET id = DEFAULT allocates a new value.
+ALWAYS rejects every assignment to its identity column, including DEFAULT (`COHSQLE025`);
+updates to other columns still execute.
+
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
 
-Subqueries in `UPDATE`, including its predicate, and `RETURNING` report `COHDBL001`.
-Changing a referenced parent key may fail foreign-key enforcement; `ON UPDATE` actions are not
-implemented. Row updates remain available on schema-owned tables even though session DDL is restricted.
+Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+execute in WHERE over the pre-statement snapshot, including the target table and the session's
+earlier uncommitted changes. Independent children materialize once; correlated children evaluate
+for each candidate row before writes. Subqueries in SET and RETURNING report COHDBL001.
+[RETURNING](../clauses/returning.md) projects the new values; SET expressions read original values.
+Foreign keys and incoming NO ACTION/RESTRICT checks use the statement's final replacements, rather
+than old rows that are being replaced. A self-reference may move with its key and mutually referenced
+keys may swap; a final dangling reference fails atomically. See the
+[final-row examples](../constraints.md#update-final-row-examples). ON UPDATE actions are not implemented.
+Row updates remain available on schema-owned tables even though session DDL is restricted.
+
+Constraint failures carry one Error diagnostic: `COHSQLE037` (23505) for duplicate primary,
+unique or unique-index keys, `COHSQLE038` (23514) for CHECK/domain checks, `COHSQLE039` (23503)
+for a missing parent or a parent-key change that leaves references, and `COHSQLE024` (23502)
+for NOT NULL. Messages name the constraint and table without key values. Failure rolls back
+the statement and leaves an explicit transaction usable. See [Diagnostics](../diagnostics.md).
 
 ## Examples
 
@@ -51,4 +78,4 @@ The update affects one row; the query returns `46`, `45`, and `41`.
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
-
+- **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

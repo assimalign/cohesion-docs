@@ -21,8 +21,9 @@ Only `TRUE` retains a row. `FALSE` and `UNKNOWN` are discarded; comparison with 
 does not substitute for `IS NULL`. Filtering occurs before grouping and aggregation.
 Aggregates cannot occur in `WHERE`.
 
-`SELECT`, `UPDATE`, and `DELETE` accept `WHERE`. Supported uncorrelated subqueries can
-appear in a `SELECT` predicate, but not in `UPDATE` or `DELETE`. String comparison and
+`SELECT`, `UPDATE`, and `DELETE` accept `WHERE`. Supported correlated and uncorrelated subqueries can
+appear in all three predicates. UPDATE/DELETE children finish for all candidate rows before target writes against
+the pre-statement snapshot; see [Subqueries](../expressions/subqueries.md#update-and-delete-snapshots). String comparison and
 `LIKE` use the effective [collation](collate.md).
 
 ## Examples

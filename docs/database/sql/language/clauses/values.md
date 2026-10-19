@@ -7,7 +7,7 @@ Supplies one or more rows of scalar expressions to INSERT.
 ## Syntax
 
 ```syntaxsql
-VALUES ( expression [ , ...n ] ) [ , ...n ]
+VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
 ```
 
 ## Arguments
@@ -19,7 +19,9 @@ VALUES ( expression [ , ...n ] ) [ , ...n ]
 
 Rows map to the explicit insert column list or all destination columns. Destination defaults,
 coercion, nullability, and constraints follow [INSERT](../statements/insert.md). Supplying `NULL`
-stores a null where allowed; it does not request a default.
+stores a null where allowed; it does not request a default. A whole-item
+[DEFAULT](default.md) requests the destination default. `INSERT ... DEFAULT VALUES` inserts one
+row using defaults for every column. Column references in VALUES report `COHSQLE005`.
 
 This is an `INSERT` clause, not a standalone query statement. Subqueries in `VALUES` report
 `COHDBL001`; use a query-source insert instead.
@@ -42,4 +44,3 @@ The conformance case verifies two affected rows and both inserted names.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

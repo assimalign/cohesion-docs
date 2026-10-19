@@ -11,6 +11,12 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## T1 API examples
+
+[DatabasePlanDescription](../database-plan-description.md) demonstrates creating eight-column plan
+rows from DatabasePlanNode records. [DatabaseRow](../database-row.md) demonstrates MISSING versus
+NULL on a Documents projection. Both examples are checked against their source tests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/docs/OVERVIEW.md`.

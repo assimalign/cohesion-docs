@@ -18,6 +18,12 @@
 - **[`IGraphDatabaseEngineBuilder`](i-graph-database-engine-builder.md)** — Documented public type.
 - **[`IGraphSchema`](i-graph-schema.md)** — Documented public type.
 - **[`IGraphStorageStrategy`](i-graph-storage-strategy.md)** — Documented public type.
+- **[GraphValueCodec](graph-value-codec.md)** — Bounded scalar/list/map wire components.
+- **[GraphProtocol](graph-protocol.md)** — Protocol 2.1 graph.composite-values capability.
+- **[GraphProtocolExecuteMessage](graph-protocol-execute-message.md)** — Text and encoded parameters.
+- **[GraphProtocolResultHeaderMessage](graph-protocol-result-header-message.md)** — Column type and composite flag.
+- **[GraphRequest](graph-request.md)** — Public execution contract.
+- **[GraphPathsQueryRequest](graph-paths-query-request.md)** — Public execution contract.
 
 `Assimalign.Cohesion.Database.Graph` is the embedded property-graph engine. It creates, opens,
 enumerates and drops logical databases, opens database-bound sessions, and implements the frozen

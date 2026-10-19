@@ -33,7 +33,8 @@ flowchart LR
 encodes parameters, writes the command, and materializes the complete response before returning its
 private result to the typed connection. The model's command specification
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`) defines
-command grammar and operation result shapes. Protocol 1.0 bytes are unchanged.
+command grammar and operation result shapes. Protocol 2.1 negotiates shared startup, with unchanged baseline model payloads. Key-Value
+agrees no Diagnostics capability and retains COHKV001–019 in Error text.
 
 The model assembly reference supplies codecs; this client does not construct an engine or parse
 commands. The transitive closure is an accepted packaging consequence. A separate model protocol

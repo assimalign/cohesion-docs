@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The SQL model's schema authority (area architecture: resources/`Database`/DESIGN.md
-(`cohesion/docs/resources/Database/DESIGN.md`) §3.3). The catalog answers exactly two questions for
+(`cohesion/docs/resources/Database/DESIGN.md`) `3.3). The catalog answers exactly two questions for
 the planner: *what objects exist* (with stable identities) and *what shape are they* — and it must
 answer identically after any crash.
 
@@ -124,7 +124,7 @@ direct-creation helpers remain internal and are used only by catalog tests.
 
 Table records now append a versioned constraint extension after ownership: version `1`, constraint
 count, and each immutable foreign-key/check definition. A reference stores its ordered local and
-target columns, target SQL namespace/table, and `RESTRICT` or `CASCADE` delete action. A check
+target columns, target SQL namespace/table, and `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT` delete action. A check
 stores its SQL expression. Records ending after the original primary keys or ownership suffix still
 load with no constraints. Unknown extension versions and malformed definitions fail closed. `Column`
 changes retain constraints, and add/drop constraint rewrites use the same WAL-backed,
@@ -181,6 +181,19 @@ column, or ownership metadata. See the SQL engine's
 [virtual relation design](../assimalign-cohesion-database-sql/design.md#virtual-system-relations-c1)
 for the query surface and the two deliberately non-standard extension views.
 
+## Identity reservations
+
+[SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
+metadata in table extension 6 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
+and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
+values outside the START/INCREMENT progression. One table can have one signed integer identity.
+
+[AllocateIdentity](sql-catalog.md) self-commits up to 32 values before delivering any, under the
+catalog lock with Int128 intermediate arithmetic. It neither replaces table metadata nor changes
+DdlGeneration/script receipts. Reopen starts after the last reservation, leaving gaps while preventing
+reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
+DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
+
 ## Error model
 
 `SqlCatalogException : DatabaseException` for catalog violations (duplicate or missing
@@ -210,6 +223,51 @@ Value/data classes plus the shared codec — no reflection, no serialization lib
 | `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Renames and frozen missing values
+
+[SqlCatalog.RenameTableAsync and RenameColumnAsync](sql-catalog.md#rename-members) require the
+current immutable table and canonical CHECK text supplied by the engine. One transaction carries
+incoming/self foreign keys, primary keys and index column lists, preserving IDs, ordinals and trees.
+Generated names stay unchanged. Stale definitions/collisions or incomplete CHECK metadata fail closed.
+
+[SqlCatalogColumn.MissingValueLiteral](sql-catalog-column.md) is captured by ADD COLUMN and is
+independent of DefaultLiteral for future inserts. Table extension 6 appends one optional frozen
+literal per live column after identity facets. Format 17 introduced this split; format 18 separately
+changes persisted canonical function-name quoting. SET/DROP DEFAULT cannot change old missing reads.
+
+## Current format boundary
+
+SQL namespaces are independent persisted [SqlCatalogNamespace](sql-catalog-namespace.md) records
+of kind 15. [SqlCatalog](sql-catalog.md) exposes namespace create/drop and receipt overloads;
+[SqlCatalogSnapshot.Namespaces](sql-catalog-snapshot.md) includes empty namespaces. Publication
+captures namespaces with tables/indexes, and CASCADE removes contents and incoming FKs atomically
+while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
+SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
+
+The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
+separately changes quoting for newly executable function names in persisted canonical SQL.
+The formats preserve resolved shared type identity/modifiers across contextual multi-word and
+SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
+text. These unreleased formats have no older-format compatibility reader; use this current
+boundary when interpreting historical layout notes above.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
+
+## Persisted views
+
+[SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
+dependencies in kind 17 records introduced by format 23. Current format is 25. Publication checks
+collisions, live dependencies, cycles and append-only compatible replacement atomically; records
+larger than 8,092 bytes use COHSQLE033. DROP RESTRICT protects dependents; CASCADE removes dependent
+views. Table/function/domain/column changes independently protect view dependencies with COHSQLD002.
+Snapshots capture immutable view definitions alongside the rest of the catalog.
 
 ## Sources
 

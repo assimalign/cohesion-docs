@@ -6,11 +6,17 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Data definition language
 
+- **[CREATE SCHEMA](create-schema.md)** — Persist a SQL namespace independently of tables.
+- **[DROP SCHEMA](drop-schema.md)** — RESTRICT by default or atomically CASCADE dependent objects.
+
 - **[CREATE TABLE](create-table.md)** — Declare columns, defaults, collation, and constraints.
 - **[ALTER TABLE](alter-table.md)** — Add/drop columns and constraints, including literal-default backfill.
 - **[DROP TABLE](drop-table.md)** — Remove an ad-hoc stored table.
 - **[CREATE INDEX](create-index.md)** — Create a plain-column secondary index.
 - **[DROP INDEX](drop-index.md)** — Drop an index using its required table qualifier.
+
+- **[CREATE VIEW](create-view.md)** — Persist a bound read-only query; optionally replace compatible outputs.
+- **[DROP VIEW](drop-view.md)** — Remove a view with RESTRICT or dependent-view CASCADE.
 
 ## Data manipulation language
 
@@ -18,6 +24,8 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[INSERT](insert.md)** — Insert scalar rows or query results.
 - **[UPDATE](update.md)** — Assign column values to selected rows.
 - **[DELETE](delete.md)** — Remove selected rows.
+
+- **[EXPLAIN](explain.md)** — Describe a chosen plan without executing it.
 
 ## Transaction control
 
@@ -27,7 +35,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 33-of-49 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 
@@ -35,4 +43,3 @@ execution support; use [diagnostics](../diagnostics.md) and the
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

@@ -7,6 +7,8 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[LockManager](lock-manager.md)** — Writer locks, MarkStatement and ReleaseSince for unwritten arbitration.
+- **[LockStatementMark](lock-statement-mark.md)** — Opaque grant boundary with value equality.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 The shared ACID substrate for every Cohesion database engine: MVCC visibility snapshots, isolation
@@ -19,7 +21,8 @@ binds commits to the write-ahead log.
 - **`ITransactionContext`** — the engine-internal state of one in-flight transaction
 - **`TransactionId` / `TransactionState`** — the transaction vocabulary the area root's `IDatabaseTransaction` contract consumes
 - **`TransactionSnapshot` / `TransactionSequence`** — MVCC visibility (implemented, tested)
-- **`ILockManager` / `LockMode` / `LockResource`** — hierarchical write locking with deadlock resolution
+- **`LockManager` / `LockMode` / `LockResource`** — hierarchical write locking with deadlock resolution;
+  statement marks preserve earlier grants while an unwritten statement releases new resources
 - **`ITransactionLog`** — the WAL binding (storage owns the physical journal)
 - **`IVersionStore`** — the version-chain contract model storage layers implement
 - **`TransactionAbortedException`** — an independent exception root (inherits `Exception`, not `DatabaseException`)

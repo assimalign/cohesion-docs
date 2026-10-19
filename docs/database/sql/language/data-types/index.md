@@ -1,81 +1,96 @@
 # Data types
 
-Maps declared SQL type names to the shared Database type identities.
+Maps SQL declarations and CAST targets to shared Database identities.
 
-> **Status:** Partial. The declared subset and its execution limits are documented below.
+> **Status:** Implemented for the names below.
 
-## Syntax
+## Names and identities
 
-```syntaxsql
-<data_type> ::= {
-    BOOLEAN | BOOL | TINYINT | SMALLINT | INT2
-  | INT | INTEGER | INT4 | BIGINT | INT8
-  | REAL | FLOAT4 | FLOAT | FLOAT8 | DOUBLE
-  | DECIMAL [ ( precision [ , scale ] ) ]
-  | NUMERIC [ ( precision [ , scale ] ) ]
-  | CHAR [ ( length ) ] | CHARACTER [ ( length ) ] | VARCHAR [ ( length ) ] | TEXT
-  | BINARY | VARBINARY | BLOB | BYTEA
-  | DATE | TIME | TIMESTAMP | DATETIME | TIMESTAMPTZ | INTERVAL
-  | UUID | GUID | JSON | JSONB
-}
-```
-
-## Arguments
-
-- **`precision` and `scale`** — Decimal metadata; one argument denotes precision.
-- **`length`** — String length metadata.
-- **Type name** — A case-insensitive name resolved by `SqlTypeNames`.
-
-## Remarks
-
-| SQL names | Shared identity |
-| --- | --- |
+| SQL names | Shared type identity |
+|---|---|
 | `BOOLEAN`, `BOOL` | `Boolean` |
 | `TINYINT` | `Int8` |
 | `SMALLINT`, `INT2` | `Int16` |
 | `INT`, `INTEGER`, `INT4` | `Int32` |
 | `BIGINT`, `INT8` | `Int64` |
 | `REAL`, `FLOAT4` | `Float32` |
-| `FLOAT`, `FLOAT8`, `DOUBLE` | `Float64` |
-| `DECIMAL`, `NUMERIC` | `Decimal` |
-| `CHAR`, `CHARACTER`, `VARCHAR`, `TEXT` | `String` |
-| `BINARY`, `VARBINARY`, `BLOB`, `BYTEA` | `Binary` |
+| `FLOAT[(p)]` | `Float32` for p = 1..24; `Float64` for p = 25..53 or no argument |
+| `FLOAT8`, `DOUBLE`, `DOUBLE PRECISION` | `Float64` |
+| `DECIMAL[(p[,s])]`, `NUMERIC[(p[,s])]` | `Decimal` (single argument = precision) |
+| `CHAR[(n)]`, `CHARACTER[(n)]`, `NCHAR[(n)]`, `NATIONAL CHAR[(n)]`, `NATIONAL CHARACTER[(n)]` | `Character` (bare forms have length one) |
+| `VARCHAR[(n)]`, `TEXT[(n)]`, `NVARCHAR[(n)]`, `CHARACTER VARYING[(n)]`, `CHAR VARYING[(n)]`, `NCHAR VARYING[(n)]`, `NATIONAL CHAR VARYING[(n)]`, `NATIONAL CHARACTER VARYING[(n)]` | `String` |
+| `BINARY[(n)]`, `VARBINARY[(n)]`, `BLOB[(n)]`, `BYTEA[(n)]`, `BINARY VARYING[(n)]` | `Binary` |
 | `DATE` | `Date` |
-| `TIME` | `Time` |
-| `TIMESTAMP`, `DATETIME` | `DateTime` |
-| `TIMESTAMPTZ` | `DateTimeOffset` |
+| `TIME`, `TIME WITHOUT TIME ZONE` | `Time` |
+| `TIMESTAMP`, `TIMESTAMP WITHOUT TIME ZONE`, `DATETIME`, `DATETIME2` | `DateTime` |
+| `TIMESTAMPTZ`, `TIMESTAMP WITH TIME ZONE`, `DATETIMEOFFSET` | `DateTimeOffset` |
 | `INTERVAL` | `TimeSpan` |
-| `UUID`, `GUID` | `Guid` |
-| `JSON` | `Json` |
-| `JSONB` | `JsonBinary` |
+| `UUID`, `GUID`, `UNIQUEIDENTIFIER` | `Guid` |
+| `JSON` / `JSONB` | `Json` / `JsonBinary` |
 
-Name resolution promises a shared identity, not every conversion or operation on that identity.
-Planner/executor coercion is a separate concern. In particular, [CAST](../expressions/cast.md)
-supports only the exact numeric, Boolean, and string conversion pairs documented on its page.
-The SQL wire scalar codec does not support `Json` or `JsonBinary` components despite their
-presence in the shared identity set.
+DDL and CAST share one contextual type-name grammar, including case, whitespace and comments
+between words (`double /*x*/ precision`). No additional words are reserved. CREATE TABLE,
+both column ALTER forms, function signatures and domain bases resolve built-ins at parse time;
+columns expose `SqlColumnDefinition.ResolvedType`. Unknown names remain engine-resolved domains.
+All 19 current INFORMATION_SCHEMA DATA_TYPE spellings parse back to the same shared type,
+including CHARACTER added by #1437. The catalog stores type identity and modifiers, not aliases.
 
-`INFORMATION_SCHEMA.COLUMNS.DATA_TYPE` reports canonical names rather than the original alias.
-For example, integer aliases report `INTEGER`, decimals report `NUMERIC`, and string aliases
-report `CHARACTER VARYING`. These metadata strings do not extend the accepted type-name grammar.
-Length, precision, and scale appear separately where the catalog retains them.
+`VARCHAR(MAX)`, `NVARCHAR(MAX)` and `VARBINARY(MAX)` mean unbounded String or Binary;
+MAX is accepted only on these three spellings. NCHAR, NATIONAL CHAR and NATIONAL CHARACTER
+are padded Character exactly like CHAR, including DATA_TYPE CHARACTER. Adding VARYING to any
+of those three names selects unpadded String exactly like VARCHAR; bare varying forms are
+unbounded. NATIONAL and VARYING remain usable as unquoted table and column names.
+UNIQUEIDENTIFIER is UUID/Guid and takes no arguments. DATETIME and DATETIME2 are lexical TIMESTAMP aliases: SQL Server's
+DATETIME 1753 lower bound and 1/300-second rounding are not emulated. DATETIMEOFFSET is
+TIMESTAMPTZ. These aliases add no Unicode storage distinction: all character spellings store Unicode.
 
-Shared identity, collation, and binary encoding come from
-`Assimalign.Cohesion.Database.Types`. SQL comparison includes documented approximate-numeric
-rules that need not be identical to raw physical index-key ordering.
+| Rejected spelling | Diagnostic and reason; replacement |
+| --- | --- |
+| TIME WITH TIME ZONE | SQL0005: no shared storage type; use TIME WITHOUT TIME ZONE or TIMESTAMP WITH TIME ZONE |
+| BIT, BIT(n) | SQL0005: PostgreSQL bit-string meaning wins under D1; use BOOLEAN for truth values |
+| SMALLDATETIME | SQL0005: range and minute precision cannot be honored; use TIMESTAMP |
+| INT[], INTEGER ARRAY (and other scalar array forms) | COHDBL001: arrays are unsupported; use a scalar type |
+| INTERVAL field qualifiers | COHDBL001: field restrictions are not enforced; use bare INTERVAL |
+## Bounds and persistence
+
+Lengths count Unicode scalars for character types and bytes for binary types. Bare fixed
+character forms default to length one; bare varying forms are unbounded. NUMERIC precision is
+1..28 and scale is 0..precision. A precision without scale means scale zero. Temporal precision
+and INTERVAL declaration field restrictions report `COHDBL001`.
+
+Unknown built-in names are resolved as engine domains; an absent type is `COHSQLE010` (42704).
+SERIAL, BIGSERIAL and SMALLSERIAL are refused in type positions and as user-domain names,
+including quoted SQL names (`COHDBL001`); use [GENERATED BY DEFAULT AS IDENTITY](../clauses/identity.md).
+Native SqlType.CreateDomain rejects these names with ArgumentException. Identity requires a
+built-in signed integer rather than a domain.
+Domain-check failures on writes, CAST and function domain arguments/results use `COHSQLE038`
+(SQLSTATE 23514), with one Error diagnostic naming the domain and, for a write, its table.
+See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
+See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
+literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
+and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
+SQL row-storage is format 25; compiled schema artifacts are version 7. Format 17 introduced the
+insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
+quoting of newly executable function names. These
+unreleased formats have no compatibility reader for older formats.
 
 ## Examples
 
-This declaration comes from the parser conformance corpus:
-
 ```sql
-CREATE TABLE IF NOT EXISTS users (
-    id BIGINT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    balance DECIMAL(18, 4) DEFAULT 0,
-    created TIMESTAMP
-);
+CREATE TABLE aliases (v DOUBLE PRECISION, n NATIONAL CHARACTER VARYING(20), stamp DATETIME2);
+INSERT INTO aliases VALUES (CAST('1.25' AS FLOAT(24)), N'héllo', TIMESTAMP '2024-01-01');
+SELECT v, n, stamp FROM aliases;
 ```
+
+The row is `(1.25, 'héllo', 2024-01-01 00:00:00)`; canonical catalog names are
+DOUBLE PRECISION, CHARACTER VARYING and TIMESTAMP.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## See also
 
@@ -83,9 +98,6 @@ CREATE TABLE IF NOT EXISTS users (
 
 ## Sources
 
-- **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
-- **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlTypeNames.cs`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlConformanceTests.cs`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Types/docs/OVERVIEW.md`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`
+- **Name resolution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlTypeNames.cs`.
+- **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastMatrixTests.cs`.

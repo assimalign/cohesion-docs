@@ -6,8 +6,61 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlCreateSchemaExpression](sql-create-schema-expression.md)** — Namespace name and existence guard.
+- **[SqlDropSchemaExpression](sql-drop-schema-expression.md)** — RESTRICT/CASCADE namespace removal.
+- **[SqlQueryBodyExpression](sql-query-body-expression.md)** — Shared SELECT/set body and tail.
+- **[SqlSetOperationExpression](sql-set-operation-expression.md)** — Left/right operands and ALL flag.
+- **[SqlSetOperator](sql-set-operator.md)** — UNION, EXCEPT and INTERSECT identities.
+- **[SqlSubqueryExpression](sql-subquery-expression.md)** — SELECT/set bodies in scalar positions.
+- **[SqlInExpression](sql-in-expression.md)** — Value lists or SELECT/set membership.
+- **[SqlExistsExpression](sql-exists-expression.md)** — Row existence over SELECT/set bodies.
+- **[SqlDistinctExpression](sql-distinct-expression.md)** — NULL-safe IS [NOT] DISTINCT FROM.
+- **[SqlBooleanTestExpression](sql-boolean-test-expression.md)** — IS [NOT] TRUE/FALSE/UNKNOWN.
+- **[SqlTruthValue](sql-truth-value.md)** — Truth-test selection.
+- **[SqlLikeExpression](sql-like-expression.md)** — Pattern, optional ESCAPE and negation.
+
+- **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[SqlFunctionCallExpression](sql-function-call-expression.md)** — Aggregate quantifier and input ordering.
+- **[SqlSetQuantifier](sql-set-quantifier.md)** — Default, ALL and DISTINCT call inputs.
+- **[SqlLiteralText](sql-literal-text.md)** — Public contract and usage.
+- **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.
+- **[SqlDefaultExpression](sql-default-expression.md)** — Parsed shape and diagnostics.
+- **[SqlInsertExpression](sql-insert-expression.md)** — Parsed shape and diagnostics.
+- **[SqlOnConflictClause](sql-on-conflict-clause.md)** — Unique arbiter, action, assignments, filter and EXCLUDED.
+- **[SqlOnConflictTargetKind](sql-on-conflict-target-kind.md)** — All indexes, column-set or named-index arbitration.
+- **[SqlOnConflictAction](sql-on-conflict-action.md)** — DO NOTHING or DO UPDATE.
+- **[SqlCommonTableExpression](sql-common-table-expression.md)** — Ordered non-recursive WITH definitions.
+- **[SqlUpdateExpression](sql-update-expression.md)** — Target, assignments, predicate and WITH list.
+- **[SqlDeleteExpression](sql-delete-expression.md)** — Target, predicate and WITH list.
+- **[SqlLimitSyntaxKind](sql-limit-syntax-kind.md)** — LIMIT, FETCH and lexical TOP families.
+- **[SqlConstraintDefinition](sql-constraint-definition.md)** — Normalized constraints and all five delete actions.
+- **[SqlSelectExpression](sql-select-expression.md)** — SELECT clauses and canonical FROM trees.
+- **[SqlFromItem](sql-from-item.md)** — One comma-separated relation and its joins.
+- **[SqlRelationReference and SqlTableReference](sql-relation-reference.md)** — Named and derived relation base and named-table leaf.
+- **[SqlDerivedTableReference](sql-derived-table-reference.md)** — Aliased SELECT and optional output renames.
+- **[SqlJoinClause](sql-join-clause.md)** — Join kind, ON predicate and ordered USING names.
+- **[SqlAlterTableExpression](sql-alter-table-expression.md)** — Table and one typed ALTER action.
+- **[SqlAlterRenameTableAction](sql-alter-rename-table-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterRenameColumnAction](sql-alter-rename-column-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterSetDefaultAction](sql-alter-set-default-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterDropDefaultAction](sql-alter-drop-default-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterSetNotNullAction](sql-alter-set-not-null-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlAlterDropNotNullAction](sql-alter-drop-not-null-action.md)** — Parsed ALTER payload and execution contract.
+- **[SqlColumnDefinition](sql-column-definition.md)** — Parsed shape and diagnostics.
+- **[SqlIdentityDefinition](sql-identity-definition.md)** — ALWAYS/BY DEFAULT mode and start/increment.
+- **[SqlLiteralExpression](sql-literal-expression.md)** — Parsed shape and diagnostics.
+- **[SqlTypeNames](sql-type-names.md)** — Alias and modifier resolution.
+- **[SqlLiteralType](sql-literal-type.md)** — Values and usage.
+
+- **[SqlCreateViewExpression](sql-create-view-expression.md)** — Parsed view or ordering contract.
+
+- **[SqlDropViewExpression](sql-drop-view-expression.md)** — Parsed view or ordering contract.
+
+- **[SqlOrderByColumn](sql-order-by-column.md)** — Parsed view or ordering contract.
+
+- **[SqlNullPlacement](sql-null-placement.md)** — Parsed view or ordering contract.
 
 The SQL language front-end of the Cohesion Data Platform: a recursive-descent parser
 (`SqlQueryParser`) producing a full clause-level AST over the shared lexer infrastructure
@@ -16,10 +69,14 @@ The SQL language front-end of the Cohesion Data Platform: a recursive-descent pa
 type-name translation table (`SqlTypeNames`) binding SQL DDL/CAST type names to the shared type
 system (`Database.Types`).
 
+The [paging syntax kind](sql-limit-syntax-kind.md) preserves LIMIT/FETCH/TOP spelling.
+[SqlConstraintDefinition](sql-constraint-definition.md) retains NO ACTION, SET NULL and SET DEFAULT
+alongside CASCADE/RESTRICT; omitted SQL actions are NO ACTION.
+
 ## Scope
 
 - **Parser** — `SELECT` (joins, grouping, ordering, limits, subqueries), `INSERT`
-  (multi-row, `INSERT ... SELECT`), `UPDATE`, `DELETE`, `CREATE/ALTER/DROP TABLE`,
+  (multi-row, `INSERT ... SELECT`, ON CONFLICT and RETURNING), `UPDATE`, `DELETE`, `CREATE/ALTER/DROP TABLE`,
   and a full expression grammar (precedence, `CASE`, `CAST`, predicates,
   parameters). Error-tolerant: malformed input yields diagnostics, never
   exceptions.

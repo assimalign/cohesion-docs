@@ -1,0 +1,84 @@
+# EXPLAIN
+
+Returns the chosen GQL plan as rows without executing the wrapped data statement.
+
+## Syntax
+
+```syntaxsql
+EXPLAIN { match_statement | return_statement | insert_statement | create_statement | delete_statement } [ ; ]
+```
+
+## Remarks
+
+EXPLAIN also accepts [linear composition](../clauses/next.md). Such plans have a Pipeline root
+with stage count/write flag and source-ordered Let, Filter, For/Unwind, Match/OptionalMatch,
+With, Return, Next and write-stage nodes as applicable. Each projection stage retains its own
+GroupAggregate/Distinct/SortPage details. For example, `EXPLAIN LET x = 1 RETURN x;` describes
+Pipeline → Let and Return, with a Project child named x, without evaluating rows.
+
+DELETE statements include their preceding entity bindings. SHOW is not admitted under EXPLAIN.
+Normal parameter checks, binding, planning and provisioning admission apply. Mutation plans change
+neither nodes nor relationships, including if an explicit transaction subsequently commits.
+Nested EXPLAIN and EXPLAIN ANALYZE report COHDBL001. Plans use the
+[shared eight-column shape](../../../sql/language/statements/explain.md): node_id, parent_id,
+operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-first pre-order;
+estimated and actual counts are NULL. GQL uses ordinary row-result frames, including for an
+explained statement whose normal projection is a graph entity.
+
+Operators include LabelScan, IndexSeek and Expand for fixed or quantified segments. An IndexSeek
+reports the chosen index and property bound. A test guard requires every plan record's mapping.
+Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
+parent when requested. Duplicate final names still fail planning with COHDBG015 before execution.
+
+Repeated matching clauses have source-ordered Match/OptionalMatch nodes. OptionalMatch detail
+reports whether a filter is present, whether the clause matches nothing, and new variables that
+would receive NULL. EXPLAIN itself does not perform matching or null extension.
+
+ORDER BY and paging add a SortPage node with `offset` and `limit` (ALL when absent), plus a
+SortKey child per key with expression, direction and NULL placement. For example,
+`EXPLAIN RETURN 1 AS n ORDER BY n DESC NULLS LAST OFFSET 0 LIMIT 1` reports
+`offset=0; limit=1` and a descending, NULL-last key. Counts and key bindings are validated
+without sorting or executing mutations.
+
+[Grouping](../clauses/group-by.md) adds GroupAggregate with key count and aggregate expressions.
+`EXPLAIN RETURN sum(1 / 0) AS n ORDER BY n` includes `keys=0; aggregates=sum(...)`
+without evaluating the division. Invalid placement/grouped references still fail COHDBG001.
+
+[Quantified expansion](../patterns.md#quantified-paths) describes `quantifier={min,max}; body_hops=n;
+trail=True` on Expand (empty max is unbounded). For example, `EXPLAIN MATCH (a)-[:T]->{1,3}(b)
+RETURN b` includes `quantifier={1,3}; body_hops=1; trail=True`. Scalar calls and CAST receive normal
+signature checks without evaluation: `EXPLAIN RETURN sqrt(-1) AS n` does not evaluate the domain
+error, while proven incompatible `EXPLAIN RETURN abs('x') AS n` fails COHDBG003.
+
+[SET](../clauses/set.md)/[REMOVE](../clauses/remove.md) add Set/Remove stage nodes under Pipeline,
+with UpdateEntity children naming each target and property/map/label action. For example,
+`EXPLAIN MATCH (n) SET n.x = 1 REMOVE n.old RETURN n.x` describes both actions without writes.
+
+## Examples
+
+For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:
+
+```sql
+EXPLAIN MATCH (a:Person {name:'Ada'})-[:KNOWS]->(b)-[:KNOWS]->(c) RETURN a;
+EXPLAIN INSERT (:Person {name:'Dee'});
+```
+
+The first returns IndexSeek with target Person, index by_name, detail `node=0; property=name;
+value='Ada'` and two Expand nodes. Without that index it uses LabelScan. The second describes
+insertion and creates no Dee node.
+
+```sql
+EXPLAIN RETURN DISTINCT 1 + 1 AS two;
+```
+
+This returns plan rows with a Return root, one Distinct node and a Project whose target is `two`.
+
+## See also
+
+[Statements](index.md) · [MATCH](match.md) · [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
+
+## Sources
+
+- **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphExplainTests.cs`.
+- **Wire** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphExplainWireTests.cs`.
+- **RETURN plans** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

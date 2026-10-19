@@ -1,31 +1,37 @@
 # SELECT (Cohesion SQL)
 
-Retrieves rows from one stored table, one system relation, or a two-table inner join.
+Retrieves rows from stored tables and system relations, including N-way joins and products.
 
 > **Status:** Partial. The documented subset is measured against the live SQL engine.
 
 ## Syntax
 
 ```syntaxsql
-SELECT [ DISTINCT ] <select_list>
-FROM <table_source>
-[ [ INNER ] JOIN <table_source> ON search_condition ]
+[ WITH common_table_expression [ , ...n ] ]
+SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
+FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 [ WHERE search_condition ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING search_condition ]
 [ ORDER BY <order_by_item> [ , ...n ] ]
-[ LIMIT nonnegative_integer ] [ OFFSET nonnegative_integer ]
+[ LIMIT count_expression ] [ OFFSET count_expression [ ROW | ROWS ] ]
+-- Or OFFSET then LIMIT; or FETCH FIRST/NEXT [count] ROW/ROWS ONLY with OFFSET in either order.
 [ ; ]
 
-<select_list> ::= { * | expression [ [ AS ] column_alias ] [ , ...n ] }
+<select_list> ::= <select_item> [ , ...n ]
+<select_item> ::= * | expression [ [ AS ] column_alias ]
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
+                 | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
+<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
+           { ON search_condition | USING ( column_name [ , ...n ] ) }
+         | CROSS JOIN <table_source>
 <order_by_item> ::= { expression | column_alias | select_list_ordinal } [ ASC | DESC ]
 ```
 
 ## Arguments
 
 - **`select_list`** — Expressions produce output columns; unqualified `*` expands the input columns.
-- **`table_source`** — A stored table or schema-qualified system relation in the session database.
+- **`table_source`** — A stored table, schema-qualified system relation or [aliased derived query](../clauses/from.md#derived-tables).
 - **`search_condition`** — A predicate; only `TRUE` retains a row, pair, or group.
 - **`select_list_ordinal`** — A one-based output position after wildcard expansion.
 - **`nonnegative_integer`** — The row count for `LIMIT` or skipped count for `OFFSET`.
@@ -35,24 +41,37 @@ FROM <table_source>
 | Form | Support | Boundary |
 | --- | --- | --- |
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
-| `JOIN ... ON` | Supported (measured) | Exactly two stored tables; inner join only |
-| `GROUP BY`, `HAVING`, aggregates | Supported (measured) | Grouping validity is checked before execution |
+| INNER/LEFT JOIN ... ON or USING | Supported (measured) | N-way stored/system joins; LEFT supplies NULL for unmatched right columns |
+| CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
+| `GROUP BY`, `HAVING`, [aggregates](../functions/aggregate-functions.md) | Supported (measured) | DISTINCT/ALL and input ORDER BY; STRING_AGG and LISTAGG concatenate text |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
-| `LIMIT`, `OFFSET` | Supported (measured) | Nonnegative integer values |
-| Uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
-| `TOP`, `ALL`, `FETCH`, `UNION`, `INTERSECT`, `EXCEPT` | Recognized, not supported (`COHDBL001`) | Excluded from the executable surface |
-| `WITH`, windows, derived tables | Recognized, not supported (`COHDBL001`) | No common table expressions or derived relations |
+| [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
+| Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
+| `UNION`, `INTERSECT`, `EXCEPT` [ALL / DISTINCT] | Supported | [Set operations](../clauses/set-operations.md) in every query position; combined ORDER BY uses output names/ordinals |
+| SELECT ALL | Recognized, not supported (`COHDBL001`) | ALL as a set quantifier executes |
+| Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs accepts per-key NULLS FIRST/LAST |
+| [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
+| Windows | Recognized, not supported (`COHDBL001`) | No window clauses |
 
 ## Remarks
 
-The Phase 22 contract measures these subsets through the live engine, including wire execution.
-Every `SELECT` requires `FROM`; a constant-only query without a relation fails planning.
+[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+definitions once under the statement snapshot, before any write. Targets remain stored tables.
+
+The conformance contract measures these subsets through the live engine, including wire execution.
+Every ordinary `SELECT` requires `FROM`; only a [CTE definition root](../clauses/with.md) may
+omit it and use one implicit row.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes
 pagination. `NULL` sorts first ascending and last descending. Equal ordering keys have no promised
 relative order; supply a tie-breaking key for stable paging. See the individual clause pages for
 alias precedence, grouping validity, collation, and subquery cardinality.
+
+[USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
+expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
+Qualified `t.*` remains `COHDBL001`. The [JOIN examples](../clauses/join.md#examples) cover
+INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Examples
 

@@ -1,53 +1,43 @@
 # WHERE
 
-WHERE filters source documents using a scalar comparison or Boolean expression.
+Filters source documents using the common SQL++ truth conversion.
 
 ## Syntax
 
 ```syntaxsql
-WHERE predicate
+WHERE expression
 ```
-
-## Supported clauses
-
-| Predicate feature | Support |
-|---|---|
-| Comparisons, arithmetic, Boolean operators, null tests | Supported |
-| Paths, literals, parameters | Supported |
-| `IN`, `EXISTS`, `LIKE`, `BETWEEN` | Recognized, not supported (`COHDBL001`) |
-
-## Arguments
-
-- **`predicate`** — an expression evaluated for each source document; only true retains a document.
 
 ## Remarks
 
-Missing properties, incompatible shapes, and out-of-range array positions evaluate to null.
-Ordinary comparisons involving null are unknown, so use `IS NULL` or `IS NOT NULL` for null tests.
-Scalar range comparisons require matching scalar kinds; equality also supports structural object
-and array comparison. String comparison is ordinal and case-sensitive.
+WHERE keeps only converted TRUE. Nonzero numbers and nonempty strings, arrays and objects are
+true; zero and empty values are false. NULL and MISSING do not retain a row. Absent paths,
+incompatible shapes, navigation through NULL and out-of-range indices are [MISSING](../expressions/missing.md).
+Use IS MISSING for absence and IS NULL for explicit null. Ordinary unknown comparisons propagate
+MISSING before NULL. Equality includes structural values; ordering requires matching scalar kinds.
 
-Applicable equality or range predicates can use a path index. The executor reapplies the complete
-predicate to index candidates, preserving the same mixed-shape behavior as a scan.
+[IN, BETWEEN, LIKE ESCAPE](../expressions/operators.md), [CASE](../expressions/case.md), arithmetic,
+Boolean operators and [parameters](../expressions/parameters.md) execute in predicates. Applicable
+path equality/range bounds can seek an index; the complete predicate is reapplied to candidates.
+The same filter and access selection applies to [DELETE](../statements/delete.md), which collects
+all matching snapshot identities before deleting. Its NULL/MISSING predicates delete nothing.
 
 ## Examples
 
-The parser corpus includes Boolean precedence and null tests:
+For items with `{"name":"beta","amount":6}`:
 
 ```sql
-SELECT * FROM people WHERE NOT age < 18 AND active = TRUE OR name = 'Ana'
+SELECT name FROM items WHERE 1;
+SELECT name FROM items WHERE amount IN (6, NULL) AND name LIKE 'b%';
 ```
 
-```sql
-SELECT * FROM people WHERE age IS NULL OR address IS NOT NULL
-```
+Both return beta. Replacing the condition with NULL or MISSING returns no rows.
 
 ## See also
 
-[Clauses](index.md), [Operators](../expressions/operators.md), and [HAVING](having.md).
+[Clauses](index.md) · [Operators](../expressions/operators.md) · [HAVING](having.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
 
-- **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
-- **Predicate execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
-- **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Predicates.cs`.
+- **Truth** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Values.cs`.

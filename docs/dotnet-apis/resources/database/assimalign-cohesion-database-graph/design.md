@@ -4,6 +4,23 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Linear composition
+
+The planner/executor consumes [GqlStage](../assimalign-cohesion-database-graph-language/gql-stage.md)
+in source order. LET adds sequential bindings, FILTER retains TRUE and FOR/UNWIND expands lists
+(NULL gives zero rows; non-list COHDBG013). WITH or RETURN … NEXT retains only referenceable
+projected names, preserving entity kinds, optionality, possible composites and Int64 COUNT types.
+WITH ORDER BY/WHERE can see incoming names only without DISTINCT/aggregation; WHERE executes
+after sorting/paging. A write anywhere locks before the first stage. Every stage materializes
+eagerly and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
+starts one empty row and no scope. FOR shares the 100,000-row bound with matching.
+
+Proven node/relationship list elements survive UNWIND and can anchor MATCH/DELETE. Intermediate
+collect/UNWIND is valid for read-only ExecutePaths with one mandatory final entity/path. Writes
+exclude ExecutePaths; final entity lists remain outside wire Execute (COHDBG001; #1662). No catalog
+format or wire frame changes. See [language rules](../../../../database/graph/language/clauses/next.md)
+and [diagnostics](../../../../database/graph/language/diagnostics.md).
+
 ## String comparison and collation (#1025)
 
 Graph remains ordinal-only. String property predicates use case-sensitive .NET ordinal (UTF-16
@@ -55,7 +72,9 @@ select a server, another database, or another graph.
 
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
-kind, byte 17 is format version 1, and bytes 18–25 are a nonzero unsigned 64-bit identity. Graph
+kind, byte 17 is format version 2, bytes 18–25 are a nonzero unsigned 64-bit identity and
+bytes 26–33 hold the increasing revision. Format 1 is refused before recovery scrub without
+an upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
 identity. `Database`-local IDs must always be paired with the correct session.
 
@@ -101,10 +120,12 @@ of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A labe
 records and sorts its matches. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
 normalize integral, decimal and finite floating point values through double conversion. Full scalar
-comparisons filter index candidates, preserving exact integral/decimal comparisons despite key
-collisions. Comparisons involving a floating point operand use double precision, including subnormal
-values. All node creation/deletion paths maintain property indexes. Graph has no property-update
-verb.
+comparisons filter index candidates using exact represented values across all numeric types despite
+key collisions. Equality, inequality, ordering, property matching, IN and DISTINCT agree: Decimal
+0.1m differs from Double 0.1d, while Int64 1 equals Double 1.0. Large integers retain every bit and
+subnormals remain distinct from zero. Signed zeros compare equal; NULL comparisons are UNKNOWN
+while DISTINCT groups NULLs. Arithmetic keeps its own promotion. All node create/update/delete paths
+maintain property indexes. GQL SET/REMOVE uses storage replacement versions.
 
 ## Transactions, atomicity and recovery
 
@@ -112,7 +133,10 @@ One `TransactionCoordinator` per database owns MVCC, logical undo, journal durab
 management and physical statement brackets. A conservative database writer lock serializes writers
 through their logical commit or rollback; readers use snapshots. Metadata and affected graph records
 are checked against the latest committed view after lock acquisition, so a stale writer cannot
-create an orphan endpoint or bypass a newer schema constraint.
+create an orphan endpoint or bypass a newer schema constraint. A queued writer sees the prior
+writer's committed state after lock handoff, including before coordinator untracking. The latest
+view includes its own writes and excludes other active transactions. Node/relationship metadata
+conflicts, label/type in-use checks and property-metadata validation use this view.
 
 Node creation and label/key metadata participate in the same logical transaction. Relationship
 creation writes its record and both adjacency entries in one physical bracket. Deleting a node with
@@ -143,14 +167,19 @@ second time to verify the recovery checkpoint.
 variable kinds and access paths; `GraphPlanExecutor` applies that plan. The planner considers
 literal inline properties and equality predicates joined by `AND` for every node position in a
 pattern. It can anchor at the middle or end, expanding right and then left with appropriately
-reversed directions. Bound variables from earlier comma-separated patterns take precedence over a
-fresh scan. Every selected candidate still passes labels, property predicates and bindings.
+reversed directions. Bound nodes from earlier paths or clauses take precedence over scans and
+seeks at any position; otherwise a bound relationship supplies an adjacent endpoint. NULL bindings
+refuse a later pattern before candidate reads. Each MATCH/OPTIONAL MATCH evaluates its own WHERE
+after joining its paths. A failed mandatory clause drops the row; an optional clause preserves it
+with NULL for new variables. The initial binding table has one empty row. Every selected candidate
+still passes labels, property predicates and bindings.
 
-GQL patterns are finite chains of at most 64 relationships. Each matched path is a trail: an edge
+GQL patterns have fixed/quantified edges and parenthesized segments with repetition-bound sums
+of at most 64 relationships. Each matched path is a trail: an edge
 identity is used at most once within that path; a node may recur. Separate comma-separated paths
 have separate edge sets and share variable bindings. This makes a three-edge cycle a valid three-hop
 result but forbids reusing its first edge on a fourth hop. At most 100,000 intermediate path matches
-materialize per pattern, and a statement examines at most 1,000,000 node/edge candidates, including
+materialize across matching clauses, and a statement examines at most 1,000,000 node/edge candidates, including
 dead ends; either overflow fails with `COHDBG004`, never silent truncation. Cancellation is
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
@@ -177,9 +206,10 @@ existing public interfaces and does not infer paths from scalar rows.
 
 The
 [supported-clause matrix](../assimalign-cohesion-database-graph-language/design.md#supported-clause-matrix)
-is the single executable-language inventory: MATCH, WHERE, RETURN, INSERT, CREATE (compatibility
-extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, functions,
-variable-length paths, aggregations, ordering, graph selection and language DDL are not advertised.
+is the single executable-language inventory: MATCH, WHERE, LET, FILTER, FOR/UNWIND, WITH, NEXT, RETURN, INSERT, CREATE (compatibility
+extension), DELETE, DETACH DELETE and SHOW (catalog extension). Parameters, six aggregates and
+implicit/ISO GROUP BY execute. Core scalar functions and CAST execute; graph selection and
+language DDL remain outside the profile.
 Label/type/index management is the session-bound C# schema API. The ISO decision and conformance
 corpus are documented alongside the parser; this is a bounded ISO subset, not a full conformance
 claim.
@@ -250,6 +280,19 @@ before any writer lock or data mutation; hand-built ASTs have the same protectio
 composition returns the ordinary syntax/binding diagnostic. Since no synthetic graph objects are
 created, ordinary graph writes cannot address or change these result rows.
 
+## Ordering and paging
+
+The common row/path tail projects, removes DISTINCT duplicates, caches each sort key, sorts,
+offsets and limits. Mutations run for every matched binding before this tail; paging does not reduce
+the match or candidate caps. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
+comparison is exact, ties retain input order and nested map keys are canonicalized once for sorting.
+Preparation and comparisons check cancellation; comparer cancellation reaches ordinary rollback
+without a List.Sort wrapper. EXPLAIN maps SortPage and SortKey. Invalid dynamic counts use
+COHDBG013 before reads/writer locks, unsupported/non-finite CLR inputs COHDBG003 and missing
+parameters COHDBG001. No new code, SQLSTATE, catalog format or wire version is introduced.
+See [ORDER BY](../../../../database/graph/language/clauses/order-by.md) and
+[OFFSET/SKIP and LIMIT](../../../../database/graph/language/clauses/limit-offset.md).
+
 ## Metadata and diagnostics
 
 Labels, relationship types and discovered property keys persist even when the last data object is
@@ -268,14 +311,27 @@ not included.
 | `COHDBL001` | Unsupported language capability, reported on the parsed statement |
 | `GQL0001`–`GQL0006` | Parser syntax/literal/bound errors; see language design |
 | `GQL0007` | Attempt to mutate catalog introspection results |
-| `COHDBG001` | Invalid pattern, variable binding or traversal specification |
+| `GQL0010` | Unknown function spelling; parsed arity uses GQL0002 |
+| `COHDBG001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Schema/data mismatch, restricted deletion or invalid graph mutation |
-| `COHDBG004` | Path materialization or candidate-expansion limit exceeded |
+| `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, or invalid graph mutation |
+| `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | `Storage` failure translated at the engine boundary |
+| `COHDBG006` | Storage failure translated at the engine boundary |
+| `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
+| `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
+| `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
+| `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
+| `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
+| `COHDBG012` | Database offline after durable storage failure |
+| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST kind, conversion or domain failure, computed temporal property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
+| `COHDBG014` | Caller parameter keys collide after stripping one sigil |
+| `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
+| `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 
-Planner/data errors use stable code prefixes on `DatabaseException`. Kernel aborts cross the engine
+Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
+Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
+rows; a later unmatched mandatory clause can still empty the result. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
 Ownership uses the shared dedicated exception rather than an invented graph ownership code.
 
@@ -296,18 +352,36 @@ compiled-schema provisioning remain out of scope. The graph server uses the shar
 rather than adding graph-specific authentication contracts. No reflection or runtime code
 generation is used.
 
+## Composite values and wire framing
+
+[GraphValueCodec](graph-value-codec.md) is public in Graph and shared with its client through the
+existing reference. graph.composite-values adds no message type or protocol version. Negotiated
+Execute/ExecutePaths parameters use its components, including scalar parameters. Result column
+bit 7 marks possible composites. Marked cells use tag 0 plus a scalar component or tag 1 plus a
+little-endian length and GraphValueCodec component; unsigned and Decimal scalars use the latter. Unmarked
+scalar columns keep their baseline bytes and avoid a preflight pass. Direct COUNT projection metadata is Int64; other query metadata stays unknown.
+
+Values allow depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes, counting UTF-8,
+escaping and framing. A row also fits 16 MiB. Invalid referenced trees fail planning with COHDBG003;
+constructors enforce bounds during evaluation inside the transaction with COHDBG013. Header sizes
+check before locks and row sizes before commit, so a refused result leaves no statement writes
+committed. Possible composite results without negotiation fail COHDBG016 statically before data
+access, including skipped branches and empty matches. Stored properties/index keys stay scalar;
+there is no catalog/storage format change. Path frames and GraphPathResult are unchanged.
+
 ## Graph wire family
 
 `GraphProtocol.Family` fixes the graph vocabulary for an accepted connection. Shared
 `ProtocolChannel` handles framing and validates every type against the bound family; Graph owns all
 request/result payloads. The endpoint selects Graph before startup. No model discriminator is added
 to startup, and a connection or client pool cannot change families. Other endpoints may use the same
-model-scoped bytes for other meanings; shared codes 1–4 and 10–13 retain their meanings and 14–63
-remain reserved. Bytes 5–9 retain Graph's deployed catalog exchange. The path extension uses 64–66.
+model-scoped bytes for other meanings; shared codes 1–4 and 10–13 retain their meanings.
+Diagnostics uses shared byte 14; 15–63 remain reserved. Bytes 5–9 retain Graph's deployed catalog exchange. The path extension uses 64–66.
 This follows the shared lexer/parser and per-model grammar precedent.
 
-Version **1.0** is retained: the deployed catalog, SQL and `Key`-Value exchanges are byte-for-byte
-unchanged. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
+Current startup negotiates shared protocol **2.1**, optional structured diagnostics and
+[graph.composite-values](graph-protocol.md). Without composite negotiation, result/parameter
+payloads retain baseline encoding. Error payloads remain unchanged. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
 chooses the smaller server/requested minor. The wire envelope is unsigned 32-bit big-endian payload
 length, one type byte, then the payload. The length excludes the five-byte header and cannot exceed
 16,777,216. Integers below are big-endian. A string is a nonnegative signed `int32` UTF-8 byte
@@ -316,15 +390,15 @@ length followed by those bytes. There is no padding.
 | Byte | Direction | Payload |
 | --- | --- | --- |
 | 5 (`Execute`) | Client → server | GQL string; `int32` parameter count; repeated parameter-name string, `int32` encoded-value byte length, value bytes |
-| 6 (`ResultHeader`) | Server → client | `int32` column count; repeated column-name string and one `DatabaseType` byte |
-| 7 (`ResultRow`) | Server → client | Concatenated self-describing scalar tuple components, exactly one per declared column |
+| 6 (`ResultHeader`) | Server → client | `int32` column count; repeated name string and type byte: DatabaseType in bits 0–6, negotiated composite-column flag in bit 7 |
+| 7 (`ResultRow`) | Server → client | One value per column: unmarked scalar component; marked tag 0 plus scalar, or tag 1 plus little-endian Int32 length and GraphValueCodec component |
 | 8 (`ResultComplete`) | Server → client | `int64` affected count; -1 for a result set |
 | 9 (`Transaction`) | Client → server | Reserved legacy identifier; server rejects it with `ProtocolViolation` |
 | 64 (`ExecutePaths`) | Client → server | The same GQL/parameter payload as byte 5, requesting path-shaped results |
 | 65 (`Path`) | Server → client | Ordered node and relationship sequences in the format below |
 | 66 (`PathsComplete`) | Server → client | Exactly eight bytes: nonnegative `int64` count of Path frames in this exchange |
 
-Catalog parameters and tuples retain `DatabaseValueCodec` encoding; the precise scalar tags,
+Without graph.composite-values, parameters and tuples retain `DatabaseValueCodec` encoding; the precise scalar tags,
 numeric transforms and variable-length escaping are specified in the unchanged SQL scalar wire
 encoding (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`).
 The catalog response is Header, zero or more Row frames, Complete; command responses may have only
@@ -514,7 +588,107 @@ framing, handshake and model messages are unchanged.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## T1 scalar planning and EXPLAIN
+
+WHERE and RETURN execute the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
+with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE, RETURN and property maps,
+preserving runtime scalar/list/map values; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
+binding and provisioning checks, then returns DatabasePlanDescription without executing writes.
+
+RETURN accepts computed/aliased expressions, DISTINCT/ALL, named-binding star and standalone
+evaluation. Columns follow source item order; star follows first declarations, with a named path
+before its elements. Implicit names use normalized source text, or rendered syntax for source-free
+ASTs. Final duplicate names fail COHDBG015 before execution. DISTINCT compares complete tuples and
+retains the first representative's types; it does not reduce mutation counts. Entity/path equality
+uses identities and ordered traversal, independently of materialization. Arithmetic uses Double
+for floating operands, otherwise Decimal for decimal/ulong, otherwise checked Int64; comparison
+and DISTINCT use exact values as described above.
+
+Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execute checks planned
+result kinds before data reads, writer locks or mutation and rejects possible entity-valued columns with
+COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
+Path requests require one bare bound entity/path from read-only composition, including DISTINCT or
+star over one binding; invalid shapes use COHDBG001 before duplicate-name validation. A binding
+supplied only by optional clauses is rejected with COHDBG001 during planning, even when all actual
+rows would match. A mandatory clause may bind or subsequently constrain the returned entity/path.
+
+Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completion or Error.
+[GraphPathResult](../assimalign-cohesion-database-graph-client/graph-path-result.md) exposes completion
+warnings at EOF. A terminal pre-output path refusal leaves the session usable. See the complete
+[GQL diagnostic table](../../../../database/graph/language/diagnostics.md).
+
+## Aggregation and grouped results
+
+The [aggregate pipeline](../../../../database/graph/language/functions/aggregate-functions.md)
+uses exact numeric/structural grouping and DISTINCT keys. Every nonaggregate RETURN item becomes
+an implicit key; ISO GROUP BY lists those keys or names, with () for no keys. A keyless empty
+input produces the aggregate identities. GroupAggregate precedes projection, DISTINCT and sorting;
+ORDER BY honors aliases that shadow input variables. Match bounds and mutation inputs are unchanged.
+
+COUNT returns Int64, with Int64 wire metadata for a direct COUNT projection. SUM retains exact
+integral and Decimal subtotals, promotes once to Double for floating inputs, and uses Decimal if
+any retained input is Decimal/UInt64. Decimal SUM retains input scale; AVG returns Double unless
+Decimal is present and rounds a Decimal average once. Invalid operands/overflow use COHDBG013.
+COLLECT_LIST skips NULL, preserves order and observes composite limits during accumulation.
+Malformed/nested/misplaced aggregates and group mismatches use COHDBG001; no SQLSTATE is assigned.
+
+Negotiated GraphValueCodec tag 7 preserves Decimal's four 32-bit words, including scale. Lists
+require graph.composite-values; COUNT does not. ExecutePaths keeps its projection-shape rejection.
+EXPLAIN adds GroupAggregate without evaluating arguments, and aggregate value failures roll back
+statement mutations. GraphAggregateTests and GraphAggregateWireTests cover local and both transports.
+
+## Quantified expansion
+
+[Quantified paths](../../../../database/graph/language/patterns.md#quantified-paths) enumerate trails,
+with lists for variables inside repeated segments. Zero repetitions join both outer endpoint
+constraints on one node and bind empty lists. Source order survives right/left index anchoring.
+Only outer singleton entities can anchor. Repeated property maps apply at every occurrence.
+The heap-based expansion frontier retains depth-proportional search state; materialized results
+still have the existing budgets. Runtime unbounded paths fail COHDBG004 at a qualifying 65th
+relationship before endpoint tests, regardless of LIMIT. EXPLAIN Expand detail reports
+`quantifier={min,max}; body_hops=n; trail=True`; an empty max means unbounded.
+Group/singleton conflicts and invalid group access use COHDBG003; invalid direct AST paths use
+COHDBG001. Wire composite admission (COHDBG016) precedes the entity-list gate (COHDBG001).
+No storage/catalog/wire format changes are needed.
+
+## Scalar evaluation and transaction clock
+
+[Scalar functions and CAST](../../../../database/graph/language/functions/scalar-functions.md)
+validate signatures during planning/EXPLAIN, including empty matches. Strict NULL returns NULL;
+dynamic kind/domain/conversion errors use COHDBG013. Proven incompatible kinds use COHDBG003,
+invalid hand-built arity/unbound arguments COHDBG001, and unknown calls GQL0010 (no SQLSTATE).
+Entity result shapes drive static wire admission before reads or writes; scalar properties of
+computed entities remain legal. Composite outputs use the existing negotiation and bounds.
+
+Graph captures one UTC instant before starting a transaction and passes it to every evaluator.
+Explicit transactions reuse it across rows, stages and statements, including ReadCommitted;
+autocommit captures once per statement. The clock seam remains internal and adds no public option.
+CURRENT_DATE returns its UTC DateOnly; CURRENT_TIMESTAMP returns its UTC DateTimeOffset.
+Temporal values compare/order but cannot be stored properties. The language reference documents
+numeric type retention, half-away rounding, code-point substring and SQL CAST/Neo4j conversion
+differences. No catalog/storage/wire format changes are required.
+
+## Working copies and update isolation
+
+GQL [SET/REMOVE](../../../../database/graph/language/clauses/set.md) keep statement-local entity
+working copies. Rows observe earlier rows; items execute left to right. Carried lists/maps/paths
+refresh after each stage; later scans, seeks and endpoint functions consult the working copy.
+INSERT reserves stable IDs and publishes final nodes before final relationships. Each changed
+entity publishes one format-2 replacement; type-exact no-ops publish nothing. Changed-then-restored
+entities still count and publish, preserving Snapshot conflicts.
+
+Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency
+entries. ReadCommitted mutations retake the statement snapshot after the writer lock and replan
+against captured parameters; queued increments serialize. GraphDatabase adds no public update
+verb; the sealed [GraphStore](../assimalign-cohesion-database-graph-storage/graph-store.md) adds
+UpdateNodeAsync/UpdateRelationshipAsync and accepts complete records for create.
+
+Row-returning mutations carry direct affected counts through the existing ResultComplete frame.
+EXPLAIN adds Set/Remove stages and UpdateEntity children. No wire-format change is required.
+
 ## Sources
+
+- **Lock handoff regression** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLockHandoffTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Assimalign.Cohesion.Database.Graph.csproj`.

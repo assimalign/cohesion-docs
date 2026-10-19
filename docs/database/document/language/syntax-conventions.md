@@ -21,12 +21,16 @@ accepted forms; rejected constructs belong to the [unsupported matrix](unsupport
 
 - **Identifiers** — double quotes delimit identifiers. Collection and property names preserve case;
   empty identifiers are invalid. A property after a dot may use a reserved word.
+  VALUE/RAW and LIMIT/OFFSET are reserved; use quoted identifiers or qualified paths for those fields.
+  After AS, a SELECT projection label may use a reserved word. DISTINCT/ALL are quantifiers
+  only immediately after SELECT; misplaced quantifiers report `COHDBL001`.
 - **Strings** — single quotes delimit strings, and a doubled single quote represents one quote.
 - **Parameters** — `$name`, `$1`, and `@name` are accepted; the parameter node omits the prefix.
   An empty name or a `?` marker is invalid.
 - **Comments** — `--` introduces a line comment; `/* ... */` introduces a block comment, including
   nested block comments.
-- **Numbers** — decimal and scientific notation use invariant culture and must fit `decimal`.
+- **Numbers** — decimal and scientific notation retain digits during parsing; execution requires
+  an exact decimal value (`COHDOC007` for range or lost precision).
 - **Statement boundary** — one trailing semicolon is optional; multiple statements are rejected.
 
 Parentheses group expressions. Array positions are zero-based nonnegative 32-bit integers.

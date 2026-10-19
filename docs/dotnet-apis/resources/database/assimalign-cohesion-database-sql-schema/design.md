@@ -4,6 +4,17 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## SQL namespace target
+
+Code-first table/constraint/index/domain provisioning remains pinned to dbo. The builder has no
+target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is COHSQLE031.
+[CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
+namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
+Storage format 25 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 7.
+
+Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports COHSQLS005
+(no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
+
 This package owns SQL schema declarations, immutable compiled relational shapes, canonical JSON,
 validation, and migration planning. Feature A3 of DATABASE_MVP_FEATURES.md
 (`cohesion/docs/programs/DATABASE_MVP_FEATURES.md`) moves that vocabulary out of the model-agnostic
@@ -85,6 +96,30 @@ declarations, canonical documents, ownership, validation, and migration planning
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Current format boundary
+
+Compiled schemas have no identity representation. Reconciliation of a typed schema-owned table
+containing identity metadata is refused before changes with SqlSchemaMigrationException,
+`COHSQLP005` and "Nothing was changed." SQL script-created tables retain their SQL definitions.
+Compiled domain declarations named serial, bigserial or smallserial fail validation with
+SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
+throws ArgumentException; SQL CREATE DOMAIN reports COHDBL001, including quoted names.
+
+The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
+separately changes quoting for newly executable function names in persisted canonical SQL.
+The formats preserve resolved shared type identity/modifiers across contextual multi-word and
+SQL Server lexical aliases. Typed temporal, interval and binary defaults use canonical literal
+text. These unreleased formats have no older-format compatibility reader; use this current
+boundary when interpreting historical layout notes above.
+
+Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
+SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
+identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+Every earlier format is refused at open; there is no
+upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 

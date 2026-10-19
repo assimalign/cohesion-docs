@@ -1,0 +1,74 @@
+# SqlClientException
+
+## Signature
+
+```csharp
+public sealed class SqlClientException : DatabaseException
+{
+    public SqlClientException(SqlClientErrorKind kind, ProtocolErrorCode code, string message);
+    public SqlClientException(SqlClientErrorKind kind, ProtocolErrorCode code, string message, Exception? innerException);
+    public SqlClientErrorKind Kind { get; }
+    public ProtocolErrorCode Code { get; }
+    public bool ConnectionUsable { get; }
+}
+```
+
+## Behavior and exceptions
+
+The inner-exception constructor copies diagnostics when its inner cause is a DatabaseException. The
+three-argument constructor has an empty list. The carrier preserves code, severity and span while
+Kind/Code retain client and wire categories. ConnectionUsable is true for ParseFailure,
+ExecutionFailure, TransactionAborted, NotAuthorized and InvalidCast; protocol/connection failures
+are unusable. Constructors add no new validation exception.
+
+SQL constraint failures use Kind SqlClientErrorKind.ExecutionFailure and Code
+ProtocolErrorCode.ExecutionFailure. With protocol 2.1 and `diagnostics` negotiated, Diagnostics
+contains exactly one Error entry with the available enclosing statement span:
+
+| Diagnostic code | Meaning and trigger | SQLSTATE mapping |
+| --- | --- | --- |
+| `COHSQLE037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key, including a second unique index in DO UPDATE | 23505 |
+| `COHSQLE038` | CHECK/domain-check failure on a write, domain CAST, or function domain argument/result | 23514 |
+| `COHSQLE039` | Missing foreign-key parent or referenced key protected on DELETE/UPDATE | 23503 |
+| `COHSQLE024` | NOT NULL column receives NULL | 23502 |
+
+Message starts with `CODE: ` and names the constraint and table without key values. Domain CAST
+and function checks name the domain without a table. Protocol 2.0 still receives the code-prefixed
+Error message without structured diagnostics. SQLSTATE is a reference mapping, with no separate
+carrier member. A constraint failure rolls back the statement; the connection and explicit
+transaction remain usable. Handle the diagnostic code separately from the wire-category Code.
+
+## Example
+
+```csharp
+try { await connection.QueryAsync("SELECT absent FROM t;"); }
+catch (SqlClientException failure) {
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE015 with diagnostics negotiated
+    Console.WriteLine(failure.ConnectionUsable); // True
+}
+```
+
+With `t` containing `(id, u)` rows `(1, 10)` and `(2, 20)`, and a unique index `uq_t` on `u`:
+
+```csharp
+await connection.ExecuteAsync("BEGIN");
+try { await connection.ExecuteAsync("UPDATE t SET u = 10 WHERE id = 2"); }
+catch (SqlClientException failure) when (failure.Code == ProtocolErrorCode.ExecutionFailure) {
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE037 with diagnostics negotiated
+    Console.WriteLine(failure.ConnectionUsable);   // True
+}
+await connection.ExecuteAsync("COMMIT");
+```
+
+The UPDATE changes no rows; the transaction can still commit. Snapshot aborts and deadlock victims
+instead require [whole-transaction rollback and retry](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
+
+## Related reference
+
+[Assembly](index.md) · [DatabaseException](../assimalign-cohesion-database/database-exception.md) · [SQL diagnostics](../../../../database/sql/language/diagnostics.md)
+
+## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/Exceptions/SqlClientException.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlWireDiagnosticTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

@@ -1,98 +1,113 @@
 # CAST (Cohesion SQL)
 
-Converts an executable value to a supported exact numeric, Boolean, or string type.
+Converts a value using the engine's registered conversion, then applies the destination bounds.
 
-> **Status:** Partial. This page describes the executable subset and its boundaries.
+> **Status:** Implemented for the pairs below.
 
 ## Syntax
 
 ```syntaxsql
-CAST ( expression AS <target_type> )
-
-<target_type> ::= {
-    BOOLEAN | BOOL
-  | TINYINT | SMALLINT | INT2 | INT | INTEGER | INT4 | BIGINT | INT8
-  | DECIMAL [ ( precision [ , scale ] ) ]
-  | NUMERIC [ ( precision [ , scale ] ) ]
-  | CHAR [ ( length ) ] | CHARACTER [ ( length ) ]
-  | VARCHAR [ ( length ) ] | TEXT [ ( length ) ]
-}
+CAST ( expression AS target_type )
 ```
 
-## Arguments
+The target uses the same [type names and modifiers](../data-types/index.md) as DDL, including
+multi-word names and engine-resolved domains.
 
-- **`expression`** — The evaluated source value, including a column, parameter, or literal.
-- **`precision`** — An integer from 1 through 28.
-- **`scale`** — An integer from zero through precision; omitted scale is zero.
-- **`length`** — A positive `Int32` count of UTF-16 code units.
+## Conversion pairs
 
-## Remarks
+Identity conversions work for all 19 shared non-null SQL types. This table lists additional
+built-in conversions. Character types mean TEXT/VARCHAR and fixed CHAR; numeric types mean
+TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE PRECISION and NUMERIC.
 
-This subset performs actual conversions with matching result values and base-type metadata,
-including through the SQL server/client. Target names resolve through `SqlTypeNames` and
-`DatabaseTypeInfo`.
-
-| Evaluated non-null source | Allowed target families |
+| Source | Additional targets |
 | --- | --- |
-| Signed `sbyte`, `short`, `int`, `long`, or `decimal` | Any signed integer width, `Decimal`, `String` |
-| `String` | Any signed integer width, `Decimal`, `Boolean`, `String` |
-| `Boolean` | `Boolean`, `String` |
+| Boolean | Character types |
+| Any numeric type | Every other numeric type; character types |
+| TEXT/VARCHAR or CHAR | Every other shared type, including Boolean, BYTEA, temporal, UUID, JSON and JSONB |
+| BYTEA | Character types |
+| DATE | TIMESTAMP, TIMESTAMPTZ, character types |
+| TIME | INTERVAL, character types |
+| TIMESTAMP | DATE, TIME, TIMESTAMPTZ, character types |
+| TIMESTAMPTZ | DATE, TIME, TIMESTAMP, character types |
+| INTERVAL | TIME, character types |
+| UUID | Character types |
+| JSON | JSONB, character types |
+| JSONB | JSON, character types |
 
-All other pairs are rejected. Floating-point values, unsigned integers, binary values, temporal
-values, globally unique identifiers, and JavaScript Object Notation values are not supported CAST
-families. Numeric-to-Boolean and Boolean-to-numeric conversions are excluded.
+A pair without a conversion is `COHSQLE011` (SQLSTATE 42846), rejected while planning when the
+source type is known, including over empty input or a typed NULL. Parameter types are resolved
+from runtime values. Untyped NULL converts to a typed NULL; target validation still applies.
+Application-registered casts and domains use the same conversion path.
 
-| Conversion rule | Behavior |
-| --- | --- |
-| Numeric text | Trim surrounding whitespace; require `[+-]?[0-9]+(\.[0-9]+)?`; reject grouping, exponent text, empty or invalid text |
-| Boolean text | Trim whitespace; accept case-insensitive `TRUE` or `FALSE` only |
-| Numeric or Boolean to string | Invariant numeric formatting or uppercase `TRUE`/`FALSE` |
-| String to string | Preserve original text, including whitespace |
-| Null source | Return typed `NULL` for supported targets; target validation still runs |
-| Signed integer target | Reject overflow or nonzero fractional parts; no truncation, rounding, wrapping, or zero fallback |
-| Decimal target | Use `System.Decimal`, with 96-bit coefficient and scale 0–28 |
-| String target | Reject excess length; no truncation or fixed-character padding |
+## Value rules
 
-Integer ranges are -128 through 127, -32768 through 32767, -2147483648 through 2147483647, and
--9223372036854775808 through 9223372036854775807 for the four increasing widths.
-Identity conversions also enforce bounds.
+- Integer targets require a whole value in range. They never truncate a fraction. NaN or infinity
+  to an integer is `COHSQLE002` (22003).
+- Exact numeric text permits surrounding whitespace and `[+-]?[0-9]+(\.[0-9]+)?`; exponent text,
+  grouping and a missing digit beside the decimal point are rejected. Floating targets additionally
+  accept exponent notation, NaN and Infinity. Finite overflow and nonzero underflow to zero fail.
+- NUMERIC(p,s) rounds to scale with midpoint ties away from zero, then checks precision. Bare
+  NUMERIC requires an exact `System.Decimal` representation. Numeric range faults are `COHSQLE002`.
+- Explicit character CAST truncates to the declared number of Unicode scalars; CHAR then pads with
+  ASCII spaces. CHAR to TEXT strips padding. Binary bounds reject excess bytes rather than truncate.
+- Temporal text uses the strict [literal grammar](literals.md). DATE to timestamp means midnight.
+  TIMESTAMP is a zone-less wall clock interpreted as UTC when converting to TIMESTAMPTZ; the reverse
+  uses UTC and returns `DateTimeKind.Unspecified`. TIMESTAMPTZ to DATE/TIME also uses UTC.
+- TIME to INTERVAL uses time since midnight. INTERVAL to TIME requires a nonnegative duration below
+  one day. Year-month interval text has no conversion to the stored day-time type.
+- BYTEA text accepts a leading backslash-x with even hexadecimal digits, or plain UTF-8 text without
+  backslashes. JSON and JSONB validate JSON at depth 128 and retain its text rather than reformat it;
+  JSONB uses UTF-8 bytes. SQL wire scalar codecs still exclude direct JSON/JSONB components: CAST
+  those results to TEXT when returning them through that codec.
 
-Bare `DECIMAL`/`NUMERIC` imposes no additional bound. `DECIMAL(p)` means scale zero.
-For `DECIMAL(p,s)`, require `abs(value) < 10^(p-s)` with no nonzero digits beyond scale `s`.
-Trailing fractional zeros can be discarded without changing value; excess precision or scale errors.
-Output need not be padded to the declared scale. Numeric text must fit `System.Decimal` exactly
-before narrowing and is never silently rounded.
+Invalid value text uses `COHSQLE022` (22P02). Unknown type names use `COHSQLE010` (42704);
+invalid target modifiers use `SQL0005`. CAST remains excluded from DEFAULT declarations and CHECK.
 
-SQL integer literals evaluate as `Int64`; fractional/exponent literals evaluate as exact
-`Decimal`. Parameters and stored columns retain their runtime types. Bare string aliases have no
-CAST length limit. Integer and Boolean targets accept no parameters.
+A domain check that rejects the converted value reports `COHSQLE038` (23514) through
+SqlConstraintViolationException with exactly one Error diagnostic. Its message names the domain
+without key values or a table, because CAST writes no table. The session attaches the statement
+span when available; the error also reaches clients as ExecutionFailure with a usable connection.
 
-Unknown target names produce `SQL0004`; recognized unsupported targets or invalid parameters
-produce `SQL0005`; malformed syntax produces `SQL0003`. Conversion failures throw
-`DatabaseException` naming CAST and its target and surface as query errors over the wire.
+## Text output and concatenation
 
-In-process result columns expose `DatabaseType` and conservative nullability. Wire/client metadata
-exposes the same base type, but no nullability, length, precision, or scale fields.
-CAST in `DEFAULT` and `CHECK` is rejected. In inserts and updates, conversion precedes
-destination-column storage coercion.
+CAST to TEXT and `||` use the same rendering: shortest round-trip floats; `yyyy-MM-dd` dates;
+`HH:mm:ss` with up to seven fractional digits; a space between timestamp date and time; and an
+explicit `+/-HH:mm` offset for TIMESTAMPTZ. UUIDs use lowercase hyphenated text and BYTEA uses
+lowercase backslash-x hex. Intervals render day fields and a clock, such as `1 day 02:00:00`.
+Boolean text is uppercase TRUE/FALSE. NULL concatenation remains NULL.
 
 ## Examples
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
 
 ```sql
-SELECT CAST('42' AS INT), CAST(age AS TEXT) FROM t ORDER BY id;
+SELECT CAST(CAST('1.25' AS DOUBLE PRECISION) AS NUMERIC),
+       CAST(DATE '2024-01-01' AS TIMESTAMP),
+       CAST(X'00FF' AS TEXT)
+FROM t WHERE id = 1;
 ```
 
-The fixture returns `(42, "36")`, `(42, "45")`, and `(42, "41")`, with `Int32` and `String` columns.
+The row contains Decimal `1.25`, timestamp `2024-01-01 00:00:00`, and text `\x00ff`.
+
+Execute separately in a fresh database:
+
+```sql
+CREATE DOMAIN positive AS INT CHECK(VALUE > 0);
+CREATE TABLE domain_values (id INT);
+INSERT INTO domain_values VALUES (1);
+SELECT CAST(0 AS positive) FROM domain_values;
+```
+
+The SELECT reports COHSQLE038 (23514), naming `positive`; the stored row remains unchanged.
 
 ## See also
 
-[Expressions](index.md) · [SELECT](../statements/select.md) · [Data types](../data-types/index.md)
+[Expressions](index.md) · [Literals](literals.md) · [Data types](../data-types/index.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
 
-- **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
-- **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastTests.cs`
-- **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Cast.cs`
+- **Pair matrix and examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastMatrixTests.cs`.
+- **Conversions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlStandardCasts.cs`.
+- **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastConverter.cs`.
+- **Text output** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastText.cs`.
+- **Domain diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

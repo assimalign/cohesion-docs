@@ -15,7 +15,7 @@ ORDER BY expression [ ASC | DESC ] [ , ...n ]
 | Source expression | Supported | Evaluates an ordering value |
 | Standalone explicit projection alias | Supported | Resolves the projected expression |
 | `ASC` or `DESC` | Supported | Ascending by default, or descending |
-| `LIMIT`, `OFFSET` | Recognized, not supported (`COHDBL001`) | No pagination clause |
+| [LIMIT/OFFSET](limit-offset.md) | Supported | Final output slice after ordering; either clause order |
 
 ## Arguments
 
@@ -28,6 +28,11 @@ A standalone explicit alias takes precedence over a source field with the same n
 ordering follows the same group-key restrictions as grouped projections. The executor preserves
 the established document or group order for equal ordering values, yielding deterministic results
 across scans and index seeks. Strings use case-sensitive ordinal order.
+
+[MISSING](../expressions/missing.md) sorts before NULL ascending; descending reverses this order.
+With SELECT DISTINCT, every key must match a projected expression after explicit-alias rewriting;
+an outside key fails with `COHDOC014` at that key. Top-level VALUE/RAW normalizes a MISSING projected
+value to NULL before ordering by the matching expression.
 
 ## Examples
 

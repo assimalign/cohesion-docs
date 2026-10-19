@@ -6,12 +6,12 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 ## Function groups
 
-- **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, and MAX.
-- **[Builtin functions](builtin-functions.md)** — Separate executable scalar calls from lexical vocabulary.
+- **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG, with DISTINCT/ALL and ordered inputs.
+- **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 33-of-49 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 
@@ -19,4 +19,3 @@ execution support; use [diagnostics](../diagnostics.md) and the
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
-

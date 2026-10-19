@@ -1,39 +1,52 @@
 # Language (OQL)
 
-Object Query Language (OQL) queries one document collection and manages its secondary indexes.
+OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPSERT, UPDATE and DELETE.
 
-> **Status:** Partial. The documented subset is executable; the full Object Data Management Group language is not implemented.
+> **Status:** Partial. The profile executes 31 of 32 declared clauses on the integration branch.
 
-The parser produces typed statements for the Documents engine. A statement addresses the session's
-database and cannot switch databases or servers. Document replacement and deletion remain collection
-API operations. The grammar adds explicit index data definition language (DDL) to OQL.
+OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
+uses its session database. [UPDATE](statements/update.md) changes selected paths and
+[DELETE](statements/delete.md) removes matching documents. Parameters
+share SQL and GQL's case-sensitive bare-name contract.
 
 ## Reference categories
 
-- **Conventions** — [Syntax conventions](syntax-conventions.md) explains diagrams and lexical rules.
-- **Statements** — [SELECT, CREATE INDEX, and DROP INDEX](statements/index.md).
-- **Clauses** — [FROM, WHERE, GROUP BY, HAVING, and ORDER BY](clauses/index.md).
-- **Expressions** — [Paths, operators, literals, and parameters](expressions/index.md).
-- **Functions** — [Aggregate functions](functions/index.md).
-- **Diagnostics** — [Parser errors and locations](diagnostics.md).
-- **Boundaries** — [Unsupported language features](unsupported.md).
+- **Conventions** — [Syntax conventions](syntax-conventions.md).
+- **Statements** — [SELECT, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
+- **Clauses** — [FROM, WHERE, GROUP BY, HAVING, ORDER BY and LIMIT/OFFSET](clauses/index.md).
+- **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
+- **Functions** — [34 SQL++ scalars](functions/scalar-functions.md), [aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
+- **Diagnostics** — [Parser, planner and execution codes](diagnostics.md).
+- **Boundaries** — [Unsupported forms](unsupported.md).
 
 ## Support matrix
 
 | Construct | Support | Scope |
-|---|---|---|
-| `SELECT`, `FROM`, `WHERE` | Supported | One source, projections, scalar predicates |
-| `GROUP BY`, `HAVING`, `ORDER BY` | Supported | Grouping, aggregate filtering, stable ordering |
-| `CREATE INDEX`, `DROP INDEX` | Supported | One nonunique path index in one collection |
-| `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | Supported | One argument; `COUNT(*)` also accepts a star |
-| `DEFINE`, `ELEMENT`, `FLATTEN`, nested `SELECT` | Recognized, not supported (`COHDBL001`) | Reserved constructs |
-| Document data-mutation statements | Recognized, not supported (`COHDBL001`) | Use the collection API |
+| --- | --- | --- |
+| SELECT/FROM/WHERE | Supported | One collection, ordered UNNEST bindings, projections and SQL++ truth conversion |
+| [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
+| GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
+| [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
+| MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
+| IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
+| CREATE/DROP COLLECTION | Supported | Conditional, transactional collection DDL |
+| INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
+| [DELETE](statements/delete.md) | Supported | Snapshot filtering, index maintenance and affected count; retains collection/index definitions |
+| [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
+| [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
+| EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
+| CREATE/DROP INDEX | Supported | One to 32 ordered paths, UNIQUE and conditional DDL |
+| COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts input rows, including expanded UNNEST rows |
+| [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
+| META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
+| [UNNEST/LEFT UNNEST](clauses/unnest.md) | Supported | Array rows; LEFT preserves empty/non-array inputs with MISSING |
+| [ANY/SOME/EVERY](expressions/quantified-predicates.md) and array IN | Supported | Scoped SQL++ predicates and structural membership |
 
 ## See also
 
-[Document](../index.md) describes collections, transaction ownership, storage, and engine limits.
+[Document](../index.md) describes sessions, storage, transport and pooled clients.
 
 ## Sources
 
-- **Language overview** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/OVERVIEW.md`.
-- **Language contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
+- **Dialect** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DIALECT.md`.
+- **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlExecutionConformanceTests.cs`.

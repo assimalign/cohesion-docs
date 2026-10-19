@@ -10,13 +10,13 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Storage`.
 
 ## Documented behavior
 
-`GraphStorage.Create` and `Open` own three streams and expose the shared `IStorage` surface,
+`GraphStorage.Create` and `Open` own three streams and derive from the shared Storage base and expose its surface,
 `WriteAheadJournal`, and `Records` for coordinator construction. Their raw owner-zero record
 methods support Graph.Catalog. `PackLocation` and `UnpackLocation` convert the stable page/slot
 reference format.
 
-`GraphStore.Open(GraphStorage, TransactionCoordinator)` returns `IGraphStore`, whose operations
-create/find/delete nodes and relationships, enumerate nodes and incident relationships,
+`GraphStore.Open(GraphStorage, TransactionCoordinator)` returns the sealed `GraphStore`, whose operations
+create/find/update/delete nodes and relationships, enumerate nodes and incident relationships,
 create/drop/search exact property indexes, and recover index writers. Mutations require an active
 caller transaction and do not commit it. Snapshot reads return immutable `StoredGraphNode` and
 `StoredGraphRelationship` scalar records.

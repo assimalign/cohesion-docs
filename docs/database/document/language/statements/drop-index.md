@@ -5,7 +5,7 @@ DROP INDEX removes a named index from an explicitly identified collection.
 ## Syntax
 
 ```syntaxsql
-DROP INDEX index_name ON collection_name [ ; ]
+DROP INDEX [ IF EXISTS ] index_name ON collection_name [ ; ]
 ```
 
 ## Supported clauses
@@ -21,6 +21,10 @@ DROP INDEX index_name ON collection_name [ ; ]
 
 ## Remarks
 
+IF EXISTS makes an absent index a no-op. Snapshot conflicts are checked before no-ops.
+An existing schema-owned index still refuses removal; an absent conditional DROP is a no-op
+even in a schema-owned collection.
+
 The statement removes the visible index definition in its transaction. Subsequent physical plans
 stop selecting it; older snapshots retain their defined visibility. The engine enforces collection
 ownership under the database writer lock. Schema-owned collections reject the operation, and
@@ -34,8 +38,10 @@ execution returns a command `DatabaseResult` with `Success` and an affected coun
 The parser tests use this statement:
 
 ```sql
-DROP INDEX ix_postal ON people
+DROP INDEX IF EXISTS ix_postal ON people
 ```
+
+Success has zero affected documents, whether the index existed or not.
 
 ## See also
 

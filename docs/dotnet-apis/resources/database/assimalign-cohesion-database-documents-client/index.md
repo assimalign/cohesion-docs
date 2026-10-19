@@ -1,23 +1,28 @@
 # Assimalign.Cohesion.Database.Documents.Client
 
-This project reserves the `Assimalign.Cohesion.Database.Documents.Client` assembly without a C# implementation.
+A pooled Documents client for OQL, document operations and collection management.
 
-> **Status:** Not yet implemented.
+> **Status:** Implemented for the documented surface; explicit wire transactions are unsupported.
 
 ## Reference pages
 
-- **[Design](design.md)** — Dependency boundaries and implementation decisions.
-- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[Design](design.md)** — Ownership, failure completion and pooling.
+- **[Examples](examples/index.md)** — Source-backed end-to-end usage.
+- **[DocumentClient](document-client.md)** — Create a pool and rent authenticated connections.
+- **[DocumentClientOptions](document-client-options.md)** — Settings and transport factory.
+- **[DocumentConnection](document-connection.md)** — OQL, CRUD and collection operations.
+- **[DocumentResultSet](document-result-set.md)** — Materialized rows and whole JSON documents.
+- **[DocumentRow](document-row.md)** — Typed/name access and MISSING support.
+- **[DocumentColumn](document-column.md)** — Projection metadata.
+- **[DocumentClientException](document-client-exception.md)** — Protocol category and coded diagnostics.
 
-The source directory contains the project file but no C# implementation. No public types or runtime
-behavior can be documented from this project. Its name reserves a package boundary; that name does
-not establish a working feature.
-
-There is no project overview or design document. This page is derived from the source-directory
-inventory and the project file.
+The model owns codecs; Database.Client owns connections, handshake and pooling. The caller supplies
+a Connections transport factory. Results own their data after the exchange. Projected rows preserve
+SQL++ MISSING versus NULL; nested objects and arrays are owned JsonElement values.
 
 [Parent: Database](../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/src/Assimalign.Cohesion.Database.Documents.Client.csproj`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/docs/DESIGN.md`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

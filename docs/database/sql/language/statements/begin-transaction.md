@@ -7,13 +7,16 @@ Starts the session's explicit transaction.
 ## Syntax
 
 ```syntaxsql
-BEGIN [ TRANSACTION ] [ ; ]
+{ BEGIN [ WORK | TRANSACTION ] | START TRANSACTION } [ ; ]
 ```
 
 ## Arguments
 
-The optional `TRANSACTION` keyword changes no semantics. There is no transaction name or
-isolation-level argument in this syntax.
+`WORK` and `TRANSACTION` are optional equivalent suffixes on BEGIN.
+`START TRANSACTION` requires `TRANSACTION`. `START` and `WORK` remain contextual:
+columns named `start` or `work` still bind.
+Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Malformed suffixes report `SQL0003` before transaction state changes.
 
 ## Remarks
 
@@ -28,13 +31,23 @@ disconnect rolls back an unfinished transaction. `TRANSACTION` alone is not a st
 The coordinator also has an API for selecting an isolation level; SQL isolation-level syntax,
 nested transactions, and savepoints are outside this language subset.
 
+[ON CONFLICT](../clauses/on-conflict.md#isolation-locking-and-retries) uses latest-state unique-key
+arbitration. Snapshot aborts retryably on a conflict committed after its snapshot, including
+autocommit DO NOTHING; ReadCommitted skips or updates the newest committed row. Deadlock victims
+must roll back and retry the complete transaction, including earlier statements.
+
+The transaction captures one UTC start instant. CURRENT_TIMESTAMP/NOW(), CURRENT_DATE,
+CURRENT_TIME, LOCALTIME and LOCALTIMESTAMP use it for all rows and later statements until COMMIT
+or ROLLBACK, including SQL function bodies and child queries. Automatic statement transactions
+capture their own start instant. See [clock examples](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
+
 ## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture), execute each
 statement as a separate request on the same session or client connection:
 
 ```sql
-BEGIN TRANSACTION;
+START TRANSACTION;
 INSERT INTO t VALUES (4, 'new', 1);
 COMMIT TRANSACTION;
 ```
@@ -54,4 +67,3 @@ The inserted row becomes visible to an observing session after commit.
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`
 - **Client lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
 - **Coordinator** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/OVERVIEW.md`
-

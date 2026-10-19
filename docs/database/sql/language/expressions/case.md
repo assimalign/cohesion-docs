@@ -36,6 +36,11 @@ The measured contract covers multiple branches, row expressions, and implicit nu
 In grouped projections, numeric `CASE` alternatives use a common numeric result type; incompatible
 nonnumeric alternatives are planning errors.
 
+Length, precision, scale and domain metadata survive only when every result alternative has
+the same type, domain and modifiers. A missing ELSE or an unconstrained/different alternative
+clears that metadata. [Persisted views](../statements/create-view.md) freeze this output contract
+for INFORMATION_SCHEMA.COLUMNS and compatible replacement checks.
+
 ## Examples
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).

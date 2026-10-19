@@ -11,6 +11,12 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## T1 API examples
+
+[ProtocolStartupMessage](../protocol-startup-message.md), [ProtocolChannel](../protocol-channel.md)
+and [ProtocolDiagnosticsMessage](../protocol-diagnostics-message.md) include 2.1 capability and
+structured-diagnostic round trips from the negotiation test contract.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/OVERVIEW.md`.

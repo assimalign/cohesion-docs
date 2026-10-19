@@ -162,7 +162,7 @@ Transport selection belongs to the composition root. `Database.Sql.Tcp` supplies
 transport.
 
 Each endpoint fixes a model family for the entire connection. The shared protocol owns framing,
-handshake, version 1.0 negotiation, errors, and lifecycle; each model owns message identifiers and
+handshake, version 2.1 capability negotiation, errors, and lifecycle; each model owns message identifiers and
 payload codecs. Model clients use the shared pooled client to run their exchanges.
 
 SQL sends statement text plus named values. A row result returns a header, rows, then completion;
@@ -170,12 +170,28 @@ a write returns completion with an affected count. Statements execute one at a t
 pipelining or multiplexing. Transactions travel as SQL commands. Database selection occurs during
 startup and remains fixed for the session.
 
+SQL and GQL negotiate Warning/Error diagnostics; Documents uses its own Failure frame.
+[EXPLAIN](sql/language/statements/explain.md) across all three languages returns one eight-column
+plan shape without executing data statements. DocumentClient serves OQL and document/collection
+operations; GraphPathResult exposes warnings at path completion. Graph additionally negotiates
+[graph.composite-values](graph/language/expressions/list-values.md#limits-and-wire-capability)
+for bounded list/map parameters and results, without changing Path payloads.
+
 ## MVP boundaries
 
-The current SQL contract measures 33 of 49 declared clauses. Document and Graph have their own
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 25;
+dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
+execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
+and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
+
+The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization, and replication/governance
 contracts do not imply operational implementations.
+
+SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
+[distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
+foreign-key validation for multi-row UPDATE. OQL executes 31 of 32 declared clauses and GQL 26 of 33.
 
 The Phase 29 hosting implementation supersedes older eager-builder examples in the program plan.
 It adds no ApplicationModel functionality; that work remains deferred by the hosting design.
@@ -195,7 +211,6 @@ to determine available behavior.
 - **Current hosting contract** — `cohesion/docs/programs/DATABASE_HOSTING_DESIGN.md`
 - **Hosting implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`
 - **Template composition** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-app/Acme.Database/Program.cs`
-- **In-process examples** — `cohesion/resources/Database/samples/Assimalign.Cohesion.Database.Demo/Program.cs`
 - **Embedded ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Embedded/docs/DESIGN.md`
 - **Client API** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/OVERVIEW.md`
 - **Client settings** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnectionSettings.cs`
@@ -203,8 +218,6 @@ to determine available behavior.
 - **Shared wire model** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/OVERVIEW.md`
 - **SQL wire exchange** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`
 - **Security contracts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Security/docs/OVERVIEW.md`
-- **Replication contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Replication/src/Abstractions/IReplicationCoordinator.cs`
-- **Governance contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Governance/src/Abstractions/IResourceGovernor.cs`
 - **Document model** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`
 - **Graph model** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`
 - **Key-value model** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`
