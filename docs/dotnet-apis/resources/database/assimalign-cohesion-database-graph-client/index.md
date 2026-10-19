@@ -31,8 +31,12 @@ flowchart LR
 
 `QueryAsync` returns scalar MATCH projections and the existing SHOW catalog rows as
 `GraphResultSet`, with column metadata and rows accessible by ordinal or name.
-`ExecuteAsync` sends CREATE, INSERT, DELETE, and DETACH DELETE to the engine and returns its
-affected count. The server retains engine ownership, cycle, and database-scoping enforcement.
+`ExecuteAsync` sends CREATE, INSERT, SET, REMOVE, DELETE, and DETACH DELETE to the engine and returns
+its affected count. The server retains engine ownership, cycle, and database-scoping enforcement.
+
+[SET](../../../../database/graph/language/clauses/set.md) and
+[REMOVE](../../../../database/graph/language/clauses/remove.md) can also return scalar rows through
+QueryAsync with [GraphResultSet.AffectedCount](graph-result-set.md).
 
 `QueryPathsAsync` returns real engine paths for a single bound projection:
 `MATCH p = (a)-[r:KNOWS]->(b) RETURN p`, `MATCH (a) RETURN a`, or

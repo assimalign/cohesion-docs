@@ -60,11 +60,16 @@ distinct from zero. Arithmetic retains its separate [promotion rules](../express
 The first representative retains its runtime types. Nodes/relationships compare by identity;
 paths compare ordered node/relationship identities, including traversal direction.
 
-RETURN may stand alone, finish a read match, or follow insertion. It cannot follow deletion or SHOW.
+RETURN may stand alone, finish a read match, or follow insertion,
+[SET](set.md) or [REMOVE](remove.md). It cannot follow deletion or SHOW.
 A standalone RETURN evaluates once and returns one row. An empty nongrouped MATCH returns zero rows while
 retaining result-column metadata; a keyless aggregate instead returns one row. DISTINCT runs after insertion: it removes output duplicates
 without suppressing writes for matched bindings. Sorting follows DISTINCT, then OFFSET/SKIP and
 LIMIT. Without ORDER BY there is no result-order guarantee. Paging never suppresses mutations.
+
+An update followed by RETURN reports the same distinct mutation count as the write without
+RETURN, alongside its projected rows. Repeated appearances of one changed entity count once;
+pure no-ops and OPTIONAL NULL update targets count zero.
 
 Lists and maps are [transient composite values](../expressions/list-values.md), including nested
 values. Equality is structural with UNKNOWN for corresponding NULLs unless a difference makes it

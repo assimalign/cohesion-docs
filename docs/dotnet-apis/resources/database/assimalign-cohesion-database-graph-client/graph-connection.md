@@ -16,7 +16,8 @@ public GraphPathResult QueryPathsAsync(string statement,
 ## Behavior and exceptions
 
 One authenticated rental runs one active exchange. QueryAsync materializes value/SHOW/EXPLAIN rows;
-ExecuteAsync returns affected entity count (-1 for rows). QueryPathsAsync streams one bound path,
+ExecuteAsync returns the mutation count, including when it discards RETURN rows, or -1 for a
+read-only statement. QueryPathsAsync streams one bound path,
 node or relationship from read-only composition. Parameters preserve runtime scalar, list and map types and bind
 case-sensitive bare names in WHERE, RETURN and maps. Missing values, collisions and invalid types reach the
 same engine diagnostics (COHDBG001/014/003) as embedded requests.
@@ -29,6 +30,11 @@ duplicates fail COHDBG015 before output or mutation, including implicit/explicit
 EXPLAIN (no SQLSTATE assigned). QueryPathsAsync accepts one bare entity/path binding from read-only
 composition, optionally DISTINCT, or star over one named binding. Invalid computed/multiple/star shapes
 use COHDBG001 before duplicate-name checks.
+
+[SET](../../../../database/graph/language/clauses/set.md) and
+[REMOVE](../../../../database/graph/language/clauses/remove.md) return updated scalar values
+through QueryAsync with GraphResultSet.AffectedCount. The count includes distinct changed
+entities; repeated rows do not multiply it, and pure no-ops or OPTIONAL NULL targets count zero.
 
 LET/FILTER/FOR/UNWIND, WITH and RETURN … NEXT run as eager stages. WITH WHERE filters after
 paging. Only final columns determine wire admission; intermediate collect/UNWIND preserves proven

@@ -35,7 +35,7 @@ types. This adds no result frame or public member.
 AffectedCount is -1 for a read-only statement and the mutation count for writes, including writes
 with RETURN. It counts created entities plus distinct changed pre-existing entities; a created-then-
 updated entity counts once. Pure no-ops and OPTIONAL NULL update targets count zero. Count remains
-the number of returned rows. ResultComplete carries both without a framing change.
+the number of returned rows. ResultComplete carries AffectedCount without a framing change.
 
 ## Example
 

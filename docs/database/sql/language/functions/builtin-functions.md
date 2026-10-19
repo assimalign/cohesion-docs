@@ -42,6 +42,11 @@ NULLIF evaluates its operands, returns NULL when equal, otherwise preserves the 
 its type; a NULL first operand stays NULL, and a NULL second operand leaves the first unchanged.
 It follows ordinary comparison/collation rules, including CHAR trailing-space normalization.
 
+COALESCE retains length, precision, scale and domain metadata only when every argument agrees
+in type, domain and modifiers; otherwise the common type is unconstrained. NULLIF retains its
+first argument's length, precision and scale. [Persisted views](../statements/create-view.md) freeze
+these facets in their column metadata.
+
 CONCAT skips NULL arguments; all NULLs gives empty text. CONCAT_WS returns NULL for a NULL separator
 and skips NULL value arguments. Both format other values using CAST-to-TEXT rules (Booleans use
 TRUE/FALSE). The clock forms and GEN_RANDOM_UUID are never NULL.

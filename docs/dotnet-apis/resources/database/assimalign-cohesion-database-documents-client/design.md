@@ -64,7 +64,7 @@ See [UPDATE](../../../../database/document/language/statements/update.md).
 
 Server failure text is bounded to 4096 UTF-16 characters and diagnostics to 256, with explicit
 truncation/omission markers. Retained codes/spans stay intact. See the complete
-[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–019 and
+[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–023 and
 parser codes; all these statement refusals use the same structured Failure carrier.
 
 The [34 scalar functions](../../../../database/document/language/functions/scalar-functions.md)
@@ -92,6 +92,18 @@ OQL [LIMIT/OFFSET](../../../../database/document/language/clauses/limit-offset.m
 parameters. Complete counts returned Document frames and query AffectedCount stays -1. Empty pages
 retain columns, IsDocumentQuery and static function types. Invalid counts preserve OQL0007 and
 the operand span over InMemory and TCP; the authenticated session remains reusable.
+
+## Array query results
+
+[UNNEST and LEFT UNNEST](../../../../database/document/language/clauses/unnest.md) use the existing
+query exchange. With expansion, star returns synthetic whole-document objects keyed by the FROM
+alias (or collection name) and array variables. MISSING LEFT bindings are omitted; actual NULL
+elements remain null. Without expansion, star retains the stored bytes. Grouped COUNT over
+expanded rows retains Int64 metadata and values.
+
+ANY/SOME/EVERY and array IN use the same result encoding. Duplicate parsed binding names retain
+OQL0010; direct AST duplicate/empty bindings use COHDOC023. Neither code has an assigned SQLSTATE.
+These failures use the existing structured Failure carrier and leave the connection reusable.
 
 ## Sources
 
