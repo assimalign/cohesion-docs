@@ -18,6 +18,14 @@ Namespace: `Assimalign.Cohesion.Database.Graph`.
 - **`GraphDatabaseEngine.Servers`** — exposes nested servers whose lifetime the engine owns.
   `Create`/open/drop/lookup now accept `DatabaseName`, including its implicit string conversion.
 
+## Format refusal
+
+OpenDatabaseAsync and enumeration through GetDatabasesAsync can throw DatabaseException for an
+unsupported graph record or tree-registration format. Format 3 is required; older formats produce
+COHDBG017 in Diagnostics before logical recovery scrub. The inner StorageCorruptionException
+retains the coded message. Recreate the database; no upgrade path or SQLSTATE is assigned.
+GraphEngineTests checks that a cleanly closed refused file set stays unchanged.
+
 ## Related reference
 
 - **Assembly** — [`Assimalign.Cohesion.Database.Graph`](index.md).

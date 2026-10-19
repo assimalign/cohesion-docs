@@ -73,6 +73,31 @@ expands visible columns after merging; aliases and ordinals in ORDER BY count th
 Qualified `t.*` remains `COHDBL001`. The [JOIN examples](../clauses/join.md#examples) cover
 INNER, LEFT, USING, CROSS and comma forms with results.
 
+## Index access
+
+SELECT, [UPDATE](update.md) and [DELETE](delete.md) share rule-based index selection. Mandatory
+AND terms can supply `=`, `<`, `<=`, `>` or `>=` comparisons between a direct indexed column and
+a non-NULL, nonvolatile value evaluable during planning, such as a literal or bound parameter.
+The column may be on either side; non-negated BETWEEN supplies inclusive bounds. Target aliases
+and qualified references resolve normally. Conversion to the column's storage type must preserve
+the comparison value.
+
+An index can use equality on a leading key prefix, optionally followed by a range on the next key;
+a range on its first key also qualifies. Selection prefers the longest equality prefix, then a usable
+range, uniqueness and index name. Ranges support integer, Decimal, Boolean and temporal keys,
+and string/character keys under the index's matching byte-expressible collation. Guid, binary and
+JSON keys support equality only. Floating-point ranges scan, and floating signed-zero comparisons
+do not supply a seek bound. A mismatched string collation also supplies no bound.
+
+Computed key expressions, column-to-column comparisons, scalar-subquery comparands, NULL
+comparands, IS NULL, NOT BETWEEN and a top-level OR do not supply bounds. Without another usable
+AND term, execution scans. The full WHERE, including subqueries, still filters every candidate.
+Only TRUE qualifies; NULL comparisons yield UNKNOWN and select no row. SQL has no MISSING value.
+
+Execution falls back to a residual-filtered scan when the bound index was dropped or replaced,
+including reuse of its name for different keys. [EXPLAIN](explain.md) shows the planned IndexSeek
+and bounds or TableScan. Seek selection changes access, not predicate results.
+
 ## Examples
 
 ### A. Create the conformance fixture
@@ -132,6 +157,9 @@ The client materializes the complete result. One connection executes one command
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Access selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanner.cs`.
+- **DML equivalence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

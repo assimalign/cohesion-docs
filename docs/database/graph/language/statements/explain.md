@@ -26,7 +26,14 @@ estimated and actual counts are NULL. GQL uses ordinary row-result frames, inclu
 explained statement whose normal projection is a graph entity.
 
 Operators include LabelScan, IndexSeek and Expand for fixed or quantified segments. An IndexSeek
-reports the chosen index and property bound. A test guard requires every plan record's mapping.
+reports the chosen index and property bound. Expand also reports
+`adjacency=(node,direction,type_id,relationship); seek_direction=Outgoing; type_filter=KNOWS;
+physical=visited_candidates; viable=accepted_hops; physical_limit=1000000` for an outgoing KNOWS
+hop expanded from its left endpoint. seek_direction reverses when expanding left of an anchor;
+type_filter is the type expression/name, or % for all types. Quantified bodies describe their hops
+with the same fields. These describe [counting rules](../patterns.md#remarks), not runtime totals:
+EXPLAIN executes no hops, and estimated_rows/actual_rows remain NULL.
+A test guard requires every plan record's mapping.
 Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
 parent when requested. Duplicate final names still fail planning with COHDBG015 before execution.
 
@@ -79,6 +86,7 @@ This returns plan rows with a Return root, one Distinct node and a Project whose
 
 ## Sources
 
+- **Exact adjacency details** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs` and `GraphAdjacencyFilterTests.cs`.
 - **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphExplainTests.cs`.
 - **Wire** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphExplainWireTests.cs`.
 - **RETURN plans** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphReturnTests.cs`.

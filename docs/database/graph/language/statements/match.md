@@ -66,6 +66,8 @@ or on an endpoint supplied by a bound relationship. Otherwise it can use an inde
 middle or at either end of a path.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
 identity at most once, while node identities may recur. Separate paths have separate edge sets.
+Direction and catalog type selection precede fixed/quantified expansion, including pending INSERT
+edges. Physical and viable work follow the [pattern counting rules](../patterns.md#remarks).
 
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 

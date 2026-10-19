@@ -77,10 +77,21 @@ body edge count, and unbounded repetitions contribute their lower bound times bo
 cannot repeat within one matched path. Comma-separated paths share variables but keep separate
 relationship-identity sets. Conflicting node/relationship variable kinds fail planning.
 
-The executor limits intermediate materialized matches to 100,000 across clauses and candidate
-examination to 1,000,000 node/edge candidates per statement, including dead ends.
-Overflow produces `COHDBG004`, without silent truncation. Cancellation is observed during expansion
-and materialization.
+Fixed and quantified hops seek direction and catalog relationship-type IDs before candidate
+expansion. Boolean type expressions select the visible catalog types they accept; wildcard/untyped
+hops select all types. Expansion left of an anchor reverses the seek direction. The same selection
+applies to edges inserted earlier in the statement. Either-direction reads return a self-loop once.
+
+The executor limits intermediate materialized matches to 100,000 across clauses. Its separate
+physical counter charges visited anchor candidates and selected visible relationship candidates as
+DFS visits them, including dead ends. Loading a range charges nothing; unrelated directions/types
+add no candidates. The viable counter counts hops passing trail uniqueness, binding, relationship
+and safe endpoint checks before copying path state; deferred predicates retain final checks.
+Physical work above 1,000,000 fails with COHDBG004 and actual physical/viable totals, without
+silent truncation. These counters are not public telemetry. Selected ranges and decoded edges are
+materialized before visits, so the cap does not bound range loading, decoding or matching fan-out.
+Cancellation is observed during expansion and materialization. See [EXPLAIN](statements/explain.md)
+for the counting description; LIMIT does not reduce matching work.
 
 [Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
@@ -181,6 +192,7 @@ with every intermediate node in source order.
 
 ## Sources
 
+- **Filtered adjacency and budgets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphAdjacencyFilterTests.cs`.
 - **Quantified execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlQuantifiedPathTests.cs`.
 - **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQuantifiedPathParserTests.cs`.
 

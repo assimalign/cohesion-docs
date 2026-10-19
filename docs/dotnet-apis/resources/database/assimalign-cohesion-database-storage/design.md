@@ -167,29 +167,26 @@ stops decoding the whole database.
 
 ## The journal (write-ahead log)
 
-`IStorageJournal` is the durability mechanism — the *only* one. Frames are length-prefixed,
+[StorageJournal](storage-journal.md) is the durability mechanism — the *only* one. Frames are length-prefixed,
 magic-tagged, and CRC-protected; a torn or corrupted tail terminates the read scan and is ignored —
 it belongs to work that was never acknowledged. Records are typed and binary (begin / commit /
-rollback / checkpoint / before-image / after-image / opaque logical operation); transaction identity
-at this level is a compact monotonic `long` sequence — GUID identity belongs to the transaction
-layer above.
+rollback / checkpoint / full page image / page delta / committed page image / opaque logical operation).
+Transaction identity at this level is a compact monotonic `long` sequence; GUID identity belongs
+to the transaction layer above.
 
-### `Write` ordering rules (steal / no-force, full page images)
+### Write ordering rules (steal / no-force)
 
-1. **Before-image at first touch.** A transaction's first modification of a page
-   appends the page's full prior image and stamps the pooled page's LSN with that
-   record — mutations then apply in the buffer pool only.
+1. **Full image at first touch since checkpoint.** The page's first change since the checkpoint
+   journals a recoverable full image before mutation. Page changes then apply in the buffer pool.
 2. **The write-ahead gate.** The buffer pool may steal (evict) a dirty page at any
    time, but its write-back first forces the journal durable up to the page's LSN —
    so any uncommitted content that reaches the data file is always undoable from a
    durable before-image.
-3. **`Commit` = after-images + commit record + fsync.** `Commit` appends the after-image
-   of every touched page (stamping each page's LSN with its record), then the commit
-   record, and acknowledges only after `EnsureDurable(commitLsn)`. Data pages are
-   *not* forced — recovery redoes them (no-force).
-4. **`Rollback` restores in memory.** Before-images are kept per transaction and copied
-   back into the pooled pages, so rollback is complete without I/O; a rollback record
-   marks the outcome.
+3. **Commit records changes before acknowledgment.** Commit appends changed byte runs as PageDelta,
+   or a CommittedPageImage when the delta is large, followed by COMMIT. Durable modes acknowledge
+   only after EnsureDurable(commitLsn). Data pages are not forced; recovery replays them (no-force).
+4. **Rollback restores prior bytes.** Before-images retained for the bracket, or spilled to the
+   journal, restore the pooled pages. A rollback record marks the outcome.
 5. **Page-level single-writer.** A page touched by an active transaction is
    write-locked to it (conflicts throw rather than wait). Record-level concurrency is
    `Database.Transactions`' job above this layer; full-image logging is only correct
@@ -203,20 +200,20 @@ layer above.
 
 ### The physical/logical bracket interplay (MVCC layering rules)
 
-The MVCC session binding (area DESIGN.md §3.8, first delivered by the SQL engine) added three
+Logical readers reserve storage-counter sequences but open no physical bracket and append no
+lifecycle records. The coordinator appends a logical BEGIN only at the first admitted apply, before
+that bracket can stamp versions. Only enrolled writers append COMMIT/abort records or wait for
+commit durability. A reader promoted after a checkpoint enrolls before its first stamp, preserving
+recovery classification. See [coordinator lifecycle](../assimalign-cohesion-database-transactions/transaction-coordinator.md).
+
+The MVCC session binding (area DESIGN.md §3.8, first delivered by the SQL engine) uses these
 storage-side rules that keep the logical layer sound:
 
-- **One sequence namespace.** `IStorage.ReserveTransactionSequence()` +
-  `IStorage.BeginTransaction(long sequence)` let an engine's transaction manager
-  allocate from the storage's own counter and pair each logical transaction with
-  a bracket that *adopts the same sequence*. The bracket's commit record then
-  proves the logical transaction at recovery — there is no window in which page
-  images are committed under one sequence while the logical outcome hangs on
-  another, and internally sequenced brackets (catalog self-commits, auto-commit
-  record operations) can never collide with manager-assigned sequences. An
-  adopted bracket appends **no begin record** — the reserving caller's
-  transaction log owns lifecycle records; the bracket contributes page images
-  and its commit/rollback record.
+- **One sequence namespace.** Storage.ReserveTransactionSequence supplies logical and physical
+  identities from one counter. The coordinator uses separately sequenced physical statement
+  brackets; records carry the logical writer stamp, and only the logical COMMIT proves it at
+  recovery. The lower-level BeginTransaction(long sequence) also supports caller-adopted sequences;
+  that bracket appends no BEGIN because the caller owns its lifecycle record.
 - **The sequence floor.** The file header persists the storage's high-water
   transaction sequence (`LastTransactionSequence`, updated on every header
   write). On open, sequence assignment resumes above `max(journal-max, floor)`:
@@ -224,39 +221,41 @@ storage-side rules that keep the logical layer sound:
   MVCC row stamps persist in data pages, so a recycled sequence would corrupt
   snapshot visibility. Files written before the field read zero, a safe floor
   (they predate row stamps).
-- **Checkpoints carry logical actives; the open-time checkpoint is deferrable.**
-  `Checkpoint(ReadOnlySpan<long>)` embeds in-flight *logical* sequences in the
+- **Checkpoints carry logical writers; the open-time checkpoint is deferrable.**
+  `Checkpoint(ReadOnlySpan<long>)` embeds in-flight logical writer sequences in the
   truncating checkpoint record (their begin records are being destroyed;
   `TransactionRecovery.Analyze` reads them back so an unproven sequence still
   classifies as aborted). `Storage`-level brackets must still be quiescent — the
-  active-count interlock is unchanged, and logical actives are the caller's to
+  active-count interlock is unchanged, and the writer list is the caller's to
   supply because storage cannot see above its own layer. Symmetrically,
   `OpenExisting(checkpointOnOpen: false)` lets an engine analyze the recovered
   journal *before* the truncation destroys the records classification reads.
 - **Inner brackets may commit non-durably.** `Commit(awaitDurability: false)`
-  appends the same records (after images + commit record) without the durable
+  appends the same change records and COMMIT without the durable
   flush — for per-statement physical brackets whose durability is owned by the
   outer logical transaction's commit record: the journal is ordered, so
   flushing the later record makes the earlier ones durable first, and a crash
-  before that leaves the bracket unproven — its pages undone by recovery —
-  which is exactly the outer transaction's abort semantics. The write-ahead
+  before logical COMMIT leaves its stamps unproven and subject to logical scrub. The write-ahead
   gate protects stolen pages regardless of the flag; the flag never weakens
   the rule that an *acknowledged* commit is durable, because acknowledgment
   belongs to the outer commit.
 
-Full page images (8 KiB per touch) were chosen over byte-range deltas deliberately: they make
-recovery a pure idempotent overwrite with no operation replay logic, which is the property the crash
-suites verify. Deltas are a measured-need optimization that can ride the same record types later.
+Full page images supply recovery's base; deltas and committed images carry subsequent changes.
+The encoded byte runs omit free gaps while retaining the page's base-LSN chain.
 
 ### Recovery replay rules
 
-Because images are full pages and pages are single-writer, the desired final state of a page is the
-image of the **last** journal record on it among *committed after-images* and *uncommitted
-before-images* — redo and undo collapse into one last-record-wins pass. Replay is idempotent by
-exact-LSN match: an after-image stamps its record LSN, a before-image restores the pre-transaction
-LSN embedded in the captured bytes, and an image is skipped only when the on-disk page already
-verifies (checksum) at exactly the target LSN. Recovery runs on open, writes directly to the data
-stream (bypassing the pool — a corrupt page must be overwritable), and finishes with a checkpoint.
+Recovery restores FullPageImage records regardless of transaction outcome, then applies PageDelta
+and CommittedPageImage records only for sequences with a COMMIT. Changes name their base LSN;
+a missing image, a chain gap or malformed payload refuses open with StorageCorruptionException.
+Replay rebuilds from the journal rather than trusting an on-disk page's LSN, so stolen writes and
+torn pages are overwritten. Protected header/anchor pages are excluded. Physical recovery precedes
+logical scrub; the engine checkpoints only after consuming transaction classification.
+
+Initialization verifies frame CRC-32C checksums, classifies commits and plans the last applicable
+record per page in one streaming pass. Recovery consumes that cached analysis, then performs one
+ordered replay through a bounded page cache. The immediate replay can reuse the verified prefix;
+ordinary subsequent reads do not. See [streaming recovery](#empty-pages-and-streaming-journal-recovery).
 
 ### Checkpoints
 
@@ -272,9 +271,25 @@ hardened from "no page write locks" to an **active-transaction count** taken in 
 under the transaction lock and released exactly once per commit/rollback: a begun-but-untouched
 transaction holds no page lock yet has already appended its begin record, and the whole checkpoint
 now runs *under* the transaction lock, so no transaction can slip between the emptiness check and
-the truncation. (Lock order is transaction lock → buffer pool → journal; no path takes them in
-reverse.) A checkpoint attempted while transactions are active still throws
+the truncation. Lock order is transaction lock → header → buffer pool → journal medium →
+journal append. Never wait for the medium while holding the append lock. Medium owners briefly
+take the append lock to detach/publish prefixes and latch failures before yielding the medium.
+A checkpoint attempted while transactions are active still throws
 `StorageTransactionException` — background checkpointers treat that as "busy, retry next pass".
+
+### Appends during journal I/O
+
+The medium owner detaches the append buffer and captures its target LSN under the append lock,
+then writes and fsyncs with that lock released. Appenders fill a replacement buffer during I/O.
+A full replacement waits for the medium outside the append lock. After warm-up two retained
+buffers are reused, each at most 1 MiB; oversized frames use a pooled direct buffer.
+
+Only the written prefix is published as durable. Queued force callers recheck that prefix, so
+one fsync can cover their requests without confirming later buffered appends. Checkpoint truncation
+waits for the medium and pauses appends; disposal also waits, closes appends and drains once.
+A failed write or fsync latches offline before releasing the medium, refusing later writes and
+confirmations beyond the established prefix. Reopen recovery decides the surviving outcome.
+See [StorageJournal](storage-journal.md) for signatures, ownership and exceptions.
 
 ### `Commit` durability modes (group commit)
 
@@ -331,17 +346,34 @@ Inserts check page type and owner before reusing a current-write-page hint, incl
 page pending release in the same bracket. Iterators release a pin before skipping a page that was
 freed during a scan.
 
-`StorageJournal.ReadSequential` holds the synchronous append lock for the lifetime of an enumeration
-and yields one validated frame at a time. Callers consume it on one thread without awaiting or
-mutating the journal; early disposal restores the underlying stream position and releases the lock.
-`ReadAll` preserves its existing materialized API. Journal initialization also uses streaming
-enumeration.
+[StorageJournal.ReadSequential](storage-journal.md#sequential-reads-and-payload-ownership) holds the
+synchronous medium lock and pauses appends throughout enumeration. Each public payload is an
+owned copy valid after MoveNext and disposal; ReadAll payloads have the same guarantee. Consume
+on one thread without awaiting or checkpointing. Appending on that thread while enumeration is
+active throws InvalidOperationException. Completion, early disposal and consumer exception or
+cancellation release the lock and restore the stream position. Both paths drain before reading
+when online; offline readers see only the medium.
 
-Physical recovery uses three streaming passes: classify committed sequences, retain the winning
-relevant LSN per page, then replay only those images. The winner remains the last committed
-after-image or uncommitted before-image in WAL order, preserving existing undo/redo semantics and
-torn-tail handling. The replay memory cost is transaction/page identities plus one page image, not
-the journal payload size. This permits Blob journals larger than available memory to reopen.
+Storage recovery and consistency checks use an internal borrowed reader whose pooled payload is
+valid only until the next MoveNext or disposal. Transaction recovery uses owned public records
+across the assembly boundary. No borrowed API is exposed to callers.
+
+Initialization combines CRC-32C verification, commit classification and page planning. Unproven
+brackets retain their last record identity per page until a commit promotes it; rollback releases
+those pending page entries. File ordinals prevent a late commit from promoting an older record
+over a later full image. Reuse of a rolled-back adopted sequence followed by a commit can require
+a fresh planning pass, preserving the existing rule that any COMMIT admits that sequence's changes.
+
+Recovery consumes and releases the cached analysis. Only one immediately following redo enumeration
+on the same journal instance can reuse its verified prefix. An intervening read or append revokes
+that trust; every public read, other borrowed read and later analysis verifies CRCs afresh.
+Truncation clears cached analysis and verified-prefix trust before SetLength, even if truncation
+then fails. Replay order, transaction classification and torn-tail handling remain unchanged.
+
+Replay retains transaction/page identities and a bounded page cache, with temporary identities per
+unproven transaction/page during initialization. It does not retain journal payloads. A cached page
+is written at its last applicable record; cache pressure can write it earlier and read it back with
+checksum/LSN verification. Memory follows identities and cache capacity rather than journal bytes.
 
 ## Error model
 
@@ -377,4 +409,6 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.
+- **Journal concurrency and ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Journal/StorageJournal.cs` and `tests/JournalTests.cs` / `tests/JournalConcurrencyTests.cs`.
+- **Recovery equivalence and checksum scope** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/RecoveryAnalysisTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Assimalign.Cohesion.Database.Storage.csproj`.

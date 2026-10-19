@@ -37,9 +37,9 @@ dependency, including no dependency on Indexing.
 
 `TransactionId` is a GUID — a good *external* identity for sessions, diagnostics, and the wire
 protocol, but unordered. Visibility decisions need a total order, so this project also has
-`TransactionSequence`, a monotonically increasing `ulong` assigned at begin. The split mirrors
-PostgreSQL's virtual-txid vs. xid distinction and keeps the public session surface free of MVCC
-mechanics.
+`TransactionSequence`, a monotonically increasing `ulong` assigned at begin. Readers and writers
+both keep storage-counter sequences; no virtual identifier is introduced.
+The public session surface remains free of MVCC mechanics.
 
 ## Snapshot semantics
 
@@ -65,12 +65,15 @@ exists so the surface doesn't churn.
 
 ## The manager implementation
 
-`TransactionManager.Create(log, lockManager, versionStore, sequenceAllocator?)` returns the default
-manager. Lifecycle ordering encodes the write-ahead rule: commit appends the commit record and
+`TransactionManager.Create(lockManager, versionStore, sequenceAllocator?)` returns a standalone
+manager with an in-memory log. TransactionCoordinator composes the journal-bound manager.
+Lifecycle ordering encodes the write-ahead rule for enrolled writers: commit appends the record and
 awaits durability *while the transaction is still in the active table* — no snapshot can observe it
 as committed before its record is on stable storage; only then does it leave the table and release
-its locks as a set. A commit whose record cannot be made durable aborts (versions purged, locks
-released, state `Faulted`) and surfaces `TransactionAbortedException`. `OldestActive` is the
+its locks as a set. Failure to append the commit record aborts with TransactionAbortedException.
+If an appended commit cannot be made durable, TransactionCommitUnconfirmedException reports a
+commit in memory whose persistence is decided by recovery; it is not undone. A read-only commit
+appends nothing and waits for no durability. `OldestActive` is the
 pruning bound: `min(active)` or `lastAssigned + 1` when idle. A manager rejects a context begun on a
 different manager instance (identity check, not just type check).
 
@@ -125,12 +128,13 @@ work can also participate in cycles.
 
 ## The WAL binding
 
-`Storage` owns the physical journal (`Database.Storage`); `ITransactionLog` is the *logical* seam:
-begin/commit/abort records with the write-ahead rule (commit acknowledges only after durability).
-`Group` commit is an implementation freedom, not a contract change. This split lets the transaction
-manager be tested against an in-memory log (`TransactionLog.CreateInMemory()`) while the real one
-rides the storage journal (`TransactionLog.CreateJournalBound(IStorageJournal)` — commit appends and
-calls `EnsureDurable`, so concurrent commits naturally share fsyncs).
+`Storage` owns the physical journal (`Database.Storage`); its internal transaction-log seam carries
+begin/commit/abort records for enrolled writers, with the write-ahead rule for their commits.
+Logical readers append none. The first admitted apply appends BEGIN before opening its physical
+bracket; even a no-op or rolled-back apply conservatively enrolls a writer.
+Group commit is an implementation freedom. Public standalone managers use an in-memory log;
+the coordinator owns the durable binding to StorageJournal. Writer commit appends and calls
+EnsureDurable, so concurrent commits can share fsyncs.
 `TransactionRecovery.Analyze(journal)` is the restart-side counterpart: a sequence committed iff its
 commit record is durable; everything else is aborted and must be purged from version stores.
 
@@ -256,12 +260,22 @@ The ordering is deliberately the same as in both original engines:
 5. `CompleteRecovery` checkpoints last, before sessions can begin. Truncating
    earlier would erase the lifecycle records needed to classify index entries.
 
-During normal operation, begin/commit/abort appends and changes to the log's active-sequence set
-share one monitor with checkpoint capture and truncation. A begin cannot land between capturing the
-checkpoint's active list and truncating the journal. `Commit` appends and removes its active sequence
-under that monitor, then calls `EnsureDurable` outside it; a checkpoint that truncates first has
-already durably flushed the outcome. The manager keeps the transaction active until durability
-completes. This ordering has not been replaced with an independent manager-table snapshot.
+During normal operation, first-write enrollment, writer commit/abort appends and the writer set
+share one monitor with checkpoint capture and truncation. Begin reserves a storage-counter
+sequence and captures the normal snapshot, but appends no record and tracks no journal reader.
+The first admitted apply appends one logical BEGIN before opening its physical bracket.
+Later applies need no second BEGIN. Only writers appear in checkpoint anchors. A reader spanning
+a checkpoint enrolls at its first later apply under the same interlock, so recovery can classify
+its stamps. Reader reservations absent from both surviving journal and persisted sequence floor
+may be reissued after a crash; no durable state refers to them because readers stamp no versions.
+
+Commit appends and removes an enrolled writer under that monitor, then calls EnsureDurable outside
+it. A checkpoint that truncates first has already durably flushed the outcome. The manager keeps
+the writer active until durability completes, or ends it committed if durability is unconfirmed.
+Writer rollback appends an abort record after undo without waiting for that record's durability.
+Readers, including explicit read-only ends, disposal and ReadCommitted pins, append no lifecycle
+record and wait for no flush. They still end through the manager, leave the active table and release
+their locks. See [TransactionCoordinator](transaction-coordinator.md) for signatures and exceptions.
 
 Statement apply, logical undo, and pruning share one semaphore. Engine conflict locks are acquired
 before statement apply, keeping genuine lock waits outside that semaphore and visible to deadlock
@@ -277,10 +291,10 @@ later batch failed: the full ledger is requeued, already-undone versions are ski
 remaining work completes. Recovery scrub keeps at most 64 replacement payloads in memory. The ledger
 and prune candidates still scale with record count.
 
-Transaction recovery consumes `StorageJournal.ReadSequential` for the shared journal implementation
-and falls back to the existing `IStorageJournal.ReadAll` contract for custom journals. This changes
-no public interface. Only sequence classification survives iteration; physical page-image payloads
-are not retained.
+Transaction recovery consumes [StorageJournal.ReadSequential](../assimalign-cohesion-database-storage/storage-journal.md#sequential-reads-and-payload-ownership)
+with owned public payloads across the assembly boundary. Storage's internal borrowed reader does
+not cross that boundary. Only sequence classification survives iteration; physical page payloads
+are not retained. This later transaction-classification read verifies checksums afresh.
 
 The safe prune bound starts at `max(manager.OldestActive, recoveredSequenceFloor)` and is reduced to
 every open context's `Snapshot.Minimum`. A snapshot captured while an older writer was active can

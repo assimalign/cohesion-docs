@@ -10,6 +10,7 @@
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GraphStorage`](graph-storage.md)** — Documented public type.
 - **[`GraphStore`](graph-store.md)** — Documented public type.
+- **[`GraphIncidentDirection`](graph-incident-direction.md)** — Direction selection for streaming incident reads.
 - **[IGraphStore migration](i-graph-store.md)** — Use the sealed GraphStore and concrete contexts.
 - **[`StoredGraphNode`](stored-graph-node.md)** — Documented public type.
 - **[`StoredGraphRelationship`](stored-graph-relationship.md)** — Documented public type.
@@ -39,8 +40,10 @@ transaction lifecycle, recovery sequence and current limits.
 
 Creation accepts complete StoredGraphNode/StoredGraphRelationship records with IDs reserved
 from the backing storage. UpdateNodeAsync replaces labels/properties and UpdateRelationshipAsync
-replaces properties. Format 2 retains snapshot-visible version chains; format 1 is refused without
-an upgrade path. See [changed signatures](graph-store.md).
+replaces properties. Format 3 retains snapshot-visible version chains and catalog type IDs.
+Older records and tree registrations are refused with COHDBG017; recreate the database because
+there is no upgrade path. CreateRelationshipAsync requires a nonempty typeId. Filtered incident
+reads stream selected node/direction/type ranges; see [changed signatures](graph-store.md).
 
 ## Project references
 

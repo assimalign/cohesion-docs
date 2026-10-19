@@ -67,7 +67,8 @@ NULLS FIRST/LAST in every ordering position.
 `SqlQueryParser` produces a statement tree; the internal `SqlPlanner` binds it against the
 catalog, and `SqlPlanExecutor` runs the bound plan. Tables have stable object identities.
 Each database owns a data file set and a separate catalog file set; shared storage supplies
-durability and recovery. The planner can use applicable secondary indexes and supported join probes.
+durability and recovery. SELECT, UPDATE and DELETE share [index eligibility rules](language/statements/select.md#index-access);
+the planner also supports indexed join probes. UPDATE/DELETE materialize targets before mutation.
 
 Every session stays in the database that created it. SQL schema qualification never switches
 databases; engine APIs own database creation, opening, dropping, and enumeration.

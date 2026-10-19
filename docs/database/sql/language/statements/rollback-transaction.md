@@ -21,6 +21,10 @@ Malformed suffixes report `SQL0003` before transaction state changes.
 Rollback clears the session's active scope and undoes its row changes. Calling `ROLLBACK`
 without an active transaction reports `COHSQLT002`. Disconnect also aborts an open transaction.
 
+Only an enrolled writer appends an abort record, after undo, without waiting for that record's
+durability. Read-only rollback or disposal appends no lifecycle record and waits for no flush;
+the transaction still ends and releases its locks.
+
 `ROLLBACK TO` is not implemented. It produces `SQL0003` rather than silently rolling back the
 whole transaction. A rejected transaction-control statement leaves the active scope intact.
 Completed DDL is self-committing and cannot be undone by a later rollback.

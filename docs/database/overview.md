@@ -146,6 +146,27 @@ development behavior rather than configuring model authorization.
 For SQL row examples, use the [SELECT fixture](sql/language/statements/select.md#examples).
 The repository's Database demo also creates all five engines directly, with no listeners.
 
+## Read-only transactions and durability
+
+SQL, Document, Graph, Key-Value Pair and Blob share lazy journal enrollment. Beginning a logical
+transaction reserves its sequence and captures its snapshot without appending a journal record.
+Its first admitted write apply appends a logical BEGIN before opening the physical statement bracket;
+later applies need no second BEGIN. Even an admitted apply that changes nothing remains a writer.
+
+Autocommit reads, explicit read-only commit/rollback, disposal and ReadCommitted snapshot pins
+append no lifecycle records and wait for no flush. They still leave the active table and release
+their locks at completion. Writer COMMIT/abort records and commit durability keep their existing
+guarantees. A reader promoted after a checkpoint enrolls before its first stamp, preserving recovery
+classification. See [TransactionCoordinator](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md).
+
+The shared [storage journal](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/storage-journal.md)
+accepts buffered appends while a durable flush is in progress. Only the force's written prefix is
+confirmed durable; later appends need a later force. Failed writes or fsync still take the database
+offline. Startup combines frame-checksum verification, commit classification and page planning in
+one pass, then replays in journal order using that verified prefix. Later reads verify afresh.
+See [recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#empty-pages-and-streaming-journal-recovery)
+for ownership, replay and bounded-cache behavior.
+
 ## Embedded use
 
 Omit a server factory when the application only needs local engine access. A model's

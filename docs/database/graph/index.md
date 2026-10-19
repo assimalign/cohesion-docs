@@ -34,7 +34,9 @@ GQL matches bounded relationship-unique trails, including [quantified edges/subp
 and list-valued group variables. [Core scalar functions and CAST](language/functions/scalar-functions.md)
 execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.
-The two traversal surfaces have different result and repetition rules.
+Both surfaces seek only the selected directions and catalog type IDs; self-loops appear once in
+either-direction reads. TraverseAsync yields deterministic breadth-first results and has no
+candidate-expansion cap. GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
@@ -60,8 +62,9 @@ in process and on the wire. OPTIONAL NULL targets and pure no-ops count zero; re
 update the current working copy and count each changed entity once.
 
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
-lock and replan before evaluation. Format-2 records keep prior versions visible to old snapshots;
-format 1 is refused before recovery scrub, with no upgrade path. The GQL profile executes 26 of
+lock and replan before evaluation. Format-3 records keep prior versions visible to old snapshots;
+older graph records/registrations are refused before logical recovery scrub with
+[COHDBG017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
 33 declared clauses.
 
 ## Storage and catalog

@@ -241,9 +241,11 @@ change; keyword recognition alone never enables it.
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../database/graph/language/diagnostics.md),
-including GQL0008/0009 and COHDBG001–016 with available SQLSTATE/GQLSTATUS categories.
+including GQL0008/0009 and COHDBG001–017 with available SQLSTATE/GQLSTATUS categories.
 COHDBG015 identifies a duplicate final RETURN column name. COHDBG016 rejects possible composite
-wire results without graph.composite-values before reads/writes; neither has an assigned SQLSTATE.
+wire results without graph.composite-values before reads/writes. COHDBG017 refuses older graph
+records/tree registrations at database open, with recreation required and no upgrade path.
+These three codes have no assigned SQLSTATE.
 
 ## Ordering and paging
 

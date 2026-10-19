@@ -31,6 +31,16 @@ Only rows for which `WHERE` is `TRUE` are selected. The statement reports an aff
 Foreign keys default to `ON DELETE NO ACTION`; a declared `ON DELETE CASCADE` removes dependent
 rows. Nullable foreign-key values are allowed.
 
+DELETE shares [SELECT's index eligibility rules](select.md#index-access): leading key equalities
+and supported range bounds (`<`, `<=`, `>`, `>=`, BETWEEN) can seek when comparands are non-NULL,
+plan-time evaluable and losslessly coercible. Aliases and qualified columns work. Unsupported terms
+remain residual predicates; without a usable bound, DELETE scans. NULL comparisons yield UNKNOWN
+and select no row; IS NULL can filter rows but supplies no seek bound.
+
+[EXPLAIN](explain.md) shows IndexSeek and bounds or TableScan below Delete. All targets, including
+their WHERE subquery checks, materialize in one statement snapshot before any deletion. A dropped
+or replaced bound index falls back to a residual-filtered scan. RETURNING order is unspecified.
+
 Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE. Independent children materialize once; correlated children evaluate for each
 candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
@@ -59,6 +69,21 @@ SELECT id FROM t ORDER BY id;
 
 The delete affects one row; the query returns `1` and `3`.
 
+### Seek a composite-index prefix
+
+Execute separately in an empty database, as in SqlDmlSeekTests:
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, bucket INT, v INT);
+CREATE INDEX ix_bucket_id ON t(bucket,id);
+INSERT INTO t VALUES (1,1,10),(2,2,20),(3,2,30),(4,3,40);
+DELETE FROM t WHERE bucket = 2 RETURNING id,v;
+SELECT id FROM t ORDER BY id;
+```
+
+DELETE seeks ix_bucket_id using its leading bucket key, affects two rows and returns `(2,20)`
+and `(3,30)` in unspecified order. SELECT then returns `1`, `4`.
+
 ## See also
 
 [WHERE](../clauses/where.md) · [Constraints](../constraints.md) · [ROLLBACK](rollback-transaction.md)
@@ -71,3 +96,4 @@ The delete affects one row; the query returns `1` and `3`.
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
 - **Child actions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferentialActionTests.cs`.
+- **Indexed targets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.

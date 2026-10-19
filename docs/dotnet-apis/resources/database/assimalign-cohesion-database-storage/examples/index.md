@@ -8,6 +8,7 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Storage File Mode Tests](storage-file-mode-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Storage` through its co-located test source.
+- **[Journal ownership example](../storage-journal.md#example)** — Retained public payloads and same-thread append refusal, checked against JournalTests.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

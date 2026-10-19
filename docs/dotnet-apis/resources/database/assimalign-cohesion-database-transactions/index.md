@@ -7,6 +7,7 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[TransactionCoordinator](transaction-coordinator.md)** — Lazy writer enrollment and begin/commit/rollback lifecycle.
 - **[LockManager](lock-manager.md)** — Writer locks, MarkStatement and ReleaseSince for unwritten arbitration.
 - **[LockStatementMark](lock-statement-mark.md)** — Opaque grant boundary with value equality.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
@@ -17,19 +18,24 @@ binds commits to the write-ahead log.
 
 ## Scope
 
-- **`ITransactionManager`** — begin/commit/rollback lifecycle, sequence assignment, snapshot capture
-- **`ITransactionContext`** — the engine-internal state of one in-flight transaction
+- **`TransactionManager`** — begin/commit/rollback lifecycle, sequence assignment, snapshot capture
+- **`TransactionContext`** — the engine-internal state of one in-flight transaction
 - **`TransactionId` / `TransactionState`** — the transaction vocabulary the area root's `IDatabaseTransaction` contract consumes
 - **`TransactionSnapshot` / `TransactionSequence`** — MVCC visibility (implemented, tested)
 - **`LockManager` / `LockMode` / `LockResource`** — hierarchical write locking with deadlock resolution;
   statement marks preserve earlier grants while an unwritten statement releases new resources
-- **`ITransactionLog`** — the WAL binding (storage owns the physical journal)
-- **`IVersionStore`** — the version-chain contract model storage layers implement
+- **The internal transaction log** — the WAL binding (storage owns the physical journal)
+- **`VersionStore`** — the version-chain base used by record-space and in-memory stores
 - **`TransactionAbortedException`** — an independent exception root (inherits `Exception`, not `DatabaseException`)
 
 The coordinator's record ledger supports streamed model records: logical rollback, pruning, and
 recovery scrub use bounded physical mutation batches, while lifecycle analysis streams the shared
 journal instead of retaining page-image payloads.
+
+Read-only transactions reserve normal sequences and snapshots but append no lifecycle records and
+wait for no flush. The first admitted write apply enrolls a writer with one BEGIN before its physical
+bracket. Only writers append COMMIT/abort records, and only writer commits wait for durability.
+See [coordinator lifecycle](transaction-coordinator.md) for completion, cancellation and recovery rules.
 
 ## Dependencies
 
@@ -42,7 +48,7 @@ independently consumable.
 ## Consumers
 
 Every model engine (`Sql`, `Documents`, `Graph`, `Blob`, `KeyValuePair`) composes a transaction
-manager; execution operators carry `ITransactionContext` into storage, index, and catalog
+manager; execution operators carry `TransactionContext` into storage, index, and catalog
 operations.
 
 ## Project references
