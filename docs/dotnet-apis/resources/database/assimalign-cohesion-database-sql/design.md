@@ -283,7 +283,7 @@ unsupported-clause diagnostics.
   is deliberately thin — a cost-based planner replaces the binding internals
   later without changing the executor seam (#178's plan-stage requirement, MVP
   shape). That promise paid out with index adoption: the IR gained exactly one
-  node family (`SqlAccessPath` on the SELECT plan — scan | index seek) and the
+  node family (`SqlAccessPath` on SELECT, UPDATE and DELETE plans — scan | index seek) and the
   executor seam did not move.
 - **Access-path selection (rule-based; no cost model — the MVP planner
   contract).** The planner flattens the WHERE clause's top-level `AND`
@@ -295,14 +295,22 @@ unsupported-clause diagnostics.
   bound, then uniqueness, then name — deterministic), extended by range bounds
   on the next key column. **Range sargability is a type matrix**: only types
   whose evaluator comparison order provably equals the key codec's byte order
-  (integers, decimal, floats, boolean, temporal types and strings under matching
+  (integers, decimal, boolean, temporal types and strings under matching
   byte-expressible collations) get range seeks; Guid/binary/json remain equality-only.
   String predicates with expression/index collation mismatch scan. Everything else — `OR` at the top level,
   computed columns, column-to-column comparisons, null comparands — falls
-  back to the per-object scan. **The full WHERE always remains the residual
+  back to the per-object scan. Scalar-subquery comparands also supply no bounds. Floating ranges
+  scan, and signed-zero floating bounds are not sought. **The full WHERE always remains the residual
   predicate**, re-evaluated on every fetched row, so access-path selection
-  can cost performance but never correctness. SELECT only in this cut;
-  UPDATE/DELETE target collection still scans (recorded follow-up).
+  can cost performance but never correctness. UPDATE/DELETE use the same selector with their
+  target relation's scope, including aliases and qualified keys. See [index eligibility](../../../../database/sql/language/statements/select.md#index-access).
+- **DML target materialization.** UPDATE/DELETE fully drain the seek or scan in one statement
+  snapshot before sorted row locks, sorted unique-key locks and the apply gate. Residual/subquery
+  evaluation holds no tree read latch, and cancellation/evaluation failure disposes the cursor.
+  Updating the sought key cannot revisit replacement rows. Final-state constraint validation and
+  first-updater-wins checks are unchanged. A dropped/detached bound index or changed catalog
+  identity, including a reused name with different keys, falls back to a residual-filtered scan.
+  A catalog-registered but missing maintenance tree still refuses writes.
 - **`Seek` execution is snapshot-anchored.** The executor drives the B+Tree
   cursor through the **statement snapshot** (the `IIndex.OpenCursor(snapshot, …)`
   overload — the same snapshot the equivalent scan filters through, which
@@ -317,7 +325,9 @@ unsupported-clause diagnostics.
   arithmetic on the encoded component. Per-statement observability
   (`SqlStatementMetrics`: access path + records examined) is the behavioral
   proof surface — the planner suite asserts an indexed equality seek examines
-  O(matches) records while the equivalent scan examines O(table).
+  O(matches) records while the equivalent scan examines O(table). AccessPath reports the last
+  access executed, including nested work; cascading DELETE can therefore report
+  `constraint-seek:<index>` rather than its original target path.
 - **Row format: MVCC stamps + object-id-prefixed tuple, in per-object page
   chains (record-space format version 3).** Every data record is
   `[writer u64][deleter u64]` — a fixed 16-byte version-stamp header, the

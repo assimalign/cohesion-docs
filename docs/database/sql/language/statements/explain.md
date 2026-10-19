@@ -35,6 +35,13 @@ SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, JoinStep
 Update and Delete. IndexSeek includes the chosen index and bounds. These are model descriptions, not
 an execution API. SQL carries the rows through ordinary result frames. A source test guard requires
 every concrete plan record to have a description mapping.
+
+Update and Delete have a chosen IndexSeek or TableScan child, using the same
+[predicate eligibility as SELECT](select.md#index-access). Leading equality prefixes and supported
+range comparisons/BETWEEN supply bounds; NULL/scalar-subquery comparands and computed key expressions do not.
+Aliases and qualified target columns are supported. The full WHERE remains a residual check.
+EXPLAIN executes neither target collection nor mutation; the actual statement materializes all
+targets before writes, and falls back to a scan if its bound index was dropped or replaced.
 N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
 steps whose inputs will be empty. Plan output uses the same eight columns.
 Derived inputs add a DerivedTable node with their child plan. UPDATE/DELETE predicate subqueries
@@ -68,6 +75,18 @@ SELECT id FROM t ORDER BY id;
 EXPLAIN returns eight-column plan rows including a Delete operator. The SELECT still returns `1`,
 `2`, `3`. An indexed `EXPLAIN SELECT id FROM t WHERE age >= 20 AND age < 40` reports IndexSeek with
 that bound when an eligible age index exists.
+
+On an empty database, execute the definition and each EXPLAIN separately:
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, v INT);
+EXPLAIN UPDATE dbo.t AS x SET v = 3 WHERE x.id = 2;
+EXPLAIN DELETE FROM dbo.t AS x WHERE x.id = 2;
+```
+
+The first returns Update → IndexSeek and the second Delete → IndexSeek. The seek target is dbo.t,
+index names the primary-key index, and detail is `id = 2`. Both row-count fields remain NULL;
+no rows are changed. SqlExplainTests checks the same shape with `@key` bound to 2.
 
 With the [three-input JOIN fixture](../clauses/join.md#left-using-and-computed-output):
 

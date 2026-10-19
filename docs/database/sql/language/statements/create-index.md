@@ -24,6 +24,8 @@ ON [ schema_name . ] table_name ( column_name [ , ...n ] )
 Only plain column lists are in this dialect. Per-column `ASC`/`DESC`, expression keys, and
 `INCLUDE` are outside the contract. Index construction and writes use the shared index kernel.
 An applicable secondary-index prefix can assist the supported inner join.
+SELECT, UPDATE and DELETE also use [eligible leading key bounds](select.md#index-access);
+[EXPLAIN](explain.md) reports the selected seek.
 
 Unique indexes treat `NULL` as an equal key. String keys use the column's effective collation;
 `invariant` is scan-only and cannot back an index or index-backed constraint. Predicates whose

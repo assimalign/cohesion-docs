@@ -38,6 +38,18 @@ updates to other columns still execute.
 Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
 
+UPDATE uses the same [index eligibility rules as SELECT](select.md#index-access): direct key
+equalities on a leading index prefix and optional supported range bounds, including BETWEEN,
+can seek. Bounds must be non-NULL, plan-time evaluable and losslessly coercible; aliases and
+qualified columns work. Unsupported terms remain residual predicates, and no usable bound means
+a scan. Only WHERE TRUE selects a row; FALSE/UNKNOWN, including `id = NULL`, do not.
+[EXPLAIN](explain.md) shows IndexSeek and bounds or TableScan below Update.
+
+All targets are materialized through one statement snapshot before row/key locks and writes.
+Changing an indexed key cannot revisit a row that moves within the sought range. A dropped or
+replaced bound index falls back to a residual-filtered scan. Constraint checks and conflict behavior
+remain unchanged; RETURNING order is unspecified.
+
 Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE over the pre-statement snapshot, including the target table and the session's
 earlier uncommitted changes. Independent children materialize once; correlated children evaluate
@@ -66,6 +78,21 @@ SELECT age FROM t ORDER BY id;
 
 The update affects one row; the query returns `46`, `45`, and `41`.
 
+### Move keys within an indexed range
+
+Execute separately in an empty database, as in SqlDmlSeekTests:
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, v INT);
+INSERT INTO t VALUES (1,0),(2,0),(3,0),(100,0);
+UPDATE t SET id = id + 1, v = v + 1 WHERE id BETWEEN 1 AND 10 RETURNING id,v;
+SELECT id,v FROM t ORDER BY id;
+```
+
+UPDATE seeks the primary-key index, affects three rows and returns `(2,1)`, `(3,1)`, `(4,1)`
+in unspecified order. SELECT returns those rows in key order, then `(100,0)`. Each original target
+is changed once, even though its replacement key still lies in the sought range.
+
 ## See also
 
 [SET](../clauses/set.md) · [WHERE](../clauses/where.md) · [CAST](../expressions/cast.md)
@@ -79,3 +106,4 @@ The update affects one row; the query returns `46`, `45`, and `41`.
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Constraint diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
+- **Indexed targets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.

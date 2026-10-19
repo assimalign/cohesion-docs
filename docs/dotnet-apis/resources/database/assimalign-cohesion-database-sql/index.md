@@ -35,7 +35,7 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   `SqlQueryRequest`s, compensates completed reversible steps on failure, and
   records the canonical document/hash only after live-catalog convergence.
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
-  planned rule-based and executed against table scans: `SELECT` with `WHERE`,
+  planned rule-based and executed through scans or eligible index seeks: `SELECT` with `WHERE`,
   projection, N-way INNER/LEFT/CROSS/comma joins with ON/USING, grouping and aggregates,
   `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`;
   `INSERT` (multi-row, defaults, nullability and [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md));
