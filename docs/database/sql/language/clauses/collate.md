@@ -40,6 +40,11 @@ comparison, membership, ranges, `LIKE`, ordering, grouping, distinct results, ex
 Index seeks require a matching predicate/index collation; a differing override scans.
 Foreign-key string columns must have matching effective collations.
 
+Unary signs bind above COLLATE: `-a COLLATE binary` means `(-a) COLLATE binary`.
+IS [NOT] DISTINCT FROM uses the same effective collation as equality. LIKE resolves collation
+from the value, pattern and ESCAPE operand, then matches literals under that rule; its wildcards
+consume original Unicode scalars under every collation. See [predicates](../expressions/operators.md#like-and-escape).
+
 Unknown names, culture-aware rules, user-defined collations, session overrides, and collation-aware
 full-text indexes are outside the subset and produce `COHDBL001` or an explicit execution error.
 Compatibility `invariant` fails under invariant globalization. SQL defaults do not govern the

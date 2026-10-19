@@ -69,6 +69,8 @@ SET DEFAULT assignment uses `COHSQLE025`. See [Diagnostics](diagnostics.md).
 Checks are deterministic, Boolean, and row-local. The supported scalar functions can participate;
 parameters, aggregates, subqueries, and CAST are excluded. Null propagation matters: a check such as
 `code > 0` accepts a null code as unknown. Use `NOT NULL` separately when null must be forbidden.
+Alternatively, `CHECK (flag IS TRUE)` rejects a NULL flag because the
+[truth test](expressions/operators.md#boolean-tests) returns FALSE rather than UNKNOWN.
 
 The catalog persists normalized declarations and exact check-expression text. Unique declarations
 share the same implementation as `CREATE UNIQUE INDEX`. Index-backed constraints require an

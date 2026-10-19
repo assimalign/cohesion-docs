@@ -11,9 +11,11 @@ left_expression { + | - | * | / | % | || } right_expression
 - expression
 left_expression { = | <> | < | <= | > | >= } right_expression
 expression IS [ NOT ] NULL
+left_expression IS [ NOT ] DISTINCT FROM right_expression
+expression IS [ NOT ] { TRUE | FALSE | UNKNOWN }
 expression [ NOT ] BETWEEN lower_expression AND upper_expression
 expression [ NOT ] IN ( expression [ , ...n ] )
-expression [ NOT ] LIKE pattern_expression
+expression [ NOT ] LIKE pattern_expression [ ESCAPE escape_expression ]
 NOT search_condition
 left_condition { AND | OR } right_condition
 ```
@@ -27,10 +29,20 @@ left_condition { AND | OR } right_condition
 
 ## Remarks
 
-Precedence from low to high is `OR`, `AND`, logical `NOT`, comparison/predicates,
-additive operators (including concatenation), multiplicative operators, unary operators, then
-primary expressions. Parentheses explicitly group evaluation. Unary bitwise complement `~`
-is parsed but not evaluated and is intentionally absent from the executable diagram.
+Precedence follows PostgreSQL, from low to high: `OR`, `AND`, logical `NOT`, `IS` tests and
+distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE`, `ESCAPE`, concatenation (`||`),
+addition/subtraction, multiplication/division/remainder, `COLLATE`, unary signs, then primary
+expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`, and
+`-a COLLATE binary` groups as `(-a) COLLATE binary`. NOT keeps its ordinary precedence before
+EXISTS: `NOT EXISTS (query) IS TRUE` means `NOT ((EXISTS (query)) IS TRUE)`.
+
+Non-associative chains such as `a < b < c`, `a LIKE b LIKE c`, and
+`a IS DISTINCT FROM b IS NULL` report one `SQL0003` at the second operator. Parentheses can
+group an intermediate result explicitly. A completed IN/NOT IN list or subquery may feed another
+predicate: `1 IN (1) IN (TRUE)` and `1 IN (SELECT id FROM t WHERE id = 1) IN (TRUE)` test the
+first Boolean result. Completed postfix tests may also continue: `NULL IS NULL = TRUE` is TRUE.
+The lower BETWEEN bound accepts restricted comparison/distinct expressions.
+Prefix/infix `~`, binary `&`, `|`, `<<`, `>>`, and `::` casts report `COHDBL001`.
 
 Comparison with a null operand yields `UNKNOWN`; `IS NULL` and `IS NOT NULL` test nullness.
 `BETWEEN` includes its lower and upper bounds and returns unknown with a null operand or bound.
@@ -44,7 +56,8 @@ Only true conditions retain rows in `WHERE`, `ON`, and `HAVING`.
 
 `NOT UNKNOWN` remains unknown. Membership and its empty-result rules are detailed in
 [Subqueries](subqueries.md); a null-containing candidate list can also produce unknown.
-`LIKE` uses effective collation and propagates null operands.
+SQL has NULL, with no MISSING scalar. The predicates below also work in projections, JOIN ON,
+HAVING, CASE, grouping, ordering and correlated subqueries.
 
 Predicates, ordering, distinct results, grouping, and extrema share one non-null comparator.
 Binary values compare unsigned bytes lexicographically without padding; a proper prefix sorts first.
@@ -61,6 +74,82 @@ supplying unsafe index bounds.
 
 Strings use effective collation; Boolean false sorts before true. Incompatible type families
 raise a query error.
+
+## IS DISTINCT FROM
+
+`IS DISTINCT FROM` is a NULL-safe inequality test: exactly one NULL gives TRUE, two NULLs give
+FALSE, and two non-NULL values use the negation of ordinary equality. `IS NOT DISTINCT FROM`
+is its complement. Both always return a non-NULL BOOLEAN. Non-NULL comparisons use the same
+type, CHAR coercion, NaN equality and effective collation rules as `=`. These predicates scan
+rather than supplying index seek comparisons.
+
+```sql
+SELECT NULL IS DISTINCT FROM 1, NULL IS NOT DISTINCT FROM NULL,
+       'a' COLLATE case_insensitive IS NOT DISTINCT FROM 'A'
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+The one row is `(TRUE, TRUE, TRUE)`.
+
+## Boolean tests
+
+Truth tests accept BOOLEAN or NULL and always return a non-NULL BOOLEAN.
+
+| Input | IS TRUE | IS NOT TRUE | IS FALSE | IS NOT FALSE | IS UNKNOWN | IS NOT UNKNOWN |
+| --- | --- | --- | --- | --- | --- | --- |
+| TRUE | TRUE | FALSE | FALSE | TRUE | FALSE | TRUE |
+| FALSE | FALSE | TRUE | TRUE | FALSE | FALSE | TRUE |
+| NULL | FALSE | TRUE | FALSE | TRUE | TRUE | FALSE |
+
+A known non-Boolean operand, including a supplied parameter, fails binding with `COHSQLE003`
+(42804), even on an empty table. `CHECK (flag IS TRUE)` rejects NULL, whereas `CHECK (flag)`
+accepts it as UNKNOWN.
+
+```sql
+SELECT NULL IS TRUE, NULL IS NOT FALSE, NULL IS UNKNOWN
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+The result is `(FALSE, TRUE, TRUE)`. Postfix ISNULL/NOTNULL, ILIKE/NOT ILIKE, SIMILAR TO/NOT
+SIMILAR TO, and IS JSON/IS OF/IS NORMALIZED report `COHDBL001`.
+
+## LIKE and ESCAPE
+
+`%` matches any run of original Unicode scalars and `_` matches one. The default escape is
+backslash; `ESCAPE ''` disables escaping. A nonempty escape must be exactly one Unicode scalar.
+It quotes the next scalar literally, including ordinary letters, `%`, `_`, or itself. The escape
+is recognized before wildcards, even when it is `%` or `_`. Patterns and escapes may be literals,
+parameters, columns or concatenated expressions.
+
+For valid patterns, NULL in any operand gives UNKNOWN; NOT LIKE preserves UNKNOWN. A longer
+escape or a pattern ending in its escape raises `COHSQLE034` (22025). Constant and supplied
+parameter patterns/escapes, including concatenations, validate during binding and compile once,
+so invalid fixed patterns fail even on empty input or with a NULL matched value. This eager
+validation intentionally differs from PostgreSQL's match-time trailing-escape check. Dynamic
+operands validate when evaluated; dynamic NULL operands still yield NULL. A NULL escape is
+handled before escape-length validation.
+
+The value, pattern and escape all participate in effective collation resolution. Raw escapes
+and wildcards are recognized before literal normalization. Wildcards consume original characters
+under all four collations, including combining marks and characters whose normalized spelling
+expands; normalization cannot erase an escape or turn it into a wildcard. CHAR values keep
+stored padding, while CHAR patterns use text conversion. Matching is iterative and observes
+statement cancellation.
+
+```sql
+SELECT '50%' LIKE '50!%' ESCAPE '!', 'a%' LIKE 'a\%',
+       'a\z' LIKE 'a\%' ESCAPE '', '😀' LIKE '_',
+       'A%' LIKE 'aX%' ESCAPE 'X' COLLATE case_insensitive
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+All five outputs are TRUE. The default backslash and empty escape follow PostgreSQL; ISO SQL
+has no implicit escape and refuses an empty one. Malformed predicates, missing FROM in a
+distinct test, or a missing ESCAPE operand use `SQL0003`.
+
+Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
+domain checks, SQL function bodies and views. Storage format 25 refuses earlier files without
+an upgrade reader. These expression forms add no named clause.
 
 ## Temporal arithmetic
 
@@ -119,6 +208,8 @@ These conformance queries exercise predicates and row arithmetic.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
+- **Predicates and results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPredicateExecutionTests.cs`.
+- **Precedence and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlPredicateParserTests.cs`.
 - **Temporal execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1TemporalTests.cs`.
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlExpressionEvaluator.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Expressions.cs`

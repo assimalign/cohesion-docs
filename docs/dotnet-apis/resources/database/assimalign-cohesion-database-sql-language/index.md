@@ -14,6 +14,10 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlSubqueryExpression](sql-subquery-expression.md)** — SELECT/set bodies in scalar positions.
 - **[SqlInExpression](sql-in-expression.md)** — Value lists or SELECT/set membership.
 - **[SqlExistsExpression](sql-exists-expression.md)** — Row existence over SELECT/set bodies.
+- **[SqlDistinctExpression](sql-distinct-expression.md)** — NULL-safe IS [NOT] DISTINCT FROM.
+- **[SqlBooleanTestExpression](sql-boolean-test-expression.md)** — IS [NOT] TRUE/FALSE/UNKNOWN.
+- **[SqlTruthValue](sql-truth-value.md)** — Truth-test selection.
+- **[SqlLikeExpression](sql-like-expression.md)** — Pattern, optional ESCAPE and negation.
 
 - **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.

@@ -82,7 +82,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are COHDBL001.
-The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 24, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 25, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include COHSQLE028–031 and their source SQLSTATE categories.
 
@@ -138,7 +138,7 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 24
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 25
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -187,11 +187,13 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 24 for persisted NULL placement, following format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after format 21 for persisted namespaces, following format 20 for referential actions, after format 19 for PERCENT/TIES quoting. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
+format is 25 for distinct predicates, Boolean tests and LIKE ESCAPE, following format 24 for NULL
+placement, format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after
+format 21 for persisted namespaces and format 20 for referential actions. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Aggregate call modifiers
@@ -209,12 +211,28 @@ names as identifiers in persisted SQL; compiled schema version stays 7. There is
 [CREATE](sql-create-view-expression.md)/[DROP VIEW](sql-drop-view-expression.md) use typed nodes.
 Bodies use the existing query-body grammar. The engine persists expanded bound inputs and output
 aliases remain output references. [SqlOrderByColumn](sql-order-by-column.md) independently retains
-Default/First/Last placement; the renderer emits only written modifiers. Current format 24 admits
-those persisted modifiers, following format 23's view records.
+Default/First/Last placement; the renderer emits only written modifiers. Format 24 introduced
+persisted NULL modifiers, following format 23's view records. Current format 25 adds the predicates below.
 
 DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
 are contextual refusals; ordinary identifier quoting is unchanged. Subqueries and windows remain
 excluded there, while aggregates are refused by the planner with COHSQLE017.
+
+## Predicate nodes and precedence
+
+[SqlDistinctExpression](sql-distinct-expression.md), [SqlBooleanTestExpression](sql-boolean-test-expression.md)
+and [SqlTruthValue](sql-truth-value.md) represent NULL-safe distinct predicates and truth tests.
+[SqlLikeExpression.Escape](sql-like-expression.md) retains an optional scalar child. Depth,
+rendering and every child walk include all operands. Constructors remain internal.
+
+The parser follows PostgreSQL's IS/comparison/predicate/ESCAPE ladder, with concatenation below
+addition and unary signs above COLLATE. Non-associative chains report SQL0003 at their second
+operator; completed IN/NOT IN lists or subqueries may continue through another predicate.
+Canonical rendering preserves conservative comparison/IS grouping and LIKE operand parentheses.
+DEFAULT's restricted grammar includes comparisons/distinct predicates while leaving following
+constraints unconsumed. Contextual ILIKE/SIMILAR TO and postfix ISNULL/NOTNULL are COHDBL001.
+These expressions add no named clause or reserved identifier spelling. Format 25 gates the
+persisted grammar and changed precedence; earlier files have no upgrade reader.
 
 ## Sources
 

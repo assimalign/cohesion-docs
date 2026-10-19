@@ -27,6 +27,11 @@ including arithmetic, CAST and Immutable, Stable or Volatile calls. Columns, par
 aggregates fail with `COHSQLE013`; subqueries fail with `COHDBL001`. Result types must satisfy
 INSERT assignment compatibility before publication. SQL has NULL values, with no MISSING scalar.
 
+The top-level declaration grammar admits comparisons and IS [NOT] DISTINCT FROM, retaining
+following column constraints: `flag BOOLEAN DEFAULT 1 IS DISTINCT FROM 2 NOT NULL`.
+Use parentheses for other predicate forms, such as `flag BOOLEAN DEFAULT (NULL IS UNKNOWN)`;
+top-level NOT/AND/OR, truth tests and LIKE/IN are left outside the default expression.
+
 Immutable defaults are evaluated and coerced once at declaration. Stable and Volatile calls run
 per assigned row, using the transaction-start clock, for omitted INSERT values, INSERT SELECT,
 explicit DEFAULT, UPDATE SET DEFAULT and ON DELETE SET DEFAULT. UUID defaults generate a value

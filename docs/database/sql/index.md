@@ -26,8 +26,8 @@ generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can
 
 The 50-of-56 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
-boundaries inside supported clauses. Later comparison work is documented in
-[Operators and predicates](language/expressions/operators.md).
+boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
+describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
 [CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
@@ -37,7 +37,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
 SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 24; compiled schemas remain version 7.
+SQL storage format is 25; compiled schemas remain version 7.
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
@@ -92,7 +92,7 @@ wire transaction payload.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## See also

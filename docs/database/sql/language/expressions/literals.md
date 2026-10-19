@@ -93,8 +93,8 @@ newly executable function names, BOTH/LEADING/TRAILING and PERCENT/TIES. A colum
 records this canonical quoting change, separately from format 17 (the insert-default/frozen-missing
 split with table extension 6). Format 19 added PERCENT/TIES quoting. Format 20 added
 persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 introduced persisted views; current format 24 also
-persists explicit NULL placement. Every earlier format is refused at open
+identifiers in persisted SQL. Format 23 introduced persisted views and format 24 explicit NULL
+placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 7.
 

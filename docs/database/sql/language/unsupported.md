@@ -71,6 +71,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `COHSQLE006` (42883) | Signatures reject incompatible inputs during planning |
 | Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `COHSQLE003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
 | Prefix or infix `~` | `COHDBL001` | Recognized unsupported operator |
+| ILIKE/NOT ILIKE, SIMILAR TO/NOT SIMILAR TO, postfix ISNULL/NOTNULL | `COHDBL001` | Use [LIKE ESCAPE and IS tests](expressions/operators.md); ordinary identifier positions retain their meaning |
+| Binary `&`, `\|`, `<<`, `>>`, `::`, IS JSON/OF/NORMALIZED | `COHDBL001` | Use CAST(x AS type) for casts; these other operators/tests are excluded |
+| Non-associative comparison/predicate chains, such as `a < b < c` | `SQL0003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `SQL0003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `SQL0003` | No savepoint rollback |

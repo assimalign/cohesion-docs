@@ -34,7 +34,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | --- | --- | --- |
 | `COHSQLE001` | Division or remainder by zero | 22012 |
 | `COHSQLE002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
-| `COHSQLE003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic or non-Boolean NOT | 42804 |
+| `COHSQLE003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean NOT or IS TRUE/FALSE/UNKNOWN operand | 42804 |
 | `COHSQLE004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `COHSQLE005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
 | `COHSQLE006` | No function overload accepts arity/types; unknown or incompatible temporal field value; constant/direct parameter fields fail planning, row-dependent DATE_TRUNC fields fail evaluation | 42883 |
@@ -65,6 +65,13 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE031` | DROP SCHEMA targets dbo, required by code-first provisioning | — |
 | `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
+| `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+
+[Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
+with SQL0003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and `::` casts use COHDBL001.
+Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
+this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 
 [Set operations](clauses/set-operations.md) use COHSQLE013 for unequal widths, COHSQLE018 for
 combined ORDER BY expressions/qualified names/invalid ordinals, and COHSQLE019 for ambiguous

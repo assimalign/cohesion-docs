@@ -141,6 +141,13 @@ ExecuteAsync receives and buffers those rows before discarding them; ExecuteScal
 the first cell. ResultComplete already carries the count; framing and protocol version are unchanged.
 Server projection errors occur before the result header and leave the connection usable.
 
+## Predicate diagnostics
+
+Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
+both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
+42804) are ExecutionFailure responses; data and the connection remain usable. No client API or
+protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`.

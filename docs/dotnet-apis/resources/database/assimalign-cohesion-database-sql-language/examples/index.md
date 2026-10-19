@@ -44,6 +44,11 @@ For executable paging and expression default examples, see [SqlSelectExpression]
 [DEFAULT](../../../../../database/sql/language/clauses/default.md) and
 [SqlConstraintDefinition](../sql-constraint-definition.md).
 
+[SqlDistinctExpression](../sql-distinct-expression.md), [SqlBooleanTestExpression](../sql-boolean-test-expression.md),
+[SqlTruthValue](../sql-truth-value.md) and [SqlLikeExpression](../sql-like-expression.md) inspect
+the predicate nodes from SqlPredicateParserTests. The [predicate examples](../../../../../database/sql/language/expressions/operators.md)
+give executed truth tables, precedence and ESCAPE results from SqlPredicateExecutionTests.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/OVERVIEW.md`.

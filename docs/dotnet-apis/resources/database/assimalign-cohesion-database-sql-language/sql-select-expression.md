@@ -33,7 +33,7 @@ The parser owns construction. From replaces the former single table and flat joi
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and
-persisted expressions use this same shape. Current SQL storage format 24 includes canonical
+persisted expressions use this same shape. Current SQL storage format 25 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
 refused without an upgrade reader. Compiled schema artifacts remain version 7.
@@ -76,7 +76,7 @@ Console.WriteLine(SqlExpressionRenderer.Render(select));
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
-identifiers in persisted SQL. Format 23 adds catalog views; current format 24 persists explicit NULL placement. Every earlier format is refused at open; there is no
+identifiers in persisted SQL. Format 23 adds catalog views; format 24 adds explicit NULL placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 7.
 
 ## Related reference
