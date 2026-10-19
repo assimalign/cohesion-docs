@@ -127,8 +127,10 @@ A malformed transaction spelling reports SQL0003 before changing transaction sta
 
 [ON CONFLICT](clauses/on-conflict.md) uses DatabaseTransactionAbortedException for a newer
 committed Snapshot conflict or invalidated unique-index directory, and DatabaseTransactionDeadlockException
-for detected row/key or reversed side-effecting-default proposal cycles. Roll back and retry the
-entire transaction, including earlier statements. ReadCommitted instead skips/updates the newest
+for residual cycles, including multi-row upserts reaching keys or retained rows in opposite orders.
+Contended-row arbitration releases new grants before waiting, retains the wait's row grant and
+retries internally. Roll back and retry a deadlock victim's entire transaction, including earlier
+statements. ReadCommitted instead skips/updates the newest
 committed conflict. Ordinary constraint failures and COHSQLE035/036 roll back the statement;
 their wire ExecutionFailure leaves the connection usable. MySQL ON DUPLICATE KEY UPDATE,
 SQLite INSERT OR IGNORE/REPLACE, unsupported inference and subqueries in conflict actions use COHDBL001.

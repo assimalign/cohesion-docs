@@ -8,6 +8,8 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Transaction Snapshot Tests](transaction-snapshot-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Transactions` through its co-located test source.
+- **[Statement lock grants](../lock-manager.md#example)** — Preserve earlier resources and upgrades while releasing new grants.
+- **[Statement mark equality](../lock-statement-mark.md#example)** — Compare opaque manager/owner/grant boundaries.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

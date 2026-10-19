@@ -518,8 +518,9 @@ binds them.
   rows in discovery order because the closure it is discovering is what
   determines the lock set; see "Referential enforcement locks parent rows" under
   constraints for why that trade was taken and what it costs. ON CONFLICT is the second:
-  proposal and replacement keys precede conflicting row locks. Its detected deadlocks require
-  rollback/retry of the complete transaction; see the execution contract below.
+  proposal keys precede nonblocking row arbitration; a contended row releases new grants before
+  waiting and restarting with the wait's row grant retained. Replacement keys follow locked
+  conflict rows. Opposite multi-row key/row orders can still deadlock; see the execution contract below.
 - **Uniqueness = the B+Tree's latest-state check under the exclusive hashed-key
   lock** (never snapshot visibility — write skew; the recorded #851 lesson).
   Violations surface as the area root's `DatabaseException` at the model
@@ -1266,20 +1267,41 @@ one sorted batch. Requested identities or recursively non-immutable default call
 including STABLE, use source-order per-proposal default evaluation and sorted key acquisition.
 Constants and immutable defaults retain the complete batch, including reloaded definitions.
 [BTreeIndex.FindLiveEntryAsync](../assimalign-cohesion-database-indexing/b-tree-index.md) re-grants
-key locks outside the apply gate. Old/new replacement keys precede sorted conflicting rows and
-reference locks. The table remains IX; unrelated different-key inserts/upserts can progress.
+key locks outside the apply gate. DO UPDATE locks live conflicts with TryAcquire before reading
+them or evaluating WHERE; FALSE/UNKNOWN keeps the row locked and unchanged. Old/new replacement
+keys then acquire in a sorted batch, followed by reference locks. DO NOTHING takes no conflicting-row
+lock and checks visibility under its arbiter key. An all-conflict DO NOTHING releases new arbitration
+grants after visibility checks, leaving an open no-op transaction free of those grants. The table
+remains IX; unrelated different-key inserts/upserts can progress.
 
 Snapshot aborts retryably on a newer committed conflict, even for autocommit DO NOTHING or a false
 filter. ReadCommitted skips or updates the newest committed row and refreshes FK committed
 visibility. A rollback clears index entries before releasing locks. Live entries pointing at
 missing/undecodable rows raise StorageCorruptionException, not a serialization retry.
 
-Reversed side-effecting-default proposal orders can deadlock, as can key-before-row cycles with
-ordinary UPDATE/DELETE and referential SET NULL/DEFAULT. Even unchanged unique values need key
-locks because UPDATE re-points entries to a new heap location. The lock manager detects victims;
-callers roll back and retry the entire transaction, including earlier statements. There is no
-internal row-wait/re-arbitration loop, speculative default allocation or default replay, and no
-lock wait inside the apply gate. Format 25, catalog layout and wire framing remain unchanged.
+Before preparing proposals, execution keeps an original [LockStatementMark](../assimalign-cohesion-database-transactions/lock-statement-mark.md)
+and a retry mark. A contended conflict or FK parent row calls ReleaseSince on the retry mark,
+waits through AcquireAsync, retains the granted row and takes a new retry mark before restarting
+the whole arbitration. Later back-offs preserve earlier waited rows. This permits row-first
+UPDATE/DELETE and referential SET actions to finish without the former key/row cycle. Retaining
+the completed wait prevents contenders from repeatedly handing the same row back and forth.
+Rows kept by successful waits remain locked until transaction end even after a committed rekey
+or DELETE removes the original conflict. Snapshot still rejects a committed changed row;
+ReadCommitted re-arbitrates against committed state. Earlier grants and upgrades remain held.
+
+No heap/index change, ledger entry or RETURNING projection precedes final apply. Restarting
+re-enumerates proposals, so identities and non-immutable defaults run again; gaps and repeated
+default side effects are possible. Final effects and RETURNING rows occur once. Every preparation
+exception releases grants since the original statement mark, including retained waited rows,
+while preserving earlier grants/upgrades. Once ApplyStatementAsync begins, this cleanup no longer
+runs, including on apply failure. Written data keeps transaction-duration locks.
+
+Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
+still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
+victim; callers roll back/retry the complete transaction. Consistent input order reduces this
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Format 25, catalog
+layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
+grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
 ## Sources
 

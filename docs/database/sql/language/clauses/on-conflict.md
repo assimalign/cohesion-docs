@@ -71,7 +71,8 @@ that qualifier for its target columns.
 
 ## Isolation, locking and retries
 
-Latest-state arbitration waits on exclusive unique-key locks, held until transaction completion.
+Latest-state arbitration uses exclusive unique-key locks. Successful writes retain their locks
+until transaction completion; unwritten arbitration can release new grants as described below.
 The table holds IntentExclusive (IX), allowing unrelated different-key inserts and upserts to progress.
 
 | Isolation | Conflict committed after the statement snapshot |
@@ -89,17 +90,48 @@ Without requested side-effecting defaults, keys from every unique index of every
 in one sorted, deduplicated batch before arbitration. Requested identities or defaults containing
 non-immutable calls, including STABLE and sequence-like application functions, instead evaluate
 and lock each proposal's unique keys in source order before its lookup/conflict projection.
-Constants and immutable defaults retain the complete up-front batch. Defaults are never evaluated
-speculatively or replayed for lock preparation. Old/new replacement keys lock in a sorted batch
-before conflicting rows; row locks form a sorted batch, followed by reference locks. No lock wait
-runs inside the physical apply gate.
+Constants and immutable defaults retain the complete up-front batch. Defaults evaluate as proposals
+are prepared; lock preparation never evaluates them speculatively. DO UPDATE locks each live
+conflicting row before evaluating its WHERE filter. A FALSE/UNKNOWN filter keeps that row locked
+without changing it. Old/new replacement keys then lock in a sorted batch before reference locks.
+DO NOTHING takes no conflicting-row lock; its unique-key lock protects the visibility check,
+as in PostgreSQL. When every proposal conflicts and DO NOTHING writes nothing, it releases grants
+acquired since its latest retry mark after those checks. With direct conflicts and no earlier
+transaction locks or retained wait rows, keeping that transaction open blocks neither an UPDATE
+of the parent nor a child INSERT referencing it. Earlier grants and retained wait rows remain held.
 
-Reversed multi-row proposal orders with side-effecting defaults can deadlock. Consistent input
-ordering reduces that exposure. Key-before-row acquisition can also form cycles with ordinary
-UPDATE/DELETE and referential SET NULL/SET DEFAULT. Even an UPDATE leaving unique values unchanged
-replaces index entries at a new heap location and needs their key locks. Detection reports
-DatabaseTransactionDeadlockException; roll back the victim and retry its entire transaction,
-including earlier statements. The engine does not perform an internal row-wait/re-arbitration retry.
+When a conflicting row is locked, the upsert releases grants acquired since its current retry
+mark, waits for the row through the lock manager, keeps the granted row, and restarts arbitration
+from the first proposal. Foreign-key parent-row waits use the same release/wait/retry path.
+Later retries keep rows retained by earlier completed waits. A row-first UPDATE, DELETE or
+referential SET NULL/SET DEFAULT action can therefore finish without a cycle involving the
+upsert's new key locks. Keeping the wait grant lets the waiter make progress instead of repeatedly
+handing the same row back to another contender.
+
+ReadCommitted re-arbitrates against the newest committed state, inserting if a DELETE removed the
+conflict. Snapshot aborts retryably if the holder committed a change it cannot see, including a
+rekey or deletion that removes the original conflict. A holder's rollback lets either isolation
+level proceed. After a successful statement, every row retained by a completed wait stays locked
+until the transaction ends, even if final arbitration no longer conflicts with that row.
+Pre-statement locks also survive retries, including upgrades taken during this statement.
+
+The restart discards pending writes and re-evaluates identities and non-immutable defaults;
+identity gaps and repeated default side effects are possible. No row/index write precedes completed
+arbitration. RETURNING evaluates only the final effects, each once. No lock wait runs inside the
+physical apply gate.
+
+Any failure before apply begins releases grants acquired since the original statement mark,
+including retained wait rows and arbiter keys. This includes cancellation, CHECK/NOT NULL failures,
+COHSQLE036 and an unhandled deadlock; earlier transaction grants and their upgrades remain held.
+Once apply begins, this cleanup no longer runs, even if apply fails; transaction-duration locking
+applies. The [LockManager API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/lock-manager.md)
+documents MarkStatement, ReleaseSince and LockStatementMark.
+
+Two multi-row upserts can still deadlock when they reach keys or retained rows in opposite orders,
+including source-ordered proposals with side-effecting defaults. Locks from earlier transaction
+work can also participate in cycles. As in PostgreSQL, detection chooses a retryable victim with
+DatabaseTransactionDeadlockException. Roll back and retry the victim's entire transaction,
+including earlier statements. Consistent input ordering reduces this residual exposure.
 
 If unique-index DDL creates, drops or replaces indexes while the statement waits for its table
 intent lock, it aborts retryably before default/identity allocation. Re-execution binds current
@@ -176,6 +208,7 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertExecutionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertConcurrencyTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertArbitrationConformanceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertDefaultConcurrencyTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlUpsertWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

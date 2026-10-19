@@ -44,6 +44,12 @@ target values only and counts inserted plus updated rows. Snapshot conflicts and
 whole-transaction rollback/retry; ReadCommitted uses the newest committed conflict. See the complete
 [language contract](../../../../database/sql/language/clauses/on-conflict.md).
 
+DO NOTHING takes no conflicting-row lock. DO UPDATE acquires the row before evaluating Where;
+contention releases new arbitration grants, waits, keeps the row grant and restarts the whole
+unwritten batch. Preparation failure releases this statement's new grants. Successful waits keep
+their rows locked until transaction end. Opposite multi-row key/row orders can still produce a
+retryable deadlock victim.
+
 ## Example
 
 ```csharp
@@ -71,3 +77,4 @@ returns id 1 and reports count 1.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlOnConflictClause.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlInsertParserTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertExecutionTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertArbitrationConformanceTests.cs`.
