@@ -24,6 +24,11 @@ The session uses snapshot isolation for SQL `BEGIN`. Later statements on the sam
 that transaction; its own writes are visible to it and remain hidden from other sessions until commit.
 A second `BEGIN` reports `COHSQLT001` and preserves the original active scope.
 
+BEGIN reserves the transaction's sequence and snapshot without appending a journal record.
+Its first admitted write apply enrolls it with a logical BEGIN before any physical write bracket.
+A transaction that only reads appends no lifecycle records and waits for no flush on completion.
+See [TransactionCoordinator](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md).
+
 Data definition language (DDL) is rejected while the explicit transaction is active with
 `COHSQLT003`. Statements outside an explicit transaction auto-commit. Session disposal or wire
 disconnect rolls back an unfinished transaction. `TRANSACTION` alone is not a statement.

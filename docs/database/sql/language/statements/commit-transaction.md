@@ -21,7 +21,9 @@ Malformed suffixes report `SQL0003` before transaction state changes.
 
 A successful commit publishes the transaction's writes and clears the session's active scope.
 Calling `COMMIT` without an active transaction reports `COHSQLT002`. The transaction coordinator
-binds commit to the write-ahead log (WAL) durability path.
+binds writer commit to the write-ahead log (WAL) durability path. Only an enrolled writer appends
+a COMMIT record and waits for durability. A read-only commit simply ends the transaction and
+releases its locks, with no lifecycle append or flush wait.
 
 Keep `BEGIN`, all enclosed statements, and `COMMIT` on the same rented client connection.
 A connection lost after server-side publication but before the response leaves an unknown outcome.

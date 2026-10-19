@@ -203,6 +203,12 @@ layer above.
 
 ### The physical/logical bracket interplay (MVCC layering rules)
 
+Logical readers reserve storage-counter sequences but open no physical bracket and append no
+lifecycle records. The coordinator appends a logical BEGIN only at the first admitted apply, before
+that bracket can stamp versions. Only enrolled writers append COMMIT/abort records or wait for
+commit durability. A reader promoted after a checkpoint enrolls before its first stamp, preserving
+recovery classification. See [coordinator lifecycle](../assimalign-cohesion-database-transactions/transaction-coordinator.md).
+
 The MVCC session binding (area DESIGN.md §3.8, first delivered by the SQL engine) added three
 storage-side rules that keep the logical layer sound:
 
