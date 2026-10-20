@@ -2,7 +2,7 @@
 
 Orders RETURN rows or paths by one or more expression keys.
 
-> **Status:** Implemented after RETURN.
+> **Status:** Implemented. Applies after RETURN.
 
 ## Syntax
 

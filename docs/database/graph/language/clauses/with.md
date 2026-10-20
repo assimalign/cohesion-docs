@@ -2,7 +2,7 @@
 
 Projects an intermediate binding table using the Cypher compatibility spelling.
 
-> **Status:** Implemented, including DISTINCT, grouping, ordering, paging and WHERE.
+> **Status:** Implemented. Includes DISTINCT, grouping, ordering, paging and WHERE.
 
 ## Syntax
 

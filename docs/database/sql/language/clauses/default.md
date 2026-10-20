@@ -2,7 +2,7 @@
 
 Declares a column default or requests that default for an inserted or updated value.
 
-> **Status:** Implemented for the forms below.
+> **Status:** Implemented. Supports the forms below.
 
 ## Syntax
 

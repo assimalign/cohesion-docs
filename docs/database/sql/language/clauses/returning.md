@@ -2,7 +2,7 @@
 
 Returns a projection for each directly inserted, updated or deleted row.
 
-> **Status:** Implemented for INSERT, UPDATE and DELETE.
+> **Status:** Implemented. Supports INSERT, UPDATE and DELETE.
 
 ## Syntax
 

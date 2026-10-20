@@ -2,7 +2,7 @@
 
 Partitions RETURN input bindings into groups for aggregation or duplicate-key elimination.
 
-> **Status:** Implemented for implicit and ISO grouping.
+> **Status:** Implemented. Supports implicit and ISO grouping.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 Starts the next segment of one eagerly evaluated GQL statement.
 
-> **Status:** Implemented after RETURN or a modifying segment.
+> **Status:** Implemented. Applies after RETURN or a modifying segment.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 Limits returned rows and skips an initial part of an ordered result.
 
-> **Status:** Implemented for the forms below.
+> **Status:** Implemented. Supports the forms below.
 
 ## Syntax
 

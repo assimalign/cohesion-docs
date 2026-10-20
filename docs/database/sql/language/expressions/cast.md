@@ -2,7 +2,7 @@
 
 Converts a value using the engine's registered conversion, then applies the destination bounds.
 
-> **Status:** Implemented for the pairs below.
+> **Status:** Implemented. Supports the pairs below.
 
 ## Syntax
 

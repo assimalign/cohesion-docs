@@ -2,7 +2,7 @@
 
 Generates integer column values with a durable, noncycling start/increment progression.
 
-> **Status:** Implemented for CREATE TABLE and ALTER TABLE ADD on a table with no live rows.
+> **Status:** Implemented. Supports CREATE TABLE and ALTER TABLE ADD on a table with no live rows.
 
 ## Syntax
 

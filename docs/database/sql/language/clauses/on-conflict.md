@@ -2,7 +2,7 @@
 
 Inserts a proposed row, skips a unique-key conflict, or updates the conflicting row.
 
-> **Status:** Implemented for the subset below.
+> **Status:** Implemented. Supports the subset below.
 
 ## Syntax
 
