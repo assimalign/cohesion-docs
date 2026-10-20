@@ -375,6 +375,16 @@ agrees an empty capability list; 2.0 retains empty Ready. Core Diagnostics is re
 direction. The complete [Key-Value codes](../../../../database/key-value-pair/diagnostics.md) map
 each refusal to its condition.
 
+## Missing file sets and interrupted drop
+
+File-backed open requires the original data and catalog file sets, including each journal and
+backup. With the primary data file present, missing sidecars or required catalog files raise
+DatabaseException with COHDBK004 in Diagnostics (Error, no
+assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
+complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
+first, then other data files, then the remaining directory. It cannot resurrect a partially
+dropped database by recreating a sidecar.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.

@@ -82,6 +82,25 @@ Engine and storage errors send `ProtocolErrorCode.ExecutionFailure`; protocol vi
 failure. A broken transport can prevent delivery of the error itself. The client then observes
 truncation or transport failure rather than successful completion.
 
+## Database lifecycle
+
+Engine CreateDatabaseAsync/OpenDatabaseAsync require the original blob.dat, blob.log and blob.bak.
+Missing journals/backups are refused without recreating files. Drop removes blob.dat first, so an
+interrupted deletion cannot resurrect a database. Known incomplete creates require drop/recreate;
+ambiguous or damaged file sets require preservation and complete-backup recovery. A torn uncommitted
+tail is tolerated during WAL recovery. Transient open I/O failures ask callers to retry once the
+condition is resolved, without restore or drop advice.
+
+### Database file diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBB004` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; follow the refusal's specific recovery instruction | — |
+
+DatabaseException.Diagnostics carries this Error; a directory without its data file remains
+DatabaseNotFoundException with the diagnostic preserved. No SQLSTATE is assigned. See
+[lifecycle APIs](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#database-creation-open-and-drop).
+
 ## Examples
 
 The [streaming client example](streaming-client.md#example) demonstrates all five operations
@@ -95,6 +114,7 @@ using the sequence from the client overview. It assumes the database and contain
 
 ## Sources
 
+- **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobDatabaseNameTests.cs`.
 - **Operation contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
 - **Client contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/BlobConnection.cs`.
 - **Behavior tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BlobClientTests.cs`.

@@ -103,6 +103,18 @@ be unwound, but final entity lists remain unavailable over the wire (COHDBG001; 
 - **[Database APIs](../../dotnet-apis/resources/database/index.md)** — resource reference.
 - **[SQL language](../sql/language/index.md)** — the separate relational dialect.
 
+## Database lifecycle
+
+Create/open require the original graph.dat, graph.log and graph.bak file set. Missing sidecars
+are refused with COHDBG018 and never recreated, including for an empty closed database. Preserve
+ambiguous files and restore the complete backup. A directory without data or a data file no larger
+than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
+Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;
+transient I/O failures ask for an open retry after resolution, without restore advice.
+
+See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#database-creation-open-and-drop)
+and [file diagnostics](language/diagnostics.md#database-files).
+
 ## Sources
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.

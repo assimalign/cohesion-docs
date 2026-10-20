@@ -6,6 +6,7 @@ The typed SQL client: a relational surface — commands, typed result sets, a SQ
 
 ## Reference pages
 
+- **[SqlConnection](sql-connection.md)** — Rental lifetime, operations and exceptions.
 - **[SqlParameterCollection](sql-parameter-collection.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
@@ -26,8 +27,6 @@ The client **does not parse SQL**. It sends statement text and parameters over t
 server's SQL session parses, plans, and executes them. That keeps the client contract stable and
 independent of the engine's internal plan structures. The model reference supplies wire codecs; the
 client never calls its parser.
-
-- **[SqlConnection](sql-connection.md)** — Rental lifetime, operations and exceptions.
 
 ## Scope
 

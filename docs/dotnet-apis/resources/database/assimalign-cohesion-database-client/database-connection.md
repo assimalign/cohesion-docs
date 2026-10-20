@@ -77,6 +77,12 @@ await first.AbortAsync();                      // next remains usable
 
 [Assembly](index.md) · [Negotiation](../assimalign-cohesion-database-protocol/design.md)
 
+[SqlConnection](../assimalign-cohesion-database-sql-client/sql-connection.md) ·
+[DocumentConnection](../assimalign-cohesion-database-documents-client/document-connection.md) ·
+[GraphConnection](../assimalign-cohesion-database-graph-client/graph-connection.md) ·
+[KeyValueConnection](../assimalign-cohesion-database-keyvaluepair-client/key-value-connection.md) ·
+[BlobConnection](../assimalign-cohesion-database-blob-client/blob-connection.md)
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnection.cs`.

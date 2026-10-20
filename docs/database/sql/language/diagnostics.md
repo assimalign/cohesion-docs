@@ -115,6 +115,20 @@ ALTER uses `COHSQLE027` for volatile ADD COLUMN defaults on live rows (no SQLSTA
 DROP NOT NULL on a primary key uses SQL0003. SET/DROP DEFAULT and DROP NOT NULL on identity
 columns use COHSQLE025. Stable/Volatile defaults execute per assignment; subqueries remain COHDBL001.
 
+## Database creation and open
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHSQLC001` | Interrupted creation cannot be completed through plain open: pre-header files require a safe create/Build retry; missing sidecars, ambiguous catalogs or conflicting persisted state are preserved and refused | — |
+
+The code is an Error in DatabaseException.Diagnostics. A safely restartable pre-header open uses
+DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
+catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
+other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Format remains 25;
+this completion path does not upgrade old databases. See
+[lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
+
 ## Transactions
 
 | Code | Meaning |
@@ -159,6 +173,7 @@ retain the wire category, structured diagnostics and connection usability.
 ## Sources
 
 - **Codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
+- **Creation and open refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCreateRecoveryTests.cs` and `SqlDatabaseNameTests.cs` in the same directory.
 - **Spans and carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDiagnosticTests.cs` and `SqlDiagnosticsFixPassTests.cs` in the same directory.
 - **NOT NULL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDefaultAssignmentTests.cs`.
 - **Constraints and wire delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstraintDiagnosticTests.cs`, `SqlLanguageConformanceTests.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

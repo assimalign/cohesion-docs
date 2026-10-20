@@ -45,6 +45,10 @@ Console.WriteLine(failure.Diagnostics[0].Code); // first
 
 [Assembly](index.md) · [SQL codes](../../../../database/sql/language/diagnostics.md) · [OQL codes](../../../../database/document/language/diagnostics.md) · [GQL codes](../../../../database/graph/language/diagnostics.md)
 
+DatabaseNotFoundException also preserves structured diagnostics from an inner DatabaseException.
+Known incomplete file sets therefore keep absence semantics for provisioning while retaining their
+model code. See [file-set diagnostics](../../../../database/overview.md#database-file-sets-and-lifecycle).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/src/Exceptions/DatabaseException.cs`.

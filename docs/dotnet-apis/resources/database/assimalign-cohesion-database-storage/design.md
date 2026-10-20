@@ -277,6 +277,18 @@ take the append lock to detach/publish prefixes and latch failures before yieldi
 A checkpoint attempted while transactions are active still throws
 `StorageTransactionException` — background checkpointers treat that as "busy, retry next pass".
 
+### Checkpoint triggering
+
+Journal size and interval are soft triggers, not a hard journal bound. When the shared checkpoint
+worker collects a lane that ended deferred, it rechecks backoff and due state in that same pass
+and attempts at most one new checkpoint. It no longer leaves a consumed size wake until the next
+poll. Failed outcomes keep their retry delay; busy storage waits for the next pass. Cancellation
+and shutdown retain lane ownership, and unfinished work is reported once per database per pass.
+This resolves the deferred-lane wake gap only; #1283 remains open and journal growth is not bounded.
+
+See the root and storage DESIGN sources and
+`cohesion/resources/Database/Assimalign.Cohesion.Database/shared/DatabaseCheckpointWorker.cs`.
+
 ### Appends during journal I/O
 
 The medium owner detaches the append buffer and captures its target LSN under the append lock,

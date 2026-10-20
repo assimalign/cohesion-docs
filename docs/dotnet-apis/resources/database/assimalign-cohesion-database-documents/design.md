@@ -426,8 +426,65 @@ an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and Sy
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
 the profile executes 31 of 32 declared clauses.
 
+## Database files
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+
+This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
+with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBD003.
+
+## Database creation, open and drop
+
+File-backed Documents databases require their original document.dat, document.log and document.bak.
+Create and open refuse a missing journal or backup with COHDBD003 in DatabaseException.Diagnostics;
+neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
+ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
+
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBD003.
+A data file no larger than one page is an incomplete create, since successful creation flushes two
+pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
+ordinary create does not adopt them. Drop removes document.dat before deleting the remaining directory.
+
+A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
+tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
+corruption uses COHDBD003 with preservation/restore advice. Transient storage I/O, including a full
+pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
+without drop or backup advice. No storage or record format changes are introduced.
+
+### Lifecycle API
+
+```csharp
+public new ValueTask<DocumentDatabase> CreateDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public new ValueTask<DocumentDatabase> OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+```
+
+Disposed engines throw ObjectDisposedException; cancellation throws OperationCanceledException.
+Invalid names use DatabaseName validation, and an existing completed database rejects create.
+The file-set code is an Error diagnostic with no assigned SQLSTATE. Declared Build also refuses
+missing sidecars without writing replacements; declared databases cannot be dropped.
+
+On a fresh in-memory engine:
+
+```csharp
+await using var engine = DocumentDatabaseEngine.Create("sales-engine", new());
+var database = await engine.CreateDatabaseAsync("sales");
+await database.DisposeAsync();
+var reopened = await engine.OpenDatabaseAsync("SALES"); // reopens the same logical database
+await engine.DropDatabaseAsync("sales");
+```
+
+See [database lifecycle](../../../../database/document/index.md) and the DocumentDatabaseNameTests
+file-set refusal, crash recovery and transient-open cases.
+
 ## Sources
 
+- **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngine.cs`.
+- **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentDatabaseNameTests.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Assimalign.Cohesion.Database.Documents.csproj`.
 

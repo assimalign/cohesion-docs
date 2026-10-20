@@ -6,7 +6,7 @@ The Documents engine stores versioned JSON documents in named collections within
 
 ## Collections and sessions
 
-`DocumentDatabaseEngine.Create` creates an engine. `IDocumentDatabase` provides collection creation
+`DocumentDatabaseEngine.Create` creates an engine. `DocumentDatabase` provides collection creation
 and lookup, and each session binds to one database. Collection names, document identifiers, and JSON
 property names are case-sensitive. Collections obtained through `session.Database` participate in
 that session's transaction and remain bound to its lifetime.
@@ -31,9 +31,9 @@ integer-result functions preserve Int64 metadata and long values locally and ove
 - **Query and index language** — [Object Query Language (OQL)](language/index.md) provides `SELECT`,
   `INSERT`, `UPSERT`, `UPDATE`, `DELETE`, `EXPLAIN`, collection DDL, `CREATE INDEX` and `DROP INDEX` through the session's parse, plan, and execute pipeline.
 - **OQL replacement** — [UPSERT](language/statements/upsert.md) inserts absent keys and replaces existing documents whole, maintaining indexes atomically. Repeated keys within one statement fail.
-- **Document replacement** — `IDocumentCollection.PutAsync` replaces the complete JSON value by
+- **Document replacement** — `DocumentCollection.PutAsync` replaces the complete JSON value by
   identifier and returns a new version. An optional expected version must match a visible document.
-- **Document deletion** — `IDocumentCollection.DeleteAsync` removes the identified document using
+- **Document deletion** — `DocumentCollection.DeleteAsync` removes the identified document using
   the supplied session. OQL provides insert-only [INSERT](language/statements/insert.md) and predicate
   [DELETE](language/statements/delete.md). [UPDATE](language/statements/update.md) provides nested
   SET/UNSET changes from the statement snapshot.
@@ -92,6 +92,18 @@ OQL executes 31 of 32 declared clauses. [UNNEST and LEFT UNNEST](language/clause
 expand arrays before filtering; [ANY/SOME/EVERY](language/expressions/quantified-predicates.md)
 and [array IN](language/expressions/operators.md#in-and-between) test elements with SQL++
 NULL/MISSING rules. SELECT * with UNNEST returns synthetic binding objects.
+
+## Database lifecycle
+
+Create/open require the original document.dat, document.log and document.bak file set. Missing sidecars
+are refused with COHDBD003 and never recreated, including for an empty closed database. Preserve
+ambiguous files and restore the complete backup. A directory without data or a data file no larger
+than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
+Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;
+transient I/O failures ask for an open retry after resolution, without restore advice.
+
+See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#database-creation-open-and-drop)
+and [file diagnostics](language/diagnostics.md#database-files).
 
 ## Sources
 

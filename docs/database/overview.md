@@ -159,6 +159,32 @@ later renter. Pool shutdown closes returned connectors and fails waiting renters
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
 
+## Database file sets and lifecycle
+
+Create/open/drop are engine operations. SQL completes only provably empty interrupted creation;
+ambiguous catalogs and missing sidecars are refused without replacement files. Graph, Document and
+Blob require their original journal and backup even for an empty closed database. Drop deletes the
+primary data file before sidecars. Preserve ambiguous file sets and follow the coded refusal.
+
+| Model | File-set refusal code | Reference |
+| --- | --- | --- |
+| SQL | COHSQLC001 | [Creation and open](sql/language/diagnostics.md#database-creation-and-open) |
+| Graph | COHDBG018 | [Database files](graph/language/diagnostics.md#database-files) |
+| Document | COHDBD003 | [Database files](document/language/diagnostics.md#database-files) |
+| Blob | COHDBB004 | [Database files](blob/operations.md#database-file-diagnostics) |
+| Key-Value Pair | COHDBK004 | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
+
+These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
+permit replacing missing journals. Transient open/inspection I/O failures can be retried after
+resolution and do not advise restore or drop. SQL remains at format 25.
+
+## Checkpoint triggering
+
+Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
+rechecks due work in the same pass and attempts at most one new checkpoint. Failures keep their
+retry delay; busy storage waits for the next pass. This closes a consumed-wake gap without bounding
+journal size; #1283 remains open. See [storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+
 ## Read-only transactions and durability
 
 SQL, Document, Graph, Key-Value Pair and Blob share lazy journal enrollment. Beginning a logical

@@ -309,6 +309,10 @@ are GQL0002. Whole-map expressions/parameters and literal composite properties a
 relationship labels and computed composite properties are COHDBG003. No new code is introduced.
 The profile executes 26 of 33 declared clauses.
 
+Database lifecycle failures additionally use COHDBG018 for missing journal/backup, incomplete
+creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
+SQLSTATE; it is separate from GQL evaluation. See [file diagnostics](../../../../database/graph/language/diagnostics.md#database-files).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.

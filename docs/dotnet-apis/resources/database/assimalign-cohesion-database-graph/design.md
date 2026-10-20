@@ -342,6 +342,7 @@ not included.
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; preserve ambiguous files, or drop/recreate only the known incomplete cases; no assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
 Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
@@ -697,8 +698,54 @@ UpdateNodeAsync/UpdateRelationshipAsync and accepts complete records for create.
 Row-returning mutations carry direct affected counts through the existing ResultComplete frame.
 EXPLAIN adds Set/Remove stages and UpdateEntity children. No wire-format change is required.
 
+## Database creation, open and drop
+
+File-backed Graph databases require their original graph.dat, graph.log and graph.bak.
+Create and open refuse a missing journal or backup with COHDBG018 in DatabaseException.Diagnostics;
+neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
+ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
+
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBG018.
+A data file no larger than one page is an incomplete create, since successful creation flushes two
+pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
+ordinary create does not adopt them. Drop removes graph.dat before deleting the remaining directory.
+
+A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
+tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
+corruption uses COHDBG018 with preservation/restore advice. Transient storage I/O, including a full
+pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
+without drop or backup advice. No storage or record format changes are introduced.
+
+### Lifecycle API
+
+```csharp
+public new ValueTask<GraphDatabase> CreateDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public new ValueTask<GraphDatabase> OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+```
+
+Disposed engines throw ObjectDisposedException; cancellation throws OperationCanceledException.
+Invalid names use DatabaseName validation, and an existing completed database rejects create.
+The file-set code is an Error diagnostic with no assigned SQLSTATE. Declared Build also refuses
+missing sidecars without writing replacements; declared databases cannot be dropped.
+
+On a fresh in-memory engine:
+
+```csharp
+await using var engine = GraphDatabaseEngine.Create("sales-engine", new());
+var database = await engine.CreateDatabaseAsync("sales");
+await database.DisposeAsync();
+var reopened = await engine.OpenDatabaseAsync("SALES"); // reopens the same logical database
+await engine.DropDatabaseAsync("sales");
+```
+
+See [database lifecycle](../../../../database/graph/index.md) and the GraphDatabaseNameTests
+file-set refusal, crash recovery and transient-open cases.
+
 ## Sources
 
+- **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngine.cs`.
+- **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.
 - **Lock handoff regression** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLockHandoffTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.

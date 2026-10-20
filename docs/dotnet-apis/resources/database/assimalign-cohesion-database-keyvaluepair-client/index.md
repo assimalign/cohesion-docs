@@ -6,6 +6,7 @@ The typed key-value client: `KeyValueClient`/`KeyValueConnection`, a point/range
 
 ## Reference pages
 
+- **[KeyValueConnection](key-value-connection.md)** — Rental lifetime, operations and exceptions.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
@@ -22,8 +23,6 @@ parameters, sends it over the shared core, and decodes the model's result shapes
 entries and outcomes. Conditional misses (compare-and-swap) are first-class outcomes
 (`KeyValueWriteResult`, `bool` returns) — never exceptions; failures map onto the stable
 `KeyValueClientErrorKind` taxonomy with the wire code preserved.
-
-- **[KeyValueConnection](key-value-connection.md)** — Rental lifetime, operations and exceptions.
 
 ## Scope
 

@@ -72,6 +72,18 @@ operations described in [Operations](operations.md).
 - **Database** — [Database documentation](../index.md) and [overview](../overview.md).
 - **API reference** — [Database resource APIs](../../dotnet-apis/resources/database/index.md).
 
+## Database lifecycle
+
+Create/open require the original blob.dat, blob.log and blob.bak file set. Missing sidecars
+are refused with COHDBB004 and never recreated, including for an empty closed database. Preserve
+ambiguous files and restore the complete backup. A directory without data or a data file no larger
+than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
+Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;
+transient I/O failures ask for an open retry after resolution, without restore advice.
+
+See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#database-creation-open-and-drop)
+and [file diagnostics](operations.md#database-file-diagnostics).
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.

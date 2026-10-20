@@ -113,6 +113,10 @@ Argument validation and lifetime errors are ordinary .NET exceptions: the connec
 documents `ArgumentNullException`, `ArgumentException`, `InvalidOperationException`,
 `ObjectDisposedException`, and `OperationCanceledException` for their applicable cases.
 
+Database creation/open can fail before a client exchange with COHDBB004 for missing or unrecoverable
+files, including incomplete creation. It is an Error with no assigned SQLSTATE; see
+[file diagnostics and remedies](operations.md#database-file-diagnostics).
+
 ## Verification in the source tree
 
 The client tests cover nonseekable sources, bounded reads, empty objects, ordered prefixes,

@@ -348,6 +348,13 @@ serialization live in `Database.Sql.Schema`.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## Deferred checkpoint lanes
+
+After collecting a deferred checkpoint lane, the shared worker rechecks whether work is due in
+that pass and attempts at most one new checkpoint. Failures retain their retry delay; busy storage
+waits for the next pass. Unfinished work is reported once per database per pass. Size and interval
+remain soft triggers, so this does not impose a journal bound or close #1283.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/DESIGN.md`.

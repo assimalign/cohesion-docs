@@ -81,6 +81,19 @@ or drop schema-owned indexes, although ordinary row DML remains available. Provi
 canonical state only after catalog convergence. Multi-statement destructive migration atomicity is
 not claimed; reversible completed steps are compensated on failure.
 
+## Database lifecycle
+
+Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its
+creation claim and read-only probes prove initial empty data and creation-only catalog metadata.
+Pre-header files with no conflicting persisted state require CreateDatabaseAsync or declared Build;
+plain open reports COHSQLC001. Missing journals/backups and ambiguous lost catalogs are refused
+without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
+Transient inspection failures are retryable after the condition is resolved, without restore advice.
+Drop removes sql.dat before the remaining file set. The current format stays 25.
+
+See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
+and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
+
 ## Hosting and client
 
 `AddSql` records deferred intent on the application builder. Its callback configures the model
@@ -101,8 +114,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
-Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
+upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 7.
 
 ## See also
 

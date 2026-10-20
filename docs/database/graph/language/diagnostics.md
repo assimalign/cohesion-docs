@@ -140,6 +140,17 @@ references and final aggregate path projections use COHDBG001. SUM/AVG overflow,
 COLLECT_LIST bounds use COHDBG013. Unnegotiated wire COLLECT_LIST uses COHDBG016 before output.
 See [aggregate diagnostics](functions/aggregate-functions.md#diagnostics).
 
+## Database files
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+
+This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
+with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBG018.
+
 ## See also
 
 - **[Language (GQL)](index.md)** — reference hub.
@@ -148,6 +159,7 @@ See [aggregate diagnostics](functions/aggregate-functions.md#diagnostics).
 
 ## Sources
 
+- **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlCatalogParserTests.cs`.
