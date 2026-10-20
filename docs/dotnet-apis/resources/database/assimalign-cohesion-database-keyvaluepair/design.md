@@ -9,6 +9,28 @@ The key-value engine (area architecture: resources/`Database`/DESIGN.md
 over the shared kernel, and the **second model engine** — built deliberately as the proof that the
 kernel is model-general, not SQL-shaped.
 
+## Model component boundaries
+
+Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.KeyValuePair`.
+Public Catalog and Storage types retain their namespaces and members; they ship in the model
+assembly and NuGet package. Replace satellite references with the model package and recompile.
+Assembly-qualified type names change, with no compatibility assembly or type forwarders.
+
+The direction is engine → Catalog → Storage → shared kernel. Public component types live in
+`src/Catalog/` and `src/Storage/`; internal types live in `src/Internal/Catalog/`
+and `src/Internal/Storage/`. Engine persistence strategies and catalog-aware codecs belong
+in `src/Internal/Engine/Storage/`. Transaction record-space adapters belong to Storage.
+
+Roslyn architecture tests check actual compiler inputs and resolved symbols: Storage cannot use
+Catalog or engine types; Catalog cannot use engine types. Storage permits shared Storage,
+Transactions and Indexing plus the BCL reference pack. Catalog additionally permits the
+area root and Types. Protocol, Language, Schema and Connections are disallowed in both constrained
+layers; engine code has no external assembly restriction.
+
+Wire messages, codecs and transfer values now belong to [KeyValuePair.Protocol](../assimalign-cohesion-database-keyvaluepair-protocol/index.md).
+Engine and client reference those same contracts. Moved wire types change namespace as well as
+assembly identity; update their imports. Wire and disk formats are unchanged.
+
 ## String comparison and collation (#1025)
 
 `Key`-Value remains binary-only for user data: keys and values are opaque bytes, and key equality,
@@ -272,7 +294,7 @@ result-row boundary (the Execution family's shape).
 
 ## Model-owned wire family (#1015)
 
-This package owns the KeyValuePair request and tabular result codecs; the shared protocol contains
+KeyValuePair.Protocol owns the KeyValuePair request and tabular result codecs; the shared protocol contains
 only mechanism. Wire format
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/WIRE-PROTOCOL.md`)
 specifies every message and scalar component for independent clients. The server binds
@@ -358,12 +380,13 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.KeyValuePair.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Catalog` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
@@ -386,6 +409,9 @@ first, then other data files, then the remaining directory. It cannot resurrect 
 dropped database by recreating a sidecar.
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Assimalign.Cohesion.Database.KeyValuePair.csproj`.

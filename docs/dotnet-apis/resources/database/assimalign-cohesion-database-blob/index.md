@@ -4,19 +4,24 @@
 
 > **Status:** Partial.
 
+Assembly: `Assimalign.Cohesion.Database.Blob.dll`. NuGet package: `Assimalign.Cohesion.Database.Blob`.
+
+Catalog and Storage ship in this assembly with their existing namespaces. The former satellite
+packages are retired. Wire contracts ship separately in [Blob.Protocol](../assimalign-cohesion-database-blob-protocol/index.md).
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
-- **[`BlobChunkAcknowledgementMessage`](blob-chunk-acknowledgement-message.md)** — Documented public type.
-- **[`BlobChunkMessage`](blob-chunk-message.md)** — Documented public type.
-- **[`BlobProtocol`](blob-protocol.md)** — Documented public type.
-- **[`BlobProtocolMessageType`](blob-protocol-message-type.md)** — Documented public type.
-- **[`BlobProtocolTransfer`](blob-protocol-transfer.md)** — Documented public type.
-- **[`BlobReadMessage`](blob-read-message.md)** — Documented public type.
-- **[`BlobTransferCompleteMessage`](blob-transfer-complete-message.md)** — Documented public type.
-- **[`BlobTransferStartMessage`](blob-transfer-start-message.md)** — Documented public type.
-- **[`BlobWriteMessage`](blob-write-message.md)** — Documented public type.
+- **[`BlobChunkAcknowledgementMessage`](../assimalign-cohesion-database-blob-protocol/blob-chunk-acknowledgement-message.md)** — Documented public type.
+- **[`BlobChunkMessage`](../assimalign-cohesion-database-blob-protocol/blob-chunk-message.md)** — Documented public type.
+- **[`BlobProtocol`](../assimalign-cohesion-database-blob-protocol/blob-protocol.md)** — Documented public type.
+- **[`BlobProtocolMessageType`](../assimalign-cohesion-database-blob-protocol/blob-protocol-message-type.md)** — Documented public type.
+- **[`BlobProtocolTransfer`](../assimalign-cohesion-database-blob-protocol/blob-protocol-transfer.md)** — Documented public type.
+- **[`BlobReadMessage`](../assimalign-cohesion-database-blob-protocol/blob-read-message.md)** — Documented public type.
+- **[`BlobTransferCompleteMessage`](../assimalign-cohesion-database-blob-protocol/blob-transfer-complete-message.md)** — Documented public type.
+- **[`BlobTransferStartMessage`](../assimalign-cohesion-database-blob-protocol/blob-transfer-start-message.md)** — Documented public type.
+- **[`BlobWriteMessage`](../assimalign-cohesion-database-blob-protocol/blob-write-message.md)** — Documented public type.
 
 `Assimalign.Cohesion.Database.Blob` implements named databases, containers, and streamed objects.
 `Create` an engine with `BlobDatabaseEngine.Create`; a null `RootPath` selects memory, and a path
@@ -54,7 +59,7 @@ principal; configure `Authenticator` for authenticated access. Session limits, a
 deadlines, idle eviction, and bounded two-phase shutdown are configurable. A non-running engine
 rejects new sessions and operations.
 
-The package owns the Blob wire message family. `Bind` a `ProtocolChannel` to `BlobProtocol.Family` at
+Blob.Protocol owns the Blob wire message family. `Bind` a `ProtocolChannel` to `BlobProtocol.Family` at
 the Blob endpoint. `BlobReadMessage` and `BlobWriteMessage` identify an object;
 `BlobProtocolTransfer.SendAsync` and `ReceiveAsync` copy its content using at most one 64 KiB chunk
 in flight, with a receiver acknowledgement after each destination write. The helpers accept
@@ -77,8 +82,8 @@ authenticator, replication, hosting integration, and compiled-schema provisionin
 this package.
 
 See [DESIGN.md](design.md) , the
-[storage format](../assimalign-cohesion-database-blob-storage/design.md) , and the
-[catalog format](../assimalign-cohesion-database-blob-catalog/design.md) .
+[storage format](storage-design.md) , and the
+[catalog format](catalog-design.md) .
 
 `BlobDatabaseEngine.CreateBuilder()` returns the same model builder for standalone composition or
 the concrete hosting builder's build-aware engine factory. This lets the consumer pass already
@@ -90,15 +95,20 @@ resolved values and register nested components while keeping the model package d
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Blob.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Blob.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Blob.Catalog` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
+
+## Additional reference pages
+
+- **[Blob catalog](catalog.md)** — Reference and usage.
+- **[Blob storage](storage.md)** — Reference and usage.
 
 ## Sources
 

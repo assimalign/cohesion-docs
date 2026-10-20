@@ -1,12 +1,15 @@
 # SqlClientException
 
+A SQL client failure with a model error kind, wire category and structured diagnostics.
+
 ## Signature
 
 ```csharp
-public sealed class SqlClientException : DatabaseException
+public sealed class SqlClientException : Exception
 {
     public SqlClientException(SqlClientErrorKind kind, ProtocolErrorCode code, string message);
     public SqlClientException(SqlClientErrorKind kind, ProtocolErrorCode code, string message, Exception? innerException);
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
     public SqlClientErrorKind Kind { get; }
     public ProtocolErrorCode Code { get; }
     public bool ConnectionUsable { get; }
@@ -15,8 +18,13 @@ public sealed class SqlClientException : DatabaseException
 
 ## Behavior and exceptions
 
-The inner-exception constructor copies diagnostics when its inner cause is a DatabaseException. The
-three-argument constructor has an empty list. The carrier preserves code, severity and span while
+SqlClientException derives directly from System.Exception. Catch SqlClientException for remote SQL
+failures; catching DatabaseException no longer handles them. Diagnostics is declared locally.
+
+The inner-exception constructor copies diagnostics when its inner cause is a DatabaseClientException
+or a nested SqlClientException. The
+three-argument constructor has an empty list. Each copied snapshot is read-only and stably sorted
+by source offset, with unlocated entries last. The carrier preserves code, severity and span while
 Kind/Code retain client and wire categories. ConnectionUsable is true for ParseFailure,
 ExecutionFailure, TransactionAborted, NotAuthorized and InvalidCast; protocol/connection failures
 are unusable. Constructors add no new validation exception.

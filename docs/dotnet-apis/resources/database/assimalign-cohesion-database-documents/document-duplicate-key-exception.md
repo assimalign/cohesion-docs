@@ -26,7 +26,7 @@ replacement/upsert behavior. The constructor adds no validation exception beyond
 arguments. Over the wire, the failure becomes DocumentClientException with COHDOC012.
 
 UNIQUE secondary-index failures use the catalog-owned
-[DocumentConstraintViolationException](../assimalign-cohesion-database-documents-catalog/document-constraint-violation-exception.md):
+[DocumentConstraintViolationException](document-constraint-violation-exception.md):
 COHDOC020 (23505) for duplicate valued scalar tuples or COHDOC021 for array/object components.
 
 ## Example

@@ -17,7 +17,7 @@ SET column_name = { expression | DEFAULT } [ , ...n ]
 
 ## Remarks
 
-`c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
+`c = DEFAULT` uses the same [default](default.md) as an omitted INSERT column.
 No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
 For [BY DEFAULT identity](identity.md), SET id = DEFAULT allocates a new value. ALWAYS rejects
 all assignments to its identity column, including DEFAULT, with `COHSQLE025`.

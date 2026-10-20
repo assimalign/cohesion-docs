@@ -8,6 +8,9 @@ Blob uses the shared database envelope with a fixed endpoint message family and 
 selects the model before startup; startup has no model discriminator. The database selected
 during startup cannot change through object requests.
 
+Messages, codecs, BlobProtocolTransfer and BlobProperties live in
+`Assimalign.Cohesion.Database.Blob.Protocol`, shared by the engine and client.
+
 ## Shared envelope
 
 Each frame contains a five-byte header followed by exactly the declared payload bytes. All
@@ -133,5 +136,5 @@ no transfer resumption or exactly-once retry guarantee.
 
 - **Shared framing and handshake** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/DESIGN.md`.
 - **Blob family and transfer specification** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
-- **Message identifiers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Protocol/BlobProtocolMessageType.cs`.
-- **Transfer implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Protocol/BlobProtocolTransfer.cs`.
+- **Message identifiers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Protocol/src/BlobProtocolMessageType.cs`.
+- **Transfer implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Protocol/src/BlobProtocolTransfer.cs`.

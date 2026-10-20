@@ -4,6 +4,10 @@ The Documents engine stores versioned JSON documents in named collections within
 
 > **Status:** Partial. Local and wire document operations, OQL SQL++ queries, collection/index DDL and durable storage execute.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](../model-project-migration.md).
+
 ## Collections and sessions
 
 `DocumentDatabaseEngine.Create` creates an engine. `DocumentDatabase` provides collection creation
@@ -77,7 +81,7 @@ statement failures preserve the connection; malformed protocol traffic or unfini
 discards it. Explicit wire transactions are unsupported.
 
 See [DocumentClient](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client.md)
-and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-protocol.md).
+and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-protocol/document-protocol.md).
 
 ## Reference
 
@@ -109,5 +113,5 @@ and [file diagnostics](language/diagnostics.md#database-files).
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.
 - **Semantics and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
-- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Catalog/docs/OVERVIEW.md`.
-- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Storage/docs/OVERVIEW.md`.
+- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.
+- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.

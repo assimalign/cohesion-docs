@@ -54,7 +54,7 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 | `COHDBL001` | ALL/DISTINCT ARRAY index keys; UNIQUE in other reserved constructs remains unsupported | — |
 
 COHDOC020/021 are carried by
-[DocumentConstraintViolationException](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-catalog/document-constraint-violation-exception.md).
+[DocumentConstraintViolationException](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-constraint-violation-exception.md).
 Wire failures use ExecutionFailure (6) and preserve the connection.
 
 ## Examples

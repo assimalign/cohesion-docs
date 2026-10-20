@@ -5,7 +5,7 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 > **Status:** Partial.
 
 The client follows Sql.Client's interface, options, internal connection, exchange, and exception
-shape. It references Database.Graph for its existing model protocol and graph values, and
+shape. It references Database.Graph.Protocol for its model protocol and transferred graph values, and
 Database.Client for the pool, handshake, frame transport, and connection lifetime. It has no
 Hosting dependency, reflection, dynamic serialization, or dependency on Microsoft.Extensions.
 
@@ -27,6 +27,16 @@ sequenceDiagram
     Pool-->>GraphConnection: bounded Stream
     GraphConnection-->>App: GraphPath enumeration
 ```
+
+## Contract dependencies and client errors
+
+This client references Database.Client, Graph.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Graph.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`GraphClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
 
 ## Value completion
 
@@ -53,9 +63,9 @@ to its exchange and pooling belongs to Database.Client.
 
 ## Composite negotiation and limits
 
-[GraphProtocol.CompositeValues](../assimalign-cohesion-database-graph/graph-protocol.md) registers
+[GraphProtocol.CompositeValues](../assimalign-cohesion-database-graph-protocol/graph-protocol.md) registers
 graph.composite-values under protocol 2.1 independently of diagnostics. With agreement, all request
-parameter components use the public [GraphValueCodec](../assimalign-cohesion-database-graph/graph-value-codec.md).
+parameter components use the public [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md).
 Lists decode to object?[], maps to read-only ordinal dictionaries, preserving nested scalar types.
 Result header bit 7 marks possible composite columns and is removed from public GraphColumn.Type.
 Unmarked scalar cells keep baseline bytes. Marked cells accept scalar tag 0 or component tag 1
@@ -148,9 +158,9 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Client` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Graph` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Graph.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
@@ -203,6 +213,9 @@ reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-c
 for disposal, shutdown and the explicit-transaction reset gap (#1540).
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Assimalign.Cohesion.Database.Graph.Client.csproj`.

@@ -8,6 +8,16 @@ The key-value client owns command construction, parameter encoding, result mater
 outcomes, error mapping, and telemetry. The shared client owns pooling, handshake, framing, and
 exchange lifetime.
 
+## Contract dependencies and client errors
+
+This client references Database.Client, KeyValuePair.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.KeyValuePair.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`KeyValueClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
+
 ## Family position
 
 The client references shared mechanism and the key-value wire family:
@@ -15,7 +25,7 @@ The client references shared mechanism and the key-value wire family:
 ```mermaid
 flowchart LR
     KvClient["Database.KeyValuePair.Client"] --> Client["Database.Client"]
-    KvClient --> Kv["Database.KeyValuePair"]
+    KvClient --> Kv["Database.KeyValuePair.Protocol"]
     Client --> Protocol["Database.Protocol"]
     Kv --> Protocol
 ```
@@ -53,7 +63,7 @@ retry. Unconditional put returns its new etag directly.
 
 ## Errors, lifecycle, and telemetry
 
-`KeyValueClientException : DatabaseException` maps wire codes to model error kinds and preserves the
+`KeyValueClientException : Exception` maps wire codes to model error kinds and preserves the
 code. `MalformedResult` identifies a completed response that does not match the typed operation's
 values; no unread frames remain. Framing/decoder failure or cancellation during an exchange
 invalidates the shared connection. Disposing a healthy typed connection returns its session to the
@@ -103,9 +113,9 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.KeyValuePair.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
@@ -120,6 +130,9 @@ reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-c
 for disposal, shutdown and the explicit-transaction reset gap (#1540).
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/Assimalign.Cohesion.Database.KeyValuePair.Client.csproj`.

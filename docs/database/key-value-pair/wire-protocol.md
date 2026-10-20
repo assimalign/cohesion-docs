@@ -7,8 +7,9 @@ Key-Value Pair carries text commands and scalar results over its model-owned pro
 `KeyValueProtocol.Family` is fixed when the endpoint accepts a connection. Protocol version
 `2.1` negotiates startup capabilities while retaining established model payload bytes and ordering.
 Key-Value agrees no Diagnostics capability; 2.0 sends an empty Ready and different majors are
-refused. Refusals use `COHKV001`–`019` in existing Error text. The shared Database protocol owns framing, startup, errors, and lifecycle; the model
-owns execution and tabular result codecs.
+refused. Refusals use `COHKV001`–`019` in existing Error text. The shared Database protocol owns framing, startup, errors and lifecycle.
+KeyValuePair.Protocol owns execution and tabular result codecs, under the
+`Assimalign.Cohesion.Database.KeyValuePair.Protocol` namespace.
 
 ## Exchange
 
@@ -84,4 +85,4 @@ as these eight payload bytes, excluding the frame header:
 
 - **Wire contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/WIRE-PROTOCOL.md`.
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`.
-- **Golden payload tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/ProtocolMessageTests.cs`.
+- **Golden payload tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Protocol/tests/ProtocolMessageTests.cs`.

@@ -45,7 +45,7 @@ paging. Only final columns determine wire admission; intermediate collect/UNWIND
 entity kinds. Any write stage excludes QueryPathsAsync. Final node/relationship lists remain
 COHDBG001 (#1662), even with graph.composite-values. See [stage rules](../../../../database/graph/language/clauses/next.md).
 
-Protocol 2.1 negotiates [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md).
+Protocol 2.1 negotiates [graph.composite-values](../assimalign-cohesion-database-graph-protocol/graph-protocol.md).
 Lists decode as object?[]; maps as read-only ordinal dictionaries. Values permit depth 64,
 65,536 total values including root and 16 MiB encoded bytes; rows also fit 16 MiB. Without the
 capability, composite parameters throw GraphClientException with ExecutionFailure locally before

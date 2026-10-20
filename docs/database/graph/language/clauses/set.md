@@ -101,4 +101,4 @@ RETURN has three rows containing 3; affected count is 1.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphUpdateTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphUpdateConcurrencyTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/docs/DESIGN.md`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.

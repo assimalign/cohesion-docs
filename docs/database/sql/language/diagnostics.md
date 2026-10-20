@@ -151,6 +151,10 @@ SQLite INSERT OR IGNORE/REPLACE, unsupported inference and subqueries in conflic
 
 ## Locations and wire behavior
 
+Remote failures use [SqlClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-client-exception.md), which derives directly from
+System.Exception and declares its own Diagnostics snapshot. Catch that client exception for remote
+operations; catching DatabaseException now covers only engine-side failures.
+
 `DatabaseException.Diagnostics` is never null. Supplied diagnostics are copied, ordered by
 zero-based UTF-16 start offset, with unlocated entries last and stable ordering for ties.
 End offsets are exclusive; line numbers are one-based. Binding rejections retain available AST

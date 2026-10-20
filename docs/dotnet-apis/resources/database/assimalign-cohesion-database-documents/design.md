@@ -4,6 +4,28 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Model component boundaries
+
+Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Documents`.
+Public Catalog and Storage types retain their namespaces and members; they ship in the model
+assembly and NuGet package. Replace satellite references with the model package and recompile.
+Assembly-qualified type names change, with no compatibility assembly or type forwarders.
+
+The direction is engine → Catalog → Storage → shared kernel. Public component types live in
+`src/Catalog/` and `src/Storage/`; internal types live in `src/Internal/Catalog/`
+and `src/Internal/Storage/`. Engine persistence strategies and catalog-aware codecs belong
+in `src/Internal/Engine/Storage/`. Transaction record-space adapters belong to Storage.
+
+Roslyn architecture tests check actual compiler inputs and resolved symbols: Storage cannot use
+Catalog or engine types; Catalog cannot use engine types. Storage permits shared Storage,
+Transactions and Indexing plus the BCL reference pack. Catalog additionally permits the
+area root and Types. Protocol, Language, Schema and Connections are disallowed in both constrained
+layers; engine code has no external assembly restriction.
+
+Wire messages, codecs and transfer values now belong to [Documents.Protocol](../assimalign-cohesion-database-documents-protocol/index.md).
+Engine and client reference those same contracts. Moved wire types change namespace as well as
+assembly identity; update their imports. Wire and disk formats are unchanged.
+
 ## String comparison and collation (#1025)
 
 Documents remains ordinal-only. OQL string predicates, ordering, grouping, and distinct comparisons
@@ -38,16 +60,16 @@ flowchart TD
     Execute --> Result["Query rows or DDL command result"]
 ```
 
-| Assembly | Responsibility |
+| Component or assembly | Responsibility |
 | --- | --- |
-| `Database.Documents` | Engine, bound sessions, CRUD, OQL query/index-DDL plans and execution, document protocol family, builder extension |
+| `Database.Documents` | Engine, bound sessions, CRUD, OQL query/index-DDL plans and execution, server and builder extension |
 | `Database.Documents.Language` | Profile, parser, AST, stable diagnostic locations |
-| `Database.Documents.Catalog` | Versioned collection/document/index metadata and transactional index maintenance |
-| `Database.Documents.Storage` | Explicit JSON validation, stamped metadata/chunk records, kernel record-space adapter |
+| Catalog component in `Database.Documents` | Versioned collection/document/index metadata and transactional index maintenance |
+| Storage component in `Database.Documents` | Explicit JSON validation, stamped metadata/chunk records, kernel record-space adapter |
 | `Database` and child roots | Shared contracts, transaction coordinator, lock manager, WAL, pages, B+Tree |
 
-The engine references the three model packages and the `Database` root. The catalog references
-Documents storage and shared indexing/transactions, never this engine. There are no Hosting or
+The engine references Documents.Language, Documents.Protocol and the Database root. Its Catalog
+component uses Documents Storage and shared indexing/transactions, never engine types. There are no Hosting or
 ApplicationModel references.
 
 ## Sessions and authority
@@ -237,7 +259,7 @@ zero; index definition changes are not document-row mutations.
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
 values, reversed operands, and conjunctive bounds. Choice ranks longest leading equality prefix,
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
-semantics. See the [catalog design](../assimalign-cohesion-database-documents-catalog/design.md) for
+semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
 records use v2; v1 indexes are refused before recovery writes with a recreate remedy and no upgrade.
 UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
@@ -269,7 +291,7 @@ Success reports deleted count with no Document frames. No format or protocol ver
 
 Nested objects, arrays, and scalar roots are accepted. JSON validation and exact byte-preservation
 rules are specified in the
-[storage format](../assimalign-cohesion-database-documents-storage/design.md) . Adding/removing
+[storage format](storage-design.md) . Adding/removing
 fields and changing a scalar's type are supported complete-document replacements. They need no
 compiled schema migration and update indexes in the same transaction. The new shape can change
 predicate membership and projection types by the explicit mixed-shape rules above.
@@ -333,7 +355,7 @@ of the shared storage flush duty.
 
 ## Document wire family and server
 
-[DocumentProtocol](document-protocol.md) binds messages 64–72 to one Documents endpoint.
+[DocumentProtocol](../assimalign-cohesion-database-documents-protocol/document-protocol.md) binds messages 64–72 to one Documents endpoint.
 [DocumentDatabaseServer](document-database-server.md) serves OQL and document/collection commands;
 [DocumentClient](../assimalign-cohesion-database-documents-client/document-client.md) rents authenticated
 connections. Shared protocol 2.1 negotiates startup; Documents retains Failure for structured errors.
@@ -393,10 +415,16 @@ demonstrated by tests exercising the public factory through that base interface.
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Documents.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Execution` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Documents.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Documents.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Documents.Catalog` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
@@ -482,6 +510,9 @@ See [database lifecycle](../../../../database/document/index.md) and the Documen
 file-set refusal, crash recovery and transient-open cases.
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngine.cs`.
 - **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentDatabaseNameTests.cs`.

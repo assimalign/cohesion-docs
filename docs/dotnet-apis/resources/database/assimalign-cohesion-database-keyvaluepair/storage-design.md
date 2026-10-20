@@ -1,0 +1,68 @@
+# KeyValuePair storage design
+
+This page describes the storage component inside `Assimalign.Cohesion.Database.KeyValuePair`.
+
+> **Status:** Partial.
+
+Namespace: `Assimalign.Cohesion.Database.KeyValuePair.Storage`. Assembly: `Assimalign.Cohesion.Database.KeyValuePair.dll`. NuGet package: `Assimalign.Cohesion.Database.KeyValuePair`.
+
+This storage component ships inside the model package. Keep its namespace
+imports and replace the former satellite package reference with `Assimalign.Cohesion.Database.KeyValuePair`; recompile consumers.
+The model enforces engine → Catalog → Storage → shared kernel through architecture tests.
+
+## Design intent
+
+The thinnest possible model-storage component: it types a storage file set as
+`StorageModel.KeyValue` and exposes the kernel's protected record surface under entry-flavored names
+(`InsertEntry`/`ReadEntry`/`UpdateEntry`/`DeleteEntry`). The key-value model deliberately brings
+**no model-specific physical layout** — the generality bet of the second model is that the shared
+substrate (slotted pages, per-owner record chains, WAL v2, recovery) serves an ordered key-value
+store as-is, and this component is where that bet is visibly small.
+
+## Why-this-not-that
+
+- **A `Storage` subclass, not a wrapper.** `SqlStorage` set the family shape: the
+  kernel's record operations are `protected`, and the model component is the
+  sanctioned way to expose the subset a model composes. A wrapper would duplicate
+  the surface; a public kernel record API would invite models to bypass their
+  engines.
+- **No entry codec here.** The record byte layout (16-byte version-stamp header +
+  key/value tuple) is engine policy, tied to the engine's MVCC composition — it
+  lives with the version store and executor in `Database.KeyValuePair`, exactly
+  where `SqlRowCodec` lives in `Database.Sql`. This component stays byte-agnostic.
+- **Owner-chain inserts are the primary insert path.** The engine keys every entry
+  record by its key-space object id so the key space owns its pages (the #911
+  per-object chain design). The shared-space overload exists for the catalog file
+  set, whose records are few and unowned.
+
+## Lifecycle
+
+Instances are created/opened by the engine's storage strategy and disposed by the engine's database
+instance. `Open(..., checkpointOnOpen: false)` is the reopen contract: the engine runs
+`TransactionRecovery.Analyze` over the recovered journal before any truncation (classification reads
+lifecycle records a checkpoint would destroy) and checkpoints through its coordinator once analysis
+completes.
+
+`WriteAheadJournal` publicly returns the existing `IStorageJournal` contract so a transaction
+coordinator can share the storage's actual WAL. This is the same composition seam exposed by
+Documents, Graph, and Blob storage and replaces the shipped-to-shipped friend grant. `Storage` retains
+ownership of the journal; callers coordinate writes and checkpoints through the transaction
+coordinator and do not dispose the journal separately.
+
+## Non-goals
+
+- **Model-specific page layouts (adjacency pages, blob streams)** — the key-value
+  model needs none.
+- **Public exposure of the kernel's full record surface** — only what the engine
+  composes is exposed, including the journal contract required for transaction
+  coordination. Paging, buffer management, and WAL implementation remain private.
+
+## AOT posture
+
+No reflection, no codegen — inherited span-based record operations only.
+
+
+## Sources
+
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Assimalign.Cohesion.Database.KeyValuePair.csproj`.

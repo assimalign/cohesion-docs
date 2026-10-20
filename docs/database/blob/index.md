@@ -13,6 +13,10 @@ Blob has no statement or query language. Its `ExecuteAsync` rejects commands. Pr
 and containers through the engine application programming interface (API); use container streams
 locally or the typed client remotely.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](../model-project-migration.md).
+
 ## Documentation
 
 - **Operations** — [Requests, responses, and publication](operations.md).
@@ -88,5 +92,5 @@ and [file diagnostics](operations.md#database-file-diagnostics).
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.
 - **Design** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
-- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Catalog/docs/OVERVIEW.md`.
-- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Storage/docs/OVERVIEW.md`.
+- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.
+- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.

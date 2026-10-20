@@ -13,14 +13,21 @@ examples require their original test project’s dependencies and supporting obj
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
+## Additional reference pages
+
+- **[Examples](catalog.md)** — Reference and usage.
+- **[Graph Catalog Tests](graph-catalog-tests.md)** — Reference and usage.
+- **[Graph storage: create, update and snapshot reads](graph-store-tests.md)** — Reference and usage.
+- **[Examples](storage.md)** — Reference and usage.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 
 ## Conditional and composite values
 
-[GraphValueCodec](../graph-value-codec.md#example) round-trips nested Decimal/unsigned values.
-[GraphProtocol](../graph-protocol.md#example) shows the capability request;
-[execute](../graph-protocol-execute-message.md#example) and [header](../graph-protocol-result-header-message.md#example)
+[GraphValueCodec](../../assimalign-cohesion-database-graph-protocol/graph-value-codec.md#example) round-trips nested Decimal/unsigned values.
+[GraphProtocol](../../assimalign-cohesion-database-graph-protocol/graph-protocol.md#example) shows the capability request;
+[execute](../../assimalign-cohesion-database-graph-protocol/graph-protocol-execute-message.md#example) and [header](../../assimalign-cohesion-database-graph-protocol/graph-protocol-result-header-message.md#example)
 examples show the negotiated component/column formats. These follow GraphValueCodecTests and
 GraphCompositeWireTests.

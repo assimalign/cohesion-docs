@@ -69,6 +69,10 @@ give zero rows; non-lists use COHDBG013. These composition codes have no assigne
 Final lists of nodes/relationships over wire Execute remain COHDBG001 (#1662), even with composite
 negotiation. A read-only composed query may carry one mandatory final entity through ExecutePaths.
 
+Remote failures use GraphClientException, which derives directly from System.Exception and owns
+its Diagnostics snapshot. Catch GraphClientException for remote operations; catching DatabaseException
+no longer handles remote failures. See the [migration guide](../../model-project-migration.md#remote-failures).
+
 Planner rejections carry stable codes in `DatabaseException.Diagnostics`, with available source
 spans and code-free messages. Diagnostics is never null; located entries sort by start offset before
 unlocated entries. The server composes `CODE: message`. Missing parameters use COHDBG001 and

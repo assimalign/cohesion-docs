@@ -9,15 +9,16 @@ lifecycle and is deferred behind Key-Value Pair. Its source contains an empty `C
 `Assimalign.Cohesion.Database.CacheDb`; the test is a placeholder. These stubs do not define
 the future Cache architecture.
 
+The empty Catalog and Storage projects have been retired into the Cache model project. Cache had
+no Security satellite. No runtime behavior or public component types were added.
+
 ## Current package surface
 
 | Package | Present source |
 |---|---|
 | `Assimalign.Cohesion.Database.Cache` | Empty class and placeholder test |
 | `Assimalign.Cohesion.Database.Cache.Language` | Project files, without a parser or grammar |
-| `Assimalign.Cohesion.Database.Cache.Catalog` | Project files, without catalog implementation |
 | `Assimalign.Cohesion.Database.Cache.Client` | Project files, without client implementation |
-| `Assimalign.Cohesion.Database.Cache.Storage` | Project files, without storage implementation |
 
 No Cache commands, operand types, wire operations, or diagnostic identifiers are defined by
 these projects. The design requires a future implementation to compose the shared Database
@@ -38,6 +39,4 @@ kernel, but does not establish a command contract.
 - **Source stub** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache/src/Class1.cs`.
 - **Test stub** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache/tests/UnitTest1.cs`.
 - **Language scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache.Language/src/Assimalign.Cohesion.Database.Cache.Language.csproj`.
-- **Catalog scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache.Catalog/src/Assimalign.Cohesion.Database.Cache.Catalog.csproj`.
 - **Client scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache.Client/src/Assimalign.Cohesion.Database.Cache.Client.csproj`.
-- **Storage scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache.Storage/src/Assimalign.Cohesion.Database.Cache.Storage.csproj`.

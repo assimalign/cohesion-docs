@@ -1,18 +1,26 @@
 # GraphClientException
 
+A Graph client failure with a stable wire category and structured diagnostics.
+
 ## Signature
 
 ```csharp
-public sealed class GraphClientException : DatabaseException
+public sealed class GraphClientException : Exception
 {
     public GraphClientException(ProtocolErrorCode code, string message, Exception? innerException = null);
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
     public ProtocolErrorCode Code { get; }
 }
 ```
 
 ## Behavior and exceptions
 
-Copies diagnostics from an inner DatabaseException, otherwise retains an empty list. Code preserves
+GraphClientException derives directly from System.Exception. Catch GraphClientException for remote
+Graph failures; catching DatabaseException no longer handles them.
+
+Diagnostics is declared locally and copies entries from an inner DatabaseClientException or nested
+GraphClientException, otherwise retaining an empty list. The snapshot is read-only, defensively
+copied and stably sorted by offset, with unlocated entries last. Code preserves
 the wire category and Message preserves composed server text. Constructors add no new validation
 exception. Connection reuse depends on terminal-response evidence: scalar and pre-output path
 rejections preserve it; unfinished streams, cancellation and protocol failures discard it.

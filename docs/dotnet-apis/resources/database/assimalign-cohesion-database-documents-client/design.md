@@ -2,12 +2,23 @@
 
 The client layers OQL and document exchanges over Database.Client's authenticated connection pool.
 
-> **Status:** Implemented for the documented operations.
+> **Status:** Implemented. Support covers the documented operations.
+
+## Contract dependencies and client errors
+
+This client references Database.Client, Documents.Protocol, shared Protocol and Types, and Connections,
+plus model-neutral Execution. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Documents.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`DocumentClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
 
 ## Ownership and dependencies
 
 Documents.Client owns sealed client, rental, result and exception types. Database.Client owns
-dialing, authentication, pool limits, leases and connection reuse. Documents owns model codecs;
+dialing, authentication, pool limits, leases and connection reuse. Documents.Protocol owns model codecs;
 Protocol owns family-bound framing. The caller supplies an IDuplexConnectionFactory. No runtime
 reflection or POCO serializer is used.
 
@@ -52,7 +63,7 @@ system-target refusal followed by a successful zero-match DELETE on the same ren
 
 Model Failure (72) terminates a rejected statement without Complete, including after partial rows.
 The client discards accumulated results and throws DocumentClientException, preserving the protocol
-category and DatabaseException.Diagnostics. A fully decoded Failure certifies a reusable session.
+category and DocumentClientException.Diagnostics. A fully decoded Failure certifies a reusable session.
 Shared Error, invalid order/counts/UTF-8/JSON, truncation, transport loss and unfinished cancellation
 discard it. Mutations canceled after publication can have unknown outcomes.
 
@@ -84,7 +95,7 @@ negotiates no core Diagnostics capability and retains its own Failure frame. OQL
 execute over InMemory and TCP. Explicit wire transactions, remote database lifecycle, replication
 and model-specific security policies remain unsupported.
 
-[Assembly](index.md) · [Examples](examples/index.md) · [DocumentProtocol](../assimalign-cohesion-database-documents/document-protocol.md)
+[Assembly](index.md) · [Examples](examples/index.md) · [DocumentProtocol](../assimalign-cohesion-database-documents-protocol/document-protocol.md)
 
 ## Result paging
 
@@ -114,6 +125,9 @@ reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-c
 for disposal, shutdown and the explicit-transaction reset gap (#1540).
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/docs/DESIGN.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

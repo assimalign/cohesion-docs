@@ -4,21 +4,26 @@
 
 > **Status:** Partial.
 
+Assembly: `Assimalign.Cohesion.Database.Documents.dll`. NuGet package: `Assimalign.Cohesion.Database.Documents`.
+
+Catalog and Storage ship in this assembly with their existing namespaces. The former satellite
+packages are retired. Wire contracts ship separately in [Documents.Protocol](../assimalign-cohesion-database-documents-protocol/index.md).
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[DocumentDatabaseServer](document-database-server.md)** and [options](document-database-server-options.md).
-- **[DocumentProtocol](document-protocol.md)** — Messages 64–72 and codec references.
+- **[DocumentProtocol](../assimalign-cohesion-database-documents-protocol/document-protocol.md)** — Messages 64–72 and codec references.
 - **[DocumentDuplicateKeyException](document-duplicate-key-exception.md)** — Insert-only duplicate keys.
-- **[DocumentProtocolCollectionMessage](document-protocol-collection-message.md)** — Wire payload codec.
-- **[DocumentProtocolCommandMessage](document-protocol-command-message.md)** — Wire payload codec.
-- **[DocumentProtocolCompleteMessage](document-protocol-complete-message.md)** — Wire payload codec.
-- **[DocumentProtocolExecuteMessage](document-protocol-execute-message.md)** — Wire payload codec.
-- **[DocumentProtocolFailureMessage](document-protocol-failure-message.md)** — Wire payload codec.
-- **[DocumentProtocolResultHeaderMessage](document-protocol-result-header-message.md)** — Wire payload codec.
-- **[DocumentProtocolResultMessage](document-protocol-result-message.md)** — Wire payload codec.
-- **[DocumentProtocolStoredDocumentMessage](document-protocol-stored-document-message.md)** — Wire payload codec.
+- **[DocumentProtocolCollectionMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-collection-message.md)** — Wire payload codec.
+- **[DocumentProtocolCommandMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-command-message.md)** — Wire payload codec.
+- **[DocumentProtocolCompleteMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-complete-message.md)** — Wire payload codec.
+- **[DocumentProtocolExecuteMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-execute-message.md)** — Wire payload codec.
+- **[DocumentProtocolFailureMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-failure-message.md)** — Wire payload codec.
+- **[DocumentProtocolResultHeaderMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-result-header-message.md)** — Wire payload codec.
+- **[DocumentProtocolResultMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-result-message.md)** — Wire payload codec.
+- **[DocumentProtocolStoredDocumentMessage](../assimalign-cohesion-database-documents-protocol/document-protocol-stored-document-message.md)** — Wire payload codec.
 
 `Assimalign.Cohesion.Database.Documents` implements named logical databases containing versioned
 UTF-8 JSON documents. Each session is bound to one database. The engine supports document CRUD, an
@@ -44,7 +49,7 @@ disposed.
 The engine references the Documents Language, Catalog, and `Storage` packages and the shared `Database`
 root. [DESIGN.md](design.md) describes transaction ownership, OQL semantics, and limits. The
 [language design](../assimalign-cohesion-database-documents-language/design.md) defines the
-supported grammar; the [storage design](../assimalign-cohesion-database-documents-storage/design.md)
+supported grammar; the [storage design](storage-design.md)
 defines the on-disk format. ApplicationModel and compiled-schema provisioning remain outside this
 composition change.
 
@@ -56,12 +61,27 @@ resolved values and register nested components while keeping the model package d
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Documents.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Execution` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Documents.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Documents.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Documents.Catalog` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
+
+## Additional reference pages
+
+- **[Documents catalog design](catalog-design.md)** — Reference and usage.
+- **[Documents catalog](catalog.md)** — Reference and usage.
+- **[DocumentCatalog](document-catalog.md)** — Reference and usage.
+- **[DocumentConstraintViolationException](document-constraint-violation-exception.md)** — Reference and usage.
+- **[DocumentIndexMetadata](document-index-metadata.md)** — Reference and usage.
+- **[Documents storage](storage.md)** — Reference and usage.
 
 ## Sources
 

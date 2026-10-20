@@ -4,6 +4,10 @@ The relational Database engine parses, plans, and executes a measured SQL subset
 
 > **Status:** Partial. The profile measures 51 of 57 declared language clauses against the live engine.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](../model-project-migration.md).
+
 ## Language reference
 
 The [Language (SQL)](language/index.md) hub is the contract for accepted statements, clauses,
@@ -56,9 +60,9 @@ NULLS FIRST/LAST in every ordering position.
 | --- | --- |
 | `Assimalign.Cohesion.Database.Sql` | `SqlDatabaseEngine`, sessions, planner/executor, schema provisioner, `SqlDatabaseServer`, and SQL wire family |
 | `Assimalign.Cohesion.Database.Sql.Language` | `SqlQueryParser`, statement/expression trees, `SqlLanguageProfile`, `SqlTypeNames`, and diagnostics |
-| `Assimalign.Cohesion.Database.Sql.Catalog` | Durable table, column, constraint, index, collation, ownership, and applied-schema metadata |
+| Catalog component in `Assimalign.Cohesion.Database.Sql` | Durable table, column, constraint, index, collation, ownership, and applied-schema metadata |
 | `Assimalign.Cohesion.Database.Sql.Schema` | `SqlSchema.Compile`, compiled relational shapes, canonical serialization, and migration planning |
-| `Assimalign.Cohesion.Database.Sql.Storage` | SQL row operations over shared pages, record chains, and write-ahead logging |
+| Storage component in `Assimalign.Cohesion.Database.Sql` | SQL row operations over shared pages, record chains, and write-ahead logging |
 | `Assimalign.Cohesion.Database.Sql.Tcp` | Optional `SqlDatabaseServerOptions.Listen(Uri)` Transmission Control Protocol (TCP) composition helper |
 | `Assimalign.Cohesion.Database.Sql.Client` | Typed commands, parameters, materialized result sets, errors, and observer hooks over the shared client |
 
@@ -132,8 +136,8 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 - **Engine architecture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Engine surface** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/OVERVIEW.md`
 - **Wire family** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`
-- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
+- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Schema** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/docs/DESIGN.md`
-- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Storage/docs/DESIGN.md`
+- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **TCP integration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Tcp/docs/OVERVIEW.md`
 - **Client** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`

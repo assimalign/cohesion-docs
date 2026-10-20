@@ -4,6 +4,16 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Contract dependencies and client errors
+
+This client references Database.Client, Blob.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Blob.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`BlobClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
+
 ## Ownership and family
 
 The typed client binds `Database.Client` to the exact `BlobProtocol.Family` instance.
@@ -17,7 +27,7 @@ The dependency arrows below point from each consuming package to its dependency.
 ```mermaid
 flowchart LR
     Client["Database.Blob.Client"] --> Shared["Database.Client"]
-    Client --> Blob["Database.Blob"]
+    Client --> Blob["Database.Blob.Protocol"]
     Client --> Connections["Connections abstractions"]
     Client --> Protocol["Database.Protocol"]
     Shared --> Protocol
@@ -28,7 +38,7 @@ flowchart LR
 | --- | --- |
 | `Assimalign.Cohesion.Database.Blob.Client` | Typed operation APIs, Blob transfer validation, bounded list materialization, client errors |
 | `Assimalign.Cohesion.Database.Client` | Pool leases, transport dialing, startup handshake, framed exchanges, bounded streaming lifetime |
-| `Assimalign.Cohesion.Database.Blob` | Blob codecs, shared transfer state machine, engine and server |
+| `Assimalign.Cohesion.Database.Blob.Protocol` | Blob codecs and shared transfer state machine |
 | `Assimalign.Cohesion.Database.Protocol` | Family validation, frame envelope, startup and error vocabulary |
 | `Assimalign.Cohesion.Connections` | Transport-neutral connection factory |
 
@@ -205,9 +215,9 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Blob` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Blob.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
@@ -222,6 +232,9 @@ reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-c
 for disposal, shutdown and the explicit-transaction reset gap (#1540).
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/Assimalign.Cohesion.Database.Blob.Client.csproj`.

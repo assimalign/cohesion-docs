@@ -39,7 +39,7 @@ Console.WriteLine(parsed.Constraints[0].OnDelete); // SetNull
 ```
 
 Omitting ON DELETE produces NoAction. This differs from the optional constructor argument of
-[SqlCatalogConstraint](../assimalign-cohesion-database-sql-catalog/sql-catalog-constraint.md).
+[SqlCatalogConstraint](../assimalign-cohesion-database-sql/sql-catalog-constraint.md).
 
 ## Related reference
 

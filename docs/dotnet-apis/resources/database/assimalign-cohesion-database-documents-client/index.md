@@ -2,7 +2,18 @@
 
 A pooled Documents client for OQL, document operations and collection management.
 
-> **Status:** Implemented for the documented surface; explicit wire transactions are unsupported.
+> **Status:** Implemented. Support covers the documented surface; explicit wire transactions are unsupported.
+
+## Contract dependencies and client errors
+
+This client references Database.Client, Documents.Protocol, shared Protocol and Types, and Connections,
+plus model-neutral Execution. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Documents.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`DocumentClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
 
 ## Reference pages
 
@@ -23,6 +34,9 @@ SQL++ MISSING versus NULL; nested objects and arrays are owned JsonElement value
 [Parent: Database](../index.md)
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/docs/DESIGN.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

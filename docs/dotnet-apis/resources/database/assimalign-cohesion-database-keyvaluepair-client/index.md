@@ -4,6 +4,16 @@ The typed key-value client: `KeyValueClient`/`KeyValueConnection`, a point/range
 
 > **Status:** Partial.
 
+## Contract dependencies and client errors
+
+This client references Database.Client, KeyValuePair.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.KeyValuePair.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`KeyValueClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
+
 ## Reference pages
 
 - **[KeyValueConnection](key-value-connection.md)** — Rental lifetime, operations and exceptions.
@@ -58,15 +68,22 @@ Supply an `IDuplexConnectionFactory` through `KeyValueClientOptions.ConnectionFa
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.KeyValuePair.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
 
+## Additional reference pages
+
+- **[KeyValueClientException](key-value-client-exception.md)** — Reference and usage.
+
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/Assimalign.Cohesion.Database.KeyValuePair.Client.csproj`.

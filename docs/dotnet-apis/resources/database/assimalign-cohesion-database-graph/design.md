@@ -4,6 +4,28 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Model component boundaries
+
+Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Graph`.
+Public Catalog and Storage types retain their namespaces and members; they ship in the model
+assembly and NuGet package. Replace satellite references with the model package and recompile.
+Assembly-qualified type names change, with no compatibility assembly or type forwarders.
+
+The direction is engine → Catalog → Storage → shared kernel. Public component types live in
+`src/Catalog/` and `src/Storage/`; internal types live in `src/Internal/Catalog/`
+and `src/Internal/Storage/`. Engine persistence strategies and catalog-aware codecs belong
+in `src/Internal/Engine/Storage/`. Transaction record-space adapters belong to Storage.
+
+Roslyn architecture tests check actual compiler inputs and resolved symbols: Storage cannot use
+Catalog or engine types; Catalog cannot use engine types. Storage permits shared Storage,
+Transactions and Indexing plus the BCL reference pack, and Types for graph index keys. Catalog additionally permits the
+area root and Types. Protocol, Language, Schema and Connections are disallowed in both constrained
+layers; engine code has no external assembly restriction.
+
+Wire messages, codecs and transfer values now belong to [Graph.Protocol](../assimalign-cohesion-database-graph-protocol/index.md).
+Engine and client reference those same contracts. Moved wire types change namespace as well as
+assembly identity; update their imports. Wire and disk formats are unchanged.
+
 ## Linear composition
 
 The planner/executor consumes [GqlStage](../assimalign-cohesion-database-graph-language/gql-stage.md)
@@ -35,29 +57,31 @@ stored labels or property values.
 The fifth database engine follows Documents' parser/planner/executor composition and Blob's
 engine-owned lifecycle. `GraphDatabaseEngine` is the public factory and engine implementation;
 database, session, transaction, planner and executor implementations are internal. Its dependencies
-are the area root, Connections and the Graph.Language, Graph.Catalog and `Graph.Storage` packages.
+are the area root, Connections, Graph.Language and Graph.Protocol. Catalog and Storage are
+components in this assembly.
 `Storage` uses shared `Storage`, Transactions and Indexing rather than another pager, journal or lock
 manager.
 
 | Package | Responsibility |
 | --- | --- |
 | `Database.Graph` | Engine, sessions, typed operations, planning, scalar/path execution, and graph protocol server |
-| `Database.Graph.Client` | NuGet-only scalar and path client over the shared connection pool; references Graph and Database.Client |
+| `Database.Graph.Client` | NuGet-only scalar and path client over the shared connection pool; references Graph.Protocol and Database.Client |
 | `Database.Graph.Language` | ISO GQL subset, AST and syntax/capability diagnostics |
-| `Database.Graph.Catalog` | Snapshot-visible labels, types, property keys, index metadata and ownership |
-| `Database.Graph.Storage` | Record encoding, kernel adapter, adjacency and property B+Trees |
+| Catalog component in `Database.Graph` | Snapshot-visible labels, types, property keys, index metadata and ownership |
+| Storage component in `Database.Graph` | Record encoding, kernel adapter, adjacency and property B+Trees |
 
-The engine references the area root, transport abstraction and its model packages; the protocol and
-security contracts arrive through the area's root composition. These are dependency edges:
+The engine references the area root, Connections, Graph.Language and Graph.Protocol; shared security
+contracts arrive through the area root. These are dependency edges:
 
 ```mermaid
 flowchart LR
     Engine["Database.Graph"] --> Root["Database"]
     Engine --> Connections["Connections"]
     Engine --> Language["Graph.Language"]
-    Engine --> Catalog["Graph.Catalog"]
-    Engine --> Storage["Graph.Storage"]
-    Client["Graph.Client"] --> Engine
+    Engine --> Catalog["Graph Catalog component"]
+    Engine --> Storage["Graph Storage component"]
+    Client["Graph.Client"] --> Wire["Graph.Protocol"]
+    Engine --> Wire
     Client --> SharedClient["Database.Client"]
 ```
 
@@ -89,7 +113,7 @@ identity. `Database`-local IDs must always be paired with the correct session.
 Counts and fixed integers are little-endian. Strings use BinaryWriter's UTF-8 encoding with a 7-bit
 encoded byte-length prefix. Property maps are ordered by ordinal key and preserve scalar type tags.
 The exact tag table and index tuple encodings live in
-[Graph.Storage DESIGN.md](../assimalign-cohesion-database-graph-storage/design.md) , which is the
+[Graph.Storage DESIGN.md](storage-design.md) , which is the
 format reference for another reader. Properties support null, Boolean, string, integral, decimal and
 finite floating point values. Records fit one shared slotted page; oversized records are rejected
 before publication. Large graph properties/chunking are deferred.
@@ -369,7 +393,7 @@ generation is used.
 
 ## Composite values and wire framing
 
-[GraphValueCodec](graph-value-codec.md) is public in Graph and shared with its client through the
+[GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) is public in Graph and shared with its client through the
 existing reference. graph.composite-values adds no message type or protocol version. Negotiated
 Execute/ExecutePaths parameters use its components, including scalar parameters. Result column
 bit 7 marks possible composites. Marked cells use tag 0 plus a scalar component or tag 1 plus a
@@ -395,7 +419,7 @@ Diagnostics uses shared byte 14; 15–63 remain reserved. Bytes 5–9 retain Gra
 This follows the shared lexer/parser and per-model grammar precedent.
 
 Current startup negotiates shared protocol **2.1**, optional structured diagnostics and
-[graph.composite-values](graph-protocol.md). Without composite negotiation, result/parameter
+[graph.composite-values](../assimalign-cohesion-database-graph-protocol/graph-protocol.md). Without composite negotiation, result/parameter
 payloads retain baseline encoding. Error payloads remain unchanged. Unknown major versions receive shared `UnsupportedVersion`. Compatible negotiation
 chooses the smaller server/requested minor. The wire envelope is unsigned 32-bit big-endian payload
 length, one type byte, then the payload. The length excludes the five-byte header and cannot exceed
@@ -592,11 +616,17 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Graph.Protocol` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database.Graph.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Execution` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Graph.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Graph.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Graph.Catalog` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
@@ -692,7 +722,7 @@ entities still count and publish, preserving Snapshot conflicts.
 Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency
 entries. ReadCommitted mutations retake the statement snapshot after the writer lock and replan
 against captured parameters; queued increments serialize. GraphDatabase adds no public update
-verb; the sealed [GraphStore](../assimalign-cohesion-database-graph-storage/graph-store.md) adds
+verb; the sealed [GraphStore](graph-store.md) adds
 UpdateNodeAsync/UpdateRelationshipAsync and accepts complete records for create.
 
 Row-returning mutations carry direct affected counts through the existing ResultComplete frame.
@@ -743,6 +773,9 @@ See [database lifecycle](../../../../database/graph/index.md) and the GraphDatab
 file-set refusal, crash recovery and transient-open cases.
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngine.cs`.
 - **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.

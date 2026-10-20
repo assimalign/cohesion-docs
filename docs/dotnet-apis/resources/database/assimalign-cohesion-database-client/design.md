@@ -8,6 +8,18 @@ The shared client owns transport dialing, startup/authentication, framing, pooli
 health. Model clients own request encoding, response validation, and result materialization. The
 shared client references no model package and imposes no result shape.
 
+## Engine-free client core
+
+Database.Client references shared Database.Protocol, Database.Types and Connections. Typed model
+clients consume their model Protocol packages. COHDBCLIENT001 checks evaluated project references,
+actual resolved assembly identities and source imports; engine dependencies and build-order-only
+engine references fail the build. Repository-local test/example/sample/fixture harnesses are exempt.
+The client-only sample checks its pre-trim reference closure and runs in NativeAOT CI.
+
+DatabaseClientException derives directly from System.Exception and owns its Diagnostics snapshot.
+Catch it when using the shared client core; catch the model client exception for typed APIs.
+See the [migration guide](../../../../database/model-project-migration.md).
+
 ## Family boundary
 
 Clients depend on shared mechanism and their own model's wire codecs:
@@ -15,11 +27,11 @@ Clients depend on shared mechanism and their own model's wire codecs:
 ```mermaid
 flowchart LR
     SqlClient["Database.Sql.Client"] --> Client["Database.Client"]
-    SqlClient --> Sql["Database.Sql"]
+    SqlClient --> Sql["Database.Sql.Protocol"]
     KvClient["Database.KeyValuePair.Client"] --> Client
-    KvClient --> Kv["Database.KeyValuePair"]
+    KvClient --> Kv["Database.KeyValuePair.Protocol"]
     BlobClient["Database.Blob.Client"] --> Client
-    BlobClient --> Blob["Database.Blob"]
+    BlobClient --> Blob["Database.Blob.Protocol"]
     Client --> Protocol["Database.Protocol"]
     Sql --> Protocol
     Kv --> Protocol
@@ -33,7 +45,7 @@ flowchart LR
 | `Database.Sql.Client` | SQL parameter encoding, decoding, and materialization |
 | `Database.KeyValuePair.Client` | `Key`-value encoding, decoding, and materialization |
 | `Database.Blob.Client` | Blob transfer validation, acknowledgements, and typed metadata responses |
-| Model packages | Model identifiers and payload codecs |
+| Model Protocol packages | Model identifiers and payload codecs |
 
 `DatabaseClientOptions.Family` is mandatory. The pool captures the exact immutable
 `ProtocolMessageFamily` instance before dialing. Every connection uses a `ProtocolChannel` bound to
@@ -44,7 +56,8 @@ is rejected before execution, including a family that reuses the same identifier
 The materialized operation returns only after consuming the complete response and must not retain or
 dispose the borrowed reader/writer. SQL and `Key`-Value materialize; Blob uploads transfer bounded
 chunks from caller-owned streams. Downloads use the shared streaming exchange described below. Model
-payloads, result shapes, and acknowledgement rules remain owned by their model packages.
+payloads, transfer values, and acknowledgement codecs live in model Protocol packages; typed client
+result materialization stays in the client.
 
 ## Lifecycle and errors
 
@@ -214,7 +227,7 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
@@ -226,7 +239,7 @@ Startup advertises the composed family's capabilities. Ready applies a validated
 intersection once; DatabaseConnection exposes ServerVersion and Capabilities. SQL and GQL adopt
 Diagnostics; Documents retains model Failure and Blob/Key-Value agree no diagnostics. 2.0 retains
 empty Ready; different majors fail. Shared DatabaseClientException maps negotiated wire entries to
-the non-null DatabaseException carrier. Model payload readers reject malformed UTF-8.
+the non-null client exception Diagnostics snapshot. Model payload readers reject malformed UTF-8.
 
 ## Sources
 
