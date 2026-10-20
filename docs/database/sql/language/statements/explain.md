@@ -44,6 +44,12 @@ EXPLAIN executes neither target collection nor mutation; the actual statement ma
 targets before writes, and falls back to a scan if its bound index was dropped or replaced.
 N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
 steps whose inputs will be empty. Plan output uses the same eight columns.
+The first child describes the chosen driving input, which can now be an IndexSeek with constant
+bounds from a selective predicate. A full unique-key WHERE seek takes priority for the first INNER
+pair, including when that table is written second. JoinStep children describe the other inputs'
+constant or correlated seeks, or scans. Only [proven non-throwing restrictions](../clauses/join.md#predicate-safety)
+can move into an input. EXPLAIN describes the planned access; execution falls back to a scan if a
+planned input or inner-probe index was dropped or replaced. The output adds no columns or row estimates.
 Derived inputs add a DerivedTable node with their child plan. UPDATE/DELETE predicate subqueries
 are described beneath Subqueries or CorrelatedSubqueries; EXPLAIN does not materialize their data or mutate the target.
 
@@ -97,6 +103,26 @@ EXPLAIN SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON b.id = c.id;
 The description contains two JoinStep children, one Inner and one LeftOuter, with table scans
 because this fixture defines no indexes. It returns plan rows without reading or changing data rows.
 
+### A selective driving input
+
+On an empty database, execute each statement separately:
+
+```sql
+CREATE TABLE orders (id INT PRIMARY KEY);
+CREATE TABLE lines (order_id INT, line INT);
+INSERT INTO orders VALUES (1), (2);
+INSERT INTO lines VALUES (1, 10), (1, 11), (2, 20);
+CREATE INDEX ix_lines ON lines(order_id);
+EXPLAIN SELECT o.id, l.line FROM lines l JOIN orders o ON l.order_id = o.id
+WHERE o.id = 1 ORDER BY l.line;
+SELECT o.id, l.line FROM lines l JOIN orders o ON l.order_id = o.id
+WHERE o.id = 1 ORDER BY l.line;
+```
+
+The plan's driving child is IndexSeek on `dbo.orders`, with detail `id = 1` and its primary-key
+index name. The JoinStep has an IndexSeek on `dbo.lines` using `ix_lines` with a correlated key.
+The SELECT returns `(1, 10)` and `(1, 11)`. Both row-count fields in EXPLAIN remain NULL.
+
 ## See also
 
 [Statements](index.md) · [SELECT](select.md) · [Diagnostics](../diagnostics.md)
@@ -106,3 +132,5 @@ because this fixture defines no indexes. It returns plan rows without reading or
 - **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExplainTests.cs`.
 - **Shape** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabasePlanDescription.cs`.
 - **Join steps** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`.
+- **Selective join plans** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinExecutionTests.cs`.
+- **Replaced-index fallback** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinIndexSemanticsTests.cs`.
