@@ -121,5 +121,5 @@ shared [RFC 8259 UTF-8 encoder](select.md#json-bytes).
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentUpdateTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentJsonPatcher.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Json/DocumentJsonPatcher.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlDmlParserTests.cs`.

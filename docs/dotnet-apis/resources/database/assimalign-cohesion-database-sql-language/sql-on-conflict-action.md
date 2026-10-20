@@ -43,5 +43,5 @@ With a pre-existing unique key 1, execution skips the row and reports count 0.
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlOnConflictClause.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlOnConflictAction.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlInsertParserTests.cs`.

@@ -158,7 +158,7 @@ The client materializes the complete result. One connection executes one command
 
 ## Sources
 
-- **Access selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanner.cs`.
+- **Access selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.cs`.
 - **DML equivalence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

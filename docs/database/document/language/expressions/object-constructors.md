@@ -44,4 +44,4 @@ Each source row produces `{"o":{"a":2,"b":null}}` and `{"o":{"a":1}}`, respectiv
 ## Sources
 
 - **Repeated names** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.
-- **Object values** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentJsonValue.cs`.
+- **Object values** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Json/DocumentJsonValue.cs`.

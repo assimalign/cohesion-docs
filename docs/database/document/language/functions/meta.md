@@ -39,5 +39,5 @@ The projected row is `{"key":"a"}`. Use KEY k with an output alias k to copy tha
 
 ## Sources
 
-- **Validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentPlanner.Dml.cs`.
+- **Validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Planning/DocumentPlanner.Dml.cs`.
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.

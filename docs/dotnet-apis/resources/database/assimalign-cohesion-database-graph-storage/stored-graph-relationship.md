@@ -41,5 +41,5 @@ This assumes an active caller context and existing endpoints; see the [complete 
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/ValueObjects/StoredGraphNode.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/src/ValueObjects/StoredGraphRelationship.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/tests/GraphStoreUpdateTests.cs`.

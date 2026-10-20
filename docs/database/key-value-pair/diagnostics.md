@@ -86,7 +86,7 @@ that every model path emits it; the key-value write-conflict contract uses `Exec
 
 ## Sources
 
-- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/KeyValueCommandParser.cs`.
+- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/Execution/KeyValueCommandParser.cs`.
 - **Engine errors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
 - **Wire codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/Exceptions/ProtocolErrorCode.cs`.
 - **Client categories** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/KeyValueClientErrorKind.cs`.

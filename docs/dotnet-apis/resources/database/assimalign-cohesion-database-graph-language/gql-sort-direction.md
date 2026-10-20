@@ -33,5 +33,5 @@ Console.WriteLine(statement.GqlExpression.OrderBy[1].Direction); // Descending
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlSortItem.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlSortDirection.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlOrderPagingParserTests.cs`.

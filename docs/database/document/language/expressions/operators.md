@@ -95,7 +95,7 @@ The parenthesized form compares the whole array as one list item.
 
 ## Sources
 
-- **Predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Predicates.cs`.
-- **Structural equality** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Values.cs`.
+- **Predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Predicates.cs`.
+- **Structural equality** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Values.cs`.
 - **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.
 - **Cancellation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentLikeTests.cs`.

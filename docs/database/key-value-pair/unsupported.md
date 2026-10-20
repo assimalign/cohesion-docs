@@ -47,6 +47,6 @@ The key-value parser does not use `COHDBL001` for these exclusions. It reports
 
 - **Grammar non-goals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`.
 - **Engine non-goals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
-- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/KeyValueCommandParser.cs`.
+- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/Execution/KeyValueCommandParser.cs`.
 - **Replication scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Replication/src/Assimalign.Cohesion.Database.KeyValuePair.Replication.csproj`.
 - **Security scaffold** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Security/src/Assimalign.Cohesion.Database.KeyValuePair.Security.csproj`.

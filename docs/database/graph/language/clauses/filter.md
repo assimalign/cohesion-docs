@@ -34,5 +34,5 @@ Result: `2`, `3`. `LET x = 1 FILTER UNKNOWN RETURN x;` returns no rows.
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanExecutor.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphPlanExecutor.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLinearCompositionTests.cs`.

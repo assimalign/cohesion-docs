@@ -40,4 +40,4 @@ Console.WriteLine(branch.Comparison); // >
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlCaseAlternative.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphValueTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphValueExpressions.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Evaluation/GraphValueExpressions.cs`.

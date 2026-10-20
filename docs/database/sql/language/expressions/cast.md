@@ -108,6 +108,6 @@ The SELECT reports COHSQLE038 (23514), naming `positive`; the stored row remains
 
 - **Pair matrix and examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastMatrixTests.cs`.
 - **Conversions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlStandardCasts.cs`.
-- **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastConverter.cs`.
-- **Text output** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlCastText.cs`.
+- **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlCastConverter.cs`.
+- **Text output** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlCastText.cs`.
 - **Domain diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.

@@ -35,5 +35,5 @@ Result: one row containing `2`. `LET x = NULL RETURN x;` returns one NULL row.
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanExecutor.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphPlanExecutor.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLinearCompositionTests.cs`.

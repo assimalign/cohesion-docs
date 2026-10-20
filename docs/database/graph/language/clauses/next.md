@@ -67,6 +67,6 @@ maps and paths. One final version publishes per updated entity.
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanExecutor.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphPlanExecutor.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLinearCompositionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphLinearCompositionWireTests.cs`.

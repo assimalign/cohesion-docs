@@ -39,4 +39,4 @@ The result is `{"kind":"two","truth":"yes","absent":null}`. CASE on MISSING fall
 ## Sources
 
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Predicates.cs`.
-- **Branch evaluation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Predicates.cs`.
+- **Branch evaluation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Predicates.cs`.
