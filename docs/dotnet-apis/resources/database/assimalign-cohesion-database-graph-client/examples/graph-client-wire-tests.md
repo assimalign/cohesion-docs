@@ -171,7 +171,7 @@ public sealed class GraphClientWireTests
             await schema.SavePropertyKeyAsync(new(labelId, "name", DatabaseType.String, true), harness.Token);
             await schema.CreateIndexAsync("Person", "by_name", "name", harness.Token);
         }
-        var other = (IGraphDatabase)await harness.Engine.CreateDatabaseAsync("other", harness.Token);
+        var other = (GraphDatabase)await harness.Engine.CreateDatabaseAsync("other", harness.Token);
         await using (var session = await other.CreateSessionAsync(harness.Token))
         {
             await GraphSchema.Open(other, session).SaveLabelAsync(new(Guid.NewGuid(), "Hidden"), harness.Token);

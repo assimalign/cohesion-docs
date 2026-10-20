@@ -96,5 +96,5 @@ using the sequence from the client overview. It assumes the database and contain
 ## Sources
 
 - **Operation contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
-- **Client contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/Abstractions/IBlobConnection.cs`.
+- **Client contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/BlobConnection.cs`.
 - **Behavior tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BlobClientTests.cs`.

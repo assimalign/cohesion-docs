@@ -1,25 +1,14 @@
-# IGraphStorageStrategy
+# IGraphStorageStrategy (removed)
 
-The `IGraphStorageStrategy` type is part of the documented `Assimalign.Cohesion.Database.Graph` API.
+> **Status:** Removed from the public API.
 
-> **Status:** Partial.
+The former storage strategy interface has no public replacement. GraphStorageStrategy is an internal
+engine implementation detail. Configure file-backed storage through GraphDatabaseEngineOptions.RootPath;
+omitting RootPath uses in-memory storage.
 
-Creates, reopens, discovers and drops storage for a graph engine.
-
-Namespace: `Assimalign.Cohesion.Database.Graph`.
-
-## Documented behavior
-
-- **`IGraphStorageStrategy`** — optionally supplies storage create/open/drop and discovery, overriding
-  RootPath. The engine owns returned storage; the caller owns the strategy.
-
-## Related reference
-
-- **Assembly** — [`Assimalign.Cohesion.Database.Graph`](index.md).
-- **Design** — [Lifetime and implementation decisions](design.md).
-- **Examples** — [Source-backed usage](examples/index.md).
+[Graph API](index.md) · [Design](design.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Abstractions/IGraphStorageStrategy.cs`.
+- **Public storage options** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngineOptions.cs`.
+- **Internal boundary** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Storage/GraphStorageStrategy.cs`.

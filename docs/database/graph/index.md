@@ -15,8 +15,8 @@ catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph 
 ## Database and session model
 
 `GraphDatabaseEngine` creates, opens, enumerates, and drops logical databases.
-`IGraphDatabase` exposes typed node, relationship, and traversal operations; each operation receives
-an explicit `IDatabaseSession` belonging to that exact database. Session identity is checked even
+`GraphDatabase` exposes typed node, relationship, and traversal operations; each operation receives
+an explicit `GraphDatabaseSession` belonging to that exact database. Session identity is checked even
 when databases share an engine or name. Queries cannot select a different database.
 
 `GraphSchema.Open(database, session)` provides label/type discovery, property metadata, ownership

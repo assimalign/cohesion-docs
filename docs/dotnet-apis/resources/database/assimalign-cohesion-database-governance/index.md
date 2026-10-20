@@ -1,22 +1,12 @@
 # Assimalign.Cohesion.Database.Governance
 
-Database workload admission is defined by the `IResourceGovernor` contract.
+> **Status:** Removed. This project is absent from the current source tree.
 
-> **Status:** Partial.
+The former IResourceGovernor contract is no longer a public Database API. No workload admission API is supplied by this package.
+This retained page records removal; it does not describe an available assembly.
 
-## Reference pages
-
-- **[Design](design.md)** — Dependency boundaries and implementation decisions.
-- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
-
-`IResourceGovernor.TryAdmitAsync` accepts a workload class, an estimated cost, and an optional
-cancellation token, and returns `ValueTask<bool>` indicating admission. The project contains this
-contract but no resource-governor implementation. There is no project overview or design document;
-this reference is derived from `src/Abstractions/IResourceGovernor.cs`.
-
-[Parent: Database](../index.md)
+[Database APIs](../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Governance/src/Assimalign.Cohesion.Database.Governance.csproj`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Governance/src/Abstractions/IResourceGovernor.cs`.
+- **Current area inventory** — `cohesion/resources/Database/README.md`.

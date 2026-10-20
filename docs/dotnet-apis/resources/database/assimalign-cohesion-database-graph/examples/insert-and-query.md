@@ -11,7 +11,7 @@ directory for its durable files.
 using Assimalign.Cohesion.Database.Graph;
 
 await using var engine = GraphDatabaseEngine.Create(new() { RootPath = "graphs" });
-var graph = (IGraphDatabase)await engine.CreateDatabaseAsync("people");
+var graph = (GraphDatabase)await engine.CreateDatabaseAsync("people");
 await using var session = await graph.CreateSessionAsync();
 await session.ExecuteAsync("INSERT (a:Person {name:'Ada'})-[r:KNOWS]->(b:Person {name:'Grace'})");
 await GraphSchema.Open(graph, session).CreateIndexAsync("Person", "by_name", "name");

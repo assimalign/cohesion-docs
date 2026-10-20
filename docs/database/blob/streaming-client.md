@@ -4,8 +4,7 @@ The typed Blob client streams content and metadata over a leased database connec
 
 > **Status:** Implemented.
 
-`Assimalign.Cohesion.Database.Blob.Client` supplies `BlobClient`, `IBlobClient`, and
-`IBlobConnection`. `BlobClient.Create` combines `DatabaseConnectionSettings` with an application
+`Assimalign.Cohesion.Database.Blob.Client` supplies `BlobClient` and `BlobConnection`. `BlobClient.Create` combines `DatabaseConnectionSettings` with an application
 supplied `IDuplexConnectionFactory`. The shared `Assimalign.Cohesion.Database.Client` package owns
 dialing, authentication, framing, and pooling. The Blob package owns its typed exchanges.
 
@@ -94,7 +93,7 @@ reads; they cannot turn into successful EOF. Discard any partial content if a la
 
 ## Connection lifetime and metadata
 
-One `IBlobConnection` admits one active exchange. A live download or listing holds that exchange
+One `BlobConnection` admits one active exchange. A live download or listing holds that exchange
 until completion or disposal. Dispose returned streams and enumerators before another operation.
 Dispose connections before the client; healthy leases return to the shared pool. Disposing a
 connection cancels and waits for its active exchange.
@@ -133,6 +132,6 @@ measured test scenario, not a maximum size.
 
 - **Client overview and example** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/OVERVIEW.md`.
 - **Client options** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/BlobClientOptions.cs`.
-- **Connection contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/Abstractions/IBlobConnection.cs`.
+- **Connection contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/BlobConnection.cs`.
 - **Behavior tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BlobClientTests.cs`.
 - **Measured fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/README.md`.

@@ -14,7 +14,6 @@
 - **[`GraphLabelMetadata`](graph-label-metadata.md)** — Documented public type.
 - **[`GraphPropertyKeyMetadata`](graph-property-key-metadata.md)** — Documented public type.
 - **[`GraphRelationshipTypeMetadata`](graph-relationship-type-metadata.md)** — Documented public type.
-- **[`IGraphCatalog`](i-graph-catalog.md)** — Documented public type.
 
 `Assimalign.Cohesion.Database.Graph.Catalog` provides durable discovery and definition metadata for
 one logical graph database. It records node labels, relationship types, property keys, and named
@@ -23,7 +22,7 @@ owning schema.
 
 `Open` the catalog with `GraphCatalog.Open(storage, coordinator)` after the shared coordinator has
 analyzed and scrubbed recovery. Reads take a `TransactionSnapshot`; writes take an active
-`ITransactionContext` and join that transaction without committing it. The engine holds the
+`TransactionContext` and join that transaction without committing it. The engine holds the
 definition lock and coordinates changes to graph data and physical indexes.
 
 An initial definition can be marked schema-owned to exercise ownership enforcement. Subsequent

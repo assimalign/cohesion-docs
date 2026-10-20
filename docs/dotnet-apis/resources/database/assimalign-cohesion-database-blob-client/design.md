@@ -7,8 +7,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 ## Ownership and family
 
 The typed client binds `Database.Client` to the exact `BlobProtocol.Family` instance.
-`IBlobClient.ConnectAsync` rents an authenticated shared connection and wraps its lease in
-`IBlobConnection`. `Database` selection happens in the shared handshake and is immutable; Blob
+`BlobClient.ConnectAsync` rents an authenticated shared connection and wraps its lease in
+`BlobConnection`. `Database` selection happens in the shared handshake and is immutable; Blob
 requests carry container and object names only. The client never chooses a concrete transport and
 owns no parallel handshake, frame parser, or connection pool.
 

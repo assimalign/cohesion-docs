@@ -1,20 +1,20 @@
-# IBlobClient
+# BlobConnection
 
-The `IBlobClient` type is part of the documented `Assimalign.Cohesion.Database.Blob.Client` API.
+The `BlobConnection` type is part of the documented `Assimalign.Cohesion.Database.Blob.Client` API.
 
 > **Status:** Partial.
 
-Owns a pool of authenticated connections to one Blob database.
+A leased connection bound to one Blob database, allowing one exchange at a time.
 
 Namespace: `Assimalign.Cohesion.Database.Blob.Client`.
 
 ## Documented behavior
 
-`BlobClient.Create(BlobClientOptions)` returns an `IBlobClient`. Options require shared
+`BlobClient.Create(BlobClientOptions)` returns a `BlobClient`. Options require shared
 `DatabaseConnectionSettings` and an `IDuplexConnectionFactory`; creating a client performs no I/O.
-`ConnectAsync` rents an authenticated `IBlobConnection` bound to the selected database.
+`ConnectAsync` rents an authenticated `BlobConnection` bound to the selected database.
 
-Disposes the pool; rented connections should already be disposed
+Cancels active exchange, waits, then returns or closes shared lease
 
 ## Related reference
 
@@ -25,4 +25,4 @@ Disposes the pool; rented connections should already be disposed
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/Assembly/Assimalign.Cohesion.Database.Blob.Client/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/Abstractions/IBlobClient.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/BlobConnection.cs`.

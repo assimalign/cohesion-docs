@@ -61,10 +61,10 @@ flowchart LR
     Client --> SharedClient["Database.Client"]
 ```
 
-No existing public interface changed. `IGraphDatabase` accepts an explicit `IDatabaseSession` for
+No existing public interface changed. `GraphDatabase` accepts an explicit `IDatabaseSession` for
 each data operation. Every entry point checks the concrete session's database identity; sharing an
 engine or database name is insufficient. `GraphSchema.Open(database, session)` returns the new
-`IGraphSchema` interface, also bound to that exact database and session. Its operations join the
+sealed `GraphSchema` type, also bound to that exact database and session. Its operations join the
 session transaction. Administrative database lifecycle remains on `IDatabaseEngine`; no GQL AST can
 select a server, another database, or another graph.
 
@@ -535,7 +535,7 @@ The owner-approved `Database` hosting composition
 (`cohesion/docs/programs/DATABASE_HOSTING_DESIGN.md`) is implemented as
 `AddGraph((context, engine) => ...)` on `IDatabaseApplicationBuilder`. This replaces
 `AddGraphDatabase`. The model callback runs during application `Build` and receives an
-`IGraphDatabaseEngineBuilder`. It configures the complete option set, including
+`GraphDatabaseEngineBuilder`. It configures the complete option set, including
 `FileSystemPath? RootPath`, durability, storage strategy, identity and worker intervals; it neither
 binds configuration nor accesses a service container. Retained builder options and factories reject
 mutation after the first engine `Build` attempt.
@@ -554,12 +554,9 @@ registrations are application-owned; instance registrations remain caller-owned,
 nested components. All four named database operations now take `DatabaseName`, with the existing
 implicit string conversion preserving ordinary literal call sites. Empty/default names are rejected.
 
-The explicit requirement for StorageStrategy supersedes the draft's statement that this model lacks
-a storage injection parameter. `IGraphStorageStrategy` provides create/open/drop, existence and
-discovery using the existing `GraphStorage` product. It overrides RootPath without allocating
-default files; returned storage is engine-owned and the strategy itself is borrowed. Durability is
-supplied explicitly, and opening must defer checkpointing until engine recovery. Default file/memory
-selection remains unchanged.
+Storage selection is configured through GraphDatabaseEngineOptions.RootPath: a path selects
+file-backed storage and omitting it selects memory. The former IGraphStorageStrategy interface
+has been removed from the public API; GraphStorageStrategy is internal to the engine and its tests.
 
 `GraphDatabaseEngine.CreateBuilder()` exposes the model builder for the concrete hosting builder's
 `AddEngine(name, build => ...)` overload. The consumer assigns resolved configuration/service

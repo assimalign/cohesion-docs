@@ -114,7 +114,7 @@ public sealed class BlobClientFailureTests
         await server.WaitAsync(timeout.Token);
     }
 
-    private static IBlobClient CreateClient(InMemoryConnectionListener listener)
+    private static BlobClient CreateClient(InMemoryConnectionListener listener)
         => BlobClient.Create(new BlobClientOptions
         {
             Settings = new DatabaseConnectionSettings { Database = "app", Principal = "tester", EndPoint = listener.EndPoint },

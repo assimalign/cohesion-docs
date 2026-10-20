@@ -1,16 +1,12 @@
-# Examples
+# Assimalign.Cohesion.Database.Governance examples
 
-Examples for `Assimalign.Cohesion.Database.Governance` are derived from source documentation and code.
+> **Status:** Removed. This project is absent from the current source tree.
 
-> **Status:** Partial.
+The former IResourceGovernor contract is no longer a public Database API. No workload admission API is supplied by this package.
+This retained page records removal; it does not describe an available assembly.
 
-No self-contained usage example was found in this project’s overview, documented type pages, or
-co-located tests. The assembly and design pages describe the source contract without inventing a
-consumer API.
-
-[Assembly overview](../index.md) · [Design](../design.md)
+[Database APIs](../../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Governance/src/Assimalign.Cohesion.Database.Governance.csproj`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Governance/src/Abstractions/IResourceGovernor.cs`.
+- **Current area inventory** — `cohesion/resources/Database/README.md`.

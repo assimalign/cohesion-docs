@@ -2,7 +2,7 @@
 
 Blob supports streamed object operations with explicit limits on language, provisioning, and transfer behavior.
 
-> **Status:** Partial. Core object storage and streaming are implemented; dedicated security and replication projects contain no implementation source.
+> **Status:** Partial. Core object storage and streaming are implemented; dedicated security is deferred and the former replication project is removed.
 
 ## Supported surface
 
@@ -34,9 +34,8 @@ throughput guarantee. Content exceeding available memory requires file-backed st
 | Concurrent operations on one engine session | Not supported while an operation or stream is active |
 | Random access through content streams | Streams are sequential; the client download stream is nonseekable |
 
-`Assimalign.Cohesion.Database.Blob.Security` and
-`Assimalign.Cohesion.Database.Blob.Replication` contain empty .NET project files in `src`.
-Those package directories do not establish working security or replication APIs. Authentication
+`Assimalign.Cohesion.Database.Blob.Security` remains a placeholder. The former Blob.Replication
+project is removed; no replication API is supplied. Authentication
 configuration belongs to the implemented `BlobDatabaseServer` surface.
 
 ## Lifetime limits
@@ -61,4 +60,3 @@ unfinished work. Any downloaded bytes preceding a later failure are unverified p
 - **Client behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/OVERVIEW.md`.
 - **Measured client fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/README.md`.
 - **Security project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Security/src/Assimalign.Cohesion.Database.Blob.Security.csproj`.
-- **Replication project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Replication/src/Assimalign.Cohesion.Database.Blob.Replication.csproj`.

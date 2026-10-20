@@ -21,4 +21,4 @@ Cumulative content count accepted by the receiver
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/Assembly/Assimalign.Cohesion.Database.Blob/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Protocol/BlobChunkAcknowledgementMessage.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/ValueObjects/BlobChunkAcknowledgementMessage.cs`.

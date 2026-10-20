@@ -10,7 +10,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph`.
 
 ## Documented behavior
 
-- **`IGraphDatabase`** — retains its explicit session parameters. `GraphNode` and `GraphRelationship`
+- **`GraphDatabase`** — retains its explicit session parameters. `GraphNode` and `GraphRelationship`
   are immutable record structs with scalar property maps and typed identities.
 
 ## Related reference
@@ -22,4 +22,4 @@ Namespace: `Assimalign.Cohesion.Database.Graph`.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphRelationship.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/ValueObjects/GraphRelationship.cs`.

@@ -27,4 +27,4 @@ must remain valid until the receiver finishes consuming it or the awaited frame 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/Assembly/Assimalign.Cohesion.Database.Blob/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Protocol/BlobChunkMessage.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/ValueObjects/BlobChunkMessage.cs`.
