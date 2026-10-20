@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.Database.KeyValuePair.Client
 
-The typed key-value client: `IKeyValueClient`/`IKeyValueConnection`, a point/range surface (get/put/delete/exists/scan with etag-conditional writes) over the shared `Database.Client` pooling core.
+The typed key-value client: `KeyValueClient`/`KeyValueConnection`, a point/range surface (get/put/delete/exists/scan with etag-conditional writes) over the shared `Database.Client` pooling core.
 
 > **Status:** Partial.
 
@@ -9,7 +9,7 @@ The typed key-value client: `IKeyValueClient`/`IKeyValueConnection`, a point/ran
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-The typed key-value client: `IKeyValueClient` /`IKeyValueConnection`, a point/range surface
+The typed key-value client: `KeyValueClient` /`KeyValueConnection`, a point/range surface
 (get/put/delete/exists/scan with etag-conditional writes) over the shared `Database.Client` pooling
 core.
 
@@ -23,13 +23,15 @@ entries and outcomes. Conditional misses (compare-and-swap) are first-class outc
 (`KeyValueWriteResult`, `bool` returns) — never exceptions; failures map onto the stable
 `KeyValueClientErrorKind` taxonomy with the wire code preserved.
 
+- **[KeyValueConnection](key-value-connection.md)** — Rental lifetime, operations and exceptions.
+
 ## Scope
 
-- **`KeyValueClient.Create(options)`** — → pooling `IKeyValueClient`; rented
-  `IKeyValueConnection`s return to the pool on dispose.
+- **`KeyValueClient.Create(options)`** — → pooling `KeyValueClient`; rented
+  `KeyValueConnection`s return to the pool on dispose.
 - **`KeyValueClientEntry`** — (key/value/etag), `KeyValueWriteResult` (applied/etag),
   `KeyValueWriteCondition` (IfAbsent / `IfETagMatches`), `KeyValueScanRange`.
-- **`IKeyValueClientObserver`** — the per-command telemetry hook (grammar text and
+- **`KeyValueClientObserver`** — the per-command telemetry hook (grammar text and
   counts only; key/value bytes never reach the observer).
 - **`KeyValueClientException` + `KeyValueClientErrorKind`** — the error surface,
   with `ConnectionUsable` distinguishing command-level failures from broken

@@ -27,21 +27,23 @@ server's SQL session parses, plans, and executes them. That keeps the client con
 independent of the engine's internal plan structures. The model reference supplies wire codecs; the
 client never calls its parser.
 
+- **[SqlConnection](sql-connection.md)** — Rental lifetime, operations and exceptions.
+
 ## Scope
 
-- **`SqlClient.Create(SqlClientOptions)` → `ISqlClient`** — a pooling client bound to one
+- **`SqlClient.Create(SqlClientOptions)` → `SqlClient`** — a pooling client bound to one
   database on one server.
-- **`ISqlClient.ConnectAsync()` → `ISqlConnection`** — rents a typed connection (a pooled,
+- **`SqlClient.ConnectAsync()` → `SqlConnection`** — rents a typed connection (a pooled,
   authenticated session under the hood).
 - **`SqlCommand` + `SqlParameterCollection`** — statement text with named parameters
   (the `@`/`$` sigil is normalized away on bind).
-- **`ISqlConnection.QueryAsync` / `ExecuteAsync` / `ExecuteScalarAsync<T>`** — run commands
+- **`SqlConnection.QueryAsync` / `ExecuteAsync` / `ExecuteScalarAsync<T>`** — run commands
   and get a `SqlResultSet`, an affected count, or a scalar.
 - **`SqlResultSet` / `SqlRow` / `SqlColumn`** — typed, ordinal- and name-addressable rows
   with widening numeric getters.
 - **`SqlClientException` + `SqlClientErrorKind`** — a SQL-scoped failure taxonomy mapped
   from the core's wire codes, with a `ConnectionUsable` flag.
-- **`ISqlClientObserver`** — an allocation-free telemetry hook fired around every command.
+- **`SqlClientObserver`** — an allocation-free telemetry hook fired around every command.
 
 ## Dependencies
 

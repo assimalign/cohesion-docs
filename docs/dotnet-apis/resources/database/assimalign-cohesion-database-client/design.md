@@ -37,7 +37,7 @@ flowchart LR
 
 `DatabaseClientOptions.Family` is mandatory. The pool captures the exact immutable
 `ProtocolMessageFamily` instance before dialing. Every connection uses a `ProtocolChannel` bound to
-that family throughout its lifetime. An `IDatabaseProtocolExchange<TResult>` supplies its required
+that family throughout its lifetime. A `DatabaseProtocolExchange<TResult>` supplies its required
 family and consumes one exchange through the channel reader and writer. A different family instance
 is rejected before execution, including a family that reuses the same identifier bytes.
 
@@ -49,15 +49,27 @@ payloads, result shapes, and acknowledgement rules remain owned by their model p
 ## Lifecycle and errors
 
 Creation performs no I/O. Rent opens or reuses an authenticated session. Disposing a healthy rental
-returns it to an idle stack; `MaxPoolSize` bounds rentals and exhausted rents wait. Disposing the
-client closes idle connections; outstanding rentals close when returned. Closure sends best-effort
-`Terminate`.
+returns its internal connector to an idle stack; `MaxPoolSize` bounds rentals and exhausted rents
+wait. Each rent creates a new DatabaseConnection lease with final disposed state and independent
+exchange admission. Metadata and execution on an ended lease throw ObjectDisposedException;
+IsOpen returns false. Repeated disposal or abort awaits that lease's original return task, without
+reaching a later renter's connector. Session reuse is observable through the server session or
+ConnectionRented.reused, rather than public object identity.
 
-The pool does not infer connection health from an error code. On failure,
-`IDatabaseProtocolExchange<TResult>.IsResponseComplete` certifies that the exchange consumed the
-entire response and left the server session ready for another request. Its default is false, so an
-exchange that supplies no evidence is discarded after failure. Successful return already guarantees
-a complete response; existing successful exchanges do not need to implement this property. Framing
+Disposing the client closes idle connectors. Outstanding rentals close when returned, including
+returns racing shutdown; a dial that finishes after shutdown closes its connector. Waiting renters
+fail with ObjectDisposedException without waiting for outstanding rentals. Closure sends best-effort
+Terminate. A lease cancels and joins admitted exchanges before returning its connector; cancellation
+callback failures cannot skip the join or release of its pool slot.
+
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing the connection.
+> A healthy pooled session retains unfinished transaction state and can pass it to the next renter.
+> Server-reported transaction status and rollback on return are not implemented.
+
+The pool does not infer connection health from an error code. On failure, the exchange base records
+completion through protected MarkResponseComplete after the complete
+response leaves the session ready. No evidence means a failed exchange is discarded; successful
+return already guarantees a complete response. Framing
 violations, transport failure, and an unfinished response invalidate the connection.
 
 SQL and `Key`-Value reset the signal before each request and set it only after decoding a terminal
@@ -77,7 +89,7 @@ writes any frames. Disposing a connection cancels and joins its current operatio
 the rental, so an active exchange cannot enter the idle pool. Disposal and failure release each
 rental exactly once.
 
-`IDatabaseConnection.AbortAsync` explicitly discards a rental when a model cannot reset its
+`DatabaseConnection.AbortAsync` explicitly discards a rental when a model cannot reset its
 application-level session state. It marks the connection unusable before cancelling/joining any
 active exchange and disposing the rental, so the pool closes its transport instead of reusing the
 session. This is non-cancellable and idempotent on the current rental. It makes no claim about
@@ -86,8 +98,8 @@ remain model concerns.
 
 ## Streaming exchange and ownership
 
-`IDatabaseStreamingExchange` supplies the exact `Family`, an `OpenAsync` phase that writes the
-request and validates startup metadata, and a `CopyToAsync` phase that copies content into a
+`DatabaseStreamingExchange` captures the exact Family in its protected constructor. OpenCoreAsync
+writes the request and validates startup metadata; CopyToCoreAsync copies content into a
 borrowed destination and verifies the terminal response. The shared client owns the asynchronous
 producer, bounded handoff, cancellation, read stream, and connection lifetime. The model owns
 framing semantics, metadata, counts, and acknowledgements; it never owns the handoff queue or
@@ -97,10 +109,10 @@ into transport failures. This normalization is confined to streaming frame I/O; 
 `Key`-Value exchanges retain their existing transport exception behavior, and caller stream exceptions
 are unchanged.
 
-There are two deliberate ownership forms. `IDatabaseConnection.ExecuteStreamingAsync` uses a
+There are two deliberate ownership forms. `DatabaseConnection.ExecuteStreamingAsync` uses a
 caller-owned rental and preserves that rental after verified completion and stream disposal,
 allowing another operation on the same typed connection. A failed or abandoned transfer invalidates
-and returns that rental immediately. The `IDatabaseClient.ExecuteStreamingAsync` extension rents on
+and returns that rental immediately. `DatabaseClient.ExecuteStreamingAsync` rents on
 the caller's behalf; its returned stream owns that rental until disposal or failure. Verified EOF
 alone does not return a client-owned stream's healthy rental: the caller must dispose the stream.
 These forms serve Blob's existing connection API and model clients that expose a download directly

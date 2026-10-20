@@ -46,6 +46,11 @@ DocumentClientException and permits reuse, even if partial results preceded it; 
 discarded. Malformed traffic and shared Error discard the connection. Dispose returns a healthy
 rental exactly once; Abort discards it. Repeated disposal cannot return a later rental.
 
+The wrapper caches Database at rental time, so that name remains readable after disposal; IsOpen
+returns false. Its shared DatabaseConnection lease permanently rejects execution after return.
+The shared pool does not reset explicit transactions (known gap #1540): end or roll back any
+explicit transaction before returning its connection. Document wire transactions remain unsupported.
+
 ## Example
 
 ```csharp

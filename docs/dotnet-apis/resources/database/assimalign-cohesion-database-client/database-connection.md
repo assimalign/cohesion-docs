@@ -1,14 +1,27 @@
 # DatabaseConnection
 
-An authenticated, family-bound rental with observable protocol agreement.
+One rental lease over an authenticated, family-bound pooled session.
 
 Namespace: `Assimalign.Cohesion.Database.Client`.
 
-## Changed members
+## Signature
 
 ```csharp
-public ProtocolVersion ServerVersion { get; private set; }
-public IReadOnlyList<string> Capabilities { get; private set; }
+public sealed class DatabaseConnection : IAsyncDisposable
+{
+    public string Database { get; }
+    public string Principal { get; }
+    public ProtocolVersion ServerVersion { get; }
+    public ProtocolMessageFamily Family { get; }
+    public IReadOnlyList<string> Capabilities { get; }
+    public bool IsOpen { get; }
+    public ValueTask<TResult> ExecuteAsync<TResult>(DatabaseProtocolExchange<TResult> exchange,
+        CancellationToken cancellationToken = default);
+    public ValueTask<Stream> ExecuteStreamingAsync(DatabaseStreamingExchange exchange,
+        CancellationToken cancellationToken = default);
+    public ValueTask AbortAsync();
+    public ValueTask DisposeAsync();
+}
 ```
 
 ## Behavior and exceptions
@@ -17,8 +30,25 @@ The shared handshake advertises the selected family's capabilities. Ready applie
 version and validated intersection. Empty Ready means 2.0 with no capabilities; different majors,
 unsolicited agreements, invalid names or malformed UTF-8 fail the handshake and discard the
 transport. Failures surface as DatabaseClientException with the wire category; cancellation remains
-OperationCanceledException. The properties are read-only to consumers and throw no additional
-validation exception. Each model client selects its family at composition time.
+OperationCanceledException. Each model client selects its family at composition time.
+
+Every DatabaseClient.RentAsync returns a new public lease. An internal connector holds the pooled
+transport and authenticated session. Disposing the lease permanently ends it, even if that session
+is rented again. Database, Principal, ServerVersion, Family, Capabilities and execution methods
+then throw ObjectDisposedException; IsOpen returns false. Even an invalid exchange argument on a
+disposed lease is rejected as disposed before argument validation.
+
+One exchange runs at a time; overlapping admission throws InvalidOperationException. A null
+exchange throws ArgumentNullException and a different family instance throws ArgumentException.
+Disposal cancels and joins admitted work before pooling a healthy connector or closing a broken
+one. Repeated DisposeAsync or AbortAsync awaits the original return, including while it is still
+running, and cannot touch a later rental. AbortAsync on a live lease discards its session.
+
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing the connection.
+> Pool return does not reset transaction state; a later renter can inherit an unfinished transaction.
+
+Pool shutdown closes idle connectors and connectors returned during shutdown. Waiting renters fail
+with ObjectDisposedException without waiting for outstanding leases to return.
 
 ## Example
 
@@ -30,6 +60,19 @@ foreach (string name in connection.Capabilities) Console.WriteLine(name);
 // SQL/GQL can include diagnostics; Documents, Blob and Key-Value do not.
 ```
 
+With a client configured for a one-session pool, the lease regression tests check this lifetime:
+
+```csharp
+var first = await client.RentAsync();
+await first.DisposeAsync();
+await using var next = await client.RentAsync();
+Console.WriteLine(ReferenceEquals(first, next)); // False, even if the session was reused
+Console.WriteLine(first.IsOpen);                 // False
+await first.DisposeAsync();                    // joins the original return
+await first.AbortAsync();                      // next remains usable
+// Reading first.Database now throws ObjectDisposedException.
+```
+
 ## Related reference
 
 [Assembly](index.md) · [Negotiation](../assimalign-cohesion-database-protocol/design.md)
@@ -38,3 +81,5 @@ foreach (string name in connection.Capabilities) Console.WriteLine(name);
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnection.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolNegotiationTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DatabaseConnectionLeaseTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DatabaseClientShutdownTests.cs`.

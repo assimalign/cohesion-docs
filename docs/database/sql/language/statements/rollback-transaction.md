@@ -29,7 +29,11 @@ the transaction still ends and releases its locks.
 whole transaction. A rejected transaction-control statement leaves the active scope intact.
 Completed DDL is self-committing and cannot be undone by a later rollback.
 
-If client-side rollback cleanup fails, `ISqlConnection.AbortAsync` discards the rental instead
+End or roll back an explicit transaction before disposing a pooled client connection. Returning a
+healthy lease keeps its server transaction state; the next renter can inherit it (known gap #1540).
+Disconnect/session disposal rolls back, but pool return alone does not.
+
+If client-side rollback cleanup fails, `SqlConnection.AbortAsync` discards the rental instead
 of returning an unreset session to the pool.
 
 ## Examples

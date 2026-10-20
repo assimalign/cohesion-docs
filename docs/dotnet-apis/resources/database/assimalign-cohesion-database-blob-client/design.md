@@ -213,6 +213,14 @@ framing, handshake and model messages are unchanged.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## Rental isolation
+
+BlobConnection wraps a new shared lease for each rental; the pool retains only its internal connector.
+Database is captured before return, allowing operation diagnostics to finish after the core lease
+is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
+reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
+for disposal, shutdown and the explicit-transaction reset gap (#1540).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/DESIGN.md`.

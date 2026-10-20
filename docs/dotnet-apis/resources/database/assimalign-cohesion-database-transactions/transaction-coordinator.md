@@ -92,6 +92,10 @@ for autocommit reads, explicit commit, rollback, disposal and ReadCommitted snap
 
 ## Related reference
 
+Pooled client disposal does not dispose the server session or reset an explicit transaction.
+End or roll back that transaction before returning the connection; otherwise the next renter can
+inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
+
 [Assembly](index.md) · [Design](design.md) · [LockManager](lock-manager.md)
 
 ## Sources
@@ -101,3 +105,4 @@ for autocommit reads, explicit commit, rollback, disposal and ReadCommitted snap
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCoordinatorRecoveryTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/JournalEnrollmentTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReadOnlyTransactionTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/docs/DESIGN.md`.

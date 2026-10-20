@@ -5,12 +5,16 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Client`.
 ## Changed signatures
 
 ```csharp
+public string Database { get; }
+public bool IsOpen { get; }
 public ValueTask<GraphResultSet> QueryAsync(string statement,
     IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default);
 public ValueTask<long> ExecuteAsync(string statement,
     IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default);
 public GraphPathResult QueryPathsAsync(string statement,
     IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default);
+public ValueTask AbortAsync();
+public ValueTask DisposeAsync();
 ```
 
 ## Behavior and exceptions
@@ -56,6 +60,13 @@ discards the connection. GraphClientException retains server category and diagno
 rejection before scalar/path output preserves reuse. Early path disposal discards it. Explicit wire
 transactions are unsupported.
 
+Database and the negotiated composite-value flag are captured when the wrapper receives its shared
+lease. Database remains readable after disposal and IsOpen returns false. After a failed or abandoned
+path stream returns that lease, subsequent queries fail as disposed while retaining operation
+telemetry. AbortAsync then joins the original shared return and cannot affect a later renter.
+The shared pool does not reset explicit transactions (known gap #1540): end or roll back any
+explicit transaction before returning its connection. Graph wire transactions remain unsupported.
+
 ## Example
 
 ```csharp
@@ -80,3 +91,4 @@ Console.WriteLine(computed[0][1]); // 5 (Int32)
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphClientWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphReturnWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphClientEventSourceTests.cs`.

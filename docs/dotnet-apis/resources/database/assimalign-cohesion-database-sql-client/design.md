@@ -39,13 +39,13 @@ SqlJoinWireTests checks values, multiplicity and metadata over InMemory and loop
 
 ## SQL-owned exchange
 
-`SqlClient.Create` binds the pool to `SqlProtocol.Family`. `SqlExecuteExchange` implements
-`IDatabaseProtocolExchange<DatabaseClientResult>`: it encodes parameters with `DatabaseValueCodec`
+`SqlClient.Create` binds the pool to `SqlProtocol.Family`. `SqlExecuteExchange` derives from
+`DatabaseProtocolExchange<DatabaseClientResult>`: it encodes parameters with `DatabaseValueCodec`
 , writes the execute request, consumes SQL's header/data/completion exchange, and materializes
 values. `SqlConnection` projects this result into `SqlResultSet`.
 
 `SqlProtocolConnectionExtensions.ExecuteAsync` provides the same operation on a rented
-`IDatabaseConnection` bound to SQL's exact family instance. `DatabaseClientResult` and
+`DatabaseConnection` bound to SQL's exact family instance. `DatabaseClientResult` and
 `DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and baseline model wire
 behavior are unchanged.
 
@@ -69,7 +69,10 @@ remains the server's responsibility.
 Disposing a typed connection returns its shared authenticated session; disposing the client closes
 its pool. Connections support one exchange at a time.
 
-`ISqlConnection.AbortAsync` discards a rental and closes its session instead of returning it to the
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
+> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+
+`SqlConnection.AbortAsync` discards a rental and closes its session instead of returning it to the
 pool. `Use` it when SQL session state cannot be reset, including a failed ROLLBACK or uncertain
 COMMIT. It delegates to the shared client's discard operation and is not cancellable. Discarding
 prevents session leakage; it cannot undo an already published transaction.

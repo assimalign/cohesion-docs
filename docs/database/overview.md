@@ -146,6 +146,19 @@ development behavior rather than configuring model authorization.
 For SQL row examples, use the [SELECT fixture](sql/language/statements/select.md#examples).
 The repository's Database demo also creates all five engines directly, with no listeners.
 
+## Pooled connection leases
+
+Each rent creates a new DatabaseConnection over an internal pooled connector. Disposal permanently
+ends the lease; metadata and execution then throw ObjectDisposedException, while IsOpen returns
+false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
+later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
+
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
+> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+
+See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
+and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
+
 ## Read-only transactions and durability
 
 SQL, Document, Graph, Key-Value Pair and Blob share lazy journal enrollment. Beginning a logical
