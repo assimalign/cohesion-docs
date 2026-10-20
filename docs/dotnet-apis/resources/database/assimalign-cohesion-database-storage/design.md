@@ -405,7 +405,7 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 
 - **No model semantics.** Nothing here knows what a row or document is.
 - **No distributed I/O.** One storage instance = one file set on one machine.
-  Replication rides the journal from `Database.Replication`, not this layer.
+  Replication is outside the implemented surface; the former Database.Replication project is removed.
 - **No encryption yet.** The header reserves nonce/MAC space and `PageFlags.Encrypted`;
   the encryption-at-rest feature (#861) implements it beneath the buffer pool.
 

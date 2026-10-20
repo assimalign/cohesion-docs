@@ -13,7 +13,7 @@ callers use the concrete model session.
 The root is also the area's **rollup**: it references every child root — the independently
 consumable base components a database is made of (`Database.Types`, `Database.Language`,
 `Database.Storage`, `Database.Transactions`, `Database.Execution`, `Database.Protocol`,
-`Database.Security`, `Database.Governance`) — so one reference to the root delivers the whole base
+`Database.Security`, `Database.Indexing`) — so one reference to the root delivers the whole base
 surface. Child roots never reference the root.
 
 ## Phase 29 composition contract (current)
@@ -336,7 +336,6 @@ serialization live in `Database.Sql.Schema`.
 |---|---|
 | `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Execution` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Governance` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Language` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |

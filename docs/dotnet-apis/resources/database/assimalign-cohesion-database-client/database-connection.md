@@ -43,6 +43,9 @@ exchange throws ArgumentNullException and a different family instance throws Arg
 Disposal cancels and joins admitted work before pooling a healthy connector or closing a broken
 one. Repeated DisposeAsync or AbortAsync awaits the original return, including while it is still
 running, and cannot touch a later rental. AbortAsync on a live lease discards its session.
+If a cancellation callback throws, disposal still joins the exchange and releases the pool slot;
+the teardown failure (including AggregateException for callback failures) reaches every disposer
+awaiting that original return.
 
 > **Known gap (#1540):** End or roll back an explicit transaction before disposing the connection.
 > Pool return does not reset transaction state; a later renter can inherit an unfinished transaction.

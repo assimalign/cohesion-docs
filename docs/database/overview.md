@@ -38,8 +38,6 @@ the server. Cross-engine transactions are not provided.
 | `Assimalign.Cohesion.Database.Protocol` | Bounded framing, handshake, lifecycle, errors, version negotiation, fixed model-family binding |
 | `Assimalign.Cohesion.Database.Client` | Shared connection settings, pooling, authentication, framing, and exchange lifetime |
 | `Assimalign.Cohesion.Database.Security` | Authentication and authorization contracts; model-specific enforcement is a separate concern |
-| `Assimalign.Cohesion.Database.Replication` | Replication coordinator contract; implementation remains post-MVP |
-| `Assimalign.Cohesion.Database.Governance` | Resource-governor admission contract; operational build-out remains post-MVP |
 | `Assimalign.Cohesion.Database.Hosting` | Application composition, configuration, services, provisioning, and server lifecycle |
 | `Assimalign.Cohesion.Database.Embedded` | In-process engine composition, lookup, and reverse-order disposal |
 
@@ -47,7 +45,7 @@ The area root composes child roots; child roots do not depend on it. Each model 
 kernel rather than introducing separate paging, journaling, or locking. Model-specific layout,
 catalog, language, client, security, and replication concerns stay with the model.
 
-> **Status:** Not yet implemented. Replication and governance have contracts, but the operational implementations described by the program are deferred.
+> **Status:** Removed. The former replication and governance placeholder projects and contracts are absent. These features have no current runtime API.
 
 ## Host composition
 
@@ -246,8 +244,8 @@ and Graph supports [eager stage composition](graph/language/clauses/next.md), in
 
 The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
-MVP. Security contracts do not imply complete model authorization, and replication/governance
-contracts do not imply operational implementations.
+MVP. Security contracts do not imply complete model authorization. The former replication and
+governance projects are removed and supply no current API.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row

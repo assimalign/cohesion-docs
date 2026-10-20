@@ -118,7 +118,6 @@ inventory below.
 | `Assimalign.Cohesion.Database.Transactions` |
 | `Assimalign.Cohesion.Database.Indexing` |
 | `Assimalign.Cohesion.Database.Execution` |
-| `Assimalign.Cohesion.Database.Governance` |
 | `Assimalign.Cohesion.Database.Protocol` |
 | `Assimalign.Cohesion.Database.Security` |
 | `Assimalign.Cohesion.Database.Client` |
