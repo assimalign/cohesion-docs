@@ -32,6 +32,9 @@ components of their engine assemblies, with their existing namespaces.
 - **Page management** — transactional allocation through `Storage.AllocatePageForWrite`, retrieval/flush
   through `StoragePageManager`; raw AllocatePage/FreePage are internal;
   `StorageFreeSpaceMap` allocation tracking, rebuilt from verified page bytes on open.
+  Write touches recheck the allocation generation captured at kernel lookup; a free/reuse race
+  refuses or skips the stale page, including same-owner reuse. Owner release returns pages actually
+  released, so a short batch alone does not prove completion. See [page reuse](design.md#transactional-owner-release).
 - **Records** — `Storage` abstract base with insert/read/update/delete over slotted
   pages and `StorageUnitIterator` full scans.
 - **Journal** — [StorageJournal](storage-journal.md) write-ahead logging with begin/commit/rollback
