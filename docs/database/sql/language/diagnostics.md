@@ -46,11 +46,11 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
 | `COHSQLE013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
 | `COHSQLE014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
-| `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
+| `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, new CHECK naming another table/schema, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
 | `COHSQLE017` | Invalid aggregate placement/grouping, including RETURNING or a non-grouping outer column referenced from a completed group | — |
 | `COHSQLE018` | Invalid ordering ordinal, row count or CAST declaration | — |
-| `COHSQLE019` | Duplicate target column/table binding or ambiguous output alias | — |
+| `COHSQLE019` | Duplicate INSERT/SET target column, key-list column (including FOREIGN KEY referenced columns), PRIMARY KEY declaration or table binding; ambiguous output alias | — |
 | `COHSQLE020` | Missing parameter, checked before reading or writing rows | — |
 | `COHSQLE021` | Mutation or table DDL targets a read-only system relation or persisted view | 25006 |
 | `COHSQLE022` | Invalid CAST input text representation | 22P02 |

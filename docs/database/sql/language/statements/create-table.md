@@ -45,7 +45,8 @@ The namespace must already exist; use [CREATE SCHEMA](create-schema.md). Unquali
 and code-first provisioning remains pinned to dbo. Missing namespaces use COHSQLE028 (3F000)
 for DDL; ordinary reads/DML retain COHSQLE014 (42P01).
 
-`IF NOT EXISTS` permits an already existing table. It does not make system relations writable.
+`IF NOT EXISTS` on an existing table returns success with zero affected rows and leaves the
+definition unchanged, skipping key declaration validation. It does not make system relations writable.
 Normal session-created objects have `DatabaseObjectOwner.Adhoc` ownership; compiled-schema
 provisioning creates `DatabaseObjectOwner.Schema` objects.
 
@@ -63,6 +64,17 @@ not truncated and decimal defaults are not rounded. Omitted ON DELETE means NO A
 `UNIQUE` is enforced by a unique catalog index and treats `NULL` as an
 equal key. `CHECK` rejects `FALSE` but accepts `UNKNOWN`.
 
+PRIMARY KEY, UNIQUE and FOREIGN KEY lists must not repeat a column, including the referenced
+FOREIGN KEY list; comparison is case-insensitive. A table may have one PRIMARY KEY declaration,
+whether inline or table-level. Repeated clauses on the same column also count as multiple
+declarations. These failures report `COHSQLE019` before publication, naming the constraint and
+duplicate column or table. Repeated FOREIGN KEY child columns are refused more strictly than
+PostgreSQL. Composite keys with distinct columns remain supported.
+
+A new CHECK may use bare columns, `table.column` or `schema.table.column` for this table.
+A different table or schema qualifier reports located `COHSQLE015` before publication.
+See [CHECK binding](../constraints.md#check-binding) for existing stored and declared checks.
+
 Data definition language (DDL) is self-committing. It is rejected inside an explicit transaction
 with `COHSQLT003`. See [Constraints](../constraints.md) for foreign-key and check restrictions.
 
@@ -79,6 +91,12 @@ The inserted row reads `new` for `label`.
 ```sql
 CREATE TABLE c (code INT, CONSTRAINT uq_code UNIQUE(code));
 ```
+
+This creates a unique constraint on code. In a separate empty database,
+`CREATE TABLE bad (a INT, CONSTRAINT pk_bad PRIMARY KEY(a, A));` reports COHSQLE019
+and creates nothing. After `CREATE TABLE existing (a INT);`,
+`CREATE TABLE IF NOT EXISTS existing (a INT PRIMARY KEY, b INT PRIMARY KEY);`
+succeeds without adding a primary key or column b.
 
 ## See also
 

@@ -29,6 +29,9 @@ definitions once under the statement snapshot, before any write. Targets remain 
 Qualified references use the target name, or its alias when supplied. An explicit alias hides
 the base name; hidden or unknown qualifiers report located `COHSQLE015` before any write.
 
+Each SET target may appear only once, using case-insensitive column identity. A repeated target,
+including DEFAULT, reports `COHSQLE019` during planning even if WHERE matches no rows. No row changes.
+
 `c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
 No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
 For [BY DEFAULT identity](../clauses/identity.md), SET id = DEFAULT allocates a new value.
@@ -77,6 +80,9 @@ SELECT age FROM t ORDER BY id;
 ```
 
 The update affects one row; the query returns `46`, `45`, and `41`.
+
+`UPDATE t SET age = DEFAULT, AGE = 2 WHERE 1 = 0;` instead fails with COHSQLE019;
+the table remains unchanged even though the predicate matches no rows.
 
 ### Move keys within an indexed range
 
