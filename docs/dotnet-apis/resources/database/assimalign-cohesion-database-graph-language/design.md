@@ -247,6 +247,11 @@ wire results without graph.composite-values before reads/writes. COHDBG017 refus
 records/tree registrations at database open, with recreation required and no upgrade path.
 These three codes have no assigned SQLSTATE.
 
+Detected storage damage uses COHDBS003 / DatabaseCorruptionException with database and optional
+page context. Open-time graph-format refusal retains COHDBG017 and COHDBG018 alongside it.
+Damaged reads fail rather than omitting data; wire ExecutionFailure leaves the connection usable.
+No SQLSTATE is assigned. See the linked diagnostics reference for recovery instructions.
+
 ## Ordering and paging
 
 [GqlQueryExpression](gql-query-expression.md) adds OrderBy, Offset and Limit init properties.

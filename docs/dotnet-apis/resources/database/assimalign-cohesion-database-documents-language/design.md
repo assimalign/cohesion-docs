@@ -94,6 +94,11 @@ codes with source SQLSTATE categories. Each public node is linked from the [asse
 Database lifecycle failures additionally use COHDBD003 for missing sidecars, incomplete creation or
 unrecoverable files, with no assigned SQLSTATE. See [file diagnostics](../../../../database/document/language/diagnostics.md#database-files).
 
+Detected storage damage uses COHDBS003 / DatabaseCorruptionException with database and optional
+page context; refused opens also retain COHDBD003. A damaged read fails instead of omitting a
+document. Wire execution failure carries the diagnostic and leaves the connection usable.
+COHDBS003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
+
 ## Scalar evaluation and metadata
 
 [Scalar functions](../../../../database/document/language/functions/scalar-functions.md) propagate

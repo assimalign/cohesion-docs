@@ -46,6 +46,10 @@ private result to the typed connection. The model's command specification
 command grammar and operation result shapes. Protocol 2.1 negotiates shared startup, with unchanged baseline model payloads. Key-Value
 agrees no Diagnostics capability and retains COHKV001–019 in Error text.
 
+Detected storage damage carries COHDBS003 through the same ExecutionFailure Error text, with
+database/page context rather than a successful missing-key result. No SQLSTATE is assigned.
+See [command diagnostics](../../../../database/key-value-pair/diagnostics.md).
+
 Database.KeyValuePair.Protocol supplies codecs independently of the engine. The client references
 that contract assembly and shared client infrastructure; its dependency closure contains no
 engine, catalog or storage implementation.

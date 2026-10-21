@@ -50,6 +50,11 @@ before logical recovery scrub with [COHDBG017](../diagnostics.md), the remedy to
 database and no upgrade reader. Older snapshots retain prior property,
 label, index and adjacency versions. Rollback restores old stamps and removes replacements.
 
+The engine reports that format refusal as DatabaseCorruptionException with COHDBS003,
+COHDBG018 and COHDBG017 in Diagnostics. Other detected storage damage also uses
+[COHDBS003](../diagnostics.md); it fails the operation with database and optional page context.
+No SQLSTATE is assigned.
+
 Snapshot writers use first-updater-wins: changing an entity committed since the writer's snapshot
 aborts the stale writer with DatabaseTransactionAbortedException. ReadCommitted mutations acquire
 the database writer lock, refresh the statement snapshot and replan before evaluation, so queued

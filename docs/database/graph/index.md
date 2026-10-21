@@ -71,6 +71,10 @@ older graph records/registrations are refused before logical recovery scrub with
 [COHDBG017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
 33 declared clauses.
 
+Detected storage damage uses [COHDBS003](language/diagnostics.md), with database/page context
+in DatabaseCorruptionException. An unsupported graph-record open also retains COHDBG017 and
+COHDBG018. Reads fail instead of silently omitting damaged data.
+
 ## Storage and catalog
 
 Each persistent database owns `graph.dat`, `graph.log`, and `graph.bak`. Shared kernel components

@@ -50,6 +50,10 @@ Invariant LIKE/NOT LIKE work exhaustion uses ExecutionFailure with located `COHS
 in negotiated Diagnostics and `ConnectionUsable = true`; no SQLSTATE is assigned. See the
 [LIKE budget and example](../../../../database/sql/language/expressions/operators.md#like-and-escape).
 
+Detected storage damage uses ExecutionFailure with `COHDBS003` and database/page context,
+with a usable connection. Structured diagnostics are available when negotiated; no SQLSTATE is
+assigned. See [storage integrity diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+
 ## Example
 
 ```csharp

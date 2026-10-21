@@ -99,6 +99,11 @@ NULL/MISSING rules. SELECT * with UNNEST returns synthetic binding objects.
 
 ## Database lifecycle
 
+Detected storage damage uses [COHDBS003](language/diagnostics.md#database-files) through
+DatabaseCorruptionException with database and optional page context. Reads fail instead of
+omitting damaged documents; refused corrupt opens also retain COHDBD003. Restore from a verified
+backup as directed by the error. No SQLSTATE is assigned.
+
 Create/open require the original document.dat, document.log and document.bak file set. Missing sidecars
 are refused with COHDBD003 and never recreated, including for an empty closed database. Preserve
 ambiguous files and restore the complete backup. A directory without data or a data file no larger

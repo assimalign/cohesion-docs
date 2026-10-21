@@ -165,6 +165,10 @@ Server projection errors occur before the result header and leave the connection
 
 ## Predicate diagnostics
 
+Detected storage corruption uses COHDBS003 (no SQLSTATE) through the existing ExecutionFailure
+path, naming the database and optional page and leaving the connection usable. See
+[SQL diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+
 Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
 both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
 42804) are ExecutionFailure responses; data and the connection remain usable. Invariant LIKE/NOT

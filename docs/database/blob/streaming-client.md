@@ -118,6 +118,10 @@ Database creation/open can fail before a client exchange with COHDBB004 for miss
 files, including incomplete creation. It is an Error with no assigned SQLSTATE; see
 [file diagnostics and remedies](operations.md#database-file-diagnostics).
 
+Detected storage damage additionally uses COHDBS003, with database and optional page context;
+a corrupt open also retains COHDBB004. Damaged reads fail instead of silently omitting blob data.
+No SQLSTATE is assigned. The same file diagnostics describe verified-backup recovery.
+
 ## Verification in the source tree
 
 The client tests cover nonseekable sources, bounded reads, empty objects, ordered prefixes,
