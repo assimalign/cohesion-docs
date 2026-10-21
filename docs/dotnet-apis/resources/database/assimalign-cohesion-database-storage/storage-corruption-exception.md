@@ -12,6 +12,7 @@ public sealed class StorageCorruptionException : StorageException
     public const string ErrorCode = "COHDBS003";
     public StorageCorruptionException(string message);
     public StorageCorruptionException(PageId pageId, string message);
+    public StorageCorruptionException(PageId pageId, string message, Exception inner);
     public string Code { get; }
     public PageId? PageId { get; }
     public static StorageCorruptionException? Find(Exception? error);
@@ -35,17 +36,25 @@ Storage users can catch this child-kernel exception directly. Engine operations 
 retaining the cause and adding database context. Corruption fails the operation; it is never a
 successful missing-record result.
 
+The page-scoped overload with inner retains the underlying cause. If a header half is unreadable
+and the other has a damaged slot with no valid survivor, PageId is zero and Code is COHDBS003;
+Find still discovers it through an aggregate. Two unreadable halves or a valid survivor without
+journal coverage instead preserve I/O classification. Caller-owned Page span access also throws
+this exception for out-of-range overflow lengths. See [recovery](design.md#page-0-and-alternating-headers).
+
 ## Example
 
 ```csharp
 using System;
 using Assimalign.Cohesion.Database.Storage;
 
-var cause = new StorageCorruptionException((PageId)9L, "Page 9 failed checksum verification.");
+var readError = new System.IO.IOException("Header half unreadable.");
+var cause = new StorageCorruptionException((PageId)0L, "The other header slot is damaged.", readError);
 var wrapped = new AggregateException(new InvalidOperationException("Cleanup failed."), cause);
 Console.WriteLine(StorageCorruptionException.Find(wrapped) == cause); // True
 Console.WriteLine(cause.Code); // COHDBS003
-Console.WriteLine((long)cause.PageId!.Value); // 9
+Console.WriteLine((long)cause.PageId!.Value); // 0
+Console.WriteLine(cause.InnerException == readError); // True
 ```
 
 ## Related reference

@@ -205,6 +205,15 @@ chains are reclaimable even after a torn write or missing checksum; ordinary Fre
 still require full verification. Newly initialized anchors have journal repair images. See
 [checkpoint recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoints).
 
+### Header read fallback
+
+Storage reads page 0 in independent 4 KiB halves. After a read error it accepts the other valid
+slot only when the retained journal proves coverage, before replay writes. Every accepted fallback
+emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
+survivor with no valid slot is COHDBS003 corruption; two wholly unreadable halves retain I/O.
+See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
+The journal-size checkpoint setting remains a soft trigger; the hard bound is deferred.
+
 ## Engine failure diagnostics
 
 Engine boundaries translate storage and index failures into area exceptions with structured

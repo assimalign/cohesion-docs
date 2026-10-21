@@ -47,11 +47,36 @@ overload and release every page/latch before returning a move.
   for an entirely zero page. A computed CRC of zero is stored and verified as `0xFFFFFFFF`;
   this escape aliases raw CRC values 0 and `0xFFFFFFFF`.
 
+[Page](page.md) span accessors validate one snapshot of the reserved overflow body length before
+constructing a span, including over caller memory. Valid lengths are 0..8,096 bytes; invalid
+geometry throws StorageCorruptionException with page context rather than clamping. OverflowSize
+means a body within one 8 KiB buffer; multi-page overflow storage is unimplemented. The new
+length-taking pointer constructor refuses undersized memory before reading a header, and ignores
+extra bytes. Default-page span access throws InvalidOperationException.
+
 ### Page 0 and alternating headers
 
 Page 0 is outside the buffer pool. It has an immutable identity block and two alternating,
 independently checksummed header slots. Open chooses the newest valid generation and reads its
 checkpoint anchor chain. Its checksums are separate from pooled-page checksums.
+
+Open reads page 0 in independent 4 KiB halves, completing short reads within each half. IOException,
+StorageIOException or premature zero-byte read invalidates the entire affected half, including
+partially read bytes. A valid other slot supplies identity/checkpoint state only if the verified
+journal proves coverage before replay writes: its first retained LSN is positive and at or below
+the selected slot's LsnFloor, or its first record is a checkpoint at LsnFloor + 1 with the same
+complete anchor. A newer idle checkpoint with the same floor/anchor also qualifies; it can lose
+only higher sequence reservations that stamped no records. Empty/torn prefixes or checkpoints with
+a different floor/anchor prove nothing. Refusal rethrows the original header I/O error without
+writing either file. A recovered leading half schedules identity repair on the next slot-0 write.
+
+When no slot verifies and a completely read half establishes damage, page-0
+[StorageCorruptionException](storage-corruption-exception.md) uses COHDBS003 and retains the other
+half's read error as its inner cause. If both halves are unreadable, there is no checksum evidence
+and the original I/O classification survives. Every accepted I/O fallback emits Warning
+HeaderReadFallback (18), including consecutive opens. Sequence assignment resumes above the
+verified header floor and retained journal maximum; page headers cannot reconstruct model sequence
+stamps. The disk layout and storage format remain unchanged.
 
 ### Storage format 4
 
@@ -249,6 +274,22 @@ to the transaction layer above.
    conflict surface without ever weakening the invariant that makes page-image
    logging correct.
 
+### Storage transaction ownership
+
+Every record/page mutation validates its bracket's owning Storage by reference before latch
+enlistment, pins, locks, pre-images or journal records. A foreign bracket throws
+[StorageTransactionException](storage-transaction-exception.md) with
+[StorageTransactionErrorCode.ForeignStorage](storage-transaction-error-code.md), naming both
+storages. Equal sequence numbers in different storages do not share a page-lock owner: locks hold
+the actual bracket object. Commit/rollback route through its immutable owner.
+
+First touch takes an already-held structure latch and pin before the transaction monitor; the pool
+monitor is released first. Completion takes owner-directory/free-map locks inside that monitor,
+releases page locks before publishing pending frees, and takes no structure latch there.
+StoragePageManager.AllocatePage and FreePage are internal. External page writes use
+Storage.AllocatePageForWrite/OpenPageForWrite; transactional deletion and FreeOwnerPages defer
+reuse until commit. Rollback restores the original bytes and owner membership.
+
 ### The physical/logical bracket interplay (MVCC layering rules)
 
 Logical readers reserve storage-counter sequences but open no physical bracket and append no
@@ -378,6 +419,10 @@ This resolves the deferred-lane wake gap only; #1283 remains open and journal gr
 See the root and storage DESIGN sources and
 `cohesion/resources/Database/Assimalign.Cohesion.Database/shared/DatabaseCheckpointWorker.cs`.
 
+The journal-size checkpoint setting remains a soft trigger: one atomic statement can overshoot it
+before a checkpoint runs. The hard journal-size bound is deferred; wave 7 does not impose bracket
+caps or split statements. See [checkpoint triggering](#checkpoint-triggering).
+
 ### Appends during journal I/O
 
 The medium owner detaches the append buffer and captures its target LSN under the append lock,
@@ -478,7 +523,7 @@ checksum/LSN verification. Memory follows identities and cache capacity rather t
 
 ## Error model
 
-`StorageException` is the area root for this library. `StorageIOException` (stream and allocation
+`StorageException` is the child root for this library. `StorageIOException` (stream and allocation
 failures), `SlottedPageException` (record layout violations), `StorageCorruptionException`
 (COHDBS003, checksum/header integrity failures — carries the `PageId`), and `JournalException` (journal
 framing/state violations) all derive from it, so consumers can catch the family or the specific
@@ -488,6 +533,23 @@ At engine boundaries, storage corruption becomes DatabaseCorruptionException wit
 name, optional page and original storage cause. Reads fail rather than silently omitting damaged
 data; legitimate record reclamation retains absence semantics. Refused opens can carry additional
 model diagnostics. See the [public exception API](../assimalign-cohesion-database/database-corruption-exception.md).
+
+Foreign-storage mutations retain StorageTransactionException with Code ForeignStorage under the
+storage child root; ordinary transaction violations use Unspecified. Invalid overflow geometry and
+known page-0 integrity damage use COHDBS003. Header read failures without journal coverage, or two
+unreadable halves without checksum evidence, remain I/O failures.
+
+## Storage EventSource
+
+Provider `Assimalign.Cohesion.Database.Storage` emits the following recovery warning:
+
+| Id | Event | Level | Payload | Trigger |
+| --- | --- | --- | --- | --- |
+| 18 | HeaderReadFallback | Warning | database, slot, generation, lsnFloor, exceptionType, exceptionMessage | A half-page read failed and journal coverage proves the selected fallback safe, before replay |
+
+It reports every accepted fallback without throttling, including consecutive opens. Missing coverage
+emits no success warning and refuses open before replay writes. The existing PageChecksumFailed
+(Error 16) still reports pooled-page checksum failures; page 0 is outside that pool.
 
 ## AOT posture
 
@@ -511,6 +573,8 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+- **Wave-7 recovery and geometry** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageHeaderReadTests.cs`, `StorageTransactionOwnershipTests.cs` and `PageTests.cs` in the same directory.
 
 ## Sources
 
