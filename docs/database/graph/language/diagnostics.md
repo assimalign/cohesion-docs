@@ -127,7 +127,7 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 | Runtime trail length | 64; qualifying 65th edge fails before endpoint tests | `COHDBG004` |
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
 | Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
-| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including dead ends; overflow reports actual physical/viable totals | `COHDBG004` |
+| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including merge-initialization heads, type discovery and dead ends; discovery/first head share one charge; overflow reports actual physical/viable totals | `COHDBG004` |
 | Composite value depth (root zero) | 64 | Parameter COHDBG003; constructed COHDBG013 |
 | Total values per value, including root | 65,536 | Parameter COHDBG003; constructed COHDBG013 |
 | Encoded value or result-row bytes | 16,777,216 | Parameter COHDBG003; constructed/row COHDBG013 |

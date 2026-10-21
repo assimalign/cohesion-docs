@@ -84,13 +84,17 @@ applies to edges inserted earlier in the statement. Either-direction reads retur
 
 The executor limits intermediate materialized matches to 100,000 across clauses. Its separate
 physical counter charges visited anchor candidates and selected visible relationship candidates as
-DFS visits them, including dead ends. Loading a range charges nothing; unrelated directions/types
+they are consumed, including heads needed to initialize the identity-ordered stream merge and
+dead ends. Incident-type discovery and its first stream head share one charge; returning a primed
+head does not charge it again. Unrelated directions/types
 add no candidates. The viable counter counts hops passing trail uniqueness, binding, relationship
 and safe endpoint checks before copying path state; deferred predicates retain final checks.
 Physical work above 1,000,000 fails with COHDBG004 and actual physical/viable totals, without
-silent truncation. These counters are not public telemetry. Selected ranges and decoded edges are
-materialized before visits, so the cap does not bound range loading, decoding or matching fan-out.
-Cancellation is observed during expansion and materialization. See [EXPLAIN](statements/explain.md)
+silent truncation. These counters are not public telemetry. Selected ranges stream in bounded,
+cancellable index batches, retaining one decoded head per type/direction range. Type discovery
+uses one-entry probes and charges before head decoding, so initialization also obeys the budget.
+Budget refusal, cancellation and errors close every active parent stream. Result materialization
+and the existing match/hop limits still apply. See [EXPLAIN](statements/explain.md)
 for the counting description; LIMIT does not reduce matching work.
 
 [Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.

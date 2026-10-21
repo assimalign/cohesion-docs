@@ -12,6 +12,29 @@ index structures live in the kernel and models bring only their key extraction. 
 the first real consumer (#912): CREATE/DROP INDEX, write-path maintenance, and planner seeks all
 compose this package's manager, trees, and cursors.
 
+## Incremental range cursors
+
+[BTreeIndex.OpenCursor](b-tree-index.md#range-cursors) captures its snapshot and owns copies of
+the range bounds without visiting a page. [BTreeCursor](b-tree-cursor.md) reads one visible entry
+in the first batch, then at most 64 per batch, with at most 256 retained entries examined per
+latch hold. Invisible runs and undo-empty leaves yield too. Forward/reverse scans descend to
+their bound and resume by logical (key, reference, writer) identity after each batch; no physical
+page/slot survives a move. Full scans cost O(b h + visited leaf pages) for b batches and height h;
+empty-leaf probes can add descents.
+
+A registry keyed by storage instance and fixed root page shares the latch across replacement
+managers, reattachment and rollback. The order remains transaction/key locks, tree latch, then
+page pin/pool monitor, with no await or transaction-lock wait under the tree latch.
+[StoragePageLatch.EnterRead(CancellationToken)](../assimalign-cohesion-database-storage/storage-page-latch.md)
+lets cancellation interrupt latch acquisition. Opening and move tokens reach every page/entry
+read; errors dispose the cursor. Callers retain their snapshot pin and finish enumeration before
+mutating through its owner. SQL DML still collects all targets before writes.
+
+SQL seeks, Key-Value scans, Documents index reads/unique probes and Graph property, label and
+adjacency scans pass their operation token through cursor open and moves. This changes neither
+the index page format nor the caller's snapshot lifetime. Tests cover million-key short reads,
+both directions, boundary mutations, empty leaves, cancellation and corruption.
+
 ## Byte-comparable keys
 
 `IndexKey` compares by unsigned lexicographic byte order — the single comparison rule every
@@ -56,7 +79,7 @@ page, a sorted offset directory with entry data growing from the body end, key c
   (deleter stamp zero) can only be committed or our own — uncommitted others are
   excluded by the lock, and aborted writers' entries were physically reverted.
 - **Concurrency (MVP): a tree-level reader/writer latch.** Writers exclusive;
-  cursors materialize their range's visible entries under the read latch, so no
+  cursors copy bounded batches of visible entries under the read latch, so no
   latch is held across awaits and readers never see a torn structure. Lock
   coupling / latch-per-node is a measured-need follow-up.
 - **Directory persistence belongs to the catalog.** The manager keeps an in-memory

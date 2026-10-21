@@ -225,12 +225,15 @@ dead ends; either overflow fails with `COHDBG004`, never silent truncation. Canc
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
 
-Physical work charges visited anchors and selected visible relationships as DFS visits them,
-including dead ends; range loading charges nothing. Viable work counts hops passing trail, binding,
+Physical work charges visited anchors and selected visible relationships, including stream heads
+needed to initialize the identity-ordered merge and dead ends. Incident-type discovery and its
+first head share one charge; consuming a primed head does not charge again. Viable work counts hops passing trail, binding,
 relationship and safe endpoint checks before state copying. COHDBG004 includes actual physical and
 viable totals when the 1,000,000 physical cap is exceeded. The 100,000-binding and 64-hop limits
-remain. Ranges and decoded relationships are materialized before visits, so this budget does not
-bound range loading or decoding. EXPLAIN Expand describes
+remain. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
+head per range. Type discovery uses one-entry probes; budget checks precede head decoding,
+including initialization. Refusal, cancellation and errors dispose every active parent stream.
+EXPLAIN Expand describes
 `adjacency=(node,direction,type_id,relationship)`, effective seek_direction, type_filter,
 `physical=visited_candidates; viable=accepted_hops; physical_limit=1000000`; it executes no hops
 and reports no runtime totals. EXPLAIN ANALYZE remains unsupported.

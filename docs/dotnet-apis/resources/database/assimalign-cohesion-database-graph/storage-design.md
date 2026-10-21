@@ -52,15 +52,17 @@ flowchart LR
 The filtered [GetIncidentAsync](graph-store.md#incident-reads) streams closed ranges from
 (node, direction, type ID, 0) through (node, direction, type ID, UInt64.MaxValue).
 Null types select all types in the requested directions; empty selects none; duplicate IDs add no
-visits. For t selected type/direction ranges and r retained entries, work is O(t log E + r).
+visits. For b bounded batches and r retained entries, work is O(b log E + r).
 Only snapshot-visible references are decoded; unrelated directions/types add no relationship decodes.
 The streaming API specifies no cross-range ordering. The unfiltered list overload and engine sort
 visible relationships by identity.
 
-The shared B+Tree currently collects an entire selected key/reference range under its read latch
-when opening a cursor. Cancellation is checked before each range but cannot interrupt that
-collection. The engine then collects and sorts decoded relationships before visiting them: its
-candidate budget bounds visits, not range loading or decoding. Creating, replacing or deleting
+The shared B+Tree opens lazily and copies one entry in its first batch, then at most 64 visible
+entries per batch, examining at most 256 retained entries per latch hold. Cancellation reaches
+latch acquisition and page/entry reads. The executor merges type/direction streams by identity,
+retaining one decoded head per range. Type discovery and initial heads count toward its expansion
+budget; refusal, cancellation and errors dispose every active stream. List-returning APIs still
+materialize their required result. Creating, replacing or deleting
 relationships maintains both direction-specific entries in one physical statement bracket.
 
 Compound keys make every current relationship entry distinct. This is also deliberate protection
@@ -145,12 +147,13 @@ rollback, purge and crash recovery handle postings with their records. Labeled r
 the required tree registration refuse open as corruption. Empty or wholly unlabeled stores need
 no label tree. Open reconstructs name/token mappings and advisory retained-posting estimates.
 
-Label reads seek selected ranges in O(log P + r) index work for r retained postings. They decode
+Label reads seek selected ranges in O(b log P + r) index work for b batches and r retained postings. They decode
 only visible matching references in identity order. Reused label names with historical catalog
 IDs and pure pattern unions merge ranges with duplicate suppression. Conjunctions scan the
 cheapest required label and retain the full residual. Unfiltered scans still enumerate identities.
 Readers release the directory monitor before taking tree/page latches and take no graph writer
-lock. Shared cursors still materialize each selected range under a read latch.
+lock. Shared cursors copy bounded cancellable batches and release pages/latches before decoding
+or merging label ranges. See [BTreeCursor](../assimalign-cohesion-database-indexing/b-tree-cursor.md).
 
 Each label/property definition owns a B+Tree whose object ID is its durable definition identity.
 Keys consist of the shared `DatabaseKeyWriter` scalar encoding followed by the node identity as

@@ -77,6 +77,10 @@ Scans and index seeks establish ordinal document-identifier order before filteri
 preserves established order for ties. Results are materialized and own their JSON values after
 execution, without retaining the transaction or borrowed storage memory.
 
+Underlying index reads copy bounded B+Tree batches and pass cancellation at cursor open and
+every move, including latch waits and page/entry reads. Each batch releases its tree latch before
+document decoding. This bounds index-range buffering; SELECT still materializes its result.
+
 With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by the source and array
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
 paging consume expanded rows. Ordinary star without UNNEST still preserves the stored bytes.

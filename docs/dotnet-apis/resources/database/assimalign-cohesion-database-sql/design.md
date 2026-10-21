@@ -393,7 +393,7 @@ unsupported-clause diagnostics.
   identity, including a reused name with different keys, falls back to a residual-filtered scan.
   A catalog-registered but missing maintenance tree still refuses writes.
 - **`Seek` execution is snapshot-anchored.** The executor drives the B+Tree
-  cursor through the **statement snapshot** (the `IIndex.OpenCursor(snapshot, …)`
+  cursor in bounded cancellable batches through the **statement snapshot** (the `BTreeIndex.OpenCursor(snapshot, …)`
   overload — the same snapshot the equivalent scan filters through, which
   is the equivalence anchor under ReadCommitted's per-statement re-capture),
   unpacks each visible entry's packed row location, fetches the row, and

@@ -8,6 +8,7 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
+- **[StoragePageLatch](storage-page-latch.md)** — Shared/exclusive structure holds and cancellable read acquisition.
 - **[StorageCorruptionException](storage-corruption-exception.md)** — COHDBS003, page context and wrapped-cause discovery.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

@@ -102,8 +102,10 @@ list overload selects Both/all types and sorts by relationship identity.
 Validation occurs during enumeration. A null snapshot throws ArgumentNullException; an undefined
 direction throws ArgumentOutOfRangeException. Cancellation throws OperationCanceledException,
 including for an empty selection. Malformed selected records/keys can throw StorageCorruptionException.
-Enumeration takes no graph writer lock. The shared B+Tree still materializes each selected reference
-range when opening its cursor; cancellation cannot interrupt that collection. See [design](storage-design.md).
+Enumeration takes no graph writer lock. The shared [BTreeCursor](../assimalign-cohesion-database-indexing/b-tree-cursor.md)
+opens without reading pages and copies bounded batches with cancellation during latch acquisition
+and page/entry reads. It holds no page or latch between moves. The list overload still materializes
+its result. See [design](storage-design.md).
 
 ## Example
 

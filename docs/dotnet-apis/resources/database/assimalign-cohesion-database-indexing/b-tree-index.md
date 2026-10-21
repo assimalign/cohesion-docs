@@ -1,6 +1,6 @@
 # BTreeIndex
 
-Latest live-entry lookup for a complete unique key.
+Latest live-entry lookup and snapshot-visible range cursors.
 
 Namespace: `Assimalign.Cohesion.Database.Indexing`.
 
@@ -43,7 +43,23 @@ that acquisition; callers must provide the coordination needed for latest-state 
 The lookup changes no page layout. SQL uses it for [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 arbitration and translates kernel failures at its model boundary.
 
-## Example
+## Range cursors
+
+```csharp
+public BTreeCursor OpenCursor(TransactionContext transaction, IndexKeyRange range,
+    bool reverse = false, CancellationToken cancellationToken = default);
+public BTreeCursor OpenCursor(TransactionSnapshot snapshot, IndexKeyRange range,
+    bool reverse = false, CancellationToken cancellationToken = default);
+```
+
+Opening captures the snapshot and copies range bounds without reading pages. Both overloads
+throw ArgumentNullException for a null transaction/snapshot and OperationCanceledException for a
+canceled token. The opening token applies throughout enumeration alongside each MoveNextAsync
+token. Page/storage failures surface during moves. Keep the caller's snapshot pin alive, collect
+mutation targets before writes, and dispose the cursor on every exit. See
+[BTreeCursor](b-tree-cursor.md) for batching, lifetime, exceptions and a range example.
+
+## Lookup example
 
 This adapts the own-write/tombstone assertions from BTreeIndexTests. The caller supplies a unique
 index and active transaction from its storage/coordinator composition, then commits or rolls back

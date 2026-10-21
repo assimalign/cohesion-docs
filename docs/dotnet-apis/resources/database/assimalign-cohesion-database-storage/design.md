@@ -19,6 +19,12 @@ checksum-stamped, and durability flows through the journal only — there are no
 
 ## The page model
 
+[StoragePageLatch](storage-page-latch.md) protects structure reads from writers and physical
+rollback. Its EnterRead(CancellationToken) overload checks cancellation between approximately
+10 ms waits and leaves no shared hold on cancellation, including a race with acquisition.
+Non-cancelable acquisition retains the indefinite-wait behavior. B+Tree batches use this
+overload and release every page/latch before returning a move.
+
 - **8 KiB pages, 96-byte header.** The header layout (`Page.Header`) is an explicit
   struct persisted on disk, so field offsets are a wire contract: id (0), LSN (8),
   checksum (16), flags (20), type (21), slot count (22), free-data end (24), overflow

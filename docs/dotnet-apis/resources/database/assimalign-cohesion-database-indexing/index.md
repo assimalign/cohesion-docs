@@ -6,7 +6,8 @@ Shared index infrastructure for every Cohesion database engine: order-preserving
 
 ## Reference pages
 
-- **[BTreeIndex](b-tree-index.md)** — Latest live unique-entry lookup, transaction locks and failures.
+- **[BTreeIndex](b-tree-index.md)** — Latest live unique-entry lookup and cancellable snapshot range cursors.
+- **[BTreeCursor](b-tree-cursor.md)** — Bounded batches, cancellation, ownership and lifetime.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
@@ -18,9 +19,9 @@ unique-key arbitration for SQL ON CONFLICT without applying snapshot visibility.
 ## Scope
 
 - **`IndexKey` / `IndexKeyRange`** — byte-comparable key encoding (implemented, tested) and range scans
-- **`IIndex`** — point/range operations bound to a transaction context
-- **`IIndexCursor`** — streaming scan iteration
-- **`IIndexManager` / `IndexDefinition`** — create/drop/open per logical database
+- **`BTreeIndex`** — point/range operations bound to a transaction context
+- **`BTreeCursor`** — incremental forward/reverse scans with bounded owned batches and cancellation
+- **`BTreeIndexManager` / `IndexDefinition`** — create/drop/open per logical database
 - **`IndexKind`** — BTree (default), `Hash` (post-MVP)
 
 ## Dependencies
