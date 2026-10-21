@@ -230,6 +230,13 @@ aborted-undo retries + reclamation below the minimum snapshot floor), and the in
 every delete accrues a tombstone in the primary structure; the seam is kept stable for the
 compaction feature). Cadence knobs live on `KeyValueDatabaseEngineOptions`.
 
+The group-commit flusher also serves provisional data/catalog storages during create/open.
+It captures the storage snapshot before the published-instance snapshot, then flushes uncovered
+storages without the engine lock so construction commits can finish. Published databases retain
+their per-database failure/backoff handling. Offline provisional storages are skipped, disposed
+storages tolerated, and other provisional flush errors reach the constructing commit without a
+worker failure record. SQL uses the same pass; Documents, Blob and Graph retain self-help during open.
+
 ## Two file sets per database
 
 `<name>` (entries + primary index pages — index pages ride the data storage's transactional page
@@ -241,6 +248,14 @@ self-commits; a crash between tree build and registration leaves only an orphane
 leak), repaired by re-bootstrapping on the next open.
 
 ## Error model
+
+Detected storage corruption uses
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+with COHDBS003 (no SQLSTATE), the database, optional page and original storage cause. Reads,
+writes, transactions and create/open fail rather than treating damage as an absent key. Wrapped
+and aggregate storage causes receive the same translation; legitimately reclaimed entries keep
+absence semantics. Wire ExecutionFailure retains the common code. See
+[diagnostics](../../../../database/key-value-pair/diagnostics.md).
 
 `DatabaseException` (area root) for misuse and model errors; `DatabaseNotFoundException` for an open
 request whose storage does not exist; `DatabaseParseException` for grammar violations (→
@@ -409,6 +424,8 @@ first, then other data files, then the remaining directory. It cannot resurrect 
 dropped database by recreating a sidecar.
 
 ## Sources
+
+- **Construction durability and corruption** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `KeyValueIndexReadIntegrityTests.cs` in the same directory.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

@@ -377,6 +377,13 @@ not included.
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
+
+Reads, statements, transactions and create/open translate storage corruption, including coded and
+aggregate causes. A damaged read fails instead of omitting nodes/relationships; legitimate
+reclamation still reads as absence. Wire ExecutionFailure carries the common code and preserves
+the connection. See [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+for the public API and additional open-time codes.
 | `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; preserve ambiguous files, or drop/recreate only the known incomplete cases; no assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
@@ -753,9 +760,10 @@ ordinary create does not adopt them. Drop removes graph.dat before deleting the 
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses COHDBG018 with preservation/restore advice. Transient storage I/O, including a full
+corruption uses DatabaseCorruptionException / COHDBS003 with COHDBG018 retained as an additional
+diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. No storage or record format changes are introduced.
+without drop or backup advice. The shared storage format is 4; Graph records remain at format 3.
 
 ### Lifecycle API
 

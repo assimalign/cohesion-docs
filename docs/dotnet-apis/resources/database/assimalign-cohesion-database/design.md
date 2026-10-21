@@ -302,6 +302,13 @@ as the `Internal` error (and closes the session), which is the pre-existing beha
 
 ## Lifecycle pattern
 
+Storage integrity failures are translated to
+[DatabaseCorruptionException](database-corruption-exception.md) / COHDBS003 at engine boundaries.
+The exception names the database and optional page and retains the storage cause. Root create/open
+also translate coded and aggregate wrappers after model cleanup, preserving model diagnostics.
+The same integrity translation applies to read/statement and transaction operations. Wire execution
+failures retain the code through each model's existing path; damaged data is never successful absence.
+
 - **Engines** — **no lifecycle members** (the data-machine decision above). An engine
   is operational from creation — background workers pumping, databases
   creatable — and disposal (`IAsyncDisposable` + `IDisposable`, idempotent) is

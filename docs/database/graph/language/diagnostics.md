@@ -49,6 +49,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity GQL0002 and unknown-name GQL0010;
 hand-built arity/unbound arguments use COHDBG001. Proven incompatible kinds use COHDBG003,
@@ -100,8 +101,16 @@ codes. Stale Snapshot updates surface DatabaseTransactionAbortedException; ReadC
 re-snapshots after the writer lock. See [SET](clauses/set.md) and [REMOVE](clauses/remove.md).
 
 COHDBG017 is an open-time format refusal before logical recovery scrub. Graph.Storage throws
-StorageCorruptionException with the code in its message; the engine retains an Error diagnostic in
-DatabaseException.Diagnostics and a code-free Message. Recreate the database with this engine.
+StorageCorruptionException with the code in its message; the engine retains COHDBG017 and
+COHDBG018 alongside COHDBS003 in DatabaseCorruptionException.Diagnostics. Recreate a database
+whose graph record format is unsupported; there is no upgrade reader.
+
+COHDBS003 also applies to damaged reads, statements, transactions and create/open failures,
+including wrapped or aggregate storage corruption. It names the database and page when known
+and advises restoration from a verified backup. A read fails rather than omitting damaged nodes
+or relationships; legitimate reclamation retains absence semantics. Wire ExecutionFailure keeps
+the connection usable. See [storage recovery](../../overview.md#database-file-sets-and-lifecycle)
+and [DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 ## Boundaries
 
@@ -162,6 +171,8 @@ a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned 
 - **[SHOW](statements/show.md)** — read-only catalog composition.
 
 ## Sources
+
+- **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.
 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
