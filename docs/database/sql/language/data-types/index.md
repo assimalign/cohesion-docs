@@ -77,6 +77,12 @@ insert-default/frozen-missing-value split (table extension 6); format 18 separat
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
 
+## SQL domains
+
+[CREATE DOMAIN](../statements/create-domain.md) persists a base type, literal default, NOT NULL
+and immutable CHECK; [DROP DOMAIN](../statements/drop-domain.md) refuses dependencies. After either
+DDL commits, mandatory refresh and success delivery ignore late cancellation and timeout expiration.
+
 ## Examples
 
 ```sql

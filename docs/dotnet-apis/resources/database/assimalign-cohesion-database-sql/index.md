@@ -11,6 +11,12 @@ packages are retired. Wire contracts ship separately in [Sql.Protocol](../assima
 
 ## Reference pages
 
+- **[SqlDatabaseServerOptions](sql-database-server-options.md)** — Terminal drain deadline and peer-close linger.
+
+- **[SqlDatabaseEngineOptions](sql-database-engine-options.md)** — Statement and per-lock execution budgets.
+- **[SqlDatabaseSession](sql-database-session.md)** — Nullable timeout overrides, execution and retry behavior.
+- **[SqlTimeoutException](sql-timeout-exception.md)** — COHSQLE043/57014 and COHSQLE044/55P03.
+
 - **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
 - **[SqlFunctionContext](sql-function-context.md)** — Database, collation, transaction timestamp and cancellation context.
 - **[SqlConstraintViolationException](sql-constraint-violation-exception.md)** — Named integrity failures and their single coded diagnostic.

@@ -32,6 +32,12 @@ DatabaseClientException derives directly from System.Exception. Catch it for sha
 catch the model client exception for typed APIs. Catching DatabaseException no longer catches remote
 failures. Model client exceptions are siblings of this class, not its subclasses.
 
+Handshake EOF uses Internal and explicitly names the startup handshake before its expected
+response. A queued terminal Error between operations preserves the peer's code even after transport
+close; unexpected/malformed input uses ProtocolViolation and clean EOF without Error remains
+Internal. These paths discard the connector and release its rental/pool slot. See
+[queued terminal errors](database-connection.md#queued-terminal-errors).
+
 ## Example
 
 ```csharp
@@ -46,6 +52,8 @@ Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE015
 [Assembly](index.md) · [DatabaseException](../assimalign-cohesion-database/database-exception.md) · [ProtocolDiagnostic](../assimalign-cohesion-database-protocol/protocol-diagnostic.md)
 
 ## Sources
+
+- **Terminal/EOF conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DatabaseClientTerminalErrorTests.cs` and `DatabaseClientHandshakeFailureTests.cs` in the same directory.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/Exceptions/DatabaseClientException.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlWireDiagnosticTests.cs`.

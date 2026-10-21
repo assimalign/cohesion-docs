@@ -26,7 +26,7 @@ their message identifiers and payload codecs.
 - **`ProtocolFrameHeader` / `ProtocolFrame`** — five-byte envelope and payload.
 - **`ProtocolMessageType`** — core handshake, error, liveness, and termination identifiers.
 - **`ProtocolMessageFamily` / `ProtocolChannel`** — immutable endpoint family and validated I/O.
-- **`ProtocolFraming`** — raw stream reader/writer factories for mechanism and diagnostics.
+- **`ProtocolFrameReader` / `ProtocolFrameWriter`** — raw stream Create factories for mechanism and diagnostics.
 - **`ProtocolPayload`** — big-endian integers and length-prefixed UTF-8 string primitives.
 - **`ProtocolVersion`** — current version 2.1 negotiation.
 - **`ProtocolErrorCode` / `ProtocolException`** — shared error taxonomy and framing failures.
@@ -35,6 +35,13 @@ This child root has no dependencies on models, the area root, or transports. The
 references it. See [design and wire contract](design.md) .
 
 [Parent: Database](../index.md)
+
+## Terminal delivery
+
+Frames cross the Stream boundary in one complete write. All five servers complete Output and drain
+terminal Errors/capacity refusals under ShutdownDrainTimeout, with a separate bounded peer-close
+linger. Clients consume a queued Error before the next request. See
+[the contract and TLS limitation](design.md#terminal-delivery-and-frame-writes).
 
 ## Sources
 

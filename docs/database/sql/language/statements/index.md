@@ -18,6 +18,11 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[CREATE VIEW](create-view.md)** — Persist a bound read-only query; optionally replace compatible outputs.
 - **[DROP VIEW](drop-view.md)** — Remove a view with RESTRICT or dependent-view CASCADE.
 
+- **[CREATE FUNCTION](create-function.md)** — Persist a scalar SQL expression body.
+- **[DROP FUNCTION](drop-function.md)** — Remove an unused SQL overload by signature.
+- **[CREATE DOMAIN](create-domain.md)** — Persist a scalar domain with default/null/check rules.
+- **[DROP DOMAIN](drop-domain.md)** — Remove an unused SQL domain.
+
 ## Data manipulation language
 
 - **[SELECT](select.md)** — Read and compose the measured relational query subset.

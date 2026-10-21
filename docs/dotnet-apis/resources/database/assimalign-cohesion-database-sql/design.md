@@ -809,6 +809,29 @@ through the root seam); no connection-level replication endpoints; no special tr
 configuration stays in `libraries/Connections` drivers, while the server owns bind-through-release
 lifecycle.
 
+## Statement and lock timeouts
+
+[SqlDatabaseEngineOptions](sql-database-engine-options.md) supplies zero/off defaults.
+[SqlDatabaseSession](sql-database-session.md) supplies nullable overrides: null inherits the engine
+snapshot, zero disables, and a positive duration applies to subsequent statements. Engine creation
+and override setters reject negative durations or values above int.MaxValue milliseconds.
+Statement timers start after parsing and are cooperative; each contended lock wait has its own
+budget, including nested unique-index requests through LockManager.EnterLockTimeout. The cause
+that removes a queued wait fixes its diagnostic even if another deadline subsequently expires.
+
+[SqlTimeoutException](sql-timeout-exception.md) reports COHSQLE043 / 57014 or COHSQLE044 / 55P03.
+After physical statement rollback, explicit transactions release only new resources, keeping earlier
+grants and upgrades. Offline/abandoned writers retain their locks for recovery. Caller cancellation
+keeps OperationCanceledException and its existing lock retention. Transaction-control requests arm
+neither timer. Auto-commit disarms its statement timer after execution; started commits and mandatory
+post-self-commit binding, including CREATE/DROP FUNCTION and DOMAIN refreshes, complete without
+cancellation and report the durable result. A disconnected peer can still lose its response.
+
+Provisioning's private schema sessions explicitly disable both budgets, including deferred index
+builds; caller/lifecycle cancellation remains effective. SQL SET timeout syntax is unavailable.
+Other model engine/session timeout options are not provided by this change.
+
+
 ## SQL transaction control and the B7 seam
 
 Explicit commit and rollback observe cancellation only before their end starts, leaving the
@@ -970,6 +993,27 @@ Reference lookups select the longest usable leading-column index prefix and reor
 to match its column order. Partial prefixes retain a residual comparison for remaining columns; they
 scan the table only when no suitable index exists. A declared index whose physical tree is missing
 fails closed.
+
+### Foreign-key preparation
+
+Incoming references, outgoing parent resolution, adjacent intent-lock batches and live-index
+wrappers are shared per statement/table. Key projections bind to immutable endpoint versions;
+parent projections use weak constraint-column-list keys so replaced child definitions can retire.
+Each statement resolves its index choice and reordered equality-prefix mappings once per key.
+Cascades, final-state UPDATE, SET actions and ON CONFLICT share these projections.
+
+Preparation tries adjacent IS locks in ObjectId order before its own IX. Before waiting it releases
+new preparation grants, then rebuilds the live graph and validates catalog generation under IX.
+Adjacent definition changes refresh before row reads; a changed/dropped/replaced target returns
+DatabaseTransactionAbortedException with COHSQLT006 (no SQLSTATE), requiring a fresh-transaction
+retry. Snapshot metadata reads still use their catalog image; integrity checks use live locked
+versions. Statement reference state expires even inside an explicit transaction.
+
+The local ARM64 NativeAOT 2,000-row chain proxy reduced allocation with 200 catalog tables from
+158,395 to 7,724 bytes per deleted row (minimum of three warmed rounds). Discovery depends on
+reached tables and catalog definitions rather than deleted row count. This is a local measurement,
+not the deferred benchmark gate. The historical Q8 ILC allocation attribution remains unproven;
+#1374 retired that superseded comparison rather than establishing an inlining cause.
 
 ## `Application` composition (Phase 29)
 
@@ -1134,6 +1178,9 @@ intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| COHSQLE043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
+| COHSQLE044 | Individual contended lock wait expired | 55P03 |
+| COHSQLT006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
 | COHSQLE042 | Encoded row or write/build index key exceeds its limit | 54000 |
 | COHDBS003 | Storage or attached-index corruption | XX001 |
 | COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
@@ -1523,7 +1570,50 @@ residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Fo
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
+## Terminal errors and drain
+
+Terminal shared Error delivery starts one ShutdownDrainTimeout deadline before the write. The
+server writes and flushes the complete frame, completes connection Output, then consumes peer input
+until peer close, TerminalDrainLinger or the outer deadline. The default drain budget is 30 seconds;
+linger defaults to two seconds and starts after output completion. Capacity refusals use the same
+sequence without creating a session, and are registered before I/O so Stop joins their cleanup.
+Soft stop allows its terminal notice to drain, including a stop racing the final Ready flush.
+
+Hard abort or outer expiry aborts blocked transport I/O. Teardown joins pending I/O and detaches
+callbacks before disposing token sources, the transport and engine session. Every resource release
+is attempted even when an earlier disposal fails. Final cleanup is joined without another timeout:
+a transport/execution that ignores abort can delay Stop. ShutdownDrainTimeout bounds graceful work;
+it does not abandon resources still owned by pending I/O. An unread idle pooled peer releases its
+server slot after linger rather than occupying the whole outer budget.
+
+Both ShutdownDrainTimeout and TerminalDrainLinger must be greater than zero and at most
+4,294,967,294 milliseconds. Infinite values are refused with ArgumentOutOfRangeException at server
+construction. Setters store values and creation snapshots them. A disposed input reader during
+drain counts as transport closure. TLS terminal delivery remains a known gap (#1086): completing
+the TLS output does not complete its inner TCP output, so a fatal frame can still be lost.
+
+See [SqlDatabaseServerOptions](sql-database-server-options.md) for signatures and configuration.
+
+### Terminal drain diagnostics
+
+Provider `Assimalign.Cohesion.Database.Sql` reports terminal-session deadline aborts:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 26 | TerminalDrainTimedOut | Warning | sessionId, drainTimeoutMilliseconds, suppressedCount |
+
+Warnings are limited to one per second per provider; the next emitted warning carries the number
+suppressed. The process-wide total-terminal-drain-timeouts polling counter counts every terminal
+session deadline that wins the abort transition, even with events disabled or warnings suppressed.
+Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
+have no session and do not increment this session counter. This warning adds no diagnostic code
+or SQLSTATE.
+
 ## Sources
+
+- **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlServerDrainTests.cs`, `SqlServerRejectionDrainTests.cs`, `SqlServerRejectionSetupTests.cs` and `SqlTerminalDrainEventTests.cs` in the same directory.
+
+- **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDeferredProvisioningTests.ProgramLimits.cs`.

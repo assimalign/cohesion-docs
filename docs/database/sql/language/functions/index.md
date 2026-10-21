@@ -9,6 +9,12 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 - **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG, with DISTINCT/ALL and ordered inputs.
 - **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.
 
+## SQL-defined functions
+
+[CREATE FUNCTION](../statements/create-function.md) persists an expression body;
+[DROP FUNCTION](../statements/drop-function.md) removes an unused overload. Committed definition DDL
+finishes mandatory refresh and reports success despite late cancellation or timeout expiration.
+
 ## Scope
 
 The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not

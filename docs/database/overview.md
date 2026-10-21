@@ -205,6 +205,15 @@ chains are reclaimable even after a torn write or missing checksum; ordinary Fre
 still require full verification. Newly initialized anchors have journal repair images. See
 [checkpoint recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoints).
 
+### Header read fallback
+
+Storage reads page 0 in independent 4 KiB halves. After a read error it accepts the other valid
+slot only when the retained journal proves coverage, before replay writes. Every accepted fallback
+emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
+survivor with no valid slot is COHDBS003 corruption; two wholly unreadable halves retain I/O.
+See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
+The journal-size checkpoint setting remains a soft trigger; the hard bound is deferred.
+
 ## Engine failure diagnostics
 
 Engine boundaries translate storage and index failures into area exceptions with structured
@@ -216,7 +225,7 @@ resources and publishes no database, permitting retry once the condition is reso
 
 | Model | Storage/I/O | Catalog/index | Additional failure codes |
 | --- | --- | --- | --- |
-| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit |
+| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLT006: changed-target retry |
 | Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
 | Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
 | Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |
@@ -322,6 +331,15 @@ plan shape without executing data statements. DocumentClient serves OQL and docu
 operations; GraphPathResult exposes warnings at path completion. Graph additionally negotiates
 [graph.composite-values](graph/language/expressions/list-values.md#limits-and-wire-capability)
 for bounded list/map parameters and results, without changing Path payloads.
+
+### Terminal delivery
+
+All five servers drain complete terminal Errors/capacity refusals under ShutdownDrainTimeout.
+TerminalDrainLinger defaults to two seconds after output completion so an unread pooled peer does
+not occupy a session slot for the whole outer budget. Drain/linger must be positive, finite and
+within 4,294,967,294 milliseconds. Clients consume queued terminal errors before new requests.
+[Protocol](../dotnet-apis/resources/database/assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes)
+describes warning counters, final cleanup joining and the remaining TLS delivery gap (#1086).
 
 ## MVP boundaries
 

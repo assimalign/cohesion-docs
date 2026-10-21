@@ -81,6 +81,16 @@ as these eight payload bytes, excluding the frame header:
 - **[Operand types](operand-types.md)** — binding restrictions.
 - **[Diagnostics](diagnostics.md)** — stable error codes.
 
+## Terminal errors and close
+
+A terminal shared Error or capacity refusal is written/flushed completely and connection Output
+completed before disposal. One ShutdownDrainTimeout budget covers that work and peer-input drain;
+TerminalDrainLinger bounds peer close after output completion (two seconds by default). Deadlines
+abort blocked I/O, which cleanup joins. Each frame is one complete Stream write; a stream may
+flush on write. Clients consume a queued terminal Error before the next request and discard the
+connector. TLS terminal delivery remains a known gap (#1086). See
+[shared close contract](../../dotnet-apis/resources/database/assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
 ## Sources
 
 - **Wire contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/WIRE-PROTOCOL.md`.

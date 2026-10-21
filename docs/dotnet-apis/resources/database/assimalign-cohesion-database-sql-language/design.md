@@ -268,6 +268,14 @@ alternatives receive COHDBL001. Binding owns unique-index selection (COHSQLE035,
 effects use COHSQLE036 (21000). See [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 for EXCLUDED scope, constraints, isolation and retries.
 
+Server-side statement and individual lock-wait deadlines use COHSQLE043 / SQLSTATE 57014
+and COHSQLE044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
+transaction after statement rollback; earlier grants and upgrades remain, and new resources are
+released after undo. COHSQLT006 has no assigned SQLSTATE and means the bound target changed during
+lock preparation: retry in a fresh transaction. SQLSTATE remains a reference mapping on the wire.
+See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
+
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`.

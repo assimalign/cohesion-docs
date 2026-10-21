@@ -27,7 +27,16 @@ See the [streaming contract](index.md) and [design](design.md) .
 - **Design** — [Lifetime and implementation decisions](design.md).
 - **Examples** — [Source-backed usage](examples/index.md).
 
+## Terminal errors
+
+A queued shared terminal Error is consumed before the next request writes, including after
+transport close. Code retains the peer's category and the connector is discarded. A clean handshake
+EOF uses Internal with a startup-specific message; unexpected/malformed terminal frames use
+ProtocolViolation. See [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors).
+
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/Assembly/Assimalign.Cohesion.Database.Blob.Client/OVERVIEW.md`.
+- **Terminal conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BlobClientTerminalErrorTests.cs`.
+
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/src/Exceptions/BlobClientException.cs`.

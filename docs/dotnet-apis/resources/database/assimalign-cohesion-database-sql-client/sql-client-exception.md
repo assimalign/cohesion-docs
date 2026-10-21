@@ -95,7 +95,24 @@ instead require [whole-transaction rollback and retry](../../../../database/sql/
 
 [Assembly](index.md) · [DatabaseException](../assimalign-cohesion-database/database-exception.md) · [SQL diagnostics](../../../../database/sql/language/diagnostics.md)
 
+Server-side statement and individual lock-wait deadlines use COHSQLE043 / SQLSTATE 57014
+and COHSQLE044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
+transaction after statement rollback; earlier grants and upgrades remain, and new resources are
+released after undo. COHSQLT006 has no assigned SQLSTATE and means the bound target changed during
+lock preparation: retry in a fresh transaction. SQLSTATE remains a reference mapping on the wire.
+See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
+
+
+## Terminal errors
+
+A queued shared terminal Error is consumed before the next request writes, including after
+transport close. Code retains the peer's category and the connector is discarded. A clean handshake
+EOF uses Internal with a startup-specific message; unexpected/malformed terminal frames use
+ProtocolViolation. See [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors).
+
 ## Sources
+
+- **Terminal conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalErrorTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/Exceptions/SqlClientException.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlWireDiagnosticTests.cs`.

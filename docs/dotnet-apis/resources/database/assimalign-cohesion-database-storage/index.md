@@ -6,6 +6,10 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 
 ## Reference pages
 
+- **[Page](page.md)** — Bounded caller-memory spans and reserved overflow geometry.
+- **[StorageTransactionException](storage-transaction-exception.md)** — Machine-readable foreign-storage refusal.
+- **[StorageTransactionErrorCode](storage-transaction-error-code.md)** — Unspecified and ForeignStorage reasons.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
 - **[StoragePageLatch](storage-page-latch.md)** — Shared/exclusive structure holds and cancellable read acquisition.
@@ -25,7 +29,8 @@ components of their engine assemblies, with their existing namespaces.
   directory entries.
 - **Buffer pool** — Internal pin/unpin caching over a `StorageStream`;
   checksum stamped on write-back, verified on load.
-- **Page management** — `StoragePageManager` allocation/free/retrieval/flush;
+- **Page management** — transactional allocation through `Storage.AllocatePageForWrite`, retrieval/flush
+  through `StoragePageManager`; raw AllocatePage/FreePage are internal;
   `StorageFreeSpaceMap` allocation tracking, rebuilt from verified page bytes on open.
 - **Records** — `Storage` abstract base with insert/read/update/delete over slotted
   pages and `StorageUnitIterator` full scans.
@@ -40,6 +45,11 @@ There is no upgrade path from older formats. See [format and recovery](design.md
 and [checkpoint anchors](design.md#checkpoints) for power-interruption handling. Readers can
 begin, pin cached pages and end during checkpoint flush I/O; writers still wait through the
 checkpoint. The latency probe is opt-in with COHESION_DB_PROBES=1 and sets no timing threshold.
+
+Page-0 reads can recover from either 4 KiB half only with verified journal coverage after a read
+error. Each accepted fallback emits HeaderReadFallback (Warning 18). Missing coverage refuses
+open as I/O; a damaged readable survivor with no valid slot is COHDBS003. See
+[recovery](design.md#page-0-and-alternating-headers) and [EventSource](design.md#storage-eventsource).
 
 ## Dependencies
 

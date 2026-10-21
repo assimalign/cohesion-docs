@@ -12,6 +12,7 @@ public sealed class LockManager
     public static LockManager Create();
     public ValueTask AcquireAsync(TransactionSequence owner, LockResource resource,
         LockMode mode, CancellationToken cancellationToken = default);
+    public IDisposable EnterLockTimeout(TimeSpan timeout);
     public bool TryAcquire(TransactionSequence owner, LockResource resource, LockMode mode);
     public LockStatementMark MarkStatement(TransactionSequence owner);
     public void ReleaseSince(LockStatementMark mark);
@@ -46,9 +47,9 @@ upgrades acquired later; it never downgrades an earlier resource. Re-granting a 
 not make it survive release. An abandoned writer keeps all grants until deferred undo completes.
 The method throws ArgumentException for a default mark or one created by another manager.
 
-Use a mark within the same transaction lifetime, with no writes applied since the mark and no
-pending lock requests when releasing. ReleaseSince is available in engine mode for unwritten
-arbitration; it does not undo written data or replace transaction rollback.
+Use a mark within the same transaction lifetime, with no surviving writes since the mark and no
+pending lock requests when releasing. A failed physical statement bracket must be fully restored
+before release. ReleaseSince performs no undo and does not replace transaction rollback.
 
 SQL [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries)
 uses a retry mark to release new keys/rows before waiting for a contended row. After AcquireAsync
@@ -57,6 +58,40 @@ by successful waits stay locked until transaction end. A separate original state
 preparation failures release all new grants, including retained waited rows, while earlier grants
 and upgrades survive. Once apply begins, ordinary transaction-duration locking applies.
 Opposite multi-row key/row orders can still deadlock; the victim retries its entire transaction.
+
+### Per-wait timeouts
+
+EnterLockTimeout sets a flow-local budget until its IDisposable scope is disposed on the entering
+flow, in reverse nesting order. Zero disables it; nested scopes restore the prior value and
+concurrent flows remain independent. Negative values or values above int.MaxValue milliseconds
+throw ArgumentOutOfRangeException. Direct and nested unique-index requests observe the scope in
+standalone and engine modes. Uncontended grants allocate no timer; each queued wait gets a fresh
+budget. TryAcquire remains nonwaiting.
+
+Expiration removes the pending request and throws
+[TransactionLockTimeoutException](transaction-lock-timeout-exception.md), leaving existing grants
+and the owner active. The caller owns rollback/release. Queue removal fixes the exception and
+LockWaitStop outcome (Timeout); caller cancellation uses Cancelled, while grant, owner end, deadlock
+and storage abandonment retain their own outcomes. A late cancellation cannot replace a dequeued
+grant awaiting notification. No lock wait is allowed inside the coordinator apply gate.
+
+Adapted from LockTimeoutTests:
+
+```csharp
+var timedLocks = LockManager.Create();
+var holder = new TransactionSequence(1);
+var waiter = new TransactionSequence(2);
+var row = LockResource.Entry(7, 7);
+timedLocks.TryAcquire(holder, row, LockMode.Exclusive);
+using (timedLocks.EnterLockTimeout(TimeSpan.FromMilliseconds(30))) {
+    try { await timedLocks.AcquireAsync(waiter, row, LockMode.Exclusive); }
+    catch (TransactionLockTimeoutException) { Console.WriteLine("Wait timed out"); }
+}
+timedLocks.ReleaseAll(holder);
+Console.WriteLine(timedLocks.TryAcquire(waiter, row, LockMode.Exclusive)); // True
+timedLocks.ReleaseAll(waiter);
+```
+
 
 ## Example
 
@@ -89,6 +124,8 @@ locks.ReleaseAll(owner);
 [Assembly](index.md) · [Design](design.md#unwritten-statement-marks) · [LockStatementMark](lock-statement-mark.md) · [Examples](examples/index.md)
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/LockTimeoutTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/LockManager.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/LockStatementMarkTests.cs`.

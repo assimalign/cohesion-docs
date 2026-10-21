@@ -502,7 +502,48 @@ await foreach (var entry in database.ScanAsync(session,
 }
 ```
 
+## Terminal errors and drain
+
+Terminal shared Error delivery starts one ShutdownDrainTimeout deadline before the write. The
+server writes and flushes the complete frame, completes connection Output, then consumes peer input
+until peer close, TerminalDrainLinger or the outer deadline. The default drain budget is 30 seconds;
+linger defaults to two seconds and starts after output completion. Capacity refusals use the same
+sequence without creating a session, and are registered before I/O so Stop joins their cleanup.
+Soft stop allows its terminal notice to drain, including a stop racing the final Ready flush.
+
+Hard abort or outer expiry aborts blocked transport I/O. Teardown joins pending I/O and detaches
+callbacks before disposing token sources, the transport and engine session. Every resource release
+is attempted even when an earlier disposal fails. Final cleanup is joined without another timeout:
+a transport/execution that ignores abort can delay Stop. ShutdownDrainTimeout bounds graceful work;
+it does not abandon resources still owned by pending I/O. An unread idle pooled peer releases its
+server slot after linger rather than occupying the whole outer budget.
+
+Both ShutdownDrainTimeout and TerminalDrainLinger must be greater than zero and at most
+4,294,967,294 milliseconds. Infinite values are refused with ArgumentOutOfRangeException at server
+construction. Setters store values and creation snapshots them. A disposed input reader during
+drain counts as transport closure. TLS terminal delivery remains a known gap (#1086): completing
+the TLS output does not complete its inner TCP output, so a fatal frame can still be lost.
+
+See [KeyValueDatabaseServerOptions](key-value-database-server-options.md) for signatures and configuration.
+
+### Terminal drain diagnostics
+
+Provider `Assimalign.Cohesion.Database.KeyValuePair` reports terminal-session deadline aborts:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 12 | TerminalDrainTimedOut | Warning | sessionId, drainTimeoutMilliseconds, suppressedCount |
+
+Warnings are limited to one per second per provider; the next emitted warning carries the number
+suppressed. The process-wide total-terminal-drain-timeouts polling counter counts every terminal
+session deadline that wins the abort transition, even with events disabled or warnings suppressed.
+Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
+have no session and do not increment this session counter. This warning adds no diagnostic code
+or SQLSTATE.
+
 ## Sources
+
+- **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueServerDrainTests.cs`, `KeyValueServerRejectionDrainTests.cs`, `KeyValueServerRejectionSetupTests.cs` and `KeyValueTerminalDrainEventTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueCommitCancellationTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueInterruptedCreationTests.cs`.

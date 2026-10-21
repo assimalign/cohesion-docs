@@ -87,6 +87,19 @@ UPDATE large_rows SET value = @value WHERE id = 1;
 
 It fails with COHSQLE042; the row remains `(1, 'old')`, as in SqlProgramLimitConformanceTests.
 
+## Lock waits and time limits
+
+Foreign-key preparation reuses one [statement reference graph](../constraints.md#foreign-key-preparation-and-concurrent-ddl)
+and bound key projections rather than rediscovering references per row. Adjacent definition changes
+during an object-lock wait rebuild before reads. A changed target reports COHSQLT006 (no assigned
+SQLSTATE); roll back an explicit transaction and retry in a fresh transaction.
+
+[Statement timeout](../diagnostics.md#statement-and-lock-timeouts) reports COHSQLE043 (57014);
+an individual lock-wait timeout reports COHSQLE044 (55P03). Failure restores the whole statement,
+including child actions, releases its new resources and leaves earlier transaction work usable.
+There is no cascade deletion-count ceiling; a configured execution deadline can bound its duration.
+
+
 ## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
@@ -123,6 +136,8 @@ is changed once, even though its replacement key still lies in the sought range.
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.

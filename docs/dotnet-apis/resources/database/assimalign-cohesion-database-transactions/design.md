@@ -108,7 +108,7 @@ ReleaseSince(mark) removes resources first granted after that boundary and wakes
 queues without ending the owner. Re-grants and upgrades retain the resource's first grant stamp,
 so earlier resources keep every mode, including upgrades taken after the mark. Default/foreign
 marks throw ArgumentException. Callers serialize requests within an owner, release with no pending
-requests and no writes since the mark, and use marks within one transaction lifetime. An abandoned
+requests and no surviving writes since the mark, and use marks within one transaction lifetime. An abandoned
 writer retains its grants until deferred undo completes.
 
 SQL [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries)
@@ -125,6 +125,21 @@ a committed changed row; ReadCommitted re-arbitrates; rollback undoes stamps bef
 Two multi-row upserts reaching keys or retained rows in opposite orders can still deadlock, as in
 PostgreSQL; the victim must roll back/retry its complete transaction. Locks from earlier transaction
 work can also participate in cycles.
+
+### Per-wait timeout scopes
+
+[LockManager.EnterLockTimeout](lock-manager.md#per-wait-timeouts) sets a flow-local duration, restoring
+the previous value on disposal. Zero disables; durations above int.MaxValue milliseconds or below
+zero are refused. Only a contended request arms a timer, with a fresh budget for each wait.
+TransactionLockTimeoutException leaves the owner and prior grants active; SQL translates it to
+COHSQLE044 / 55P03. ReleaseSince can release new resources after a failed physical bracket has
+fully rolled back; it performs no undo itself. Offline/abandoned writers retain recovery locks.
+
+LockWaitStop (Verbose event 8) reports Timeout for the individual lock timer and Cancelled for
+caller/statement-token cancellation. Granted, Ended, Deadlock and Abandoned retain their meanings.
+The cause that removes a queued waiter fixes its exception/event even if another deadline expires
+before the continuation runs. Registrations and timers are disposed outside the lock-table monitor.
+
 
 ## Commit and cancellation
 
