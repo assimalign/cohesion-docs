@@ -79,6 +79,20 @@ refuses primary-key columns (SQL0003). SET/DROP DEFAULT and DROP NOT NULL refuse
 
 ### Added columns and publication
 
+ADD CONSTRAINT and ADD COLUMN validation stream current live rows under the table's Exclusive
+lock, retaining only the current decoded row instead of materializing the table. Referenced
+parent tables are also locked for foreign-key validation. Provisioning progress can require a
+preliminary count pass. Validation memory does not grow with the table's row count; this does
+not make the ALTER an online operation or remove the work of scanning existing rows.
+
+PRIMARY KEY/UNIQUE backing indexes validate the completed tree in bounded key batches before
+publication. Only current live keys participate in duplicate checks; historical entries remain
+available to older snapshots. A duplicate reports COHSQLE037 (23505). Construction checks the
+encoded key limit first, so COHSQLE042 (54000) can precede a duplicate encountered earlier in
+storage order. A validation failure or cancellation before publication removes unpublished
+indexes and leaves the old schema, constraints and rows intact; another request can retry.
+See [unique-index builds](create-index.md#building-over-existing-data).
+
 ADD CONSTRAINT rejects repeated PRIMARY KEY, UNIQUE or FOREIGN KEY columns, including the
 referenced list, with `COHSQLE019`. ADD CONSTRAINT or ADD COLUMN cannot declare a second primary
 key over an existing one; repeated PRIMARY KEY clauses on a single added column also fail with
@@ -150,6 +164,7 @@ COHSQLD002. Default and nullability changes retain their usual validation.
 | `COHSQLE037` | Existing/defaulted rows violate a new PRIMARY KEY, UNIQUE constraint or unique index | 23505 |
 | `COHSQLE038` | Existing/defaulted rows violate a CHECK or domain check | 23514 |
 | `COHSQLE039` | Existing/defaulted rows lack a referenced foreign-key parent | 23503 |
+| `COHSQLE042` | An existing/defaulted index key exceeds 1,024 encoded bytes during a backing build | 54000 |
 | `COHSQLD002` | Declared script retains a dependent target for a table rename | — |
 | `COHSQLT003` | DDL inside an explicit transaction; the transaction remains usable | — |
 
@@ -178,6 +193,23 @@ requests fails with COHSQLE019 and leaves keyed unchanged:
 ALTER TABLE keyed ADD COLUMN other INT PRIMARY KEY;
 ALTER TABLE keyed ADD CONSTRAINT uq_bad UNIQUE(id, ID);
 ```
+
+### Retry a refused constraint
+
+Execute each statement separately in a fresh database:
+
+```sql
+CREATE TABLE existing_keys (id INT);
+INSERT INTO existing_keys VALUES (1), (1), (2);
+ALTER TABLE existing_keys ADD CONSTRAINT uq_id UNIQUE(id);
+SELECT id FROM existing_keys ORDER BY id;
+DELETE FROM existing_keys WHERE id = 1;
+ALTER TABLE existing_keys ADD CONSTRAINT uq_id UNIQUE(id);
+```
+
+The first ALTER fails with COHSQLE037 (23505) and publishes no constraint or index. SELECT still
+returns 1, 1, 2. DELETE removes both 1 rows, and the retried ALTER succeeds with affected count
+zero. A later duplicate 2 is refused. NULL key components still compare equal for uniqueness.
 
 ### Change an insert default without changing old missing fields
 
@@ -223,6 +255,7 @@ upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 
+- **Bounded validation and retry** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

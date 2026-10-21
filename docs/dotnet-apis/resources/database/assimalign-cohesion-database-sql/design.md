@@ -588,6 +588,16 @@ binds them.
   TABLE drops its indexes' metadata/registrations atomically with the table
   record and DROP COLUMN on an indexed column is rejected (drop the index
   first — entries key on the column's values).
+- **Bounded validation.** CREATE UNIQUE INDEX, deferred builds and PRIMARY KEY/UNIQUE backing
+  indexes walk the completed tree in cursor batches of at most 64 keys, retaining one previous
+  key instead of a table-sized set. The table's Exclusive lock stays held through validation and
+  publication. Duplicate checks use latest live state; historical entries remain for snapshots.
+  Build buffers retain their separate pool and spillable pre-image budgets. Construction can fail
+  on an oversized key before checking duplicates; inline CREATE UNIQUE INDEX selects the smallest
+  duplicated live key in encoded order. ADD CONSTRAINT and ADD COLUMN row validation retain only
+  the current decoded row, with a preliminary count pass when provisioning needs progress totals.
+  Pre-publication failures remove unpublished trees and preserve the old schema. See
+  [DDL behavior and retry](../../../../database/sql/language/statements/alter-table.md#added-columns-and-publication).
 - **`Write`-path maintenance mirrors the row-version discipline exactly.** INSERT
   adds entries stamped with the writer's sequence; DELETE stamps entry deleters
   (tombstones — old snapshots keep seeing them); UPDATE tombstones the
@@ -1656,6 +1666,7 @@ or SQLSTATE.
 
 ## Sources
 
+- **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlServerDrainTests.cs`, `SqlServerRejectionDrainTests.cs`, `SqlServerRejectionSetupTests.cs` and `SqlTerminalDrainEventTests.cs` in the same directory.
 
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.

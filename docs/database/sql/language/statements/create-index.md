@@ -37,11 +37,32 @@ without key values; a failed build leaves the index unpublished. See [Diagnostic
 
 Index DDL is self-committing and is rejected inside an explicit transaction with `COHSQLT003`.
 
+### Building over existing data
+
+The build holds the table's Exclusive lock through construction, validation and publication;
+concurrent writers wait. It includes stored historical versions so older snapshots can use the
+index, but checks uniqueness against current live keys even if a writer committed after the
+DDL captured its initial snapshot. Deleted history does not cause false duplicate failures.
+
+Unique builds construct the whole tree, then compare adjacent live keys in bounded cursor
+batches, retaining one previous key. Duplicate-detection memory is independent of row count;
+the build uses the existing buffer-pool and spillable pre-image budgets separately. The extra
+tree pass delays duplicate detection until construction finishes. Inline builds, deferred
+provisioning builds and PRIMARY KEY/UNIQUE backing indexes use this validation.
+
+An inline CREATE UNIQUE INDEX reports the smallest duplicated live key in encoded index order,
+rather than the first duplicate in storage order. Its in-process exception's safe scalar
+OffendingValue, when available, follows that key; messages and wire diagnostics omit key values.
+A duplicate, cancellation or storage failure before publication cleans up the unpublished tree
+and registration. After fixing the cause, the same index name can be retried.
+
 Unique and nonunique builds enforce the same **1,024-byte encoded key limit** as later writes.
 The count includes NULL markers, component delimiters and collation transforms. A key of exactly
 1,024 bytes is accepted; a larger key reports `COHSQLE042` / SQLSTATE 54000, leaves the index
 unpublished and cleans up the unpublished tree. The table and connection remain usable. Historical
 versions are included in construction. See [size limits](../diagnostics.md#row-and-index-key-limits).
+Because construction precedes duplicate validation, COHSQLE042 can take precedence over a
+COHSQLE037 duplicate that occurs earlier in storage order.
 
 ## Examples
 
@@ -65,6 +86,18 @@ SELECT id FROM wide_keys;
 
 CREATE INDEX fails with COHSQLE042; SELECT returns `1`, and no index is published.
 
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE duplicate_keys (a INT, b INT);
+INSERT INTO duplicate_keys VALUES (1, NULL), (2, NULL), (1, NULL);
+CREATE UNIQUE INDEX ix_ab ON duplicate_keys(a, b);
+SELECT a, b FROM duplicate_keys ORDER BY a;
+```
+
+The build fails with COHSQLE037 (23505) because the two (1, NULL) keys compare equal. No index
+is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING key value.
+
 ## See also
 
 [DROP INDEX](drop-index.md) · [COLLATE](../clauses/collate.md) · [JOIN](../clauses/join.md)
@@ -73,6 +106,7 @@ CREATE INDEX fails with COHSQLE042; SELECT returns `1`, and no index is publishe
 
 ## Sources
 
+- **Bounded builds, history and failure cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
