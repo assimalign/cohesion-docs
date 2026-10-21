@@ -47,20 +47,22 @@ engine server depends only on transport abstractions. These are reference direct
 
 ```mermaid
 flowchart LR
-    Client["Database.Blob.Client"] --> Blob["Database.Blob"]
+    Client["Database.Blob.Client"] --> Wire["Database.Blob.Protocol"]
+    Blob["Database.Blob"] --> Wire
     Client --> SharedClient["Database.Client"]
     Blob --> Protocol["Database.Protocol"]
     SharedClient --> Protocol
     Blob --> Connections["Connections"]
-    Blob --> Catalog["Database.Blob.Catalog"]
-    Blob --> Storage["Database.Blob.Storage"]
+    Blob --> Catalog["Blob Catalog component"]
+    Blob --> Storage["Blob Storage component"]
     Blob --> Transactions["Database.Transactions"]
 ```
 
-| Package | Responsibility |
+| Component or package | Responsibility |
 | --- | --- |
-| `Assimalign.Cohesion.Database.Blob` | `Database`/session/container lifetimes, ownership, publication, Blob wire family and server |
+| `Assimalign.Cohesion.Database.Blob` | `Database`/session/container lifetimes, ownership, publication and wire server |
 | `Assimalign.Cohesion.Database.Blob.Client` | Typed streaming operations over shared connection exchanges |
+| `Assimalign.Cohesion.Database.Blob.Protocol` | Shared Blob message family, codecs and transferred values |
 | `Assimalign.Cohesion.Connections` | Generic connection and listener contracts; no concrete transport |
 | `Assimalign.Cohesion.Database.Protocol` | Shared framing, handshake, versioning, errors and family-bound channels |
 | Catalog component in `Database.Blob` | Metadata versions, directory and ordered listings |

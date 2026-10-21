@@ -11,8 +11,8 @@ The model-agnostic security contracts of the Data Platform: who a connection is 
 
 The model-agnostic security contracts of the Data Platform: who a connection is
 (`IDatabaseAuthenticator`) and what a principal may do (`IAuthorizationService`). Model-specific
-security features (SQL grants, document-collection ACLs, …) live in the per-model `*.Security`
-satellites and build on these seams.
+security features (SQL grants, document-collection ACLs, …) remain future concerns within each
+engine assembly and build on these seams. The empty model Security satellites have been removed.
 
 ## Scope
 
@@ -30,7 +30,7 @@ None — a leaf contract project.
 ## Consumers
 
 The server runtime in `Database.Hosting` drives `IDatabaseAuthenticator` from its session handshake;
-engines and model security packages consume `IAuthorizationService` as the authorization surface
+engines consume `IAuthorizationService` as the authorization surface
 matures.
 
 See [DESIGN.md](design.md) for the seam decisions and the MVP posture.

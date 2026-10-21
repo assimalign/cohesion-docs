@@ -59,10 +59,10 @@ values. `SqlConnection` projects this result into `SqlResultSet`.
 `DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and baseline model wire
 behavior are unchanged.
 
-The model reference supplies codecs without parsing SQL or inspecting plans. Its transitive assembly
-closure is an accepted packaging consequence; a dedicated model protocol assembly can be a future
-refinement. The model's [design](../assimalign-cohesion-database-sql/design.md) defines wire
-ownership.
+Database.Sql.Protocol supplies codecs without parsing SQL or inspecting plans. Engine and client
+consume that contract assembly independently; the client's dependency closure contains no SQL
+engine, catalog or storage implementation. The model's
+[design](../assimalign-cohesion-database-sql/design.md) defines wire ownership.
 
 ## Typed projection
 

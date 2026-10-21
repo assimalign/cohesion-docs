@@ -34,7 +34,7 @@ flowchart LR
 | --- | --- |
 | `Database.KeyValuePair.Client` | Command/result policy and materialization |
 | `Database.Client` | Pooling, handshake, framed exchange lifetime |
-| `Database.KeyValuePair` | Family identifiers and payload codecs |
+| `Database.KeyValuePair.Protocol` | Family identifiers and payload codecs |
 | `Database.Protocol` | Shared framing and immutable family binding |
 
 ## Wire ownership
@@ -46,9 +46,9 @@ private result to the typed connection. The model's command specification
 command grammar and operation result shapes. Protocol 2.1 negotiates shared startup, with unchanged baseline model payloads. Key-Value
 agrees no Diagnostics capability and retains COHKV001–019 in Error text.
 
-The model assembly reference supplies codecs; this client does not construct an engine or parse
-commands. The transitive closure is an accepted packaging consequence. A separate model protocol
-assembly can be considered later.
+Database.KeyValuePair.Protocol supplies codecs independently of the engine. The client references
+that contract assembly and shared client infrastructure; its dependency closure contains no
+engine, catalog or storage implementation.
 
 Keys and values remain byte-oriented and use `DatabaseValueCodec` binary components. Typed
 serialization belongs to consumers; public client entry/range types remain independent from engine
