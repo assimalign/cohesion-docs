@@ -69,6 +69,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
 | `COHSQLE043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
 | `COHSQLE044` | Individual contended lock wait expired, including unique-index key waits | 55P03 (`lock_not_available`) |
+| `COHSQLE045` | Uncoded result encoding/preparation failure, or an encoded header/row above the wire frame limit; see [result delivery](#result-encoding-and-delivery) | 54000 for size refusals; otherwise — |
 | `COHSQLE042` | Encoded row or index key exceeds its write-size limit; names the table, actual byte size and limit | 54000 (`program_limit_exceeded`) |
 | `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
@@ -148,6 +149,32 @@ including deferred index builds, disable both timers and still observe caller/li
 exposes SqlState in process. The wire uses ExecutionFailure and the existing negotiated diagnostic
 code/span carrier; SQLSTATE is not a new wire field.
 
+
+## Result encoding and delivery
+
+Each encoded result header and each row must fit **16 MiB (16,777,216 bytes)**. Equality is
+accepted. There is no aggregate encoded-result cap. Sizes include encoding and framing payload
+overhead, including UTF-8 bytes and zero escapes; a size refusal reports encoded bytes and the
+frame limit. These are wire payload limits, separate from stored-row and index-key limits below.
+
+Writing statements encode and validate all result frames before commit or explicit-transaction
+statement completion. DML result enumeration and disposal finish inside its undo bracket, including
+INSERT SELECT, ON CONFLICT, UPDATE, DELETE and RETURNING. A result failure rolls back only the
+statement, retaining earlier explicit-transaction work. DDL and transaction control prepare their
+fixed completion before execution or commit. No result frame precedes a write-preparation failure.
+
+Read-only SELECT, EXPLAIN, system views and SHOW encode during delivery after execution has
+materialized the result. A late encoding, enumeration or disposal failure ends the exchange with
+ExecutionFailure, even after partial result frames. The client throws and discards all partial
+columns and rows. Both paths preserve the connection and explicit transaction on result failures.
+Already-coded failures retain their diagnostics; other supported result failures use COHSQLE045.
+SQLSTATE is a reference mapping, not a new wire field or exception property.
+
+Writes retain prepared payloads until delivery; reads retain only the current encoded frame,
+in addition to materialized values. Embedded execution allocates no wire buffers. A transport
+failure during delivery is terminal; a committed write is never reported as an ordinary
+statement failure. See [result exchanges](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-protocol/design.md#statement-results)
+and the [client recovery example](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-connection.md#result-failure-example).
 
 ## Row and index-key limits
 
@@ -299,6 +326,7 @@ TLS delivery remains limited by #1086. See [server options](../../../dotnet-apis
 
 ## Sources
 
+- **Result preparation and wire delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlResultDeliveryConformanceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.

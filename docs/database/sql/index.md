@@ -132,6 +132,14 @@ usable session. Protocol errors close it. There is no pipelining or multiplexing
 Transactions use `BEGIN`, `COMMIT`, and `ROLLBACK` on one connection rather than a separate
 wire transaction payload.
 
+Writing statements prepare all result frames before commit, so an encoding failure rolls back
+only that statement. Reads encode during delivery and can end a partial result with ExecutionFailure;
+the client discards it. Result failures keep the connection and explicit transaction usable.
+COHSQLE045 identifies uncoded encoding/preparation failures and header/row size refusals (54000
+for size refusals). Each header/row fits 16 MiB; there is no aggregate cap. Transport failures
+during delivery are terminal. See [result diagnostics](language/diagnostics.md#result-encoding-and-delivery)
+and [wire exchanges](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-protocol/design.md#statement-results).
+
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL

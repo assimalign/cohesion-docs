@@ -1172,6 +1172,25 @@ share one instant across statements; autocommit statements each capture their ow
 
 ## Error model
 
+### Wire result preparation
+
+Writing statements prepare the result header and every row before commit or explicit EndStatement.
+DML does this inside ApplyStatementAsync, including enumeration and disposal, so preparation
+failure rolls back the statement and preserves earlier transaction work. DDL and transaction
+control prepare their fixed zero-count completion before executing. Prepared payloads are retained
+until delivery without re-encoding. Embedded execution uses no wire preparation buffers.
+
+Read-only SELECT, EXPLAIN, system views and SHOW encode one frame at a time during delivery after
+materialization and statement admission end. A late result failure sends ExecutionFailure even
+after partial frames; the client discards them. Uncoded encoding/preparation failures use
+COHSQLE045; already-coded failures retain their diagnostics. Each header/row fits 16 MiB
+(16,777,216 bytes), with no aggregate result cap. Size refusals map to 54000 and report encoded
+size and limit. Both paths leave the connection and explicit transaction usable on result failures.
+Transport failures remain terminal and cannot turn a committed write into an ordinary statement
+failure. See [wire results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
+
+### Stored rows and execution failures
+
 SQL validates final row and index-key sizes before DML apply. Rows include their MVCC header and
 physical column layout and must fit 8,092 bytes. Every unique/nonunique write key, including
 collation transforms and NULL markers, must fit `BTreeIndex.MaxKeyLength` (1,024 bytes).
@@ -1191,6 +1210,7 @@ intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
 | COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
 | COHSQLE043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
 | COHSQLE044 | Individual contended lock wait expired | 55P03 |
+| COHSQLE045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
 | COHSQLT006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
 | COHSQLE042 | Encoded row or write/build index key exceeds its limit | 54000 |
 | COHDBS003 | Storage or attached-index corruption | XX001 |

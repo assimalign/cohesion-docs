@@ -85,11 +85,11 @@ response leaves the session ready. No evidence means a failed exchange is discar
 return already guarantees a complete response. Framing
 violations, transport failure, and an unfinished response invalidate the connection.
 
-SQL and `Key`-Value reset the signal before each request and set it only after decoding a terminal
-response. Their server implementations send `ParseFailure` and `ExecutionFailure` as complete
-statement responses before any result frames and return to their ready loop; the model exchanges
-certify that initial response phase before throwing the unchanged `DatabaseClientException`. Other
-server errors terminate those sessions. This knowledge belongs to the statement exchange, not to a
+The exchange base resets the completion signal before each request. SQL, Key-Value and Graph set
+it only after decoding a terminal response. Key-Value and Graph certify ParseFailure and
+ExecutionFailure before result frames. SQL also certifies ExecutionFailure after partial result
+frames, discards those buffered results and preserves reuse; ParseFailure after result frames
+does not certify completion. This knowledge belongs to the statement exchange, not to a
 pool-wide list of safe codes. Blob failures do not certify completion: a transfer can leave unread
 frames even when its error code is `ExecutionFailure`. Wire codes and messages reach callers
 unchanged, independently of the health decision.

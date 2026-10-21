@@ -97,6 +97,16 @@ writes.
 original code. The shared pool invalidates incomplete exchanges, including cancellation and decoder
 failure. Completed parse/execution failures keep the connection reusable.
 
+ExecutionFailure also completes an exchange after ResultHeader or ResultRow. The SQL exchange
+discards buffered columns/rows and retains the error and negotiated diagnostics. Writing statements
+prepare all result payloads before commit, inside DML's undo bracket; preparation failure rolls
+back only the statement. Read-only statements encode during delivery and may fail after partial
+frames. Both paths preserve the explicit transaction and connection on result failures.
+Uncoded failures and size refusals use COHSQLE045 (54000 for size refusals). Each header/row fits
+16 MiB, with no aggregate result cap. Writes retain prepared payloads until delivery; reads encode
+one frame at a time alongside materialized values. Transport failure is terminal. ParseFailure
+after result frames also invalidates the rental. See [statement results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
+
 Observers receive synchronous primitive callbacks before execution, on completion, and on failure.
 Observer exceptions are swallowed so telemetry cannot change the command outcome.
 

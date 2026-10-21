@@ -225,7 +225,7 @@ resources and publishes no database, permitting retry once the condition is reso
 
 | Model | Storage/I/O | Catalog/index | Additional failure codes |
 | --- | --- | --- | --- |
-| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLT006: changed-target retry |
+| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLE045 (54000 for size refusals): result encoding or header/row limit; COHSQLT006: changed-target retry |
 | Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
 | Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
 | Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |

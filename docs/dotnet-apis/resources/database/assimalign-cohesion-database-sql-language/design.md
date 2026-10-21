@@ -82,6 +82,14 @@ aggregation/join/set materialization remain. These are engine rules, documented 
 [SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection) and
 [ORDER BY](../../../../database/sql/language/clauses/order-by.md#evaluation-order).
 
+## Result encoding diagnostics
+
+Result encoding uses COHSQLE045 for uncoded preparation failures and header/row size refusals
+(SQLSTATE 54000 for size refusals). Writes prepare before commit and roll back only the failed
+statement; reads encode during delivery and may terminate partial results. The connection and
+explicit transaction remain usable. The 16 MiB limit applies per header/row, with no aggregate cap.
+Parser and AST shapes are unchanged. See [result diagnostics](../../../../database/sql/language/diagnostics.md#result-encoding-and-delivery).
+
 ## Namespace note
 
 Types live in `Assimalign.Cohesion.Database.Sql.Language`, matching the assembly name (the repo
