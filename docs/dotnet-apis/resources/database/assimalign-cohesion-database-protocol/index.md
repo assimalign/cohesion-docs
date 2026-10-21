@@ -26,7 +26,8 @@ their message identifiers and payload codecs.
 - **`ProtocolFrameHeader` / `ProtocolFrame`** — five-byte envelope and payload.
 - **`ProtocolMessageType`** — core handshake, error, liveness, and termination identifiers.
 - **`ProtocolMessageFamily` / `ProtocolChannel`** — immutable endpoint family and validated I/O.
-- **`ProtocolFrameReader` / `ProtocolFrameWriter`** — raw stream Create factories for mechanism and diagnostics.
+- **`ProtocolFrameReader` / `ProtocolFrameWriter`** — raw stream Create factories, optional
+  [borrowed reads and bounded CreateBatched writes](design.md#bounded-batches-and-borrowed-payloads).
 - **`ProtocolPayload`** — big-endian integers and length-prefixed UTF-8 string primitives.
 - **`ProtocolVersion`** — current version 2.1 negotiation.
 - **`ProtocolErrorCode` / `ProtocolException`** — shared error taxonomy and framing failures.
@@ -38,10 +39,14 @@ references it. See [design and wire contract](design.md) .
 
 ## Terminal delivery
 
-Frames cross the Stream boundary in one complete write. All five servers complete Output and drain
+Ordinary writers send each complete frame in one Stream write; opt-in batching coalesces complete
+frames with unchanged bytes. All five servers complete Output and drain
 terminal Errors/capacity refusals under ShutdownDrainTimeout, with a separate bounded peer-close
 linger. Clients consume a queued Error before the next request. See
 [the contract and TLS limitation](design.md#terminal-delivery-and-frame-writes).
+
+[Protocol counters](design.md#protocol-eventsource) measure batched transport attempts and pooled
+buffer ownership, including work before a listener attaches.
 
 ## Sources
 

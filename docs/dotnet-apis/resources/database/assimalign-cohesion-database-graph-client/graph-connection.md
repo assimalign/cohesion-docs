@@ -60,6 +60,11 @@ discards the connection. GraphClientException retains server category and diagno
 rejection before scalar/path output preserves reuse. Early path disposal discards it. Explicit wire
 transactions are unsupported.
 
+Path delivery decodes each frame once and uses a one-slot queue in wire order. Retained paths
+remain valid after later reads and disposal. Fully consuming the stream verifies the terminal
+count and joins the producer; early disposal cancels and joins it before releasing the rental.
+See [path lifetime and counters](design.md#path-lifetime).
+
 Database and the negotiated composite-value flag are captured when the wrapper receives its shared
 lease. Database remains readable after disposal and IsOpen returns false. After a failed or abandoned
 path stream returns that lease, subsequent queries fail as disposed while retaining operation

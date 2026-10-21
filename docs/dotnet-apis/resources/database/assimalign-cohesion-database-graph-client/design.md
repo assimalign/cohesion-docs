@@ -21,10 +21,10 @@ sequenceDiagram
     Server-->>Pool: ResultHeader / ResultRow / ResultComplete
     Pool-->>GraphConnection: GraphResultSet
     App->>GraphConnection: QueryPathsAsync(statement)
-    GraphConnection->>Pool: ExecuteStreamingAsync(GraphPathsExchange)
+    GraphConnection->>Pool: ExecuteAsync(GraphPathsExchange)
     Pool->>Server: ExecutePaths
     Server-->>Pool: Path frames / PathsComplete
-    Pool-->>GraphConnection: bounded Stream
+    Pool-->>GraphConnection: decoded paths through one-slot queue
     GraphConnection-->>App: GraphPath enumeration
 ```
 
@@ -93,22 +93,52 @@ Rows and paths returned without ORDER BY have no guaranteed enumeration order. T
 relationship order within each individual path remains its traversal order. Use ORDER BY when
 the row or path sequence matters, including before paging.
 
-GraphPathsExchange implements IDatabaseStreamingExchange. OpenAsync sends ExecutePaths and
-validates the initial Path or PathsComplete frame. CopyToAsync validates each existing path
-payload and verifies the final path count. Its private stream handoff prefixes each payload
-with its length to preserve boundaries through bounded byte buffering; this is entirely within
-the client and does not alter the graph wire protocol. GraphConnection decodes those same
-payloads into GraphPath values.
+GraphPathsExchange derives from DatabaseProtocolExchange<bool>. One producer owns frame I/O
+under shared exchange admission. It decodes each Path once inside a borrowed-read callback when
+supported, then returns the pooled payload before handing the owned GraphPath to a one-slot
+bounded channel. Readers without borrowed-payload support use owned frames. There is no private
+byte-stream handoff or second decode. Wire payloads and path order are unchanged.
 
-The shared ExecuteStreamingAsync owns frame I/O, applies backpressure, and keeps the connection
-busy through completion. Consuming EOF verifies terminal completion before another operation.
-Disposing an unfinished enumeration cancels the worker and discards the rental. A terminal refusal before any path output is consumed as a complete rejection and preserves
-the session. The model wrapper throws GraphClientException after the shared worker reaches EOF.
-Transport errors, malformed output and unfinished cancellation/disposal discard the connection.
+The producer waits for queue space before reading the next frame, so a terminal error cannot
+overtake a queued path. EOF joins the worker after PathsComplete's count is verified and
+exchange admission is released. A ParseFailure or ExecutionFailure before any path output
+certifies a complete rejected statement and preserves the healthy rental and diagnostics.
+Later errors, malformed frames, count mismatches, truncation and cancellation discard it.
+An unfinished enumeration cancels and joins the producer before clearing pending values and
+disposing cancellation state. Cleanup preserves the original failure; a secondary rental-return
+failure emits PathReleaseFailed with its exception type only.
 
-The client holds a bounded number of path payloads for materialization plus the shared bounded
-byte buffer. The engine currently materializes its path result, so end-to-end server memory still
-depends on the number of matched paths. A single path must fit the existing maximum frame size.
+No lease or pool lock is held during queue waits, cancellation callbacks or transport I/O.
+The client retains one queued path plus the consumer's current path. Decoded paths own their
+values and survive later reads, pooled-buffer reuse and disposal. The engine still materializes
+its result, so server memory depends on matched paths. Each path retains the 16 MiB payload
+bound; there is no aggregate wire cap or entity deduplication.
+
+### Path performance and diagnostics
+
+The twenty-path TCP allocation regression checks the retained result digest and exactly one
+decode per path against a pre-change allocation budget. It measures both ends of the fixture;
+it is not a throughput or latency guarantee. Server execution/encoding/send counters and
+[protocol transport counters](../assimalign-cohesion-database-protocol/design.md#protocol-eventsource)
+separate that work from client decoding and queue backpressure.
+
+Provider `Assimalign.Cohesion.Database.Graph.Client` adds these events:
+
+| Id | Event | Level / keyword | Payload |
+| --- | --- | --- | --- |
+| 4 | PathReleaseFailed | Error | exceptionType |
+| 5 | PathDecodeCompleted | Verbose / Queries | durationMilliseconds |
+
+Its cumulative polling counters are maintained even before a listener attaches:
+
+| Counter | Meaning |
+| --- | --- |
+| path-decode-calls | Attempted Path decodes, including failed attempts |
+| path-decode-milliseconds | Total elapsed time in those decode attempts |
+| path-backpressure-waits | Queue-space waits that did not complete synchronously |
+
+Event 5 closes each attempted decode. No event payload includes statement text, parameters or
+graph values. See [server phase counters](../assimalign-cohesion-database-graph/design.md#path-performance-counters).
 
 ## Parameters and completion diagnostics
 
@@ -236,6 +266,8 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 ## Sources
 
+- **Path ownership, order and allocation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphPathAllocationTests.cs` and `GraphClientFailureTests.cs` in the same directory.
+- **Path events and counters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Internal/EventSource/GraphClientEventSource.cs`.
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 

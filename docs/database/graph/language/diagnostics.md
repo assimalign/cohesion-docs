@@ -206,6 +206,26 @@ explicit transaction until rollback. Wire ExecutionFailure adds the prefix and k
 - **[Unsupported features](unsupported.md)** — capability matrix.
 - **[SHOW](statements/show.md)** — read-only catalog composition.
 
+## Path delivery counters
+
+The path delivery changes add no diagnostic codes or SQLSTATE mappings. Provider
+Assimalign.Cohesion.Database.Graph reports event 15, PathPhaseCompleted (Verbose, Sessions),
+with sessionId, phase (Execute/Encode/Send) and durationMilliseconds. It publishes cumulative
+path-execute-calls, path-encode-calls, path-send-calls and corresponding
+path-execute-milliseconds, path-encode-milliseconds and path-send-milliseconds counters.
+
+Assimalign.Cohesion.Database.Graph.Client publishes path-decode-calls,
+path-decode-milliseconds and path-backpressure-waits. Event 5, PathDecodeCompleted (Verbose,
+Queries), carries durationMilliseconds; event 4, PathReleaseFailed (Error), carries only the
+exceptionType for a secondary rental-return failure, preserving the original path failure.
+
+Assimalign.Cohesion.Database.Protocol publishes transport-write-calls,
+transport-flush-calls and pooled-buffers-in-use for batched writers and borrowed reads.
+Backing values are maintained without a listener. Transport counts include failed attempts;
+ordinary writers are excluded. See [phase meanings and timing boundaries](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#path-performance-counters),
+[client counters](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/design.md#path-performance-and-diagnostics)
+and [protocol counter scope](../../../dotnet-apis/resources/database/assimalign-cohesion-database-protocol/design.md#protocol-eventsource).
+
 ## Terminal wire delivery
 
 Provider `Assimalign.Cohesion.Database.Graph` reports terminal-session deadline aborts:

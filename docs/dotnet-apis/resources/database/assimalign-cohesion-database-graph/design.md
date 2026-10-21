@@ -467,6 +467,45 @@ After a successful autocommit, a non-OutOfMemoryException cleanup failure preser
 releases the session hold. The coordinator retains any remaining snapshot pin until shutdown.
 Applications should not retry the committed statement because of its cleanup warning.
 
+### Batched path delivery
+
+The server coalesces complete Path frames into pooled batches bounded by 64 KiB, including
+frame headers, or 32 frames. It checks elapsed time between already-materialized paths and
+flushes after 10 ms, and explicitly flushes diagnostics, errors and completion. This is a
+cooperative boundary rather than a timer or latency guarantee. A frame larger than the batch
+is written alone and retains the 16 MiB payload limit. There is no aggregate result cap.
+
+Path encoding measures first and writes into rented storage; the server returns that cleared
+storage only after the writer has copied or sent it. Writes await transport backpressure.
+The session pump serializes writer access, and teardown joins it before buffers are returned.
+Path bytes, repeated entities, ordering, protocol version and capabilities are unchanged.
+
+A failed batch or standalone transport write faults the batched writer. Later writes and
+flushes throw IOException, so the session closes without appending a best-effort error to an
+uncertain stream. A separate flush failure after a successful write does not fault the writer;
+soft-stop cancellation of the final Ready flush can still permit its terminal Unavailable
+notice. A disposed path latency/completion flush closes the session as a transport fault,
+without translating it into COHDBG019 or trying a second write. See
+[shared batching](../assimalign-cohesion-database-protocol/design.md#bounded-batches-and-borrowed-payloads).
+
+### Path performance counters
+
+Provider `Assimalign.Cohesion.Database.Graph` emits Verbose event 15, PathPhaseCompleted,
+under Sessions, with sessionId, phase (Execute, Encode or Send) and durationMilliseconds.
+Its cumulative polling counters are maintained independently of listeners:
+
+| Counters | Meaning |
+| --- | --- |
+| path-execute-calls / path-execute-milliseconds | Attempted path executions and total time, including parsing, planning and materialization |
+| path-encode-calls / path-encode-milliseconds | Attempted per-path encodings and total time |
+| path-send-calls / path-send-milliseconds | Attempted Path handoffs and total time, including backpressure and latency flush waits |
+
+Failure and cancellation still close an attempted phase. Diagnostics and PathsComplete do not
+increment Path send counts or timings. These timings do not attribute the completion flush to
+a path. [Client decode/queue counters](../assimalign-cohesion-database-graph-client/design.md#path-performance-and-diagnostics)
+and [protocol transport counters](../assimalign-cohesion-database-protocol/design.md#protocol-eventsource)
+complete the view; none is a wire packet count or durability setting.
+
 ### Graph EventSource cleanup warning
 
 Enable `Assimalign.Cohesion.Database.Graph` to observe cleanup independently of statement outcome.
@@ -597,11 +636,11 @@ introduced.
 After Ready, the path client sends ExecutePaths and consumes zero or more Path messages followed
 by one PathsComplete, or a shared Error with no completion. Requests are serialized. The
 completion count must match received paths; zero matches requires count zero. Each path fits one
-frame. The client enumerates those frames through `IDatabaseStreamingExchange` and
-`ExecuteStreamingAsync`, keeping the shared connection lease until enumeration completes or is
-disposed. Consuming PathsComplete or a terminal statement Error permits reuse; cancellation or
-early disposal before terminal consumption leaves the exchange incomplete and discards the
-connection. Engine materialization is bounded by the existing traversal limits; the client does
+frame. The client decodes each Path once through `DatabaseProtocolExchange<bool>` and a one-slot
+bounded queue, retaining its lease until the producer completes or is joined after disposal.
+Consuming PathsComplete or a terminal ParseFailure/ExecutionFailure before any Path permits
+reuse; an error after Path output, cancellation or early disposal discards the connection.
+Engine materialization is bounded by the existing traversal limits; the client does
 not promise unbounded graph traversal. Codecs perform static, explicit encoding and decoding with
 no reflection or runtime serializer metadata.
 
@@ -905,6 +944,7 @@ or SQLSTATE.
 
 ## Sources
 
+- **Batched path phases and failure boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseEventSourceTests.cs` and `GraphOperationOutcomeTests.cs` in the same directory.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphServerDrainTests.cs`, `GraphServerRejectionDrainTests.cs`, `GraphServerRejectionSetupTests.cs` and `GraphTerminalDrainEventTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphCommitCancellationTests.cs`.

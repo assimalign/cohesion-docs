@@ -27,6 +27,14 @@ connection and throws GraphClientException carrying diagnostics. Transport and m
 failures still discard it. This changes the QueryPathsAsync return type while preserving await
 foreach.
 
+Paths arrive in wire order through a one-slot bounded queue, with each Path decoded once.
+The producer waits before reading another frame when that queue is full. A following terminal
+error therefore cannot overtake a queued path. Decoded values own their storage and remain
+valid after later reads or disposal; no pooled payload remains held during queue waits.
+An unfinished enumeration cancels and joins the producer before returning its failed rental.
+The server still materializes its path result, and each path must fit one 16 MiB payload.
+See [path performance and counters](design.md#path-performance-and-diagnostics).
+
 QueryPathsAsync also accepts DISTINCT over one bare bound entity/path, or RETURN * over one named
 binding. Computed/multiple and multi-binding star shapes fail COHDBG001 before path output and
 before duplicate-name checks; completion and reuse rules stay the same.
@@ -82,6 +90,7 @@ scalar RETURN rows and their affected count.
 
 ## Sources
 
+- **Ordered handoff and retained values** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphClientFailureTests.cs` and `GraphPathAllocationTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/GraphPathResult.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphWireDiagnosticTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphOptionalMatchWireTests.cs`.
