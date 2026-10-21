@@ -103,6 +103,14 @@ See [engine options](../../dotnet-apis/resources/database/assimalign-cohesion-da
 and [session overrides](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-session.md).
 
 
+## Engine health
+
+Persistent version-purge refusals are reported once after three actual attempts spanning at least
+one second on the engine clock. They set engine Faulted while the database stays in service and
+HasFailingWorker remains false for the observation. ForeignStorage refusals report immediately as
+operational failures. See [purge retries and reclamation recovery](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#version-purge-refusals)
+and [shared engine health](../overview.md#engine-health-and-version-purge).
+
 ## Database lifecycle
 
 Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its

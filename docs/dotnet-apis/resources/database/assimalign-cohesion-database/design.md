@@ -387,7 +387,82 @@ that pass and attempts at most one new checkpoint. Failures retain their retry d
 waits for the next pass. Unfinished work is reported once per database per pass. Size and interval
 remain soft triggers, so this does not impose a journal bound or close #1283.
 
+ForeignStorage refusals are operational failures and reach normal failure reporting immediately.
+Only ordinary storage-bracket contention is retried as busy. A statement that runs a deferred
+checkpoint retains a ForeignStorage failure for the next worker checkpoint call, preserving the
+statement's already-decided outcome.
+
+## Worker failure reporting
+
+SQL, Key-Value Pair, Document, Graph and Blob report persistent version-purge refusals once per
+blocker episode after at least three actual refused attempts spanning FailureBackoff (one second)
+on the engine clock. Not-due calls do not count. The refusal message identifies the work; ordinary
+page-lock messages name the page and owning bracket. Changing the blocker or completing the
+refused work resets the episode; unrelated writes and WAL progress do not. Close, drop and
+replacement end the old database instance's episode. A busy full pass retries after FailureBackoff.
+
+These reports set worker Fault and engine State to Faulted while the work remains unfinished,
+but are observational: HasFailingWorker(database) stays false for an observation alone, clients
+and new handshakes remain served, and neither the offline timer nor its minimum-pass count advances.
+Completion clears the observation; the engine returns to Running when no other fault remains.
+ForeignStorage failures instead use immediate operational reporting and the existing offline
+policy. An observation-only completed pass ends an earlier operational streak; later operational
+failures start a new count and window. Whole-pass, give-up and operational database faults take
+precedence over observations in Fault publication, including cancellation before pass settlement.
+
+### Protected reporting API
+
+```csharp
+protected int ReportFailure(string database, Exception exception);
+protected int ReportFailure(string database, Exception exception, TimeSpan retryAfter,
+    bool countsTowardOffline = true);
+```
+
+The two-argument form uses FailureBackoff and counts toward offline. The optional flag on the
+other overload lets a derived worker publish a failure without refusing service. The returned
+episode count includes observation-only failed passes; the offline minimum counts only operational
+passes, once per database per pass. Existing three-argument source calls retain their policy;
+recompile derived-worker binaries against the changed protected signature.
+
+Both forms throw ArgumentNullException for a null database or exception and InvalidOperationException
+outside a running pass. The explicit-delay form throws ArgumentOutOfRangeException for a negative
+retryAfter. Zero lets a worker pace its own retries. Model purge workers apply their blocker/time
+threshold before invoking this API; the base does not infer contention from exception text.
+
+This fragment adapts ScriptedWorker's report-only path inside a derived worker:
+
+```csharp
+protected override void RunIterationCore(CancellationToken cancellationToken)
+{
+    cancellationToken.ThrowIfCancellationRequested();
+    if (BeginDatabase("db"))
+    {
+        ReportFailure("db", new InvalidOperationException("Observed refusal."),
+            TimeSpan.Zero, countsTowardOffline: false);
+    }
+}
+```
+
+After this pass, the attached worker has a Fault and the engine is Faulted, while an observation
+alone leaves HasFailingWorker("db") false. A later pass that visits and completes the work clears it.
+
+### Events
+
+Provider `Assimalign.Cohesion.Database` retains the existing events; these changes add no code
+or SQLSTATE.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 1 | WorkerFailed | Warning | workerName, workerKind, database, exceptionType, exceptionMessage, consecutiveFailures |
+| 2 | WorkerRecovered | Informational | workerName, workerKind, database, failures |
+
+WorkerFailed uses the same per-database record for observational refusals. Its consecutiveFailures
+is the episode's failed-pass count, including report-only passes; it is not the offline minimum's
+operational count. A worker failure does not stop the loop or slow other databases' maintenance.
+
 ## Sources
 
+- **Reporting contract and fault precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseEngineWorker.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/DatabaseWorkerFailureWindowTests.cs`.
+- **Derived-worker example** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/TestObjects/ScriptedWorker.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/Assimalign.Cohesion.Database.csproj`.

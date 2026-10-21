@@ -663,7 +663,7 @@ Documents, Blob and Graph retain self-help during open.
 - **`SqlPageWriteBackWorker`** — paced `WriteBackDirtyPages(batch)` per storage per
   pass (`PageWriteBackInterval`/`PageWriteBackBatchSize`).
 - **`SqlCheckpointWorker`** — checkpoints **both** file sets of every open database
-  per pass (`CheckpointInterval`); a busy storage (`StorageTransactionException`) is
+  per pass (`CheckpointInterval`); ordinary storage contention is
   skipped and retried next pass. The data file set checkpoints **through the
   database's transaction coordinator**, so the truncating checkpoint record
   carries every in-flight logical transaction's sequence (recovery
@@ -676,10 +676,9 @@ Documents, Blob and Graph retain self-help during open.
   the minimum snapshot floor of every open transaction, anchored above the
   recovered sequence namespace after a reopen, or the manager's oldest-active
   bound when idle; the manager's bound alone would let a live pinned snapshot
-  lose a version it can still read). Cadence: `MaintenanceInterval`. A pass
-  failure flips the engine to `Faulted` without stopping service — unpurged
-  versions cost space, never consistency. The stub-era seam was untouched, as
-  designed: activation changed the worker body and nothing else.
+  lose a version it can still read). Full passes follow `MaintenanceInterval`;
+  busy or failed work uses its retry backoff. Retained failures report Faulted;
+  observational refusals and operational failures follow the policies below.
 - **`SqlIndexMaintenanceWorker`** — the one remaining documented stub
   (sanctioned by #902): the index layer has no compaction to drive yet. It
   keeps the inventory — and any observer over it — stable; the throttled
@@ -689,15 +688,30 @@ Documents, Blob and Graph retain self-help during open.
 **Lifecycle (create → use → dispose):** the worker threads live exactly as long as the engine.
 Disposal signals the pumps, joins the threads *before* closing storages (no worker pass may touch a
 database being disposed), then durably flushes and closes every open database — an embedded consumer
-gets identical durability with no host and no composition at all (R10). A worker fault flips the
-engine's observational `State` to `Faulted` without stopping service — a faulted worker never
-compromises correctness (grouped commits self-help within the window; checkpoints simply stop
-truncating), but the owner can observe the engine runs degraded. (Previously the fault was thrown
-from `StopAsync`; with lifecycle members gone, `State` is the reporting surface — throwing from
-`DisposeAsync` would be hostile to `await using`.)
+gets identical durability with no host and no composition at all (R10). A retained worker fault
+sets the engine's observational State to Faulted without ending the worker loop. Persistent purge
+refusals keep the database in service; operational database failures follow the ordinary service
+refusal and offline policy. State alone does not identify which policy applies.
 
 Cadence knobs live here, on `SqlDatabaseEngineOptions` — the engine owns the loop, so cadence is
 engine configuration; observers read it through `IDatabaseEngineWorker.Interval`.
+
+### Version purge refusals
+
+A refusal against the same blocker is reported once after at least three actual attempts spanning
+FailureBackoff (one second) on the engine clock. Not-due calls do not count; a changed blocker or
+completed work resets the episode, while unrelated writes/WAL activity do not. Close, drop or
+replacement ends it. A busy full pass retries after FailureBackoff. The report sets worker Fault
+and engine Faulted but keeps clients served: HasFailingWorker remains false for the observation,
+and it contributes neither offline time nor minimum-pass count. Completion clears the fault when
+no other failure remains. ForeignStorage refusals report immediately as operational failures;
+the checkpointer and statement-deferred checkpoint hand-off use the same distinction.
+
+SQL also runs bounded table reclamation between full purge passes. A successful reclamation batch
+clears its own refusal report without waiting for the maintenance interval; a failed full purge
+remains owed. See [table reclamation](storage-design.md#table-reclamation-and-page-reuse) and
+[shared reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/VersionPurgeRefusalTests.cs`.
 
 ## The SQL server runtime (`SqlDatabaseServer`)
 

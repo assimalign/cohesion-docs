@@ -424,6 +424,19 @@ compiled-schema provisioning remain out of scope. The graph server uses the shar
 rather than adding graph-specific authentication contracts. No reflection or runtime code
 generation is used.
 
+### Version purge refusals
+
+A refusal against the same blocker is reported once after at least three actual attempts spanning
+FailureBackoff (one second) on the engine clock. Not-due calls do not count; a changed blocker or
+completed work resets the episode, while unrelated writes/WAL activity do not. Close, drop or
+replacement ends it. A busy full pass retries after FailureBackoff. The report sets worker Fault
+and engine Faulted but keeps clients served: HasFailingWorker remains false for the observation,
+and it contributes neither offline time nor minimum-pass count. Completion clears the fault when
+no other failure remains. ForeignStorage refusals report immediately as operational failures;
+the checkpointer and statement-deferred checkpoint hand-off use the same distinction. See
+[shared reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/VersionPurgeRefusalTests.cs`.
+
 ## Composite values and wire framing
 
 [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) is public in Graph and shared with its client through the

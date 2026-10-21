@@ -107,6 +107,15 @@ transient I/O failures ask for an open retry after resolution, without restore a
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#database-creation-open-and-drop)
 and [file diagnostics](operations.md#database-file-diagnostics).
 
+## Engine health
+
+Persistent version-purge refusals are reported once after three actual attempts spanning at least
+one second on the engine clock. They set engine Faulted while the database stays in service and
+HasFailingWorker remains false for the observation. ForeignStorage refusals report immediately as
+operational failures. Catalog history-maintenance failure preserves the original purge exception.
+See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#version-purge-refusals)
+and [shared engine health](../overview.md#engine-health-and-version-purge).
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.
