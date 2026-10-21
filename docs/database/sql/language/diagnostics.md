@@ -66,6 +66,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+| `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
 | `COHSQLE037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
@@ -104,7 +105,12 @@ quantified star or malformed LISTAGG ordering, COHSQLE006 (42883) for arity/type
 COHSQLE002 (22003) for output above 1,048,576 UTF-16 units, and COHDBL001 for nonconstant
 delimiters or ON OVERFLOW. COHSQLE032 has no assigned SQLSTATE.
 
+The [LIKE work limit](expressions/operators.md#like-and-escape) is
+`64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)` with checked 64-bit arithmetic.
+COHSQLE040 refuses the match rather than estimating TRUE/FALSE; cancellation takes precedence.
+
 ## DDL dependencies
+
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |

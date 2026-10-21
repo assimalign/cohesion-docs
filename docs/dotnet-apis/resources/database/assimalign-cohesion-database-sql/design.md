@@ -1340,9 +1340,17 @@ LIKE tokenizes raw Unicode scalars before normalizing literal runs. Wildcards ad
 input boundaries under every collation. Fixed and supplied-parameter patterns compile once during
 binding; invalid escapes fail with COHSQLE034 (22025) even with empty inputs or NULL matched values,
 an intentional divergence from PostgreSQL's match-time validation. Dynamic patterns compile per
-evaluation. The iterative matcher observes cancellation without data-dependent recursion; binary
-and case-insensitive matching retain the last percent continuation, while accent-insensitive and
-linguistic matching retain visited token/input suffixes. Storage format 25 admits these persisted
+evaluation. The iterative matcher observes the current statement's cancellation without
+data-dependent recursion, including in subqueries, cached views and stored CHECKs. Plans retain
+the presence of LIKE, never a previous statement's token. Ordinary invariant prefix/suffix/contains
+and exact matches use linear work in input length. Pathological invariant matching is bounded by
+`64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)` in checked 64-bit arithmetic.
+The [LIKE reference](../../../../database/sql/language/expressions/operators.md#like-and-escape)
+defines the charging rules. Exhaustion raises located COHSQLE040 (no SQLSTATE), with cancellation
+taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
+retain the last percent continuation; other paths retain visited boundaries, expanding from one
+inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
+search. Storage format 25 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution

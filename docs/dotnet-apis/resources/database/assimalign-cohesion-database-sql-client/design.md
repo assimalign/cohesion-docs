@@ -167,7 +167,10 @@ Server projection errors occur before the result header and leave the connection
 
 Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
 both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
-42804) are ExecutionFailure responses; data and the connection remain usable. No client API or
+42804) are ExecutionFailure responses; data and the connection remain usable. Invariant LIKE/NOT
+LIKE work exhaustion is a located COHSQLE040 ExecutionFailure (no SQLSTATE), also retaining a
+usable connection. The server's session lifetime token reaches row-time matching; disconnect
+cancels the matcher and closes the session on both InMemory and TCP. No client API or
 protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
 
 ## ON CONFLICT and final foreign-key checks

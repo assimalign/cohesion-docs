@@ -45,6 +45,17 @@ IS [NOT] DISTINCT FROM uses the same effective collation as equality. LIKE resol
 from the value, pattern and ESCAPE operand, then matches literals under that rule; its wildcards
 consume original Unicode scalars under every collation. See [predicates](../expressions/operators.md#like-and-escape).
 
+Ordinary invariant LIKE prefix, suffix, contains and exact patterns are linear in input length.
+Pathological invariant (linguistic) LIKE/NOT LIKE has a per-match work budget of
+`64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)`, computed with checked
+64-bit arithmetic. Transitions and boundary probes each cost one unit; linguistic comparisons
+and searches additionally charge the sum of their span lengths, at least one unit. Successful
+anchors charge through the matched prefix; an independent prefix failure after boundary analysis
+charges the literal extent. Each zero-initialized 32-bit visited-state word costs one unit before
+allocation. Exhaustion raises located `COHSQLE040` (no SQLSTATE) for LIKE or NOT LIKE, without a
+Boolean result. ExecutionFailure leaves the wire connection usable. Statement cancellation reaches
+the matcher and takes precedence over exhaustion. Other collations retain O(input × pattern) search.
+
 Unknown names, culture-aware rules, user-defined collations, session overrides, and collation-aware
 full-text indexes are outside the subset and produce `COHDBL001` or an explicit execution error.
 Compatibility `invariant` fails under invariant globalization. SQL defaults do not govern the
@@ -59,6 +70,14 @@ SELECT name FROM people WHERE name = 'Alice' COLLATE binary;
 ```
 
 The second query inherits the column comparison; the third overrides it for that expression.
+
+```sql
+SELECT RPAD('a', 200000, 'a') COLLATE invariant LIKE '%a'
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+This returns TRUE. The [LIKE examples](../expressions/operators.md#like-and-escape) also show a
+pathological pattern refused with COHSQLE040.
 
 ## See also
 

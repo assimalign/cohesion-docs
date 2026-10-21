@@ -46,6 +46,10 @@ Error message without structured diagnostics. SQLSTATE is a reference mapping, w
 carrier member. A constraint failure rolls back the statement; the connection and explicit
 transaction remain usable. Handle the diagnostic code separately from the wire-category Code.
 
+Invariant LIKE/NOT LIKE work exhaustion uses ExecutionFailure with located `COHSQLE040`
+in negotiated Diagnostics and `ConnectionUsable = true`; no SQLSTATE is assigned. See the
+[LIKE budget and example](../../../../database/sql/language/expressions/operators.md#like-and-escape).
+
 ## Example
 
 ```csharp
