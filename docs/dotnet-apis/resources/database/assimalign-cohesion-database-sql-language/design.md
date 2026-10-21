@@ -48,8 +48,13 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   strips the surrounding double quotes for tables, schemas, aliases, columns,
   indexes and constraints. Tokens retain their quoted-identifier classification,
   so a quoted reserved word cannot become a keyword or literal. Keyword dispatch,
-  literal parsing and diagnostics continue to consume raw token text. Embedded
-  double-quote escapes are outside the current lexer subset.
+  literal parsing and diagnostics continue to consume raw token text. Doubled double quotes
+  decode to one embedded quote, and expression rendering escapes them the same way.
+  Column-reference spans include the complete raw token for persisted-view binding edits.
+  An escaped final quote without a closing delimiter reports SQL0003. Earlier stored view text
+  may use adjacent quoted tokens for a column and alias; `"a""x"` now names one identifier.
+  Recreate affected views with whitespace or AS; see the
+  [view compatibility note](../../../../database/sql/language/statements/create-view.md#delimited-identifiers).
 - **Type names resolve through one table.** `SqlTypeNames` is the single
   SQL-name → `DatabaseType` mapping (with the `DECIMAL(p[,s])`
   argument-is-precision rule); catalogs and the schema compiler must not grow

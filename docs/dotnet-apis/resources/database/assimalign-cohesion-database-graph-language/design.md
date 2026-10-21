@@ -84,7 +84,9 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 `Match` patterns accept `(a)`, `(a:Label {key: value})`, `-[r:TYPE]->`, `<-[r:TYPE]-`, and
 `-[r:TYPE]-`, including anonymous bracketed relationships. Scalar literals are null, Boolean,
 signed 64-bit integer, finite double, and single-quoted string with doubled-quote escaping. Names
-are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces. A single
+are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces and decode
+doubled double quotes to one embedded quote. Label-expression and source-free projection rendering
+escape embedded quotes the same way; an unterminated quoted name reports GQL0003. A single
 optional trailing semicolon is accepted. ISO abbreviated `->`, `<-`, `-` and `<->` execute without
 edge variables/types/properties; full bracketed forms carry those details. Cypher doubled-dash
 arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are

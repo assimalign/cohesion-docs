@@ -14,6 +14,11 @@ dependency to expose diagnostics.
 
 ## Design intent
 
+The lexer retains `"a""b"` as one QuotedIdentifier token with its raw text and source offsets.
+A doubled delimiter is part of the name; a lone delimiter closes it. SQL, OQL and GQL decode the
+identifier value to `a"b` and reject an unterminated token at their parser boundary, including a
+token ending in an escaped quote. Single-quoted strings use their separate lexical rule.
+
 Each model declares one `QueryLanguageProfile`. The profile is the complete boundary between the
 shared parser machinery and a model language: it supplies the lexer's keyword and function tables,
 names the language used in diagnostics, and lists the clauses that model's parser accepts. A parser

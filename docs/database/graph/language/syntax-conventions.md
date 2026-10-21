@@ -24,7 +24,9 @@ Those diagram quotes are not part of the query.
 ## Lexical rules
 
 Names are case-sensitive and keywords are case-insensitive. Double-quoted names preserve spaces;
-an empty quoted name is invalid. Single-quoted strings escape a quote by doubling it.
+doubled `""` decodes to one embedded double quote: `"a""b"` names `a"b`. Variables, labels,
+relationship types, property keys and aliases use this rule; rendered names escape quotes the
+same way. An empty quoted name is invalid. Single-quoted strings escape a quote by doubling it.
 Labels and property keys can use keyword text in their name position.
 
 Scalar values are `NULL`, Booleans, signed 64-bit integers, finite doubles, and single-quoted strings.
@@ -43,8 +45,19 @@ It also includes quoted property names and escaped strings:
 match (a:Person {"with space": 'it''s fine'}) return a."with space";
 ```
 
-Parameter markers such as `$age` are recognized but produce `COHDBL001` in this profile.
+Parameter markers such as `$age` use the supported [parameter binding](expressions/parameters.md).
 Malformed strings, quoted names, and block comments produce `GQL0003`.
+This includes an escaped final quote without a closing delimiter, as in `"a""`.
+
+Execute separately in an empty graph:
+
+```sql
+INSERT (:"L""X" {"p""q": 7});
+MATCH (n:"L""X") RETURN n."p""q" AS "c""d";
+```
+
+The query returns 7 under `c"d`. Delimited names keep ordinary property NULL behavior;
+GQL has no separate MISSING value.
 
 ## See also
 
@@ -56,4 +69,5 @@ Malformed strings, quoted names, and block comments produce `GQL0003`.
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs`.
 
