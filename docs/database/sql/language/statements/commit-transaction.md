@@ -31,6 +31,11 @@ The wire protocol has no durable transaction token, status lookup, or replay ded
 `SqlConnection.AbortAsync` discards an unsafe rental; it cannot undo a published commit.
 DDL statements committed outside this transaction are not part of its scope.
 
+An already-aborted transaction refuses COMMIT with COHSQLT005 and commits nothing. Storage,
+I/O and index failures abort explicit transactions; roll back before further work. The refusal
+carries the Error code in Diagnostics and the original cause in InnerException, with ordinary
+in-process Message text; the wire adds `COHSQLT005: ` once. See [transaction diagnostics](../diagnostics.md#transactions).
+
 End the explicit transaction before disposing its pooled connection. Pool return preserves an
 unfinished transaction for the next renter (known gap #1540); it does not roll back automatically.
 

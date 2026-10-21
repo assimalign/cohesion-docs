@@ -63,6 +63,12 @@ columns or indexes, then adds the replacement after structural changes. Both con
 have compensating statements, and the SQL provisioner includes their definitions when comparing or
 reconstructing the live catalog after a failed apply.
 
+The engine validates new CHECK table/schema qualifiers against the constrained table with
+COHSQLE015. Already stored checks and already-applied declared/imperative schema hashes keep
+their earlier qualifier binding. Build validates other rules before I/O; provisioning checks
+qualifiers for a new or changed hash after reading catalog state and before migration steps.
+See [CHECK binding](../../../../database/sql/language/constraints.md#check-binding).
+
 `CompiledSchemaConstraint.OnDelete` uses `CompiledSchemaReferentialAction.Restrict` by default and
 can select `Cascade`. The default is omitted from canonical JSON, preserving hashes of existing
 documents that implicitly restricted parent deletes. The retained C# `References` builder keeps that

@@ -215,7 +215,7 @@ resources and publishes no database, permitting retry once the condition is reso
 | SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction |
 | Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
 | Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
-| Graph | COHDBG006 | COHDBG006 | COHDBG007: aborted transaction |
+| Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |
 | Blob | COHDBB005 | COHDBB006 | COHDBB007: failed/inactive upload; COHDBB001: aborted transaction |
 
 No SQLSTATE is assigned to these codes except the SQL/Key-Value Pair I/O mappings shown.
@@ -223,10 +223,16 @@ Attached-index corruption leads with COHDBS003 and retains COHDBI002 plus the mo
 code. Storage/index failures abort explicit transactions; roll back before continuing. SQL and
 Key-Value Pair ordinary statement errors keep their existing statement-atomic behavior. SQL,
 Document, Graph and Key-Value Pair wire ExecutionFailure preserves the session; Blob closes it.
-Codes belong in Diagnostics. Storage-failure/corruption embedded messages are ordinary text;
-SQL/Key-Value Pair aborted-transaction refusals currently also include a code prefix. Wire writers
-format a missing prefix. SQL event 25 and Key-Value Pair event 11, TransactionCleanupFailed,
+Codes belong in Diagnostics. Storage-failure/corruption and SQL/Key-Value Pair/Graph aborted-transaction
+refusal messages are ordinary unprefixed text. Refusals retain COHSQLT005, COHDBK001 or COHDBG007
+and their original cause. Wire writers format the prefix once. SQL event 25 and Key-Value Pair event 11, TransactionCleanupFailed,
 record secondary cleanup failures while preserving the original coded cause.
+
+Graph disposal during execution or a wire lifetime guard reports COHDBG019 and keeps the
+authenticated session ready; disposal of the protocol transport faults it without another write.
+Graph Warning event 13, StatementCleanupFailed, records cleanup failure after successful
+autocommit without changing that success, except OutOfMemoryException still propagates.
+See [Graph wire behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#graph-wire-family).
 
 ## Checkpoint triggering
 

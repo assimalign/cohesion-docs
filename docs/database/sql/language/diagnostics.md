@@ -169,14 +169,15 @@ A recoverable I/O open failure publishes no database and permits retry after res
 
 A malformed transaction spelling reports SQL0003 before changing transaction state.
 
-Storage corruption and I/O failures abort an explicit transaction; roll back before continuing.
+Storage, I/O and index failures abort an explicit transaction; roll back before continuing.
 Ordinary constraint/evaluation/search-condition failures keep statement atomicity and leave the
 transaction usable. In autocommit the next statement can run after a recoverable failure.
 The wire returns ExecutionFailure with a usable connection. Secondary cleanup failure keeps
 the original coded exception and emits Warning event 25, TransactionCleanupFailed, on
 Assimalign.Cohesion.Database.Sql, carrying transactionId, exceptionType and exceptionMessage
-(bounded to 1,024 characters). SQL's embedded COHSQLT005 refusal still has a message prefix;
-Diagnostics is the code contract.
+(bounded to 1,024 characters). An aborted-transaction refusal carries an Error diagnostic
+COHSQLT005 with ordinary unprefixed Message text and the original InnerException cause.
+The wire still starts with `COHSQLT005: ` exactly once. No SQLSTATE is assigned to COHSQLT005.
 
 [ON CONFLICT](clauses/on-conflict.md) uses DatabaseTransactionAbortedException for a newer
 committed Snapshot conflict or invalidated unique-index directory, and DatabaseTransactionDeadlockException

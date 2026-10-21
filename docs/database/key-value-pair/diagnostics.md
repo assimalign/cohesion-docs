@@ -67,16 +67,16 @@ COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHDBK
 index cause and page. Format refusals retain COHDBS001/COHDBI001 and their authored messages,
 diagnostics and inner causes. Existing offline/unconfirmed-commit outcomes remain in force.
 
-A storage failure aborts an explicit transaction after command admission is released. Further
+A storage, I/O or index failure aborts an explicit transaction after command admission is released. Further
 commands and COMMIT are refused with COHDBK001 in Diagnostics, retaining the original coded
 cause; roll back before continuing. Ordinary command errors keep statement atomicity and the
 transaction usable. In autocommit the next command can run immediately after a recoverable
 failure. Wire ExecutionFailure preserves the session. I/O open failures release acquired file
 sets and publish no database, permitting retry after the condition is resolved.
 
-Storage-failure and corruption messages are ordinary embedded text. The aborted-transaction
-refusal currently also prefixes its embedded Message with COHDBK001; inspect Diagnostics for
-codes. Wire formatting supplies a missing prefix without duplicating one already present.
+Storage-failure, corruption and aborted-transaction refusal messages are ordinary unprefixed
+embedded text. The refusal carries COHDBK001 as an Error in Diagnostics and retains the original
+InnerException cause. The wire still adds `COHDBK001: ` once. No SQLSTATE is assigned to COHDBK001.
 
 If abort cleanup also fails, the exact coded command exception remains primary, including its
 corruption type. EventSource Assimalign.Cohesion.Database.KeyValuePair emits Warning event 11,

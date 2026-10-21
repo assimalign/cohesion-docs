@@ -21,6 +21,7 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
 ## Reference pages
 
 - **[DatabaseException](database-exception.md)** — Public contract and usage.
+- **[DatabaseTransactionAbortedException](database-transaction-aborted-exception.md)** — Retryable abort kind and copied, ordered diagnostics.
 - **[DatabaseCorruptionException](database-corruption-exception.md)** — COHDBS003 with database, page and storage cause.
 
 ## Scope
