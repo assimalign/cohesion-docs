@@ -56,8 +56,10 @@ duplicate stored key values (COHSQLE037). Refusing repeated FOREIGN KEY child co
 than PostgreSQL. CREATE TABLE IF NOT EXISTS on an existing table skips these declaration checks.
 
 Self-referencing batch validation hashes candidate parent keys once per constraint. Regression
-tests cover INSERT SELECT, ADD CONSTRAINT and ADD COLUMN REFERENCES at 50,000 rows; DDL still
-performs indexed parent seeks. This is a work bound, not a limit on the table's row count.
+tests cover INSERT SELECT, ADD CONSTRAINT and ADD COLUMN REFERENCES at 50,000 rows. DDL streams
+one current row at a time and uses indexed parent seeks where an index is available. A parent
+key introduced by the same statement can require a scan instead; this bounds retained memory,
+not execution time or the table's row count.
 
 Multi-row UPDATE validates outgoing and incoming NO ACTION/RESTRICT references against the
 statement's final rows. Old replaced versions are excluded and every final replacement contributes
@@ -113,6 +115,15 @@ for locks and tombstones do not undergo new-write size validation.
 ADD CONSTRAINT PRIMARY KEY/UNIQUE and ADD COLUMN with an index-backed constraint also enforce
 the 1,024-byte encoded key limit. A failed build leaves the old schema, constraints and index
 directory intact. See [CREATE INDEX](statements/create-index.md).
+
+Adding a constraint validates existing live rows under Exclusive table locks without retaining
+the whole table. Provisioning progress can add a count pass. PRIMARY KEY/UNIQUE backing builds
+then check adjacent live keys in bounded batches over the completed index before publication;
+deleted history is retained for old snapshots and excluded from uniqueness checks. NULL key
+components still compare equal. An oversized key during construction (COHSQLE042, 54000) can
+precede duplicate detection (COHSQLE037, 23505). Failure or cancellation before publication
+leaves the ALTER unapplied and removes unpublished indexes. See the
+[constraint retry example](statements/alter-table.md#retry-a-refused-constraint).
 
 A non-Boolean CHECK or domain CHECK is rejected with COHSQLE003 (42804), at the predicate
 span when available, before publishing the definition. This includes non-Boolean operands
@@ -241,6 +252,7 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 
 ## Sources
 
+- **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.

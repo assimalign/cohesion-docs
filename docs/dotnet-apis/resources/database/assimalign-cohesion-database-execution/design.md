@@ -12,7 +12,7 @@ KeyValuePair requests carry command operands; `SqlQueryRequest` and `DocumentQue
 own their typed `Statement` and `Parameters`; `GraphRequest` owns those values for the row
 and path request variants. There is no shared statement property or request-kind discriminator.
 
-`DatabaseResult` reports status, affected count and diagnostics. `DatabaseResultSet` adds
+`DatabaseResult` reports status, affected count and non-null diagnostics. `DatabaseResultSet` adds
 columns and streaming `DatabaseRow` values. `DatabaseColumn` describes a column, including
 optional `MaxLength`: the declared character count or binary byte limit, not an individual
 value's size. SQL uses it with the shared `Character` identity for `CHAR(n)` metadata; its
@@ -23,6 +23,23 @@ The public names are `DatabaseResult`, `DatabaseResultSet`, `DatabaseResultStatu
 `DatabaseRow` and `DatabaseColumn`; they all remain in this assembly. There are no aliases
 or compatibility shims. Model-specific language results retain names such as `SqlQueryResult`,
 `DocumentQueryResult` and `GraphPathsQueryResult`.
+
+### Result diagnostics
+
+```csharp
+// DatabaseResult
+public abstract IReadOnlyList<Diagnostic> Diagnostics { get; }
+```
+
+SQL, Documents, Graph and Key-Value Pair command and row results return an empty collection
+when there is nothing to report. GraphPathsQueryResult follows the same rule for paths, as
+GraphSchemaResult<T> already does for schema reads. Callers can enumerate Diagnostics or test
+Count without a null check. Reading this property introduces no new exception. Blob uses its
+own stream/storage operations; Cache has no implemented result surface.
+
+The exception carriers DatabaseException and each model's remote client exception also expose
+non-null diagnostics, possibly empty. This collection contract adds no wire frame or diagnostic
+code. Remote result types retain their own public members; see the model client references.
 
 ## Session capabilities
 
@@ -44,8 +61,7 @@ KeyValuePair's command parser is an internal wire entry, not a public language c
 ## Decisions and remaining work
 
 - `Diagnostic`, `DiagnosticSeverity` and `DiagnosticLocation` moved unchanged to
-  `Database.Types`. DatabaseResult.Diagnostics remains nullable in the abstract result contract;
-  DatabaseException.Diagnostics is always non-null.
+  `Database.Types`. DatabaseResult.Diagnostics and DatabaseException.Diagnostics are non-null.
 - There is no shared execution pipeline. The unused pipeline, transaction-scope and executor
   abstractions were deleted under #1257. Models own their execution and transaction brackets.
 - There is no exception root here. Model failures use the root assembly's `DatabaseException`
@@ -74,4 +90,6 @@ bases require no reflection, expression trees, runtime code generation or generi
 
 ## Sources
 
+- **Result contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabaseResult.cs`.
+- **Model evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNullOrderingTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphPathsQueryTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueCommandTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/docs/DESIGN.md`.

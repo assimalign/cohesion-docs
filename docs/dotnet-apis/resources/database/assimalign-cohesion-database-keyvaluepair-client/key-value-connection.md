@@ -32,6 +32,10 @@ its ordered, bounded result. One command runs at a time; overlap throws InvalidO
 Cancellation throws OperationCanceledException and invalidates an unfinished exchange. Model failures
 use KeyValueClientException; retryable write conflicts are ExecutionFailure.
 
+Typed entry/write outcomes have no Diagnostics member. KeyValueClientException.Diagnostics is
+always empty and non-null; this wire family keeps engine codes in Error text. Embedded command
+and row results use DatabaseResult.Diagnostics, also non-null and empty when nothing is reported.
+
 `KeyValueScanRange.Prefix`, `Start` and `End` are nullable `ReadOnlyMemory<byte>` properties.
 Null or zero-length bounds mean absent, including an implicitly converted null `byte[]`.
 The client omits their clauses and parameters. Combining a non-empty prefix with a non-empty

@@ -200,6 +200,12 @@ Index builds use the same key limit, including indexes for ADD CONSTRAINT and AD
 A failed build leaves its index unpublished and cleans up the unpublished tree. See
 [CREATE INDEX](statements/create-index.md) and [constraints](constraints.md).
 
+Unique builds finish construction before checking adjacent current live keys in bounded batches.
+COHSQLE042 (54000) during construction can therefore take precedence over an earlier duplicate
+in storage order (COHSQLE037, 23505). Inline CREATE UNIQUE INDEX reports the smallest duplicated
+live key in encoded index order. A refused ALTER leaves the old schema, constraints and rows
+intact; unpublished indexes are removed. No new diagnostic code is introduced by bounded validation.
+
 ## DDL dependencies
 
 
@@ -282,6 +288,11 @@ the statement in a fresh transaction. No SQLSTATE is assigned to COHSQLT006.
 
 ## Locations and wire behavior
 
+Embedded SQL command and row results expose a non-null DatabaseResult.Diagnostics collection,
+empty when nothing is reported. Remote SqlResultSet.Diagnostics and SqlClientException.Diagnostics
+are also never null, including when no diagnostics capability was negotiated. Empty diagnostics
+do not cause a Diagnostics frame to be sent.
+
 Remote failures use [SqlClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-client-exception.md), which derives directly from
 System.Exception and declares its own Diagnostics snapshot. Catch that client exception for remote
 operations; catching DatabaseException now covers only engine-side failures.
@@ -326,6 +337,7 @@ TLS delivery remains limited by #1086. See [server options](../../../dotnet-apis
 
 ## Sources
 
+- **Unique-build validation order and cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUniqueIndexBuildTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
 - **Result preparation and wire delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlResultDeliveryConformanceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 

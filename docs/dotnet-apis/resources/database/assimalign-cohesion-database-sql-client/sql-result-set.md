@@ -20,8 +20,9 @@ public sealed class SqlResultSet : IReadOnlyList<SqlRow>
 ## Behavior and exceptions
 
 The client constructs this after consuming a complete exchange. Rows own their values; columns
-retain wire identity and bounds. Diagnostics contains the negotiated warning/error list and is empty
-without the capability. Information, including SQL0100, is never sent. An invalid row index fails
+retain wire identity and bounds. Diagnostics is never null. It contains the negotiated warning/error
+list and is empty when nothing was reported or without the capability. Information, including
+SQL0100, is never sent. An invalid row index fails
 through the underlying collection; statement failures throw SqlClientException instead of returning
 a successful result. Direct construction is unavailable.
 

@@ -7,7 +7,7 @@ Namespace: `Assimalign.Cohesion.Database.Client`.
 ## Signature
 
 ```csharp
-public class DatabaseClientException : Exception
+public sealed class DatabaseClientException : Exception
 {
     public DatabaseClientException(ProtocolErrorCode code, string message);
     public DatabaseClientException(ProtocolErrorCode code, string message, Exception? innerException);
@@ -22,7 +22,7 @@ public class DatabaseClientException : Exception
 
 The diagnostic overload maps protocol Warning/Error entries into Database.Types.Diagnostic,
 preserving nullable offsets and one-based line numbers. Diagnostics is declared locally and holds
-a defensive read-only snapshot, stably ordered by source offset with unlocated entries last.
+a non-null, defensive read-only snapshot, stably ordered by source offset with unlocated entries last.
 Message retains the Error frame text. Constructors without diagnostics return an empty snapshot;
 a null diagnostic list is rejected with ArgumentNullException. SQL/Graph wrappers copy these entries
 from an actual DatabaseClientException or their own nested client exception. Malformed frames fail

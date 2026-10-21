@@ -18,13 +18,22 @@ public sealed class GraphPathResult : IAsyncEnumerable<GraphPath>
 ## Behavior and exceptions
 
 Construction is internal. Enumerate once to EOF before reading final Diagnostics. The collection is
-empty until diagnostics arrive or when none were negotiated. EOF verifies terminal path count and
+never null and is empty until diagnostics arrive, when nothing was reported or when none were
+negotiated. EOF verifies terminal path count and
 releases the exchange. Unknown-label/type reads may return zero paths and warnings COHDBG010/011. A
 second enumeration throws InvalidOperationException. Early disposal/cancellation discards the
 unfinished connection. A terminal parse/planning refusal before any path output preserves the
 connection and throws GraphClientException carrying diagnostics. Transport and malformed-response
 failures still discard it. This changes the QueryPathsAsync return type while preserving await
 foreach.
+
+Paths arrive in wire order through a one-slot bounded queue, with each Path decoded once.
+The producer waits before reading another frame when that queue is full. A following terminal
+error therefore cannot overtake a queued path. Decoded values own their storage and remain
+valid after later reads or disposal; no pooled payload remains held during queue waits.
+An unfinished enumeration cancels and joins the producer before returning its failed rental.
+The server still materializes its path result, and each path must fit one 16 MiB payload.
+See [path performance and counters](design.md#path-performance-and-diagnostics).
 
 QueryPathsAsync also accepts DISTINCT over one bare bound entity/path, or RETURN * over one named
 binding. Computed/multiple and multi-binding star shapes fail COHDBG001 before path output and
@@ -81,6 +90,7 @@ scalar RETURN rows and their affected count.
 
 ## Sources
 
+- **Ordered handoff and retained values** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphClientFailureTests.cs` and `GraphPathAllocationTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/GraphPathResult.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphWireDiagnosticTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphOptionalMatchWireTests.cs`.

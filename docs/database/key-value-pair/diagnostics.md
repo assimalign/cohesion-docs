@@ -8,6 +8,12 @@ The command parser raises `DatabaseParseException` with a coded diagnostic. The 
 The typed client preserves the code in `KeyValueClientException.Code` and supplies a
 model-specific category in `KeyValueClientException.Kind`.
 
+Embedded command and materialized row results expose non-null DatabaseResult.Diagnostics,
+empty when nothing is reported. DatabaseException.Diagnostics is also never null. The remote
+KeyValueClientException.Diagnostics collection is always empty and non-null; codes remain in
+Error text because this model does not negotiate structured diagnostics. Typed entry and write
+outcomes have no Diagnostics member.
+
 ## Diagnostic codes
 
 | Code | Meaning |

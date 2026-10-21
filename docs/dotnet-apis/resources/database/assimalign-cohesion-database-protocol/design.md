@@ -123,6 +123,94 @@ regression remains skipped because the Database-only fix still loses the expecte
 
 ## Shared exchange and payloads
 
+### Bounded batches and borrowed payloads
+
+`ProtocolFrameWriter.CreateBatched` coalesces complete frames into one pooled batch. Defaults
+are 64 KiB including headers and 32 frames; a larger frame is sent alone. Every payload
+retains the 16,777,216-byte limit and there is no aggregate result cap. `ProtocolChannel`
+selects these defaults with batchWrites: true. Callers serialize writes, flushes and disposal,
+flush at result and latency boundaries, and await transport writes for backpressure. Disposal
+discards an unfinished batch. Buffers are cleared before return, after pending I/O is joined.
+
+```csharp
+public static ProtocolFrameWriter CreateBatched(Stream stream, bool leaveOpen = false,
+    int maxBatchBytes = 64 * 1024, int maxBatchFrames = 32);
+```
+
+A null stream throws ArgumentNullException. maxBatchBytes must be between 5 and 16,777,221
+inclusive and maxBatchFrames at least 1, otherwise ArgumentOutOfRangeException is thrown.
+WriteFrameAsync still enforces the per-frame limit with ProtocolException. A failed transport
+write, including cancellation during a send before any bytes were copied, faults the batched
+writer. Later writes and flushes throw IOException. Disposal returns cleared storage without
+retrying or sending subsequent frames. A separate flush failure after a successful write does
+not fault it, preserving the session's ability to attempt its soft-stop terminal notice.
+
+`ReadFrameAsync` continues to return owned payloads. The optional borrowed-read API instead
+scopes pooled storage to a synchronous callback:
+
+```csharp
+// ProtocolFrameReader
+protected ProtocolFrameReader(bool supportsBorrowedPayloads = false);
+public bool SupportsBorrowedPayloads { get; }
+public ValueTask<bool> ReadBorrowedFrameAsync(Action<ProtocolFrame> consume,
+    CancellationToken cancellationToken = default);
+protected virtual ValueTask<bool> ReadBorrowedFrameCoreAsync(Action<ProtocolFrame> consume,
+    CancellationToken cancellationToken);
+```
+
+The stream reader and ProtocolChannel's family reader support borrowed payloads; unsupported
+decorators refuse them. ReadBorrowedFrameAsync returns true after consuming one frame and
+false at clean EOF. A null callback throws ArgumentNullException; an unsupported reader throws
+NotSupportedException. Malformed/incomplete frames throw ProtocolException, and cancellation
+and stream I/O failures propagate. Decode or copy retained values inside the callback. The
+reader clears and returns its payload rental before the read completes, including when the
+callback throws. Length validation precedes renting, and only the declared slice is exposed.
+Callers serialize reads and disposal and join an active read before disposing the reader.
+
+This example follows ProtocolBatchTests and writes twenty complete empty frames in one batch:
+
+```csharp
+using System;
+using System.IO;
+
+using Assimalign.Cohesion.Database.Protocol;
+
+using var stream = new MemoryStream();
+await using var writer = ProtocolFrameWriter.CreateBatched(stream, leaveOpen: true);
+for (int i = 0; i < 20; i++)
+{
+    await writer.WriteFrameAsync(new ProtocolFrame(ProtocolMessageType.Pong,
+        ReadOnlyMemory<byte>.Empty));
+}
+await writer.FlushAsync();
+stream.Position = 0;
+await using var reader = ProtocolFrameReader.Create(stream, leaveOpen: true);
+bool read = await reader.ReadBorrowedFrameAsync(frame => Console.WriteLine(frame.Type)); // Pong
+Console.WriteLine(read); // True; copy/decode any retained payload inside the callback
+```
+
+### Protocol EventSource
+
+Provider `Assimalign.Cohesion.Database.Protocol` retains Verbose FrameRead and FrameWritten
+events under Frames. FrameWritten is emitted once per enclosed frame after a successful
+transport write, before any explicit flush. Its polling counters are created when enabled,
+with backing values maintained even before a listener attaches:
+
+| Counter | Meaning |
+| --- | --- |
+| transport-write-calls | Attempted Stream writes by batched writers, including failed attempts |
+| transport-flush-calls | Attempted explicit Stream flushes by batched writers, including failed attempts |
+| pooled-buffers-in-use | Currently rented batched-writer and borrowed-read buffers |
+
+Ordinary writers, including SQL's per-row writer, do not update these process-wide counters;
+their temporary arrays are excluded from the pool gauge. Generic streams do not expose their
+internal flush policy. DuplexPipeStream flushes on each write, so the sum of write and explicit
+flush counts gives its pipe flush requests. These are cumulative operation counts and a buffer
+gauge, not frame counts, bytes, rates or network packets. Graph's temporary encoding rental is
+also outside this pool gauge. See [Graph phases](../assimalign-cohesion-database-graph/design.md#path-performance-counters).
+
+### Exchange sequence
+
 The shared handshake precedes every model-specific exchange, as shown here.
 
 ```mermaid
@@ -261,6 +349,8 @@ span reads and static encoding, with no reflection or runtime discovery.
 
 ## Sources
 
+- **Batching, borrowing and counters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolBatchTests.cs`.
+- **Public framing contracts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/ProtocolFrameWriter.cs` and `ProtocolFrameReader.cs` in the same directory.
 - **Frame write** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolFramingTests.cs`.
 - **Terminal client/transport evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalPathTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlServerTlsTerminalTests.cs`.
 

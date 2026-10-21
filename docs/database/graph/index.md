@@ -116,6 +116,12 @@ warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimali
 Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.
 
+Path frames are sent in bounded pooled batches, with unchanged per-path bytes and a 16 MiB
+payload limit. The client decodes each path once and hands it off in wire order through a
+one-slot queue; the server still materializes matched paths. See
+[wire delivery and phase counters](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#batched-path-delivery)
+and [client lifetime/performance](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/design.md#path-lifetime).
+
 Catalog/storage failures return coded ExecutionFailure and leave the authenticated session ready.
 Execution-resource disposal uses COHDBG019; a disposed protocol transport faults the session
 without another error write. Cleanup disposal after a successful autocommit preserves success
