@@ -34,7 +34,7 @@ flowchart LR
 | --- | --- |
 | `Database.Sql.Client` | SQL materialization and typed APIs |
 | `Database.Client` | Pooling, handshake, framed exchange lifetime |
-| `Database.Sql` | SQL identifiers and payload codecs |
+| `Database.Sql.Protocol` | SQL identifiers and payload codecs |
 | `Database.Protocol` | Shared framing and immutable family binding |
 
 Other model clients do not depend on this package.

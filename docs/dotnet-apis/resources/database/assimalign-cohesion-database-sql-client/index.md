@@ -52,13 +52,16 @@ the client has no dependency on the SQL engine, catalog or storage implementatio
   with widening numeric getters.
 - **`SqlClientException` + `SqlClientErrorKind`** — a SQL-scoped failure taxonomy mapped
   from the core's wire codes, with a `ConnectionUsable` flag.
+  Result encoding/preparation failures use COHSQLE045 (54000 for size refusals). A partial read
+  result is discarded; write results prepare before commit and a failure rolls back only the
+  statement. The connection and explicit transaction remain usable. See [result delivery](design.md#lifecycle-errors-and-telemetry).
 - **`SqlClientObserver`** — an allocation-free telemetry hook fired around every command.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Database`** — the `DatabaseException` area root.
 - **`Assimalign.Cohesion.Database.Client`** — the pooling client core this layers over.
-- **`Assimalign.Cohesion.Database.Sql`** — the SQL family identifiers and payload codecs.
+- **`Assimalign.Cohesion.Database.Sql.Protocol`** — the SQL family identifiers and payload codecs.
+- **`Assimalign.Cohesion.Database.Protocol`** — shared framing, handshake and wire error categories.
 - **`Assimalign.Cohesion.Database.Types`** — `DatabaseType` column identities.
 - **`Assimalign.Cohesion.Connections`** — the transport `IDuplexConnectionFactory` handed to
   the client core.

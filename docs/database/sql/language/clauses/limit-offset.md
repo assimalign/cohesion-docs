@@ -41,7 +41,7 @@ and volatile calls are skipped, as with PostgreSQL's Limit execution. Grouped qu
 aggregate input but stop group projection and HAVING; correlated queries stop outer-row evaluation.
 Join inputs/results and set operands still materialize before bounded final projection.
 
-With ORDER BY and without DISTINCT, fixed ordering collations allow retention of at most
+With ORDER BY, a positive limit and no DISTINCT, fixed ordering collations allow retention of at most
 OFFSET + LIMIT candidates, with input order preserved for ties. Ordering still examines all
 qualifying inputs. Deferred collations and independent volatile outputs keep full sorting;
 [ORDER BY](order-by.md#evaluation-order) describes their evaluation rules. DISTINCT completes
