@@ -43,4 +43,4 @@ Console.WriteLine(ReferenceEquals(node.Left, node.Right)); // True
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlNullIfExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphValueTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphValueExpressions.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Evaluation/GraphValueExpressions.cs`.

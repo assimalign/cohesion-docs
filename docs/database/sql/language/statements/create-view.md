@@ -90,4 +90,4 @@ The first query returns (1, 'Ada'), (2, 'Bea') with two columns. The second retu
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlViewTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlViewTests.TypeFacets.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlViewTests.BindingFailures.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanner.Views.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.Views.cs`.

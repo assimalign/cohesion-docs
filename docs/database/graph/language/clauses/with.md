@@ -66,6 +66,6 @@ Result: `1`. Adding DISTINCT makes the reference to incoming `x` in WHERE fail w
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanner.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphPlanExecutor.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Planning/GraphPlanner.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphPlanExecutor.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlLinearCompositionTests.cs`.

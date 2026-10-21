@@ -46,4 +46,4 @@ Console.WriteLine(node.Alternatives.Count); // 1
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlCaseExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphValueTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphValueExpressions.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Evaluation/GraphValueExpressions.cs`.

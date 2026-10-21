@@ -33,5 +33,5 @@ Console.WriteLine(statement.GqlExpression.OrderBy[1].NullOrdering); // Default
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlSortItem.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlNullOrdering.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlOrderPagingParserTests.cs`.

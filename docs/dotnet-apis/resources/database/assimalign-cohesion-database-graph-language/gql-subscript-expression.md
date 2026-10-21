@@ -42,4 +42,4 @@ var node = new GqlSubscriptExpression(
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlSubscriptExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphValueTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphValueExpressions.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Evaluation/GraphValueExpressions.cs`.

@@ -101,6 +101,6 @@ Result: `2`. `SELECT id FROM a WHERE id IN ((SELECT id FROM b)) ORDER BY id;` re
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanner.SetOperations.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanExecutor.SetOperations.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.SetOperations.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.SetOperations.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSetOperationExecutionTests.cs`.

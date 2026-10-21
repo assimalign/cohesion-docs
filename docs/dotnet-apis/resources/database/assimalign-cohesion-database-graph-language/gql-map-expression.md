@@ -44,4 +44,4 @@ Console.WriteLine(node.Entries[0].Key); // k
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlMapExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphValueTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphValueExpressions.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Evaluation/GraphValueExpressions.cs`.

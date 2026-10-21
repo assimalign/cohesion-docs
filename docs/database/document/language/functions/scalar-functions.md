@@ -101,6 +101,6 @@ are values rather than errors. See [Diagnostics](../diagnostics.md).
 ## Sources
 
 - **Function table** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlFunctions.cs`.
-- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Functions.cs`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Functions.cs`.
 - **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Functions.cs`.
 - **Wire types** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

@@ -74,4 +74,4 @@ COHDOC012 and leaves the existing documents unchanged.
 
 - **Keys, query sources and atomicity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.
 - **Exact numbers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertNumericTests.cs`.
-- **Executor** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentPlanExecutor.Dml.cs`.
+- **Executor** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Execution/DocumentPlanExecutor.Dml.cs`.

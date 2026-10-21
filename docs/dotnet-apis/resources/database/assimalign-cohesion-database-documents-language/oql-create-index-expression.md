@@ -55,4 +55,4 @@ Console.WriteLine(create.IfNotExists); // True
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlCreateIndexExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlCompositeIndexParserTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentPlanner.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Planning/DocumentPlanner.cs`.

@@ -41,6 +41,6 @@ the engine does not choose an encoding or apply text collation to those bytes.
 ## Sources
 
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`.
-- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/KeyValueCommandParser.cs`.
+- **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/Execution/KeyValueCommandParser.cs`.
 - **Request validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/KeyValuePutRequest.cs`.
 - **Conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueCommandTests.cs`.

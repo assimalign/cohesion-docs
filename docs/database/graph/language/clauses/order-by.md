@@ -93,5 +93,5 @@ The first uses default NULL-last ascending; the second explicitly keeps NULL las
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlOrderPagingTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphOrderComparer.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphOrderComparer.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphOrderKeyTests.cs`.

@@ -64,5 +64,5 @@ An absent collection path yields a MISSING projected member; a NULL collection y
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Arrays.cs`.

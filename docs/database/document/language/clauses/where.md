@@ -40,4 +40,4 @@ Both return beta. Replacing the condition with NULL or MISSING returns no rows.
 ## Sources
 
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Predicates.cs`.
-- **Truth** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/DocumentExpressionEvaluator.Values.cs`.
+- **Truth** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Values.cs`.

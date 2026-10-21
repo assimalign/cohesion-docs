@@ -32,5 +32,5 @@ Console.WriteLine(((SqlSetOperationExpression)statement.SqlExpression).Operator 
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/Expressions/SqlSetOperationExpression.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/Expressions/SqlSetOperator.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlSetOperationParserTests.cs`.

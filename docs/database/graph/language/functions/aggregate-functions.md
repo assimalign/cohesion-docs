@@ -112,6 +112,6 @@ The last query also reports the unknown-label warning when Nobody has no catalog
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphAggregateTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/GraphAggregateAccumulator.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Execution/GraphAggregateAccumulator.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphAggregateWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlAggregateParserTests.cs`.

@@ -58,6 +58,6 @@ preserves every object.
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/SqlPlanExecutor.Schemas.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.Schemas.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSchemaExecutionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSchemaExecutionTests.Recovery.cs`.
