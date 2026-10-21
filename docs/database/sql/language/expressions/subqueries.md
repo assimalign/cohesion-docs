@@ -25,7 +25,8 @@ arithmetic or a list comma remains a scalar expression. Set outputs retain commo
 collation metadata; ordinary scalar-cardinality and NULL rules below still apply.
 
 Scalar and membership queries must return exactly one column. `EXISTS` accepts any valid select
-list. Every expression child requires `FROM`. Names bind locally first, then in enclosing query scopes.
+list. A child may omit FROM and use one implicit row, including correlated children. Names bind
+locally first, then in enclosing query scopes. See [SELECT](../statements/select.md#c-select-without-from).
 
 | Form | Result |
 | --- | --- |

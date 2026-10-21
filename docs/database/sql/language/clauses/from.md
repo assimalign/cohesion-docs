@@ -24,7 +24,8 @@ first-input names become the derived relation's columns. Existing alias and oute
 
 ## Remarks
 
-Every ordinary `SELECT` requires `FROM`; a [CTE definition root](with.md) can omit it. A session cannot select another database through
+[SELECT without FROM](../statements/select.md#c-select-without-from) uses one implicit row,
+including nested queries, CTEs and views. A wildcard still requires a relation. A session cannot select another database through
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 

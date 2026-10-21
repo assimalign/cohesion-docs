@@ -102,8 +102,8 @@ including unused bodies. Read names prefer visible CTEs; qualified reads and DML
 catalog. Self and later-sibling names fall back to stored tables; only missing future relations use
 COHSQLE026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
 rules. Reachable definitions materialize once in declaration order before any DML write. Unused
-bodies do not evaluate counts or seek bounds. A FROM-less definition root uses one implicit row;
-ordinary nested queries still require FROM. With, Materialize, CteScan and Constant describe these
+bodies do not evaluate counts or seek bounds. Every FROM-less SELECT uses one implicit row,
+including top-level queries, nested queries, views and set operands. Wildcards still need a relation. With, Materialize, CteScan and Constant describe these
 plans without executing them.
 
 Derived FROM/JOIN/comma relations reuse typed output metadata, including modifiers, domains,
@@ -1067,6 +1067,24 @@ compiled schemas have no identity representation. SQL script definitions retain 
 SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smallserial names;
 SQL reports COHDBL001, native construction throws ArgumentException with the IDENTITY suggestion.
 For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
+
+## Boolean search conditions
+
+WHERE, HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN, ON CONFLICT DO UPDATE WHERE
+and logical/truth-test operands require BOOLEAN. Planning rejects known non-Boolean types
+before reads with COHSQLE003 (42804); runtime checks enforce values whose types were unknown.
+Untyped NULL is UNKNOWN. Valid Boolean input string literals coerce in these positions, while
+text columns and parameters retain their types. Every CASE result and COALESCE alternative in
+a Boolean position is checked, including unreachable alternatives.
+
+Stored SQL function bodies use load-only binding. Legacy invalid Boolean operands and changed
+application return types fail with COHSQLE003 on invocation and allow the database to open.
+See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
+
+Application scalars and aggregates receive the transaction start through
+[SqlFunctionContext.TransactionTimestamp](sql-function-context.md), including aggregate creation,
+row accumulation, DISTINCT/ordered input, SQL bodies and CHECK evaluation. Explicit transactions
+share one instant across statements; autocommit statements each capture their own.
 
 ## Error model
 

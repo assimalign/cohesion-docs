@@ -23,6 +23,10 @@ Output aliases are not bound here: repeat the grouping expression or aggregate. 
 an aggregate must satisfy grouping validity. Invalid ungrouped references are planning errors even
 when no input rows exist. A supported correlated or uncorrelated subquery may participate in the predicate.
 
+HAVING requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
+aggregate such as `HAVING SUM(age)` fails with COHSQLE003 (42804), including on empty input.
+Untyped NULL is UNKNOWN and retains no group.
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
@@ -42,6 +46,9 @@ The surviving row is `(TRUE, 2, 86)`.
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
 
 ## Sources
+
+- **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
+
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

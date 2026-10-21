@@ -37,6 +37,8 @@ COHSQLE006 (42883), including empty inputs. Messages list accepted signatures. N
 ambiguous-overload diagnostics remain distinct (COHSQLE006 and COHSQLE008).
 
 COALESCE evaluates alternatives only until the first non-NULL and returns NULL if none exists.
+In a [Boolean position](../clauses/where.md#boolean-search-conditions), every alternative must
+qualify, including unreachable ones; mixed Boolean/non-Boolean alternatives fail COHSQLE003 (42804).
 Compatible alternatives receive a common result type, including numeric and calendar promotion.
 NULLIF evaluates its operands, returns NULL when equal, otherwise preserves the first value and
 its type; a NULL first operand stays NULL, and a NULL second operand leaves the first unchanged.
@@ -220,6 +222,9 @@ SQL formats are refused with no upgrade reader.
 ## See also
 
 [Functions](index.md) · [Aggregates](aggregate-functions.md) · [DEFAULT](../clauses/default.md) · [Diagnostics](../diagnostics.md) · [Unsupported syntax](../unsupported.md)
+
+Application functions receive this same captured instant through
+[SqlFunctionContext.TransactionTimestamp](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-function-context.md).
 
 ## Sources
 

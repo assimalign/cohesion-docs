@@ -42,11 +42,11 @@ Console.WriteLine(cte.Columns[0]); // n
 Console.WriteLine(((SqlSelectExpression)cte.Body).From.Count); // 0
 ```
 
-Execution returns one row containing Int64 1.
+Execution returns one row containing Int32 1.
 
 Body may also be [SqlSetOperationExpression](sql-set-operation-expression.md). For example,
 `WITH a AS (SELECT 1 AS n UNION ALL SELECT 2 AS n) SELECT n FROM a;` has a set body and returns
-1 and 2. Each definition's root operands may omit FROM; nested children retain ordinary rules.
+1 and 2. Every SELECT operand may omit FROM and use one implicit row, including nested children.
 
 ## Related reference
 

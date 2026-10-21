@@ -49,8 +49,8 @@ wins equal priorities. That common collation governs both set comparison and IN 
 ## Query positions and paging
 
 Set bodies execute at the top level, in derived tables, CTE definitions, INSERT sources, scalar
-subqueries, IN/NOT IN and EXISTS/NOT EXISTS, including correlated operands. Top-level SELECT
-operands still require FROM; CTE definition roots may use an implicit row. All operands share
+subqueries, IN/NOT IN and EXISTS/NOT EXISTS, including correlated operands. Every SELECT
+operand may omit FROM and use one implicit row. All operands share
 the statement snapshot/catalog capture and see the transaction's own writes. Scalar cardinality
 and INSERT atomicity rules remain in force. `IN ((SELECT …))` is membership, not a scalar value list.
 

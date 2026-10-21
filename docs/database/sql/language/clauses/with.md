@@ -19,13 +19,13 @@ WITH cte_name AS ( select_statement ) [ , ...n ] select_statement
 
 - **`cte_name`** — A schema-less name, matched case-insensitively by catalog name rules.
 - **`column_name`** — Optional output renames; supply exactly the body's full output width.
-- **`select_statement`** — A supported SELECT. Only a definition's SELECT root may omit FROM.
+- **`select_statement`** — A supported SELECT, with optional FROM at every query level.
 
 ## Remarks
 
 CTE bodies and the statement query may be [set operations](set-operations.md), including N-way
-UNION/INTERSECT/EXCEPT with ALL/DISTINCT. Every top-level operand of a CTE definition may omit
-FROM; nested derived/scalar bodies retain ordinary FROM rules. Common types and output names
+UNION/INTERSECT/EXCEPT with ALL/DISTINCT. Every SELECT operand may omit FROM, including
+nested derived/scalar bodies; each uses one implicit row. Common types and output names
 are resolved before the definition materializes.
 
 Definitions bind in declaration order. A body can read earlier CTEs. An unqualified read resolves
@@ -39,9 +39,8 @@ entry or an enclosing stored relation available through correlation. A same-name
 relation without distinct aliases conflict (COHSQLE019). DML targets always resolve through the
 catalog; a CTE cannot become an UPDATE, INSERT or DELETE target.
 
-A FROM-less definition root uses one implicit row and supports scalar or aggregate SELECT
-clauses. A wildcard still needs a relation. Nested expression subqueries and derived bodies
-retain the ordinary FROM requirement. Column renaming retains types, bounds, nullability, domains
+A FROM-less SELECT uses one implicit row and supports scalar or aggregate SELECT
+clauses at every query level. A wildcard still needs a relation. Column renaming retains types, bounds, nullability, domains
 and collations, including empty results. SQL has NULL and no MISSING value.
 
 Each reachable definition materializes once per statement, reused across joins and scalar, IN

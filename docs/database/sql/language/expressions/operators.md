@@ -63,6 +63,11 @@ Only true conditions retain rows in `WHERE`, `ON`, and `HAVING`.
 
 `NOT UNKNOWN` remains unknown. Membership and its empty-result rules are detailed in
 [Subqueries](subqueries.md); a null-containing candidate list can also produce unknown.
+AND, OR, NOT and truth-test operands require BOOLEAN under the
+[search-condition rules](../clauses/where.md#boolean-search-conditions). Known non-Boolean operands
+fail COHSQLE003 (42804), even in a short-circuited branch. Untyped NULL remains UNKNOWN;
+valid Boolean input string literals coerce in these positions.
+
 SQL has NULL, with no MISSING scalar. The predicates below also work in projections, JOIN ON,
 HAVING, CASE, grouping, ordering and correlated subqueries.
 
