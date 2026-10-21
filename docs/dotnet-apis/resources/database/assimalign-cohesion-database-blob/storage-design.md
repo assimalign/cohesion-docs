@@ -102,6 +102,12 @@ concurrent overwrite/delete.
 
 ## Deletion and bounded recovery
 
+Sustained overwrite tests write 16 KiB per version, purge/checkpoint every 32 versions and
+observe a data-file plateau after warm-up, with allowance for rotating checkpoint anchors and
+partly filled pages. Reclaimed content and metadata pages are reused. Snapshot pins can delay
+that reclamation. Catalog maintenance also retires idle names' obsolete references; see
+[bounded history](catalog-design.md#bounded-version-history).
+
 `TombstoneContentAsync` marks each old chunk in a separate physical bracket under the deleting
 logical context. The catalog tombstone shares that logical context, so rollback restores both.
 Committed tombstones are reclaimed only after every snapshot that could see their content has
@@ -132,6 +138,8 @@ schema provisioning are outside this component.
 
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.Overwrites.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Assimalign.Cohesion.Database.Blob.csproj`.

@@ -31,6 +31,13 @@ and scrubs its indexes, and only then calls `CompleteRecovery`. Checkpointing ea
 the commit evidence needed to distinguish abandoned logical writes. Engine disposal aborts active
 logical contexts before durably flushing storage. `Storage` owns the passed streams.
 
+`WriteContentAsync` borrows the context and never commits or rolls it back, even after chunk
+failure or cancellation. Earlier chunks stay in the undo ledger until the caller aborts.
+The engine orders its operation completion gate, transaction end gate and coordinator apply gate
+to serialize a single abort with rollback and session disposal. Storage returns the original
+failure to that handler. An explicit session retains COHDBD001 refusals until rollback.
+See [signature, exceptions and example](storage.md#writecontentasync).
+
 ## Serialization rules, version 1
 
 Content is exactly one UTF-8 JSON value, without a BOM, comments, or trailing commas. Objects,
@@ -110,6 +117,11 @@ physical-persistence guarantee.
 
 ## Compatibility and limits
 
+Snapshot-safe purge returns obsolete content and metadata pages for reuse. Sustained overwrites
+with completed purge/checkpoint work reuse pages instead of adding a full history indefinitely;
+pinned snapshots delay reclamation. Catalog references are also retired for idle names by bounded
+worker maintenance. See [catalog history](catalog-design.md#bounded-version-history).
+
 Adding, removing, or reordering object fields is supported without provisioning or migration.
 Changing a field between scalar types, object, array, and null is supported and produces a new
 document version. Documents within one collection may have unrelated shapes. `Index` maintenance
@@ -127,6 +139,8 @@ and a wire streaming protocol are outside this component's scope.
 
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentContentFailureConcurrencyTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Assimalign.Cohesion.Database.Documents.csproj`.
