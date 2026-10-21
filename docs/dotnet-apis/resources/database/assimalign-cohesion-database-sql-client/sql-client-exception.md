@@ -51,8 +51,15 @@ in negotiated Diagnostics and `ConnectionUsable = true`; no SQLSTATE is assigned
 [LIKE budget and example](../../../../database/sql/language/expressions/operators.md#like-and-escape).
 
 Detected storage damage uses ExecutionFailure with `COHDBS003` and database/page context,
-with a usable connection. Structured diagnostics are available when negotiated; no SQLSTATE is
-assigned. See [storage integrity diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+with a usable connection (SQLSTATE XX001). Attached-index damage also retains COHDBI002 and
+COHSQLE041. Storage/index I/O failures use COHSQLE041 (58030 for I/O), including wrapped causes.
+Both failures abort an explicit transaction, which must be rolled back before continuing.
+Autocommit may run the next statement after a recoverable failure. Structured diagnostics are
+available when negotiated. See [storage integrity diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+
+Non-Boolean search conditions use COHSQLE003 (42804) as ExecutionFailure with a usable
+connection and explicit transaction. Only valid Boolean input string literals coerce; supplied
+text parameters retain their types. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
 
 ## Example
 

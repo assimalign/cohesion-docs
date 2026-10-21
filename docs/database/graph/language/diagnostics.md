@@ -37,7 +37,8 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG003` | Provably incompatible function/CAST kind or temporal stored property; schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
 | `COHDBG004` | Materialized MATCH/FOR row, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | Storage failure translated at the engine boundary |
+| `COHDBG006` | Storage/index or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
+| `COHDBI002` | Attached-index corruption retained beside leading COHDBS003 and additional COHDBG006; no assigned SQLSTATE |
 | `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
 | `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
@@ -165,6 +166,12 @@ This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
 with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
 a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBG018.
+
+Runtime storage/index failures use COHDBG006 in Diagnostics with ordinary embedded messages.
+Begin uses the same translator. Attached-index corruption leads with COHDBS003 and retains
+COHDBI002 and COHDBG006 with the index cause/page. An I/O open failure releases resources,
+publishes no database and permits retry after resolution. An operation failure aborts an
+explicit transaction until rollback. Wire ExecutionFailure adds the prefix and keeps the session.
 
 ## See also
 

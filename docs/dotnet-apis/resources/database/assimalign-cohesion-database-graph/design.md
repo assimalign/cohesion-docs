@@ -369,7 +369,8 @@ not included.
 | `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, or invalid graph mutation |
 | `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | Storage failure translated at the engine boundary |
+| `COHDBG006` | Storage/index or open I/O failure, including wrapped causes; original InnerException retained |
+| `COHDBI002` | Attached-index corruption retained beside leading COHDBS003 and additional COHDBG006; no assigned SQLSTATE |
 | `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
 | `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
@@ -794,6 +795,15 @@ await engine.DropDatabaseAsync("sales");
 
 See [database lifecycle](../../../../database/graph/index.md) and the GraphDatabaseNameTests
 file-set refusal, crash recovery and transient-open cases.
+
+## Engine failure boundaries
+
+Storage and index failures use COHDBG006 in Diagnostics with ordinary embedded messages;
+only wire formatting adds the prefix. Begin and operations share the translator. Attached-index
+damage becomes DatabaseCorruptionException / COHDBS003 and retains COHDBI002 and COHDBG006
+with the index cause/page. Existing offline classifications remain in force. I/O open failures
+release resources and publish no database; resolve the condition and retry. Failed operations
+abort explicit transactions until rollback; wire ExecutionFailure keeps the session.
 
 ## Sources
 

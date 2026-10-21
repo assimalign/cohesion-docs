@@ -1088,9 +1088,42 @@ share one instant across statements; autocommit statements each capture their ow
 
 ## Error model
 
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| COHDBS003 | Storage or attached-index corruption | XX001 |
+| COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
+| COHSQLT005 | Aborted transaction refuses statements/commit; original cause retained | — |
+
+StorageException subclasses, IndexException and IOException, including inner and aggregate
+causes, cross begin, statement, commit/rollback and create/open boundaries with COHSQLE041
+when no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes
+precedence: COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHSQLE041
+and keeps the IndexCorruptionException and page context. Storage-format COHDBS001 and index-format
+COHDBI001 refusals retain their authored types/messages, diagnostics and inner causes. Existing
+offline/unconfirmed-commit outcomes retain their precedence.
+
+Storage failures abort an explicit transaction after statement admission/snapshot release.
+Further statements and COMMIT are refused with structured COHSQLT005 retaining the coded cause;
+roll back before continuing. Ordinary constraint, evaluation and Boolean-condition failures
+retain statement atomicity and leave the transaction usable. Autocommit can execute the next
+statement after a recoverable storage failure. Wire ExecutionFailure preserves the session.
+An I/O open failure releases acquired resources and publishes no database; resolve it and retry.
+
+Storage-failure and corruption messages are ordinary embedded text; inspect Diagnostics for
+codes. SQL's aborted-transaction refusal currently also prefixes its embedded Message with
+COHSQLT005. The wire supplies a prefix when formatting a response and avoids adding it twice.
+
+If snapshot release or abort cleanup also fails, the exact coded statement exception remains
+primary, including its corruption type. EventSource Assimalign.Cohesion.Database.Sql emits
+Warning event 25, TransactionCleanupFailed, with transactionId, exceptionType and exceptionMessage
+(bounded to 1,024 characters). No statement text or new counter is added.
+
+
+
 Storage integrity failures use
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003 (no SQLSTATE), the database, optional page and original storage cause. Reads,
+with COHDBS003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
 statements, transactions and create/open receive the translation, including coded and aggregate
 causes. Damaged reads fail rather than omitting rows; legitimate reclamation still reads as absence.
 The existing wire ExecutionFailure path carries the code and leaves the connection usable.

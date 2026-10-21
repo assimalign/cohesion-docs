@@ -77,6 +77,31 @@ false for deletion of a missing object.
 
 ## Failure behavior
 
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBB005` | Storage operation or open I/O failure; original cause retained | — |
+| `COHDBB006` | Malformed/unsupported catalog metadata; additional model diagnostic for attached-index corruption | — |
+| `COHDBB007` | Upload has failed or its transaction is no longer active; later writes/publication refused | — |
+| `COHDBB001` | Explicit transaction is aborted; operations/commit refused until rollback | — |
+| `COHDBI002` | Additional attached-index corruption diagnostic beside COHDBS003 and COHDBB006 | — |
+
+Child-root storage and catalog failures cross the engine boundary as DatabaseException with
+Error diagnostics and the original InnerException. Explicit and automatic transaction begin use
+the same translation. Storage corruption leads with COHDBS003; attached-index corruption also
+retains COHDBI002 and COHDBB006. Existing offline/unconfirmed-commit classifications remain in
+force. An I/O open failure releases acquired resources, publishes no database and permits retry
+after the condition is resolved.
+
+A failed operation aborts an explicit transaction; roll it back before further work. The embedded
+session can then be reused. COHDBB001 is a structured aborted-transaction diagnostic with an
+ordinary embedded message. The wire adds the first Error code as a prefix when absent, sends
+ExecutionFailure and closes the connection.
+
+A failed upload or one whose transaction ended raises COHDBB007 on later writes rather than
+accepting buffered content. It cannot publish partial content; disposal after rollback also
+reports COHDBB007. Unrelated InvalidOperationException/ObjectDisposedException retain their
+ordinary .NET types. See [streaming client](streaming-client.md#diagnostics).
+
 Engine and storage errors send `ProtocolErrorCode.ExecutionFailure`; protocol violations send
 `ProtocolErrorCode.ProtocolViolation`. The Blob server closes the session after an exchange
 failure. A broken transport can prevent delivery of the error itself. The client then observes

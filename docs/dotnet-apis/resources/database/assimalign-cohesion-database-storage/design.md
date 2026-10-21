@@ -51,7 +51,7 @@ checkpoint anchor chain. Its checksums are separate from pooled-page checksums.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / COHDBS001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 3.
+reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 4.
 
 The changed public members are:
 

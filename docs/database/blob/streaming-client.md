@@ -122,6 +122,14 @@ Detected storage damage additionally uses COHDBS003, with database and optional 
 a corrupt open also retains COHDBB004. Damaged reads fail instead of silently omitting blob data.
 No SQLSTATE is assigned. The same file diagnostics describe verified-backup recovery.
 
+Embedded engine failures carry COHDBB005 for storage/I/O, COHDBB006 for catalog metadata
+and COHDBB007 for failed/inactive uploads in DatabaseException.Diagnostics. Failed uploads
+refuse later writes and partial publication. An I/O open failure releases resources and permits
+retry after resolution. Attached-index corruption retains COHDBI002 and COHDBB006 beside
+COHDBS003. COHDBB001 marks an aborted explicit transaction; roll it back before embedded reuse.
+The Blob wire adds the code prefix and closes after an exchange failure. These additional codes
+have no assigned SQLSTATE; see [failure behavior](operations.md#failure-behavior).
+
 ## Verification in the source tree
 
 The client tests cover nonseekable sources, bounded reads, empty objects, ordered prefixes,

@@ -89,7 +89,7 @@ validates every branch and parameter even when CASE/logic would skip it at runti
 SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–022
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–026
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
 Database lifecycle failures additionally use COHDBD003 for missing sidecars, incomplete creation or
 unrecoverable files, with no assigned SQLSTATE. See [file diagnostics](../../../../database/document/language/diagnostics.md#database-files).
@@ -98,6 +98,12 @@ Detected storage damage uses COHDBS003 / DatabaseCorruptionException with databa
 page context; refused opens also retain COHDBD003. A damaged read fails instead of omitting a
 document. Wire execution failure carries the diagnostic and leaves the connection usable.
 COHDBS003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
+
+Storage failures additionally carry COHDBD004; catalog/index failures carry COHDBD005.
+Wrapped I/O retains COHDBD004, including during open. Attached-index corruption retains
+COHDBI002 and COHDBD005 beside COHDBS003. COHDBD001 is a structured aborted-transaction
+refusal. These codes have no assigned SQLSTATE. The wire returns ExecutionFailure with
+diagnostics and preserves the connection; explicit transactions require rollback after failure.
 
 ## Scalar evaluation and metadata
 
@@ -117,6 +123,10 @@ at the 33rd path; direct AST planning uses COHDOC022. Duplicate paths are OQL000
 The catalog stores all index definitions and registrations as v2 and refuses v1 before recovery
 writes, with a recreate remedy and no upgrade. UNIQUE failures are COHDOC020 (23505) or
 COHDOC021 (non-scalar component), carried by the catalog-owned constraint exception.
+Unconditional duplicate CREATE uses COHDOC024, absent unconditional DROP uses COHDOC025,
+and an encoded composite key beyond 1,024 bytes uses COHDOC026. The engine carries these in
+DatabaseException.Diagnostics with the original catalog cause, aborting an explicit transaction
+until rollback. Autocommit can run the next statement. These codes have no assigned SQLSTATE.
 
 ## Array bindings and predicates
 

@@ -66,6 +66,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+| `COHSQLE041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
 | `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
@@ -133,8 +134,10 @@ columns use COHSQLE025. Stable/Volatile defaults execute per assignment; subquer
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| `COHSQLE041` | Storage/index or open I/O operation failed; release resources and retry after resolution | 58030 for I/O |
+| `COHDBI002` | Attached-index corruption retained beside COHDBS003 and COHSQLE041 | — |
 | `COHSQLC001` | Interrupted creation cannot be completed through plain open: pre-header files require a safe create/Build retry; missing sidecars, ambiguous catalogs or conflicting persisted state are preserved and refused | — |
-| `COHDBS003` | Detected storage corruption during create/open or execution; DatabaseCorruptionException names the database and optional page and retains the storage cause | — |
+| `COHDBS003` | Detected storage corruption during create/open or execution; DatabaseCorruptionException names the database and optional page and retains the storage/index cause | XX001 |
 
 COHSQLC001 is an Error in DatabaseException.Diagnostics. A safely restartable pre-header open uses
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
@@ -150,6 +153,11 @@ usable. Legitimately reclaimed rows retain absence semantics. See
 [storage recovery](../../overview.md#database-file-sets-and-lifecycle) and
 [DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
+Storage/index failure classification searches inner exceptions and every aggregate branch.
+Corruption takes precedence over I/O; attached-index damage retains COHDBI002 and model code
+COHSQLE041 beside the leading COHDBS003. Specific format/offline refusals keep their codes.
+A recoverable I/O open failure publishes no database and permits retry after resolution.
+
 ## Transactions
 
 | Code | Meaning |
@@ -157,8 +165,18 @@ usable. Legitimately reclaimed rows retain absence semantics. See
 | `COHSQLT001` | BEGIN/START TRANSACTION while a transaction is active |
 | `COHSQLT002` | COMMIT/END/ROLLBACK without an active transaction |
 | `COHSQLT003` | DDL inside an explicit transaction |
+| `COHSQLT005` | Transaction was aborted or ended beneath its caller; later statements/commit refused with the original coded cause |
 
 A malformed transaction spelling reports SQL0003 before changing transaction state.
+
+Storage corruption and I/O failures abort an explicit transaction; roll back before continuing.
+Ordinary constraint/evaluation/search-condition failures keep statement atomicity and leave the
+transaction usable. In autocommit the next statement can run after a recoverable failure.
+The wire returns ExecutionFailure with a usable connection. Secondary cleanup failure keeps
+the original coded exception and emits Warning event 25, TransactionCleanupFailed, on
+Assimalign.Cohesion.Database.Sql, carrying transactionId, exceptionType and exceptionMessage
+(bounded to 1,024 characters). SQL's embedded COHSQLT005 refusal still has a message prefix;
+Diagnostics is the code contract.
 
 [ON CONFLICT](clauses/on-conflict.md) uses DatabaseTransactionAbortedException for a newer
 committed Snapshot conflict or invalidated unique-index directory, and DatabaseTransactionDeadlockException
@@ -196,6 +214,8 @@ retain the wire category, structured diagnostics and connection usability.
 [Language (SQL)](index.md) · [Unsupported syntax](unsupported.md) · [CAST](expressions/cast.md) · [Parameters](expressions/parameters.md)
 
 ## Sources
+
+- **Wrapped/index failures and cleanup evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/IndexFailureTranslationTests.cs`, `SqlIndexReadIntegrityTests.cs` and `StorageOpenFailureTests.cs` in the same directory.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 - **Stored function invocation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPersistedDefinitionTests.cs`.

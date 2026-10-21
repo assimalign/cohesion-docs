@@ -37,6 +37,12 @@ Commands use the session's explicit transaction when present and auto-commit oth
 default isolation is `Snapshot`; `ReadCommitted` refreshes visibility per command. `Serializable`
 is rejected. The text grammar and wire protocol do not expose explicit transaction control.
 
+Storage/index corruption and I/O failures abort an explicit transaction; COHDBK001 refuses
+further commands until rollback. Ordinary command errors retain statement atomicity and keep
+the transaction usable. Storage/I/O uses COHDBK005 (58030 for I/O); corruption uses COHDBS003
+(XX001), with COHDBI002 and COHDBK005 additionally retained for attached-index damage.
+See [diagnostics](diagnostics.md#storage-failures-and-transaction-recovery).
+
 Storage is in memory when `KeyValueDatabaseEngineOptions.RootPath` is omitted. File-backed
 databases use two file sets: `<name>` for entries and index pages, and `<name>.catalog` for
 index registrations and the entry-format version. `KeyValueStorage` binds this model to the

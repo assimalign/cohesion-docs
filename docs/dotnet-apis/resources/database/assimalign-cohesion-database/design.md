@@ -300,6 +300,17 @@ as the `Internal` error (and closes the session), which is the pre-existing beha
 `StorageException` — the SQL engine's statement-level failures already surface as
 `DatabaseException`, so the inversion changed no live wire mapping.
 
+## Engine failure diagnostics
+
+Engine codes are carried in Diagnostics. Translation searches inner exceptions and every
+aggregate branch, preserves specific diagnoses and gives corruption precedence over ordinary
+I/O. Attached-index damage uses DatabaseCorruptionException with COHDBS003, COHDBI002 and
+the model code, retaining the index cause and page. The public Create overload accepts
+IndexCorruptionException; see [signatures and example](database-corruption-exception.md).
+Storage-failure/corruption embedded messages are ordinary explanatory text; wire writers add a
+missing prefix. SQL/Key-Value Pair aborted-transaction refusals currently also prefix their
+embedded Message. Inspect Diagnostics for codes. See the [model mapping](../../../../database/overview.md#engine-failure-diagnostics).
+
 ## Lifecycle pattern
 
 Storage integrity failures are translated to

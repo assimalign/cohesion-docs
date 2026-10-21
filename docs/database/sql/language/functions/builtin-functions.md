@@ -178,6 +178,9 @@ ROLLBACK;
 
 All timestamp columns contain the same captured instant, and the equality is TRUE.
 
+Application functions receive this same captured instant through
+[SqlFunctionContext.TransactionTimestamp](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-function-context.md).
+
 ## Limits, defaults and diagnostics
 
 String-producing scalars cap both output and Unicode work buffers at **1,048,576 UTF-16 units**.
@@ -222,9 +225,6 @@ SQL formats are refused with no upgrade reader.
 ## See also
 
 [Functions](index.md) · [Aggregates](aggregate-functions.md) · [DEFAULT](../clauses/default.md) · [Diagnostics](../diagnostics.md) · [Unsupported syntax](../unsupported.md)
-
-Application functions receive this same captured instant through
-[SqlFunctionContext.TransactionTimestamp](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-function-context.md).
 
 ## Sources
 
