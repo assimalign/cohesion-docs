@@ -34,6 +34,12 @@ Snapshot and ReadCommitted isolation are supported. Serializable is rejected. Ex
 use the session API; GQL has no transaction-control syntax. Mutations join the session transaction,
 and a mutation failure rolls back the owning logical transaction.
 
+Cancellation observed before explicit commit starts leaves the transaction usable and commits
+nothing. A started commit ignores caller cancellation and returns its real outcome. Automatic
+commit takes over without the caller token after execution completes; execution and lock waits
+remain cancellable. A lost wire connection can still lose a committed result. See
+[the shared transaction boundary](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 An aborted explicit transaction refuses statements, BEGIN and COMMIT until rollback with
 structured COHDBG007 and the original cause. Its in-process message is unprefixed; the wire
 still starts with COHDBG007. Catalog snapshot conflicts are retryable aborts with that code;

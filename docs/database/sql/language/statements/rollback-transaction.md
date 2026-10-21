@@ -25,6 +25,10 @@ Only an enrolled writer appends an abort record, after undo, without waiting for
 durability. Read-only rollback or disposal appends no lifecycle record and waits for no flush;
 the transaction still ends and releases its locks.
 
+Like [COMMIT](commit-transaction.md), rollback observes caller cancellation only before its end
+starts. Cancellation observed then leaves the transaction active and usable. A started rollback
+ignores caller cancellation and completes its end.
+
 `ROLLBACK TO` is not implemented. It produces `SQL0003` rather than silently rolling back the
 whole transaction. A rejected transaction-control statement leaves the active scope intact.
 Completed DDL is self-committing and cannot be undone by a later rollback.

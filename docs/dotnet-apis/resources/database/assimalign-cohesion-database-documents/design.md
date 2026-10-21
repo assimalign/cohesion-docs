@@ -74,6 +74,12 @@ ApplicationModel references.
 
 ## Sessions and authority
 
+Explicit commit and rollback observe cancellation only before their end starts, leaving the
+transaction usable when canceled then. A started commit ignores caller cancellation and returns
+the real append/durability outcome. Automatic commit takes over without the caller token after
+execution completes. Execution and lock waits remain cancellable; a dead wire connection can
+still lose the result. See [the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 The database's direct collection methods run automatic transactions. Methods called through
 `session.Database` use that session's active transaction. OQL statements execute through the session
 and therefore use its active transaction or an automatic statement transaction. Collection CRUD
@@ -518,6 +524,11 @@ file-set refusal, crash recovery and transient-open cases.
 
 ## Engine failure boundaries
 
+Content chunk failures return from storage to the engine's failure handler. It orders the
+operation completion gate, transaction end gate and coordinator apply gate, so exactly one abort
+runs even when failure races rollback or session disposal. Earlier chunks and statements are
+undone together. An explicit session refuses commands with COHDBD001 until the caller rolls back.
+
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHDBD004` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
@@ -538,7 +549,23 @@ the next statement can run immediately. COHDBD001 is in Diagnostics with an ordi
 message. The wire adds its prefix and returns ExecutionFailure with diagnostics, preserving the
 connection. Index-name/key-size user failures retain their distinct COHDOC024–026 diagnostics.
 
+### Cleanup diagnostics
+
+After a successful automatic commit, snapshot-cleanup failure preserves the committed result
+and releases the session hold. `OutOfMemoryException` still propagates. Cleanup failure before
+commit success or inside an explicit transaction still fails the operation.
+
+| EventSource | Event ID | Name | Level | Payload |
+| --- | --- | --- | --- | --- |
+| `Assimalign.Cohesion.Database.Documents` | 13 | `StatementCleanupFailed` | Warning | `database`, `exceptionType` |
+
+The warning omits the exception message because it may contain document input. The committed
+write survives reopen; do not retry a write reported as successful because of this warning.
+
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCommitCancellationTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOperationOutcomeTests.cs`.
 
 - **Boundary and index failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/ChildRootFailureWireTests.cs`, `IndexFailureTranslationTests.cs` and `StorageOpenFailureTests.cs` in the same directory.
 

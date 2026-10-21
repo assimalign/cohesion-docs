@@ -61,6 +61,13 @@ the one-sequence-namespace pairing, and the per-statement bracket/apply-gate mod
 
 ## Execution model
 
+Explicit commit and rollback observe cancellation only before their end starts. Cancellation
+observed then leaves the transaction usable with nothing committed. A started commit ignores
+caller cancellation and returns its real outcome. Automatic commit receives no command token
+after execution completes, and `PutAsync` consumes its materialized outcome without that token.
+Execution and lock waits remain cancellable; a dead wire connection can still lose the result.
+See [the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 - **`Index`-primary reads.** `GET`/`EXISTS` seek the unique primary index
   (`key` → packed record location) through the command's snapshot; `SCAN` drives
   a snapshot cursor over an `IndexKeyRange`. Keys go into `IndexKey` **raw** —
@@ -362,7 +369,7 @@ nonnegative signed 32-bit big-endian column count at bytes 0–3; each repeated 
 four-byte name length and UTF-8 name, followed immediately by one unsigned `DatabaseType` byte.
 `ResultRow` (7) concatenates one self-describing scalar component per result field from byte 0
 through the payload end, with no count prefix. `Transaction` (9) is reserved and has no implemented
-payload; supported key-value transaction commands travel as statement text in `Execute`.
+payload. Neither the command grammar nor the typed client exposes explicit transaction control.
 
 `ResultComplete` (8) is the implemented family's one fixed-width payload. Its encoder emits exactly
 eight bytes: bytes 0–7 (bits 0–63) are the signed 64-bit affected count in big-endian order.
@@ -465,6 +472,19 @@ applies to in-memory storage. Surviving files remain byte-identical, no catalog 
 and the engine publishes no database. Existing catalogs are decoded and format-validated before
 data opens or recovers. No SQLSTATE is assigned to `COHDBK006`.
 
+For an existing `kv` data set whose catalog is missing, the lifecycle tests observe this refusal:
+
+```csharp
+try { await engine.OpenDatabaseAsync("kv", CancellationToken.None); }
+catch (DatabaseException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBK006
+    Console.WriteLine(engine.TryGetDatabase("kv", out _)); // False
+}
+```
+
+The open changes no files. Follow the specific drop/recreate or restore remedy in its message.
+
 ### Scan bounds
 
 `KeyValueScanRequest(KeyValueScanOptions? options = null)` normalizes null or zero-length
@@ -483,6 +503,9 @@ await foreach (var entry in database.ScanAsync(session,
 ```
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueCommitCancellationTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueInterruptedCreationTests.cs`.
 
 - **Read failures and cleanup evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.
 

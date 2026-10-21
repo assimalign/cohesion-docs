@@ -175,11 +175,15 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 | Graph | COHDBG018 | [Database files](graph/language/diagnostics.md#database-files) |
 | Document | COHDBD003 | [Database files](document/language/diagnostics.md#database-files) |
 | Blob | COHDBB004 | [Database files](blob/operations.md#database-file-diagnostics) |
-| Key-Value Pair | COHDBK004 | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
+| Key-Value Pair | COHDBK004; COHDBK006 for incomplete creation or missing catalog | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
 resolution and do not advise restore or drop. SQL remains at format 25.
+
+Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
+data of at most one page also receives COHDBK006 and a drop/recreate remedy; longer data with no
+catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
 The shared storage format is **4**, independent of SQL's data/catalog format 25 and Graph's record
 format 4. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
@@ -212,13 +216,13 @@ resources and publishes no database, permitting retry once the condition is reso
 
 | Model | Storage/I/O | Catalog/index | Additional failure codes |
 | --- | --- | --- | --- |
-| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction |
+| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit |
 | Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
 | Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
 | Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |
 | Blob | COHDBB005 | COHDBB006 | COHDBB007: failed/inactive upload; COHDBB001: aborted transaction |
 
-No SQLSTATE is assigned to these codes except the SQL/Key-Value Pair I/O mappings shown.
+No SQLSTATE is assigned to these codes except the mappings shown.
 Attached-index corruption leads with COHDBS003 and retains COHDBI002 plus the model's catalog/index
 code. Storage/index failures abort explicit transactions; roll back before continuing. SQL and
 Key-Value Pair ordinary statement errors keep their existing statement-atomic behavior. SQL,
@@ -233,6 +237,22 @@ authenticated session ready; disposal of the protocol transport faults it withou
 Graph Warning event 13, StatementCleanupFailed, records cleanup failure after successful
 autocommit without changing that success, except OutOfMemoryException still propagates.
 See [Graph wire behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#graph-wire-family).
+
+Documents Warning event 13 and Blob Warning event 14 are also named `StatementCleanupFailed`.
+After successful automatic commit, they report snapshot-cleanup failure without changing success;
+their payload is `database`, `exceptionType`. `OutOfMemoryException` still propagates. Cleanup
+failure before commit success or in an explicit transaction still fails the operation. See
+[Documents](document/language/diagnostics.md#operation-cleanup) and [Blob](blob/operations.md#operation-cleanup).
+
+## Commit and cancellation
+
+SQL, Document, Graph, Key-Value Pair and Blob use one explicit commit/rollback cancellation rule.
+Cancellation observed before the end starts leaves the transaction usable and commits nothing.
+Once the end is claimed, commit ignores caller cancellation and reports its real append/durability
+outcome. Automatic commit takes over without the caller token after statement execution completes.
+Self-committing SQL DDL finishes mandatory cleanup and delivers the committed result despite late
+cancellation. Execution and lock waits remain cancellable before that boundary. A wire connection
+that dies after commit can still lose the outcome frame. See [the coordinator API and example](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
 
 ## Checkpoint triggering
 

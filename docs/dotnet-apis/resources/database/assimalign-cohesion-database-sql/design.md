@@ -811,6 +811,13 @@ lifecycle.
 
 ## SQL transaction control and the B7 seam
 
+Explicit commit and rollback observe cancellation only before their end starts, leaving the
+transaction usable if canceled then. Once claimed, commit ignores caller cancellation and returns
+the real append/durability outcome. After execution completes, automatic commit receives no caller
+token. Catalog DDL that self-committed finishes mandatory cleanup without caller cancellation and
+delivers its committed result. A dead connection can still lose the result frame. See
+[the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 `BEGIN [TRANSACTION]`, `COMMIT [TRANSACTION]`, and `ROLLBACK [TRANSACTION]` are ordinary SQL
 requests over the existing wire `Execute` message. The session dispatches their parsed AST before
 creating an auto-commit transaction. `BEGIN` opens a coordinator context; subsequent queries and DML
@@ -1517,6 +1524,10 @@ layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests c
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDeferredProvisioningTests.ProgramLimits.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCommitCancellationConformanceTests.cs`.
 
 - **Construction durability and corruption** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `SqlIndexReadIntegrityTests.cs` in the same directory.
 

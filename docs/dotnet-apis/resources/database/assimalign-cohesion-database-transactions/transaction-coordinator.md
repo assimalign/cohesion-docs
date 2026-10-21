@@ -54,6 +54,13 @@ statement-apply gate. See [checkpoint behavior and measurements](../assimalign-c
 
 ## Commit and rollback
 
+Both methods observe caller cancellation only before the manager claims the transaction's end.
+A token canceled by then throws `OperationCanceledException` and leaves the transaction active
+and usable, with its writes, locks and visibility untouched and nothing committed. Once claimed,
+the end ignores caller cancellation while draining admitted applies and appending/flushing the log.
+Commit returns its real outcome, including normal append or durability failures. This applies to
+readers as well as writers; a reader still appends and flushes nothing.
+
 CommitAsync ends a reader and releases its locks without a lifecycle append or durability wait.
 For an enrolled writer it appends COMMIT and waits for durability under the configured policy while
 the transaction remains active. Journal ordering covers earlier statement records. A successful
@@ -71,7 +78,7 @@ in-flight visibility until undo succeeds. Disposal aborts outstanding readers wi
 | --- | --- |
 | ArgumentNullException | Constructor dependency or lifecycle context is null |
 | ObjectDisposedException | Lifecycle call after the underlying manager is disposed |
-| OperationCanceledException | Begin canceled, apply canceled, or rollback canceled before it starts |
+| OperationCanceledException | Begin/apply canceled, or commit/rollback canceled before its end starts |
 | TransactionAbortedException | Context is foreign, a statement view, ended or already ending; commit refused or its record could not be appended |
 | TransactionCommitUnconfirmedException | Writer COMMIT was appended but its drain/durable flush failed; committed in memory, with persistence decided by recovery |
 
@@ -125,6 +132,21 @@ so cleanup uses a non-canceled token.
 
 ## Related reference
 
+The cancellation test's pre-canceled end can be reproduced with the open coordinator:
+
+```csharp
+var context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
+using var canceled = new CancellationTokenSource();
+canceled.Cancel();
+try { await coordinator.CommitAsync(context, canceled.Token); }
+catch (OperationCanceledException)
+{
+    Console.WriteLine(context.State); // Active
+}
+await coordinator.CommitAsync(context, CancellationToken.None);
+Console.WriteLine(context.State); // Committed
+```
+
 Pooled client disposal does not dispose the server session or reset an explicit transaction.
 End or roll back that transaction before returning the connection; otherwise the next renter can
 inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
@@ -132,6 +154,8 @@ inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion
 [Assembly](index.md) · [Design](design.md) · [LockManager](lock-manager.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCommitCancellationTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCoordinator.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionManager.cs`.

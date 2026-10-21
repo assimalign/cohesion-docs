@@ -107,6 +107,16 @@ Engine and storage errors send `ProtocolErrorCode.ExecutionFailure`; protocol vi
 failure. A broken transport can prevent delivery of the error itself. The client then observes
 truncation or transport failure rather than successful completion.
 
+## Operation cleanup
+
+After successful automatic commit, a snapshot-cleanup failure preserves success and emits
+`StatementCleanupFailed`, event **14**, Warning, from `Assimalign.Cohesion.Database.Blob`.
+Its payload is `database`, `exceptionType`, with no exception message or blob input.
+`OutOfMemoryException` still propagates; cleanup failures before commit success or inside an
+explicit transaction still fail the operation. The session hold is released in all cases.
+This warning has no diagnostic code or SQLSTATE. A connection lost after commit can still lose
+the completion frame. See [engine diagnostics](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#cleanup-diagnostics).
+
 ## Database lifecycle
 
 Engine CreateDatabaseAsync/OpenDatabaseAsync require the original blob.dat, blob.log and blob.bak.

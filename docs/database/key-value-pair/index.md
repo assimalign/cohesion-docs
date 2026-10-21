@@ -37,6 +37,12 @@ Commands use the session's explicit transaction when present and auto-commit oth
 default isolation is `Snapshot`; `ReadCommitted` refreshes visibility per command. `Serializable`
 is rejected. The text grammar and wire protocol do not expose explicit transaction control.
 
+Caller cancellation before explicit commit starts leaves the transaction usable and commits
+nothing. A started commit ignores caller cancellation and returns its real outcome. Automatic
+commit takes over without the command token after execution completes; `PutAsync` also delivers
+its materialized outcome without that token. Execution and lock waits remain cancellable. A dead
+wire connection can still lose the result frame. See [commit and rollback](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 Storage/index corruption and I/O failures abort an explicit transaction; COHDBK001 refuses
 further commands until rollback. Ordinary command errors retain statement atomicity and keep
 the transaction usable. Storage/I/O uses COHDBK005 (58030 for I/O); corruption uses COHDBS003

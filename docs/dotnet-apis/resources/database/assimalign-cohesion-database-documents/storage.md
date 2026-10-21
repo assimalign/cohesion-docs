@@ -26,6 +26,39 @@ the supplied transaction, and returns a `DocumentContentReference`. Publish that
 Documents.Catalog before committing. `ReadContent` validates integrity and returns the original
 bytes. JSON objects, arrays, and scalar roots are supported, including mixed document shapes.
 
+## WriteContentAsync
+
+```csharp
+public ValueTask<DocumentContentReference> WriteContentAsync(
+    TransactionCoordinator coordinator, TransactionContext context,
+    ReadOnlyMemory<byte> content, CancellationToken cancellationToken = default);
+```
+
+The method borrows the caller's active context and never commits or rolls it back, including
+after a chunk failure or cancellation. Earlier chunks remain tracked until the caller aborts.
+Invalid JSON or a number outside the stored decimal domain throws `JsonException`; cancellation
+throws `OperationCanceledException`. Chunk storage failures propagate to the caller. Engine
+callers route them through the engine's ordered failure/end handler; standalone callers must
+abort their context to undo chunks already written.
+
+With an open storage and its coordinator, this adapts DocumentContentTests:
+
+```csharp
+var context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
+try
+{
+    await storage.WriteContentAsync(coordinator, context, "{"u8.ToArray());
+}
+catch (System.Text.Json.JsonException)
+{
+    Console.WriteLine(context.State); // Active; validation wrote no chunks
+    await coordinator.RollbackAsync(context, CancellationToken.None);
+    Console.WriteLine(context.State); // RolledBack
+}
+```
+
+## Streaming and limits
+
 The streaming chunk helpers follow the Blob storage precedent. They transport bytes and require
 their caller to validate document syntax before publication; the engine uses the validated memory
 helper. Documents are currently materialized for query evaluation and limited to `Int32.MaxValue`
@@ -40,6 +73,8 @@ for the exact format, compatibility policy, and recovery order.
 [Parent: Assimalign.Cohesion.Database.Documents](index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Storage/DocumentContentTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Assimalign.Cohesion.Database.Documents.csproj`.

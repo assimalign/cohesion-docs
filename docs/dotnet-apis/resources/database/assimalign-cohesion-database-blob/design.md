@@ -129,7 +129,8 @@ explicit transaction it only finishes the statement; transaction commit publishe
 together. Entity tags reserve values from the durable storage sequence allocator, so repeated writes
 in one transaction also get distinct tags.
 
-Failure or cancellation aborts the logical transaction. On restart the shared page recovery replays
+Failure or cancellation during execution aborts the logical transaction. Once automatic commit
+starts, it ignores caller cancellation and returns its real outcome. On restart the shared page recovery replays
 physical brackets, then the coordinator classifies logical transactions and scrubs uncommitted
 writer stamps before catalog loading. Checkpoints go through the coordinator so the checkpoint
 record preserves every active logical sequence across WAL truncation. A crash after some chunk
@@ -144,6 +145,12 @@ page directory retain small per-record/page identifiers; the payload itself stay
 File-backed storage is required when content exceeds available memory.
 
 ## Sessions, concurrency and ownership
+
+Explicit commit and rollback observe cancellation only before their end starts, leaving the
+transaction usable when canceled then. A started commit ignores caller cancellation and returns
+the real append/durability outcome. Automatic commit takes over after execution completes;
+execution and lock waits remain cancellable. A dead wire connection can still lose the result.
+See [the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
 
 The existing `IDatabaseSession.Database` seam returns a session-bound `IBlobDatabase` facade. It
 does not add a session parameter to the settled Blob interfaces. Containers from that view use the
@@ -586,7 +593,23 @@ catch (DatabaseException failure)
 Console.WriteLine(await files.GetPropertiesAsync("one", CancellationToken.None) is null); // True
 ```
 
+### Cleanup diagnostics
+
+After a successful automatic commit, snapshot-cleanup failure preserves the committed result
+and releases the session hold. `OutOfMemoryException` still propagates. Cleanup failure before
+commit success or inside an explicit transaction still fails the operation.
+
+| EventSource | Event ID | Name | Level | Payload |
+| --- | --- | --- | --- | --- |
+| `Assimalign.Cohesion.Database.Blob` | 14 | `StatementCleanupFailed` | Warning | `database`, `exceptionType` |
+
+The warning omits the exception message because it may contain blob input. The committed write
+survives reopen; do not retry a write reported as successful because of this warning.
+
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobCommitCancellationTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobOperationOutcomeTests.cs`.
 
 - **Child failures and upload lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/ChildRootFailureTests.cs` and `ChildRootFailureWireTests.cs` in the same directory.
 

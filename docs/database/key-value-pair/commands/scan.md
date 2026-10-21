@@ -7,8 +7,7 @@ SCAN returns visible entries in ascending unsigned lexicographic key order.
 ## Syntax
 
 ```syntaxsql
-SCAN [ FROM @start ] [ TO @end ] [ LIMIT { limit_count | @limit } ]
-SCAN PREFIX @prefix [ LIMIT { limit_count | @limit } ]
+SCAN [ FROM @start ] [ TO @end ] [ PREFIX @prefix ] [ LIMIT { limit_count | @limit } ]
 ```
 
 The diagrams show a conventional clause order. Accepted clauses may appear in any order,

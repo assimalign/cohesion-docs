@@ -25,6 +25,12 @@ binds writer commit to the write-ahead log (WAL) durability path. Only an enroll
 a COMMIT record and waits for durability. A read-only commit simply ends the transaction and
 releases its locks, with no lifecycle append or flush wait.
 
+Caller cancellation observed before commit starts leaves the transaction usable and commits
+nothing. Once the transaction's end is claimed, commit ignores caller cancellation and returns
+its real outcome, including append or durability failures. The same rule covers automatic commit
+after statement execution. Self-committing DDL finishes mandatory cleanup and returns its committed
+result even if cancellation arrives afterwards. See [the shared boundary and API example](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 Keep `BEGIN`, all enclosed statements, and `COMMIT` on the same rented client connection.
 A connection lost after server-side publication but before the response leaves an unknown outcome.
 The wire protocol has no durable transaction token, status lookup, or replay deduplication.
@@ -59,6 +65,8 @@ An observing session can now select row `4`.
 [Statements](index.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCommitCancellationConformanceTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

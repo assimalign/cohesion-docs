@@ -340,6 +340,13 @@ failures retain the code through each model's existing path; damaged data is nev
   interface; sessions must never commit implicitly on dispose).
 - **Transactions** — disposing an uncommitted transaction rolls it back.
 
+Explicit commit and rollback observe caller cancellation before claiming the end. Cancellation
+observed then leaves the transaction usable with nothing committed. A started commit ignores
+caller cancellation and reports its real outcome. All five models' automatic commits take over
+after execution completes, including delivery after self-committed SQL DDL cleanup. Execution
+and lock waits remain cancellable beforehand. Transport loss can still lose a committed result.
+See [the shared coordinator](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 ## AOT posture
 
 Contracts, enums, value objects, and canonical-document hashing only. The root does not inspect

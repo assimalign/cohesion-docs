@@ -156,6 +156,12 @@ maintain property indexes. GQL SET/REMOVE uses storage replacement versions.
 
 ## Transactions, atomicity and recovery
 
+Explicit commit and rollback observe cancellation only before their end starts, leaving the
+transaction usable when canceled then. Once claimed, commit ignores caller cancellation and
+returns its real append/durability outcome. Automatic commit receives no caller token after
+execution completes; execution and lock waits remain cancellable. A dead wire connection can
+still lose the result. See [the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 One `TransactionCoordinator` per database owns MVCC, logical undo, journal durability, lock
 management and physical statement brackets. A conservative database writer lock serializes writers
 through their logical commit or rollback; readers use snapshots. Metadata and affected graph records
@@ -846,6 +852,8 @@ ordinary unprefixed Message text; InnerException retains the original failure. T
 `COHDBG007: ` once. Rollback clears the refused transaction before embedded session reuse.
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphCommitCancellationTests.cs`.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

@@ -41,6 +41,15 @@ The engine supports snapshot and read-committed isolation. Writers take a databa
 for the upload lifetime, while snapshot readers can continue concurrently. Streams are sequential
 and are not thread-safe.
 
+Cancellation observed before explicit commit starts leaves the transaction usable with nothing
+committed. A started commit ignores caller cancellation and returns its real outcome. Automatic
+commit takes over after execution completes; earlier execution and lock waits remain cancellable.
+A dead wire connection can still lose the result. See [commit and rollback](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
+After a successful automatic commit, snapshot-cleanup failure preserves success and emits Warning
+event 14, `StatementCleanupFailed`. `OutOfMemoryException` still propagates. See
+[cleanup diagnostics](operations.md#operation-cleanup).
+
 ## Names, properties, and discovery
 
 Container names, blob names, sorted listings, and prefix matching use case-sensitive ordinal
@@ -52,6 +61,11 @@ settings do not affect Blob.
 metadata with an optional name prefix, without scanning content pages. `GetPropertiesAsync`
 returns length, content type, entity tag, timestamps, and the content cyclic redundancy check
 (CRC-32). Empty objects and replacements are supported.
+
+Current catalog lookups read three metadata records after 256 overwrites in the tests, also
+after reopen. Old snapshots retain needed history. The purge worker retires obsolete references
+for idle names without later lookups; sustained overwrites with purge/checkpoint work reuse
+pages and reach a data-file plateau. See [catalog history](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/catalog-design.md#bounded-version-history).
 
 The `GetOwnershipAsync` extension returns a read-only property bag with `OWNER` and
 `OWNING_SCHEMA`. Runtime-created containers are `DatabaseObjectOwner.Adhoc`. A container marked
