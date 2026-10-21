@@ -53,6 +53,22 @@ awaiting that original return.
 Pool shutdown closes idle connectors and connectors returned during shutdown. Waiting renters fail
 with ObjectDisposedException without waiting for outstanding leases to return.
 
+## Queued terminal errors
+
+Under the lease's single-operation admission, the connector checks buffered input or a closed
+transport before writing a new model request. It consumes a queued shared terminal Error once,
+retains its code in DatabaseClientException and discards the connector. Streaming startup uses
+the same gate and preflight. IsOpen remains false for a physically closed transport; logical
+admission permits this final Error read. No I/O runs under the lease lock, and buffer inspection
+preserves consumed/examined positions for fragmented frames. Unexpected or malformed terminal
+frames use ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings are
+not implemented.
+
+During startup, clean EOF reports Internal with the message: "The server closed the connection
+during the startup handshake before sending the expected response." Failed handshakes release
+the pool slot. TLS terminal delivery remains limited by #1086; see
+[the protocol close contract](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
 ## Example
 
 With an authenticated connection rented from the shared client:
@@ -87,6 +103,8 @@ await first.AbortAsync();                      // next remains usable
 [BlobConnection](../assimalign-cohesion-database-blob-client/blob-connection.md)
 
 ## Sources
+
+- **Terminal/EOF conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DatabaseClientTerminalErrorTests.cs` and `DatabaseClientHandshakeFailureTests.cs` in the same directory.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnection.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolNegotiationTests.cs`.

@@ -26,6 +26,9 @@ Equal per-storage sequence numbers do not make brackets interchangeable.
 In the [foreign-bracket example](storage-transaction-exception.md#example):
 
 ```csharp
+try {
+    using var page = second.AllocatePageForWrite(foreign, PageType.Index);
+}
 catch (StorageTransactionException failure)
     when (failure.Code == StorageTransactionErrorCode.ForeignStorage) {
     Console.WriteLine("Use a transaction from the target storage.");

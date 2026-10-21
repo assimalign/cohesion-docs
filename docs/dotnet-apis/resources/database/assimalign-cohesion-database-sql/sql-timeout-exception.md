@@ -32,6 +32,7 @@ SqlState is not a new wire field.
 In the blocked unique-key [session example](sql-database-session.md#example), catch the failure:
 
 ```csharp
+try { await waiter.ExecuteAsync("INSERT INTO items VALUES (1)"); }
 catch (SqlTimeoutException failure) {
     Console.WriteLine(failure.SqlState);            // 55P03
     Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE044

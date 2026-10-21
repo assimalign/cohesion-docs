@@ -94,8 +94,8 @@ pool-wide list of safe codes. Blob failures do not certify completion: a transfe
 frames even when its error code is `ExecutionFailure`. Wire codes and messages reach callers
 unchanged, independently of the health decision.
 
-Handshake rejections preserve their wire code in `DatabaseClientException`. Idle server-side
-evictions remain discoverable at next use; rent-time pings are future work.
+Handshake rejections preserve their wire code in `DatabaseClientException`. Queued idle/shutdown
+terminal errors are consumed before the next request; the broken connector is discarded.
 
 Only one exchange may use a connection at a time. An overlapping exchange is rejected before it
 writes any frames. Disposing a connection cancels and joins its current operation before returning
@@ -108,6 +108,22 @@ active exchange and disposing the rental, so the pool closes its transport inste
 session. This is non-cancellable and idempotent on the current rental. It makes no claim about
 whether the server completed an unacknowledged command; transaction outcome and reconciliation
 remain model concerns.
+
+## Queued terminal errors
+
+Under the lease's single-operation admission, the connector checks buffered input or a closed
+transport before writing a new model request. It consumes a queued shared terminal Error once,
+retains its code in DatabaseClientException and discards the connector. Streaming startup uses
+the same gate and preflight. IsOpen remains false for a physically closed transport; logical
+admission permits this final Error read. No I/O runs under the lease lock, and buffer inspection
+preserves consumed/examined positions for fragmented frames. Unexpected or malformed terminal
+frames use ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings are
+not implemented.
+
+During startup, clean EOF reports Internal with the message: "The server closed the connection
+during the startup handshake before sending the expected response." Failed handshakes release
+the pool slot. TLS terminal delivery remains limited by #1086; see
+[the protocol close contract](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
 ## Streaming exchange and ownership
 
@@ -242,6 +258,8 @@ empty Ready; different majors fail. Shared DatabaseClientException maps negotiat
 the non-null client exception Diagnostics snapshot. Model payload readers reject malformed UTF-8.
 
 ## Sources
+
+- **Terminal/EOF conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DatabaseClientTerminalErrorTests.cs` and `DatabaseClientHandshakeFailureTests.cs` in the same directory.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/Assimalign.Cohesion.Database.Client.csproj`.

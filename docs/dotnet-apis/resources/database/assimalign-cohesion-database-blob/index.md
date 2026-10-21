@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Blob.Protocol](../assim
 
 ## Reference pages
 
+- **[BlobDatabaseServerOptions](blob-database-server-options.md)** — Terminal drain deadline and peer-close linger.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`BlobChunkAcknowledgementMessage`](../assimalign-cohesion-database-blob-protocol/blob-chunk-acknowledgement-message.md)** — Documented public type.

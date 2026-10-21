@@ -278,6 +278,25 @@ retain the wire category, structured diagnostics and connection usability.
 
 [Language (SQL)](index.md) · [Unsupported syntax](unsupported.md) · [CAST](expressions/cast.md) · [Parameters](expressions/parameters.md)
 
+## Terminal wire delivery
+
+Provider `Assimalign.Cohesion.Database.Sql` reports terminal-session deadline aborts:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 26 | TerminalDrainTimedOut | Warning | sessionId, drainTimeoutMilliseconds, suppressedCount |
+
+Warnings are limited to one per second per provider; the next emitted warning carries the number
+suppressed. The process-wide total-terminal-drain-timeouts polling counter counts every terminal
+session deadline that wins the abort transition, even with events disabled or warnings suppressed.
+Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
+have no session and do not increment this session counter. This warning adds no diagnostic code
+or SQLSTATE.
+
+The server drains complete shared terminal Errors and capacity refusals within its configured
+ShutdownDrainTimeout, with TerminalDrainLinger bounding peer close after output completion.
+TLS delivery remains limited by #1086. See [server options](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-server-options.md).
+
 ## Sources
 
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.

@@ -366,15 +366,15 @@ successful authentication does the server create an engine session. All request 
 `(IBlobDatabase)session.Database`; request payloads cannot switch databases, create/drop them, or
 address another engine. MaxSessions includes connections awaiting authentication. Over-limit
 connections receive Unavailable without becoming sessions. Rejection work is tracked and drained; a
-blocked rejection write is bounded to five seconds and aborts on hard shutdown.
+rejection write uses the configured ShutdownDrainTimeout and aborts on hard shutdown.
 
 IdleTimeout applies while awaiting the next request, not to an active transfer. Shared Ping/Pong is
 available between requests. Soft shutdown stops acceptance and idle/handshake waits; an active
 exchange may finish, including transaction publication and its acknowledgement. Once
 ShutdownDrainTimeout expires (or the Stop token is canceled after shutdown starts), the server
 cancels active operations and aborts every remaining connection, then awaits cleanup before
-releasing its listener. All three timeout options accept Timeout.InfiniteTimeSpan. An infinite
-shutdown drain intentionally waits indefinitely for active work. An unexpected accept-loop failure
+releasing its listener. Authentication and idle timers may be infinite; shutdown drain and
+peer-close linger must be positive and finite. An unexpected accept-loop failure
 is rethrown by Stop only after accepted sessions and rejection work have drained or been aborted and
 the listener has been released.
 
@@ -606,7 +606,48 @@ commit success or inside an explicit transaction still fails the operation.
 The warning omits the exception message because it may contain blob input. The committed write
 survives reopen; do not retry a write reported as successful because of this warning.
 
+## Terminal errors and drain
+
+Terminal shared Error delivery starts one ShutdownDrainTimeout deadline before the write. The
+server writes and flushes the complete frame, completes connection Output, then consumes peer input
+until peer close, TerminalDrainLinger or the outer deadline. The default drain budget is 30 seconds;
+linger defaults to two seconds and starts after output completion. Capacity refusals use the same
+sequence without creating a session, and are registered before I/O so Stop joins their cleanup.
+Soft stop allows its terminal notice to drain, including a stop racing the final Ready flush.
+
+Hard abort or outer expiry aborts blocked transport I/O. Teardown joins pending I/O and detaches
+callbacks before disposing token sources, the transport and engine session. Every resource release
+is attempted even when an earlier disposal fails. Final cleanup is joined without another timeout:
+a transport/execution that ignores abort can delay Stop. ShutdownDrainTimeout bounds graceful work;
+it does not abandon resources still owned by pending I/O. An unread idle pooled peer releases its
+server slot after linger rather than occupying the whole outer budget.
+
+Both ShutdownDrainTimeout and TerminalDrainLinger must be greater than zero and at most
+4,294,967,294 milliseconds. Infinite values are refused with ArgumentOutOfRangeException at server
+construction. Setters store values and creation snapshots them. A disposed input reader during
+drain counts as transport closure. TLS terminal delivery remains a known gap (#1086): completing
+the TLS output does not complete its inner TCP output, so a fatal frame can still be lost.
+
+See [BlobDatabaseServerOptions](blob-database-server-options.md) for signatures and configuration.
+
+### Terminal drain diagnostics
+
+Provider `Assimalign.Cohesion.Database.Blob` reports terminal-session deadline aborts:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 15 | TerminalDrainTimedOut | Warning | sessionId, drainTimeoutMilliseconds, suppressedCount |
+
+Warnings are limited to one per second per provider; the next emitted warning carries the number
+suppressed. The process-wide total-terminal-drain-timeouts polling counter counts every terminal
+session deadline that wins the abort transition, even with events disabled or warnings suppressed.
+Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
+have no session and do not increment this session counter. This warning adds no diagnostic code
+or SQLSTATE.
+
 ## Sources
+
+- **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobServerDrainTests.cs`, `BlobServerRejectionDrainTests.cs`, `BlobServerRejectionSetupTests.cs` and `BlobTerminalDrainEventTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobCommitCancellationTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobOperationOutcomeTests.cs`.

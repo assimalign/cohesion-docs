@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [KeyValuePair.Protocol](
 
 ## Reference pages
 
+- **[KeyValueDatabaseServerOptions](key-value-database-server-options.md)** — Terminal drain deadline and peer-close linger.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

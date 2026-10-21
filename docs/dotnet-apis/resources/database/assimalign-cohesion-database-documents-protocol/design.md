@@ -31,6 +31,17 @@ engine, server and client integration tests remain with their respective project
 
 [Assembly](index.md) · [Examples](examples/index.md)
 
+## Terminal shared errors
+
+The Document server uses one ShutdownDrainTimeout deadline for terminal Error write, flush,
+output completion and peer-input drain. TerminalDrainLinger starts after output completion and
+bounds peer close. Capacity refusals follow the same rule. Each frame crosses the Stream boundary
+in one complete write; explicit flush does not promise batching when the stream flushes on write.
+The client consumes queued terminal Errors before sending its next request and discards the
+connector. TLS terminal delivery remains a known gap (#1086). See
+[shared framing and close contract](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes)
+and [server options](../assimalign-cohesion-database-documents/document-database-server-options.md).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Protocol/docs/DESIGN.md`.

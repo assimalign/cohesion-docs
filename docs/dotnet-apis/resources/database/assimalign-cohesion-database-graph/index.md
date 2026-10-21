@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 
 ## Reference pages
 
+- **[GraphDatabaseServerOptions](graph-database-server-options.md)** — Terminal drain deadline and peer-close linger.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GraphDatabaseEngine`](graph-database-engine.md)** — Documented public type.

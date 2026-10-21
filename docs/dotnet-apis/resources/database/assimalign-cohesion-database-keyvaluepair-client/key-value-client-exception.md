@@ -38,7 +38,16 @@ decoder failures and cancellation invalidate the pooled transport.
 
 [Assembly](index.md) · [Design](design.md) · [Migration guide](../../../../database/model-project-migration.md)
 
+## Terminal errors
+
+A queued shared terminal Error is consumed before the next request writes, including after
+transport close. Code retains the peer's category and the connector is discarded. A clean handshake
+EOF uses Internal with a startup-specific message; unexpected/malformed terminal frames use
+ProtocolViolation. See [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors).
+
 ## Sources
+
+- **Terminal conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/tests/KeyValueClientTerminalErrorTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/Exceptions/KeyValueClientException.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/tests/ClientExceptionDiagnosticsTests.cs`.

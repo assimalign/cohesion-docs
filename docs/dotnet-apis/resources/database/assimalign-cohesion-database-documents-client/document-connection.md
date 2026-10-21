@@ -84,7 +84,20 @@ Failure preserves the rental. Generated UTF-8 JSON bytes agree with in-process a
 
 [Results](document-result-set.md) · [Exceptions](document-client-exception.md) · [Design](design.md)
 
+## Queued terminal errors
+
+Before the next admitted operation writes a request, the shared connector checks buffered input or
+a closed transport and consumes a queued terminal Error once. Its original code reaches
+DocumentClientException and the connector is discarded. This also applies to streaming startup;
+IsOpen continues to describe physical transport health. Unexpected/malformed terminal frames use
+ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings are not implemented.
+A clean handshake EOF has its own message naming the startup handshake. See
+[shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
+and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
 ## Sources
+
+- **Terminal client conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientTerminalErrorTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/src/DocumentConnection.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.

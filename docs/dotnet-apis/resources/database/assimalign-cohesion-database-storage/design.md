@@ -228,7 +228,7 @@ stops decoding the whole database.
   restores an empty page still belonging to the chain — a safe leak the owner's
   next insert reuses.
 - **Chain release (`FreeOwnerPages`) is transactional with commit-deferred
-  reuse.** Each page is retyped `Free` under the transaction (before-image
+  reuse.** Each page is retyped `Reclaimed` under the transaction (before-image
   covered — rollback and crash recovery restore the chain bytes), but the pages
   re-enter the free-space map and leave the directory only when the transaction
   **commits**. Freeing eagerly would let the allocator hand a page to a new owner
@@ -485,7 +485,7 @@ until reused.
 
 ## Empty pages and streaming journal recovery
 
-Deleting the last live record in a data page retypes it as `Free` inside the physical bracket and
+Deleting the last live record in a data page retypes it as `Reclaimed` inside the physical bracket and
 registers a pending free, exactly as an owner-chain release does. The allocator and owner directory
 change only after commit. `Rollback` restores the original page image and keeps its owner membership.
 Inserts check page type and owner before reusing a current-write-page hint, including a hint to a

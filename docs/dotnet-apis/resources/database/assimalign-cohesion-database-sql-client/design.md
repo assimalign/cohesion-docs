@@ -214,6 +214,17 @@ lock preparation: retry in a fresh transaction. SQLSTATE remains a reference map
 See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
 
 
+## Queued terminal errors
+
+Before the next admitted operation writes a request, the shared connector checks buffered input or
+a closed transport and consumes a queued terminal Error once. Its original code reaches
+SqlClientException and the connector is discarded. This also applies to streaming startup;
+IsOpen continues to describe physical transport health. Unexpected/malformed terminal frames use
+ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings are not implemented.
+A clean handshake EOF has its own message naming the startup handshake. See
+[shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
+and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

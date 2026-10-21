@@ -89,6 +89,38 @@ The low-level `ProtocolFraming` reader/writer remain available for diagnostics a
 deliberately do not dispatch payloads or infer model semantics. Applications use `ProtocolChannel` for
 their endpoint's validated exchange.
 
+## Terminal delivery and frame writes
+
+ProtocolFrameWriter.Create emits header and payload in one Stream.WriteAsync, including empty
+frames. Nonempty frames use contiguous rented storage returned with clearArray: true after write
+completion, including cancellation/failure. A stream may flush during WriteAsync (DuplexPipeStream
+does), so explicit FlushAsync does not promise batching. This makes no change to frame bytes or
+message identifiers. FrameWritten follows the completed stream write, before any explicit flush.
+
+All five model servers complete Output after a terminal shared Error before disposing its transport.
+One ShutdownDrainTimeout deadline starts before writing and covers write, flush, completion and
+peer-input drain. TerminalDrainLinger (two seconds by default) starts after output completion and
+bounds peer close, including capacity refusals. Both are positive, finite and at most
+4,294,967,294 milliseconds. Refusals are tracked before I/O and joined by Stop. Soft stop permits
+its shutdown notice to drain. Outer expiry/hard abort releases blocked I/O, and teardown joins it
+before releasing registrations, connections and sessions. Final cleanup has no second timeout;
+transports/execution ignoring abort can delay Stop completion.
+
+Each model emits its own TerminalDrainTimedOut Warning and total-terminal-drain-timeouts counter
+for terminal-session deadline aborts. Linger expiry and server hard abort do not count as that event.
+Clients inspect queued terminal responses before new materialized/streaming request writes, retain
+the Error code and discard the connector. Unexpected/malformed terminal input is ProtocolViolation;
+clean EOF without Error remains Internal. A handshake EOF specifically names startup.
+
+Loopback TCP tests require at least 200 consecutive missing-database refusals for SQL, Documents,
+Graph, Key-Value and Blob through real clients. SQL/Key-Value additionally cover authentication,
+capacity, unsupported-major startup, idle eviction and graceful-stop notices. Controlled transports
+cover blocked writes, flush, output completion, abort and cleanup joining for every model.
+
+**Known gap (#1086):** TLS terminal delivery is not guaranteed. The production TLS decorator
+completes its SslStream-backed output without completing inner TCP output; the SQL TLS refusal
+regression remains skipped because the Database-only fix still loses the expected terminal frame.
+
 ## Shared exchange and payloads
 
 The shared handshake precedes every model-specific exchange, as shown here.
@@ -228,6 +260,9 @@ span reads and static encoding, with no reflection or runtime discovery.
 
 
 ## Sources
+
+- **Frame write** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolFramingTests.cs`.
+- **Terminal client/transport evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalPathTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlServerTlsTerminalTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/Assimalign.Cohesion.Database.Protocol.csproj`.
