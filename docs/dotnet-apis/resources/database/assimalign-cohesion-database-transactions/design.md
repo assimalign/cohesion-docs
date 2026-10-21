@@ -306,6 +306,29 @@ every open context's `Snapshot.Minimum`. A snapshot captured while an older writ
 retain a floor below the current oldest active transaction, so using only the manager's bound would
 reclaim visible data. The purge pass retries failed abort undo before pruning, exactly as before.
 
+## Transaction EventSource
+
+`Assimalign.Cohesion.Database.Transactions` reports kernel transactions across all five models.
+The current-transactions gauge includes snapshot pins; the three transaction rates exclude them.
+Each ReadCommitted statement pin and SQL's table-reclamation fence uses
+[BeginSnapshotPinAsync](transaction-coordinator.md#begin-and-first-write). Pins also emit no
+Verbose TransactionBegun, TransactionCommitted or TransactionRolledBack event. Their registration,
+snapshot horizon and end paths remain ordinary kernel behavior, so the gauge can expose a leaked pin.
+Schema-provisioner lock transactions remain counted.
+
+| Counter | Kind | Transition |
+| --- | --- | --- |
+| `current-transactions` | Gauge | Tracks every open coordinator context, including pins; removes each ended context once |
+| `transactions-per-second` | Rate | A non-pin context begins |
+| `commits-per-second` | Rate | A non-pin context ends Committed, including an unconfirmed commit |
+| `rollbacks-per-second` | Rate | A non-pin context rolls back or aborts, including failed commit or disposal |
+| `total-deadlocks` | Total | Each selected deadlock victim |
+| `lock-waits-per-second` | Rate | Each queued lock request |
+
+These counters are process-wide. Real read-only/autocommit transactions and explicit rollbacks
+still count; no counter moves per row or frame. Snapshot-pin tests cover reads that hit or miss,
+early disposal and a begin/disposal race without rate increments.
+
 ## Non-goals
 
 - **No distributed transactions / two-phase commit** — single-node ACID first.

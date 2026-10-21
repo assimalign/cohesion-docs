@@ -13,6 +13,8 @@ public sealed class TransactionCoordinator : IAsyncDisposable
         TransactionRecordSpace records);
     public ValueTask<TransactionContext> BeginAsync(IsolationLevel isolationLevel,
         CancellationToken cancellationToken = default);
+    public ValueTask<TransactionContext> BeginSnapshotPinAsync(
+        CancellationToken cancellationToken = default);
     public ValueTask CommitAsync(TransactionContext context,
         CancellationToken cancellationToken = default);
     public ValueTask RollbackAsync(TransactionContext context,
@@ -34,6 +36,14 @@ The first admitted ApplyStatementAsync enrolls the transaction as a writer: one 
 precedes its physical bracket and any version stamps. Later applies append no second logical BEGIN.
 An admitted apply remains a writer even if its callback changes nothing or its bracket rolls back.
 Cancellation before admission leaves a reader unenrolled.
+
+BeginSnapshotPinAsync registers a fixed Snapshot context to hold one statement's pruning horizon.
+Begin it before capturing the statement snapshot, keep it alive through enumeration, then release
+it with RollbackAsync. It retains ordinary registration, sequence and cleanup behavior but moves
+only the current-transactions gauge. It contributes no transaction/commit/rollback rate or Verbose
+begin/commit/rollback event, including on disposal. See [counters](design.md#transaction-eventsource).
+This read-only pin path is used by all five models' ReadCommitted statements and SQL's reclamation
+fence. Schema-provisioner lock transactions use the ordinary counted path.
 
 A reader spanning a checkpoint is neither journaled nor anchored. Its first later apply enrolls
 under the checkpoint interlock before any stamp, so crash recovery can still classify its writes.
@@ -93,6 +103,26 @@ This follows the admission/no-op cases in TransactionCoordinatorRecoveryTests. E
 read-only transaction tests also verify unchanged journal length, LSN and durable-flush attempts
 for autocommit reads, explicit commit, rollback, disposal and ReadCommitted snapshot pins.
 
+The pin lifecycle follows TransactionEventSourceTests, with the same open coordinator:
+
+```csharp
+var pin = await coordinator.BeginSnapshotPinAsync(cancellationToken);
+try
+{
+    TransactionSnapshot snapshot = pin.Snapshot;
+    // Complete reads using snapshot while the pin is registered.
+}
+finally
+{
+    await coordinator.RollbackAsync(pin, CancellationToken.None);
+}
+```
+
+The gauge rises by one while the pin is tracked and returns when it ends; all three transaction
+rates stay unchanged. A canceled begin throws OperationCanceledException without tracking a pin;
+a disposed manager throws ObjectDisposedException. A canceled rollback leaves the pin active,
+so cleanup uses a non-canceled token.
+
 ## Related reference
 
 Pooled client disposal does not dispose the server session or reset an explicit transaction.
@@ -107,5 +137,6 @@ inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionManager.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCoordinatorRecoveryTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/JournalEnrollmentTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionEventSourceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReadOnlyTransactionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/docs/DESIGN.md`.
