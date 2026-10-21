@@ -51,4 +51,4 @@ Replacing CASCADE with RESTRICT reports COHSQLD002 and preserves both views.
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlViewTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/src/SqlCatalog.Views.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Catalog/SqlCatalog.Views.cs`.

@@ -2,7 +2,7 @@
 
 Creates a persisted SQL namespace in the session database, including an empty namespace.
 
-> **Status:** Implemented for the documented subset.
+> **Status:** Implemented. Supports the documented subset.
 
 ## Syntax
 

@@ -4,6 +4,11 @@ The SQL engine manages databases and executes SQL over shared storage, catalog, 
 
 > **Status:** Partial.
 
+Assembly: `Assimalign.Cohesion.Database.Sql.dll`. NuGet package: `Assimalign.Cohesion.Database.Sql`.
+
+Catalog and Storage ship in this assembly with their existing namespaces. The former satellite
+packages are retired. Wire contracts ship separately in [Sql.Protocol](../assimalign-cohesion-database-sql-protocol/index.md).
+
 ## Reference pages
 
 - **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
@@ -82,16 +87,33 @@ The `Listen` helper ships in `Database.Sql.Tcp`. Omit `AddServer` for embedded S
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Sql.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Execution` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database.Sql.Language` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Sql.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Sql.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Sql.Catalog` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Sql.Schema` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
+
+## Additional reference pages
+
+- **[Sql catalog design](catalog-design.md)** — Reference and usage.
+- **[Sql catalog](catalog.md)** — Reference and usage.
+- **[SqlCatalogColumn](sql-catalog-column.md)** — Reference and usage.
+- **[SqlCatalogConstraint](sql-catalog-constraint.md)** — Reference and usage.
+- **[SqlCatalogIdentity](sql-catalog-identity.md)** — Reference and usage.
+- **[SqlCatalogNamespace](sql-catalog-namespace.md)** — Reference and usage.
+- **[SqlCatalogSnapshot](sql-catalog-snapshot.md)** — Reference and usage.
+- **[SqlCatalogView](sql-catalog-view.md)** — Reference and usage.
+- **[SqlCatalog](sql-catalog.md)** — Reference and usage.
+- **[Sql storage design](storage-design.md)** — Reference and usage.
+- **[Sql storage](storage.md)** — Reference and usage.
 
 ## Sources
 

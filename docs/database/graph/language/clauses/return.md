@@ -23,7 +23,7 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 | Literals, parameters, properties and computed expressions | Supported; same value expressions as WHERE |
 | `AS` aliases | Supported |
 | `ALL`, `DISTINCT`, `*` | Supported; ALL is the default, star cannot mix with explicit items |
-| [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](../clauses/group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
+| [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
 | [ORDER BY](order-by.md), [OFFSET/SKIP and LIMIT](limit-offset.md) | Supported after RETURN; offset precedes limit |
 
 ## Arguments
@@ -109,7 +109,7 @@ connection when rejected before output; negotiated diagnostics preserve the engi
 [Aggregates](../functions/aggregate-functions.md) run over implicit or explicit groups before
 projection, DISTINCT and paging. COUNT is Int64, including on the wire; SUM/AVG use the documented
 numeric promotion. A keyless aggregate returns one row even for an empty match, while keyed empty
-matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names to RETURN aliases.
+matches return no rows. [GROUP BY](group-by.md) resolves plain names to RETURN aliases.
 
 ## Examples
 

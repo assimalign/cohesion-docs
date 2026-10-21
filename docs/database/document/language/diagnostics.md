@@ -82,6 +82,10 @@ one shadowing the source alias, uses COHDOC001. Quantifiers may shadow outer bin
 
 ## Locations and wire behavior
 
+Remote failures use [DocumentClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client-exception.md), which derives directly from
+System.Exception and declares its own Diagnostics snapshot. Catch that client exception for remote
+operations; catching DatabaseException now covers only engine-side failures.
+
 DatabaseException.Diagnostics is never null and orders located entries by source start before
 unlocated entries. Offsets are zero-based UTF-16 with exclusive ends; lines are one-based.
 Planner/binder failures retain available AST spans. Query requests reject all parser errors
@@ -113,4 +117,4 @@ a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentDatabaseNameTests.cs`.
 - **Carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlDiagnosticTests.cs` and `OqlDiagnosticsFixPassTests.cs` in the same directory.
 - **Numbers and duplicate keys** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.
-- **Failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Protocol/DocumentProtocolFailureMessage.cs`.
+- **Failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Protocol/src/DocumentProtocolFailureMessage.cs`.

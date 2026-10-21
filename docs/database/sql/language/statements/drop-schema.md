@@ -2,7 +2,7 @@
 
 Removes a persisted SQL namespace, optionally removing its dependent objects atomically.
 
-> **Status:** Implemented for the documented subset.
+> **Status:** Implemented. Supports the documented subset.
 
 ## Syntax
 

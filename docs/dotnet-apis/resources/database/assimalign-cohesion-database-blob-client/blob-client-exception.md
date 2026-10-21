@@ -10,6 +10,11 @@ Namespace: `Assimalign.Cohesion.Database.Blob.Client`.
 
 ## Documented behavior
 
+BlobClientException derives directly from System.Exception. Catch BlobClientException for remote
+Blob failures; catching DatabaseException no longer handles them. Its locally declared
+IReadOnlyList<Diagnostic> Diagnostics is non-null and always empty, even when the inner exception
+has diagnostics. Code, Message and InnerException remain available.
+
 `BlobClientException.Code` preserves a server `ProtocolErrorCode`. Every failed exchange
 invalidates its connection. Cancellation throws `OperationCanceledException`; overlapping
 operations throw `InvalidOperationException`. A download's lifetime cancellation remains active

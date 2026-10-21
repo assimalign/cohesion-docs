@@ -2,7 +2,7 @@
 
 Generates integer column values with a durable, noncycling start/increment progression.
 
-> **Status:** Implemented for CREATE TABLE and ALTER TABLE ADD on a table with no live rows.
+> **Status:** Implemented. Supports CREATE TABLE and ALTER TABLE ADD on a table with no live rows.
 
 ## Syntax
 
@@ -119,5 +119,5 @@ upgrade path. Compiled schema format remains version 7.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIdentityTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlIdentityParserTests.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/tests/SqlCatalogTests.Identity.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/Catalog/SqlCatalogTests.Identity.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTypeAliasTests.cs`.

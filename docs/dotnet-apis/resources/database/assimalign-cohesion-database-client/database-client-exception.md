@@ -1,25 +1,36 @@
 # DatabaseClientException
 
-A shared client failure with a wire category and inherited structured diagnostics.
+A shared client failure with a wire category and locally owned structured diagnostics.
 
 Namespace: `Assimalign.Cohesion.Database.Client`.
 
-## Added constructor
+## Signature
 
 ```csharp
-public DatabaseClientException(ProtocolErrorCode code, string message,
-    IReadOnlyList<ProtocolDiagnostic> diagnostics, Exception? innerException);
-public ProtocolErrorCode Code { get; }
+public class DatabaseClientException : Exception
+{
+    public DatabaseClientException(ProtocolErrorCode code, string message);
+    public DatabaseClientException(ProtocolErrorCode code, string message, Exception? innerException);
+    public DatabaseClientException(ProtocolErrorCode code, string message,
+        IReadOnlyList<ProtocolDiagnostic> diagnostics, Exception? innerException);
+    public ProtocolErrorCode Code { get; }
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
+}
 ```
 
 ## Behavior and exceptions
 
-The added overload maps protocol Warning/Error entries into Database.Types.Diagnostic and the
-DatabaseException carrier, preserving nullable offsets and one-based line. The root copies and
-orders entries, with unlocated entries last. Message retains the Error frame text. Existing
-constructors without diagnostics remain available. A null diagnostic list is rejected by the
-sequence mapping with ArgumentNullException. Model SQL/GQL exceptions preserve these entries through
-their inner DatabaseException. Malformed frames fail the exchange and discard its transport.
+The diagnostic overload maps protocol Warning/Error entries into Database.Types.Diagnostic,
+preserving nullable offsets and one-based line numbers. Diagnostics is declared locally and holds
+a defensive read-only snapshot, stably ordered by source offset with unlocated entries last.
+Message retains the Error frame text. Constructors without diagnostics return an empty snapshot;
+a null diagnostic list is rejected with ArgumentNullException. SQL/Graph wrappers copy these entries
+from an actual DatabaseClientException or their own nested client exception. Malformed frames fail
+the exchange and discard its transport.
+
+DatabaseClientException derives directly from System.Exception. Catch it for shared-core failures;
+catch the model client exception for typed APIs. Catching DatabaseException no longer catches remote
+failures. Model client exceptions are siblings of this class, not its subclasses.
 
 ## Example
 

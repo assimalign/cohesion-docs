@@ -1,22 +1,29 @@
 # DocumentClientException
 
+A Documents client failure retaining its wire category and explicit structured diagnostics.
+
 Namespace: `Assimalign.Cohesion.Database.Documents.Client`.
 
 ## Signature
 
 ```csharp
-public sealed class DocumentClientException : DatabaseException
+public sealed class DocumentClientException : Exception
 {
     public DocumentClientException(ProtocolErrorCode code, string message,
         Exception? innerException = null, IReadOnlyList<Diagnostic>? diagnostics = null);
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
     public ProtocolErrorCode Code { get; }
 }
 ```
 
 ## Behavior and exceptions
 
-Retains the protocol category and server's composed CODE: message. Inherited Diagnostics copies and
-orders supplied entries; null means an empty collection. It preserves parser and engine codes/spans
+DocumentClientException derives directly from System.Exception. Catch DocumentClientException for
+remote document failures; catching DatabaseException no longer handles them.
+
+Retains the protocol category and server's composed CODE: message. Locally declared Diagnostics defensively copies
+explicitly supplied entries into a read-only snapshot, stably ordered by offset with unlocated
+entries last; null means an empty collection. It does not infer diagnostics from the inner exception. It preserves parser and engine codes/spans
 rather than extracting codes from Message. Shared dial/handshake failures remain inner exceptions.
 No extra validation exception is introduced by this constructor. Connection reuse follows fully
 decoded model Failure completion, independently of exception ancestry.

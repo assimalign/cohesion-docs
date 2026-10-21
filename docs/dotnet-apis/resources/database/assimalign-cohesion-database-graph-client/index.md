@@ -4,6 +4,16 @@
 
 > **Status:** Partial.
 
+## Contract dependencies and client errors
+
+This client references Database.Client, Graph.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Graph.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`GraphClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -55,7 +65,7 @@ writes; QueryPathsAsync accepts one bare binding, including DISTINCT or star ove
 Lists materialize as object?[] and maps as read-only ordinal dictionaries. Protocol 2.1 negotiates
 graph.composite-values; possible unnegotiated composite results fail COHDBG016 before writes,
 and the client refuses composite parameters locally before sending. Depth/count/encoded-byte
-limits are enforced before commit. See [GraphRow](graph-row.md), [GraphValueCodec](../assimalign-cohesion-database-graph/graph-value-codec.md),
+limits are enforced before commit. See [GraphRow](graph-row.md), [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md),
 [GraphConnection](graph-connection.md) and [RETURN](../../../../database/graph/language/clauses/return.md).
 The client never parses GQL or retries statements.
 See [design](design.md) for completion and lifetime behavior.
@@ -66,9 +76,9 @@ Supply an `IDuplexConnectionFactory` through `GraphClientOptions.ConnectionFacto
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Client` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Graph` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Graph.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
@@ -76,6 +86,9 @@ Supply an `IDuplexConnectionFactory` through `GraphClientOptions.ConnectionFacto
 [Parent: Database](../index.md)
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Assimalign.Cohesion.Database.Graph.Client.csproj`.

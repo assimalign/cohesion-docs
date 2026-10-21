@@ -268,9 +268,11 @@ classDiagram
 ## Error model
 
 `DatabaseException` (inherits `Exception` per the area-scoped exception rule) is the root for **the
-contract root and everything built *above* it**: the model engines and their satellites
-(`SqlCatalogException`, engine-thrown `DatabaseException` s), the client core
-(`DatabaseClientException`, `SqlClientException`), the server, and `Database.Embedded`. The root
+contract root and everything built *above* it**: the model engines and their Catalog/Storage components
+(`SqlCatalogException`, engine-thrown `DatabaseException`), the server, and Database.Embedded.
+The six shared/model client exceptions derive directly from System.Exception and locally own their
+Diagnostics snapshots. Catch the appropriate client exception for remote failures; catching
+DatabaseException no longer handles them. The root
 defines semantic subtypes, each because the distinction is part of a public contract:
 `DatabaseNotFoundException` is the exact absence signal from `IDatabaseEngine.OpenDatabaseAsync` (so
 provisioning and server binding do not confuse an operational failure with a missing database),

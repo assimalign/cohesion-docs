@@ -2,7 +2,7 @@
 
 Skips and bounds RETURN output after projection, DISTINCT and ordering.
 
-> **Status:** Implemented after RETURN.
+> **Status:** Implemented. Applies after RETURN.
 
 ## Syntax
 

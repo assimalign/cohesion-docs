@@ -2,7 +2,7 @@
 
 Persists a read-only query with frozen output columns in the session database.
 
-> **Status:** Implemented for the documented subset.
+> **Status:** Implemented. Supports the documented subset.
 
 ## Syntax
 

@@ -4,6 +4,28 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Model component boundaries
+
+Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Sql`.
+Public Catalog and Storage types retain their namespaces and members; they ship in the model
+assembly and NuGet package. Replace satellite references with the model package and recompile.
+Assembly-qualified type names change, with no compatibility assembly or type forwarders.
+
+The direction is engine → Catalog → Storage → shared kernel. Public component types live in
+`src/Catalog/` and `src/Storage/`; internal types live in `src/Internal/Catalog/`
+and `src/Internal/Storage/`. Engine persistence strategies and catalog-aware codecs belong
+in `src/Internal/Engine/Storage/`. Transaction record-space adapters belong to Storage.
+
+Roslyn architecture tests check actual compiler inputs and resolved symbols: Storage cannot use
+Catalog or engine types; Catalog cannot use engine types. Storage permits shared Storage,
+Transactions and Indexing plus the BCL reference pack. Catalog additionally permits the
+area root and Types. Protocol, Language, Schema and Connections are disallowed in both constrained
+layers; engine code has no external assembly restriction.
+
+Wire messages, codecs and transfer values now belong to [Sql.Protocol](../assimalign-cohesion-database-sql-protocol/index.md).
+Engine and client reference those same contracts. Moved wire types change namespace as well as
+assembly identity; update their imports. Wire and disk formats are unchanged.
+
 ## SQL namespaces and set operations
 
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) persists namespaces;
@@ -1130,7 +1152,7 @@ scalars at this layer; span-based row codecs below.
 
 ## Model-owned wire family (#1015)
 
-This package owns the `Sql` request and tabular result codecs; the shared protocol contains only
+Sql.Protocol owns the SQL request and tabular result codecs; the shared protocol contains only
 mechanism. Wire format
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`) specifies
 every message and scalar component for independent clients. The server binds `SqlProtocol.Family` once
@@ -1259,14 +1281,17 @@ Format 17 introduced the default/missing split with table extension 6; current f
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Sql.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Execution` | `CohesionSharedSource` |
+| `Assimalign.Cohesion.Database.Sql.Language` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Sql.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Sql.Language` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Sql.Catalog` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Sql.Schema` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
@@ -1378,6 +1403,9 @@ layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests c
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Creation recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCreateRecoveryTests.cs`.
 - **Format refusal preservation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDataStorageFormatTests.cs`.

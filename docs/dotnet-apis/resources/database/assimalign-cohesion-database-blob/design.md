@@ -4,6 +4,28 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Model component boundaries
+
+Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Blob`.
+Public Catalog and Storage types retain their namespaces and members; they ship in the model
+assembly and NuGet package. Replace satellite references with the model package and recompile.
+Assembly-qualified type names change, with no compatibility assembly or type forwarders.
+
+The direction is engine → Catalog → Storage → shared kernel. Public component types live in
+`src/Catalog/` and `src/Storage/`; internal types live in `src/Internal/Catalog/`
+and `src/Internal/Storage/`. Engine persistence strategies and catalog-aware codecs belong
+in `src/Internal/Engine/Storage/`. Transaction record-space adapters belong to Storage.
+
+Roslyn architecture tests check actual compiler inputs and resolved symbols: Storage cannot use
+Catalog or engine types; Catalog cannot use engine types. Storage permits shared Storage,
+Transactions and Indexing plus the BCL reference pack. Catalog additionally permits the
+area root and Types. Protocol, Language, Schema and Connections are disallowed in both constrained
+layers; engine code has no external assembly restriction.
+
+Wire messages, codecs and transfer values now belong to [Blob.Protocol](../assimalign-cohesion-database-blob-protocol/index.md).
+Engine and client reference those same contracts. Moved wire types change namespace as well as
+assembly identity; update their imports. Wire and disk formats are unchanged.
+
 ## String comparison and collation (#1025)
 
 Blob remains ordinal-only. Container and blob names, equality, sorted listings, and prefix filtering
@@ -20,7 +42,7 @@ logical database. Metadata and content share the same data file and journal. Thi
 as its chunk chain. All paging, CRC checks, page allocation, WAL records, recovery, transaction
 coordination, locks, and version reclamation come from the shared kernels.
 
-The model client depends on the engine-owned message family and the shared connection client; the
+The model client depends on the Blob.Protocol-owned message family and the shared connection client; the
 engine server depends only on transport abstractions. These are reference directions.
 
 ```mermaid
@@ -41,8 +63,8 @@ flowchart LR
 | `Assimalign.Cohesion.Database.Blob.Client` | Typed streaming operations over shared connection exchanges |
 | `Assimalign.Cohesion.Connections` | Generic connection and listener contracts; no concrete transport |
 | `Assimalign.Cohesion.Database.Protocol` | Shared framing, handshake, versioning, errors and family-bound channels |
-| `Assimalign.Cohesion.Database.Blob.Catalog` | Metadata versions, directory and ordered listings |
-| `Assimalign.Cohesion.Database.Blob.Storage` | Stream adapters and chunk encoding |
+| Catalog component in `Database.Blob` | Metadata versions, directory and ordered listings |
+| Storage component in `Database.Blob` | Stream adapters and chunk encoding |
 | `Assimalign.Cohesion.Database.Transactions` | MVCC contexts, coordinator, locks and version ledger |
 | `Assimalign.Cohesion.Database.Storage` | Shared page pool, allocator, WAL, CRC and physical recovery |
 
@@ -84,8 +106,8 @@ flowchart TD
 ```
 
 The authoritative byte layouts are documented in
-[Blob.Storage DESIGN](../assimalign-cohesion-database-blob-storage/design.md) and
-[Blob.Catalog DESIGN](../assimalign-cohesion-database-blob-catalog/design.md) . Both use kernel
+[Blob.Storage DESIGN](storage-design.md) and
+[Blob.Catalog DESIGN](catalog-design.md) . Both use kernel
 slotted pages and a 16-byte prefix: little-endian UInt64 writer at offset 0 and UInt64 deleter at
 offset 8. The record kind at offset 16 distinguishes container metadata (1), blob metadata (2), and
 chunks (3). Metadata uses owner-zero pages; content uses nonzero owners. Packed locations store the
@@ -180,7 +202,7 @@ both unfinished writes.
 
 ## Blob wire family
 
-The model package owns the Blob message family; `Database.Protocol` supplies framing and the
+Blob.Protocol owns the Blob message family; `Database.Protocol` supplies framing and the
 immutable family seam. `BlobProtocol.Family` binds one `ProtocolChannel` to Blob for its entire
 lifetime. The listener endpoint selects this family before reading startup; no model discriminator
 is added to the handshake. All family identifiers below are model-scoped: another model may use the
@@ -436,13 +458,13 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.Blob.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Transactions` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Blob.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Blob.Catalog` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
@@ -508,6 +530,9 @@ See [database lifecycle](../../../../database/blob/index.md) and the BlobDatabas
 file-set refusal, crash recovery and transient-open cases.
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/BlobDatabaseEngine.cs`.
 - **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobDatabaseNameTests.cs`.

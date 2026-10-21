@@ -16,16 +16,16 @@ The dependencies point from model policy toward the shared mechanism.
 
 ```mermaid
 flowchart LR
-    Sql["Database.Sql"] --> Core["Database.Protocol"]
-    Kv["Database.KeyValuePair"] --> Core
-    Blob["Database.Blob"] --> Core
-    Docs["Database.Documents"] --> Core
-    Graph["Database.Graph"] --> Core
+    Sql["Database.Sql.Protocol"] --> Core["Database.Protocol"]
+    Kv["Database.KeyValuePair.Protocol"] --> Core
+    Blob["Database.Blob.Protocol"] --> Core
+    Docs["Database.Documents.Protocol"] --> Core
+    Graph["Database.Graph.Protocol"] --> Core
     Client["Database.Client"] --> Core
 ```
 
-Each model package owns its message identifiers, encode/decode routines, and exchange ordering. Each
-model's Client package owns result materialization. `Database.Client` owns pooling, handshake, framed
+Each model Protocol package owns message identifiers and encode/decode routines. Engine servers and
+client exchanges implement the model ordering rules; each Client package owns result materialization. `Database.Client` owns pooling, handshake, framed
 exchanges, and connection health. Each model server continues to own its accept loop and session
 state machine.
 
@@ -159,7 +159,7 @@ from an older endpoint means 2.0 with no capabilities. Different majors are refu
 Capability names are ordinal and append-only; model names are scoped with the
 lowercase endpoint family followed by a dot. The core owns `diagnostics` and frame 14.
 
-Graph also registers [graph.composite-values](../assimalign-cohesion-database-graph/graph-protocol.md),
+Graph also registers [graph.composite-values](../assimalign-cohesion-database-graph-protocol/graph-protocol.md),
 a payload extension under the same 2.1 negotiation with no new frame types. Diagnostics negotiates
 independently; baseline Graph scalar bytes remain when composites are not agreed.
 

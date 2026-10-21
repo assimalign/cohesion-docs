@@ -8,6 +8,10 @@ The Graph engine stores property-graph nodes and relationships in database-bound
 catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph Query Language
 (GQL) profile. The language targets a subset of ISO/IEC 39075:2024; it does not claim full conformance.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](../model-project-migration.md).
+
 ## In this section
 
 - **[Language (GQL)](language/index.md)** — matching, mutations, catalog queries, and language limits.
@@ -85,7 +89,7 @@ IN and DISTINCT agree on exact represented values; arithmetic keeps its own prom
 [NULLIF](language/expressions/nullif.md), [list/map values](language/expressions/list-values.md) and
 [subscripts/member access](language/expressions/property-access.md) execute. Wire Execute validates
 result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics and graph.composite-values;
-[GraphValueCodec](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-value-codec.md)
+[GraphValueCodec](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-protocol/graph-value-codec.md)
 provides the bounded value format. Constructed limits fail inside the statement transaction before
 commit. Path payloads stay unchanged; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
@@ -119,6 +123,6 @@ and [file diagnostics](language/diagnostics.md#database-files).
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Catalog/docs/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Storage/docs/OVERVIEW.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Assimalign.Cohesion.Database.Graph.Client.csproj`.

@@ -20,7 +20,7 @@ The shared mechanism for every Cohesion database model: bounded framing, handsha
 - **[ProtocolDiagnosticSeverity](protocol-diagnostic-severity.md)** — Values and usage.
 
 The shared mechanism for every Cohesion database model: bounded framing, handshake, session
-lifecycle, errors, version negotiation, and immutable endpoint family binding. Model packages own
+lifecycle, errors, version negotiation, and immutable endpoint family binding. Model Protocol packages own
 their message identifiers and payload codecs.
 
 - **`ProtocolFrameHeader` / `ProtocolFrame`** — five-byte envelope and payload.

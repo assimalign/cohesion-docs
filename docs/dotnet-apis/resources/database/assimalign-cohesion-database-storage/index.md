@@ -39,7 +39,7 @@ None — this is a leaf kernel project. Consumers: `Database.Transactions` (WAL 
 
 ## Usage
 
-Models derive a thin facade from `Storage` (see `Assimalign.Cohesion.Database.Sql.Storage` for the
+Models derive a thin facade from `Storage` (see the `Sql.Storage` namespace in `Assimalign.Cohesion.Database.Sql` for the
 canonical example):
 
 See the [source-backed usage examples](examples/index.md).

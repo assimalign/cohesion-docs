@@ -6,6 +6,10 @@ Namespace: `Assimalign.Cohesion.Database`.
 
 ## Signature
 
+This is an engine-side exception. The six shared/model client exceptions now derive directly from
+System.Exception; catching DatabaseException no longer handles remote failures. Catch the exception
+for the client API in use. See [remote error handling](../../../../database/model-project-migration.md#remote-failures).
+
 ```csharp
 public class DatabaseException : Exception
 {

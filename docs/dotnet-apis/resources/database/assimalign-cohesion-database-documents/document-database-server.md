@@ -45,7 +45,7 @@ await server.StopAsync(CancellationToken.None);
 
 ## Related reference
 
-[Options](document-database-server-options.md) · [Protocol](document-protocol.md) · [Pooled client](../assimalign-cohesion-database-documents-client/index.md)
+[Options](document-database-server-options.md) · [Protocol](../assimalign-cohesion-database-documents-protocol/document-protocol.md) · [Pooled client](../assimalign-cohesion-database-documents-client/index.md)
 
 ## Sources
 

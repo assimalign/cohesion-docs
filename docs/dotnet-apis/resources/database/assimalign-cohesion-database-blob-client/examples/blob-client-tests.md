@@ -32,6 +32,7 @@ using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 using Assimalign.Cohesion.Database.Protocol;
+using Assimalign.Cohesion.Database.Blob.Protocol;
 
 namespace Assimalign.Cohesion.Database.Blob.Client.Tests;
 

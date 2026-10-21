@@ -2,7 +2,7 @@
 
 Returns the chosen plan without executing the wrapped statement.
 
-> **Status:** Implemented for data statements.
+> **Status:** Implemented. Supports data statements.
 
 ## Syntax
 

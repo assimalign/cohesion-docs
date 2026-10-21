@@ -45,7 +45,7 @@ Console.WriteLine(list[1] is null); // True
 
 ## Related reference
 
-[Assembly](index.md) · [GraphResultSet](graph-result-set.md) · [GraphConnection](graph-connection.md) · [GraphValueCodec](../assimalign-cohesion-database-graph/graph-value-codec.md)
+[Assembly](index.md) · [GraphResultSet](graph-result-set.md) · [GraphConnection](graph-connection.md) · [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md)
 
 ## Sources
 

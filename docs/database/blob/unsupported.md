@@ -34,8 +34,8 @@ throughput guarantee. Content exceeding available memory requires file-backed st
 | Concurrent operations on one engine session | Not supported while an operation or stream is active |
 | Random access through content streams | Streams are sequential; the client download stream is nonseekable |
 
-`Assimalign.Cohesion.Database.Blob.Security` remains a placeholder. The former Blob.Replication
-project is removed; no replication API is supplied. Authentication
+The empty Blob.Security satellite is retired; future model authorization belongs in the Blob
+model project. The former Blob.Replication project is removed; no replication API is supplied. Authentication
 configuration belongs to the implemented `BlobDatabaseServer` surface.
 
 ## Lifetime limits
@@ -59,4 +59,4 @@ unfinished work. Any downloaded bytes preceding a later failure are unverified p
 - **Engine scope and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
 - **Client behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/docs/OVERVIEW.md`.
 - **Measured client fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/README.md`.
-- **Security project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Security/src/Assimalign.Cohesion.Database.Blob.Security.csproj`.
+- **Model security boundary** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Assimalign.Cohesion.Database.Blob.csproj`.

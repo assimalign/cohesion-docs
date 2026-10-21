@@ -177,6 +177,6 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 - **Wire enforcement** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlUpdateForeignKeyWireTests.cs`.
 - **Coded violations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstraintDiagnosticTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlConstraintDiagnosticWireTests.cs`.
 - **Constraint grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Constraints.cs`
-- **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Catalog/docs/DESIGN.md`
+- **Persistence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Collation compatibility** — `cohesion/docs/programs/COLLATION_DESIGN.md`
 

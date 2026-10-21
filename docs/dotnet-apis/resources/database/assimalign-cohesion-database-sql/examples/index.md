@@ -25,6 +25,13 @@ updated and inserted rows with RETURNING, query sources and DEFAULT VALUES, chec
 SqlUpsertExecutionTests/SqlUpsertWireTests. [Final-row foreign keys](../../../../../database/sql/language/constraints.md#update-final-row-examples)
 shows self-reference moves and rejected dangling references from SqlUpdateForeignKeyTests.
 
+## Additional reference pages
+
+- **[Catalog storage and collation](catalog-storage-and-collation.md)** — Reference and usage.
+- **[Examples](catalog.md)** — Reference and usage.
+- **[Sql Catalog Collation Tests](sql-catalog-collation-tests.md)** — Reference and usage.
+- **[Examples](storage.md)** — Reference and usage.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/OVERVIEW.md`.

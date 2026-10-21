@@ -4,6 +4,11 @@ The key-value model engine: `KeyValueDatabaseEngine`, an ordered key space with 
 
 > **Status:** Partial.
 
+Assembly: `Assimalign.Cohesion.Database.KeyValuePair.dll`. NuGet package: `Assimalign.Cohesion.Database.KeyValuePair`.
+
+Catalog and Storage ship in this assembly with their existing namespaces. The former satellite
+packages are retired. Wire contracts ship separately in [KeyValuePair.Protocol](../assimalign-cohesion-database-keyvaluepair-protocol/index.md).
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -46,10 +51,8 @@ byte sequences; keys order by unsigned lexicographic byte comparison.
 ## Dependencies
 
 - **`Assimalign.Cohesion.Database`** — the area root (contracts + child-root rollup).
-- **`Assimalign.Cohesion.Database.KeyValuePair.Storage`** — the model's storage
-  binding (`KeyValueStorage`).
-- **`Assimalign.Cohesion.Database.KeyValuePair.Catalog`** — index registrations +
-  entry-space format marker.
+- **Storage component** — `KeyValueStorage` in this model assembly.
+- **Catalog component** — index registrations and entry-space format marker in this assembly.
 - **`Assimalign.Cohesion.Database.Storage` / `.Types`** — durability options surface
   and the shared tuple codec (direct references; the rest of the kernel arrives
   through the root).
@@ -69,14 +72,22 @@ See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 
 | Reference | Kind |
 |---|---|
+| `Assimalign.Cohesion.Database.KeyValuePair.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Storage` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Catalog` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Indexing` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
+
+## Additional reference pages
+
+- **[KeyValuePair catalog design](catalog-design.md)** — Reference and usage.
+- **[KeyValuePair catalog](catalog.md)** — Reference and usage.
+- **[KeyValuePair storage design](storage-design.md)** — Reference and usage.
+- **[KeyValuePair storage](storage.md)** — Reference and usage.
 
 ## Sources
 

@@ -32,7 +32,7 @@ count; Path on an empty list throws ArgumentOutOfRangeException. Planning refuse
 at the 33rd key and OQL0002 for duplicates. Neither count code has an assigned SQLSTATE.
 
 IfNotExists preserves any existing same-named definition. Build/write UNIQUE failures use
-[DocumentConstraintViolationException](../assimalign-cohesion-database-documents-catalog/document-constraint-violation-exception.md),
+[DocumentConstraintViolationException](../assimalign-cohesion-database-documents/document-constraint-violation-exception.md),
 COHDOC020 (23505) or COHDOC021. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md)
 for ownership, format and NULL/MISSING rules.
 

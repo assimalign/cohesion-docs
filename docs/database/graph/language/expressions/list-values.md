@@ -56,7 +56,7 @@ Protocol 2.1 negotiates graph.composite-values independently of diagnostics. Wit
 composite result uses COHDBG016 before reads/writer locks/writes, even for empty matches or skipped
 CASE arms. No SQLSTATE is assigned. The typed client rejects composite parameters locally with
 ExecutionFailure before sending a frame; the connection stays reusable. Scalar columns keep their
-baseline tuple bytes. [GraphValueCodec](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-value-codec.md)
+baseline tuple bytes. [GraphValueCodec](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-protocol/graph-value-codec.md)
 provides the public component format. Path payloads are unchanged.
 
 ## Diagnostics

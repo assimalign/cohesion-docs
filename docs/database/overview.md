@@ -4,6 +4,10 @@ Cohesion Database composes independent model engines over shared storage, transa
 
 > **Status:** Partial. Five model engines execute; Cache is deferred and language/operational support remains bounded.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](model-project-migration.md).
+
 ## Resource and engines
 
 The Database resource is Cohesion's multi-model online transaction processing (OLTP) data platform.
@@ -45,7 +49,8 @@ The area root composes child roots; child roots do not depend on it. Each model 
 kernel rather than introducing separate paging, journaling, or locking. Model-specific layout,
 catalog, language, client, security, and replication concerns stay with the model.
 
-> **Status:** Removed. The former replication and governance placeholder projects and contracts are absent. These features have no current runtime API.
+The former replication and governance placeholder projects and contracts are absent. These
+features have no current runtime API.
 
 ## Host composition
 
@@ -220,8 +225,8 @@ Transport selection belongs to the composition root. `Database.Sql.Tcp` supplies
 transport.
 
 Each endpoint fixes a model family for the entire connection. The shared protocol owns framing,
-handshake, version 2.1 capability negotiation, errors, and lifecycle; each model owns message identifiers and
-payload codecs. Model clients use the shared pooled client to run their exchanges.
+handshake, version 2.1 capability negotiation, errors, and lifecycle. Each model Protocol package owns
+message identifiers and payload codecs. Model clients use the shared pooled client to run their exchanges.
 
 SQL sends statement text plus named values. A row result returns a header, rows, then completion;
 a write returns completion with an affected count. Statements execute one at a time, without

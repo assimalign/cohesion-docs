@@ -8,6 +8,10 @@ The Key-Value Pair engine stores opaque byte keys and values in an ordered key s
 Each database has one implicit key space. Keys compare by unsigned lexicographic byte order;
 string collation settings do not change key equality or ordering.
 
+Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
+transferred values ship in the model Protocol package, shared by engine and client. Remote clients
+reference contracts without engines. See [package/import/error migration](../model-project-migration.md).
+
 ## Reference
 
 - **[Commands](commands/index.md)** — point reads, conditional writes, ordered scans, and discovery.
@@ -65,6 +69,6 @@ results use `KeyValueWriteResult` or Boolean outcomes rather than exceptions.
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.
 - **Design** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.
-- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Catalog/docs/OVERVIEW.md`.
-- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Storage/docs/OVERVIEW.md`.
+- **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.
+- **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.
 - **Client** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/docs/OVERVIEW.md`.

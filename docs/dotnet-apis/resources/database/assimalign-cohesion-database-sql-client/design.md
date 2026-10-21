@@ -8,6 +8,16 @@ The SQL client owns parameter encoding, response decoding and materialization, t
 commands/results, and error/telemetry mapping. It delegates dialing, startup/authentication,
 framing, and pooling to the shared client.
 
+## Contract dependencies and client errors
+
+This client references Database.Client, Sql.Protocol, shared Protocol and Types, and Connections. Wire contracts and transferred values use the
+`Assimalign.Cohesion.Database.Sql.Protocol` namespace. The client references no engine.
+COHDBCLIENT001 rejects engine project references, resolved engine assemblies and engine source imports.
+
+`SqlClientException` derives directly from `System.Exception` and declares its own
+non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
+`DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
+
 ## Family position
 
 The SQL client references shared mechanics and its model's codecs:
@@ -15,7 +25,7 @@ The SQL client references shared mechanics and its model's codecs:
 ```mermaid
 flowchart LR
     SqlClient["Database.Sql.Client"] --> Client["Database.Client"]
-    SqlClient --> Sql["Database.Sql"]
+    SqlClient --> Sql["Database.Sql.Protocol"]
     Client --> Protocol["Database.Protocol"]
     Sql --> Protocol
 ```
@@ -83,7 +93,7 @@ deduplication. A connection loss after the server publishes COMMIT but before th
 the client has an unknown outcome. Client exceptions do not promise that a failed COMMIT left no
 writes.
 
-`SqlClientException : DatabaseException` maps stable wire codes to SQL error kinds and retains the
+`SqlClientException : Exception` maps stable wire codes to SQL error kinds and retains the
 original code. The shared pool invalidates incomplete exchanges, including cancellation and decoder
 failure. Completed parse/execution failures keep the connection reusable.
 
@@ -121,9 +131,10 @@ framing, handshake and model messages are unchanged.
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Client` | `CohesionSharedSource` |
 | `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Sql` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Sql.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
@@ -174,6 +185,9 @@ complete transaction. The client does not retry it automatically. See
 [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
 
 ## Sources
+
+- **Current project boundaries** — `cohesion/resources/Database/README.md`.
+- **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/Assimalign.Cohesion.Database.Sql.Client.csproj`.

@@ -17,53 +17,45 @@ Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior
 
 ## Packages
 
+The six model projects include their Catalog and Storage components; the five empty model Security
+projects are retired. Public component namespaces remain unchanged. The five Protocol packages own
+52 moved public wire types under new namespaces. See the [migration guide](../../../database/model-project-migration.md).
+
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.Database`](assimalign-cohesion-database/index.md) | `Root` | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.ApplicationModel`](assimalign-cohesion-database-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Blob`](assimalign-cohesion-database-blob/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Blob.Catalog`](assimalign-cohesion-database-blob-catalog/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Blob.Protocol`](assimalign-cohesion-database-blob-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Blob.Client`](assimalign-cohesion-database-blob-client/index.md) | Client | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Blob.Security`](assimalign-cohesion-database-blob-security/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Blob.Storage`](assimalign-cohesion-database-blob-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Cache`](assimalign-cohesion-database-cache/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Cache.Catalog`](assimalign-cohesion-database-cache-catalog/index.md) | Feature library | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Cache.Client`](assimalign-cohesion-database-cache-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Cache.Language`](assimalign-cohesion-database-cache-language/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Cache.Storage`](assimalign-cohesion-database-cache-storage/index.md) | Feature library | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Client`](assimalign-cohesion-database-client/index.md) | Client | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Documents`](assimalign-cohesion-database-documents/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Documents.Catalog`](assimalign-cohesion-database-documents-catalog/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Documents.Protocol`](assimalign-cohesion-database-documents-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Documents.Client`](assimalign-cohesion-database-documents-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Documents.Language`](assimalign-cohesion-database-documents-language/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Documents.Security`](assimalign-cohesion-database-documents-security/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Documents.Storage`](assimalign-cohesion-database-documents-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Embedded`](assimalign-cohesion-database-embedded/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Execution`](assimalign-cohesion-database-execution/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Graph`](assimalign-cohesion-database-graph/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Graph.Catalog`](assimalign-cohesion-database-graph-catalog/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Graph.Protocol`](assimalign-cohesion-database-graph-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Graph.Client`](assimalign-cohesion-database-graph-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Graph.Language`](assimalign-cohesion-database-graph-language/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Graph.Security`](assimalign-cohesion-database-graph-security/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Graph.Storage`](assimalign-cohesion-database-graph-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Hosting`](assimalign-cohesion-database-hosting/index.md) | Hosting | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Indexing`](assimalign-cohesion-database-indexing/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.KeyValuePair`](assimalign-cohesion-database-keyvaluepair/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.KeyValuePair.Catalog`](assimalign-cohesion-database-keyvaluepair-catalog/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.KeyValuePair.Protocol`](assimalign-cohesion-database-keyvaluepair-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.KeyValuePair.Client`](assimalign-cohesion-database-keyvaluepair-client/index.md) | Client | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.KeyValuePair.Security`](assimalign-cohesion-database-keyvaluepair-security/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.KeyValuePair.Storage`](assimalign-cohesion-database-keyvaluepair-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Language`](assimalign-cohesion-database-language/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Memory`](assimalign-cohesion-database-memory/index.md) | Feature library | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Protocol`](assimalign-cohesion-database-protocol/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Security`](assimalign-cohesion-database-security/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql`](assimalign-cohesion-database-sql/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Sql.Catalog`](assimalign-cohesion-database-sql-catalog/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Sql.Protocol`](assimalign-cohesion-database-sql-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Client`](assimalign-cohesion-database-sql-client/index.md) | Client | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Language`](assimalign-cohesion-database-sql-language/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Schema`](assimalign-cohesion-database-sql-schema/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Sql.Security`](assimalign-cohesion-database-sql-security/index.md) | Feature library | Not listed in this framework |
-| [`Assimalign.Cohesion.Database.Sql.Storage`](assimalign-cohesion-database-sql-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Tcp`](assimalign-cohesion-database-sql-tcp/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Storage`](assimalign-cohesion-database-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Testing`](assimalign-cohesion-database-testing/index.md) | Testing | Not listed in this framework |
@@ -124,28 +116,23 @@ inventory below.
 | `Assimalign.Cohesion.Database.Embedded` |
 | `Assimalign.Cohesion.Database.Hosting` |
 | `Assimalign.Cohesion.Database.Sql` |
+| `Assimalign.Cohesion.Database.Sql.Protocol` |
 | `Assimalign.Cohesion.Database.Sql.Tcp` |
 | `Assimalign.Cohesion.Database.Sql.Language` |
-| `Assimalign.Cohesion.Database.Sql.Catalog` |
 | `Assimalign.Cohesion.Database.Sql.Schema` |
-| `Assimalign.Cohesion.Database.Sql.Storage` |
 | `Assimalign.Cohesion.Database.Sql.Client` |
 | `Assimalign.Cohesion.Database.KeyValuePair` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Storage` |
-| `Assimalign.Cohesion.Database.KeyValuePair.Catalog` |
+| `Assimalign.Cohesion.Database.KeyValuePair.Protocol` |
 | `Assimalign.Cohesion.Database.KeyValuePair.Client` |
 | `Assimalign.Cohesion.Database.Blob` |
-| `Assimalign.Cohesion.Database.Blob.Storage` |
-| `Assimalign.Cohesion.Database.Blob.Catalog` |
+| `Assimalign.Cohesion.Database.Blob.Protocol` |
 | `Assimalign.Cohesion.Database.Blob.Client` |
 | `Assimalign.Cohesion.Database.Documents` |
+| `Assimalign.Cohesion.Database.Documents.Protocol` |
 | `Assimalign.Cohesion.Database.Documents.Language` |
-| `Assimalign.Cohesion.Database.Documents.Catalog` |
-| `Assimalign.Cohesion.Database.Documents.Storage` |
 | `Assimalign.Cohesion.Database.Graph` |
+| `Assimalign.Cohesion.Database.Graph.Protocol` |
 | `Assimalign.Cohesion.Database.Graph.Language` |
-| `Assimalign.Cohesion.Database.Graph.Catalog` |
-| `Assimalign.Cohesion.Database.Graph.Storage` |
 
 | Private runtime assembly |
 |---|

@@ -59,6 +59,10 @@ query language.
 [Database .NET APIs](../dotnet-apis/resources/database/index.md) describes the resource packages.
 [Documentation home](../index.md) returns to the site navigation.
 
+## Additional reference pages
+
+- **[Model project migration](model-project-migration.md)** — Reference and usage.
+
 ## Sources
 
 - **Area map and engine status** — `cohesion/resources/Database/README.md`

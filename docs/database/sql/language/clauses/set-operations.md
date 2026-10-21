@@ -2,7 +2,7 @@
 
 Combine query rows by position, with DISTINCT or bag multiplicities.
 
-> **Status:** Implemented in every query position.
+> **Status:** Implemented. Applies in every query position.
 
 ## Syntax
 

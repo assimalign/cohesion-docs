@@ -4,6 +4,18 @@ The shared client core of the Data Platform: the protocol client every per-model
 
 > **Status:** Implemented.
 
+## Engine-free client core
+
+Database.Client references shared Database.Protocol, Database.Types and Connections. Typed model
+clients consume their model Protocol packages. COHDBCLIENT001 checks evaluated project references,
+actual resolved assembly identities and source imports; engine dependencies and build-order-only
+engine references fail the build. Repository-local test/example/sample/fixture harnesses are exempt.
+The client-only sample checks its pre-trim reference closure and runs in NativeAOT CI.
+
+DatabaseClientException derives directly from System.Exception and owns its Diagnostics snapshot.
+Catch it when using the shared client core; catch the model client exception for typed APIs.
+See the [migration guide](../../../../database/model-project-migration.md).
+
 ## Reference pages
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -37,8 +49,8 @@ framed exchanges, and pools authenticated connections.
 
 ## Dependencies
 
-`Database` (root contracts + exception root), `Database.Protocol` (framing + shared messages and
-family binding), `Connections` (transport factories).
+`Database.Protocol` (framing, shared messages and family binding), `Database.Types` (diagnostic
+values), and `Connections` (transport factories). No engine or area-root reference is required.
 
 ## Usage
 
@@ -85,7 +97,7 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 
 | Reference | Kind |
 |---|---|
-| `Assimalign.Cohesion.Database` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Database.Protocol` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 

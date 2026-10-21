@@ -23,6 +23,7 @@ using Assimalign.Cohesion.Connections;
 using Assimalign.Cohesion.Database.Blob;
 using Assimalign.Cohesion.Database.Blob.Client;
 using Assimalign.Cohesion.Database.Client;
+using Assimalign.Cohesion.Database.Blob.Protocol;
 
 public static class BlobStreamingExample
 {

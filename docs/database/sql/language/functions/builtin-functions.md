@@ -2,7 +2,7 @@
 
 Executes 42 T1 scalar names with planning-time signature checks.
 
-> **Status:** Implemented for the signatures below.
+> **Status:** Implemented. Supports the signatures below.
 
 ## Syntax
 

@@ -2,7 +2,7 @@
 
 Maps SQL declarations and CAST targets to shared Database identities.
 
-> **Status:** Implemented for the names below.
+> **Status:** Implemented. Supports the names below.
 
 ## Names and identities
 
