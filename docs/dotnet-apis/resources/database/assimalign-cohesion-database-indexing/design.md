@@ -58,7 +58,10 @@ compare raw bytes.
 
 `BTreeIndexManager.Create(options)` composes B+Trees over `PageType.Index` pages — one node per
 page, a sorted offset directory with entry data growing from the body end, key capacity capped
-(`MaxKeyLength` = 1 KiB) so a node always holds several entries and splits stay correct.
+([BTreeIndex.MaxKeyLength](b-tree-index.md#encoded-key-limit) = 1,024 bytes) so a node always
+holds several entries and splits stay correct. Both insertion paths accept exactly this limit.
+Models share this public constant for preflight validation. Encoded components, NULL markers and
+collation transforms count; entry-reference and writer-stamp tiebreakers are separate.
 
 - **Every page mutation rides the owning storage transaction** through the storage
   layer's `OpenPageForWrite`/`AllocatePageForWrite` — before-images at first touch,

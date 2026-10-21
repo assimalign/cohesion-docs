@@ -72,6 +72,21 @@ the statement and leaves an explicit transaction usable. See [Diagnostics](../di
 
 ## Examples
 
+UPDATE checks the final encoded row and all replacement index keys before applying any changes.
+Exceeding [8,092 row bytes or 1,024 index-key bytes](../diagnostics.md#row-and-index-key-limits)
+reports `COHSQLE042` / SQLSTATE 54000, leaves the statement's rows unchanged, and keeps an
+explicit transaction active. Existing values used for locking or tombstones receive no new-write
+size check; updating an existing row to a fitting replacement remains supported.
+
+For a table `large_rows (id INT PRIMARY KEY, value TEXT)` containing `(1, 'old')`, bind `value`
+to `new string('x', 9000)` and execute:
+
+```sql
+UPDATE large_rows SET value = @value WHERE id = 1;
+```
+
+It fails with COHSQLE042; the row remains `(1, 'old')`, as in SqlProgramLimitConformanceTests.
+
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
 
 ```sql

@@ -9,6 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Indexing`.
 ```csharp
 public sealed class BTreeIndex
 {
+    public const int MaxKeyLength = 1024;
     public bool IsUnique { get; }
     public ValueTask<ulong?> FindLiveEntryAsync(
         TransactionContext transaction, IndexKey key,
@@ -42,6 +43,32 @@ that acquisition; callers must provide the coordination needed for latest-state 
 
 The lookup changes no page layout. SQL uses it for [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 arbitration and translates kernel failures at its model boundary.
+
+## Encoded key limit
+
+`MaxKeyLength` is the public maximum encoded write-key length in bytes. The count includes all
+components, NULL markers and collation transforms; entry-reference and writer-stamp tiebreakers
+are stored separately. `InsertAsync` and the stamp-preserving `InsertVersionAsync` accept exactly
+1,024 bytes and throw `IndexException` for 1,025 bytes before inserting that key. Models can use
+the constant to validate their final write keys before storage mutation.
+
+With an active writer and index from the caller's storage/coordinator composition, this adapts
+the boundary test:
+
+```csharp
+var accepted = new IndexKey(new byte[BTreeIndex.MaxKeyLength]);
+await index.InsertAsync(writer, accepted, 42);
+try
+{
+    await index.InsertAsync(writer, new IndexKey(new byte[BTreeIndex.MaxKeyLength + 1]), 43);
+}
+catch (IndexException)
+{
+    Console.WriteLine("Key exceeds 1,024 bytes.");
+}
+```
+
+Commit the writer: a range cursor returns only the 1,024-byte key with entry reference `42`.
 
 ## Range cursors
 

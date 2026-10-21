@@ -63,6 +63,11 @@ text parameters retain their types. See [search conditions](../../../../database
 
 ## Example
 
+Oversized encoded rows and write/build index keys report `COHSQLE042` / SQLSTATE 54000 through
+ExecutionFailure, with `ConnectionUsable = true`. The message names the table, byte size and
+limit. No statement rows change; an explicit transaction remains active with earlier work intact.
+See [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
+
 ```csharp
 try { await connection.QueryAsync("SELECT absent FROM t;"); }
 catch (SqlClientException failure) {

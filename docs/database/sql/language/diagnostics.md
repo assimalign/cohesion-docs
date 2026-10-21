@@ -67,6 +67,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
 | `COHSQLE041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
+| `COHSQLE042` | Encoded row or index key exceeds its write-size limit; names the table, actual byte size and limit | 54000 (`program_limit_exceeded`) |
 | `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
@@ -116,6 +117,30 @@ positions all qualify or fail, including unreachable alternatives. Untyped NULL 
 valid Boolean input string literals coerce, while text columns/parameters keep their types.
 Stored SQL function bodies with legacy invalid Boolean operands or changed application return
 types allow the database to open and fail with COHSQLE003 when invoked.
+
+## Row and index-key limits
+
+An encoded row must fit **8,092 bytes**, including its MVCC header and physical column layout.
+Every unique or nonunique index key must fit **1,024 bytes**, including encoded components,
+NULL markers, delimiters and collation transforms. Equality with either limit is accepted.
+These are byte limits on the encoded representation, not character limits.
+
+INSERT VALUES, INSERT SELECT, UPDATE and ON CONFLICT DO UPDATE validate final rows and write
+keys before physical apply. Referential SET NULL/SET DEFAULT actions validate the final child
+rows before changing either parents or children. `COHSQLE042` leaves all statement rows unchanged,
+earlier successful statements intact, and an explicit transaction active. The session and wire
+connection remain usable; the wire reports ExecutionFailure with the existing diagnostic carrier.
+SQLSTATE 54000 is a documented mapping, not a new wire field.
+
+[ON CONFLICT](clauses/on-conflict.md) does not size-check a proposal it discards. DO NOTHING can
+skip an oversized proposal; DO UPDATE can replace one with a fitting row, including when the
+proposed row or a non-arbiter unique key was oversized. Final writes still have to fit. Old-value
+lock hashes, arbiter lookups and deletion tombstones do not enforce new-write limits: existing
+rows can be deleted or updated to fitting replacements.
+
+Index builds use the same key limit, including indexes for ADD CONSTRAINT and ADD COLUMN.
+A failed build leaves its index unpublished and cleans up the unpublished tree. See
+[CREATE INDEX](statements/create-index.md) and [constraints](constraints.md).
 
 ## DDL dependencies
 
