@@ -47,20 +47,22 @@ engine server depends only on transport abstractions. These are reference direct
 
 ```mermaid
 flowchart LR
-    Client["Database.Blob.Client"] --> Blob["Database.Blob"]
+    Client["Database.Blob.Client"] --> Wire["Database.Blob.Protocol"]
+    Blob["Database.Blob"] --> Wire
     Client --> SharedClient["Database.Client"]
     Blob --> Protocol["Database.Protocol"]
     SharedClient --> Protocol
     Blob --> Connections["Connections"]
-    Blob --> Catalog["Database.Blob.Catalog"]
-    Blob --> Storage["Database.Blob.Storage"]
+    Blob --> Catalog["Blob Catalog component"]
+    Blob --> Storage["Blob Storage component"]
     Blob --> Transactions["Database.Transactions"]
 ```
 
-| Package | Responsibility |
+| Component or package | Responsibility |
 | --- | --- |
-| `Assimalign.Cohesion.Database.Blob` | `Database`/session/container lifetimes, ownership, publication, Blob wire family and server |
+| `Assimalign.Cohesion.Database.Blob` | `Database`/session/container lifetimes, ownership, publication and wire server |
 | `Assimalign.Cohesion.Database.Blob.Client` | Typed streaming operations over shared connection exchanges |
+| `Assimalign.Cohesion.Database.Blob.Protocol` | Shared Blob message family, codecs and transferred values |
 | `Assimalign.Cohesion.Connections` | Generic connection and listener contracts; no concrete transport |
 | `Assimalign.Cohesion.Database.Protocol` | Shared framing, handshake, versioning, errors and family-bound channels |
 | Catalog component in `Database.Blob` | Metadata versions, directory and ordered listings |
@@ -479,6 +481,12 @@ reject malformed UTF-8. Structured Diagnostics is not a Blob result mechanism.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHDBB004` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain COHDBB004 | — |
+
+Reads, operations, transactions and create/open translate storage corruption, including coded and
+aggregate causes. A damaged read fails instead of omitting a blob; legitimate reclamation retains
+absence semantics. The existing wire execution-failure path carries the code. See
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 
 This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
@@ -499,9 +507,10 @@ ordinary create does not adopt them. Drop removes blob.dat before deleting the r
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses COHDBB004 with preservation/restore advice. Transient storage I/O, including a full
+corruption uses DatabaseCorruptionException / COHDBS003 with COHDBB004 retained as an additional
+diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. No storage or record format changes are introduced.
+without drop or backup advice. The shared storage format is 4; this does not change Blob record formats.
 
 ### Lifecycle API
 

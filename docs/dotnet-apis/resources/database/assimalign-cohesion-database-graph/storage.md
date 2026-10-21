@@ -51,6 +51,10 @@ Older records and tree registrations are refused with COHDBG017; recreate the da
 there is no upgrade path. CreateRelationshipAsync requires a nonempty typeId. Filtered incident
 reads stream selected node/direction/type ranges; see [changed signatures](graph-store.md).
 
+At the engine boundary, an open-time graph-format refusal becomes
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+with COHDBS003, COHDBG018 and COHDBG017 retained in Diagnostics; no SQLSTATE is assigned.
+
 
 [Parent: Assimalign.Cohesion.Database.Graph](index.md)
 

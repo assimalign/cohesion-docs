@@ -108,8 +108,10 @@ replaces properties. Both publish even equal values; GQL filters pure no-ops. Cr
 complete records with caller-reserved identities. Formats 1 and 2 are refused before logical
 recovery scrub with COHDBG017 and the recreation remedy; there is no upgrade reader. Graph records
 and tree registrations use version 3; catalog and B-tree page formats are unchanged. The low-level
-StorageCorruptionException carries the code in its message; the engine preserves it in
-DatabaseException.Diagnostics without assigning a SQLSTATE.
+StorageCorruptionException carries the code in its message; the engine retains it alongside
+COHDBS003 and COHDBG018 in
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
+No SQLSTATE is assigned.
 
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
 version `3`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID

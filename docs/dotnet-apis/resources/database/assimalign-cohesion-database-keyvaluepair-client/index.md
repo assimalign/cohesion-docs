@@ -48,15 +48,15 @@ entries and outcomes. Conditional misses (compare-and-swap) are first-class outc
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Database`** — the area root (exception ancestry).
+- **`Assimalign.Cohesion.Database.Protocol`** — shared framing and wire contracts.
 - **`Assimalign.Cohesion.Database.Client`** — the shared pooling/protocol core.
-- **`Assimalign.Cohesion.Database.KeyValuePair`** — family identifiers and payload codecs.
+- **`Assimalign.Cohesion.Database.KeyValuePair.Protocol`** — family identifiers and payload codecs.
 - **`Assimalign.Cohesion.Database.Types`** — the shared value codec (transitive wire
   encoding of parameters and rows).
 - **`Assimalign.Cohesion.Connections`** — the transport factory that dials the server.
 
-The model reference supplies the wire contract; the client constructs no engine and references no
-hosting module.
+The contract package supplies the wire vocabulary; the client's dependency closure contains no
+engine, catalog, storage or hosting implementation.
 
 ## Usage
 

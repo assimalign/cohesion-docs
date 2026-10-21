@@ -143,6 +143,23 @@ expands; normalization cannot erase an escape or turn it into a wildcard. CHAR v
 stored padding, while CHAR patterns use text conversion. Matching is iterative and observes
 statement cancellation.
 
+Ordinary fixed prefix, suffix, contains and exact patterns use work linear in input length,
+including under `invariant`. Pathological invariant (linguistic) matching has a per-match budget:
+
+```text
+64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)
+```
+
+The budget uses checked 64-bit arithmetic. Each search transition and scalar-boundary probe
+costs one unit. Each linguistic comparison/search additionally costs the sum of its span lengths,
+with a minimum of one unit. Successful anchors charge only through the matched prefix; an
+independent prefix failure after boundary analysis charges the literal extent. Each zero-initialized
+32-bit visited-state word costs one unit, charged before allocation. Exceeding the budget raises
+located `COHSQLE040` (no assigned SQLSTATE). LIKE and NOT LIKE both fail; neither returns an
+estimated Boolean. Over the wire this is ExecutionFailure and leaves the connection usable.
+Cancellation reaches row-time matching, including cached views and stored CHECKs, and takes
+precedence over a budget refusal. Other collations retain O(input × pattern) search.
+
 ```sql
 SELECT '50%' LIKE '50!%' ESCAPE '!', 'a%' LIKE 'a\%',
        'a\z' LIKE 'a\%' ESCAPE '', '😀' LIKE '_',
@@ -153,6 +170,20 @@ FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 All five outputs are TRUE. The default backslash and empty escape follow PostgreSQL; ISO SQL
 has no implicit escape and refuses an empty one. Malformed predicates, missing FROM in a
 distinct test, or a missing ESCAPE operand use `SQL0003`.
+
+These examples need only the built-in dbo schema:
+
+```sql
+SELECT RPAD('a', 200000, 'a') COLLATE invariant LIKE '%a',
+       ('abc' || RPAD('z', 199997, 'z')) COLLATE invariant LIKE 'abc%'
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+SELECT RPAD('เก', 1024, 'เก') COLLATE invariant
+       LIKE RPAD('%เก', 96, '%เก') || 'ข'
+FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
+```
+
+The first returns `(TRUE, TRUE)`. The second fails with located `COHSQLE040`; replacing LIKE
+with NOT LIKE also fails. A subsequent query on that session still executes.
 
 Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
 domain checks, SQL function bodies and views. Storage format 25 refuses earlier files without
@@ -216,6 +247,7 @@ These conformance queries exercise predicates and row arithmetic.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Predicates and results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPredicateExecutionTests.cs`.
+- **Budget refusal and usable sessions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlPredicateWireTests.cs`.
 - **Precedence and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlPredicateParserTests.cs`.
 - **Temporal execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1TemporalTests.cs`.
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Evaluation/SqlExpressionEvaluator.cs`

@@ -35,8 +35,8 @@ typed column access — without re-implementing any of the transport, framing, o
 
 The client **does not parse SQL**. It sends statement text and parameters over the wire; the
 server's SQL session parses, plans, and executes them. That keeps the client contract stable and
-independent of the engine's internal plan structures. The model reference supplies wire codecs; the
-client never calls its parser.
+independent of the engine's internal plan structures. Database.Sql.Protocol supplies wire codecs;
+the client has no dependency on the SQL engine, catalog or storage implementation.
 
 ## Scope
 

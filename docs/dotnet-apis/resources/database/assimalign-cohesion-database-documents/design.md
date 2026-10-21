@@ -459,6 +459,12 @@ the profile executes 31 of 32 declared clauses.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain COHDBD003 | — |
+
+Reads, statements, transactions and create/open translate storage corruption, including coded and
+aggregate causes. Damaged reads fail instead of omitting documents; legitimate reclamation retains
+absence semantics. The existing wire execution-failure path carries the code and leaves the
+connection usable. See [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 
 This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
@@ -479,9 +485,10 @@ ordinary create does not adopt them. Drop removes document.dat before deleting t
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses COHDBD003 with preservation/restore advice. Transient storage I/O, including a full
+corruption uses DatabaseCorruptionException / COHDBS003 with COHDBD003 retained as an additional
+diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. No storage or record format changes are introduced.
+without drop or backup advice. The shared storage format is 4; this does not change Document record formats.
 
 ### Lifecycle API
 

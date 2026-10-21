@@ -47,8 +47,8 @@ Contracts plus one branch-free internal implementation — nothing to trim.
 
 ## Non-goals
 
-- **No principal/role/permission model here yet** — it arrives with the governance
-  work and the per-model security satellites.
+- **No principal/role/permission model here yet** — model-specific security belongs in its
+  engine assembly; the empty model Security satellites have been removed.
 - **No credential storage or** — key material (see `Security.DataProtection` at the
   platform level for that machinery).
 - **No transport security** — TLS belongs to `Connections.Security` under the server's

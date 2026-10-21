@@ -24,32 +24,63 @@ checksum-stamped, and durability flows through the journal only — there are no
   checksum (16), flags (20), type (21), slot count (22), free-data end (24), overflow
   size (28), reserved nonce/MAC space for encryption at rest (32–63), then the
   owner tag (64) driving per-owner record chains (72–95 reserved).
-- **`PageType.Free` is zero — deliberately.** A zero-initialized page reads as free,
-  and `FreePage` re-stamps freed pages with `Free`, which is what lets the free-space
-  map be *reconstructed from page headers* on open instead of being persisted as a
-  separate structure that could drift from reality. The trade-off: a page freed but not
-  yet flushed at process exit reappears as allocated after reopen — a safe leak, never
-  corruption. (A bitmap FSM page type is reserved for when file sizes make the open-time
-  scan matter.)
+- **Free and reclaimed pages.** `PageType.Free` (0) requires an entirely zero-filled page.
+  Freed pages use `PageType.Reclaimed` (10), with checksummed metadata. Open reads and
+  validates the complete bytes of free/reclaimed pages before making them reusable.
+  A zeroed first sector or a false Free header, even with a matching checksum, cannot
+  silently remove a live page from its owner or expose it to allocation.
 - **Page LSN.** Every page carries the LSN of the journal record that last modified it.
   This is the hook for the write-ahead rule (a page may not be written to the data
   stream until the journal is durable up to its LSN) and for idempotent recovery replay
   (apply a record only if it is newer than the page). The storage layer stores the
   field; the journal build-out (#160) enforces the rule.
-- **Checksums on every read path.** CRC-32 over the full page with the checksum field
+- **Checksums on every read path.** CRC-32C over the full page with the checksum field
   zeroed. Stamped centrally in the buffer pool's write-back (the only path to the data
   stream), verified centrally in the buffer pool's load (the only path from it).
-  A stored checksum of zero means "never stamped" and skips verification — accepted
-  because the alternative (a validity bit elsewhere) buys nothing against the ~2⁻³²
-  false-negative rate this already carries.
+  Every nonzero pooled page requires a verified checksum. A stored zero is accepted only
+  for an entirely zero page. A computed CRC of zero is stored and verified as `0xFFFFFFFF`;
+  this escape aliases raw CRC values 0 and `0xFFFFFFFF`.
 
-### Why the file header lives in the page body
+### Page 0 and alternating headers
 
-`StorageFileHeader` (magic, format version, storage id/name, page counts, checkpoint LSN) sits in
-the **body** of page 0 — after the standard 96-byte page header — not at file offset 0. An earlier
-draft overlaid the file header on the page header, which made page 0 un-checksummable and un-typed.
-Making page 0 a normal `PageType.FileHeader` page means one integrity rule covers every page in the
-file, including the header.
+Page 0 is outside the buffer pool. It has an immutable identity block and two alternating,
+independently checksummed header slots. Open chooses the newest valid generation and reads its
+checkpoint anchor chain. Its checksums are separate from pooled-page checksums.
+
+### Storage format 4
+
+`StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
+`StorageFormatException` / COHDBS001 before reading the journal; there is no upgrade or legacy
+reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 3.
+
+The changed public members are:
+
+```csharp
+// Assimalign.Cohesion.Database.Storage
+public unsafe struct StorageFileHeader
+{
+    public const int CurrentFormatVersion = 4;
+    // Other members omitted.
+}
+public enum PageType : byte
+{
+    Free = 0,
+    // Other values retain their identities.
+    Reclaimed = 10
+}
+
+// Assimalign.Cohesion.Database.Storage.Units
+public readonly unsafe struct Page
+{
+    public uint Checksum { get; set; }
+    // Other members omitted.
+}
+```
+
+Checksum reads/writes expose the stored field; central write-back stamps it and page load verifies
+it. Integrity failures throw [StorageCorruptionException](storage-corruption-exception.md), with
+Code COHDBS003 and a PageId when known. Engine callers receive
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 
 ## File handles, positional I/O, and durability
 
@@ -259,6 +290,22 @@ ordinary subsequent reads do not. See [streaming recovery](#empty-pages-and-stre
 
 ### Checkpoints
 
+Recovery protects both complete, verified checkpoint anchor chains from allocation and replay.
+The newest slot's chain must verify. The older chain is protected only if it still verifies
+completely; an interrupted header update may already have rewritten it.
+
+Retired anchor pages return to the in-memory allocator only after the replacement header slot's
+write and data flush succeed. A failed slot write leaves them allocated until reopen. Retirement
+keeps their CheckpointAnchor bytes intact. At open, only pages typed CheckpointAnchor outside
+both live chains are reclaimed without trusting their checksum, including a missing checksum.
+Ordinary Free and Reclaimed pages still require complete verification.
+
+A new anchor receives a journal full-page initialization image while pinned, before write-back
+can tear its transition from Free or Reclaimed. Recovery restores that image before the open scan,
+including when the second half of its first write reached disk first. Its image cannot be
+truncated until the chain and replacement slot are durable. These rules tolerate retired or
+partially initialized anchors after a power interruption while preserving acknowledged records.
+
 `Checkpoint()` durably flushes all page state and **truncates** the journal, writing a fresh
 checkpoint record whose LSN continues the sequence (LSNs never restart — page LSN comparisons depend
 on monotonicity across truncation). Checkpointing requires no active transactions — truncating live
@@ -391,9 +438,14 @@ checksum/LSN verification. Memory follows identities and cache capacity rather t
 
 `StorageException` is the area root for this library. `StorageIOException` (stream and allocation
 failures), `SlottedPageException` (record layout violations), `StorageCorruptionException`
-(checksum/header integrity failures — carries the `PageId`), and `JournalException` (journal
+(COHDBS003, checksum/header integrity failures — carries the `PageId`), and `JournalException` (journal
 framing/state violations) all derive from it, so consumers can catch the family or the specific
 failure.
+
+At engine boundaries, storage corruption becomes DatabaseCorruptionException with the database
+name, optional page and original storage cause. Reads fail rather than silently omitting damaged
+data; legitimate record reclamation retains absence semantics. Refused opens can carry additional
+model diagnostics. See the [public exception API](../assimalign-cohesion-database/database-corruption-exception.md).
 
 ## AOT posture
 
@@ -419,6 +471,8 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 ## Sources
+
+- **Format-4 integrity and interrupted anchors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StoragePageIntegrityTests.cs`, `StorageFormatTests.cs`, `StorageAnchorReclamationTests.cs` and `StorageAnchorDurabilityTests.cs` in the same directory.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.
 - **Journal concurrency and ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Journal/StorageJournal.cs` and `tests/JournalTests.cs` / `tests/JournalConcurrencyTests.cs`.

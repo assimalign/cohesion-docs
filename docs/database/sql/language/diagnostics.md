@@ -66,6 +66,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+| `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `COHSQLE036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
 | `COHSQLE037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
@@ -104,7 +105,12 @@ quantified star or malformed LISTAGG ordering, COHSQLE006 (42883) for arity/type
 COHSQLE002 (22003) for output above 1,048,576 UTF-16 units, and COHDBL001 for nonconstant
 delimiters or ON OVERFLOW. COHSQLE032 has no assigned SQLSTATE.
 
+The [LIKE work limit](expressions/operators.md#like-and-escape) is
+`64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)` with checked 64-bit arithmetic.
+COHSQLE040 refuses the match rather than estimating TRUE/FALSE; cancellation takes precedence.
+
 ## DDL dependencies
+
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -120,14 +126,21 @@ columns use COHSQLE025. Stable/Volatile defaults execute per assignment; subquer
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHSQLC001` | Interrupted creation cannot be completed through plain open: pre-header files require a safe create/Build retry; missing sidecars, ambiguous catalogs or conflicting persisted state are preserved and refused | — |
+| `COHDBS003` | Detected storage corruption during create/open or execution; DatabaseCorruptionException names the database and optional page and retains the storage cause | — |
 
-The code is an Error in DatabaseException.Diagnostics. A safely restartable pre-header open uses
+COHSQLC001 is an Error in DatabaseException.Diagnostics. A safely restartable pre-header open uses
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
 an OpenDatabaseAsync retry after resolution, without restore/drop advice. Format remains 25;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
+
+COHDBS003 fails the operation rather than omitting an unreadable row. Follow the message's advice
+to restore a verified backup. Over the wire, it is ExecutionFailure and leaves the connection
+usable. Legitimately reclaimed rows retain absence semantics. See
+[storage recovery](../../overview.md#database-file-sets-and-lifecycle) and
+[DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 ## Transactions
 
@@ -175,6 +188,8 @@ retain the wire category, structured diagnostics and connection usability.
 [Language (SQL)](index.md) · [Unsupported syntax](unsupported.md) · [CAST](expressions/cast.md) · [Parameters](expressions/parameters.md)
 
 ## Sources
+
+- **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIndexReadIntegrityTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/DatabaseCorruptionTests.cs`.
 
 - **Codes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
 - **Creation and open refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCreateRecoveryTests.cs` and `SqlDatabaseNameTests.cs` in the same directory.

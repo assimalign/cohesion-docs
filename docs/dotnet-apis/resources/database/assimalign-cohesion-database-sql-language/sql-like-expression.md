@@ -32,6 +32,12 @@ inputs and NULL matched values; dynamic operands validate on evaluation. Valid N
 give UNKNOWN. Wildcards consume original Unicode scalars under every collation. See
 [LIKE and ESCAPE](../../../../database/sql/language/expressions/operators.md#like-and-escape).
 
+Ordinary invariant matches use linear work in input length. Pathological invariant matching raises
+DatabaseException with located COHSQLE040 when its per-match work budget is exhausted; no SQLSTATE
+is assigned. The linked language reference gives the exact budget and charging rules. LIKE and
+NOT LIKE both fail without a Boolean result. The executing statement token reaches row-time
+matching, including cached views and stored CHECKs; cancellation takes precedence over refusal.
+
 ## Example
 
 ```csharp

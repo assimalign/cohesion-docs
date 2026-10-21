@@ -96,10 +96,17 @@ condition is resolved, without restore or drop advice.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHDBB004` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; follow the refusal's specific recovery instruction | — |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names the database and optional page and retains the storage cause; refused opens also retain COHDBB004 | — |
 
 DatabaseException.Diagnostics carries this Error; a directory without its data file remains
 DatabaseNotFoundException with the diagnostic preserved. No SQLSTATE is assigned. See
 [lifecycle APIs](../../dotnet-apis/resources/database/assimalign-cohesion-database-blob/design.md#database-creation-open-and-drop).
+
+Corruption fails a read/operation rather than silently omitting a blob. Legitimate record
+reclamation retains absence semantics. The code uses the existing wire execution-failure path;
+stream failure still fails the read. Follow the message's advice to restore a verified backup.
+See [storage recovery](../overview.md#database-file-sets-and-lifecycle) and
+[DatabaseCorruptionException](../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 ## Examples
 
@@ -113,6 +120,8 @@ using the sequence from the client overview. It assumes the database and contain
 - **Database** — [Database documentation](../index.md).
 
 ## Sources
+
+- **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/StorageCorruptionTests.cs`.
 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobDatabaseNameTests.cs`.
 - **Operation contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.

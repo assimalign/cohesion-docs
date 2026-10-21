@@ -34,6 +34,10 @@ Query parse/binder/planner rejections use this carrier. Servers compose CODE: me
 Error entry; SQL and GQL negotiate structured wire diagnostics, while Documents uses its Failure
 frame. DatabaseParseException retains complete parser diagnostics through the same base.
 
+[DatabaseCorruptionException](database-corruption-exception.md) specializes this carrier for
+detected storage damage: COHDBS003, database name, optional page and the original storage cause.
+It applies to create/open and model operations; an affected read fails instead of omitting data.
+
 ## Example
 
 ```csharp

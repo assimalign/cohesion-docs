@@ -634,6 +634,15 @@ and joined on dispose. Nothing outside the engine schedules, claims, or configur
 lock-free snapshot of every open storage file set (data + catalog per database, rebuilt when
 databases open/close; passes tolerate racing a drop):
 
+The group-commit flusher also serves provisional data/catalog storages during create/open.
+It captures the storage snapshot before the instance snapshot and flushes storages not covered
+by a published database without acquiring the engine lock, which construction holds while
+waiting for durability. Published instances keep per-database failure/backoff handling.
+Provisional offline storages are skipped and disposed storages tolerated; other provisional
+flush errors reach the constructing commit without a worker failure record. This avoids relying
+on a construction commit's self-help timeout. SQL and Key-Value Pair use this provisional pass;
+Documents, Blob and Graph retain self-help during open.
+
 - **`SqlWriteAheadFlushWorker`** — signal-driven group-commit flusher. Every open
   storage's `OnCommitPending` hook sets one engine-level event; a pass resets the
   event first (a mid-pass registration re-arms it) then calls
@@ -775,6 +784,8 @@ machinery):
   `StorageException` the engine failed to wrap) reaches the wire as `Internal`
   and closes the session — the engine's model boundary is where wrapping into
   `DatabaseException` belongs.
+  Detected storage corruption is translated to DatabaseCorruptionException / COHDBS003,
+  naming the database and optional page, and uses ExecutionFailure with a usable connection.
 - **`ResultComplete` carries the result set's real `AffectedCount`** — the
   evidence-driven adjustment from the (since-reversed) shared-core extraction,
   kept in both models' copies: SQL's materialized query sets report `-1`, so
@@ -1026,7 +1037,7 @@ EXPLAIN performs the wrapped statement's binding, parameter and provisioning adm
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
 4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
-All SQL000x, COHSQLE001–031 and transaction meanings and SQLSTATE categories are in
+All SQL000x, COHSQLE001–040 and transaction meanings and SQLSTATE categories are in
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
 ## Identity columns and allocation
@@ -1058,6 +1069,13 @@ SQL reports COHDBL001, native construction throws ArgumentException with the IDE
 For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
 
 ## Error model
+
+Storage integrity failures use
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+with COHDBS003 (no SQLSTATE), the database, optional page and original storage cause. Reads,
+statements, transactions and create/open receive the translation, including coded and aggregate
+causes. Damaged reads fail rather than omitting rows; legitimate reclamation still reads as absence.
+The existing wire ExecutionFailure path carries the code and leaves the connection usable.
 
 `DatabaseException` (area root) for everything user-facing: plan-time validation and execution
 errors. Named integrity violations use [SqlConstraintViolationException](sql-constraint-violation-exception.md),
@@ -1340,9 +1358,17 @@ LIKE tokenizes raw Unicode scalars before normalizing literal runs. Wildcards ad
 input boundaries under every collation. Fixed and supplied-parameter patterns compile once during
 binding; invalid escapes fail with COHSQLE034 (22025) even with empty inputs or NULL matched values,
 an intentional divergence from PostgreSQL's match-time validation. Dynamic patterns compile per
-evaluation. The iterative matcher observes cancellation without data-dependent recursion; binary
-and case-insensitive matching retain the last percent continuation, while accent-insensitive and
-linguistic matching retain visited token/input suffixes. Storage format 25 admits these persisted
+evaluation. The iterative matcher observes the current statement's cancellation without
+data-dependent recursion, including in subqueries, cached views and stored CHECKs. Plans retain
+the presence of LIKE, never a previous statement's token. Ordinary invariant prefix/suffix/contains
+and exact matches use linear work in input length. Pathological invariant matching is bounded by
+`64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)` in checked 64-bit arithmetic.
+The [LIKE reference](../../../../database/sql/language/expressions/operators.md#like-and-escape)
+defines the charging rules. Exhaustion raises located COHSQLE040 (no SQLSTATE), with cancellation
+taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
+retain the last percent continuation; other paths retain visited boundaries, expanding from one
+inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
+search. Storage format 25 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution
@@ -1403,6 +1429,8 @@ layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests c
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
 ## Sources
+
+- **Construction durability and corruption** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `SqlIndexReadIntegrityTests.cs` in the same directory.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

@@ -67,7 +67,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | --- | --- | --- |
 | `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
 | `OPTIONAL MATCH` | Same fixed/quantified paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
-| `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, IN and string predicates | Three-valued filtering; value errors COHDBG013 |
+| `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, labeled predicates, IN and string predicates | Three-valued filtering; positive label conjunctions can anchor nodes; value errors COHDBG013 |
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
 | `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list COHDBG013; proven entity kinds retained |
 | `WITH`, `NEXT` | Intermediate projection or RETURN/write segment boundary | Eager materialization; WITH WHERE after paging; projected scope only carried forward |
@@ -246,6 +246,11 @@ COHDBG015 identifies a duplicate final RETURN column name. COHDBG016 rejects pos
 wire results without graph.composite-values before reads/writes. COHDBG017 refuses older graph
 records/tree registrations at database open, with recreation required and no upgrade path.
 These three codes have no assigned SQLSTATE.
+
+Detected storage damage uses COHDBS003 / DatabaseCorruptionException with database and optional
+page context. Open-time graph-format refusal retains COHDBG017 and COHDBG018 alongside it.
+Damaged reads fail rather than omitting data; wire ExecutionFailure leaves the connection usable.
+No SQLSTATE is assigned. See the linked diagnostics reference for recovery instructions.
 
 ## Ordering and paging
 

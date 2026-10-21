@@ -31,6 +31,7 @@ model-specific category in `KeyValueClientException.Kind`.
 | `COHKV017` | Parameter value missing |
 | `COHKV018` | Command arity mismatch |
 | `COHKV019` | Execution failure without an engine diagnostic |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
 Parser refusals use ParseFailure and leave the session ready. Execution errors without an engine
 code use COHKV019. Wire Error text is CODE: message, with the existing layout; Key-Value does not
@@ -38,6 +39,13 @@ negotiate the core Diagnostics capability. For example GET without its operand r
 PUT KEYSPACES @value reports COHKV002. Conditional misses remain successful outcomes.
 
 ## Missing file sets and interrupted drop
+
+COHDBS003 fails damaged reads and writes instead of returning a missing key. Legitimate reclaimed
+entries still read as absent. Create/open and transaction operations use the same integrity
+translation, including wrapped/aggregate causes. Wire errors retain the common code through the
+existing ExecutionFailure path. Follow the message's verified-backup advice; see
+[storage recovery](../overview.md#database-file-sets-and-lifecycle) and
+[DatabaseCorruptionException](../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 File-backed open requires the original data and catalog file sets, including each journal and
 backup. With the primary data file present, missing sidecars or required catalog files raise
@@ -95,6 +103,8 @@ that every model path emits it; the key-value write-conflict contract uses `Exec
 - **[Unsupported features](unsupported.md)** — excluded grammar and engine features.
 
 ## Sources
+
+- **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.
 
 - **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/src/Internal/Execution/KeyValueCommandParser.cs`.
 - **Engine errors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/DESIGN.md`.

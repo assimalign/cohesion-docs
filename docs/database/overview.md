@@ -181,6 +181,24 @@ These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
 resolution and do not advise restore or drop. SQL remains at format 25.
 
+The shared storage format is **4**, independent of SQL's data/catalog format 25 and Graph's record
+format 3. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
+reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
+verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
+header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
+
+Detected storage damage raises
+[DatabaseCorruptionException](../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md)
+with COHDBS003, the database, optional page and original cause. Refused opens retain existing
+model diagnostics; Graph, Document and Blob also carry COHDBG018, COHDBD003 and COHDBB004.
+Reads fail instead of silently omitting damaged data. Legitimate record reclamation still reads
+as absence. COHDBS003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
+
+Recovery preserves both complete, verified checkpoint-anchor chains. Retired anchors outside those
+chains are reclaimable even after a torn write or missing checksum; ordinary Free/Reclaimed pages
+still require full verification. Newly initialized anchors have journal repair images. See
+[checkpoint recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoints).
+
 ## Checkpoint triggering
 
 Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
@@ -189,6 +207,12 @@ retry delay; busy storage waits for the next pass. This closes a consumed-wake g
 journal size; #1283 remains open. See [storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ## Read-only transactions and durability
+
+SQL and Key-Value Pair's group-commit workers also flush provisional data/catalog storages while
+create/open is still constructing the database. The flusher takes the storage snapshot before the
+published-instance snapshot and flushes uncovered storages without the engine lock, so construction
+commits can finish. Published databases retain per-database failure/backoff handling; a provisional
+flush failure reaches the constructing commit. Documents, Blob and Graph retain self-help during open.
 
 SQL, Document, Graph, Key-Value Pair and Blob share lazy journal enrollment. Beginning a logical
 transaction reserves its sequence and captures its snapshot without appending a journal record.
@@ -266,6 +290,8 @@ to determine available behavior.
 [Database](index.md) · [SQL language](sql/language/index.md) · [Database .NET APIs](../dotnet-apis/resources/database/index.md) · [Database SDK](../dotnet-apis/sdks/sdk-database/index.md)
 
 ## Sources
+
+- **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.
 
 - **Area architecture** — `cohesion/docs/resources/Database/DESIGN.md`
 - **Package map** — `cohesion/resources/Database/README.md`

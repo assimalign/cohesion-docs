@@ -59,10 +59,10 @@ values. `SqlConnection` projects this result into `SqlResultSet`.
 `DatabaseClientColumn` moved to this package's namespace. Typed SQL APIs and baseline model wire
 behavior are unchanged.
 
-The model reference supplies codecs without parsing SQL or inspecting plans. Its transitive assembly
-closure is an accepted packaging consequence; a dedicated model protocol assembly can be a future
-refinement. The model's [design](../assimalign-cohesion-database-sql/design.md) defines wire
-ownership.
+Database.Sql.Protocol supplies codecs without parsing SQL or inspecting plans. Engine and client
+consume that contract assembly independently; the client's dependency closure contains no SQL
+engine, catalog or storage implementation. The model's
+[design](../assimalign-cohesion-database-sql/design.md) defines wire ownership.
 
 ## Typed projection
 
@@ -165,9 +165,16 @@ Server projection errors occur before the result header and leave the connection
 
 ## Predicate diagnostics
 
+Detected storage corruption uses COHDBS003 (no SQLSTATE) through the existing ExecutionFailure
+path, naming the database and optional page and leaving the connection usable. See
+[SQL diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+
 Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
 both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
-42804) are ExecutionFailure responses; data and the connection remain usable. No client API or
+42804) are ExecutionFailure responses; data and the connection remain usable. Invariant LIKE/NOT
+LIKE work exhaustion is a located COHSQLE040 ExecutionFailure (no SQLSTATE), also retaining a
+usable connection. The server's session lifetime token reaches row-time matching; disconnect
+cancels the matcher and closes the session on both InMemory and TCP. No client API or
 protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
 
 ## ON CONFLICT and final foreign-key checks

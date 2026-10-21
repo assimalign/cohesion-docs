@@ -8,34 +8,40 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
+- **[StorageCorruptionException](storage-corruption-exception.md)** — COHDBS003, page context and wrapped-cause discovery.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a buffer pool with
 pin-counted caching, slotted-page record layout, a free-space map, and the journal (write-ahead log)
 that provides durability. Every database model (SQL, Documents, Graph, Blob, KeyValuePair) composes
-this project for its on-disk representation — model-specific layouts live in `{Model}.Storage`
-projects, never here.
+this project for its on-disk representation. Model-specific layouts live in the `src/Storage/`
+components of their engine assemblies, with their existing namespaces.
 
 ## Scope
 
-- **Pages** — 8 KiB `Page` unit with a 96-byte header (id, LSN, CRC-32 checksum, type,
+- **Pages** — 8 KiB `Page` unit with a 96-byte header (id, LSN, CRC-32C checksum, type,
   flags, slot bookkeeping), `SlottedPage` variable-length record layout, `PageSlot`
   directory entries.
-- **Buffer pool** — `IStorageBufferPool` pin/unpin caching over a `StorageStream`;
+- **Buffer pool** — Internal pin/unpin caching over a `StorageStream`;
   checksum stamped on write-back, verified on load.
-- **Page management** — `IStoragePageManager` allocation/free/retrieval/flush;
-  `IStorageFreeSpaceMap` allocation tracking, rebuilt from page headers on open.
+- **Page management** — `StoragePageManager` allocation/free/retrieval/flush;
+  `StorageFreeSpaceMap` allocation tracking, rebuilt from verified page bytes on open.
 - **Records** — `Storage` abstract base with insert/read/update/delete over slotted
-  pages and `IStorageUnitIterator` full scans.
+  pages and `StorageUnitIterator` full scans.
 - **Journal** — [StorageJournal](storage-journal.md) write-ahead logging with begin/commit/rollback
   markers, CRC-protected frames, and recovery replay of committed operations.
 - **File set** — each storage instance owns three streams: data (`.dat`), journal
   (`.log`), and backup (`.bak`), wrapped by `StorageStream`.
 
+Storage format 4 requires entirely zero Free pages and checksummed Reclaimed pages. Nonzero
+pooled pages never bypass checksum verification; raw CRC zero is escaped as `0xFFFFFFFF`.
+There is no upgrade path from older formats. See [format and recovery](design.md#storage-format-4)
+and [checkpoint anchors](design.md#checkpoints) for power-interruption handling.
+
 ## Dependencies
 
-None — this is a leaf kernel project. Consumers: `Database.Transactions` (WAL binding),
-`Database.Indexing` (index pages), every `{Model}.Storage` project.
+This kernel references FileSystem and FileSystem.Physical. Consumers include Database.Transactions
+(WAL binding), Database.Indexing (index pages), and the Storage components inside model engines.
 
 ## Usage
 

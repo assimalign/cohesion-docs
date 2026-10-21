@@ -102,17 +102,26 @@ UTF-8/payloads and message order are protocol violations. The client exception r
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names the database and optional page and retains the storage cause; refused opens also retain COHDBD003 | — |
 
-This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+COHDBD003 is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
 with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
 a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBD003.
+
+COHDBS003 also fails damaged reads/statements and transaction operations instead of silently
+omitting a document. Legitimate reclamation keeps its absence semantics. The existing wire
+execution-failure path carries the diagnostic and leaves the connection usable. Follow the
+message's verified-backup advice. See [storage recovery](../../overview.md#database-file-sets-and-lifecycle)
+and [DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 ## See also
 
 [Language (OQL)](index.md) · [Parameters](expressions/parameters.md) · [MISSING](expressions/missing.md) · [Unsupported](unsupported.md)
 
 ## Sources
+
+- **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/StorageCorruptionTests.cs`.
 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentDatabaseNameTests.cs`.
 - **Carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlDiagnosticTests.cs` and `OqlDiagnosticsFixPassTests.cs` in the same directory.

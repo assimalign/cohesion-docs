@@ -142,8 +142,9 @@ flowchart LR
 
 For t selected direction/type ranges and r retained entries, incident lookup costs O(t log E + r)
 index work and decodes k visible references. Deterministic identity ordering adds O(k log k) CPU work. Direct traversal costs the sum
-of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan examines node
-records and sorts its matches. A property equality anchor instead seeks its shared B+Tree in
+of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan decodes every node
+record, filters by label and sorts its matches. Required WHERE labels reduce expansion budget
+charges and subsequent work, not scan decoding. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
 normalize integral, decimal and finite floating point values through double conversion. Full scalar
 comparisons filter index candidates using exact represented values across all numeric types despite
@@ -199,6 +200,16 @@ refuse a later pattern before candidate reads. Each MATCH/OPTIONAL MATCH evaluat
 after joining its paths. A failed mandatory clause drops the row; an optional clause preserves it
 with NULL for new variables. The initial binding table has one empty row. Every selected candidate
 still passes labels, property predicates and bindings.
+
+Pure pattern conjunctions and positive labeled predicates in the clause's top-level AND chain
+supply required node labels. Pattern labels precede WHERE labels in source order. After bound
+entities and property seeks, the first required label by node position anchors a label scan;
+the choice is positional rather than cardinality-based. `(a)->(b:Keep)` and
+`(a)->(b) WHERE b:Keep` can therefore both anchor at b. OR/XOR/NOT, truth tests,
+IS NOT LABELED and label expressions containing `|`, `!` or `%` supply none. Relationship
+label tests supply no node anchors, and requirements never cross clause boundaries.
+[EXPLAIN](../../../../database/graph/language/statements/explain.md) reports the label and ordinal.
+Without ORDER BY, row order is unspecified even though each path keeps its element order.
 
 GQL patterns have fixed/quantified edges and parenthesized segments with repetition-bound sums
 of at most 64 relationships. Each matched path is a trail: an edge
@@ -366,6 +377,13 @@ not included.
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
+
+Reads, statements, transactions and create/open translate storage corruption, including coded and
+aggregate causes. A damaged read fails instead of omitting nodes/relationships; legitimate
+reclamation still reads as absence. Wire ExecutionFailure carries the common code and preserves
+the connection. See [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+for the public API and additional open-time codes.
 | `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; preserve ambiguous files, or drop/recreate only the known incomplete cases; no assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
@@ -742,9 +760,10 @@ ordinary create does not adopt them. Drop removes graph.dat before deleting the 
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses COHDBG018 with preservation/restore advice. Transient storage I/O, including a full
+corruption uses DatabaseCorruptionException / COHDBS003 with COHDBG018 retained as an additional
+diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. No storage or record format changes are introduced.
+without drop or backup advice. The shared storage format is 4; Graph records remain at format 3.
 
 ### Lifecycle API
 
