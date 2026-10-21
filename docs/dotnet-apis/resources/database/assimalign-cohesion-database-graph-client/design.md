@@ -40,6 +40,13 @@ non-null, read-only Diagnostics. Catch this client exception for remote failures
 
 ## Value completion
 
+Graph catalog/storage failures and execution-resource disposal report terminal ExecutionFailure;
+the authenticated session remains ready. COHDBG019 identifies disposal, COHDBG006 a malformed
+catalog record or ordinary index/storage failure, and COHDBG007 a catalog snapshot conflict or
+aborted explicit transaction. A disposed protocol transport instead faults/closes the session
+without a second error write. Successful autocommit retains success after ordinary cleanup
+failure, recorded by Graph Warning 13, StatementCleanupFailed; OutOfMemoryException propagates.
+
 GraphExecuteExchange implements IDatabaseProtocolExchange and explicitly reports
 IsResponseComplete. A successful ResultComplete certifies completion. A ParseFailure or
 ExecutionFailure received before any result header is the server's complete rejected-statement

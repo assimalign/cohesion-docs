@@ -27,6 +27,13 @@ and scalar properties. A foreign session raises DatabaseException with COHDBG005
 transaction uses COHDBG007. Disposed databases throw ObjectDisposedException; offline databases
 throw DatabaseOfflineException (COHDBG012). Cancellation throws OperationCanceledException.
 
+Direct lifetime guards retain ObjectDisposedException. Disposal inside admitted execution becomes
+DatabaseException with structured COHDBG019. Aborted-transaction refusals carry COHDBG007 in
+Diagnostics with an unprefixed message and the original cause; roll back before continuing.
+CreateNodeAsync rejects a null label list and null/empty/whitespace label names before admission;
+CreateRelationshipAsync similarly validates its type. These ArgumentException/ArgumentNullException
+caller failures leave an explicit transaction active. GQL text uses located planner diagnostics.
+
 ## Example
 
 ```csharp

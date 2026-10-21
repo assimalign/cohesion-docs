@@ -34,6 +34,11 @@ Snapshot and ReadCommitted isolation are supported. Serializable is rejected. Ex
 use the session API; GQL has no transaction-control syntax. Mutations join the session transaction,
 and a mutation failure rolls back the owning logical transaction.
 
+An aborted explicit transaction refuses statements, BEGIN and COMMIT until rollback with
+structured COHDBG007 and the original cause. Its in-process message is unprefixed; the wire
+still starts with COHDBG007. Catalog snapshot conflicts are retryable aborts with that code;
+deterministic catalog identity/name errors use COHDBG003. See [error handling](language/diagnostics.md).
+
 GQL matches bounded relationship-unique trails, including [quantified edges/subpaths](language/patterns.md#quantified-paths)
 and list-valued group variables. [Core scalar functions and CAST](language/functions/scalar-functions.md)
 execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
@@ -82,6 +87,11 @@ provide pages, journaling, transactions, and indexes. Catalog definitions remain
 the last corresponding graph element is deleted. Schema-owned definitions reject ad-hoc alterations
 with `DatabaseObjectLockedException`.
 
+Catalog lookups use in-memory identity and parent directories while preserving MVCC visibility;
+dropping and recreating a name does not return its replacement for the old identity. Complete
+UTF-8 metadata records, including names and owning schema, must fit 8,092 bytes. Overflow reports
+COHDBG009 before publication. See [catalog design](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/catalog-design.md).
+
 ## Delivery boundaries
 
 The embedded engine and GraphDatabaseServer execute the documented GQL subset. GraphClient rents
@@ -99,6 +109,11 @@ commit. Path payloads stay unchanged; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
 Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.
+
+Catalog/storage failures return coded ExecutionFailure and leave the authenticated session ready.
+Execution-resource disposal uses COHDBG019; a disposed protocol transport faults the session
+without another error write. Cleanup disposal after a successful autocommit preserves success
+(except OutOfMemoryException) and emits Graph Warning event 13, StatementCleanupFailed.
 
 ## See also
 

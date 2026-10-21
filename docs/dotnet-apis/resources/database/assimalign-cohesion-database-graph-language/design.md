@@ -320,6 +320,13 @@ Database lifecycle failures additionally use COHDBG018 for missing journal/backu
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
 SQLSTATE; it is separate from GQL evaluation. See [file diagnostics](../../../../database/graph/language/diagnostics.md#database-files).
 
+Catalog snapshot conflicts use structured COHDBG007 on DatabaseTransactionAbortedException;
+deterministic catalog identity/name/owner/index-target errors use COHDBG003. Malformed catalog
+records use COHDBG006, oversized UTF-8 metadata records use COHDBG009 (8,092 bytes), and disposal
+during admitted execution or a wire lifetime guard uses COHDBG019. These codes have no assigned
+SQLSTATE. ExecutionFailure preserves the authenticated session; a disposed protocol transport
+faults it without another error write. See [wire and cleanup behavior](../assimalign-cohesion-database-graph/design.md#graph-wire-family).
+
 ## Label scans and engine failures
 
 Label scans use MVCC postings and decode only matching visible nodes. After bound entities and
