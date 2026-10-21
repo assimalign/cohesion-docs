@@ -24,7 +24,19 @@ Numeric equality, inequality, ordering and IN compare exact represented values a
 types, agreeing with RETURN DISTINCT. Decimal `0.1m` and Double `0.1d` compare unequal;
 `1 = 1.0` is TRUE. These .NET suffixes describe parameter values. Arithmetic promotion remains
 separate. Bound entities and paths compare by identity, including path traversal direction.
-Index anchors come only from mandatory AND equalities, never from an optional OR/XOR arm or NOT.
+Property index values come from inline literal/parameter equalities or equalities in the
+clause's top-level AND chain. Positive labeled predicates in that chain also supply required
+node labels: `n:Person`, `n IS LABELED Person`, and `n IS LABELED Person&Tagged` can anchor like
+pattern labels. All required labels participate in property index selection; the complete pattern
+and WHERE still filter candidates. Bound entities take precedence, then property index seeks,
+then a scan of the first required label by node position, including a later node.
+
+OR, XOR, NOT, truth tests, IS NOT LABELED and label expressions containing `|`, `!` or `%`
+supply no required labels. A separate required conjunct can still narrow the scan.
+Requirements stay local to their MATCH clause; relationship label tests test the type and
+supply no node anchor. Label tests on NULL yield NULL; Graph has no MISSING value.
+Label scans still decode every node record, then charge only retained anchor candidates to
+the expansion budget. See [EXPLAIN](../statements/explain.md) for the selected label and ordinal.
 There is no fixed comparison-count limit; recursive depth follows available stack, with GQL0009
 in the parser or COHDBG008 in engine execution.
 
@@ -44,11 +56,22 @@ MATCH (a:Person) WHERE a.name CONTAINS 'lic' OR a.age = 17 RETURN a.name;
 
 The first returns Alice. The second returns both names; no ordering is promised.
 
+On the same Person fixture:
+
+```sql
+MATCH (n) WHERE n:Person AND n.age > 20 RETURN n.name;
+MATCH (n) WHERE n IS LABELED Person&Person AND n.age > 20 RETURN n.name;
+```
+
+Both return Alice and can use a Person label scan. Without ORDER BY, row order is unspecified.
+
 ## See also
 
 [Clauses](index.md) · [Operators](../expressions/operators.md) · [MATCH](../statements/match.md)
 
 ## Sources
+
+- **Label anchors and residual predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWhereLabelAnchorTests.cs`.
 
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlWhereExpressionTests.cs`.
 - **Parser** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Expressions.cs`.

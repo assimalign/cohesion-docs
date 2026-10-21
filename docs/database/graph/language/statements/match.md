@@ -64,6 +64,15 @@ that clause's input. A later unmatched mandatory clause can still empty the resu
 The planner first anchors on a node bound by an earlier path or clause at any pattern position,
 or on an endpoint supplied by a bound relationship. Otherwise it can use an indexed node in the
 middle or at either end of a path.
+Required labels come from pure pattern conjunctions and positive labeled predicates in that
+clause's top-level WHERE AND chain. After bound entities and property index seeks, the first
+required label by node position supplies a label scan, including a later node such as
+`MATCH (a)->(b:Person)` or `MATCH (a)->(b) WHERE b:Person`. Pattern labels precede WHERE labels
+in source order; selection uses position, not label cardinality. See [WHERE](../clauses/where.md).
+The label scan still reads and decodes every node record. Filtering by the chosen label reduces
+the expansion budget charge and subsequent expansion work, not the scan's decoding cost.
+Queries without ORDER BY have no guaranteed row order; changing the anchor can change row order
+while preserving the element order within each matched path. [EXPLAIN](explain.md) shows the anchor.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
 identity at most once, while node identities may recur. Separate paths have separate edge sets.
 Direction and catalog type selection precede fixed/quantified expansion, including pending INSERT
@@ -72,6 +81,16 @@ edges. Physical and viable work follow the [pattern counting rules](../patterns.
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
+
+Execute these statements separately in an empty database:
+
+```sql
+INSERT (:Start {k:0})-[:T]->(:Keep {k:1})-[:T]->(:End {k:2}), (:Other);
+MATCH (a)->(b) WHERE b:Keep RETURN a.k, b.k;
+MATCH (a)->(b:Keep)->(c) RETURN a.k, b.k, c.k;
+```
+
+The queries return `(0, 1)` and `(0, 1, 2)`. Both anchor at the second node, ordinal 1.
 
 The execution corpus seeds Alice, Bob, and a `KNOWS` relationship, then runs:
 
@@ -116,6 +135,8 @@ Paging does not reduce matching bounds.
 - **[Patterns](../patterns.md)** — bounds and direction.
 
 ## Sources
+
+- **Required labels and later anchors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWhereLabelAnchorTests.cs`.
 
 - **Optional clauses and anchors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlOptionalMatchTests.cs`.
 - **Clause AST** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlOptionalMatchParserTests.cs`.

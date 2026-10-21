@@ -82,6 +82,10 @@ roll back on a refused result. Stored property maps remain scalar-only. Path pay
 
 ## Path lifetime
 
+Rows and paths returned without ORDER BY have no guaranteed enumeration order. The node and
+relationship order within each individual path remains its traversal order. Use ORDER BY when
+the row or path sequence matters, including before paging.
+
 GraphPathsExchange implements IDatabaseStreamingExchange. OpenAsync sends ExecutePaths and
 validates the initial Path or PathsComplete frame. CopyToAsync validates each existing path
 payload and verifies the final path count. Its private stream handoff prefixes each payload

@@ -25,8 +25,13 @@ operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-fi
 estimated and actual counts are NULL. GQL uses ordinary row-result frames, including for an
 explained statement whose normal projection is a graph entity.
 
-Operators include LabelScan, IndexSeek and Expand for fixed or quantified segments. An IndexSeek
-reports the chosen index and property bound. Expand also reports
+Operators include NodeScan, LabelScan, IndexSeek and Expand for fixed or quantified segments.
+LabelScan and IndexSeek report the actual chosen label in target and the zero-based pattern node
+ordinal in detail, including anchors supplied by positive WHERE label conjunctions or later
+pattern nodes. IndexSeek also reports the chosen index and property bound. LabelScan still
+decodes every node record; it reduces expansion candidates after that scan. Anchor selection
+can change row order in queries without ORDER BY, which have no guaranteed row order.
+Expand also reports
 `adjacency=(node,direction,type_id,relationship); seek_direction=Outgoing; type_filter=KNOWS;
 physical=visited_candidates; viable=accepted_hops; physical_limit=1000000` for an outgoing KNOWS
 hop expanded from its left endpoint. seek_direction reverses when expanding left of an anchor;
@@ -63,6 +68,15 @@ with UpdateEntity children naming each target and property/map/label action. For
 
 ## Examples
 
+On the [MATCH fixture](match.md#examples):
+
+```sql
+EXPLAIN MATCH (a)->(b) WHERE b:Keep RETURN a.k, b.k;
+```
+
+The LabelScan row has target `Keep`, NULL index and detail `node=1; property=; value=NULL`.
+Using `(b:Keep)` instead of the WHERE predicate chooses the same anchor. No matching runs.
+
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:
 
 ```sql
@@ -85,6 +99,8 @@ This returns plan rows with a Return root, one Distinct node and a Project whose
 [Statements](index.md) · [MATCH](match.md) · [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 
 ## Sources
+
+- **Label and node ordinal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWhereLabelAnchorTests.cs`.
 
 - **Exact adjacency details** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs` and `GraphAdjacencyFilterTests.cs`.
 - **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphExplainTests.cs`.

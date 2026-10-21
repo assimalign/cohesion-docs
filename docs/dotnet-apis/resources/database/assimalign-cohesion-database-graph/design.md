@@ -142,8 +142,9 @@ flowchart LR
 
 For t selected direction/type ranges and r retained entries, incident lookup costs O(t log E + r)
 index work and decodes k visible references. Deterministic identity ordering adds O(k log k) CPU work. Direct traversal costs the sum
-of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan examines node
-records and sorts its matches. A property equality anchor instead seeks its shared B+Tree in
+of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan decodes every node
+record, filters by label and sorts its matches. Required WHERE labels reduce expansion budget
+charges and subsequent work, not scan decoding. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
 normalize integral, decimal and finite floating point values through double conversion. Full scalar
 comparisons filter index candidates using exact represented values across all numeric types despite
@@ -199,6 +200,16 @@ refuse a later pattern before candidate reads. Each MATCH/OPTIONAL MATCH evaluat
 after joining its paths. A failed mandatory clause drops the row; an optional clause preserves it
 with NULL for new variables. The initial binding table has one empty row. Every selected candidate
 still passes labels, property predicates and bindings.
+
+Pure pattern conjunctions and positive labeled predicates in the clause's top-level AND chain
+supply required node labels. Pattern labels precede WHERE labels in source order. After bound
+entities and property seeks, the first required label by node position anchors a label scan;
+the choice is positional rather than cardinality-based. `(a)->(b:Keep)` and
+`(a)->(b) WHERE b:Keep` can therefore both anchor at b. OR/XOR/NOT, truth tests,
+IS NOT LABELED and label expressions containing `|`, `!` or `%` supply none. Relationship
+label tests supply no node anchors, and requirements never cross clause boundaries.
+[EXPLAIN](../../../../database/graph/language/statements/explain.md) reports the label and ordinal.
+Without ORDER BY, row order is unspecified even though each path keeps its element order.
 
 GQL patterns have fixed/quantified edges and parenthesized segments with repetition-bound sums
 of at most 64 relationships. Each matched path is a trail: an edge
