@@ -155,6 +155,11 @@ escaping and framing. Malformed composite wire components use ProtocolViolation.
 
 ## Negotiated wire diagnostics
 
+Embedded row, mutation and path results expose non-null DatabaseResult.Diagnostics, empty when
+nothing is reported; GraphSchemaResult<T> uses the same collection rule. Remote GraphResultSet,
+GraphPathResult and GraphClientException diagnostics are also never null. GraphPathResult's
+collection is empty until diagnostics arrive, and its final contents are available at EOF.
+
 Protocol 2.1 with diagnostics sends Warning/Error entries before Error or ResultComplete/PathsComplete.
 Information is omitted. Bounds are 4,096 entries and 1 MiB; overflow retains a leading prefix plus
 `COHDBP001` with retained/original/omitted counts. The original failure or success remains unchanged

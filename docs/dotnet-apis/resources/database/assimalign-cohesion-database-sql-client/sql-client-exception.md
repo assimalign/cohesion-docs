@@ -19,7 +19,8 @@ public sealed class SqlClientException : Exception
 ## Behavior and exceptions
 
 SqlClientException derives directly from System.Exception. Catch SqlClientException for remote SQL
-failures; catching DatabaseException no longer handles them. Diagnostics is declared locally.
+failures; catching DatabaseException no longer handles them. Diagnostics is declared locally and
+never null, including when no structured diagnostics were negotiated.
 
 The inner-exception constructor copies diagnostics when its inner cause is a DatabaseClientException
 or a nested SqlClientException. The

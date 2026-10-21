@@ -23,7 +23,8 @@ remote document failures; catching DatabaseException no longer handles them.
 
 Retains the protocol category and server's composed CODE: message. Locally declared Diagnostics defensively copies
 explicitly supplied entries into a read-only snapshot, stably ordered by offset with unlocated
-entries last; null means an empty collection. It does not infer diagnostics from the inner exception. It preserves parser and engine codes/spans
+entries last; a null argument produces an empty collection. Diagnostics itself is never null.
+It does not infer diagnostics from the inner exception. It preserves parser and engine codes/spans
 rather than extracting codes from Message. Shared dial/handshake failures remain inner exceptions.
 No extra validation exception is introduced by this constructor. Connection reuse follows fully
 decoded model Failure completion, independently of exception ancestry.

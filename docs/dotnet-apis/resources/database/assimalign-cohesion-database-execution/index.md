@@ -14,7 +14,8 @@ The model-neutral request/result vocabulary of the Cohesion Data Platform:
 
 - **Requests:** `DatabaseRequest` has no members. Model requests own their inputs. Language
   requests own a typed `Statement` and `Parameters`; key-value requests carry command operands.
-- **Results:** `DatabaseResult` reports status, affected count and diagnostics.
+- **Results:** `DatabaseResult` reports status, affected count and non-null diagnostics, empty
+  when nothing is reported, including command, row and Graph path results.
   `DatabaseResultSet` streams `DatabaseRow` values described by `DatabaseColumn` metadata.
   Each model supplies the result implementations it needs.
 
@@ -31,8 +32,14 @@ references this package and owns `DatabaseExecutionSession<TRequest>` and
 ## Usage
 
 ```csharp
+using System;
+
+using Assimalign.Cohesion.Database.Execution;
+using Assimalign.Cohesion.Database.Sql;
+
 // session is a SqlDatabaseSession; only SqlQueryRequest or SQL text can be executed here.
 DatabaseResult result = await session.ExecuteAsync(SqlQueryRequest.FromSql("SELECT id FROM t"));
+Console.WriteLine(result.Diagnostics.Count); // 0 for this successful query; never null
 if (result is DatabaseResultSet rows)
 {
     await using var resultLifetime = rows;

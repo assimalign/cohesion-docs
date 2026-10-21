@@ -28,7 +28,7 @@ public sealed class KeyValueClientException : Exception
 
 This exception derives directly from `System.Exception`. Catch `KeyValueClientException` for typed
 remote failures; `catch (DatabaseException)` no longer catches them. Diagnostics is locally declared
-and always empty, even when the inner exception has diagnostics. The inner exception, Kind and Code
+and always empty and non-null, even when the inner exception has diagnostics. The inner exception, Kind and Code
 remain available.
 
 ConnectionUsable is true for ParseFailure, ExecutionFailure, TransactionAborted and MalformedResult.

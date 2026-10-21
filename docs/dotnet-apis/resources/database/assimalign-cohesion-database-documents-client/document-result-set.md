@@ -18,6 +18,11 @@ public sealed class DocumentResultSet : IReadOnlyList<DocumentRow>
 
 ## Behavior and exceptions
 
+This remote result has no Diagnostics member. Embedded Documents execution instead returns
+DatabaseResult with a non-null Diagnostics collection, empty when nothing is reported. Remote
+failures throw [DocumentClientException](document-client-exception.md), whose Diagnostics snapshot
+is also never null.
+
 Materialized results own scalar and JSON values. Lone SELECT *, VALUE and RAW set IsDocumentQuery
 even when empty; Documents then contains bare JSON values, also exposed as the row's single JsonElement.
 VALUE/RAW names that column `value`; lone star names it `document`. Top-level VALUE MISSING becomes

@@ -105,6 +105,11 @@ enumeration with an optional ordinal prefix; null selects all objects.
 
 ## Diagnostics
 
+BlobClientException.Diagnostics is non-null and always empty, including when its inner
+exception has diagnostics. Embedded DatabaseException.Diagnostics is also non-null, possibly
+empty. Blob streams and metadata results have no Diagnostics member; wire failures retain
+their code and message.
+
 `BlobClientException.Code` preserves the server's `ProtocolErrorCode`. Local malformed or
 truncated frames map to `ProtocolViolation`; transport failures map to `Internal`. Every failed
 Blob exchange closes its connection, including rejected metadata operations. Rent a fresh

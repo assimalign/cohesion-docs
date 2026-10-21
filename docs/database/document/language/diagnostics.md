@@ -89,6 +89,11 @@ continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
 
 ## Locations and wire behavior
 
+Embedded command and query results expose a non-null DatabaseResult.Diagnostics collection,
+empty when nothing is reported. DatabaseException.Diagnostics and DocumentClientException.Diagnostics
+are also non-null, possibly empty. Remote DocumentResultSet has no Diagnostics member; remote
+failure details continue to arrive through the model's Failure message and client exception.
+
 Remote failures use [DocumentClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client-exception.md), which derives directly from
 System.Exception and declares its own Diagnostics snapshot. Catch that client exception for remote
 operations; catching DatabaseException now covers only engine-side failures.

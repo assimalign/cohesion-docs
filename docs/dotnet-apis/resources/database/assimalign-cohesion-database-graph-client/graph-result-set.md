@@ -22,7 +22,8 @@ public sealed class GraphResultSet : IReadOnlyList<GraphRow>
 Construction is internal. Rows own their values and retain runtime scalar types, including nested values. [GraphRow](graph-row.md)
 exposes object?[] lists and read-only ordinal string maps. Composite cells require negotiated
 graph.composite-values; the composite-column flag is removed from public column types. Diagnostics holds
-the negotiated Warning/Error list at completed result return; it is empty on a baseline 2.0 exchange
+the negotiated Warning/Error list at completed result return and is never null. It is empty when
+nothing was reported, on a baseline 2.0 exchange
 or without diagnostics. Unknown-name warnings do not turn success into failure. An invalid row index
 throws ArgumentOutOfRangeException. Statement failures throw GraphClientException instead of
 returning this successful result.

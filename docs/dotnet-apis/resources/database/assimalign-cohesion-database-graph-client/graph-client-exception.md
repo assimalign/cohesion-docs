@@ -19,7 +19,7 @@ GraphClientException derives directly from System.Exception. Catch GraphClientEx
 Graph failures; catching DatabaseException no longer handles them.
 
 Diagnostics is declared locally and copies entries from an inner DatabaseClientException or nested
-GraphClientException, otherwise retaining an empty list. The snapshot is read-only, defensively
+GraphClientException, otherwise retaining an empty list. The snapshot is non-null, read-only, defensively
 copied and stably sorted by offset, with unlocated entries last. Code preserves
 the wire category and Message preserves composed server text. Constructors add no new validation
 exception. Connection reuse depends on terminal-response evidence: scalar and pre-output path

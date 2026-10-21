@@ -288,6 +288,11 @@ the statement in a fresh transaction. No SQLSTATE is assigned to COHSQLT006.
 
 ## Locations and wire behavior
 
+Embedded SQL command and row results expose a non-null DatabaseResult.Diagnostics collection,
+empty when nothing is reported. Remote SqlResultSet.Diagnostics and SqlClientException.Diagnostics
+are also never null, including when no diagnostics capability was negotiated. Empty diagnostics
+do not cause a Diagnostics frame to be sent.
+
 Remote failures use [SqlClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-client-exception.md), which derives directly from
 System.Exception and declares its own Diagnostics snapshot. Catch that client exception for remote
 operations; catching DatabaseException now covers only engine-side failures.

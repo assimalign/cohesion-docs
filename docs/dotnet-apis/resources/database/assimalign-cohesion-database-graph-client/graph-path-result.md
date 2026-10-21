@@ -18,7 +18,8 @@ public sealed class GraphPathResult : IAsyncEnumerable<GraphPath>
 ## Behavior and exceptions
 
 Construction is internal. Enumerate once to EOF before reading final Diagnostics. The collection is
-empty until diagnostics arrive or when none were negotiated. EOF verifies terminal path count and
+never null and is empty until diagnostics arrive, when nothing was reported or when none were
+negotiated. EOF verifies terminal path count and
 releases the exchange. Unknown-label/type reads may return zero paths and warnings COHDBG010/011. A
 second enumeration throws InvalidOperationException. Early disposal/cancellation discards the
 unfinished connection. A terminal parse/planning refusal before any path output preserves the
