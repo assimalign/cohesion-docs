@@ -91,6 +91,18 @@ or drop schema-owned indexes, although ordinary row DML remains available. Provi
 canonical state only after catalog convergence. Multi-statement destructive migration atomicity is
 not claimed; reversible completed steps are compensated on failure.
 
+## Execution limits
+
+[Statement and lock timeouts](language/diagnostics.md#statement-and-lock-timeouts) are disabled by
+default. Engine options and nullable session overrides bound cooperative statement execution and
+each contended lock wait. COHSQLE043 (57014) and COHSQLE044 (55P03) preserve the session and explicit
+transaction after rolling back the failed statement. Started commits and mandatory cleanup after
+self-committing DDL complete without these deadlines. Provisioning schema sessions disable both.
+
+See [engine options](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md)
+and [session overrides](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-session.md).
+
+
 ## Database lifecycle
 
 Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its

@@ -24,7 +24,7 @@ It has no public constructor taking arguments or public grant properties. Equali
 identity, transaction owner and grant boundary; equal values have equal hash codes. Two default
 values compare equal. Equality operations add no validation exceptions.
 
-Pass it to LockManager.ReleaseSince only within that transaction's lifetime, before any writes
+Pass it to LockManager.ReleaseSince only within that transaction's lifetime, with no surviving writes
 since the mark and with no pending requests. The manager rejects default marks and marks from
 another manager with ArgumentException. Earlier resources retain all modes, including upgrades
 taken after the mark. To preserve a completed row wait across arbitration restarts, take a new mark

@@ -67,6 +67,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
 | `COHSQLE034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
 | `COHSQLE041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
+| `COHSQLE043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
+| `COHSQLE044` | Individual contended lock wait expired, including unique-index key waits | 55P03 (`lock_not_available`) |
 | `COHSQLE042` | Encoded row or index key exceeds its write-size limit; names the table, actual byte size and limit | 54000 (`program_limit_exceeded`) |
 | `COHSQLE040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `COHSQLE035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
@@ -118,6 +120,35 @@ valid Boolean input string literals coerce, while text columns/parameters keep t
 Stored SQL function bodies with legacy invalid Boolean operands or changed application return
 types allow the database to open and fail with COHSQLE003 when invoked.
 
+## Statement and lock timeouts
+
+The engine's StatementTimeout and LockTimeout default to TimeSpan.Zero (disabled). Nullable
+[session overrides](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-session.md)
+inherit the engine snapshot when null; zero disables an inherited timer. Positive durations up to
+2,147,483,647 milliseconds apply to subsequent statements. Configure these through .NET objects;
+SQL SET syntax is unavailable.
+
+StatementTimeout starts after text parsing and cooperatively cancels execution, including planning,
+functions, scans, cascade preparation and physical apply. LockTimeout starts a fresh budget for
+each contended wait, including unique-key waits. The earlier deadline that ends the wait fixes its
+error even if another timer expires before the continuation runs. Caller cancellation retains
+OperationCanceledException semantics.
+
+COHSQLE043 (57014) and COHSQLE044 (55P03) roll back only the failed statement's effects. The session
+and explicit transaction remain usable. New lock resources are released after physical rollback;
+earlier grants and upgrades of previously held resources remain until transaction end. Offline or
+abandoned writers retain grants for recovery. Ordinary caller cancellation keeps its existing
+transaction-duration locking behavior.
+
+Transaction-control requests arm neither timer. A started commit is never canceled, and completed
+execution hands off to automatic commit without a timer token. Self-committed DDL finishes mandatory
+cleanup and returns its committed result despite late expiration. Provisioning schema sessions,
+including deferred index builds, disable both timers and still observe caller/lifecycle cancellation.
+[SqlTimeoutException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-timeout-exception.md)
+exposes SqlState in process. The wire uses ExecutionFailure and the existing negotiated diagnostic
+code/span carrier; SQLSTATE is not a new wire field.
+
+
 ## Row and index-key limits
 
 An encoded row must fit **8,092 bytes**, including its MVCC header and physical column layout.
@@ -148,6 +179,7 @@ A failed build leaves its index unpublished and cleans up the unpublished tree. 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHSQLD001` | Invalid, duplicate, recursive or volatility-incompatible definition, or absent function/domain requested by DROP; non-Boolean CHECK uses COHSQLE003 | — |
+| `COHSQLD003` | DROP FUNCTION/DOMAIN targets an engine-registered overload/type | — |
 | `COHSQLD002` | View dependency blocks DROP TABLE/FUNCTION/DOMAIN/VIEW RESTRICT, table rename, or drop/rename/type-facet changes to a referenced column; also ALTER TABLE RENAME retained by a declared script; names the dependent view/script | — |
 | `COHSQLS005` | Declared migration script attempts DROP SCHEMA CASCADE over typed schema objects; declare the change in the typed schema; rejected before opening or writing | — |
 
@@ -190,6 +222,7 @@ A recoverable I/O open failure publishes no database and permits retry after res
 | `COHSQLT001` | BEGIN/START TRANSACTION while a transaction is active |
 | `COHSQLT002` | COMMIT/END/ROLLBACK without an active transaction |
 | `COHSQLT003` | DDL inside an explicit transaction |
+| `COHSQLT006` | Bound target table changed, was dropped or replaced during lock preparation; retry in a fresh transaction; no SQLSTATE assigned |
 | `COHSQLT005` | Transaction was aborted or ended beneath its caller; later statements/commit refused with the original coded cause |
 
 A malformed transaction spelling reports SQL0003 before changing transaction state.
@@ -213,6 +246,12 @@ statements. ReadCommitted instead skips/updates the newest
 committed conflict. Ordinary constraint failures and COHSQLE035/036 roll back the statement;
 their wire ExecutionFailure leaves the connection usable. MySQL ON DUPLICATE KEY UPDATE,
 SQLite INSERT OR IGNORE/REPLACE, unsupported inference and subqueries in conflict actions use COHDBL001.
+
+A changed target during an object-lock wait reports COHSQLT006 through
+DatabaseTransactionAbortedException. Adjacent foreign-key definition changes rebuild before row
+reads; changing the target invalidates the bound plan. Roll back an explicit transaction and retry
+the statement in a fresh transaction. No SQLSTATE is assigned to COHSQLT006.
+
 
 ## Locations and wire behavior
 
@@ -240,6 +279,8 @@ retain the wire category, structured diagnostics and connection usability.
 [Language (SQL)](index.md) · [Unsupported syntax](unsupported.md) · [CAST](expressions/cast.md) · [Parameters](expressions/parameters.md)
 
 ## Sources
+
+- **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.

@@ -95,6 +95,9 @@ transaction remain usable.
 | `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
 | `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
 | `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
+| `COHSQLE043` | Statement deadline expires during constraint/cascade execution; statement rolls back | 57014 |
+| `COHSQLE044` | A contended row, object or unique-key lock wait expires | 55P03 |
+| `COHSQLT006` | Target definition changed during lock preparation; retry in a fresh transaction | — |
 | `COHSQLE019` | Duplicate key-list column or multiple PRIMARY KEY declarations | — |
 | `COHSQLE015` | New CHECK uses a qualifier other than the constrained table/schema | — |
 
@@ -116,6 +119,21 @@ span when available, before publishing the definition. This includes non-Boolean
 inside logical expressions and mixed CASE/COALESCE alternatives in Boolean positions; see
 [search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
 UNKNOWN. COHSQLE038 (23514) instead means a valid Boolean check evaluated to FALSE.
+
+## Foreign-key preparation and concurrent DDL
+
+DELETE cascade/restrict checks share incoming references and adjacent-table lock preparation once
+per reached table within the statement. UPDATE and referential SET actions reuse the same statement
+state. Key ordinals and effective collations are bound to each immutable table version; changing
+an endpoint definition invalidates its projection. The next statement discovers a fresh graph,
+including inside an explicit transaction. Snapshot metadata views retain their catalog snapshot;
+integrity checks use live definitions protected by object locks and latest-state row checks.
+
+After a contended object-lock wait, adjacent ADD COLUMN, child DROP and foreign-key removal rebuild
+before row reads. A changed, dropped or replaced target instead reports retryable COHSQLT006
+(no assigned SQLSTATE); retry in a fresh transaction. A newly added incoming reference is checked
+before mutation. Existing NULL/MATCH SIMPLE and final-row rules are unchanged.
+
 
 ## CHECK binding
 
@@ -222,6 +240,8 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 [Language (SQL)](index.md) · [CREATE TABLE](statements/create-table.md) · [ALTER TABLE](statements/alter-table.md) · [System views](system-views/index.md)
 
 ## Sources
+
+- **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 

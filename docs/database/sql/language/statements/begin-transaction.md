@@ -76,6 +76,16 @@ The inserted row becomes visible to an observing session after commit.
 
 [Statements](index.md) · [Diagnostics](../diagnostics.md)
 
+## Execution deadlines
+
+SQL transaction-control requests arm neither StatementTimeout nor LockTimeout. Timed DML rolls back
+only its own effects: COHSQLE043 (57014) or COHSQLE044 (55P03) leaves earlier statements and the
+explicit transaction usable. Earlier lock resources and their upgrades remain held. A started
+commit completes with its real outcome. A target invalidated during lock preparation instead uses
+COHSQLT006 (no SQLSTATE); roll back and retry in a fresh transaction. See
+[timeouts](../diagnostics.md#statement-and-lock-timeouts).
+
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
