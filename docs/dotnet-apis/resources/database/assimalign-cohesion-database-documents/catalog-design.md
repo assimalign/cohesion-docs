@@ -43,6 +43,33 @@ invalidate cached references. Reads choose the newest visible writer whose delet
 Enumeration is ordinal name/identity order, independent of insertion, page allocation, or B+Tree
 scan order.
 
+### Bounded version history
+
+References follow publication predecessors, including a ReadCommitted writer that began earlier
+than the version it replaces. Appending a publication and replacing an earlier save by the same
+writer take expected O(1) directory work. Only that writer's terminal reference is retained;
+the committed predecessor remains available for rollback and older readers. References retain
+writer sequences, not transaction contexts or snapshots; pending aborted undo stays invisible.
+
+A current lookup does not reread the entire pre-snapshot overwrite history. Tests measure **three
+metadata record reads after 256 overwrites**, including a pending newer publication and after
+catalog reopen. The count includes rotating cleanup probes. Older snapshots can traverse newer
+publications to reach their visible version, and ambiguous recovered histories can require full
+selection; this is not a universal three-read bound for every snapshot.
+
+Open reconstructs publication order from predecessor-deleter/successor-writer matches. It retains
+snapshot visibility even when all versions have tombstones. Each cached read still checks owner,
+allocation, writer stamp and logical identity; CRC, I/O and live decoding failures propagate.
+
+After each full model-worker purge pass, catalog maintenance checks at most **128 references**,
+round-robin across directory keys and outside the coordinator apply gate. Repeated passes retire
+purged histories for idle names without later name lookups. Snapshot-pinned history remains until
+safe to reclaim. Lookups use any remaining current-reader budget for up to two cleanup probes.
+Metadata and content pages become reusable after safe purge; steady overwrites with purge and
+checkpoint work can reach a storage plateau. See [storage reclamation](storage-design.md#compatibility-and-limits).
+
+### Ownership
+
 Collections carry `DatabaseObjectOwner` plus an optional owning schema. `Schema` requires a nonempty
 schema name. The engine creates live-session collections as `Adhoc` and rejects `DROP COLLECTION`,
 OQL `CREATE INDEX`, and OQL `DROP INDEX` against a schema-owned collection with
@@ -166,6 +193,10 @@ or Microsoft.Extensions dependencies.
 
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.Publication.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.History.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.Overwrites.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Assimalign.Cohesion.Database.Documents.csproj`.

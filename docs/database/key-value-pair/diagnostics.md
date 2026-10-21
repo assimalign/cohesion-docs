@@ -32,6 +32,7 @@ model-specific category in `KeyValueClientException.Kind`.
 | `COHKV018` | Command arity mismatch |
 | `COHKV019` | Execution failure without an engine diagnostic |
 | `COHDBK001` | Aborted transaction refuses commands/commit; original coded cause retained |
+| `COHDBK006` | Incomplete file-backed creation or missing catalog; refused before storage opens; no assigned SQLSTATE |
 | `COHDBK005` | Storage/index or open I/O operation failed, including wrapped/aggregate causes; I/O SQLSTATE 58030 |
 | `COHDBI002` | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005; no assigned SQLSTATE |
 | `COHDBS003` | Storage or attached-index corruption; database/page and original cause retained; SQLSTATE XX001 |
@@ -51,12 +52,19 @@ existing ExecutionFailure path. Follow the message's verified-backup advice; see
 [DatabaseCorruptionException](../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 File-backed open requires the original data and catalog file sets, including each journal and
-backup. With the primary data file present, missing sidecars or required catalog files raise
+backup. With the primary data file present, missing sidecars in an existing file set raise
 DatabaseException with COHDBK004 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
+
+`COHDBK006` is an Error diagnostic with no assigned SQLSTATE. Before opening either storage,
+the engine refuses file-backed data of at most one page as interrupted creation; its message
+directs `DropDatabaseAsync`, then `CreateDatabaseAsync`. Otherwise, an entirely missing catalog
+requires preserving storage and restoring the complete database from backup. This missing-catalog
+gate also applies in memory. Refused opens create no files, leave surviving files byte-identical,
+and publish no database. An existing catalog is validated before data recovery.
 
 ## Storage failures and transaction recovery
 

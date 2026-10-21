@@ -148,9 +148,20 @@ See [transactions](../statements/begin-transaction.md).
 
 ## Diagnostics and limits
 
+### Size limits
+
+Only rows and index keys that become writes receive [size validation](../diagnostics.md#row-and-index-key-limits).
+DO NOTHING may discard an oversized proposal. DO UPDATE may replace an oversized proposed row
+or non-arbiter UNIQUE key with fitting values. Its final inserted/replacement row and every write
+key must fit. NOT NULL/domain/CHECK validation of proposals still precedes arbitration.
+An oversized final write reports `COHSQLE042` / SQLSTATE 54000 before apply, preserving all rows,
+earlier transaction work and locks. New key and row grants from the failed statement are released,
+including a row retained after waiting.
+
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | COHSQLE003 | Non-Boolean DO UPDATE WHERE condition or logical operand | 42804 |
+| COHSQLE042 | Final encoded row or write index key exceeds its size limit | 54000 |
 | COHSQLE035 | No matching unique index, unknown/nonunique constraint target, legacy primary key without an index, or DO UPDATE without a target; fails planning | 42P10 |
 | COHSQLE036 | A DO UPDATE proposal would affect a row already inserted or updated by this statement | 21000 |
 | COHSQLE037 | Unique/primary-key or unique-index violation outside the handled conflict, including DO UPDATE violating a second unique index | 23505 |
@@ -169,6 +180,19 @@ Execution failures cross the wire as ExecutionFailure; capability refusals use P
 Completed failures leave the connection usable. The client does not retry transactions automatically.
 
 ## Examples
+
+The discarded-proposal tests bind `v` to `new string('a', 9000)` and execute these separately:
+
+```sql
+CREATE TABLE discarded (id INT PRIMARY KEY, v TEXT);
+INSERT INTO discarded VALUES (1, 'original');
+INSERT INTO discarded VALUES (1, @v) ON CONFLICT(id) DO NOTHING;
+INSERT INTO discarded VALUES (1, @v) ON CONFLICT(id) DO UPDATE SET v = 'x';
+SELECT id, v FROM discarded;
+```
+
+DO NOTHING succeeds with count 0, DO UPDATE succeeds with count 1, and SELECT returns `(1, 'x')`.
+The oversized proposal is never stored. `INSERT ... SELECT 1, @v` uses the same rule.
 
 Execute statements separately. This example follows SqlUpsertWireTests:
 
@@ -210,6 +234,8 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 [Clauses](index.md) · [INSERT](../statements/insert.md) · [RETURNING](returning.md) · [Constraints](../constraints.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDiscardedProposalTests.cs`.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 

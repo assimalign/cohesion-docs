@@ -32,6 +32,11 @@ its ordered, bounded result. One command runs at a time; overlap throws InvalidO
 Cancellation throws OperationCanceledException and invalidates an unfinished exchange. Model failures
 use KeyValueClientException; retryable write conflicts are ExecutionFailure.
 
+`KeyValueScanRange.Prefix`, `Start` and `End` are nullable `ReadOnlyMemory<byte>` properties.
+Null or zero-length bounds mean absent, including an implicitly converted null `byte[]`.
+The client omits their clauses and parameters. Combining a non-empty prefix with a non-empty
+start or end throws `ArgumentException` when the returned task is awaited.
+
 The shared pool reuses connectors through fresh DatabaseConnection leases. Disposing this wrapper
 permanently rejects later commands with ObjectDisposedException, and repeated disposal is a no-op
 that cannot return a later rental. Database is cached and stays readable; IsOpen returns false.
@@ -51,6 +56,18 @@ var entry = await connection.GetAsync("user:1"u8.ToArray());
 Console.WriteLine(entry!.Value.ETag == etag); // True
 Console.WriteLine(await connection.TryDeleteAsync("user:1"u8.ToArray())); // True
 Console.WriteLine(await connection.GetAsync("user:1"u8.ToArray()) is null); // True
+```
+
+For a connection containing the test keys `a`, `b`, `user:1`, `user:2`, `z`:
+
+```csharp
+var rows = await connection.ScanAsync(new KeyValueScanRange
+{
+    Prefix = "user:"u8.ToArray(),
+    Start = Array.Empty<byte>(),
+    End = Array.Empty<byte>()
+});
+Console.WriteLine(rows.Count); // 2; command sent: SCAN PREFIX @prefix
 ```
 
 ## Related reference

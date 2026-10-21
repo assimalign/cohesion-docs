@@ -70,6 +70,23 @@ for a missing parent or a parent-key change that leaves references, and `COHSQLE
 for NOT NULL. Messages name the constraint and table without key values. Failure rolls back
 the statement and leaves an explicit transaction usable. See [Diagnostics](../diagnostics.md).
 
+## Size limits
+
+UPDATE checks the final encoded row and all replacement index keys before applying any changes.
+Exceeding [8,092 row bytes or 1,024 index-key bytes](../diagnostics.md#row-and-index-key-limits)
+reports `COHSQLE042` / SQLSTATE 54000, leaves the statement's rows unchanged, and keeps an
+explicit transaction active. Existing values used for locking or tombstones receive no new-write
+size check; updating an existing row to a fitting replacement remains supported.
+
+For a table `large_rows (id INT PRIMARY KEY, value TEXT)` containing `(1, 'old')`, bind `value`
+to `new string('x', 9000)` and execute:
+
+```sql
+UPDATE large_rows SET value = @value WHERE id = 1;
+```
+
+It fails with COHSQLE042; the row remains `(1, 'old')`, as in SqlProgramLimitConformanceTests.
+
 ## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
@@ -106,6 +123,9 @@ is changed once, even though its replacement key still lies in the sought range.
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

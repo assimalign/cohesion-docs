@@ -49,6 +49,18 @@ transaction rolls back that transaction. Snapshot and read-committed isolation a
 serializable isolation is rejected. Writers are serialized per logical database, and conflicting
 changes raise `DatabaseTransactionAbortedException`.
 
+Cancellation observed before explicit commit starts leaves the transaction usable with nothing
+committed. A started commit ignores caller cancellation and returns its real outcome. Automatic
+commit owns an uncancellable end after execution completes; execution and lock waits remain
+cancellable. A dead wire connection can still lose the result. See
+[commit and rollback](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
+A content chunk failure returns to the engine, which aborts once through its transaction end
+gate. Storage never independently aborts the borrowed transaction. The explicit session retains
+`COHDBD001` refusals until rollback. After a successful automatic commit, snapshot-cleanup failure
+preserves success and emits Warning event 13, `StatementCleanupFailed`; `OutOfMemoryException`
+still propagates. See [error handling](language/diagnostics.md#operation-cleanup).
+
 ## Storage and indexes
 
 The storage package validates JSON and persists stamped chunk chains. The catalog maintains
@@ -57,6 +69,12 @@ in shared B+Trees. Index definition and registration records are v2; v1 indexes 
 recreation with this engine and have no upgrade path. Index creation populates
 existing documents immediately, while replacement and deletion maintain indexes in the same
 transaction as document content.
+
+Current catalog lookups stay independent of pre-snapshot overwrite count: tests read three
+metadata records after 256 overwrites, also after reopen. Older snapshots retain required
+history. The purge worker retires obsolete references for idle names without further lookups;
+safe content/metadata reclamation lets sustained overwrites reuse pages. See
+[catalog history](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/catalog-design.md#bounded-version-history).
 
 File-backed databases use `document.dat`, `document.log`, and `document.bak`. Memory-backed databases
 use the same storage and transaction implementation over memory streams. Queries and JSON values

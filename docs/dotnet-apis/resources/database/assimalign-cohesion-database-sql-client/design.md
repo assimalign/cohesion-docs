@@ -202,6 +202,10 @@ Storage/index failures instead use COHSQLE041 (58030 for I/O), or COHDBS003 (XX0
 corruption. Attached-index damage retains COHDBI002 and COHSQLE041. ExecutionFailure preserves
 the connection but aborts an explicit transaction; roll back before continuing.
 
+Encoded row/index-key size refusals use COHSQLE042 / SQLSTATE 54000 as ExecutionFailure.
+The connection and explicit transaction remain usable, with no statement rows changed and
+earlier work intact. See [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

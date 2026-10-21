@@ -91,6 +91,7 @@ transaction remain usable.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `COHSQLE037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key | 23505 |
+| `COHSQLE042` | Final referential-action row or write/build index key exceeds its encoded size limit | 54000 |
 | `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
 | `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
 | `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
@@ -99,6 +100,16 @@ transaction remain usable.
 
 Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
 uses `COHSQLE025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
+
+Referential SET NULL/SET DEFAULT actions collect all assignments to each final child row, then
+check the [row and index-key limits](diagnostics.md#row-and-index-key-limits) before apply.
+COHSQLE042 leaves both parent and child rows unchanged and an explicit transaction active.
+An existing large logical row can still be updated to a fitting row or deleted; old values used
+for locks and tombstones do not undergo new-write size validation.
+
+ADD CONSTRAINT PRIMARY KEY/UNIQUE and ADD COLUMN with an index-backed constraint also enforce
+the 1,024-byte encoded key limit. A failed build leaves the old schema, constraints and index
+directory intact. See [CREATE INDEX](statements/create-index.md).
 
 A non-Boolean CHECK or domain CHECK is rejected with COHSQLE003 (42804), at the predicate
 span when available, before publishing the definition. This includes non-Boolean operands
@@ -211,6 +222,8 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 [Language (SQL)](index.md) · [CREATE TABLE](statements/create-table.md) · [ALTER TABLE](statements/alter-table.md) · [System views](system-views/index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 - **Declaration validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlInvalidStatementConformanceTests.cs`, `SqlQualifierConformanceTests.cs` and `SqlConstraintTimingTests.cs`.

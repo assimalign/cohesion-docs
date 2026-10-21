@@ -80,6 +80,12 @@ Statements auto-commit unless attached to an explicit session transaction. Row v
 multi-version concurrency control (MVCC); DDL is self-committing and rejected inside explicit
 transactions.
 
+Commit and rollback observe caller cancellation before their end starts, leaving the transaction
+usable when canceled at that point. A started commit ignores caller cancellation and returns its
+real outcome. Automatic commit takes over after execution completes; self-committed DDL finishes
+mandatory cleanup and delivers success despite late cancellation. A lost wire connection can
+still lose that result. See [COMMIT](language/statements/commit-transaction.md).
+
 Compiled schemas own their tables and indexes. Session DDL cannot alter/drop schema-owned tables
 or drop schema-owned indexes, although ordinary row DML remains available. Provisioning records
 canonical state only after catalog convergence. Multi-statement destructive migration atomicity is

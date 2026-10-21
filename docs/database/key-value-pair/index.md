@@ -37,6 +37,12 @@ Commands use the session's explicit transaction when present and auto-commit oth
 default isolation is `Snapshot`; `ReadCommitted` refreshes visibility per command. `Serializable`
 is rejected. The text grammar and wire protocol do not expose explicit transaction control.
 
+Caller cancellation before explicit commit starts leaves the transaction usable and commits
+nothing. A started commit ignores caller cancellation and returns its real outcome. Automatic
+commit takes over without the command token after execution completes; `PutAsync` also delivers
+its materialized outcome without that token. Execution and lock waits remain cancellable. A dead
+wire connection can still lose the result frame. See [commit and rollback](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 Storage/index corruption and I/O failures abort an explicit transaction; COHDBK001 refuses
 further commands until rollback. Ordinary command errors retain statement atomicity and keep
 the transaction usable. Storage/I/O uses COHDBK005 (58030 for I/O); corruption uses COHDBS003
@@ -54,12 +60,20 @@ shared storage kernel; it does not implement a separate physical storage system.
 ## Missing file sets and interrupted drop
 
 File-backed open requires the original data and catalog file sets, including each journal and
-backup. With the primary data file present, missing sidecars or required catalog files raise
+backup. With the primary data file present, missing sidecars in an existing file set raise
 DatabaseException with COHDBK004 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
+
+`OpenDatabaseAsync` refuses an entirely missing catalog with `COHDBK006` (Error, no assigned
+SQLSTATE) before either storage opens. For file-backed data of at most one page, creation
+stopped before both initial pages were flushed: follow the refusal's `DropDatabaseAsync`, then
+`CreateDatabaseAsync` remedy. Longer data without a catalog requires preserving all storage
+and restoring the complete database from backup. In-memory missing catalogs are also refused.
+These refused opens change no files and create no replacement catalog. Existing catalogs are
+decoded and format-validated before data opens or recovers; create still creates both sets.
 
 ## Client
 

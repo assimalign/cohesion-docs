@@ -70,6 +70,23 @@ Subqueries inside VALUES or RETURNING report COHDBL001.
 Use `INSERT ... SELECT` when input comes from a query. The source may also start with WITH:
 `INSERT INTO target WITH c AS (SELECT ...) SELECT ... FROM c`.
 
+## Size limits
+
+Rows and every write index key must fit the [encoded size limits](../diagnostics.md#row-and-index-key-limits).
+An oversized value reports `COHSQLE042` / SQLSTATE 54000 before any row in the statement is
+inserted. Earlier statements in an explicit transaction remain intact and the transaction stays active.
+
+Execute separately in an empty database, binding `value` to `new string('x', 9000)`:
+
+```sql
+CREATE TABLE large_rows (id INT PRIMARY KEY, value TEXT);
+INSERT INTO large_rows VALUES (2, 'ok'), (3, @value);
+SELECT id FROM large_rows;
+```
+
+INSERT fails with COHSQLE042; SELECT returns no rows. This follows SqlProgramLimitConformanceTests.
+ON CONFLICT checks only proposals that become writes; see [discarded proposals](../clauses/on-conflict.md#size-limits).
+
 ## Examples
 
 Using the [conformance fixture](select.md#a-create-the-conformance-fixture), this inserts two rows:
@@ -94,6 +111,9 @@ Execute each statement separately; the insert reports the number of inserted row
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

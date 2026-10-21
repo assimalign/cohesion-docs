@@ -57,6 +57,30 @@ an unfinished chain is therefore absent after restart. The factory retains neith
 coordinator ownership; the engine controls their lifecycle. This component contains no local pager,
 journal, transaction manager, or model-lock implementation.
 
+### Bounded version history
+
+Version references follow publication predecessors, including a ReadCommitted writer that began
+before the version it replaces. Append and same-writer replacement take expected O(1) directory
+work. Only a writer's terminal reference is retained; the committed predecessor remains available
+for rollback and older snapshots. References retain writer sequences rather than contexts or
+snapshot objects, and pending aborted undo stays invisible.
+
+Current lookups avoid rereading pre-snapshot overwrite history. Tests measure **three metadata
+record reads after 256 overwrites**, including a pending newer publication and after catalog
+reopen. That includes rotating cleanup probes. Older snapshots can traverse newer publications
+to reach their visible version; ambiguous recovered links can require full selection. The bound
+does not apply to every snapshot or every recovered history.
+
+Open rebuilds publication order from predecessor-deleter/successor-writer matches, preserving
+snapshot visibility in all-tombstoned chains too. Each read still verifies owner, allocation,
+writer stamp and logical identity. CRC, I/O and live decoding failures propagate.
+
+After each full model-worker purge pass, maintenance checks at most **128 references** round-robin
+across directory keys, outside the coordinator apply gate. Repeated passes retire purged histories
+for idle names without a subsequent lookup. Pinned snapshots retain their visible history. Current
+lookups spend remaining budget on up to two cleanup probes. With safe purge and checkpoint work,
+sustained overwrites reuse pages and the data file plateaus; see [storage reclamation](storage-design.md#deletion-and-bounded-recovery).
+
 ## Metadata disk format, version 1
 
 Every record is one slotted-page record in the owner-zero record space. Multibyte numeric values use
@@ -111,6 +135,10 @@ rejected. Serialization uses explicit BCL primitives with no reflection or gener
 
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.Publication.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.History.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.Overwrites.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Assimalign.Cohesion.Database.Blob.csproj`.

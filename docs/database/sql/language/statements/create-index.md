@@ -37,6 +37,12 @@ without key values; a failed build leaves the index unpublished. See [Diagnostic
 
 Index DDL is self-committing and is rejected inside an explicit transaction with `COHSQLT003`.
 
+Unique and nonunique builds enforce the same **1,024-byte encoded key limit** as later writes.
+The count includes NULL markers, component delimiters and collation transforms. A key of exactly
+1,024 bytes is accepted; a larger key reports `COHSQLE042` / SQLSTATE 54000, leaves the index
+unpublished and cleans up the unpublished tree. The table and connection remain usable. Historical
+versions are included in construction. See [size limits](../diagnostics.md#row-and-index-key-limits).
+
 ## Examples
 
 Using the [conformance fixture](select.md#a-create-the-conformance-fixture):
@@ -48,6 +54,17 @@ SELECT id FROM t WHERE name = 'Ada';
 
 A subsequent insert of another `Ada` name reports COHSQLE037 (23505) without inserting a row.
 
+In an empty database, bind `v` to `new string('x', 2000)` and execute separately:
+
+```sql
+CREATE TABLE wide_keys (id INT, v TEXT);
+INSERT INTO wide_keys VALUES (1, @v);
+CREATE INDEX ix_v ON wide_keys(v);
+SELECT id FROM wide_keys;
+```
+
+CREATE INDEX fails with COHSQLE042; SELECT returns `1`, and no index is published.
+
 ## See also
 
 [DROP INDEX](drop-index.md) · [COLLATE](../clauses/collate.md) · [JOIN](../clauses/join.md)
@@ -55,6 +72,9 @@ A subsequent insert of another `Ada` name reports COHSQLE037 (23505) without ins
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

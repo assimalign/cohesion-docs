@@ -36,6 +36,11 @@ ALTER TABLE [ schema_name . ] table_name
 
 ## Remarks
 
+Adding PRIMARY KEY/UNIQUE constraints or columns that build an index checks the
+[1,024-byte encoded key limit](../diagnostics.md#row-and-index-key-limits). Oversized keys fail
+with `COHSQLE042` / SQLSTATE 54000 before the new column, constraint or index is published;
+the old schema and rows remain usable.
+
 One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT, PostgreSQL TYPE/SET DATA TYPE,
 TYPE ... USING and comma-separated action lists are outside this subset (COHDBL001).
 
@@ -217,6 +222,8 @@ upgrade path. Compiled schema format remains version 7.
 [SqlAlterTableExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-language/sql-alter-table-expression.md) · [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

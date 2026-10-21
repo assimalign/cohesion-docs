@@ -134,6 +134,20 @@ operation failure aborts an explicit transaction; rollback permits embedded-sess
 The wire returns ExecutionFailure with diagnostics and preserves the connection. COHDBD001
 is in Diagnostics; only the wire adds its message prefix.
 
+## Operation cleanup
+
+A content chunk failure or execution cancellation aborts through the engine's transaction end
+gate, once; storage does not abort the borrowed context as well. An explicit session then
+refuses commands/commit with COHDBD001 until rollback, retaining the original cause. Earlier
+uncommitted chunks and writes are undone; no partial document becomes visible.
+
+After successful automatic commit, a snapshot-cleanup failure preserves success and emits
+`StatementCleanupFailed`, event **13**, Warning, from `Assimalign.Cohesion.Database.Documents`.
+Its payload is `database`, `exceptionType`, with no exception message or document input.
+`OutOfMemoryException` still propagates; cleanup failures before commit success or inside an
+explicit transaction still fail the operation. The session hold is released in all cases.
+This warning has no diagnostic code or SQLSTATE. See [engine diagnostics](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#cleanup-diagnostics).
+
 ## See also
 
 [Language (OQL)](index.md) · [Parameters](expressions/parameters.md) · [MISSING](expressions/missing.md) · [Unsupported](unsupported.md)

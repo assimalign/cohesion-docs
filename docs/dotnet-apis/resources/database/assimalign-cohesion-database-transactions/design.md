@@ -126,6 +126,23 @@ Two multi-row upserts reaching keys or retained rows in opposite orders can stil
 PostgreSQL; the victim must roll back/retry its complete transaction. Locks from earlier transaction
 work can also participate in cycles.
 
+## Commit and cancellation
+
+`TransactionManager.CommitAsync` and the coordinator's matching method observe the caller token
+before claiming the end. Cancellation observed then throws `OperationCanceledException`, with
+the transaction usable and its writes, locks and visibility untouched. Once the end is claimed,
+commit ignores caller cancellation during apply draining, journal append and durability waits.
+Append failures still abort with `TransactionAbortedException`; a written COMMIT whose durability
+fails still reports `TransactionCommitUnconfirmedException`. Cancellation cannot replace those
+outcomes or cause a CommitRecordWriteFailed event. Read-only ends follow the same rule without log work.
+
+Every model uses this boundary for explicit commit and rollback. After statement execution
+completes, automatic commit receives no caller token in SQL, Documents, Graph, Key-Value Pair
+and Blob. Execution and lock waits remain cancellable before that end. SQL DDL that self-committed
+finishes mandatory cleanup without caller cancellation and delivers its committed result.
+A dead wire connection can still lose the outcome frame after commit; this rule guarantees the
+in-process outcome, not transport delivery. See [API and example](transaction-coordinator.md#commit-and-rollback).
+
 ## The WAL binding
 
 `Storage` owns the physical journal (`Database.Storage`); its internal transaction-log seam carries
@@ -350,6 +367,8 @@ code generation, or `Microsoft.Extensions.*`.
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCommitCancellationTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/Assimalign.Cohesion.Database.Transactions.csproj`.

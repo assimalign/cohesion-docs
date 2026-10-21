@@ -61,6 +61,13 @@ the one-sequence-namespace pairing, and the per-statement bracket/apply-gate mod
 
 ## Execution model
 
+Explicit commit and rollback observe cancellation only before their end starts. Cancellation
+observed then leaves the transaction usable with nothing committed. A started commit ignores
+caller cancellation and returns its real outcome. Automatic commit receives no command token
+after execution completes, and `PutAsync` consumes its materialized outcome without that token.
+Execution and lock waits remain cancellable; a dead wire connection can still lose the result.
+See [the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 - **`Index`-primary reads.** `GET`/`EXISTS` seek the unique primary index
   (`key` → packed record location) through the command's snapshot; `SCAN` drives
   a snapshot cursor over an `IndexKeyRange`. Keys go into `IndexKey` **raw** —
@@ -255,6 +262,7 @@ leak), repaired by re-bootstrapping on the next open.
 | COHDBS003 | Storage or attached-index corruption | XX001 |
 | COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005 | — |
 | COHDBK001 | Aborted transaction refuses commands/commit; original cause retained | — |
+| COHDBK006 | Incomplete file-backed creation or missing catalog, refused before storage opens | — |
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
 causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
@@ -361,7 +369,7 @@ nonnegative signed 32-bit big-endian column count at bytes 0–3; each repeated 
 four-byte name length and UTF-8 name, followed immediately by one unsigned `DatabaseType` byte.
 `ResultRow` (7) concatenates one self-describing scalar component per result field from byte 0
 through the payload end, with no count prefix. `Transaction` (9) is reserved and has no implemented
-payload; supported key-value transaction commands travel as statement text in `Execute`.
+payload. Neither the command grammar nor the typed client exposes explicit transaction control.
 
 `ResultComplete` (8) is the implemented family's one fixed-width payload. Its encoder emits exactly
 eight bytes: bytes 0–7 (bits 0–63) are the signed 64-bit affected count in big-endian order.
@@ -448,14 +456,56 @@ each refusal to its condition.
 ## Missing file sets and interrupted drop
 
 File-backed open requires the original data and catalog file sets, including each journal and
-backup. With the primary data file present, missing sidecars or required catalog files raise
+backup. With the primary data file present, missing sidecars in an existing file set raise
 DatabaseException with COHDBK004 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
 
+`OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default)` throws
+`DatabaseException` with Error diagnostic `COHDBK006` when file-backed data is at most one page
+or its catalog is entirely missing. Neither storage opens at this gate. The short data-set
+refusal directs `DropDatabaseAsync`, then `CreateDatabaseAsync`; a longer data set with no catalog
+requires preserving storage and restoring the complete backup. The missing-catalog gate also
+applies to in-memory storage. Surviving files remain byte-identical, no catalog is recreated,
+and the engine publishes no database. Existing catalogs are decoded and format-validated before
+data opens or recovers. No SQLSTATE is assigned to `COHDBK006`.
+
+For an existing `kv` data set whose catalog is missing, the lifecycle tests observe this refusal:
+
+```csharp
+try { await engine.OpenDatabaseAsync("kv", CancellationToken.None); }
+catch (DatabaseException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBK006
+    Console.WriteLine(engine.TryGetDatabase("kv", out _)); // False
+}
+```
+
+The open changes no files. Follow the specific drop/recreate or restore remedy in its message.
+
+### Scan bounds
+
+`KeyValueScanRequest(KeyValueScanOptions? options = null)` normalizes null or zero-length
+`Prefix`, `Start` and `End` to null before checking conflicts. A non-empty prefix with a
+non-empty explicit bound, or a negative limit, throws `ArgumentException`. `ScanAsync`
+performs that validation on its first `MoveNextAsync`.
+
+With the test keys `a`, `b`, `user:1`, `user:2`, `z`, this returns all five in order:
+
+```csharp
+await foreach (var entry in database.ScanAsync(session,
+    new KeyValueScanOptions { End = Array.Empty<byte>() }))
+{
+    Console.WriteLine(System.Text.Encoding.UTF8.GetString(entry.Key.Span));
+}
+```
+
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueCommitCancellationTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueInterruptedCreationTests.cs`.
 
 - **Read failures and cleanup evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.
 

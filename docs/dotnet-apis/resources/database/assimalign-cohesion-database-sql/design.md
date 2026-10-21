@@ -811,6 +811,13 @@ lifecycle.
 
 ## SQL transaction control and the B7 seam
 
+Explicit commit and rollback observe cancellation only before their end starts, leaving the
+transaction usable if canceled then. Once claimed, commit ignores caller cancellation and returns
+the real append/durability outcome. After execution completes, automatic commit receives no caller
+token. Catalog DDL that self-committed finishes mandatory cleanup without caller cancellation and
+delivers its committed result. A dead connection can still lose the result frame. See
+[the shared boundary](../assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
 `BEGIN [TRANSACTION]`, `COMMIT [TRANSACTION]`, and `ROLLBACK [TRANSACTION]` are ordinary SQL
 requests over the existing wire `Execute` message. The session dispatches their parsed AST before
 creating an auto-commit transaction. `BEGIN` opens a coordinator context; subsequent queries and DML
@@ -1110,9 +1117,24 @@ share one instant across statements; autocommit statements each capture their ow
 
 ## Error model
 
+SQL validates final row and index-key sizes before DML apply. Rows include their MVCC header and
+physical column layout and must fit 8,092 bytes. Every unique/nonunique write key, including
+collation transforms and NULL markers, must fit `BTreeIndex.MaxKeyLength` (1,024 bytes).
+Exactly-at-limit values are accepted. Refusals carry Error diagnostic `COHSQLE042`, mapped to
+SQLSTATE 54000, naming the table, encoded byte size and limit. A failure leaves the explicit
+transaction active and earlier statements intact. See [limits and examples](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
+
+Upsert arbitration builds unchecked lookup/lock keys and encodes only writes; discarded oversized
+proposals do not fail. Old-value locks and tombstones are unchecked, so existing rows remain
+deletable or updatable to fitting replacements. Referential SET actions encode final rows after
+collecting all assignments. Index builds, including schema-provisioned indexes, use the same
+checked key builder and do not publish a failed tree. Deferred provisioning retains its pending
+intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
+
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| COHSQLE042 | Encoded row or write/build index key exceeds its limit | 54000 |
 | COHDBS003 | Storage or attached-index corruption | XX001 |
 | COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
 | COHSQLT005 | Aborted transaction refuses statements/commit; original cause retained | — |
@@ -1502,6 +1524,10 @@ layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests c
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDeferredProvisioningTests.ProgramLimits.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCommitCancellationConformanceTests.cs`.
 
 - **Construction durability and corruption** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `SqlIndexReadIntegrityTests.cs` in the same directory.
 
