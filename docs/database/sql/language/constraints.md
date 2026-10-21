@@ -223,6 +223,8 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 
 ## Sources
 
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
+
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 - **Declaration validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlInvalidStatementConformanceTests.cs`, `SqlQualifierConformanceTests.cs` and `SqlConstraintTimingTests.cs`.
 

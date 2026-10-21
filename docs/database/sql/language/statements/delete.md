@@ -21,6 +21,11 @@ DELETE FROM [ schema_name . ] table_name [ [ AS ] table_alias ]
 
 ## Remarks
 
+Existing row values used for lock hashes and tombstones receive no new-write size check, so
+size limits do not prevent deletion. Referential SET NULL/SET DEFAULT actions still validate
+their final child replacements: `COHSQLE042` / SQLSTATE 54000 leaves parents and children unchanged
+and an explicit transaction active. See [size limits](../diagnostics.md#row-and-index-key-limits).
+
 [WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
@@ -91,6 +96,9 @@ and `(3,30)` in unspecified order. SELECT then returns `1`, `4`.
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

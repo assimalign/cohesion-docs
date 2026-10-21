@@ -61,12 +61,12 @@ Non-Boolean search conditions use COHSQLE003 (42804) as ExecutionFailure with a 
 connection and explicit transaction. Only valid Boolean input string literals coerce; supplied
 text parameters retain their types. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
 
-## Example
-
 Oversized encoded rows and write/build index keys report `COHSQLE042` / SQLSTATE 54000 through
 ExecutionFailure, with `ConnectionUsable = true`. The message names the table, byte size and
 limit. No statement rows change; an explicit transaction remains active with earlier work intact.
 See [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
+
+## Example
 
 ```csharp
 try { await connection.QueryAsync("SELECT absent FROM t;"); }

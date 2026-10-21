@@ -241,6 +241,9 @@ retain the wire category, structured diagnostics and connection usability.
 
 ## Sources
 
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
+
 - **Wrapped/index failures and cleanup evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/IndexFailureTranslationTests.cs`, `SqlIndexReadIntegrityTests.cs` and `StorageOpenFailureTests.cs` in the same directory.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.

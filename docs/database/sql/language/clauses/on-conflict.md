@@ -235,6 +235,8 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 
 ## Sources
 
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDiscardedProposalTests.cs`.
+
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 
 

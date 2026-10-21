@@ -17,7 +17,7 @@ public sealed class BTreeIndex
 }
 ```
 
-The signature shows the lookup and its relevant property. BTreeIndexManager creates indexes;
+The signature shows the key limit, lookup and its relevant property. BTreeIndexManager creates indexes;
 BTreeIndex has no public constructor.
 
 ## Behavior and exceptions

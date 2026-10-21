@@ -70,7 +70,7 @@ for a missing parent or a parent-key change that leaves references, and `COHSQLE
 for NOT NULL. Messages name the constraint and table without key values. Failure rolls back
 the statement and leaves an explicit transaction usable. See [Diagnostics](../diagnostics.md).
 
-## Examples
+## Size limits
 
 UPDATE checks the final encoded row and all replacement index keys before applying any changes.
 Exceeding [8,092 row bytes or 1,024 index-key bytes](../diagnostics.md#row-and-index-key-limits)
@@ -86,6 +86,8 @@ UPDATE large_rows SET value = @value WHERE id = 1;
 ```
 
 It fails with COHSQLE042; the row remains `(1, 'old')`, as in SqlProgramLimitConformanceTests.
+
+## Examples
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
 
@@ -121,6 +123,9 @@ is changed once, even though its replacement key still lies in the sought range.
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
+- **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
