@@ -73,6 +73,10 @@ evaluate in sorted output order before pagination, even with LIMIT 0 or without 
 does not reduce their call count. This postponement follows PostgreSQL's treatment of independent
 volatile outputs. Grouped and correlated projections retain evaluation before sorting.
 
+Outside that volatile-output fallback, a non-DISTINCT stored-table or system-view SELECT with
+LIMIT 0 skips its scan and output/key evaluation even when ORDER BY is present. Planning still
+validates the query.
+
 For non-DISTINCT ORDER BY with a positive limit and fixed ordering collations, execution keeps
 only the best OFFSET + LIMIT candidates while examining all qualifying inputs. Ties preserve the
 same input order as a full sort, including collation-equivalent keys and NULLs. Deferred ordering
@@ -126,6 +130,7 @@ change its order relative to other non-NULL numbers.
 
 ## Sources
 
+- **Zero-limit execution paths** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.cs` and `SqlRowCollector.cs` in the same directory.
 - **Stable bounded ordering and volatile outputs** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs` and `SqlBoundedSelectionRegressionTests.cs` in the same directory.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
