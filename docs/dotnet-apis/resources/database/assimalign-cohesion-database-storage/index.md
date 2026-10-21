@@ -36,7 +36,9 @@ components of their engine assemblies, with their existing namespaces.
 Storage format 4 requires entirely zero Free pages and checksummed Reclaimed pages. Nonzero
 pooled pages never bypass checksum verification; raw CRC zero is escaped as `0xFFFFFFFF`.
 There is no upgrade path from older formats. See [format and recovery](design.md#storage-format-4)
-and [checkpoint anchors](design.md#checkpoints) for power-interruption handling.
+and [checkpoint anchors](design.md#checkpoints) for power-interruption handling. Readers can
+begin, pin cached pages and end during checkpoint flush I/O; writers still wait through the
+checkpoint. The latency probe is opt-in with COHESION_DB_PROBES=1 and sets no timing threshold.
 
 ## Dependencies
 

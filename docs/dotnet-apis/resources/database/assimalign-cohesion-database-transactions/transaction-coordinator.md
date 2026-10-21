@@ -37,7 +37,10 @@ Cancellation before admission leaves a reader unenrolled.
 
 A reader spanning a checkpoint is neither journaled nor anchored. Its first later apply enrolls
 under the checkpoint interlock before any stamp, so crash recovery can still classify its writes.
-Snapshots and visibility retain their existing semantics.
+Snapshots and visibility retain their existing semantics. Sequence reservation and reader ends
+bypass the checkpoint's transaction/log gates, so readers can begin, pin cached pages and
+commit or roll back during checkpoint flush I/O. Writers still wait through the checkpoint's
+statement-apply gate. See [checkpoint behavior and measurements](../assimalign-cohesion-database-storage/design.md#checkpoints).
 
 ## Commit and rollback
 
