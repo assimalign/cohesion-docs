@@ -1,6 +1,6 @@
 # SET (Cohesion SQL)
 
-Assigns one or more destination columns in an UPDATE statement.
+Assigns destination columns in UPDATE or INSERT ... ON CONFLICT DO UPDATE.
 
 > **Status:** Partial. The documented subset executes; restrictions are listed below.
 
@@ -23,8 +23,15 @@ For [BY DEFAULT identity](identity.md), SET id = DEFAULT allocates a new value. 
 all assignments to its identity column, including DEFAULT, with `COHSQLE025`.
 
 The measured `UPDATE` subset accepts multiple assignments and an optional `WHERE`.
+Each target may appear only once, using case-insensitive column identity. Repeating a target,
+including an assignment using DEFAULT, reports `COHSQLE019` before writes, even when no row
+matches. [ON CONFLICT DO UPDATE](on-conflict.md) applies the same duplicate-target rule.
+Expressions read the original row values; assigning NULL stores NULL where allowed. SQL has no
+MISSING value, and NULL does not request a default.
+
 The documented `SET` belongs to `UPDATE`; it is not session configuration or transaction-isolation
-syntax. SET subqueries and DML `RETURNING` are outside the executable subset; correlated and uncorrelated
+syntax. SET subqueries are outside the executable subset; [RETURNING](returning.md) projects the
+updated values. Correlated and uncorrelated
 subqueries execute in the UPDATE WHERE predicate.
 
 ## Examples
@@ -37,6 +44,12 @@ UPDATE t SET age = age + 10 WHERE id = 1;
 
 The conformance case changes Ada's age to `46`.
 
+```sql
+UPDATE t SET age = DEFAULT, AGE = 2 WHERE 1 = 0;
+```
+
+This reports COHSQLE019 and changes no rows. DEFAULT still counts as an assignment.
+
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
@@ -46,3 +59,4 @@ The conformance case changes Ada's age to `46`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Update.cs`
+- **Duplicate targets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlInvalidStatementConformanceTests.cs`.

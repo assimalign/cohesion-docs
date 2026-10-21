@@ -67,6 +67,10 @@ to existing array elements. USE KEYS, RETURNING, LIMIT, FOR and nested queries r
 ## Names and reservations
 
 Collection, property, alias and parameter names preserve case; keywords are case-insensitive.
+Double-quoted collection, property and alias names decode doubled `""` to one embedded quote.
+The shared lexer retains one raw token; OQL verifies its closing delimiter before unescaping.
+An escaped final quote without a closing delimiter reports OQL0003. See
+[lexical examples](../../../../database/document/language/syntax-conventions.md#delimited-identifier-example).
 The shared parameter contract accepts $name/@name/$n with ASCII numeric names, case-sensitive
 bare-name binding and one stripped key sigil. Collisions are COHDOC009; unbound values COHDOC005.
 

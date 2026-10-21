@@ -308,8 +308,14 @@ I/O. Attached-index damage uses DatabaseCorruptionException with COHDBS003, COHD
 the model code, retaining the index cause and page. The public Create overload accepts
 IndexCorruptionException; see [signatures and example](database-corruption-exception.md).
 Storage-failure/corruption embedded messages are ordinary explanatory text; wire writers add a
-missing prefix. SQL/Key-Value Pair aborted-transaction refusals currently also prefix their
-embedded Message. Inspect Diagnostics for codes. See the [model mapping](../../../../database/overview.md#engine-failure-diagnostics).
+missing prefix. SQL/Key-Value Pair/Graph aborted-transaction refusals carry COHSQLT005, COHDBK001
+and COHDBG007 in Diagnostics with ordinary unprefixed Message text and the original cause.
+Inspect Diagnostics for codes. See the [model mapping](../../../../database/overview.md#engine-failure-diagnostics).
+
+[DatabaseTransactionAbortedException](database-transaction-aborted-exception.md) accepts the same
+copied, ordered diagnostic sequence as DatabaseException. Graph catalog snapshot conflicts use
+it to preserve their retryable abort kind while attaching COHDBG007; deterministic caller errors
+use DatabaseException/COHDBG003. The wire formats the code once.
 
 ## Lifecycle pattern
 

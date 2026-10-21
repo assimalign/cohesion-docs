@@ -38,6 +38,11 @@ The primary index supplies the scan cursor under the command's snapshot. A prefi
 the range from the prefix, inclusive, to its byte successor, exclusive. A prefix consisting
 entirely of `0xFF` bytes has no upper bound.
 
+Index reads use bounded batches with cancellation at open, each move and while waiting for the
+tree's read latch. LIMIT stops consuming after the requested rows; it does not collect the entire
+selected index range. The command still builds its result, and disposal releases the cursor's
+owned keys. See [range cursors](../../../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/b-tree-cursor.md).
+
 Duplicate clauses, negative limits, missing operands, and a prefix combined with explicit
 bounds fail during parsing rather than execution.
 

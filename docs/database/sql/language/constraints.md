@@ -47,6 +47,18 @@ matching effective collations. Parent-key updates that would invalidate referenc
 `ON UPDATE` is recognized but unsupported with `COHDBL001`.
 `ON DELETE CASCADE` does not imply `DROP TABLE ... CASCADE` support.
 
+PRIMARY KEY, UNIQUE and FOREIGN KEY column lists, including referenced columns, must contain
+distinct columns under case-insensitive binding. Repetitions report `COHSQLE019`, naming the
+column and constraint. A second PRIMARY KEY declaration also reports COHSQLE019, naming the
+constraint and table: inline, table-level, repeated clauses on one column, ADD CONSTRAINT and
+ADD COLUMN forms all qualify. These are declaration errors before publication, distinct from
+duplicate stored key values (COHSQLE037). Refusing repeated FOREIGN KEY child columns is stricter
+than PostgreSQL. CREATE TABLE IF NOT EXISTS on an existing table skips these declaration checks.
+
+Self-referencing batch validation hashes candidate parent keys once per constraint. Regression
+tests cover INSERT SELECT, ADD CONSTRAINT and ADD COLUMN REFERENCES at 50,000 rows; DDL still
+performs indexed parent seeks. This is a work bound, not a limit on the table's row count.
+
 Multi-row UPDATE validates outgoing and incoming NO ACTION/RESTRICT references against the
 statement's final rows. Old replaced versions are excluded and every final replacement contributes
 its keys. A self-reference can move with its parent key, and mutually referenced keys can swap
@@ -82,6 +94,8 @@ transaction remain usable.
 | `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
 | `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
 | `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
+| `COHSQLE019` | Duplicate key-list column or multiple PRIMARY KEY declarations | — |
+| `COHSQLE015` | New CHECK uses a qualifier other than the constrained table/schema | — |
 
 Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
 uses `COHSQLE025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
@@ -91,6 +105,15 @@ span when available, before publishing the definition. This includes non-Boolean
 inside logical expressions and mixed CASE/COALESCE alternatives in Boolean positions; see
 [search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
 UNKNOWN. COHSQLE038 (23514) instead means a valid Boolean check evaluated to FALSE.
+
+## CHECK binding
+
+New CHECKs accept bare columns, `table.column` and `schema.table.column` bound to the constrained
+table, using case-insensitive identity. Another table or schema qualifier reports located
+`COHSQLE015` before CREATE TABLE, ADD CONSTRAINT or ADD COLUMN publishes anything.
+Previously stored CHECKs retain their earlier qualifier binding on reopen. An already-applied
+declared or imperative schema hash also retains it; a new or changed hash must pass the strict
+qualifier validation before migration steps run.
 
 Checks are deterministic, Boolean, and row-local. The supported scalar functions can participate;
 parameters, aggregates, subqueries, and CAST are excluded. Null propagation matters: a check such as
@@ -117,6 +140,15 @@ INSERT INTO c VALUES (1), (NULL);
 Neither definition is created.
 
 A later `INSERT INTO c VALUES (0);` fails with COHSQLE038 (23514); the two earlier rows remain.
+
+```sql
+CREATE TABLE qualified (a INT CHECK(qualified.a > 0 AND dbo.qualified.a < 100));
+INSERT INTO qualified VALUES (1), (NULL);
+ALTER TABLE qualified ADD CONSTRAINT bad_check CHECK(other.a > 0);
+```
+
+Execute separately: CREATE and INSERT succeed; ALTER reports COHSQLE015 and publishes no
+constraint. SELECT a FROM qualified returns 1 and NULL in unspecified order.
 
 Starting from a separate database with the
 [conformance fixture](statements/select.md#a-create-the-conformance-fixture):
@@ -181,6 +213,7 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 ## Sources
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
+- **Declaration validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlInvalidStatementConformanceTests.cs`, `SqlQualifierConformanceTests.cs` and `SqlConstraintTimingTests.cs`.
 
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

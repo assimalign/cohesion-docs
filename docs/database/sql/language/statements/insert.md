@@ -43,6 +43,8 @@ nullability, checks, primary and unique keys, and foreign keys apply to written 
 [ON CONFLICT](../clauses/on-conflict.md) skips or updates unique-key conflicts for every source
 form. Proposed NOT NULL/domain/CHECK validation still precedes arbitration; foreign keys validate
 only rows actually written. DO UPDATE requires an arbiter and exposes target plus EXCLUDED values.
+Each DO UPDATE SET target may appear only once, including assignments using DEFAULT;
+case-insensitive duplicates report `COHSQLE019` before writes. See [SET](../clauses/set.md).
 RETURNING includes inserted/updated rows and their combined count, excluding skips. See the clause
 for COHSQLE035 (42P10), COHSQLE036 (21000), isolation and transaction retry rules.
 

@@ -18,6 +18,10 @@ the stable identity, so dropping and recreating the same name does not reuse old
 Identities cannot be reused across definitions or renamed. Label names and relationship-type names
 occupy separate namespaces.
 
+A dropped identity cannot name another definition until version purge reclaims its old records.
+Older databases can contain dropped/live names sharing an identity; candidate lookup checks every
+visible version and pruning one name preserves the other.
+
 The Graph engine depends on this catalog. The catalog depends on `Graph.Storage`'s raw metadata record
 operations and on the shared transaction kernel; it does not use engine types. `Graph.Storage`
 owns physical node-property B+Trees, while catalog index records supply names and object discovery.
@@ -89,6 +93,11 @@ schema-owned definitions may carry a schema name, and they must carry one. Unkno
 enum values, invalid lengths, malformed UTF-8, and trailing bytes are rejected with
 `GraphCatalogException`. Decoding has no reflection or dynamic serialization.
 
+Encoding validates the complete UTF-8 record against the 8,092-byte SlottedPage.MaxRecordSize
+before physical apply. Names, owning schema and index property text all count, including headers
+and lengths; this is not a character-count limit. Exact fit is accepted. Overflow throws
+GraphElementTooLargeException at the catalog and becomes structured COHDBG009 through the engine.
+
 ## MVCC, mutation, and recovery
 
 Opening scans only owner 0 and builds an in-memory directory keyed by kind, parent, and name. The
@@ -108,9 +117,22 @@ complete-recovery. The graph store separately scrubs physical index entries befo
 checkpoint. Catalog crash tests copy live data and WAL before disposal, proving that committed
 definitions survive and partial definition/child changes disappear.
 
-Definition discovery is linear in the number of known names plus visible version checks. This is
-deliberately a metadata directory; traversal uses graph adjacency and physical indexes. Catalog
+Identity discovery uses an in-memory GUID-to-definition-key directory. Property/index discovery
+uses ordinal sorted names selected by kind and parent identity. Both are built at open and
+maintained with the version directory under its lock. They select candidates only: reads still
+reload/decode records and apply the same MVCC checks. Stale references prune lazily, and old
+snapshots keep the original definitions after a dropped name is recreated with another identity.
+[FindLabel(Guid, snapshot) and FindRelationshipType(Guid, snapshot)](graph-catalog.md) use these
+directories. Saving N definitions takes O(N log N) or better catalog work for bounded version
+chains, including property discovery. Whole-kind SHOW still enumerates that kind. No disk-format
+change is involved. This is a metadata directory; traversal uses graph adjacency and physical indexes. Catalog
 disposal and flushing remain owned by the engine and its shared storage/coordinator.
+
+Through engine operations, snapshot-changed definitions become DatabaseTransactionAbortedException
+with COHDBG007 and the catalog cause. Deterministic identity reuse/rename, name/identity mismatch,
+index retargeting or missing owner becomes DatabaseException with COHDBG003. Malformed records
+use COHDBG006. Direct catalog calls retain GraphCatalogException; see
+[exception boundaries](graph-catalog-exception.md).
 
 ## Scope
 

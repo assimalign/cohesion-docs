@@ -74,6 +74,13 @@ refuses primary-key columns (SQL0003). SET/DROP DEFAULT and DROP NOT NULL refuse
 
 ### Added columns and publication
 
+ADD CONSTRAINT rejects repeated PRIMARY KEY, UNIQUE or FOREIGN KEY columns, including the
+referenced list, with `COHSQLE019`. ADD CONSTRAINT or ADD COLUMN cannot declare a second primary
+key over an existing one; repeated PRIMARY KEY clauses on a single added column also fail with
+that code. Validation uses case-insensitive column identity and leaves the catalog unchanged.
+New CHECKs in either action must qualify columns with this table and schema, or leave them
+unqualified; another qualifier reports located `COHSQLE015`. See [Constraints](../constraints.md).
+
 ADD COLUMN admits expression defaults. A nonvolatile expression freezes once for old rows;
 a volatile expression is refused on live rows with `COHSQLE027` and admitted on an empty table. Old rows resolve a missing trailing
 field from persisted catalog metadata; their bytes and multi-version concurrency control (MVCC)
@@ -129,6 +136,8 @@ COHSQLD002. Default and nullability changes retain their usual validation.
 | `COHDBL001` | Excluded action/list or subquery in DEFAULT | — |
 | `COHSQLE013` | Rename collision, invalid default form or incompatible function result type | — |
 | `COHSQLE014` / `COHSQLE015` | Missing table / missing column | — |
+| `COHSQLE015` | New CHECK names another table or schema | — |
+| `COHSQLE019` | Repeated key-list column or second PRIMARY KEY declaration, including ADD COLUMN | — |
 | `COHSQLE021` | System relation target or attempted rename over a system relation | 25006 |
 | `COHSQLE024` | NOT NULL validation finds NULL | 23502 |
 | `COHSQLE025` | Protected identity facet change | — |
@@ -156,6 +165,14 @@ ALTER TABLE t DROP COLUMN extra;
 
 All three original rows and the omitted-column insert read `7` for `extra` before it is dropped.
 Each statement is a separate request.
+
+With `CREATE TABLE keyed (id INT PRIMARY KEY);` already executed, each of these separate
+requests fails with COHSQLE019 and leaves keyed unchanged:
+
+```sql
+ALTER TABLE keyed ADD COLUMN other INT PRIMARY KEY;
+ALTER TABLE keyed ADD CONSTRAINT uq_bad UNIQUE(id, ID);
+```
 
 ### Change an insert default without changing old missing fields
 

@@ -50,6 +50,26 @@ Schema-owned definitions and V: receipts atomically. Format 23 introduced view r
 format 24 introduced explicit NULL placement. Current format 25 also admits distinct predicates,
 Boolean tests and LIKE ESCAPE in stored bodies. Older formats are refused.
 
+## Delimited identifiers
+
+View, column and alias names accept doubled quotes, as in `"a""b"` for `a"b`.
+Canonical rendering escapes embedded quotes and binding replaces the complete quoted source token.
+The catalog encoding and storage format are unchanged.
+
+An earlier build could persist adjacent quoted tokens without a space: `"a""x"` meant column
+`a` with alias `x`. It now means the single identifier `a"x`. An affected stored view can bind
+differently or fail after reopen. Recreate it using `"a" "x"` or `"a" AS "x"` to retain the
+column/alias interpretation; there is no stored-text migration.
+
+For example, after the quoted table example on [Literals and identifiers](../expressions/literals.md):
+
+```sql
+CREATE VIEW "v""x" AS SELECT "a""b" AS "c""d" FROM "t""x";
+SELECT "c""d" FROM "v""x";
+```
+
+The query returns 7 under the name `c"d`.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |

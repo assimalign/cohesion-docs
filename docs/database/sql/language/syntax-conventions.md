@@ -41,6 +41,10 @@ supported statement shape.
 
 ## Statement and example scope
 
+Double quotes delimit [identifiers](expressions/literals.md); double an embedded quote:
+`"a""b"` names `a"b`. Adjacent quoted text without whitespace forms one identifier.
+An escaped final quote without its closing delimiter reports `SQL0003`.
+
 Submit one statement per SQL execute request. When a code block contains multiple statements,
 execute them as successive requests on the same session. Transaction examples require the same
 client connection for their entire sequence. A missing semicolon is informational; it does not

@@ -40,7 +40,11 @@ normalize. NaN and infinity have no literal forms; bind them as parameters or us
 Double quotes delimit identifiers, including reserved words, spaces, and literal dots. The parser
 removes delimiters for catalog binding while retaining identifier token classification.
 `"dbo"."order details"` qualifies a table; `"order.details"` names one table containing a dot.
-Embedded double quotes inside a name are outside the lexer subset.
+Doubled double quotes represent one embedded quote: `"a""b"` names `a"b`.
+The same rule applies to function names and canonical rendering. A final escaped quote without
+a closing delimiter, as in `"a""`, reports `SQL0003`. Whitespace separates delimited tokens:
+`"a""x"` is one name, while `"a" "x"` is a column followed by its alias.
+See the [stored-view compatibility note](../statements/create-view.md#delimited-identifiers).
 
 Delimited names apply to targets, columns, aliases, indexes, and constraints. Single quotes always
 denote values. Constant projections execute over one implicit row when FROM is absent.
@@ -110,6 +114,17 @@ SELECT 'it''s', 42, .5, TRUE, NULL FROM t WHERE id = 1;
 
 This adapts the dialect's literal forms to one row of the conformance fixture.
 
+Execute separately in an empty database:
+
+```sql
+CREATE TABLE "t""x" ("a""b" INT);
+INSERT INTO "t""x" ("a""b") VALUES (7);
+SELECT "a""b" AS "c""d" FROM "t""x";
+```
+
+The query returns 7 in a column named `c"d`. Quotes delimit names; they do not change NULL
+semantics, and SQL has no MISSING value.
+
 ## See also
 
 [Expressions](index.md) · [SELECT](../statements/select.md) · [Data types](../data-types/index.md)
@@ -118,6 +133,7 @@ This adapts the dialect's literal forms to one row of the conformance fixture.
 
 - **Function-name quoting and format 18** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1StorageFormatTests.cs`.
 - **Canonical names** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteStorageFormatTests.cs`.
+- **Embedded quotes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs` and `Assimalign.Cohesion.Database.Sql.Language/tests/SqlQuotedIdentifierTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

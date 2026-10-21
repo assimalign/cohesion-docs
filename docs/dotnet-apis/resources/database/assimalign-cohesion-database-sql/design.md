@@ -393,7 +393,7 @@ unsupported-clause diagnostics.
   identity, including a reused name with different keys, falls back to a residual-filtered scan.
   A catalog-registered but missing maintenance tree still refuses writes.
 - **`Seek` execution is snapshot-anchored.** The executor drives the B+Tree
-  cursor through the **statement snapshot** (the `IIndex.OpenCursor(snapshot, …)`
+  cursor in bounded cancellable batches through the **statement snapshot** (the `BTreeIndex.OpenCursor(snapshot, …)`
   overload — the same snapshot the equivalent scan filters through, which
   is the equivalence anchor under ReadCommitted's per-statement re-capture),
   unpacks each visible entry's packed row location, fetches the row, and
@@ -1068,6 +1068,28 @@ SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smalls
 SQL reports COHDBL001, native construction throws ArgumentException with the IDENTITY suggestion.
 For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
 
+## Declaration validation
+
+Repeated UPDATE SET targets, including DEFAULT and empty matches, fail planning with COHSQLE019.
+PRIMARY KEY, UNIQUE and FOREIGN KEY child/referenced lists reject case-insensitive repeated
+columns before publication. A second PRIMARY KEY fails with the same code, including repeated
+inline clauses, mixed inline/table declarations, ADD CONSTRAINT and ADD COLUMN. Messages name
+the column/constraint or table. Composite keys remain supported; existing-table CREATE TABLE
+IF NOT EXISTS skips key validation. Refusing repeated FOREIGN KEY child columns is stricter
+than PostgreSQL. See [constraint rules and examples](../../../../database/sql/language/constraints.md).
+
+New CHECK declarations validate table/schema qualifiers against the constrained table with
+located COHSQLE015 before publication. Stored CHECKs retain lenient qualifier binding on reopen.
+Engine build validates other declaration rules before I/O, deferring qualifier identity until
+provisioning reads the applied hash. Already-applied declared/imperative hashes retain their
+earlier qualifier contract; new or changed hashes validate strictly before any migration step.
+The validation cache keeps strict qualifier validation separate from prior lenient binding.
+
+Self-reference validation builds candidate key sets once per constraint. Deterministic tests
+bound candidate visits/probes at 10,000 and 50,000 rows for ADD CONSTRAINT, ADD COLUMN REFERENCES
+and INSERT SELECT. DDL still seeks stored parents through the primary index; this does not
+promise linear total index work or impose a 50,000-row limit.
+
 ## Boolean search conditions
 
 WHERE, HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN, ON CONFLICT DO UPDATE WHERE
@@ -1103,16 +1125,16 @@ and keeps the IndexCorruptionException and page context. Storage-format COHDBS00
 COHDBI001 refusals retain their authored types/messages, diagnostics and inner causes. Existing
 offline/unconfirmed-commit outcomes retain their precedence.
 
-Storage failures abort an explicit transaction after statement admission/snapshot release.
+Storage, I/O and index failures abort an explicit transaction after statement admission/snapshot release.
 Further statements and COMMIT are refused with structured COHSQLT005 retaining the coded cause;
 roll back before continuing. Ordinary constraint, evaluation and Boolean-condition failures
 retain statement atomicity and leave the transaction usable. Autocommit can execute the next
 statement after a recoverable storage failure. Wire ExecutionFailure preserves the session.
 An I/O open failure releases acquired resources and publishes no database; resolve it and retry.
 
-Storage-failure and corruption messages are ordinary embedded text; inspect Diagnostics for
-codes. SQL's aborted-transaction refusal currently also prefixes its embedded Message with
-COHSQLT005. The wire supplies a prefix when formatting a response and avoids adding it twice.
+Storage-failure, corruption and aborted-transaction refusal messages are ordinary unprefixed
+embedded text. The refusal carries COHSQLT005 as an Error in Diagnostics and retains its original
+InnerException cause. The wire still adds `COHSQLT005: ` once; no SQLSTATE is assigned to that code.
 
 If snapshot release or abort cleanup also fails, the exact coded statement exception remains
 primary, including its corruption type. EventSource Assimalign.Cohesion.Database.Sql emits

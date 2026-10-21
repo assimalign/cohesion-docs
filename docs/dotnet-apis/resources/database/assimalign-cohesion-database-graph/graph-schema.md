@@ -25,6 +25,13 @@ Null arguments throw ArgumentNullException; a disposed database throws ObjectDis
 A foreign session raises DatabaseException with COHDBG005. Operations follow the bound session's
 transaction; an aborted transaction refuses work with COHDBG007 until rollback.
 
+Catalog snapshot changes raise DatabaseTransactionAbortedException with structured COHDBG007.
+Deterministic identity/name/owner/index-target errors raise DatabaseException with COHDBG003,
+and malformed catalog records use COHDBG006. Metadata records over 8,092 encoded bytes, including
+names and owning schema, use COHDBG009. These engine exceptions retain ordinary unprefixed
+messages and their original cause. Disposal during an admitted operation uses COHDBG019;
+the direct Open/lifetime guard retains ObjectDisposedException. See [diagnostics](../../../../database/graph/language/diagnostics.md).
+
 ## Example
 
 ```csharp

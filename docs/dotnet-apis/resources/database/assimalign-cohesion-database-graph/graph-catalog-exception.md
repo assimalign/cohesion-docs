@@ -17,6 +17,13 @@ transaction and require the caller to serialize definition changes. Saving a new
 definition is supported; changing it later throws `DatabaseObjectLockedException`. Malformed
 persisted records and conflicting definitions throw `GraphCatalogException`.
 
+Direct catalog calls retain this exception. Engine and GraphSchema operations translate it by
+cause: snapshot-changed metadata uses DatabaseTransactionAbortedException with COHDBG007;
+deterministic identity reuse/rename, name/identity mismatch, index-property retargeting or missing
+owner uses DatabaseException with COHDBG003; malformed records use COHDBG006. The original
+catalog exception remains the cause. These codes have no assigned SQLSTATE. Storage/index/I/O
+failure takes precedence when it accompanies a conflict or disposal.
+
 ## Related reference
 
 - **Assembly** — [`Assimalign.Cohesion.Database.Graph`](index.md).

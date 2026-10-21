@@ -225,12 +225,15 @@ dead ends; either overflow fails with `COHDBG004`, never silent truncation. Canc
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
 
-Physical work charges visited anchors and selected visible relationships as DFS visits them,
-including dead ends; range loading charges nothing. Viable work counts hops passing trail, binding,
+Physical work charges visited anchors and selected visible relationships, including stream heads
+needed to initialize the identity-ordered merge and dead ends. Incident-type discovery and its
+first head share one charge; consuming a primed head does not charge again. Viable work counts hops passing trail, binding,
 relationship and safe endpoint checks before state copying. COHDBG004 includes actual physical and
 viable totals when the 1,000,000 physical cap is exceeded. The 100,000-binding and 64-hop limits
-remain. Ranges and decoded relationships are materialized before visits, so this budget does not
-bound range loading or decoding. EXPLAIN Expand describes
+remain. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
+head per range. Type discovery uses one-entry probes; budget checks precede head decoding,
+including initialization. Refusal, cancellation and errors dispose every active parent stream.
+EXPLAIN Expand describes
 `adjacency=(node,direction,type_id,relationship)`, effective seek_direction, type_filter,
 `physical=visited_candidates; viable=accepted_hops; physical_limit=1000000`; it executes no hops
 and reports no runtime totals. EXPLAIN ANALYZE remains unsupported.
@@ -366,14 +369,14 @@ not included.
 | `GQL0010` | Unknown function spelling; parsed arity uses GQL0002 |
 | `COHDBG001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, or invalid graph mutation |
+| `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
 | `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | Storage/index or open I/O failure, including wrapped causes; original InnerException retained |
+| `COHDBG006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
 | `COHDBI002` | Attached-index corruption retained beside leading COHDBS003 and additional COHDBG006; no assigned SQLSTATE |
-| `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
+| `COHDBG007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
 | `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
-| `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
+| `COHDBG009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
@@ -382,6 +385,8 @@ not included.
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; no assigned SQLSTATE |
+| `COHDBG019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
 | `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
@@ -389,7 +394,6 @@ aggregate causes. A damaged read fails instead of omitting nodes/relationships; 
 reclamation still reads as absence. Wire ExecutionFailure carries the common code and preserves
 the connection. See [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
 for the public API and additional open-time codes.
-| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; preserve ambiguous files, or drop/recreate only the known incomplete cases; no assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
 Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
@@ -432,6 +436,30 @@ access, including skipped branches and empty matches. Stored properties/index ke
 there is no catalog/storage format change. Path frames and GraphPathResult are unchanged.
 
 ## Graph wire family
+
+Catalog decode failures use COHDBG006, snapshot conflicts use structured COHDBG007, and disposal
+inside admitted execution or at a wire lifetime guard uses COHDBG019. Each is ExecutionFailure
+and leaves the authenticated session ready. An explicit transaction aborted by a failed admitted
+statement requires rollback before more work. Pre-statement direct-API guards retain
+ObjectDisposedException. A disposed protocol reader/writer instead faults the session without
+attempting another error write, including the generic Internal response.
+
+After a successful autocommit, a non-OutOfMemoryException cleanup failure preserves success and
+releases the session hold. The coordinator retains any remaining snapshot pin until shutdown.
+Applications should not retry the committed statement because of its cleanup warning.
+
+### Graph EventSource cleanup warning
+
+Enable `Assimalign.Cohesion.Database.Graph` to observe cleanup independently of statement outcome.
+
+| ID | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 13 | `StatementCleanupFailed` | Warning | `database`, `exceptionType`; cleanup failed after successful autocommit |
+
+The event includes the exception type, without exception text or graph values. OutOfMemoryException
+is not suppressed. See [failure and cleanup tests](../../../../database/graph/language/diagnostics.md#negotiated-wire-diagnostics).
+
+### Frames and sessions
 
 `GraphProtocol.Family` fixes the graph vocabulary for an accepted connection. Shared
 `ProtocolChannel` handles framing and validates every type against the bound family; Graph owns all
@@ -804,6 +832,18 @@ damage becomes DatabaseCorruptionException / COHDBS003 and retains COHDBI002 and
 with the index cause/page. Existing offline classifications remain in force. I/O open failures
 release resources and publish no database; resolve the condition and retry. Failed operations
 abort explicit transactions until rollback; wire ExecutionFailure keeps the session.
+
+Catalog snapshot conflicts translate to
+[DatabaseTransactionAbortedException](../assimalign-cohesion-database/database-transaction-aborted-exception.md)
+with COHDBG007. Deterministic identity reuse/rename, identity/name mismatch, retargeted index
+properties or missing owners use COHDBG003. Malformed catalog records use COHDBG006; oversized
+encoded metadata uses COHDBG009. Disposal during execution or coordinator end refusal uses
+COHDBG019 and retains its cause. Storage/index/I/O failure takes precedence over accompanying
+disposal or catalog conflict, while kernel abort/unconfirmed-commit outcomes keep their type.
+
+An aborted-transaction refusal is DatabaseException with an Error diagnostic COHDBG007 and
+ordinary unprefixed Message text; InnerException retains the original failure. The wire adds
+`COHDBG007: ` once. Rollback clears the refused transaction before embedded session reuse.
 
 ## Sources
 

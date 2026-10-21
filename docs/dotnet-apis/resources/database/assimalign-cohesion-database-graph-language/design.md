@@ -84,7 +84,9 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 `Match` patterns accept `(a)`, `(a:Label {key: value})`, `-[r:TYPE]->`, `<-[r:TYPE]-`, and
 `-[r:TYPE]-`, including anonymous bracketed relationships. Scalar literals are null, Boolean,
 signed 64-bit integer, finite double, and single-quoted string with doubled-quote escaping. Names
-are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces. A single
+are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces and decode
+doubled double quotes to one embedded quote. Label-expression and source-free projection rendering
+escape embedded quotes the same way; an unterminated quoted name reports GQL0003. A single
 optional trailing semicolon is accepted. ISO abbreviated `->`, `<-`, `-` and `<->` execute without
 edge variables/types/properties; full bracketed forms carry those details. Cypher doubled-dash
 arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are
@@ -317,6 +319,13 @@ The profile executes 26 of 33 declared clauses.
 Database lifecycle failures additionally use COHDBG018 for missing journal/backup, incomplete
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
 SQLSTATE; it is separate from GQL evaluation. See [file diagnostics](../../../../database/graph/language/diagnostics.md#database-files).
+
+Catalog snapshot conflicts use structured COHDBG007 on DatabaseTransactionAbortedException;
+deterministic catalog identity/name/owner/index-target errors use COHDBG003. Malformed catalog
+records use COHDBG006, oversized UTF-8 metadata records use COHDBG009 (8,092 bytes), and disposal
+during admitted execution or a wire lifetime guard uses COHDBG019. These codes have no assigned
+SQLSTATE. ExecutionFailure preserves the authenticated session; a disposed protocol transport
+faults it without another error write. See [wire and cleanup behavior](../assimalign-cohesion-database-graph/design.md#graph-wire-family).
 
 ## Label scans and engine failures
 

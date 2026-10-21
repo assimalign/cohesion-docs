@@ -43,6 +43,9 @@ the transaction usable. Storage/I/O uses COHDBK005 (58030 for I/O); corruption u
 (XX001), with COHDBI002 and COHDBK005 additionally retained for attached-index damage.
 See [diagnostics](diagnostics.md#storage-failures-and-transaction-recovery).
 
+Aborted commands and COMMIT refusals carry COHDBK001 as a structured Error with the original
+cause. The in-process Message is unprefixed; the wire message still starts with COHDBK001.
+
 Storage is in memory when `KeyValueDatabaseEngineOptions.RootPath` is omitted. File-backed
 databases use two file sets: `<name>` for entries and index pages, and `<name>.catalog` for
 index registrations and the entry-format version. `KeyValueStorage` binds this model to the

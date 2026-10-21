@@ -46,11 +46,11 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `COHSQLE012` | Character assignment exceeds length with non-space overflow | 22001 |
 | `COHSQLE013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
 | `COHSQLE014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
-| `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, or missing/repeated/ambiguous/incompatible-type USING column | — |
+| `COHSQLE015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, new CHECK naming another table/schema, or missing/repeated/ambiguous/incompatible-type USING column | — |
 | `COHSQLE016` | Unknown function absent from executable and recognized-unsupported vocabulary | — |
 | `COHSQLE017` | Invalid aggregate placement/grouping, including RETURNING or a non-grouping outer column referenced from a completed group | — |
 | `COHSQLE018` | Invalid ordering ordinal, row count or CAST declaration | — |
-| `COHSQLE019` | Duplicate target column/table binding or ambiguous output alias | — |
+| `COHSQLE019` | Duplicate INSERT/SET target column, key-list column (including FOREIGN KEY referenced columns), PRIMARY KEY declaration or table binding; ambiguous output alias | — |
 | `COHSQLE020` | Missing parameter, checked before reading or writing rows | — |
 | `COHSQLE021` | Mutation or table DDL targets a read-only system relation or persisted view | 25006 |
 | `COHSQLE022` | Invalid CAST input text representation | 22P02 |
@@ -169,14 +169,15 @@ A recoverable I/O open failure publishes no database and permits retry after res
 
 A malformed transaction spelling reports SQL0003 before changing transaction state.
 
-Storage corruption and I/O failures abort an explicit transaction; roll back before continuing.
+Storage, I/O and index failures abort an explicit transaction; roll back before continuing.
 Ordinary constraint/evaluation/search-condition failures keep statement atomicity and leave the
 transaction usable. In autocommit the next statement can run after a recoverable failure.
 The wire returns ExecutionFailure with a usable connection. Secondary cleanup failure keeps
 the original coded exception and emits Warning event 25, TransactionCleanupFailed, on
 Assimalign.Cohesion.Database.Sql, carrying transactionId, exceptionType and exceptionMessage
-(bounded to 1,024 characters). SQL's embedded COHSQLT005 refusal still has a message prefix;
-Diagnostics is the code contract.
+(bounded to 1,024 characters). An aborted-transaction refusal carries an Error diagnostic
+COHSQLT005 with ordinary unprefixed Message text and the original InnerException cause.
+The wire still starts with `COHSQLT005: ` exactly once. No SQLSTATE is assigned to COHSQLT005.
 
 [ON CONFLICT](clauses/on-conflict.md) uses DatabaseTransactionAbortedException for a newer
 committed Snapshot conflict or invalidated unique-index directory, and DatabaseTransactionDeadlockException

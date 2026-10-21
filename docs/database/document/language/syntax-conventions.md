@@ -20,7 +20,9 @@ accepted forms; rejected constructs belong to the [unsupported matrix](unsupport
 ## Lexical rules
 
 - **Identifiers** — double quotes delimit identifiers. Collection and property names preserve case;
-  empty identifiers are invalid. A property after a dot may use a reserved word.
+  doubled `""` decodes to one embedded quote, so `"a""b"` names `a"b`. This applies to collection,
+  property and alias names. Empty identifiers are invalid; a missing closing delimiter, including
+  a final escaped quote, reports `OQL0003`. A property after a dot may use a reserved word.
   VALUE/RAW and LIMIT/OFFSET are reserved; use quoted identifiers or qualified paths for those fields.
   After AS, a SELECT projection label may use a reserved word. DISTINCT/ALL are quantifiers
   only immediately after SELECT; misplaced quantifiers report `COHDBL001`.
@@ -45,6 +47,18 @@ The lexer/parser conformance corpus includes this nested comment and trailing se
 FROM people;
 ```
 
+## Delimited identifier example
+
+With a collection named `t"x` already created, execute each statement separately:
+
+```sql
+INSERT INTO "t""x" (KEY, VALUE) VALUES ('k', {"a""b": 7});
+SELECT "a""b" AS "c""d" FROM "t""x";
+```
+
+The query returns decimal 7 in a column named `c"d`. Quoting names preserves normal
+[NULL and MISSING](expressions/missing.md) behavior.
+
 ## See also
 
 [Language (OQL)](index.md), [Paths and arrays](expressions/paths-and-arrays.md),
@@ -54,3 +68,4 @@ and [Diagnostics](diagnostics.md).
 
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
 - **Conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.
+- **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlExecutionConformanceTests.cs`.

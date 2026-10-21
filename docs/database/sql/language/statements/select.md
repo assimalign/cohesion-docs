@@ -78,6 +78,10 @@ INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Index access
 
+Index ranges are read in bounded cancellable batches. Cancellation reaches cursor open, each
+move, latch waits and page/entry reads; pages and the tree latch are released before expression
+evaluation. This bounds index-range buffering; SELECT retains its result-materialization rules.
+
 SELECT, [UPDATE](update.md) and [DELETE](delete.md) share rule-based index selection. Mandatory
 AND terms can supply `=`, `<`, `<=`, `>` or `>=` comparisons between a direct indexed column and
 a non-NULL, nonvolatile value evaluable during planning, such as a literal or bound parameter.

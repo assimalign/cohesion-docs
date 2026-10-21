@@ -34,14 +34,14 @@ label names, and property keys do not trigger keyword capability checks.
 |---|---|
 | `COHDBG001` | Invalid hand-built function arity or unbound argument; invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Provably incompatible function/CAST kind or temporal stored property; schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable |
+| `COHDBG003` | Provably incompatible function/CAST kind or temporal stored property; schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable; deterministic catalog identity/name/owner/index-target error |
 | `COHDBG004` | Materialized MATCH/FOR row, candidate-expansion or runtime 64-hop trail limit exceeded |
 | `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | Storage/index or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
+| `COHDBG006` | Storage/index, malformed catalog record or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
 | `COHDBI002` | Attached-index corruption retained beside leading COHDBS003 and additional COHDBG006; no assigned SQLSTATE |
-| `COHDBG007` | Explicit transaction is aborted; later statements/commit refused until rollback |
+| `COHDBG007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
 | `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
-| `COHDBG009` | Element or indexed property exceeds the stored-record/key bound |
+| `COHDBG009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
 | `COHDBG012` | Database offline after durable storage failure |
@@ -50,6 +50,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the authenticated session; no assigned SQLSTATE |
 | `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity GQL0002 and unknown-name GQL0010;
@@ -86,6 +87,19 @@ with COHDBG001 before reads, writer locks or writes, even when no rows would mat
 Kernel aborts surface as `DatabaseTransactionAbortedException`; deadlocks retain their specialized
 subtype. Schema ownership is enforced with `DatabaseObjectLockedException`, rather than a graph
 ownership diagnostic code.
+
+Catalog snapshot conflicts use DatabaseTransactionAbortedException with structured COHDBG007.
+Reusing/renaming an identity, assigning another identity to a name, retargeting an index property
+or naming a missing owner is a deterministic COHDBG003 caller error, not a retryable abort.
+No SQLSTATE is assigned to COHDBG003, COHDBG006, COHDBG007 or COHDBG009. Storage/index/I/O
+failure takes precedence over accompanying disposal or catalog conflict; kernel abort/unconfirmed
+commit outcomes retain their transaction exception kind.
+
+After an admitted statement failure, an explicit transaction refuses further work with an Error
+diagnostic COHDBG007. The in-process Message starts with ordinary text, and InnerException retains
+the original failure; the wire still formats `COHDBG007: message`. Roll back before continuing.
+Pre-statement direct-API lifetime checks retain ObjectDisposedException; a commit/rollback refused
+by a closing coordinator uses DatabaseException with COHDBG019 and the disposal cause.
 
 Ordering and paging add no codes or SQLSTATE categories. Missing key/count parameters retain
 COHDBG001. Invalid bound count values (NULL, negative, floating, nonnumeric or out of Int64 range)
@@ -127,10 +141,11 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 | Runtime trail length | 64; qualifying 65th edge fails before endpoint tests | `COHDBG004` |
 | Recursive expression depth | Available thread stack | `GQL0009` / `COHDBG008` |
 | Materialized intermediate matches | 100,000 across matching clauses | `COHDBG004` |
-| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including dead ends; overflow reports actual physical/viable totals | `COHDBG004` |
+| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including merge-initialization heads, type discovery and dead ends; discovery/first head share one charge; overflow reports actual physical/viable totals | `COHDBG004` |
 | Composite value depth (root zero) | 64 | Parameter COHDBG003; constructed COHDBG013 |
 | Total values per value, including root | 65,536 | Parameter COHDBG003; constructed COHDBG013 |
 | Encoded value or result-row bytes | 16,777,216 | Parameter COHDBG003; constructed/row COHDBG013 |
+| Complete encoded catalog record, including UTF-8 names and owning schema | 8,092 bytes; exact fit accepted, overflow refused before physical apply | `COHDBG009` |
 
 Referenced parameter trees snapshot before reads/writes; invalid dimensions, cycles and unsupported
 or non-finite leaves use COHDBG003. Constructed bounds check during evaluation inside the statement
@@ -149,6 +164,13 @@ Malformed UTF-8, diagnostics or ordering are protocol violations.
 GraphPathResult.Diagnostics finalizes at EOF. Unknown-name reads can complete with warnings and
 zero paths. A terminal rejection before path output retains the connection; cancellation or an
 unfinished path stream discards it.
+
+Malformed catalog records and index/storage errors report COHDBG006; execution-resource disposal
+reports COHDBG019. They are terminal ExecutionFailure responses and leave the authenticated session
+ready. A disposed protocol reader/writer instead faults the session without another error write.
+Disposal failure during cleanup after a successful autocommit does not change its success, except
+OutOfMemoryException still propagates. Graph EventSource Warning 13, StatementCleanupFailed,
+records database and exceptionType; do not retry a committed statement because of that warning.
 
 Aggregates add no codes or SQLSTATE categories. Wrong arity, SUM(*) and COUNT(DISTINCT/ALL *)
 use GQL0002. Nested/misplaced aggregates, GROUP BY mismatch/aggregate aliases, hidden group sort
@@ -188,3 +210,4 @@ explicit transaction until rollback. Wire ExecutionFailure adds the prefix and k
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlQueryParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlCatalogParserTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
+- **Catalog, wire and cleanup cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphCatalogErrorTests.cs`, `GraphEngineFailureWireTests.cs`, `GraphOperationOutcomeTests.cs` and `GraphHygieneTests.cs`.
