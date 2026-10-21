@@ -61,10 +61,10 @@ flowchart LR
     Client --> SharedClient["Database.Client"]
 ```
 
-No existing public interface changed. `IGraphDatabase` accepts an explicit `IDatabaseSession` for
+No existing public interface changed. `GraphDatabase` accepts an explicit `IDatabaseSession` for
 each data operation. Every entry point checks the concrete session's database identity; sharing an
 engine or database name is insufficient. `GraphSchema.Open(database, session)` returns the new
-`IGraphSchema` interface, also bound to that exact database and session. Its operations join the
+sealed `GraphSchema` type, also bound to that exact database and session. Its operations join the
 session transaction. Administrative database lifecycle remains on `IDatabaseEngine`; no GQL AST can
 select a server, another database, or another graph.
 
@@ -342,6 +342,7 @@ not included.
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
 | `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; preserve ambiguous files, or drop/recreate only the known incomplete cases; no assigned SQLSTATE |
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
 Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
@@ -535,7 +536,7 @@ The owner-approved `Database` hosting composition
 (`cohesion/docs/programs/DATABASE_HOSTING_DESIGN.md`) is implemented as
 `AddGraph((context, engine) => ...)` on `IDatabaseApplicationBuilder`. This replaces
 `AddGraphDatabase`. The model callback runs during application `Build` and receives an
-`IGraphDatabaseEngineBuilder`. It configures the complete option set, including
+`GraphDatabaseEngineBuilder`. It configures the complete option set, including
 `FileSystemPath? RootPath`, durability, storage strategy, identity and worker intervals; it neither
 binds configuration nor accesses a service container. Retained builder options and factories reject
 mutation after the first engine `Build` attempt.
@@ -554,12 +555,9 @@ registrations are application-owned; instance registrations remain caller-owned,
 nested components. All four named database operations now take `DatabaseName`, with the existing
 implicit string conversion preserving ordinary literal call sites. Empty/default names are rejected.
 
-The explicit requirement for StorageStrategy supersedes the draft's statement that this model lacks
-a storage injection parameter. `IGraphStorageStrategy` provides create/open/drop, existence and
-discovery using the existing `GraphStorage` product. It overrides RootPath without allocating
-default files; returned storage is engine-owned and the strategy itself is borrowed. Durability is
-supplied explicitly, and opening must defer checkpointing until engine recovery. Default file/memory
-selection remains unchanged.
+Storage selection is configured through GraphDatabaseEngineOptions.RootPath: a path selects
+file-backed storage and omitting it selects memory. The former IGraphStorageStrategy interface
+has been removed from the public API; GraphStorageStrategy is internal to the engine and its tests.
 
 `GraphDatabaseEngine.CreateBuilder()` exposes the model builder for the concrete hosting builder's
 `AddEngine(name, build => ...)` overload. The consumer assigns resolved configuration/service
@@ -700,8 +698,54 @@ UpdateNodeAsync/UpdateRelationshipAsync and accepts complete records for create.
 Row-returning mutations carry direct affected counts through the existing ResultComplete frame.
 EXPLAIN adds Set/Remove stages and UpdateEntity children. No wire-format change is required.
 
+## Database creation, open and drop
+
+File-backed Graph databases require their original graph.dat, graph.log and graph.bak.
+Create and open refuse a missing journal or backup with COHDBG018 in DatabaseException.Diagnostics;
+neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
+ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
+
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBG018.
+A data file no larger than one page is an incomplete create, since successful creation flushes two
+pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
+ordinary create does not adopt them. Drop removes graph.dat before deleting the remaining directory.
+
+A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
+tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
+corruption uses COHDBG018 with preservation/restore advice. Transient storage I/O, including a full
+pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
+without drop or backup advice. No storage or record format changes are introduced.
+
+### Lifecycle API
+
+```csharp
+public new ValueTask<GraphDatabase> CreateDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public new ValueTask<GraphDatabase> OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+```
+
+Disposed engines throw ObjectDisposedException; cancellation throws OperationCanceledException.
+Invalid names use DatabaseName validation, and an existing completed database rejects create.
+The file-set code is an Error diagnostic with no assigned SQLSTATE. Declared Build also refuses
+missing sidecars without writing replacements; declared databases cannot be dropped.
+
+On a fresh in-memory engine:
+
+```csharp
+await using var engine = GraphDatabaseEngine.Create("sales-engine", new());
+var database = await engine.CreateDatabaseAsync("sales");
+await database.DisposeAsync();
+var reopened = await engine.OpenDatabaseAsync("SALES"); // reopens the same logical database
+await engine.DropDatabaseAsync("sales");
+```
+
+See [database lifecycle](../../../../database/graph/index.md) and the GraphDatabaseNameTests
+file-set refusal, crash recovery and transient-open cases.
+
 ## Sources
 
+- **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngine.cs`.
+- **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.
 - **Lock handoff regression** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLockHandoffTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.

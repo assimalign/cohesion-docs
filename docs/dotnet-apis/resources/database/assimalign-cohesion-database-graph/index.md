@@ -14,10 +14,8 @@
 - **[`GraphRelationship`](graph-relationship.md)** — Documented public type.
 - **[`GraphSchema`](graph-schema.md)** — Documented public type.
 - **[`GraphTraversal`](graph-traversal.md)** — Documented public type.
-- **[`IGraphDatabase`](i-graph-database.md)** — Documented public type.
-- **[`IGraphDatabaseEngineBuilder`](i-graph-database-engine-builder.md)** — Documented public type.
-- **[`IGraphSchema`](i-graph-schema.md)** — Documented public type.
-- **[`IGraphStorageStrategy`](i-graph-storage-strategy.md)** — Documented public type.
+- **[`GraphDatabase`](graph-database.md)** — Documented public type.
+- **[`GraphDatabaseEngineBuilder`](graph-database-engine-builder.md)** — Documented public type.
 - **[GraphValueCodec](graph-value-codec.md)** — Bounded scalar/list/map wire components.
 - **[GraphProtocol](graph-protocol.md)** — Protocol 2.1 graph.composite-values capability.
 - **[GraphProtocolExecuteMessage](graph-protocol-execute-message.md)** — Text and encoded parameters.
@@ -27,16 +25,16 @@
 
 `Assimalign.Cohesion.Database.Graph` is the embedded property-graph engine. It creates, opens,
 enumerates and drops logical databases, opens database-bound sessions, and implements the frozen
-`IGraphDatabase` node, relationship and traversal operations. A session executes the bounded GQL
+`GraphDatabase` node, relationship and traversal operations. A session executes the bounded GQL
 subset described in [Graph.Language](../assimalign-cohesion-database-graph-language/design.md) .
 
 See the [source-backed usage examples](examples/index.md).
 
 `GraphSchema.Open` supplies session-bound label/type discovery, property metadata, ownership
-enforcement and node-property index creation. `AddGraph((context, engine) => ...)` captures
+enforcement and node-property index creation. `AddGraph(name, graph => ...)` captures
 construction through `IDatabaseApplicationBuilder` and returns that builder. The callback runs at
-`Build` with `IGraphDatabaseEngineBuilder`, whose options include an optional borrowed
-`IGraphStorageStrategy`. Workers and servers register as nested factories; the built engine owns
+`Build` with `GraphDatabaseEngineBuilder`. Its Options.RootPath selects file-backed storage;
+omitting it uses memory. Workers and servers register as nested factories; the built engine owns
 their products. Creating the engine starts its four built-in maintenance workers; application Start
 starts the nested servers.
 
@@ -56,7 +54,7 @@ one-node path, a single relationship includes its stored endpoints, and
 requests continue to use ordinary execution. Explicit transactions remain available through the
 in-process session API; Graph wire transaction control is deliberately deferred.
 
-`GraphDatabaseEngine.CreateBuilder()` returns the same model builder for standalone composition or
+`GraphDatabaseEngine.CreateBuilder(name)` returns the same model builder for standalone composition or
 the concrete hosting builder's build-aware engine factory. This lets the consumer pass already
 resolved values and register nested components while keeping the model package dependency-free.
 

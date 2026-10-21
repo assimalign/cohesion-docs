@@ -93,12 +93,24 @@ diagnostics with spans. This remains its structured diagnostic path on protocol 
 negotiate the core Diagnostics frame. Statement refusal preserves the connection; malformed
 UTF-8/payloads and message order are protocol violations. The client exception retains diagnostics.
 
+## Database files
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+
+This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
+with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBD003.
+
 ## See also
 
 [Language (OQL)](index.md) · [Parameters](expressions/parameters.md) · [MISSING](expressions/missing.md) · [Unsupported](unsupported.md)
 
 ## Sources
 
+- **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentDatabaseNameTests.cs`.
 - **Carriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/OqlDiagnosticTests.cs` and `OqlDiagnosticsFixPassTests.cs` in the same directory.
 - **Numbers and duplicate keys** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentInsertTests.cs`.
 - **Failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Protocol/DocumentProtocolFailureMessage.cs`.

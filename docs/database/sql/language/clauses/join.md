@@ -61,12 +61,40 @@ Qualified wildcards such as `t.*` remain excluded.
 
 ### Access paths
 
-Execution follows written order. Only the first INNER pair may swap inputs for an index; later
-steps may seek into the added input, and LEFT always drives from its preserved left side.
+Execution is left-deep. Only the first INNER pair may swap inputs; a WHERE seek covering a full
+unique key takes priority when choosing its driver. Later steps may seek into the added input,
+and LEFT always drives from its preserved left side.
 Mandatory equalities can probe an index's leading key prefix under the existing type/collation
 rules; the full predicate still filters candidates. Otherwise the added input buffers once.
 System inputs have no index paths or object locks. Computed merged keys do not gain index probes.
-EXPLAIN describes each join step and its scan or seek.
+Both inputs can use selective equality/range restrictions before constructing pairs, including
+filtering scanned inputs. Compatible mandatory equijoin equalities propagate exact constants across
+INNER inputs and from the preserved to the nullable input of LEFT. Floating keys and incompatible
+text types or collations do not infer constants. Complete ON and WHERE predicates still run;
+duplicates and mixed numeric comparisons keep their ordinary results. A dropped or replaced index,
+including a same-name index with different keys, falls back to a residual-filtered scan.
+[EXPLAIN](../statements/explain.md) describes the driving input and each join step's scan or seek.
+
+### Predicate safety
+
+Only mandatory AND terms whose entire evaluation is proven unable to raise an error can filter
+an input early. Eligible forms include comparisons (including IS [NOT] DISTINCT FROM), IS [NOT]
+NULL, Boolean tests, BETWEEN, IN and LIKE over columns, constants and supplied parameters with
+compatible types and fixed collations. Text comparisons and LIKE require an index-backed
+collation; LIKE also requires a validated constant/parameter pattern and escape. Text predicates
+over derived outputs and predicates over unknown column types remain at their original level.
+
+Standard identity and widening numeric casts qualify only without target length, precision or
+scale modifiers. Narrowing, text-to-number, domain and application casts remain residual.
+Text LENGTH/CHAR_LENGTH/CHARACTER_LENGTH and the six captured transaction-clock forms are the only
+admitted calls; Immutable or Stable metadata alone does not prove safety. The clock forms use the
+same captured instant for seek bounds and runtime filters.
+
+Arithmetic, other unproven calls or scalar forms, row-dependent LIKE patterns/escapes, subqueries,
+outer references and deferred failures remain at their original join level. Thus an invalid cast
+or zero divisor on a row discarded by the join or an earlier ON/WHERE term raises no new error.
+Nullable-side WHERE predicates stay after LEFT's NULL extension; nullable-side ON predicates may
+filter that input early. A preserved-side ON predicate cannot remove its unmatched left row.
 
 | Form | Support | Boundary |
 | --- | --- | --- |
@@ -99,6 +127,16 @@ ORDER BY t.id;
 ```
 
 The result contains Ada's and Alan's matching email addresses.
+
+Reversing the written inputs and restricting the primary key still returns Ada's one match:
+
+```sql
+SELECT t.name, p.email FROM profiles p JOIN t ON p.user_id = t.id WHERE t.id = 1;
+SELECT t.id FROM t LEFT JOIN profiles p ON t.id = p.user_id WHERE p.user_id IS NULL;
+```
+
+The results are `(Ada, ada@example.test)` and `2`, respectively. The second WHERE remains after
+NULL extension and selects the unmatched row.
 
 ```sql
 SELECT s.TABLE_NAME, c.COLUMN_NAME
@@ -143,5 +181,6 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinExecutionTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinIndexSemanticsTests.cs`
+- **Predicate safety** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinPredicateSafetyTests.cs`
 - **N-way, LEFT, USING and output types** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`
 - **Syntax boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlJoinShapeTests.cs`

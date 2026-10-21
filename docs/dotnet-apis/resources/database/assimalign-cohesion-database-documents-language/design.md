@@ -91,6 +91,8 @@ SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and retur
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
 [Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–022
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
+Database lifecycle failures additionally use COHDBD003 for missing sidecars, incomplete creation or
+unrecoverable files, with no assigned SQLSTATE. See [file diagnostics](../../../../database/document/language/diagnostics.md#database-files).
 
 ## Scalar evaluation and metadata
 

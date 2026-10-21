@@ -35,8 +35,8 @@ public sealed class GraphDatabaseScopeTests
     public async Task Every_operation_checks_database_binding_and_Gql_cannot_reach_server_scope(string command)
     {
         await using var engine = GraphDatabaseEngine.Create(new());
-        var own = (IGraphDatabase)await engine.CreateDatabaseAsync("own");
-        var other = (IGraphDatabase)await engine.CreateDatabaseAsync("other");
+        var own = (GraphDatabase)await engine.CreateDatabaseAsync("own");
+        var other = (GraphDatabase)await engine.CreateDatabaseAsync("other");
         await using var session = await own.CreateSessionAsync();
         await using var otherSession = await other.CreateSessionAsync();
         var a = await other.CreateNodeAsync(otherSession, ["Person"]);

@@ -105,6 +105,14 @@ ANY/SOME/EVERY and array IN use the same result encoding. Duplicate parsed bindi
 OQL0010; direct AST duplicate/empty bindings use COHDOC023. Neither code has an assigned SQLSTATE.
 These failures use the existing structured Failure carrier and leave the connection reusable.
 
+## Rental isolation
+
+DocumentConnection wraps a new shared lease for each rental; the pool retains only its internal connector.
+Database is captured before return, allowing operation diagnostics to finish after the core lease
+is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
+reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
+for disposal, shutdown and the explicit-transaction reset gap (#1540).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/docs/DESIGN.md`.

@@ -194,6 +194,14 @@ counts even with RETURN; read-only rows use -1. Pure no-ops count zero. ExecuteA
 count while QueryAsync returns rows and count. Type/label refusals use ExecutionFailure and leave
 the server session ready; framing and protocol negotiation are unchanged.
 
+## Rental isolation
+
+GraphConnection wraps a new shared lease for each rental; the pool retains only its internal connector.
+Database is captured before return, allowing operation diagnostics to finish after the core lease
+is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
+reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
+for disposal, shutdown and the explicit-transaction reset gap (#1540).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/DESIGN.md`.

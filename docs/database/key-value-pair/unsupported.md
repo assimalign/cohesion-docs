@@ -32,9 +32,9 @@ The key-value parser does not use `COHDBL001` for these exclusions. It reports
   `ReadCommitted`.
 - **Text collation** — configurable collation is deferred. Keys remain opaque bytes ordered by
   unsigned lexicographic comparison.
-- **Model-specific replication and security packages** — their project files are scaffolds,
-  without implementations in those package directories. This does not remove the server's
-  shared authentication handshake.
+- **Model-specific replication** — the former project is removed; no replication API is supplied.
+- **Model-specific security package** — a scaffold without implementation; the server still uses
+  the shared authentication handshake.
 
 ## See also
 

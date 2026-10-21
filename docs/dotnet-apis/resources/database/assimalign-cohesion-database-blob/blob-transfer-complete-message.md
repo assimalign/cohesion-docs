@@ -21,4 +21,4 @@ Actual content count at transfer completion or upload publication
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/Assembly/Assimalign.Cohesion.Database.Blob/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/Protocol/BlobTransferCompleteMessage.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/ValueObjects/BlobTransferCompleteMessage.cs`.

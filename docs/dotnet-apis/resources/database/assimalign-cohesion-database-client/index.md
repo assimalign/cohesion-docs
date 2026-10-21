@@ -18,11 +18,11 @@ framed exchanges, and pools authenticated connections.
 
 ## Scope
 
-- **`IDatabaseClient`** — the pooling entry point (`DatabaseClient.Create`):
-  `RentAsync` returns an open, authenticated connection; disposing a rented
-  connection returns it to the pool with its server session intact.
-- **`IDatabaseConnection`** — one protocol session: `OpenAsync` (handshake) and
-  `ExecuteAsync<TResult>(IDatabaseProtocolExchange<TResult>)` returning the model's
+- **`DatabaseClient`** — the sealed pooling entry point (`DatabaseClient.Create`):
+  `RentAsync` returns a fresh lease over an authenticated session; disposing it permanently ends
+  that lease and returns a healthy session to the pool.
+- **`DatabaseConnection`** — one rental lease, already open:
+  `ExecuteAsync<TResult>(DatabaseProtocolExchange<TResult>)` returns the model's
   result. The exchange supplies codecs and materialization policy.
   Streaming Blob downloads keep this exchange active while the caller reads;
   content stream disposal cancels unfinished work before releasing the rental.
@@ -53,6 +53,13 @@ user information, query, or fragment—and maps its `IdnHost` and `Port` directl
 endpoint without formatting and reparsing a string.
 
 See [DESIGN.md](design.md) for the pooling and settings decisions.
+
+Disposed leases cannot reach later rentals. Metadata and execution throw ObjectDisposedException;
+IsOpen returns false. Repeated disposal or abort joins the original return. Shutdown closes returned
+connectors and fails waiting renters with ObjectDisposedException.
+
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
+> The pool preserves unfinished transaction state, which a later renter can inherit.
 
 ## Declarative commands
 

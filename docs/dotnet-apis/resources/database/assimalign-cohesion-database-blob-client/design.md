@@ -7,8 +7,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 ## Ownership and family
 
 The typed client binds `Database.Client` to the exact `BlobProtocol.Family` instance.
-`IBlobClient.ConnectAsync` rents an authenticated shared connection and wraps its lease in
-`IBlobConnection`. `Database` selection happens in the shared handshake and is immutable; Blob
+`BlobClient.ConnectAsync` rents an authenticated shared connection and wraps its lease in
+`BlobConnection`. `Database` selection happens in the shared handshake and is immutable; Blob
 requests carry container and object names only. The client never chooses a concrete transport and
 owns no parallel handshake, frame parser, or connection pool.
 
@@ -212,6 +212,14 @@ framing, handshake and model messages are unchanged.
 | `Assimalign.Cohesion.Connections` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Rental isolation
+
+BlobConnection wraps a new shared lease for each rental; the pool retains only its internal connector.
+Database is captured before return, allowing operation diagnostics to finish after the core lease
+is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
+reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
+for disposal, shutdown and the explicit-transaction reset gap (#1540).
 
 ## Sources
 

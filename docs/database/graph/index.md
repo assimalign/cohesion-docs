@@ -15,8 +15,8 @@ catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph 
 ## Database and session model
 
 `GraphDatabaseEngine` creates, opens, enumerates, and drops logical databases.
-`IGraphDatabase` exposes typed node, relationship, and traversal operations; each operation receives
-an explicit `IDatabaseSession` belonging to that exact database. Session identity is checked even
+`GraphDatabase` exposes typed node, relationship, and traversal operations; each operation receives
+an explicit `GraphDatabaseSession` belonging to that exact database. Session identity is checked even
 when databases share an engine or name. Queries cannot select a different database.
 
 `GraphSchema.Open(database, session)` provides label/type discovery, property metadata, ownership
@@ -102,6 +102,18 @@ be unwound, but final entity lists remain unavailable over the wire (COHDBG001; 
 - **[Database overview](../overview.md)** — shared database model.
 - **[Database APIs](../../dotnet-apis/resources/database/index.md)** — resource reference.
 - **[SQL language](../sql/language/index.md)** — the separate relational dialect.
+
+## Database lifecycle
+
+Create/open require the original graph.dat, graph.log and graph.bak file set. Missing sidecars
+are refused with COHDBG018 and never recreated, including for an empty closed database. Preserve
+ambiguous files and restore the complete backup. A directory without data or a data file no larger
+than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
+Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;
+transient I/O failures ask for an open retry after resolution, without restore advice.
+
+See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#database-creation-open-and-drop)
+and [file diagnostics](language/diagnostics.md#database-files).
 
 ## Sources
 

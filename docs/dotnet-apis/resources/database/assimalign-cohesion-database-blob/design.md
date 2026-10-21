@@ -60,6 +60,13 @@ names are single file-name components, compared ignoring case; invalid path comp
 addresses the open instance set. Container and blob names are ordinal and case-sensitive; a slash in
 a blob name is ordinary name content, never a database selector.
 
+## Checkpoint triggering
+
+The shared worker rechecks due work after collecting a deferred lane and attempts at most one new
+checkpoint in that pass. Failures retain their retry delay and busy storage waits for the next pass.
+This closes a consumed-wake gap without imposing a journal bound. Size/interval triggers remain
+soft, and #1283 remains open.
+
 ## Chunk chain and disk compatibility
 
 A visible catalog metadata version references the head of an immutable content chain. Each chunk
@@ -445,8 +452,65 @@ Shared startup negotiates 2.1 with no Blob Diagnostics capability. Negotiated 2.
 Ready and baseline Blob payload bytes; different majors are refused. All model payload readers
 reject malformed UTF-8. Structured Diagnostics is not a Blob result mechanism.
 
+## Database files
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBB004` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+
+This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
+with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBB004.
+
+## Database creation, open and drop
+
+File-backed Blob databases require their original blob.dat, blob.log and blob.bak.
+Create and open refuse a missing journal or backup with COHDBB004 in DatabaseException.Diagnostics;
+neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
+ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
+
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBB004.
+A data file no larger than one page is an incomplete create, since successful creation flushes two
+pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
+ordinary create does not adopt them. Drop removes blob.dat before deleting the remaining directory.
+
+A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
+tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
+corruption uses COHDBB004 with preservation/restore advice. Transient storage I/O, including a full
+pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
+without drop or backup advice. No storage or record format changes are introduced.
+
+### Lifecycle API
+
+```csharp
+public new ValueTask<BlobDatabase> CreateDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public new ValueTask<BlobDatabase> OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+```
+
+Disposed engines throw ObjectDisposedException; cancellation throws OperationCanceledException.
+Invalid names use DatabaseName validation, and an existing completed database rejects create.
+The file-set code is an Error diagnostic with no assigned SQLSTATE. Declared Build also refuses
+missing sidecars without writing replacements; declared databases cannot be dropped.
+
+On a fresh in-memory engine:
+
+```csharp
+await using var engine = BlobDatabaseEngine.Create("sales-engine", new());
+var database = await engine.CreateDatabaseAsync("sales");
+await database.DisposeAsync();
+var reopened = await engine.OpenDatabaseAsync("SALES"); // reopens the same logical database
+await engine.DropDatabaseAsync("sales");
+```
+
+See [database lifecycle](../../../../database/blob/index.md) and the BlobDatabaseNameTests
+file-set refusal, crash recovery and transient-open cases.
+
 ## Sources
 
+- **Lifecycle implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/src/BlobDatabaseEngine.cs`.
+- **File-set and recovery cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobDatabaseNameTests.cs`.
 - **Lock handoff regression** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobLockHandoffTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/DESIGN.md`.

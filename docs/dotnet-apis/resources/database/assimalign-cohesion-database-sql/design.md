@@ -100,6 +100,65 @@ Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` b
 an upgrade reader; compiled schemas stay version 7. Evidence: SqlT1StorageFormatTests,
 SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
+## Database creation, open and drop
+
+SQL remains at data-storage format 25. Create commits the optional default collation, dbo and then
+the format marker. An interrupted marker-free creation is completed only when its durable creation
+claim and read-only probes prove initial empty data and creation-only catalog metadata. An empty
+data scan alone cannot distinguish creation from a lost catalog after acknowledged empty-table DDL.
+
+The transient sql.create claim is durably written before the first data header. Completion requires
+the initial header state, no records or later page allocation, empty data journal/backup, and only
+the catalog's initial object-id counter, optional collation and dbo. A data checkpoint fences a
+stale claim before it is removed and the completed database is published.
+
+| File state | Create/open behavior |
+| --- | --- |
+| Valid creation claim, initial empty data and absent or creation-only unmarked catalog | Create or open completes creation before publishing the database |
+| Data or catalog shorter than a storage header, with no conflicting catalog/journal state | Open raises DatabaseNotFoundException carrying COHSQLC001 and directs a CreateDatabaseAsync or declared Build retry |
+| Missing journal/backup, ambiguous lost catalog, nonempty data beside creation-only metadata, or short files beside other persisted state | Refused with COHSQLC001; originals are preserved and no replacement sidecars are created |
+| Explicit old/new format marker or unmarked catalog containing user metadata | Existing format refusal; no upgrade or adoption |
+
+A retried create uses its requested collation, including after dbo was committed. An undeclared
+plain open retains a committed collation, otherwise uses Binary. Declared completion applies the
+declaration's collation (or Binary when absent). A format refusal probes every catalog size through
+read-only handles and private recovery overlays before either real
+file set opens for writing. Refusals leave the original files byte-identical. Transient probe I/O
+failures ask callers to retry OpenDatabaseAsync once resolved, without restore or drop advice.
+
+Drop deletes sql.dat first, then other data files, then the remaining directory. A partial drop
+cannot be reopened by recreating missing sidecars. Preserve ambiguous files and follow the refusal's
+specific remedy; incomplete headers beside existing state cannot safely be restarted.
+
+### Lifecycle API
+
+```csharp
+public new ValueTask<SqlDatabase> CreateDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask<SqlDatabase> CreateDatabaseAsync(DatabaseName name, Collation defaultCollation,
+    CancellationToken cancellationToken = default);
+public new ValueTask<SqlDatabase> OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
+```
+
+Names use DatabaseName validation. An existing completed database still rejects create. Lifecycle
+refusals surface as DatabaseException; the SQL format-refusal subtype is internal. Disposed engines
+throw ObjectDisposedException and cancellation throws OperationCanceledException. Declared databases
+cannot be dropped. COHSQLC001 is an Error diagnostic with no assigned SQLSTATE.
+
+On a fresh in-memory engine, the ordinary lifecycle is:
+
+```csharp
+await using var engine = SqlDatabaseEngine.Create("sales-engine", new());
+var database = await engine.CreateDatabaseAsync("sales", Collation.CaseInsensitive);
+await database.DisposeAsync();
+var reopened = await engine.OpenDatabaseAsync("SALES"); // same logical database and collation
+await engine.DropDatabaseAsync("sales");
+```
+
+Creation recovery and collation retries are checked in SqlCreateRecoveryTests; file-set preservation
+and partial drops are checked in SqlDatabaseNameTests. See [diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
+
+
 ## Compiled-schema provisioning
 
 `ISqlDatabase` implements the root `IDatabaseSchemaProvisioner` seam. Before a schema is applied,
@@ -358,8 +417,9 @@ unsupported-clause diagnostics.
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
 - **Format rule (record-space format version, catalog-persisted).** Only format 25 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
-  SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer versions are refused before opening data
-  files. No upgrade reader exists; export with the writing engine, recreate and reload.
+  SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer markers are refused before opening data files for write. An unmarked catalog
+  containing only creation metadata can complete only under the creation-proof rules above.
+  No upgrade reader exists; export with the writing engine, recreate and reload.
 
 - **Schema evolution (#1023):** `ADD COLUMN` validates the default expression and
   current rows under the exclusive object lock before publishing the complete
@@ -909,10 +969,14 @@ configuration contract.
 ## T1 execution contract
 
 FROM binds each comma item's join tree separately before data access. ON sees only that item's
-inputs through the current step. Execution follows written order; only the first INNER pair may
-swap for an index, later steps seek into the added input, and LEFT always preserves its left side.
-Each LEFT step evaluates its residual before NULL extension; WHERE runs after the complete join.
-EXPLAIN emits a JoinStep child and scan/seek access for each step.
+inputs through the current step. Execution is left-deep; the first INNER pair can choose either
+driver, preferring a full unique-key WHERE seek. Proven non-throwing single-input restrictions
+filter both inputs early and select equality/range seeks; compatible mandatory equijoin keys
+propagate exact constants. LEFT keeps nullable-side WHERE after NULL extension while safe right-only
+ON terms may filter early. Complete ON/WHERE residuals preserve results and short-circuit errors.
+See [predicate safety](../../../../database/sql/language/clauses/join.md#predicate-safety) for the exact
+allowlist of types, casts, calls and collations. Both input and inner-probe seeks verify index identity
+and scan if detached or replaced. EXPLAIN includes the driving IndexSeek and bounds plus each JoinStep.
 
 USING maintains visible output separately from physical slots: merged names appear once, followed
 by remaining left and right columns. Merged expressions use a common implicit type, retaining
@@ -1210,8 +1274,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
-Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+Explicit earlier markers and unmarked user catalogs are refused at open; there is no
+upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 7.
 
 ## Aggregate modifiers and text results
 
@@ -1233,7 +1297,7 @@ reads; cancellation, stack exhaustion, memory, storage and I/O failures propagat
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
 inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
 modifiers after format 23's catalog views. Current format 25 adds the predicate forms below and
-refuses all earlier formats.
+refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
 apply after index checks, including immutable calls. Rows buffer until apply/commit completes;
@@ -1315,6 +1379,8 @@ grants, progress, preparation cleanup, replay, RETURNING and both isolation leve
 
 ## Sources
 
+- **Creation recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCreateRecoveryTests.cs`.
+- **Format refusal preservation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDataStorageFormatTests.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Assimalign.Cohesion.Database.Sql.csproj`.
 

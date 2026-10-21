@@ -31,7 +31,10 @@ See [TransactionCoordinator](../../../../dotnet-apis/resources/database/assimali
 
 Data definition language (DDL) is rejected while the explicit transaction is active with
 `COHSQLT003`. Statements outside an explicit transaction auto-commit. Session disposal or wire
-disconnect rolls back an unfinished transaction. `TRANSACTION` alone is not a statement.
+disconnect rolls back an unfinished transaction. Returning a client lease to its pool does not
+dispose that server session: end or roll back an explicit transaction before disposing the
+connection. Otherwise a later renter can inherit it (known gap #1540). `TRANSACTION` alone is not
+a statement.
 
 The coordinator also has an API for selecting an isolation level; SQL isolation-level syntax,
 nested transactions, and savepoints are outside this language subset.

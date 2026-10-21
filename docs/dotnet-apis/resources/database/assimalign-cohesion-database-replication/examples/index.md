@@ -1,16 +1,12 @@
-# Examples
+# Assimalign.Cohesion.Database.Replication examples
 
-Examples for `Assimalign.Cohesion.Database.Replication` are derived from source documentation and code.
+> **Status:** Removed. This project is absent from the current source tree.
 
-> **Status:** Partial.
+This package supplies no replication API or runtime. Replication remains outside the implemented Database surface.
+This retained page records removal; it does not describe an available assembly.
 
-No self-contained usage example was found in this project’s overview, documented type pages, or
-co-located tests. The assembly and design pages describe the source contract without inventing a
-consumer API.
-
-[Assembly overview](../index.md) · [Design](../design.md)
+[Database APIs](../../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Replication/src/Assimalign.Cohesion.Database.Replication.csproj`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Replication/src/Abstractions/IReplicationCoordinator.cs`.
+- **Current area inventory** — `cohesion/resources/Database/README.md`.

@@ -37,6 +37,16 @@ code use COHKV019. Wire Error text is CODE: message, with the existing layout; K
 negotiate the core Diagnostics capability. For example GET without its operand reports COHKV018;
 PUT KEYSPACES @value reports COHKV002. Conditional misses remain successful outcomes.
 
+## Missing file sets and interrupted drop
+
+File-backed open requires the original data and catalog file sets, including each journal and
+backup. With the primary data file present, missing sidecars or required catalog files raise
+DatabaseException with COHDBK004 in Diagnostics (Error, no
+assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
+complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
+first, then other data files, then the remaining directory. It cannot resurrect a partially
+dropped database by recreating a sidecar.
+
 ## Command failures
 
 | Condition | Surface | Effect |

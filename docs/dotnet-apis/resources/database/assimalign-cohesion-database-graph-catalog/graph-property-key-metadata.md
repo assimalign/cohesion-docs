@@ -10,7 +10,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Catalog`.
 
 ## Documented behavior
 
-`GraphCatalog.Open` creates an `IGraphCatalog` over graph storage and its transaction coordinator.
+`GraphCatalog.Open` creates a `GraphCatalog` over graph storage and its transaction coordinator.
 `GraphLabelMetadata` and `GraphRelationshipTypeMetadata` carry stable GUIDs, case-sensitive names,
 ownership, and owning schema. `GraphPropertyKeyMetadata` declares optional value type and
 requiredness. `GraphIndexMetadata` names a node-property index.
@@ -24,4 +24,4 @@ requiredness. `GraphIndexMetadata` names a node-property index.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Catalog/docs/Assembly/Assimalign.Cohesion.Database.Graph.Catalog/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Catalog/src/GraphPropertyKeyMetadata.cs`.
+- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Catalog/src/ValueObjects/GraphPropertyKeyMetadata.cs`.

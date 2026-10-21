@@ -11,8 +11,7 @@
 - **[`BlobClient`](blob-client.md)** — Documented public type.
 - **[`BlobClientException`](blob-client-exception.md)** — Documented public type.
 - **[`BlobClientOptions`](blob-client-options.md)** — Documented public type.
-- **[`IBlobClient`](i-blob-client.md)** — Documented public type.
-- **[`IBlobConnection`](i-blob-connection.md)** — Documented public type.
+- **[`BlobConnection`](blob-connection.md)** — Documented public type.
 
 `Assimalign.Cohesion.Database.Blob.Client` provides typed uploads, downloads, deletion, properties,
 and prefix listing over the Blob wire family. It targets .NET 10 and NativeAOT, uses explicit binary

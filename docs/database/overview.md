@@ -38,8 +38,6 @@ the server. Cross-engine transactions are not provided.
 | `Assimalign.Cohesion.Database.Protocol` | Bounded framing, handshake, lifecycle, errors, version negotiation, fixed model-family binding |
 | `Assimalign.Cohesion.Database.Client` | Shared connection settings, pooling, authentication, framing, and exchange lifetime |
 | `Assimalign.Cohesion.Database.Security` | Authentication and authorization contracts; model-specific enforcement is a separate concern |
-| `Assimalign.Cohesion.Database.Replication` | Replication coordinator contract; implementation remains post-MVP |
-| `Assimalign.Cohesion.Database.Governance` | Resource-governor admission contract; operational build-out remains post-MVP |
 | `Assimalign.Cohesion.Database.Hosting` | Application composition, configuration, services, provisioning, and server lifecycle |
 | `Assimalign.Cohesion.Database.Embedded` | In-process engine composition, lookup, and reverse-order disposal |
 
@@ -47,7 +45,7 @@ The area root composes child roots; child roots do not depend on it. Each model 
 kernel rather than introducing separate paging, journaling, or locking. Model-specific layout,
 catalog, language, client, security, and replication concerns stay with the model.
 
-> **Status:** Not yet implemented. Replication and governance have contracts, but the operational implementations described by the program are deferred.
+> **Status:** Removed. The former replication and governance placeholder projects and contracts are absent. These features have no current runtime API.
 
 ## Host composition
 
@@ -146,6 +144,45 @@ development behavior rather than configuring model authorization.
 For SQL row examples, use the [SELECT fixture](sql/language/statements/select.md#examples).
 The repository's Database demo also creates all five engines directly, with no listeners.
 
+## Pooled connection leases
+
+Each rent creates a new DatabaseConnection over an internal pooled connector. Disposal permanently
+ends the lease; metadata and execution then throw ObjectDisposedException, while IsOpen returns
+false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
+later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
+
+> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
+> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+
+See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
+and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
+
+## Database file sets and lifecycle
+
+Create/open/drop are engine operations. SQL completes only provably empty interrupted creation;
+ambiguous catalogs and missing sidecars are refused without replacement files. Graph, Document and
+Blob require their original journal and backup even for an empty closed database. Drop deletes the
+primary data file before sidecars. Preserve ambiguous file sets and follow the coded refusal.
+
+| Model | File-set refusal code | Reference |
+| --- | --- | --- |
+| SQL | COHSQLC001 | [Creation and open](sql/language/diagnostics.md#database-creation-and-open) |
+| Graph | COHDBG018 | [Database files](graph/language/diagnostics.md#database-files) |
+| Document | COHDBD003 | [Database files](document/language/diagnostics.md#database-files) |
+| Blob | COHDBB004 | [Database files](blob/operations.md#database-file-diagnostics) |
+| Key-Value Pair | COHDBK004 | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
+
+These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
+permit replacing missing journals. Transient open/inspection I/O failures can be retried after
+resolution and do not advise restore or drop. SQL remains at format 25.
+
+## Checkpoint triggering
+
+Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
+rechecks due work in the same pass and attempts at most one new checkpoint. Failures keep their
+retry delay; busy storage waits for the next pass. This closes a consumed-wake gap without bounding
+journal size; #1283 remains open. See [storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+
 ## Read-only transactions and durability
 
 SQL, Document, Graph, Key-Value Pair and Blob share lazy journal enrollment. Beginning a logical
@@ -207,8 +244,8 @@ and Graph supports [eager stage composition](graph/language/clauses/next.md), in
 
 The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
-MVP. Security contracts do not imply complete model authorization, and replication/governance
-contracts do not imply operational implementations.
+MVP. Security contracts do not imply complete model authorization. The former replication and
+governance projects are removed and supply no current API.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row

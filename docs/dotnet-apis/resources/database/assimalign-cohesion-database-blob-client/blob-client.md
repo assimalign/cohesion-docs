@@ -10,9 +10,9 @@ Namespace: `Assimalign.Cohesion.Database.Blob.Client`.
 
 ## Documented behavior
 
-`BlobClient.Create(BlobClientOptions)` returns an `IBlobClient`. Options require shared
+`BlobClient.Create(BlobClientOptions)` returns a `BlobClient`. Options require shared
 `DatabaseConnectionSettings` and an `IDuplexConnectionFactory`; creating a client performs no I/O.
-`ConnectAsync` rents an authenticated `IBlobConnection` bound to the selected database.
+`ConnectAsync` rents an authenticated `BlobConnection` bound to the selected database.
 
 ## Related reference
 

@@ -98,6 +98,14 @@ Execution falls back to a residual-filtered scan when the bound index was droppe
 including reuse of its name for different keys. [EXPLAIN](explain.md) shows the planned IndexSeek
 and bounds or TableScan. Seek selection changes access, not predicate results.
 
+For [JOIN](../clauses/join.md#predicate-safety), proven non-throwing single-input restrictions can
+filter both inputs early and choose equality/range seeks. Compatible equijoin keys propagate exact
+constants; a full unique seek can drive the first INNER pair even when written second. LEFT keeps
+nullable-side WHERE predicates after NULL extension. Casts, arithmetic and calls that may throw
+remain at their original evaluation level; Immutable or Stable metadata alone is insufficient.
+Both constant input seeks and inner join probes fall back to scans if their planned index is
+dropped or replaced. Complete ON/WHERE predicates preserve NULL and duplicate-row semantics.
+
 ## Examples
 
 ### A. Create the conformance fixture
@@ -160,6 +168,8 @@ The client materializes the complete result. One connection executes one command
 
 - **Access selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.cs`.
 - **DML equivalence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.
+- **Join restrictions and driving input** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinExecutionTests.cs`.
+- **Join error safety** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinPredicateSafetyTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

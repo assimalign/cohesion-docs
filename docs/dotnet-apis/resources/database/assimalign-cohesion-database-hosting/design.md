@@ -142,6 +142,17 @@ Use a loopback connection for standalone development or a gateway identity for r
 
 Model server factories supply `IDuplexConnectionListener` instances to their model options. Each server owns accepted `IDuplexConnection` sessions and closes them during its drain; listener disposal does not transfer connection ownership to the hosting module.
 
+## File-set refusals and command replay
+
+Declared Build uses the engines' open/create rules: SQL completes only a proven empty interrupted
+create, while missing sidecars and ambiguous catalogs remain preserved refusals. Graph, Document and
+Blob never recreate missing journals/backups during provisioning. A data-file-first drop prevents
+reopening an interrupted deletion. See [model lifecycle codes](../../../../database/overview.md#database-file-sets-and-lifecycle).
+
+Database resource command keys and engine lookup compare ordinally ignoring case, matching engine
+and database identity. Engine/database names differing only in case resolve the same command and
+replay ownership. This does not change declaration ownership or permit dropping declared databases.
+
 ## Declared dependencies
 
 | Reference | Kind |

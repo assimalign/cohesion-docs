@@ -53,6 +53,13 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   (servers are per-model and each model carries its own copy of the machinery —
   owner decision 2026-07-14; see DESIGN.md).
 
+## Database lifecycle
+
+Create/open complete only a provably empty interrupted creation with its creation claim. Missing
+sidecars and ambiguous catalogs are preserved and refused with COHSQLC001; pre-header retries use
+CreateDatabaseAsync or declared Build. Drop removes the primary data file first. Format remains 25.
+See [signatures, remedies and examples](design.md#database-creation-open-and-drop).
+
 ## Usage
 
 See the [source-backed usage examples](examples/index.md).

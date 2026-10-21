@@ -28,8 +28,11 @@ releases its locks, with no lifecycle append or flush wait.
 Keep `BEGIN`, all enclosed statements, and `COMMIT` on the same rented client connection.
 A connection lost after server-side publication but before the response leaves an unknown outcome.
 The wire protocol has no durable transaction token, status lookup, or replay deduplication.
-`ISqlConnection.AbortAsync` discards an unsafe rental; it cannot undo a published commit.
+`SqlConnection.AbortAsync` discards an unsafe rental; it cannot undo a published commit.
 DDL statements committed outside this transaction are not part of its scope.
+
+End the explicit transaction before disposing its pooled connection. Pool return preserves an
+unfinished transaction for the next renter (known gap #1540); it does not roll back automatically.
 
 ## Examples
 

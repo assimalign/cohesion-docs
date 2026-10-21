@@ -19,7 +19,7 @@ string collation settings do not change key equality or ordering.
 
 ## Execution and storage
 
-`IKeyValueDatabase` exposes `GetAsync`, `PutAsync`, `DeleteAsync`, `ExistsAsync`, and `ScanAsync`.
+`KeyValueDatabase` exposes `GetAsync`, `PutAsync`, `DeleteAsync`, `ExistsAsync`, and `ScanAsync`.
 The session text surface parses commands into the same typed requests as the typed execution seam.
 A session addresses exactly one database; typed operations reject a session from another database.
 Database creation, opening, and deletion belong to the host-owned engine.
@@ -38,10 +38,20 @@ databases use two file sets: `<name>` for entries and index pages, and `<name>.c
 index registrations and the entry-format version. `KeyValueStorage` binds this model to the
 shared storage kernel; it does not implement a separate physical storage system.
 
+## Missing file sets and interrupted drop
+
+File-backed open requires the original data and catalog file sets, including each journal and
+backup. With the primary data file present, missing sidecars or required catalog files raise
+DatabaseException with COHDBK004 in Diagnostics (Error, no
+assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
+complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
+first, then other data files, then the remaining directory. It cannot resurrect a partially
+dropped database by recreating a sidecar.
+
 ## Client
 
-`KeyValueClient.Create` creates a pooling `IKeyValueClient`; `ConnectAsync` rents an
-`IKeyValueConnection`. The client turns typed operations into the command grammar and decodes
+`KeyValueClient.Create` creates a pooling `KeyValueClient`; `ConnectAsync` rents an
+`KeyValueConnection`. The client turns typed operations into the command grammar and decodes
 the model's results. Disposing a rented connection returns it to the pool. Conditional write
 results use `KeyValueWriteResult` or Boolean outcomes rather than exceptions.
 

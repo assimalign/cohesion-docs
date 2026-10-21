@@ -7,7 +7,7 @@ Examples for `Assimalign.Cohesion.Database` are derived from source documentatio
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
-- **[Provisioning Tests](provisioning-tests.md)** — This example exercises `Assimalign.Cohesion.Database` through its co-located test source.
+- **[Database ownership](provisioning-tests.md)** — Persisted owner values and schema-owned object refusals.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
