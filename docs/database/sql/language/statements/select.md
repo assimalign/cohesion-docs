@@ -67,9 +67,27 @@ is 0. A wildcard without FROM fails planning with COHSQLE013.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes
-pagination. `NULL` sorts first ascending and last descending. Equal ordering keys have no promised
-relative order; supply a tie-breaking key for stable paging. See the individual clause pages for
+pagination. `NULL` sorts first ascending and last descending. Equal ordering keys retain input
+order; supply a tie-breaking key for deterministic paging across access paths. See the individual clause pages for
 alias precedence, grouping validity, collation, and subquery cardinality.
+
+### Bounded result selection
+
+Without ORDER BY or DISTINCT, a limit stops output evaluation after OFFSET + LIMIT qualifying
+rows. Stored-table and system-view scans stop reading at that point; LIMIT 0 reads no input on
+these paths. Rows skipped by OFFSET still evaluate their projections. Unvisited rows make no
+projection calls and raise no projection errors, including volatile function calls.
+
+Grouped queries still consume aggregate input, but stop group projection and HAVING evaluation
+once the window is filled. Correlated queries stop evaluating outer rows. Join inputs/results and
+set operands still materialize; their final projection can stop at the window. DISTINCT completes
+before pagination and does not use this early stop. Planning errors remain errors even when a
+limit would return no rows.
+
+ORDER BY with a non-DISTINCT limit normally examines every qualifying input while retaining only
+the best OFFSET + LIMIT rows. Deferred collations and independent volatile outputs use a full sort;
+see [ordering evaluation](../clauses/order-by.md#evaluation-order). The selected output rows still
+materialize before delivery; bounded selection does not provide streaming results.
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
@@ -150,7 +168,22 @@ and one row containing 1. EXISTS counts its projected NULL as a row. SELECT * wi
 fails COHSQLE013. A non-Boolean WHERE or HAVING fails COHSQLE003 (42804); see
 [search conditions](../clauses/where.md#boolean-search-conditions).
 
-### D. Run a query from .NET
+### D. Stop before a later projection error
+
+Execute these statements separately:
+
+```sql
+CREATE TABLE bounded_rows (id INT);
+INSERT INTO bounded_rows VALUES (1), (3);
+SELECT 10 / (id - 3) FROM bounded_rows LIMIT 1;
+SELECT 10 / (id - 3) FROM bounded_rows LIMIT 0;
+```
+
+The queries return one row containing `-5`, then no rows. Neither evaluates division for `id = 3`.
+`SELECT id FROM bounded_rows ORDER BY 10 / (id - 3) LIMIT 1` instead fails with
+COHSQLE001 (22012), because ordering evaluates the later key.
+
+### E. Run a query from .NET
 
 This complete client program assumes the fixture exists in database `audit` on the configured
 Transmission Control Protocol (TCP) endpoint. Reference `Assimalign.Cohesion.Database.Sql.Client`
@@ -190,6 +223,7 @@ The client materializes the complete result. One connection executes one command
 
 ## Sources
 
+- **Bounded selection and evaluation order** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs`, `SqlBoundedSelectionRegressionTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.
 - **Implicit row and composition** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstantSelectTests.cs`.
 - **Wire results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlSubqueryWireTests.cs`.
 

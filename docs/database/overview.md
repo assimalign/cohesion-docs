@@ -225,7 +225,7 @@ resources and publishes no database, permitting retry once the condition is reso
 
 | Model | Storage/I/O | Catalog/index | Additional failure codes |
 | --- | --- | --- | --- |
-| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLT006: changed-target retry |
+| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLE045 (54000 for size refusals): result encoding or header/row limit; COHSQLT006: changed-target retry |
 | Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
 | Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
 | Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |
@@ -253,6 +253,28 @@ their payload is `database`, `exceptionType`. `OutOfMemoryException` still propa
 failure before commit success or in an explicit transaction still fails the operation. See
 [Documents](document/language/diagnostics.md#operation-cleanup) and [Blob](blob/operations.md#operation-cleanup).
 
+## Engine health and version purge
+
+SQL, Key-Value Pair, Document, Graph and Blob keep retrying background work after failure.
+A purge blocked by the same page/owning bracket for at least three actual attempts over at least
+FailureBackoff (one second on the engine clock) emits one observational WorkerFailed report for
+that episode. Calls made before a retry is due do not count. A changed blocker or completed work
+resets the episode; unrelated writes and journal activity do not. Close, drop and replacement end it.
+
+The worker Fault and engine Faulted state expose the refusal while the database stays in service.
+HasFailingWorker(database) remains false for an observation alone; existing operations and new
+handshakes remain served. Observation-only reports never contribute to the offline window or its
+minimum failed-pass count. Successful work clears the observation. A busy full pass retries after
+FailureBackoff, rather than waiting for the next maintenance interval.
+
+ForeignStorage refusals are reported immediately as operational failures, including checkpoints;
+they follow the existing offline policy. A deferred checkpoint failure reaches the next worker
+checkpoint call. Document and Blob catalog cleanup preserves an earlier purge exception's type
+when non-OutOfMemoryException history maintenance also fails, attaching the cleanup failure in
+`Exception.Data["HistoryMaintenanceFailure"]`. No diagnostic code or SQLSTATE is added.
+See [worker APIs and events](../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#worker-failure-reporting).
+Cache has no implemented engine or purge worker.
+
 ## Commit and cancellation
 
 SQL, Document, Graph, Key-Value Pair and Blob use one explicit commit/rollback cancellation rule.
@@ -262,6 +284,12 @@ outcome. Automatic commit takes over without the caller token after statement ex
 Self-committing SQL DDL finishes mandatory cleanup and delivers the committed result despite late
 cancellation. Execution and lock waits remain cancellable before that boundary. A wire connection
 that dies after commit can still lose the outcome frame. See [the coordinator API and example](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
+
+If a full journal buffer fails to drain before COMMIT is appended, no commit LSN is assigned:
+the transaction ends Faulted, storage goes offline with JournalFlush, and the model's existing
+offline diagnostic reaches the caller. Reopen scrubs the uncommitted writer. A failure after COMMIT
+has been buffered instead has a committed-unconfirmed outcome. The model transaction-failure tests
+cover this boundary for all five engines.
 
 ## Checkpoint triggering
 

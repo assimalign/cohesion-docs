@@ -71,6 +71,25 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   surface name. An actually unknown leading command still receives `SQL0002`, even
   when a later recognized token is also unsupported.
 
+## SELECT evaluation
+
+The grammar and public AST are unchanged by bounded selection. Unordered non-DISTINCT limits stop
+projection/HAVING at the qualifying window; table/system scans also stop reading. Fixed-collation
+ORDER BY with a non-DISTINCT limit retains OFFSET + LIMIT candidates with stable input ties.
+Independent volatile outputs keep full sorting and sorted-order projection before pagination;
+ordinary nonvolatile projections evaluate before each input's keys. DISTINCT and upstream
+aggregation/join/set materialization remain. These are engine rules, documented with examples in
+[SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection) and
+[ORDER BY](../../../../database/sql/language/clauses/order-by.md#evaluation-order).
+
+## Result encoding diagnostics
+
+Result encoding uses COHSQLE045 for uncoded preparation failures and header/row size refusals
+(SQLSTATE 54000 for size refusals). Writes prepare before commit and roll back only the failed
+statement; reads encode during delivery and may terminate partial results. The connection and
+explicit transaction remain usable. The 16 MiB limit applies per header/row, with no aggregate cap.
+Parser and AST shapes are unchanged. See [result diagnostics](../../../../database/sql/language/diagnostics.md#result-encoding-and-delivery).
+
 ## Namespace note
 
 Types live in `Assimalign.Cohesion.Database.Sql.Language`, matching the assembly name (the repo

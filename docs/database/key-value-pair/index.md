@@ -88,6 +88,14 @@ results use `KeyValueWriteResult` or Boolean outcomes rather than exceptions.
 - **[Database overview](../overview.md)** — the shared kernel.
 - **[Database API reference](../../dotnet-apis/resources/database/index.md)** — resource assemblies.
 
+## Engine health
+
+Persistent version-purge refusals are reported once after three actual attempts spanning at least
+one second on the engine clock. They set engine Faulted while the database stays in service and
+HasFailingWorker remains false for the observation. ForeignStorage refusals report immediately as
+operational failures. See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-keyvaluepair/design.md#version-purge-refusals)
+and [shared engine health](../overview.md#engine-health-and-version-purge).
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/OVERVIEW.md`.

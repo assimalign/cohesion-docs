@@ -244,6 +244,19 @@ their per-database failure/backoff handling. Offline provisional storages are sk
 storages tolerated, and other provisional flush errors reach the constructing commit without a
 worker failure record. SQL uses the same pass; Documents, Blob and Graph retain self-help during open.
 
+### Version purge refusals
+
+A refusal against the same blocker is reported once after at least three actual attempts spanning
+FailureBackoff (one second) on the engine clock. Not-due calls do not count; a changed blocker or
+completed work resets the episode, while unrelated writes/WAL activity do not. Close, drop or
+replacement ends it. A busy full pass retries after FailureBackoff. The report sets worker Fault
+and engine Faulted but keeps clients served: HasFailingWorker remains false for the observation,
+and it contributes neither offline time nor minimum-pass count. Completion clears the fault when
+no other failure remains. ForeignStorage refusals report immediately as operational failures;
+the checkpointer and statement-deferred checkpoint hand-off use the same distinction. See
+[shared reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/VersionPurgeRefusalTests.cs`.
+
 ## Two file sets per database
 
 `<name>` (entries + primary index pages — index pages ride the data storage's transactional page

@@ -57,6 +57,38 @@ await connection.ExecuteAsync("BEGIN");
 await connection.ExecuteAsync("ROLLBACK"); // finish before returning the lease
 ```
 
+## Result failure example
+
+Adapted from SqlResultDeliveryWireConformanceTests, using an open connection with diagnostics
+negotiated. Each expression fits, but the combined second RETURNING row exceeds one frame:
+
+```csharp
+using System.Linq;
+
+await connection.ExecuteAsync("CREATE TABLE result_sizes(id INT)");
+await connection.ExecuteAsync("BEGIN");
+await connection.ExecuteAsync("INSERT INTO result_sizes VALUES (9)");
+string columns = string.Join(", ", Enumerable.Range(1, 34).Select(i =>
+    $"CASE WHEN id = 3 THEN 'partial' ELSE RPAD('x', 524288, 'x') END AS c{i}"));
+try
+{
+    await connection.QueryAsync(
+        "INSERT INTO result_sizes VALUES (3), (4) RETURNING " + columns);
+}
+catch (SqlClientException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE045
+    Console.WriteLine(failure.ConnectionUsable);    // True
+}
+var remaining = await connection.QueryAsync("SELECT COUNT(*) FROM result_sizes");
+Console.WriteLine(remaining[0].GetInt64(0)); // 1: earlier statement remains
+await connection.ExecuteAsync("COMMIT");
+```
+
+The failed QueryAsync exposes no partial rows. The result refusal maps to SQLSTATE 54000.
+Read-only result failures also throw and discard partial rows while allowing another command
+on the same connection. See [wire results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
+
 ## Related reference
 
 [SQL client](index.md) · [Design](design.md) · [Shared lease](../assimalign-cohesion-database-client/database-connection.md)
@@ -74,6 +106,7 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 ## Sources
 
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - **Terminal client conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalErrorTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/SqlConnection.cs`.

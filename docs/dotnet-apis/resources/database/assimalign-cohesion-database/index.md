@@ -45,12 +45,15 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
   diagnostics (name, kind, cadence). The `DatabaseEngineWorker` base never lets a failure end its
   loop: it records a database's failure (`Fault`), skips that database for `FailureBackoff` while
   the others keep the worker's pace, and retries; `Faulted` lasts exactly while a worker holds a
-  failure it has not worked off (#1268); `HasFailingWorker(name)` and `HasEngineWideFailure`
-  tell one database's failure from the engine's own (owner decision 42). A database whose work
-  keeps failing for `WorkerFailureWindow` (100 s by default) across at least
+  failure it has not worked off (#1268). Persistent purge refusals can be observational: State
+  is Faulted while clients remain served and HasFailingWorker(name) is false. That method reports
+  operational database failures; HasEngineWideFailure reports an engine-wide failure. A database whose work
+  keeps failing operationally for `WorkerFailureWindow` (100 s by default) across at least
   `WorkerFailureMinimumPasses` failed passes (three by default, owner decision 42) is taken
   offline (owner decision 25). Failures, recoveries and give-ups are written to the
   `Assimalign.Cohesion.Database` event source.
+  See [worker reporting](design.md#worker-failure-reporting) for the three-attempt/time threshold,
+  recovery, event counts and protected ReportFailure overload.
 - **Server contracts** — `DatabaseServer` (start/stop lifecycle — "running" lives on the server,
   never the engine — with the one `Engine` it fronts and its active `Sessions`). Servers are
   per-model and this base is the only area-wide requirement — each model derives its server from

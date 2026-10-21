@@ -66,6 +66,14 @@ ExecutionFailure, with `ConnectionUsable = true`. The message names the table, b
 limit. No statement rows change; an explicit transaction remains active with earlier work intact.
 See [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
 
+Result encoding/preparation failures without an existing code and encoded headers/rows above
+16 MiB use COHSQLE045 with Kind/Code ExecutionFailure and ConnectionUsable true. Size refusals map
+to SQLSTATE 54000; other COHSQLE045 failures have no assigned SQLSTATE. There is no aggregate
+result cap. The client discards partial results and throws, even when a read already delivered rows.
+Writing statements prepare before commit and roll back only the failed statement. The explicit
+transaction remains active. Transport failures during delivery are terminal. See the
+[recovery example](sql-connection.md#result-failure-example).
+
 ## Example
 
 ```csharp

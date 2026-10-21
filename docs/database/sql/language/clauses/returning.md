@@ -35,6 +35,12 @@ inside BEGIN; earlier successful statements remain. Results buffer until apply c
 auto-commit succeeds. A slow application function in RETURNING holds up other database writers.
 Materialized results remain readable after a later ROLLBACK.
 
+Over the wire, every header and row is encoded and size-checked inside the statement's undo
+bracket before commit or result delivery. Encoding, enumeration or disposal failure rolls back
+only this statement; earlier transaction work and the connection remain usable. Each header/row
+must fit 16 MiB, with no aggregate result cap. Writes retain these prepared payloads until delivery.
+See [result delivery](../diagnostics.md#result-encoding-and-delivery).
+
 In process, DatabaseResultSet.AffectedCount is the direct write count. Over the wire,
 [SqlResultSet.AffectedCount](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-client/sql-result-set.md)
 provides that count alongside rows. SELECT uses -1. A zero-row write returns typed columns,
@@ -53,6 +59,7 @@ executing the write or projection.
 | COHSQLE015 | Unknown/hidden target qualifier or an INSERT source reference | — |
 | SQL0003 | Empty RETURNING list or SELECT ... RETURNING | — |
 | COHSQLE001 | Projection divides or takes a remainder by zero; rolls back the statement | 22012 |
+| COHSQLE045 | Uncoded result preparation failure or encoded header/row above 16 MiB; rolls back the statement | 54000 for size refusals |
 
 A target actually named or aliased old/new masks that pseudo-relation name. Ordinary output/old/new
 identifiers retain their quoting rules. UPDATE accepts bare output as a target alias; DELETE needs

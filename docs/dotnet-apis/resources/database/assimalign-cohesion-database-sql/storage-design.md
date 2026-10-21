@@ -43,6 +43,20 @@ The model enforces engine → Catalog → Storage → shared kernel through arch
   ownership of the journal; composers coordinate journal writes and checkpoints
   through their transaction coordinator and must not dispose it independently.
 
+## Table reclamation and page reuse
+
+The SQL engine reclaims unreachable table owner chains in durable batches of at most 32 pages,
+after its snapshot and statement-reader fences allow release. Shared storage rechecks the free
+generation captured when its kernel lookup learned the page id. A free/reuse before first touch
+refuses or skips that allocation, including same-owner reuse; stale inserts allocate afresh.
+See [kernel reuse rules](../assimalign-cohesion-database-storage/design.md#transactional-owner-release).
+
+FreeOwnerPages can skip stale snapshot entries, so reclaiming fewer than 32 pages is insufficient
+to finish a table. After committing the batch, SqlTableReclamation also requires
+`!DataStorage.HasOwnerPages(objectId)` before removing the durable catalog reclamation intent.
+A crash after the data commit but before intent removal safely retries discovery. This changes
+neither the page format nor the public API.
+
 ## Error model
 
 No exception types of its own: everything is the substrate's `StorageException` family. The SQL
@@ -63,5 +77,7 @@ adds no reflection and no serialization.
 
 ## Sources
 
+- **Completion check** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Engine/Storage/SqlTableReclamation.cs`.
+- **Reuse races** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageStaleTouchTests.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Assimalign.Cohesion.Database.Sql.csproj`.

@@ -81,6 +81,12 @@ for idle names without a subsequent lookup. Pinned snapshots retain their visibl
 lookups spend remaining budget on up to two cleanup probes. With safe purge and checkpoint work,
 sustained overwrites reuse pages and the data file plateaus; see [storage reclamation](storage-design.md#deletion-and-bounded-recovery).
 
+If both purge and the following history maintenance fail, the original purge exception escapes
+unchanged. The maintenance exception is retained in Data["HistoryMaintenanceFailure"], preserving
+busy, cancellation and disposal classifications. A maintenance failure without a purge failure
+propagates normally. OutOfMemoryException is excluded from this preservation; a purge that raises
+it skips further maintenance. See [purge refusals](design.md#version-purge-refusals).
+
 ## Metadata disk format, version 1
 
 Every record is one slotted-page record in the owner-zero record space. Multibyte numeric values use
@@ -136,6 +142,7 @@ rejected. Serialization uses explicit BCL primitives with no reflection or gener
 
 ## Sources
 
+- **Failure preservation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.MaintenanceFailures.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.Publication.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.History.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/Catalog/BlobCatalogTests.Overwrites.cs`.

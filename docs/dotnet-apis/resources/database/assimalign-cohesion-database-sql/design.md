@@ -63,8 +63,9 @@ columns, including inside scalar ordering expressions. Qualified references and 
 retain their source scope. Invalid numeric ordinals fail during binding, even for an empty input;
 compound constants such as `1 + 1` remain scalar expressions.
 
-The executor materializes each referenced projection before sorting and retains source values
-alongside it for other ordering keys. Grouped queries use the same binding against completed group
+The executor evaluates each projection and its ordering keys in one pass, retaining completed
+outputs and fixed keys rather than source rows. Independent volatile outputs without output-key
+dependencies retain full sorting followed by projection. Grouped queries use the same binding against completed group
 outputs. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
 follows each projection's source for collation. It does not reconstruct language AST nodes or
 require cross-assembly internal access. Sorting is stable, with NULL first ascending and last
@@ -470,9 +471,19 @@ unsupported-clause diagnostics.
   truth tests, `CASE`, `BETWEEN`, `IN` (lists), `IS NULL`, parameters (`@name`
   bound by bare name), and a small builtin set (`COALESCE`, `UPPER`, `LOWER`,
   `LENGTH`, `ABS`). Compiled expression plans are a later optimization.
-- **SELECT materializes.** Sorting and `DISTINCT` need the full result anyway at
-  this stage; `SqlMaterializedResultSet` carries typed columns and evaluated
-  rows. Streaming operators arrive with the planner build-out.
+- **Bounded SELECT selection.** Unordered non-DISTINCT LIMIT stops after OFFSET + LIMIT
+  qualifying outputs; table/system scans also stop reading. OFFSET rows evaluate projections;
+  unvisited rows skip projection/HAVING errors and volatile calls. Grouped input still accumulates,
+  while correlated outer rows and final join/set projection can stop. Fixed-collation ORDER BY
+  with a non-DISTINCT positive limit examines all inputs but retains at most OFFSET + LIMIT outputs
+  and key tuples in a max-heap, using input ordinals for stable ties. The bound saturates at
+  Int64.MaxValue and storage grows from actual retained rows. Deferred collations use full sorting,
+  retaining the last qualifying row's resolved collations. Independent volatile ordinary outputs
+  keep full sorting then sorted-order projection before pagination; other projections evaluate
+  before each input's keys. DISTINCT finishes before pagination. Aggregate state, join inputs/results
+  and set operands still materialize. `SqlMaterializedResultSet` holds completed output before
+  delivery; snapshot/lock/reader-epoch ownership remains statement-scoped. There is no public option
+  or new wire frame. See [SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection).
 - **Transactions (MVCC session binding, `3.8).** Every statement — explicit
   transaction or auto-commit — runs under an `ITransactionContext` from the
   database's transaction manager, whose sequences come from the storage's own
@@ -652,7 +663,7 @@ Documents, Blob and Graph retain self-help during open.
 - **`SqlPageWriteBackWorker`** — paced `WriteBackDirtyPages(batch)` per storage per
   pass (`PageWriteBackInterval`/`PageWriteBackBatchSize`).
 - **`SqlCheckpointWorker`** — checkpoints **both** file sets of every open database
-  per pass (`CheckpointInterval`); a busy storage (`StorageTransactionException`) is
+  per pass (`CheckpointInterval`); ordinary storage contention is
   skipped and retried next pass. The data file set checkpoints **through the
   database's transaction coordinator**, so the truncating checkpoint record
   carries every in-flight logical transaction's sequence (recovery
@@ -665,10 +676,9 @@ Documents, Blob and Graph retain self-help during open.
   the minimum snapshot floor of every open transaction, anchored above the
   recovered sequence namespace after a reopen, or the manager's oldest-active
   bound when idle; the manager's bound alone would let a live pinned snapshot
-  lose a version it can still read). Cadence: `MaintenanceInterval`. A pass
-  failure flips the engine to `Faulted` without stopping service — unpurged
-  versions cost space, never consistency. The stub-era seam was untouched, as
-  designed: activation changed the worker body and nothing else.
+  lose a version it can still read). Full passes follow `MaintenanceInterval`;
+  busy or failed work uses its retry backoff. Retained failures report Faulted;
+  observational refusals and operational failures follow the policies below.
 - **`SqlIndexMaintenanceWorker`** — the one remaining documented stub
   (sanctioned by #902): the index layer has no compaction to drive yet. It
   keeps the inventory — and any observer over it — stable; the throttled
@@ -678,15 +688,30 @@ Documents, Blob and Graph retain self-help during open.
 **Lifecycle (create → use → dispose):** the worker threads live exactly as long as the engine.
 Disposal signals the pumps, joins the threads *before* closing storages (no worker pass may touch a
 database being disposed), then durably flushes and closes every open database — an embedded consumer
-gets identical durability with no host and no composition at all (R10). A worker fault flips the
-engine's observational `State` to `Faulted` without stopping service — a faulted worker never
-compromises correctness (grouped commits self-help within the window; checkpoints simply stop
-truncating), but the owner can observe the engine runs degraded. (Previously the fault was thrown
-from `StopAsync`; with lifecycle members gone, `State` is the reporting surface — throwing from
-`DisposeAsync` would be hostile to `await using`.)
+gets identical durability with no host and no composition at all (R10). A retained worker fault
+sets the engine's observational State to Faulted without ending the worker loop. Persistent purge
+refusals keep the database in service; operational database failures follow the ordinary service
+refusal and offline policy. State alone does not identify which policy applies.
 
 Cadence knobs live here, on `SqlDatabaseEngineOptions` — the engine owns the loop, so cadence is
 engine configuration; observers read it through `IDatabaseEngineWorker.Interval`.
+
+### Version purge refusals
+
+A refusal against the same blocker is reported once after at least three actual attempts spanning
+FailureBackoff (one second) on the engine clock. Not-due calls do not count; a changed blocker or
+completed work resets the episode, while unrelated writes/WAL activity do not. Close, drop or
+replacement ends it. A busy full pass retries after FailureBackoff. The report sets worker Fault
+and engine Faulted but keeps clients served: HasFailingWorker remains false for the observation,
+and it contributes neither offline time nor minimum-pass count. Completion clears the fault when
+no other failure remains. ForeignStorage refusals report immediately as operational failures;
+the checkpointer and statement-deferred checkpoint hand-off use the same distinction.
+
+SQL also runs bounded table reclamation between full purge passes. A successful reclamation batch
+clears its own refusal report without waiting for the maintenance interval; a failed full purge
+remains owed. See [table reclamation](storage-design.md#table-reclamation-and-page-reuse) and
+[shared reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/VersionPurgeRefusalTests.cs`.
 
 ## The SQL server runtime (`SqlDatabaseServer`)
 
@@ -1161,6 +1186,25 @@ share one instant across statements; autocommit statements each capture their ow
 
 ## Error model
 
+### Wire result preparation
+
+Writing statements prepare the result header and every row before commit or explicit EndStatement.
+DML does this inside ApplyStatementAsync, including enumeration and disposal, so preparation
+failure rolls back the statement and preserves earlier transaction work. DDL and transaction
+control prepare their fixed zero-count completion before executing. Prepared payloads are retained
+until delivery without re-encoding. Embedded execution uses no wire preparation buffers.
+
+Read-only SELECT, EXPLAIN, system views and SHOW encode one frame at a time during delivery after
+materialization and statement admission end. A late result failure sends ExecutionFailure even
+after partial frames; the client discards them. Uncoded encoding/preparation failures use
+COHSQLE045; already-coded failures retain their diagnostics. Each header/row fits 16 MiB
+(16,777,216 bytes), with no aggregate result cap. Size refusals map to 54000 and report encoded
+size and limit. Both paths leave the connection and explicit transaction usable on result failures.
+Transport failures remain terminal and cannot turn a committed write into an ordinary statement
+failure. See [wire results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
+
+### Stored rows and execution failures
+
 SQL validates final row and index-key sizes before DML apply. Rows include their MVCC header and
 physical column layout and must fit 8,092 bytes. Every unique/nonunique write key, including
 collation transforms and NULL markers, must fit `BTreeIndex.MaxKeyLength` (1,024 bytes).
@@ -1180,6 +1224,7 @@ intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
 | COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
 | COHSQLE043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
 | COHSQLE044 | Individual contended lock wait expired | 55P03 |
+| COHSQLE045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
 | COHSQLT006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
 | COHSQLE042 | Encoded row or write/build index key exceeds its limit | 54000 |
 | COHDBS003 | Storage or attached-index corruption | XX001 |

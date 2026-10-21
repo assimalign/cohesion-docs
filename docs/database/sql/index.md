@@ -103,6 +103,14 @@ See [engine options](../../dotnet-apis/resources/database/assimalign-cohesion-da
 and [session overrides](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-session.md).
 
 
+## Engine health
+
+Persistent version-purge refusals are reported once after three actual attempts spanning at least
+one second on the engine clock. They set engine Faulted while the database stays in service and
+HasFailingWorker remains false for the observation. ForeignStorage refusals report immediately as
+operational failures. See [purge retries and reclamation recovery](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#version-purge-refusals)
+and [shared engine health](../overview.md#engine-health-and-version-purge).
+
 ## Database lifecycle
 
 Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its
@@ -131,6 +139,14 @@ usable session. Protocol errors close it. There is no pipelining or multiplexing
 `SqlClient` sends text and parameters without parsing them and materializes complete result sets.
 Transactions use `BEGIN`, `COMMIT`, and `ROLLBACK` on one connection rather than a separate
 wire transaction payload.
+
+Writing statements prepare all result frames before commit, so an encoding failure rolls back
+only that statement. Reads encode during delivery and can end a partial result with ExecutionFailure;
+the client discards it. Result failures keep the connection and explicit transaction usable.
+COHSQLE045 identifies uncoded encoding/preparation failures and header/row size refusals (54000
+for size refusals). Each header/row fits 16 MiB; there is no aggregate cap. Transport failures
+during delivery are terminal. See [result diagnostics](language/diagnostics.md#result-encoding-and-delivery)
+and [wire exchanges](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-protocol/design.md#statement-results).
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG

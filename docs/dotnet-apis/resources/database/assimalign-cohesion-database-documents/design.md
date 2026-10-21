@@ -323,7 +323,7 @@ COHDOC018 invalid stored JSON or a patched depth beyond 128. No SQLSTATE is assi
 
 `DocumentDatabaseEngine.Create` starts four engine-owned workers: checkpoint, write-ahead-log flush,
 dirty-page write-back, and MVCC version purge. `Workers` exposes them through the existing engine
-contract. The observable state is Running, Faulted after an unexpected worker exception, and
+contract. The observable state is Running, Faulted while a worker retains a reported failure, and
 Disposed after close. Disposal is idempotent: stop/join workers, dispose coordinators (rolling back
 open transactions), then durably flush and close each storage file set. Close errors are aggregated
 after attempting every database.
@@ -333,6 +333,26 @@ database-name directory. `Open` performs kernel WAL replay with its checkpoint d
 uncommitted record writers and index changes, and then completes the recovery checkpoint. Both
 synchronous and grouped durability acknowledge commits only after the journal is durable.
 Memory-backed databases use the identical storage/transaction implementation over in-memory streams.
+
+### Version purge refusals
+
+A refusal against the same blocker is reported once after at least three actual attempts spanning
+FailureBackoff (one second) on the engine clock. Not-due calls do not count; a changed blocker or
+completed work resets the episode, while unrelated writes/WAL activity do not. Close, drop or
+replacement ends it. A busy full pass retries after FailureBackoff. The report sets worker Fault
+and engine Faulted but keeps clients served: HasFailingWorker remains false for the observation,
+and it contributes neither offline time nor minimum-pass count. Completion clears the fault when
+no other failure remains. ForeignStorage refusals report immediately as operational failures;
+the checkpointer and statement-deferred checkpoint hand-off use the same distinction. See
+[shared reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+
+If catalog history maintenance also fails after purge failed, the original purge exception escapes
+unchanged, with the maintenance error in Data["HistoryMaintenanceFailure"]. Busy, cancellation and
+disposal keep their classifications; maintenance failure alone propagates normally. This preservation
+excludes OutOfMemoryException, which propagates without further maintenance when purge raises it. See
+[catalog maintenance](catalog-design.md#bounded-version-history).
+Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/VersionPurgeRefusalTests.cs`
+and `tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs` in the same project.
 
 ## Limits and verification
 

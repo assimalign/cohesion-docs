@@ -314,6 +314,11 @@ for the checkpoint's statement-apply gate; late reader promotion enrolls before 
 See [checkpoint flushing and the opt-in latency probe](../assimalign-cohesion-database-storage/design.md#checkpoints).
 Timing is measured without a pass/fail latency threshold. See [TransactionCoordinator](transaction-coordinator.md) for signatures and exceptions.
 
+ForeignStorage checkpoint refusals are operational failures. A checkpoint deferred to a statement
+retains this error for the next worker checkpoint call, preserving the statement's already-decided
+outcome. Only ordinary storage-bracket contention is retried as busy. Model purge workers report
+persistent ordinary refusals observationally; see [worker reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
+
 Statement apply, logical undo, and pruning share one semaphore. Engine conflict locks are acquired
 before statement apply, keeping genuine lock waits outside that semaphore and visible to deadlock
 detection. Statement brackets commit non-durably unless the caller selects the existing durable

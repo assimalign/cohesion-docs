@@ -68,6 +68,12 @@ safe to reclaim. Lookups use any remaining current-reader budget for up to two c
 Metadata and content pages become reusable after safe purge; steady overwrites with purge and
 checkpoint work can reach a storage plateau. See [storage reclamation](storage-design.md#compatibility-and-limits).
 
+If both purge and the following history maintenance fail, the original purge exception escapes
+unchanged. The maintenance exception is retained in Data["HistoryMaintenanceFailure"], preserving
+busy, cancellation and disposal classifications. A maintenance failure without a purge failure
+propagates normally. OutOfMemoryException is excluded from this preservation; a purge that raises
+it skips further maintenance. See [purge refusals](design.md#version-purge-refusals).
+
 ### Ownership
 
 Collections carry `DatabaseObjectOwner` plus an optional owning schema. `Schema` requires a nonempty
@@ -194,6 +200,7 @@ or Microsoft.Extensions dependencies.
 
 ## Sources
 
+- **Failure preservation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.Publication.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.History.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/Catalog/DocumentCatalogTests.Overwrites.cs`.

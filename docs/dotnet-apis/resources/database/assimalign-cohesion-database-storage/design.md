@@ -234,12 +234,68 @@ stops decoding the whole database.
   **commits**. Freeing eagerly would let the allocator hand a page to a new owner
   while the release could still roll back — the rollback's before-image would then
   resurrect old content over live data. Deferral makes that impossible.
+- **A stale write touch cannot claim a replacement allocation.** Current-write-page lookup and
+  bounded owner-release snapshots capture the page id and its free generation together under
+  the owner-directory lock, then the free-map lock. Page-manager lookup likewise checks allocation
+  and captures generation in one map hold before pinning. First-touch registration rechecks that
+  generation under the transaction lock before granting a page write lock. A committed free
+  between lookup and registration invalidates the touch even after reuse by the same owner or
+  while the replacement's bracket is active. A page already locked by this bracket needs no recheck.
+  A stale insert allocates afresh; owner release skips the stale page and checks the owner tag
+  before retyping. Explicit write-open throws StorageIOException: `Page <id> is not allocated.`
+  Refusal releases the pin without a write lock, pre-image or page record.
+- **Failed first-touch allocation releases its reservation.** When registration fails before
+  recording a pre-image, cleanup removes the owner/index directory entry, stamps a Reclaimed page
+  and returns the id while holding the transaction lock that releases its write lock. Cleanup
+  performs no device I/O, preserving the registration error. An allocation already held by another
+  bracket is retained rather than recycled.
+- **Generations are transient.** They change no disk format and start at zero on open. Entries
+  survive reuse while brackets remain active and clear when the last bracket finishes under the
+  same transaction lock used by Begin. Retained entries cover distinct pages freed since the last
+  quiescent point; dictionary capacity follows the largest such interval, at most the file's page count.
 - **Why release is O(pages), not O(1).** Full-page-image logging prices a
   transactional free at one page touch per page (before-image + after-image in the
   journal). A directory-level O(1) release needs a persisted allocation structure
   (the reserved bitmap-FSM page type) so freeing can be a metadata write; until
   that lands, chains keep releases proportional to the object, which is already
   incomparably better than the previous permanent leak.
+
+### Transactional owner release
+
+The relevant public members are:
+
+```csharp
+public StoragePageHandle OpenPageForWrite(StorageTransaction transaction, PageId pageId);
+public int FreeOwnerPages(StorageTransaction transaction, ulong ownerId, int maximumPages = int.MaxValue);
+```
+
+FreeOwnerPages snapshots a bounded batch of owner data/index pages and returns the number actually
+released, including pages already pending free for that owner in this bracket. Pages freed or
+reused since the snapshot are skipped; a short return alone does not prove reclamation complete.
+Reuse begins at commit. A nonpositive maximum throws ArgumentOutOfRangeException. Foreign/inactive
+brackets and rival page locks throw StorageTransactionException. OpenPageForWrite also throws
+StorageIOException for an unallocated or stale allocation or page 0. These changes add no diagnostic code.
+
+With a newly created storage facade, this adapts the allocation/release setup in StorageStaleTouchTests:
+
+```csharp
+using (var allocation = storage.BeginTransaction())
+{
+    using (var page = storage.AllocatePageForWrite(allocation, PageType.Index, ownerId: 17)) { }
+    allocation.Commit();
+}
+using (var release = storage.BeginTransaction())
+{
+    int released = storage.FreeOwnerPages(release, 17, maximumPages: 32);
+    release.Commit();
+    Console.WriteLine(released); // 1
+}
+```
+
+First touch follows structure latch, pin with pool monitor released, transaction lock, then
+free-map lock. Never hold the map lock across a pin or a wait for the transaction lock.
+See `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageStaleTouchTests.cs`
+for the deterministic lookup/pin/free/reuse races, including rollback and recovery.
 
 ## The journal (write-ahead log)
 

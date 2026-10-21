@@ -95,6 +95,18 @@ The parser can recognize syntax that is later rejected by binding or execution. 
 recovered parse tree or a name in the function vocabulary is not evidence of support.
 No code is invented above for restrictions whose source contract promises only an error or exclusion.
 
+## Evaluation and delivery boundaries
+
+Unordered non-DISTINCT [LIMIT](clauses/limit-offset.md) stops at the qualifying output window,
+skipping later projection/HAVING errors and volatile calls, as PostgreSQL does. OFFSET rows still
+evaluate. Ordinary nonvolatile projections evaluate before each row's ordering keys; independent
+volatile outputs instead evaluate in sorted order before pagination, preserving their full call
+count. [ORDER BY](clauses/order-by.md#evaluation-order) explains alias dependencies and collation
+fallbacks. Fixed-collation ORDER BY with a non-DISTINCT limit retains only OFFSET + LIMIT candidates.
+DISTINCT, aggregate input, join inputs/results and set operands retain their materialization rules.
+Selected rows still materialize before delivery; ordered index output, spillable sorts and streaming
+result execution are unavailable.
+
 ## See also
 
 [Language (SQL)](index.md) · [Diagnostics](diagnostics.md) · [Statements](statements/index.md) · [Builtin functions](functions/builtin-functions.md)

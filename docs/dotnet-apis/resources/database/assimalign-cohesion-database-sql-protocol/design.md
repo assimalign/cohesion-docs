@@ -28,6 +28,34 @@ engine, server and client integration tests remain with their respective project
 
 [Assembly](index.md) · [Examples](examples/index.md)
 
+## Statement results
+
+The shared handshake fixes SqlProtocol.Family for the connection. The client sends one Execute
+at a time; there is no pipelining or multiplexing. A successful row result sends ResultHeader,
+zero or more ResultRow frames, then ResultComplete. A non-row result sends ResultComplete alone.
+Error ends the exchange without ResultComplete. Negotiated Diagnostics immediately precedes
+Error or successful completion.
+
+| Path | Encoding and failure boundary |
+| --- | --- |
+| Writing statement | Prepare all header/row payloads before commit or explicit statement completion; DML enumeration/disposal runs inside its undo bracket. A failure precedes result frames and rolls back only the statement. DDL/control prepare fixed completion before execution. |
+| Read-only SELECT, EXPLAIN, system view or SHOW | Encode during delivery after materialization. ExecutionFailure may end a partial result; the client discards all partial columns/rows. |
+
+Each header and row has a **16 MiB (16,777,216-byte)** payload limit. There is no aggregate
+encoded-result cap. Uncoded result failures and size refusals carry COHSQLE045; existing coded
+failures retain their diagnostics. Size refusals map to SQLSTATE 54000, reporting encoded size
+and frame limit. SQLSTATE adds no wire field. Writes retain prepared payloads until delivery;
+reads retain only the current encoded frame alongside their materialized result.
+
+ParseFailure before results and ExecutionFailure at either result phase leave the session ready
+and any explicit transaction usable on a result failure. ParseFailure after result frames does
+not certify a reusable response. Malformed payloads, invalid ordering and terminal errors discard
+the connection. A transport failure during delivery is terminal even after a write committed;
+it is never converted to an ordinary statement failure. The wire format and public codecs are unchanged.
+
+See [result diagnostics](../../../../database/sql/language/diagnostics.md#result-encoding-and-delivery)
+and the [client example](../assimalign-cohesion-database-sql-client/sql-connection.md#result-failure-example).
+
 ## Terminal shared errors
 
 The Sql server uses one ShutdownDrainTimeout deadline for terminal Error write, flush,
@@ -41,6 +69,9 @@ and [server options](../assimalign-cohesion-database-sql/sql-database-server-opt
 
 ## Sources
 
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlResultDeliveryConformanceTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Protocol/docs/DESIGN.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Protocol/src/Assimalign.Cohesion.Database.Sql.Protocol.csproj`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/samples/Assimalign.Cohesion.Database.Client.AotSample/Program.cs`.
