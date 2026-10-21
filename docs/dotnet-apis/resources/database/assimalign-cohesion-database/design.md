@@ -459,9 +459,12 @@ or SQLSTATE.
 WorkerFailed uses the same per-database record for observational refusals. Its consecutiveFailures
 is the episode's failed-pass count, including report-only passes; it is not the offline minimum's
 operational count. A worker failure does not stop the loop or slow other databases' maintenance.
+Checkpoint isolation tests use an internal, opt-in per-pass record to verify that a failing
+database's backoff does not delay healthy databases; this adds no public API.
 
 ## Sources
 
+- **Checkpoint isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/CheckpointPassObservationTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/TestObjects/CheckpointPace.cs`.
 - **Reporting contract and fault precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseEngineWorker.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/DatabaseWorkerFailureWindowTests.cs`.
 - **Derived-worker example** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/TestObjects/ScriptedWorker.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/DESIGN.md`.
