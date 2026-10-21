@@ -71,6 +71,17 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   surface name. An actually unknown leading command still receives `SQL0002`, even
   when a later recognized token is also unsupported.
 
+## SELECT evaluation
+
+The grammar and public AST are unchanged by bounded selection. Unordered non-DISTINCT limits stop
+projection/HAVING at the qualifying window; table/system scans also stop reading. Fixed-collation
+ORDER BY with a non-DISTINCT limit retains OFFSET + LIMIT candidates with stable input ties.
+Independent volatile outputs keep full sorting and sorted-order projection before pagination;
+ordinary nonvolatile projections evaluate before each input's keys. DISTINCT and upstream
+aggregation/join/set materialization remain. These are engine rules, documented with examples in
+[SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection) and
+[ORDER BY](../../../../database/sql/language/clauses/order-by.md#evaluation-order).
+
 ## Namespace note
 
 Types live in `Assimalign.Cohesion.Database.Sql.Language`, matching the assembly name (the repo

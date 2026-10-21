@@ -26,8 +26,8 @@ positive one-based ordinals only. Expressions and qualified names use COHSQLE018
 output names use COHSQLE019. Parenthesized operands can retain their own ordinary SELECT ordering.
 
 Keys compare left to right. `NULL` sorts first ascending and last descending by default. Per-key NULLS FIRST/LAST overrides
-that placement independently of direction. Equal keys have
-no promised relative order; add a tie-breaker for stable paging. Ordering evaluates after grouping
+that placement independently of direction. Equal keys retain input order; add a tie-breaker for
+deterministic paging across access paths. Ordering evaluates after grouping
 and `HAVING`, before pagination, and composes with `DISTINCT` and supported system relations,
 joins, aggregates, and subqueries.
 
@@ -61,6 +61,25 @@ their visible columns. Out-of-range positions report `COHSQLE018`, even on empty
 [Aggregate input ORDER BY](../functions/aggregate-functions.md#aggregate-modifiers) binds to source
 rows. Unlike this outer clause, its integer keys are constants rather than output ordinals.
 
+## Evaluation order
+
+For an ordinary SELECT whose ordering does not reference outputs, nonvolatile projections and
+ordering keys evaluate together in input order, projection first. A projection error can therefore
+precede a key error. When keys reference an output alias or ordinal, that output is evaluated once
+per input and reused by the keys.
+
+Independent volatile outputs keep full sorting: keys evaluate in input order, then projections
+evaluate in sorted output order before pagination, even with LIMIT 0 or without a limit. A limit
+does not reduce their call count. This postponement follows PostgreSQL's treatment of independent
+volatile outputs. Grouped and correlated projections retain evaluation before sorting.
+
+For non-DISTINCT ORDER BY with a positive limit and fixed ordering collations, execution keeps
+only the best OFFSET + LIMIT candidates while examining all qualifying inputs. Ties preserve the
+same input order as a full sort, including collation-equivalent keys and NULLs. Deferred ordering
+collations use full sorting with the last qualifying row's resolved collations; a later row rejected
+by WHERE or HAVING does not replace them. DISTINCT completes before pagination. SQL has no
+MISSING value. Results remain materialized before delivery.
+
 ## Examples
 
 ```sql
@@ -73,6 +92,8 @@ ORDER BY years + 1 ASC, 1 DESC;
 ```
 
 The identifiers return in order `30`, `10`, `50`, `40`, `20`, unlike insertion order.
+
+Adding `LIMIT 2 OFFSET 1` returns `10`, `50` with the same ordering as the full result.
 
 ```sql
 CREATE TABLE a (id INT NOT NULL);
@@ -105,6 +126,7 @@ change its order relative to other non-NULL numbers.
 
 ## Sources
 
+- **Stable bounded ordering and volatile outputs** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs` and `SqlBoundedSelectionRegressionTests.cs` in the same directory.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Wildcard positions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`

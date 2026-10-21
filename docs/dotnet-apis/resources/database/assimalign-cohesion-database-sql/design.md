@@ -63,8 +63,9 @@ columns, including inside scalar ordering expressions. Qualified references and 
 retain their source scope. Invalid numeric ordinals fail during binding, even for an empty input;
 compound constants such as `1 + 1` remain scalar expressions.
 
-The executor materializes each referenced projection before sorting and retains source values
-alongside it for other ordering keys. Grouped queries use the same binding against completed group
+The executor evaluates each projection and its ordering keys in one pass, retaining completed
+outputs and fixed keys rather than source rows. Independent volatile outputs without output-key
+dependencies retain full sorting followed by projection. Grouped queries use the same binding against completed group
 outputs. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
 follows each projection's source for collation. It does not reconstruct language AST nodes or
 require cross-assembly internal access. Sorting is stable, with NULL first ascending and last
@@ -470,9 +471,19 @@ unsupported-clause diagnostics.
   truth tests, `CASE`, `BETWEEN`, `IN` (lists), `IS NULL`, parameters (`@name`
   bound by bare name), and a small builtin set (`COALESCE`, `UPPER`, `LOWER`,
   `LENGTH`, `ABS`). Compiled expression plans are a later optimization.
-- **SELECT materializes.** Sorting and `DISTINCT` need the full result anyway at
-  this stage; `SqlMaterializedResultSet` carries typed columns and evaluated
-  rows. Streaming operators arrive with the planner build-out.
+- **Bounded SELECT selection.** Unordered non-DISTINCT LIMIT stops after OFFSET + LIMIT
+  qualifying outputs; table/system scans also stop reading. OFFSET rows evaluate projections;
+  unvisited rows skip projection/HAVING errors and volatile calls. Grouped input still accumulates,
+  while correlated outer rows and final join/set projection can stop. Fixed-collation ORDER BY
+  with a non-DISTINCT positive limit examines all inputs but retains at most OFFSET + LIMIT outputs
+  and key tuples in a max-heap, using input ordinals for stable ties. The bound saturates at
+  Int64.MaxValue and storage grows from actual retained rows. Deferred collations use full sorting,
+  retaining the last qualifying row's resolved collations. Independent volatile ordinary outputs
+  keep full sorting then sorted-order projection before pagination; other projections evaluate
+  before each input's keys. DISTINCT finishes before pagination. Aggregate state, join inputs/results
+  and set operands still materialize. `SqlMaterializedResultSet` holds completed output before
+  delivery; snapshot/lock/reader-epoch ownership remains statement-scoped. There is no public option
+  or new wire frame. See [SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection).
 - **Transactions (MVCC session binding, `3.8).** Every statement — explicit
   transaction or auto-commit — runs under an `ITransactionContext` from the
   database's transaction manager, whose sequences come from the storage's own

@@ -27,6 +27,11 @@ HAVING requires a [Boolean search condition](where.md#boolean-search-conditions)
 aggregate such as `HAVING SUM(age)` fails with COHSQLE003 (42804), including on empty input.
 Untyped NULL is UNKNOWN and retains no group.
 
+Without ORDER BY or DISTINCT, LIMIT stops HAVING and group projection after OFFSET + LIMIT
+qualifying groups. Later groups raise no HAVING/projection errors and make no volatile calls.
+Aggregate input is still consumed before this stop; LIMIT does not skip errors while accumulating
+aggregates. See [bounded selection](../statements/select.md#bounded-result-selection).
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
