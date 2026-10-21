@@ -12,7 +12,7 @@ SCAN PREFIX @prefix [ LIMIT { limit_count | @limit } ]
 ```
 
 The diagrams show a conventional clause order. Accepted clauses may appear in any order,
-each at most once. `PREFIX` cannot be combined with `FROM` or `TO`.
+each at most once. A non-empty `PREFIX` cannot be combined with non-empty `FROM` or `TO` bounds.
 
 ## Supported clauses
 
@@ -28,7 +28,10 @@ each at most once. `PREFIX` cannot be combined with `FROM` or `TO`.
 
 `@start`, `@end`, and `@prefix` bind `byte[]` values. The limit must fit between `0` and
 `int.MaxValue`; a parameter can be an `int` or `long` within that range. Omitted bounds are
-unbounded and an omitted limit imposes no row cap.
+unbounded and an omitted limit imposes no row cap. Zero-length byte arrays also mean no bound:
+`SCAN TO @empty` scans to the end of the key space. This applies to `FROM`, `TO`, and `PREFIX`.
+An empty clause still counts toward the one-clause rule. Null operands remain invalid; there
+is no MISSING operand value in this grammar.
 
 The result columns are `key` (binary), `value` (binary), and `etag` (64-bit integer).
 
@@ -43,8 +46,9 @@ tree's read latch. LIMIT stops consuming after the requested rows; it does not c
 selected index range. The command still builds its result, and disposal releases the cursor's
 owned keys. See [range cursors](../../../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/b-tree-cursor.md).
 
-Duplicate clauses, negative limits, missing operands, and a prefix combined with explicit
-bounds fail during parsing rather than execution.
+Repeated clauses fail with `COHKV010`, even when the first operand is empty. A null or non-byte
+operand fails with `COHKV012`; a non-empty prefix combined with non-empty explicit bounds fails
+request validation with `COHKV004`. These are parse failures and execute nothing.
 
 ## Examples
 
@@ -60,6 +64,15 @@ With `p` bound to the bytes of `b:`, this returns the two `b:` entries:
 ```text
 SCAN PREFIX @p
 ```
+
+With `empty` bound to `Array.Empty<byte>()`, this returns all five keys in order:
+
+```text
+SCAN TO @empty
+```
+
+`SCAN PREFIX @p FROM @empty TO @empty` returns `b:1` and `b:2`. Repeating the upper clause
+as `SCAN TO @empty TO @e` fails with `COHKV010`.
 
 These separate corpus commands cap the scan at two rows and at the bound count, respectively:
 

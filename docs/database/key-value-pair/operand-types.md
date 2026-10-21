@@ -20,6 +20,9 @@ the only literal operand.
 The text parser specifically accepts `byte[]`; a string or boxed `ReadOnlyMemory<byte>` does
 not satisfy a byte operand. The typed request constructors separately accept
 `ReadOnlyMemory<byte>`. Point-operation keys cannot be empty. A value may be an empty byte array.
+For [SCAN](commands/scan.md), an empty start, end or prefix means no bound. Null text operands
+still fail with `COHKV012`. Typed scan options and client ranges treat null or zero-length
+memory as absent, including an implicitly converted null `byte[]`.
 
 ## Errors
 

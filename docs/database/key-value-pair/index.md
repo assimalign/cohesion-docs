@@ -54,12 +54,20 @@ shared storage kernel; it does not implement a separate physical storage system.
 ## Missing file sets and interrupted drop
 
 File-backed open requires the original data and catalog file sets, including each journal and
-backup. With the primary data file present, missing sidecars or required catalog files raise
+backup. With the primary data file present, missing sidecars in an existing file set raise
 DatabaseException with COHDBK004 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
+
+`OpenDatabaseAsync` refuses an entirely missing catalog with `COHDBK006` (Error, no assigned
+SQLSTATE) before either storage opens. For file-backed data of at most one page, creation
+stopped before both initial pages were flushed: follow the refusal's `DropDatabaseAsync`, then
+`CreateDatabaseAsync` remedy. Longer data without a catalog requires preserving all storage
+and restoring the complete database from backup. In-memory missing catalogs are also refused.
+These refused opens change no files and create no replacement catalog. Existing catalogs are
+decoded and format-validated before data opens or recovers; create still creates both sets.
 
 ## Client
 

@@ -255,6 +255,7 @@ leak), repaired by re-bootstrapping on the next open.
 | COHDBS003 | Storage or attached-index corruption | XX001 |
 | COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005 | — |
 | COHDBK001 | Aborted transaction refuses commands/commit; original cause retained | — |
+| COHDBK006 | Incomplete file-backed creation or missing catalog, refused before storage opens | — |
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
 causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
@@ -448,12 +449,38 @@ each refusal to its condition.
 ## Missing file sets and interrupted drop
 
 File-backed open requires the original data and catalog file sets, including each journal and
-backup. With the primary data file present, missing sidecars or required catalog files raise
+backup. With the primary data file present, missing sidecars in an existing file set raise
 DatabaseException with COHDBK004 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
+
+`OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default)` throws
+`DatabaseException` with Error diagnostic `COHDBK006` when file-backed data is at most one page
+or its catalog is entirely missing. Neither storage opens at this gate. The short data-set
+refusal directs `DropDatabaseAsync`, then `CreateDatabaseAsync`; a longer data set with no catalog
+requires preserving storage and restoring the complete backup. The missing-catalog gate also
+applies to in-memory storage. Surviving files remain byte-identical, no catalog is recreated,
+and the engine publishes no database. Existing catalogs are decoded and format-validated before
+data opens or recovers. No SQLSTATE is assigned to `COHDBK006`.
+
+### Scan bounds
+
+`KeyValueScanRequest(KeyValueScanOptions? options = null)` normalizes null or zero-length
+`Prefix`, `Start` and `End` to null before checking conflicts. A non-empty prefix with a
+non-empty explicit bound, or a negative limit, throws `ArgumentException`. `ScanAsync`
+performs that validation on its first `MoveNextAsync`.
+
+With the test keys `a`, `b`, `user:1`, `user:2`, `z`, this returns all five in order:
+
+```csharp
+await foreach (var entry in database.ScanAsync(session,
+    new KeyValueScanOptions { End = Array.Empty<byte>() }))
+{
+    Console.WriteLine(System.Text.Encoding.UTF8.GetString(entry.Key.Span));
+}
+```
 
 ## Sources
 

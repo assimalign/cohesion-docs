@@ -78,6 +78,10 @@ Observer exceptions cannot fault an operation or mask its exception.
 
 ## Materialized scans, AOT, and non-goals
 
+Null or zero-length `KeyValueScanRange` bounds mean absent, including an implicitly converted
+null `byte[]`. Only non-empty bounds participate in prefix/range conflict validation; empty
+clauses and their parameters are omitted. See [ScanAsync](key-value-connection.md).
+
 Materialized scans are this package's policy. `Use` a range limit to bound results; cursor composition
 can resume after the last key. An incremental API can be added here without changing shared result
 policy.
