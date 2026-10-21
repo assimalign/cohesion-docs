@@ -165,7 +165,7 @@ Server projection errors occur before the result header and leave the connection
 
 ## Predicate diagnostics
 
-Detected storage corruption uses COHDBS003 (no SQLSTATE) through the existing ExecutionFailure
+Detected storage corruption uses COHDBS003 (SQLSTATE XX001) through the existing ExecutionFailure
 path, naming the database and optional page and leaving the connection usable. See
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
 
@@ -190,6 +190,17 @@ Snapshot/ReadCommitted through the server-session API; SQL BEGIN adds no isolati
 Snapshot newer-conflict aborts and detected deadlocks require callers to roll back and retry the
 complete transaction. The client does not retry it automatically. See
 [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
+
+## Boolean conditions, implicit rows and storage failures
+
+Non-Boolean predicates arrive as ExecutionFailure with COHSQLE003 (42804), available spans
+and a reusable connection/explicit transaction. FROM-less SELECT, including scalar/IN/EXISTS
+children and aggregates, uses the existing query exchange and returns the implicit row or its
+filtered result on InMemory and TCP. No client API or wire payload changes.
+
+Storage/index failures instead use COHSQLE041 (58030 for I/O), or COHDBS003 (XX001) for
+corruption. Attached-index damage retains COHDBI002 and COHSQLE041. ExecutionFailure preserves
+the connection but aborts an explicit transaction; roll back before continuing.
 
 ## Sources
 

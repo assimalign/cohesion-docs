@@ -538,7 +538,57 @@ await engine.DropDatabaseAsync("sales");
 See [database lifecycle](../../../../database/blob/index.md) and the BlobDatabaseNameTests
 file-set refusal, crash recovery and transient-open cases.
 
+## Engine failure boundaries
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBB005` | Storage operation or open I/O failure; original cause retained | — |
+| `COHDBB006` | Malformed/unsupported catalog metadata; additional model diagnostic for attached-index corruption | — |
+| `COHDBB007` | Upload has failed or its transaction is no longer active; later writes/publication refused | — |
+
+Child-root storage and catalog failures cross the engine boundary as DatabaseException with
+Error diagnostics and the original InnerException. Explicit and automatic transaction begin use
+the same translation. Storage corruption leads with COHDBS003; attached-index corruption also
+retains COHDBI002 and COHDBB006. Existing offline/unconfirmed-commit classifications remain in
+force. An I/O open failure releases acquired resources, publishes no database and permits retry
+after the condition is resolved.
+
+A failed operation aborts an explicit transaction; roll it back before further work. The embedded
+session can then be reused. COHDBB001 is a structured aborted-transaction diagnostic with an
+ordinary embedded message. The wire adds the first Error code as a prefix when absent, sends
+ExecutionFailure and closes the connection.
+
+A failed upload or one whose transaction ended raises COHDBB007 on later writes rather than
+accepting buffered content. It cannot publish partial content; disposal after rollback also
+reports COHDBB007. Unrelated InvalidOperationException/ObjectDisposedException retain their
+ordinary .NET types. See [upload behavior](../../../../database/blob/operations.md#failure-behavior).
+
+### Upload after rollback
+
+With an existing database/session, this follows ChildRootFailureTests:
+
+```csharp
+var files = await session.CreateContainerAsync("files", CancellationToken.None);
+var transaction = await session.BeginTransactionAsync(cancellationToken: CancellationToken.None);
+var upload = await files.OpenWriteAsync("one", cancellationToken: CancellationToken.None);
+await upload.WriteAsync(new byte[1], CancellationToken.None);
+await transaction.RollbackAsync(CancellationToken.None);
+try { await upload.WriteAsync(new byte[1], CancellationToken.None); }
+catch (DatabaseException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBB007
+}
+try { await upload.DisposeAsync(); }
+catch (DatabaseException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBB007
+}
+Console.WriteLine(await files.GetPropertiesAsync("one", CancellationToken.None) is null); // True
+```
+
 ## Sources
+
+- **Child failures and upload lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/ChildRootFailureTests.cs` and `ChildRootFailureWireTests.cs` in the same directory.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

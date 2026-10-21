@@ -318,7 +318,22 @@ Database lifecycle failures additionally use COHDBG018 for missing journal/backu
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
 SQLSTATE; it is separate from GQL evaluation. See [file diagnostics](../../../../database/graph/language/diagnostics.md#database-files).
 
+## Label scans and engine failures
+
+Label scans use MVCC postings and decode only matching visible nodes. After bound entities and
+property seeks, the planner chooses the smallest retained-posting estimate at any node position,
+retaining the full pattern/WHERE residual and breaking ties by source order. Pure pattern unions
+merge selected ranges with duplicate suppression; EXPLAIN reports target A|B and combine=union.
+WHERE disjunctions supply no union anchor. See [MATCH](../../../../database/graph/language/statements/match.md),
+[WHERE](../../../../database/graph/language/clauses/where.md) and [EXPLAIN](../../../../database/graph/language/statements/explain.md).
+
+Runtime storage/index and open I/O failures carry COHDBG006 in Diagnostics; only wire formatting
+adds its prefix. Attached-index corruption leads with COHDBS003 and retains COHDBI002 and
+COHDBG006. Graph records/registrations require format 4; older layouts are refused with
+COHDBG017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
+
 ## Sources
 
+- **Label postings and anchor selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/Assimalign.Cohesion.Database.Graph.Language.csproj`.

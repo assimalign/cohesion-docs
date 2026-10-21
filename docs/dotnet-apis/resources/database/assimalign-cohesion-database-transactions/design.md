@@ -275,7 +275,12 @@ the writer active until durability completes, or ends it committed if durability
 Writer rollback appends an abort record after undo without waiting for that record's durability.
 Readers, including explicit read-only ends, disposal and ReadCommitted pins, append no lifecycle
 record and wait for no flush. They still end through the manager, leave the active table and release
-their locks. See [TransactionCoordinator](transaction-coordinator.md) for signatures and exceptions.
+their locks. Storage sequence reservations use an atomic counter and reader ends bypass the
+lifecycle-log gate, so readers can begin, pin cached pages and end while a checkpoint flushes.
+Snapshot capture and active-table insertion still share the manager begin lock. Writers wait
+for the checkpoint's statement-apply gate; late reader promotion enrolls before any stamp.
+See [checkpoint flushing and the opt-in latency probe](../assimalign-cohesion-database-storage/design.md#checkpoints).
+Timing is measured without a pass/fail latency threshold. See [TransactionCoordinator](transaction-coordinator.md) for signatures and exceptions.
 
 Statement apply, logical undo, and pruning share one semaphore. Engine conflict locks are acquired
 before statement apply, keeping genuine lock waits outside that semaphore and visible to deadlock

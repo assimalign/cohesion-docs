@@ -12,7 +12,7 @@ packages are retired. Wire contracts ship separately in [Sql.Protocol](../assima
 ## Reference pages
 
 - **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
-- **[SqlFunctionContext](sql-function-context.md)** — Database, collation and cancellation context.
+- **[SqlFunctionContext](sql-function-context.md)** — Database, collation, transaction timestamp and cancellation context.
 - **[SqlConstraintViolationException](sql-constraint-violation-exception.md)** — Named integrity failures and their single coded diagnostic.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.

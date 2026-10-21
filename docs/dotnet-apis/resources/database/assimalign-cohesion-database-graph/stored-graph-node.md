@@ -16,8 +16,9 @@ public readonly record struct StoredGraphNode(ulong Id, IReadOnlyList<string> La
 This value record carries one entity version. The constructor retains collections without validation.
 Create now accepts the complete record: reserve a nonzero Id from the backing storage's
 ReserveTransactionSequence. The store validates names/scalar properties, copies collections and
-rejects duplicate identities. Updates keep identity.
-Earlier snapshots can read earlier values in the format-3 chain.
+rejects duplicate identities. Creation and node updates require a map of labels to nonempty
+catalog GUIDs; the store trusts the pairing. Updates keep identity.
+Earlier snapshots can read earlier values in the format-4 chain.
 
 [GraphStore](graph-store.md) documents ArgumentException/ArgumentNullException for invalid values,
 ArgumentOutOfRangeException for zero create IDs and GraphElementTooLargeException for bounds.
@@ -28,7 +29,9 @@ Record construction alone does not write storage.
 ```csharp
 var record = new StoredGraphNode((ulong)storage.ReserveTransactionSequence(),
     ["Person"], new Dictionary<string, object?> { ["name"] = "Ada" });
-var stored = await store.CreateNodeAsync(record, context);
+var labelIds = new Dictionary<string, Guid>
+{ ["Person"] = Guid.Parse("10000000-0000-0000-0000-000000000001") };
+var stored = await store.CreateNodeAsync(record, labelIds, context);
 Console.WriteLine(stored.Id == record.Id); // True
 ```
 

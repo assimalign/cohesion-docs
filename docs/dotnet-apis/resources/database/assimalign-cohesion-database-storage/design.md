@@ -51,7 +51,7 @@ checkpoint anchor chain. Its checksums are separate from pooled-page checksums.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / COHDBS001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 3.
+reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 4.
 
 The changed public members are:
 
@@ -153,6 +153,20 @@ stability for the handle's lifetime.
   the caller's concern (a handle hands out a raw pointer); the transaction layer above
   provides content-level isolation. Sharding the lock is a measured-need optimization,
   not a default.
+
+Flush I/O releases the pool monitor. A flush snapshots dirty frame identities, copies one
+page image under the monitor, then writes outside it in 16-page bursts with a yield between
+bursts. The final stream flush also runs outside the monitor. Cached pins and dirty marks
+can progress while write-ahead, page-write or stream-flush I/O is blocked. An I/O lease keeps
+the copied frame from being recycled; eviction skips it or waits with the monitor released.
+Dirty-version checks preserve changes made while an older image is in flight. A separate
+gate serializes flush, resize and disposal; disposal drains I/O before clearing frames.
+Foreground cache misses and evictions still perform their own I/O under the pool monitor.
+
+StoragePageManager allocation releases its reserved page ID if obtaining an overwrite pin fails.
+If extension or initialization fails after pinning, it releases both the pin and reservation.
+The unjournaled-write audit runs before buffer initialization, so a refusing audit preserves a
+resident free page's bytes and dirty version. Repeated pool-exhaustion refusals do not leak pages.
 
 ## The record layer
 
@@ -318,11 +332,33 @@ hardened from "no page write locks" to an **active-transaction count** taken in 
 under the transaction lock and released exactly once per commit/rollback: a begun-but-untouched
 transaction holds no page lock yet has already appended its begin record, and the whole checkpoint
 now runs *under* the transaction lock, so no transaction can slip between the emptiness check and
-the truncation. Lock order is transaction lock → header → buffer pool → journal medium →
-journal append. Never wait for the medium while holding the append lock. Medium owners briefly
+the truncation. Lock order is transaction lock → header → flush gate → buffer pool monitor →
+journal medium → journal append. Flush I/O releases the pool monitor; eviction never takes the
+flush gate and waits for a frame lease with the monitor released. Never wait for the medium while holding the append lock. Medium owners briefly
 take the append lock to detach/publish prefixes and latch failures before yielding the medium.
 A checkpoint attempted while transactions are active still throws
 `StorageTransactionException` — background checkpointers treat that as "busy, retry next pass".
+
+Read-only logical transactions can begin, pin cached pages and commit or roll back while a
+checkpoint flushes. Sequence reservations use an atomic counter rather than the physical
+transaction lock, and reader ends do not take the lifecycle-log gate. Snapshot capture and
+active-table insertion remain together under the manager's begin lock. The checkpoint still
+holds the statement-apply gate, so writers wait through it. A reader promoted later enrolls in
+the retained journal before stamping pages, including when its reservation exceeds the captured
+header floor. This change provides reader progress, with no checkpoint latency guarantee or
+completion-time target.
+
+The physical-file latency probe is opt-in with COHESION_DB_PROBES=1; default test runs report it
+as skipped. From a writable cohesion checkout, PowerShell users can run:
+
+```powershell
+$env:COHESION_DB_PROBES = '1'
+dotnet test resources/Database/Assimalign.Cohesion.Database.Transactions/tests/Assimalign.Cohesion.Database.Transactions.Tests.csproj --filter FullyQualifiedName~CheckpointLatencyProbeTests
+```
+
+The probe reports nearest-rank p99 and maximum latency for reads overlapping checkpoint work
+over physical files with a 32 MiB pool. It runs at least five checkpoints and continues until
+overlap is observed. Measured times have no pass/fail threshold.
 
 ### Checkpoint triggering
 
@@ -471,6 +507,10 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 ## Sources
+
+- **Reader progress and frame cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageCheckpointFlushTests.cs`.
+- **Checkpoint-independent readers and late promotion** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCoordinatorRecoveryTests.cs`.
+- **Opt-in measurements** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/CheckpointLatencyProbeTests.cs`.
 
 - **Format-4 integrity and interrupted anchors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StoragePageIntegrityTests.cs`, `StorageFormatTests.cs`, `StorageAnchorReclamationTests.cs` and `StorageAnchorDurabilityTests.cs` in the same directory.
 

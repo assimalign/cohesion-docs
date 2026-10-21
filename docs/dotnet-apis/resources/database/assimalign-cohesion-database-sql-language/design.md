@@ -74,6 +74,15 @@ consumers existed.
 
 ## Non-goals (current dialect)
 
+Boolean positions use the existing AST. The engine requires Boolean search conditions in WHERE,
+HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN and ON CONFLICT WHERE, with COHSQLE003
+(42804) for non-Boolean types. Valid Boolean string literals coerce only in Boolean positions;
+every CASE/COALESCE alternative there must qualify. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
+
+Every SELECT may omit FROM and operate on one implicit row, including top-level and nested
+queries, views, derived tables and set operands. A wildcard still needs a relation (COHSQLE013).
+The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
+
 Recursive/nested CTEs, window functions, `ON UPDATE`, `MERGE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.

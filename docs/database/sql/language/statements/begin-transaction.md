@@ -36,6 +36,11 @@ dispose that server session: end or roll back an explicit transaction before dis
 connection. Otherwise a later renter can inherit it (known gap #1540). `TRANSACTION` alone is not
 a statement.
 
+Storage corruption and I/O failures abort an explicit transaction. Later statements or COMMIT
+report COHSQLT005 with the original coded cause; roll back before continuing. Ordinary constraint,
+evaluation and Boolean-condition failures leave it usable. Connection usability does not mean
+transaction usability; see [diagnostics](../diagnostics.md#transactions).
+
 The coordinator also has an API for selecting an isolation level; SQL isolation-level syntax,
 nested transactions, and savepoints are outside this language subset.
 

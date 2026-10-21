@@ -38,7 +38,7 @@ See [lifecycle examples and remedies](design.md#database-creation-open-and-drop)
 ## Format refusal
 
 OpenDatabaseAsync and enumeration through GetDatabasesAsync can throw DatabaseException for an
-unsupported graph record or tree-registration format. Format 3 is required; older formats produce
+unsupported graph record or tree-registration format. Format 4 is required; older formats produce
 COHDBG017 in Diagnostics before logical recovery scrub. The public exception is
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
 with COHDBS003, COHDBG018 and COHDBG017; its inner StorageCorruptionException retains the

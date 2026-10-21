@@ -46,6 +46,8 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| `COHDOC024` | Existing index name without IF NOT EXISTS | — |
+| `COHDOC026` | Composite encoded key exceeds 1,024 bytes during build or mutation | — |
 | `COHDOC020` | Duplicate valued scalar UNIQUE key during a write or build; names index and collection without key data | 23505 |
 | `COHDOC021` | Array/object component in a UNIQUE key; names index and path | — |
 | `OQL0009` | More than 32 paths; located at the 33rd path | — |
@@ -56,6 +58,8 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 COHDOC020/021 are carried by
 [DocumentConstraintViolationException](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-constraint-violation-exception.md).
 Wire failures use ExecutionFailure (6) and preserve the connection.
+COHDOC024/026 use DatabaseException.Diagnostics with the original DocumentCatalogException;
+an explicit transaction is aborted until rollback. No SQLSTATE is assigned to either code.
 
 ## Examples
 
@@ -78,6 +82,10 @@ SELECT PATH, PATHS, IS_UNIQUE FROM COHESION_SCHEMA.INDEXES;
 
 Creation is a no-op; the query returns `{"PATH":"a","PATHS":["a","b"],"IS_UNIQUE":true}`.
 `SELECT * FROM items WHERE a = 1 AND b >= 2` can seek uq and returns the one document.
+
+After the example's `uq` exists, `CREATE INDEX uq ON items (other);` fails COHDOC024;
+`CREATE INDEX IF NOT EXISTS uq ON items (other);` remains a no-op. Indexing a document whose
+encoded composite key exceeds 1,024 bytes instead fails COHDOC026 and publishes no index.
 
 ## See also
 

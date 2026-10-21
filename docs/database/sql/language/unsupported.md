@@ -68,7 +68,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |
 | Projection alias in GROUP BY or HAVING | Binding/planning error when not a valid source name | Output alias scope is ORDER BY |
 | Invalid numeric ORDER BY ordinal | Planning error | Zero, negative, out of range, or noninteger syntax |
-| SELECT without FROM outside a CTE definition root | `COHSQLE013` | A CTE root alone can use one implicit row |
+| Wildcard SELECT without FROM | `COHSQLE013` | Scalar and aggregate SELECT without FROM execute over one implicit row |
 | Aggregate belonging to an outer query level | `COHDBL001` | Aggregate relocation is excluded; mixed local/outer dependencies can remain local |
 | Parentheses on bare CURRENT_*/LOCAL* clock forms | `SQL0003` | Use bare names; NOW() is a call |
 | Precision on CURRENT_TIME/CURRENT_TIMESTAMP/LOCALTIME/LOCALTIMESTAMP | `COHDBL001` | Transaction-start UTC clock at existing precision |

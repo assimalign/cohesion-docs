@@ -31,7 +31,10 @@ model-specific category in `KeyValueClientException.Kind`.
 | `COHKV017` | Parameter value missing |
 | `COHKV018` | Command arity mismatch |
 | `COHKV019` | Execution failure without an engine diagnostic |
-| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
+| `COHDBK001` | Aborted transaction refuses commands/commit; original coded cause retained |
+| `COHDBK005` | Storage/index or open I/O operation failed, including wrapped/aggregate causes; I/O SQLSTATE 58030 |
+| `COHDBI002` | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005; no assigned SQLSTATE |
+| `COHDBS003` | Storage or attached-index corruption; database/page and original cause retained; SQLSTATE XX001 |
 
 Parser refusals use ParseFailure and leave the session ready. Execution errors without an engine
 code use COHKV019. Wire Error text is CODE: message, with the existing layout; Key-Value does not
@@ -54,6 +57,31 @@ assigned SQLSTATE), before replacement files can be created. Preserve all files 
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
+
+## Storage failures and transaction recovery
+
+StorageException subclasses, IndexException and IOException, including inner and aggregate
+causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
+no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes precedence:
+COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHDBK005, keeping the
+index cause and page. Format refusals retain COHDBS001/COHDBI001 and their authored messages,
+diagnostics and inner causes. Existing offline/unconfirmed-commit outcomes remain in force.
+
+A storage failure aborts an explicit transaction after command admission is released. Further
+commands and COMMIT are refused with COHDBK001 in Diagnostics, retaining the original coded
+cause; roll back before continuing. Ordinary command errors keep statement atomicity and the
+transaction usable. In autocommit the next command can run immediately after a recoverable
+failure. Wire ExecutionFailure preserves the session. I/O open failures release acquired file
+sets and publish no database, permitting retry after the condition is resolved.
+
+Storage-failure and corruption messages are ordinary embedded text. The aborted-transaction
+refusal currently also prefixes its embedded Message with COHDBK001; inspect Diagnostics for
+codes. Wire formatting supplies a missing prefix without duplicating one already present.
+
+If abort cleanup also fails, the exact coded command exception remains primary, including its
+corruption type. EventSource Assimalign.Cohesion.Database.KeyValuePair emits Warning event 11,
+TransactionCleanupFailed, with transactionId, exceptionType and exceptionMessage (bounded to
+1,024 characters). The cleanup failure does not replace the read diagnosis.
 
 ## Command failures
 

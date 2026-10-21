@@ -40,6 +40,10 @@ see a or a later input. Joins associate to the left within each comma item. Expl
 base names and distinguish repeated tables. Unqualified names shared by inputs remain ambiguous
 unless USING merges them. These checks apply before rows are read, even on empty inputs.
 
+ON requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
+condition such as `ON t.age` fails before reads with COHSQLE003 (42804); untyped NULL is
+UNKNOWN and matches no pair. LEFT then applies its ordinary NULL extension.
+
 ### USING columns
 
 USING compares each named pair with ordinary equality and collation precedence; NULL never
@@ -107,12 +111,13 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 
 | Code | Meaning and trigger |
 | --- | --- |
+| `COHSQLE003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
 | `COHSQLE015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
 | `COHSQLE019` | Duplicate table binding or alias |
 | `COHDBL001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
 | `SQL0003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
-These join diagnostics have no SQLSTATE assigned by the source.
+The source assigns no SQLSTATE to the other join diagnostics in this table.
 
 ## Examples
 
@@ -176,6 +181,9 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
 
 ## Sources
+
+- **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
+
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

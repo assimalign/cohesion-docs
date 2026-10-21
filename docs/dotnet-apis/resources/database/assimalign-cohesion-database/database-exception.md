@@ -34,6 +34,13 @@ Query parse/binder/planner rejections use this carrier. Servers compose CODE: me
 Error entry; SQL and GQL negotiate structured wire diagnostics, while Documents uses its Failure
 frame. DatabaseParseException retains complete parser diagnostics through the same base.
 
+Engine failure codes belong in Diagnostics, including translated Storage, Transactions and
+Indexing failures. Translation searches inner exceptions and aggregate branches, preserves an
+existing specific diagnosis and gives corruption precedence over ordinary I/O. Storage-failure
+and corruption Message text is explanatory; wire formatting supplies a missing code prefix.
+SQL/Key-Value Pair aborted-transaction refusals currently also retain a prefix in their embedded
+Message. Inspect Diagnostics for the code instead of parsing Message.
+
 [DatabaseCorruptionException](database-corruption-exception.md) specializes this carrier for
 detected storage damage: COHDBS003, database name, optional page and the original storage cause.
 It applies to create/open and model operations; an affected read fails instead of omitting data.

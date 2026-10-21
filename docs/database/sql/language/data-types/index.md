@@ -65,6 +65,9 @@ Native SqlType.CreateDomain rejects these names with ArgumentException. Identity
 built-in signed integer rather than a domain.
 Domain-check failures on writes, CAST and function domain arguments/results use `COHSQLE038`
 (SQLSTATE 23514), with one Error diagnostic naming the domain and, for a write, its table.
+Declaring a non-Boolean domain CHECK uses COHSQLE003 (42804), including non-Boolean logical
+operands and mixed CASE/COALESCE alternatives in Boolean positions. Untyped NULL is UNKNOWN
+and passes a CHECK; use NOT NULL separately when required.
 See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)

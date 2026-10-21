@@ -65,12 +65,17 @@ The planner first anchors on a node bound by an earlier path or clause at any pa
 or on an endpoint supplied by a bound relationship. Otherwise it can use an indexed node in the
 middle or at either end of a path.
 Required labels come from pure pattern conjunctions and positive labeled predicates in that
-clause's top-level WHERE AND chain. After bound entities and property index seeks, the first
-required label by node position supplies a label scan, including a later node such as
+clause's top-level WHERE AND chain. After bound entities and property index seeks, the smallest
+retained-posting estimate supplies a label scan, including a later node such as
 `MATCH (a)->(b:Person)` or `MATCH (a)->(b) WHERE b:Person`. Pattern labels precede WHERE labels
-in source order; selection uses position, not label cardinality. See [WHERE](../clauses/where.md).
-The label scan still reads and decodes every node record. Filtering by the chosen label reduces
-the expansion budget charge and subsequent expansion work, not the scan's decoding cost.
+in source order, which breaks equal-cost ties. Estimates include retained history and rolled-back
+versions; they affect plan cost, not snapshot visibility. See [WHERE](../clauses/where.md).
+Label scans seek MVCC label postings and decode only matching visible nodes. A conjunction such
+as `:Common&Rare` scans its cheapest required label and checks the full residual. A pure pattern
+union such as `:A|B` merges those label ranges, suppressing duplicate node identities; its summed
+estimate competes with other node positions. Negated, wildcard and mixed label expressions
+retain a full scan unless another safe anchor narrows them. Statement-local additions and
+replacements participate in the selected label ranges.
 Queries without ORDER BY have no guaranteed row order; changing the anchor can change row order
 while preserving the element order within each matched path. [EXPLAIN](explain.md) shows the anchor.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
@@ -91,6 +96,16 @@ MATCH (a)->(b:Keep)->(c) RETURN a.k, b.k, c.k;
 ```
 
 The queries return `(0, 1)` and `(0, 1, 2)`. Both anchor at the second node, ordinal 1.
+
+In a separate empty database, execute each statement separately:
+
+```sql
+INSERT (:A {k:1}), (:B {k:2}), (:A:B {k:3}), (:Noise {k:4});
+MATCH (n:A|B|A) RETURN n.k ORDER BY n.k;
+MATCH (n:A&B) RETURN n.k;
+```
+
+The union returns `1`, `2`, `3`, each once. The conjunction returns only `3`.
 
 The execution corpus seeds Alice, Bob, and a `KNOWS` relationship, then runs:
 
@@ -135,6 +150,8 @@ Paging does not reduce matching bounds.
 - **[Patterns](../patterns.md)** — bounds and direction.
 
 ## Sources
+
+- **Label postings, cost selection and unions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.
 
 - **Required labels and later anchors** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWhereLabelAnchorTests.cs`.
 

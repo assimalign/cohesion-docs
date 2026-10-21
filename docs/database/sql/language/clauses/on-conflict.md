@@ -31,6 +31,10 @@ Leading WITH and materialized SELECT/set-operation sources use the same conflict
 - **`DO UPDATE`** — Requires an explicit target and assigns the conflicting row. WHERE controls
   whether that update occurs; FALSE or UNKNOWN skips it.
 
+WHERE requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
+condition fails planning with COHSQLE003 (42804), before a conflicting row is needed. NULL is
+UNKNOWN and skips the update.
+
 ## Remarks
 
 Arbiter keys use index collation and temporal normalization. NULL conflicts with NULL, including
@@ -146,6 +150,7 @@ See [transactions](../statements/begin-transaction.md).
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| COHSQLE003 | Non-Boolean DO UPDATE WHERE condition or logical operand | 42804 |
 | COHSQLE035 | No matching unique index, unknown/nonunique constraint target, legacy primary key without an index, or DO UPDATE without a target; fails planning | 42P10 |
 | COHSQLE036 | A DO UPDATE proposal would affect a row already inserted or updated by this statement | 21000 |
 | COHSQLE037 | Unique/primary-key or unique-index violation outside the handled conflict, including DO UPDATE violating a second unique index | 23505 |
@@ -205,6 +210,9 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 [Clauses](index.md) · [INSERT](../statements/insert.md) · [RETURNING](returning.md) · [Constraints](../constraints.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
+
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertExecutionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlUpsertConcurrencyTests.cs`.

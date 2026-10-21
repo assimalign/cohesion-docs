@@ -102,8 +102,8 @@ including unused bodies. Read names prefer visible CTEs; qualified reads and DML
 catalog. Self and later-sibling names fall back to stored tables; only missing future relations use
 COHSQLE026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
 rules. Reachable definitions materialize once in declaration order before any DML write. Unused
-bodies do not evaluate counts or seek bounds. A FROM-less definition root uses one implicit row;
-ordinary nested queries still require FROM. With, Materialize, CteScan and Constant describe these
+bodies do not evaluate counts or seek bounds. Every FROM-less SELECT uses one implicit row,
+including top-level queries, nested queries, views and set operands. Wildcards still need a relation. With, Materialize, CteScan and Constant describe these
 plans without executing them.
 
 Derived FROM/JOIN/comma relations reuse typed output metadata, including modifiers, domains,
@@ -1068,11 +1068,62 @@ SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smalls
 SQL reports COHDBL001, native construction throws ArgumentException with the IDENTITY suggestion.
 For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
 
+## Boolean search conditions
+
+WHERE, HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN, ON CONFLICT DO UPDATE WHERE
+and logical/truth-test operands require BOOLEAN. Planning rejects known non-Boolean types
+before reads with COHSQLE003 (42804); runtime checks enforce values whose types were unknown.
+Untyped NULL is UNKNOWN. Valid Boolean input string literals coerce in these positions, while
+text columns and parameters retain their types. Every CASE result and COALESCE alternative in
+a Boolean position is checked, including unreachable alternatives.
+
+Stored SQL function bodies use load-only binding. Legacy invalid Boolean operands and changed
+application return types fail with COHSQLE003 on invocation and allow the database to open.
+See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
+
+Application scalars and aggregates receive the transaction start through
+[SqlFunctionContext.TransactionTimestamp](sql-function-context.md), including aggregate creation,
+row accumulation, DISTINCT/ordered input, SQL bodies and CHECK evaluation. Explicit transactions
+share one instant across statements; autocommit statements each capture their own.
+
 ## Error model
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| COHDBS003 | Storage or attached-index corruption | XX001 |
+| COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
+| COHSQLT005 | Aborted transaction refuses statements/commit; original cause retained | — |
+
+StorageException subclasses, IndexException and IOException, including inner and aggregate
+causes, cross begin, statement, commit/rollback and create/open boundaries with COHSQLE041
+when no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes
+precedence: COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHSQLE041
+and keeps the IndexCorruptionException and page context. Storage-format COHDBS001 and index-format
+COHDBI001 refusals retain their authored types/messages, diagnostics and inner causes. Existing
+offline/unconfirmed-commit outcomes retain their precedence.
+
+Storage failures abort an explicit transaction after statement admission/snapshot release.
+Further statements and COMMIT are refused with structured COHSQLT005 retaining the coded cause;
+roll back before continuing. Ordinary constraint, evaluation and Boolean-condition failures
+retain statement atomicity and leave the transaction usable. Autocommit can execute the next
+statement after a recoverable storage failure. Wire ExecutionFailure preserves the session.
+An I/O open failure releases acquired resources and publishes no database; resolve it and retry.
+
+Storage-failure and corruption messages are ordinary embedded text; inspect Diagnostics for
+codes. SQL's aborted-transaction refusal currently also prefixes its embedded Message with
+COHSQLT005. The wire supplies a prefix when formatting a response and avoids adding it twice.
+
+If snapshot release or abort cleanup also fails, the exact coded statement exception remains
+primary, including its corruption type. EventSource Assimalign.Cohesion.Database.Sql emits
+Warning event 25, TransactionCleanupFailed, with transactionId, exceptionType and exceptionMessage
+(bounded to 1,024 characters). No statement text or new counter is added.
+
+
 
 Storage integrity failures use
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003 (no SQLSTATE), the database, optional page and original storage cause. Reads,
+with COHDBS003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
 statements, transactions and create/open receive the translation, including coded and aggregate
 causes. Damaged reads fail rather than omitting rows; legitimate reclamation still reads as absence.
 The existing wire ExecutionFailure path carries the code and leaves the connection usable.

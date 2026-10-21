@@ -138,6 +138,14 @@ inversion), so it must stay independently consumable.
 `IndexUniqueViolationException : IndexException` is the typed unique-violation surface; model
 engines that expose index failures on the area's error surface translate at their own boundary.
 
+Attached-index integrity failures cross the engine boundary as
+[DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md),
+leading with COHDBS003 and retaining COHDBI002 plus the model diagnostic. The original
+IndexCorruptionException and page remain available. Ordinary SQL, Key-Value Pair, Document and
+Graph index failures use the model code;
+specific format refusals retain COHDBI001. Inner and aggregate causes receive the same classification.
+See [model mappings](../../../../database/overview.md#engine-failure-diagnostics).
+
 ## Relationship to `Database.Storage`
 
 `Database.Storage` provides the *physical* substrate through `IStoragePageManager` — index pages

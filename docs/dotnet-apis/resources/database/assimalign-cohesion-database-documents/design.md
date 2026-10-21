@@ -516,7 +516,31 @@ await engine.DropDatabaseAsync("sales");
 See [database lifecycle](../../../../database/document/index.md) and the DocumentDatabaseNameTests
 file-set refusal, crash recovery and transient-open cases.
 
+## Engine failure boundaries
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `COHDBD004` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
+| `COHDBD005` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
+| `COHDOC024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `COHDOC025` | DROP INDEX finds no index without IF EXISTS | — |
+| `COHDOC026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
+
+Child-root storage, catalog and index failures cross the engine boundary as DatabaseException
+with Error diagnostics and the original InnerException. Explicit and automatic transaction begin
+use the same translator. Wrapped I/O keeps COHDBD004. Attached-index corruption instead uses
+DatabaseCorruptionException, leading with COHDBS003 and retaining COHDBI002 and COHDBD005.
+Existing offline/unconfirmed-commit classifications remain in force. An I/O open failure releases
+acquired resources, publishes no database and permits retry after resolution.
+
+A failed operation aborts an explicit transaction; roll it back before further work. In autocommit
+the next statement can run immediately. COHDBD001 is in Diagnostics with an ordinary embedded
+message. The wire adds its prefix and returns ExecutionFailure with diagnostics, preserving the
+connection. Index-name/key-size user failures retain their distinct COHDOC024–026 diagnostics.
+
 ## Sources
+
+- **Boundary and index failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/ChildRootFailureWireTests.cs`, `IndexFailureTranslationTests.cs` and `StorageOpenFailureTests.cs` in the same directory.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

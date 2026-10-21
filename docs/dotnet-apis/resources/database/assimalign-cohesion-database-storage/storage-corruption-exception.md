@@ -23,7 +23,8 @@ public sealed class StorageCorruptionException : StorageException
 Code always returns ErrorCode. PageId is null for the message-only constructor and otherwise
 retains the supplied page. Examples of detected damage include a checksum mismatch, a nonzero
 Free page, a nonzero page with no checksum, a malformed header and a broken recovery LSN chain.
-No SQLSTATE is assigned to COHDBS003. Constructors add no validation exceptions.
+The storage exception has no SQLSTATE member; SQL and Key-Value Pair map COHDBS003 to XX001
+at the engine boundary. Constructors add no validation exceptions.
 
 Find returns the first storage corruption in the supplied exception, its inner chain or any
 AggregateException branch; it returns null for null or no match. Its iterative, reference-based

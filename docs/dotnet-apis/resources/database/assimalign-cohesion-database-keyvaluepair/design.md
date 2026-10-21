@@ -249,9 +249,41 @@ leak), repaired by re-bootstrapping on the next open.
 
 ## Error model
 
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| COHDBK005 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| COHDBS003 | Storage or attached-index corruption | XX001 |
+| COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005 | — |
+| COHDBK001 | Aborted transaction refuses commands/commit; original cause retained | — |
+
+StorageException subclasses, IndexException and IOException, including inner and aggregate
+causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
+no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes precedence:
+COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHDBK005, keeping the
+index cause and page. Format refusals retain COHDBS001/COHDBI001 and their authored messages,
+diagnostics and inner causes. Existing offline/unconfirmed-commit outcomes remain in force.
+
+A storage failure aborts an explicit transaction after command admission is released. Further
+commands and COMMIT are refused with COHDBK001 in Diagnostics, retaining the original coded
+cause; roll back before continuing. Ordinary command errors keep statement atomicity and the
+transaction usable. In autocommit the next command can run immediately after a recoverable
+failure. Wire ExecutionFailure preserves the session. I/O open failures release acquired file
+sets and publish no database, permitting retry after the condition is resolved.
+
+Storage-failure and corruption messages are ordinary embedded text. The aborted-transaction
+refusal currently also prefixes its embedded Message with COHDBK001; inspect Diagnostics for
+codes. Wire formatting supplies a missing prefix without duplicating one already present.
+
+If abort cleanup also fails, the exact coded command exception remains primary, including its
+corruption type. EventSource Assimalign.Cohesion.Database.KeyValuePair emits Warning event 11,
+TransactionCleanupFailed, with transactionId, exceptionType and exceptionMessage (bounded to
+1,024 characters). The cleanup failure does not replace the read diagnosis.
+
+
+
 Detected storage corruption uses
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003 (no SQLSTATE), the database, optional page and original storage cause. Reads,
+with COHDBS003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
 writes, transactions and create/open fail rather than treating damage as an absent key. Wrapped
 and aggregate storage causes receive the same translation; legitimately reclaimed entries keep
 absence semantics. Wire ExecutionFailure retains the common code. See
@@ -424,6 +456,8 @@ first, then other data files, then the remaining directory. It cannot resurrect 
 dropped database by recreating a sidecar.
 
 ## Sources
+
+- **Read failures and cleanup evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.
 
 - **Construction durability and corruption** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `KeyValueIndexReadIntegrityTests.cs` in the same directory.
 

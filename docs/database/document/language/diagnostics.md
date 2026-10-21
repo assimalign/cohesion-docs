@@ -49,6 +49,9 @@ rather than being rounded by the parser.
 | `COHDOC021` | Array/object UNIQUE key component | — |
 | `COHDOC023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
 | `COHDOC022` | Index path count outside 1..32 in a direct AST/catalog call | — |
+| `COHDOC024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `COHDOC025` | DROP INDEX finds no index without IF EXISTS | — |
+| `COHDOC026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
 
 [Scalar functions](functions/scalar-functions.md) validate literal kinds and contexts with
 COHDOC001 before reading documents. A wrong-kind stored argument produces NULL. Fractional
@@ -80,6 +83,10 @@ are distinct from DocumentDuplicateKeyException/COHDOC012 (document identity col
 OQL0010 and COHDOC023 have no assigned SQLSTATE. META on an UNNEST/quantified variable, including
 one shadowing the source alias, uses COHDOC001. Quantifiers may shadow outer bindings.
 
+Index-name/key-size failures use DatabaseException with structured COHDOC024–026 diagnostics
+and the original DocumentCatalogException. They abort an explicit transaction; roll back before
+continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
+
 ## Locations and wire behavior
 
 Remote failures use [DocumentClientException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client-exception.md), which derives directly from
@@ -101,6 +108,10 @@ UTF-8/payloads and message order are protocol violations. The client exception r
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| `COHDBD004` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
+| `COHDBD005` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
+| `COHDBD001` | Explicit transaction is aborted; operations/commit refused until rollback | — |
+| `COHDBI002` | Additional attached-index corruption diagnostic beside COHDBS003 and COHDBD005 | — |
 | `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
 | `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names the database and optional page and retains the storage cause; refused opens also retain COHDBD003 | — |
 
@@ -114,6 +125,14 @@ omitting a document. Legitimate reclamation keeps its absence semantics. The exi
 execution-failure path carries the diagnostic and leaves the connection usable. Follow the
 message's verified-backup advice. See [storage recovery](../../overview.md#database-file-sets-and-lifecycle)
 and [DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
+
+Storage, catalog and index failures use structured model diagnostics with their original
+InnerException. Wrapped I/O remains COHDBD004. Attached-index corruption leads with COHDBS003
+and retains COHDBI002 and COHDBD005. Begin uses the same translator as operations. An I/O open
+failure releases resources and publishes no database, permitting retry after resolution. An
+operation failure aborts an explicit transaction; rollback permits embedded-session reuse.
+The wire returns ExecutionFailure with diagnostics and preserves the connection. COHDBD001
+is in Diagnostics; only the wire adds its message prefix.
 
 ## See also
 

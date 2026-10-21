@@ -17,7 +17,8 @@ examples require their original test project’s dependencies and supporting obj
 cover every T1 name and result. [Transaction clock examples](../../../../../database/sql/language/functions/builtin-functions.md#clock-temporal-and-uuid-functions)
 show agreement across requests. [SqlFunctionCollection](../sql-function-collection.md#example)
 registers an application function; [SqlFunctionContext](../sql-function-context.md#example) demonstrates
-the public collation/cancellation contract. [ALTER TABLE](../../../../../database/sql/language/statements/alter-table.md#examples)
+the public collation/cancellation contract and an application function that reads TransactionTimestamp,
+matching NOW(). [ALTER TABLE](../../../../../database/sql/language/statements/alter-table.md#examples)
 covers renames, defaults and nullability.
 
 [ON CONFLICT](../../../../../database/sql/language/clauses/on-conflict.md#examples) covers skipped,

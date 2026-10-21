@@ -28,7 +28,7 @@ NULL
 | Source form | Example | Parser literal kind | Evaluated value |
 | --- | --- | --- | --- |
 | String | `'it''s'` | `String` | Unescaped string |
-| Integer | `42` | `Integer` | `Int64` |
+| Integer | `42` | `Integer` | `Int32` when it fits, otherwise `Int64` |
 | Fractional/exponent | `3.14`, `.5`, `1e10` | `Float` | Exact `Decimal` |
 | Boolean | `TRUE`, `FALSE` | `Boolean` | Boolean |
 | Null | `NULL` | `Null` | Null |
@@ -43,7 +43,9 @@ removes delimiters for catalog binding while retaining identifier token classifi
 Embedded double quotes inside a name are outside the lexer subset.
 
 Delimited names apply to targets, columns, aliases, indexes, and constraints. Single quotes always
-denote values. Constant projections still require a `FROM` relation to execute.
+denote values. Constant projections execute over one implicit row when FROM is absent.
+In Boolean positions, valid Boolean input string literals receive the
+[search-condition coercion](../clauses/where.md#boolean-search-conditions); other text retains its type.
 
 ## Typed literals
 

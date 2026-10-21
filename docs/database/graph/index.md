@@ -66,7 +66,7 @@ in process and on the wire. OPTIONAL NULL targets and pure no-ops count zero; re
 update the current working copy and count each changed entity once.
 
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
-lock and replan before evaluation. Format-3 records keep prior versions visible to old snapshots;
+lock and replan before evaluation. Format-4 records keep prior versions visible to old snapshots;
 older graph records/registrations are refused before logical recovery scrub with
 [COHDBG017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
 33 declared clauses.

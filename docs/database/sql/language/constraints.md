@@ -86,6 +86,12 @@ transaction remain usable.
 Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
 uses `COHSQLE025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
 
+A non-Boolean CHECK or domain CHECK is rejected with COHSQLE003 (42804), at the predicate
+span when available, before publishing the definition. This includes non-Boolean operands
+inside logical expressions and mixed CASE/COALESCE alternatives in Boolean positions; see
+[search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
+UNKNOWN. COHSQLE038 (23514) instead means a valid Boolean check evaluated to FALSE.
+
 Checks are deterministic, Boolean, and row-local. The supported scalar functions can participate;
 parameters, aggregates, subqueries, and CAST are excluded. Null propagation matters: a check such as
 `code > 0` accepts a null code as unknown. Use `NOT NULL` separately when null must be forbidden.
@@ -105,6 +111,10 @@ This conformance example accepts one positive and one null value:
 CREATE TABLE c (code INT CHECK(code > 0));
 INSERT INTO c VALUES (1), (NULL);
 ```
+
+`CREATE TABLE bad_check (a INT CHECK (a));` and
+`CREATE DOMAIN bad_domain AS INT CHECK (VALUE);` each fail with COHSQLE003 (42804).
+Neither definition is created.
 
 A later `INSERT INTO c VALUES (0);` fails with COHSQLE038 (23514); the two earlier rows remain.
 
@@ -169,6 +179,9 @@ UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still re
 [Language (SQL)](index.md) · [CREATE TABLE](statements/create-table.md) · [ALTER TABLE](statements/alter-table.md) · [System views](system-views/index.md)
 
 ## Sources
+
+- **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
+
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

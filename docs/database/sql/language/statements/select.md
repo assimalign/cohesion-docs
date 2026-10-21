@@ -9,7 +9,7 @@ Retrieves rows from stored tables and system relations, including N-way joins an
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
 SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
-FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
+[ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ] ]
 [ WHERE search_condition ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING search_condition ]
@@ -59,8 +59,11 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 The conformance contract measures these subsets through the live engine, including wire execution.
-Every ordinary `SELECT` requires `FROM`; only a [CTE definition root](../clauses/with.md) may
-omit it and use one implicit row.
+A SELECT without FROM reads one implicit row, at the top level and in nested queries, views,
+derived tables, CTEs and set operands. Scalar expressions and function calls therefore return one
+row. WHERE FALSE or NULL, LIMIT 0 or OFFSET 1 can remove it. Aggregation, DISTINCT and ordering
+follow ordinary semantics; COUNT(*) over the unfiltered implicit row is 1, and over WHERE FALSE
+is 0. A wildcard without FROM fails planning with COHSQLE013.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes
@@ -126,7 +129,24 @@ SELECT id FROM t WHERE age > 40 AND name LIKE 'G%' ORDER BY id;
 
 The first query returns `(1, 37)`, `(2, 46)`, and `(3, 42)`; the second returns `2`.
 
-### C. Run a query from .NET
+### C. Select without FROM
+
+Execute each query separately:
+
+```sql
+SELECT 1;
+SELECT (SELECT 42) AS answer WHERE 1 IN (SELECT 1) AND EXISTS (SELECT NULL);
+SELECT 1 WHERE NULL;
+SELECT COUNT(*) WHERE FALSE;
+SELECT answer FROM (SELECT 1 AS answer) d;
+```
+
+The results are one row containing 1, one row containing 42, no rows, one row containing 0,
+and one row containing 1. EXISTS counts its projected NULL as a row. SELECT * without FROM
+fails COHSQLE013. A non-Boolean WHERE or HAVING fails COHSQLE003 (42804); see
+[search conditions](../clauses/where.md#boolean-search-conditions).
+
+### D. Run a query from .NET
 
 This complete client program assumes the fixture exists in database `audit` on the configured
 Transmission Control Protocol (TCP) endpoint. Reference `Assimalign.Cohesion.Database.Sql.Client`
@@ -165,6 +185,9 @@ The client materializes the complete result. One connection executes one command
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Implicit row and composition** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstantSelectTests.cs`.
+- **Wire results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlSubqueryWireTests.cs`.
 
 - **Access selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.cs`.
 - **DML equivalence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSeekTests.cs`.

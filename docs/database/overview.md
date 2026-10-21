@@ -182,7 +182,7 @@ permit replacing missing journals. Transient open/inspection I/O failures can be
 resolution and do not advise restore or drop. SQL remains at format 25.
 
 The shared storage format is **4**, independent of SQL's data/catalog format 25 and Graph's record
-format 3. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
+format 4. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
 header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
@@ -192,12 +192,41 @@ Detected storage damage raises
 with COHDBS003, the database, optional page and original cause. Refused opens retain existing
 model diagnostics; Graph, Document and Blob also carry COHDBG018, COHDBD003 and COHDBB004.
 Reads fail instead of silently omitting damaged data. Legitimate record reclamation still reads
-as absence. COHDBS003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
+as absence. SQL and Key-Value Pair map COHDBS003 to SQLSTATE XX001; other model references
+assign none. Follow its verified-backup recovery advice. Attached-index corruption also retains
+COHDBI002 and the model diagnostic with the index cause/page.
 
 Recovery preserves both complete, verified checkpoint-anchor chains. Retired anchors outside those
 chains are reclaimable even after a torn write or missing checksum; ordinary Free/Reclaimed pages
 still require full verification. Newly initialized anchors have journal repair images. See
 [checkpoint recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoints).
+
+## Engine failure diagnostics
+
+Engine boundaries translate storage and index failures into area exceptions with structured
+Error diagnostics and the original cause. Transaction failures retain their area exception
+types, and aborted-session refusals carry model diagnostics. Classification searches inner exceptions
+and aggregate branches; corruption takes precedence over ordinary I/O. Specific format and
+offline/unconfirmed-commit classifications remain in force. An I/O open failure releases its
+resources and publishes no database, permitting retry once the condition is resolved.
+
+| Model | Storage/I/O | Catalog/index | Additional failure codes |
+| --- | --- | --- | --- |
+| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction |
+| Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
+| Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
+| Graph | COHDBG006 | COHDBG006 | COHDBG007: aborted transaction |
+| Blob | COHDBB005 | COHDBB006 | COHDBB007: failed/inactive upload; COHDBB001: aborted transaction |
+
+No SQLSTATE is assigned to these codes except the SQL/Key-Value Pair I/O mappings shown.
+Attached-index corruption leads with COHDBS003 and retains COHDBI002 plus the model's catalog/index
+code. Storage/index failures abort explicit transactions; roll back before continuing. SQL and
+Key-Value Pair ordinary statement errors keep their existing statement-atomic behavior. SQL,
+Document, Graph and Key-Value Pair wire ExecutionFailure preserves the session; Blob closes it.
+Codes belong in Diagnostics. Storage-failure/corruption embedded messages are ordinary text;
+SQL/Key-Value Pair aborted-transaction refusals currently also include a code prefix. Wire writers
+format a missing prefix. SQL event 25 and Key-Value Pair event 11, TransactionCleanupFailed,
+record secondary cleanup failures while preserving the original coded cause.
 
 ## Checkpoint triggering
 
@@ -223,7 +252,11 @@ Autocommit reads, explicit read-only commit/rollback, disposal and ReadCommitted
 append no lifecycle records and wait for no flush. They still leave the active table and release
 their locks at completion. Writer COMMIT/abort records and commit durability keep their existing
 guarantees. A reader promoted after a checkpoint enrolls before its first stamp, preserving recovery
-classification. See [TransactionCoordinator](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md).
+classification. Readers can begin, pin cached pages and end while a checkpoint flushes;
+writers still wait through its statement-apply gate. Flush I/O runs outside the pool monitor.
+The physical-file latency probe is opt-in with COHESION_DB_PROBES=1 and sets no timing threshold;
+see [checkpoint behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoints).
+See [TransactionCoordinator](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md).
 
 The shared [storage journal](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/storage-journal.md)
 accepts buffered appends while a durable flush is in progress. Only the force's written prefix is

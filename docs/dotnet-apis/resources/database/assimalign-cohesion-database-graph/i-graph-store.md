@@ -14,12 +14,14 @@ The replacement GraphStore ships in `Assimalign.Cohesion.Database.Graph.dll` and
 GraphStore store = GraphStore.Open(storage, coordinator);
 TransactionContext context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
 ulong id = (ulong)storage.ReserveTransactionSequence();
+var labelIds = new Dictionary<string, Guid>
+{ ["P"] = Guid.Parse("10000000-0000-0000-0000-000000000001") };
 var node = await store.CreateNodeAsync(new StoredGraphNode(id, ["P"],
-    new Dictionary<string, object?>()), context);
+    new Dictionary<string, object?>()), labelIds, context);
 await coordinator.CommitAsync(context);
 ```
 
-Creation takes a complete record with a reserved ID. See [GraphStore](graph-store.md) for
+Creation takes a complete record with a reserved ID and caller-resolved label GUIDs. See [GraphStore](graph-store.md) for
 changed create/update signatures, exceptions and MVCC behavior, and the
 [complete example](examples/graph-store-tests.md) for storage lifetime.
 
