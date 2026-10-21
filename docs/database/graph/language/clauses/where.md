@@ -29,14 +29,18 @@ clause's top-level AND chain. Positive labeled predicates in that chain also sup
 node labels: `n:Person`, `n IS LABELED Person`, and `n IS LABELED Person&Tagged` can anchor like
 pattern labels. All required labels participate in property index selection; the complete pattern
 and WHERE still filter candidates. Bound entities take precedence, then property index seeks,
-then a scan of the first required label by node position, including a later node.
+then the label scan with the smallest retained-posting estimate across required labels and pure
+pattern unions at any node position. Equal estimates retain source order, pattern before WHERE.
+Estimates include retained history and do not determine snapshot-visible results.
 
 OR, XOR, NOT, truth tests, IS NOT LABELED and label expressions containing `|`, `!` or `%`
 supply no required labels. A separate required conjunct can still narrow the scan.
 Requirements stay local to their MATCH clause; relationship label tests test the type and
 supply no node anchor. Label tests on NULL yield NULL; Graph has no MISSING value.
-Label scans still decode every node record, then charge only retained anchor candidates to
-the expansion budget. See [EXPLAIN](../statements/explain.md) for the selected label and ordinal.
+Label scans seek MVCC postings and decode only matching visible nodes, including pending statement
+additions and replacements. The full pattern and WHERE remain residual checks. Pure pattern
+unions merge selected ranges; a WHERE disjunction itself supplies no union anchor.
+See [EXPLAIN](../statements/explain.md) for the selected label and ordinal.
 There is no fixed comparison-count limit; recursive depth follows available stack, with GQL0009
 in the parser or COHDBG008 in engine execution.
 
@@ -70,6 +74,8 @@ Both return Alice and can use a Person label scan. Without ORDER BY, row order i
 [Clauses](index.md) · [Operators](../expressions/operators.md) · [MATCH](../statements/match.md)
 
 ## Sources
+
+- **Cost selection and selected ranges** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.
 
 - **Label anchors and residual predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWhereLabelAnchorTests.cs`.
 

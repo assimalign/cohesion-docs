@@ -1,6 +1,6 @@
 # Graph storage
 
-`Assimalign.Cohesion.Database.Graph.Storage` stores property-graph nodes, relationships, endpoint adjacency and secondary node-property indexes.
+`Assimalign.Cohesion.Database.Graph.Storage` stores property-graph nodes, relationships, endpoint adjacency, MVCC label postings and secondary node-property indexes.
 
 > **Status:** Partial.
 
@@ -22,7 +22,7 @@ The model enforces engine → Catalog → Storage → shared kernel through arch
 - **[`StoredGraphRelationship`](stored-graph-relationship.md)** — Documented public type.
 
 `Assimalign.Cohesion.Database.Graph.Storage` stores property-graph nodes, relationships, endpoint
-adjacency and secondary node-property indexes. It targets .NET 10, is AOT compatible, and uses
+adjacency, MVCC label postings and secondary node-property indexes. It targets .NET 10, is AOT compatible, and uses
 explicit binary codecs without reflection.
 
 `GraphStorage` owns the data, journal and backup streams and delegates page allocation, checksums
@@ -46,7 +46,9 @@ transaction lifecycle, recovery sequence and current limits.
 
 Creation accepts complete StoredGraphNode/StoredGraphRelationship records with IDs reserved
 from the backing storage. UpdateNodeAsync replaces labels/properties and UpdateRelationshipAsync
-replaces properties. Format 3 retains snapshot-visible version chains and catalog type IDs.
+replaces properties. Both node methods require a caller-resolved label-name/catalog-GUID map.
+Label reads seek MVCC postings and decode only matching visible nodes. Format 4 persists catalog
+label GUIDs, label postings, snapshot-visible version chains and catalog type IDs.
 Older records and tree registrations are refused with COHDBG017; recreate the database because
 there is no upgrade path. CreateRelationshipAsync requires a nonempty typeId. Filtered incident
 reads stream selected node/direction/type ranges; see [changed signatures](graph-store.md).

@@ -96,7 +96,7 @@ select a server, another database, or another graph.
 
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
-kind, byte 17 is format version 3, bytes 18–25 are a nonzero unsigned 64-bit identity and
+kind, byte 17 is format version 4, bytes 18–25 are a nonzero unsigned 64-bit identity and
 bytes 26–33 hold the increasing revision. Older records and tree registrations are refused before logical recovery scrub with
 COHDBG017; recreate the database because there is no upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
@@ -105,7 +105,7 @@ identity. `Database`-local IDs must always be paired with the correct session.
 | Page owner / kind | Payload after the stamp |
 | --- | --- |
 | Owner 0, catalog | Catalog-specific version, discriminant and encoded definition; see Graph.Catalog's format |
-| Owner 2, kind 1 | Common graph header, label count and strings, then scalar property map |
+| Owner 2, kind 1 | Common graph header, label count and (string, catalog GUID) pairs, then scalar property map |
 | Owner 2, kind 2 | Common graph header, source ID, target ID, catalog type GUID, type string, scalar property map |
 | Owner 2, kind 3 | Common graph header, indexed label and property key |
 | Owner 1, kind 4 | Zero stamps, kind/version, tree object ID, signed 64-bit root page; 34 bytes total |
@@ -142,9 +142,9 @@ flowchart LR
 
 For t selected direction/type ranges and r retained entries, incident lookup costs O(t log E + r)
 index work and decodes k visible references. Deterministic identity ordering adds O(k log k) CPU work. Direct traversal costs the sum
-of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan decodes every node
-record, filters by label and sorts its matches. Required WHERE labels reduce expansion budget
-charges and subsequent work, not scan decoding. A property equality anchor instead seeks its shared B+Tree in
+of these lookups for expanded nodes and uses `O(Vvisited)` visited state. A label scan seeks
+MVCC postings keyed by catalog label GUID and node identity, decoding only visible matching
+references in identity order. Index work is O(log P + r) for r retained postings in that range. A property equality anchor instead seeks its shared B+Tree in
 `O(log N + candidates)` after locating index metadata, then sorts its matches. `Index` numeric keys
 normalize integral, decimal and finite floating point values through double conversion. Full scalar
 comparisons filter index candidates using exact represented values across all numeric types despite
@@ -203,11 +203,15 @@ still passes labels, property predicates and bindings.
 
 Pure pattern conjunctions and positive labeled predicates in the clause's top-level AND chain
 supply required node labels. Pattern labels precede WHERE labels in source order. After bound
-entities and property seeks, the first required label by node position anchors a label scan;
-the choice is positional rather than cardinality-based. `(a)->(b:Keep)` and
+entities and property seeks, the smallest retained-posting estimate anchors a label scan;
+ties retain source order. Estimates include history and rolled-back versions and affect cost only. `(a)->(b:Keep)` and
 `(a)->(b) WHERE b:Keep` can therefore both anchor at b. OR/XOR/NOT, truth tests,
 IS NOT LABELED and label expressions containing `|`, `!` or `%` supply none. Relationship
-label tests supply no node anchors, and requirements never cross clause boundaries.
+label tests supply no node anchors, and requirements never cross clause boundaries. Pure pattern
+unions such as `:A|B` merge label ranges with duplicate suppression and compete by their summed
+estimate. EXPLAIN uses target `A|B` and `combine=union`. Conjunctions scan the cheapest required
+label and retain the full residual; negation, wildcard and mixed expressions keep a full scan
+unless another safe anchor narrows them. Pending statement nodes participate in selected ranges.
 [EXPLAIN](../../../../database/graph/language/statements/explain.md) reports the label and ordinal.
 Without ORDER BY, row order is unspecified even though each path keeps its element order.
 
@@ -376,7 +380,7 @@ not included.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
-| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
 | `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
@@ -734,7 +738,7 @@ GQL [SET/REMOVE](../../../../database/graph/language/clauses/set.md) keep statem
 working copies. Rows observe earlier rows; items execute left to right. Carried lists/maps/paths
 refresh after each stage; later scans, seeks and endpoint functions consult the working copy.
 INSERT reserves stable IDs and publishes final nodes before final relationships. Each changed
-entity publishes one format-3 replacement; type-exact no-ops publish nothing. Changed-then-restored
+entity publishes one format-4 replacement; type-exact no-ops publish nothing. Changed-then-restored
 entities still count and publish, preserving Snapshot conflicts.
 
 Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency
@@ -763,7 +767,7 @@ tolerated and overwritten by the next allocation, preserving committed content. 
 corruption uses DatabaseCorruptionException / COHDBS003 with COHDBG018 retained as an additional
 diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. The shared storage format is 4; Graph records remain at format 3.
+without drop or backup advice. The shared storage format is 4; Graph records remain at format 4.
 
 ### Lifecycle API
 

@@ -68,18 +68,18 @@ against a duplicate-key lower-bound seek starting in a later leaf after a shared
 regression creates 240 incident edges, forces splits, reopens the file set, and checks all edges.
 There is no kernel change.
 
-## Version 3 record format
+## Version 4 record format
 
 All multibyte fixed-width values below are little-endian unless a key explicitly says otherwise.
 Every slotted record starts with the shared 16-byte stamp prefix: writer sequence at offsets 0-7,
 deleter sequence at offsets 8-15. Zero deleter means live. Graph records have kind at offset 16,
-format version 3 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
+format version 4 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
 UInt64 revision at offsets 26-33. Revision starts at zero and increases on replacement. The
 remaining payload follows that header:
 
 | Kind | Meaning | Payload after identity |
 | --- | --- | --- |
-| 1 | Node | Int32 label count, label strings, property map |
+| 1 | Node | Int32 label count, (label string, 16-byte catalog GUID in Guid.ToByteArray order) pairs, property map |
 | 2 | Relationship | UInt64 source, UInt64 target, 16-byte catalog type GUID (Guid.ToByteArray order), type string, property map |
 | 3 | Property index definition | Label string, property-key string |
 
@@ -105,17 +105,23 @@ non-finite floating values and oversized records fail before insertion. This ver
 arrays, nested objects or overflow chains. Nodes and relationships are immutable versions.
 UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
-complete records with caller-reserved identities. Formats 1 and 2 are refused before logical
+complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2 and 3 are refused before logical
 recovery scrub with COHDBG017 and the recreation remedy; there is no upgrade reader. Graph records
-and tree registrations use version 3; catalog and B-tree page formats are unchanged. The low-level
+and tree registrations use version 4; catalog and B-tree page formats are unchanged. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
 COHDBS003 and COHDBG018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 No SQLSTATE is assigned.
 
+Format 4 adds the catalog GUID after each label and the label-postings tree. A cleanly closed
+older file set is refused without changing any file. Physical WAL recovery precedes this fence
+on a crashed file set; the fence runs before logical scrub or the recovery checkpoint. There is
+no backfill or format upgrade.
+
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
-version `3`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
-distinguishes it. `Root` registrations change in the same bracket as a split and are reloaded after
+version `4`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
+distinguishes it. A tree root stays fixed through splits; registrations are saved when trees are
+created and reloaded after
 physical statement rollback. They are physical infrastructure, so logical rollback leaves an unused
 tree available for recovery; logical property-index definitions remain stamped and determine
 visibility.
@@ -126,6 +132,25 @@ references. Checksum errors and real I/O failures propagate; reclaimed pages/slo
 locations are treated as stale directory entries.
 
 ## Secondary indexes
+
+The MVCC label-postings B+Tree uses object ID UInt64.MaxValue - 1 and name `graph`. Each
+24-byte key holds a big-endian catalog label GUID followed by a big-endian UInt64 node identity;
+the value is the packed record location. Label text is stored in the node, outside the key.
+CreateNodeAsync and UpdateNodeAsync require the caller-resolved label-name/GUID map; storage
+takes no Catalog dependency and trusts that pairing. Missing/empty IDs are refused.
+
+Create, replacement (including property-only updates) and delete maintain every label posting
+in the same physical bracket as records and property indexes. Old snapshots retain old membership;
+rollback, purge and crash recovery handle postings with their records. Labeled records without
+the required tree registration refuse open as corruption. Empty or wholly unlabeled stores need
+no label tree. Open reconstructs name/token mappings and advisory retained-posting estimates.
+
+Label reads seek selected ranges in O(log P + r) index work for r retained postings. They decode
+only visible matching references in identity order. Reused label names with historical catalog
+IDs and pure pattern unions merge ranges with duplicate suppression. Conjunctions scan the
+cheapest required label and retain the full residual. Unfiltered scans still enumerate identities.
+Readers release the directory monitor before taking tree/page latches and take no graph writer
+lock. Shared cursors still materialize each selected range under a read latch.
 
 Each label/property definition owns a B+Tree whose object ID is its durable definition identity.
 Keys consist of the shared `DatabaseKeyWriter` scalar encoding followed by the node identity as
@@ -163,7 +188,7 @@ Deleting a connected node without detach is refused before mutation. Detach tomb
 every incident relationship, both adjacency entries and all node-property entries in one physical
 bracket. Version-ledger entries allow logical rollback to restore those records and index stamps
 together. Committed tombstones remain available to older snapshots until the shared version-purge
-worker's safe bound passes.
+worker's safe bound passes. Label postings follow the same lifecycle.
 
 Opening follows this order:
 
@@ -180,12 +205,12 @@ replay and scrub, not physical persistence. They prove committed nodes, relation
 indexes survive while a partially applied logical transaction disappears. The graph store keeps an
 identity directory of every retained version rebuilt in O(R log R) for R retained records at open.
 Persisted revisions order each chain newest first; reads select the first visible version. Label
-scans examine node identities and retained versions and sort m visible matches in O(m log m). Traversal path enumeration and cycle limits are
+scans seek selected retained postings and decode visible matches in identity order. Traversal path enumeration and cycle limits are
 owned and documented by the Graph root.
 
 ## Version publication and isolation
 
-Each replacement encodes the record and new index keys before mutation, moves property-index
+Each replacement encodes the record and new index keys before mutation, moves label postings and property-index
 or adjacency entries, and tombstones the old version in one physical bracket. Rollback restores
 stamps/removes new versions. Snapshot pins protect historical versions from purge; reclaimed/reused
 references are removed from the directory. A per-transaction async gate serializes full store
@@ -198,6 +223,8 @@ property update alone does not cause a conflict. See [GraphStore](graph-store.md
 
 
 ## Sources
+
+- **Label lifecycle and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/Storage/GraphStoreLabelTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Assimalign.Cohesion.Database.Graph.csproj`.

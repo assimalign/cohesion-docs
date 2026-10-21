@@ -48,7 +48,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `COHDBG014` | Caller parameter keys collide after stripping one sigil |
 | `COHDBG015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
-| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1 and 2; requires format 3 and recreation, with no upgrade path or assigned SQLSTATE |
+| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
 | `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity GQL0002 and unknown-name GQL0010;
@@ -104,6 +104,8 @@ COHDBG017 is an open-time format refusal before logical recovery scrub. Graph.St
 StorageCorruptionException with the code in its message; the engine retains COHDBG017 and
 COHDBG018 alongside COHDBS003 in DatabaseCorruptionException.Diagnostics. Recreate a database
 whose graph record format is unsupported; there is no upgrade reader.
+The engine requires format 4. A cleanly closed older file set stays byte-identical on refusal;
+physical WAL recovery can precede the fence for a crashed file set.
 
 COHDBS003 also applies to damaged reads, statements, transactions and create/open failures,
 including wrapped or aggregate storage corruption. It names the database and page when known
