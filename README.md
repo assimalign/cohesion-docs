@@ -1,9 +1,9 @@
 # Cohesion Documentation
 
-The Cohesion documentation micro-frontend package and its Viu WebAssembly preview application.
+The Cohesion documentation micro-frontend package, its Viu WebAssembly client, and its Cohesion Web preview host.
 
-> **Status:** Partial. The package and shared-shell preview application are complete; composition by
-> the `docs.assimalign.com` landing zone and its Cohesion Web host is a later phase.
+> **Status:** Partial. The package, shared-shell client, and standalone Web preview host are complete;
+> composition by the `docs.assimalign.com` landing zone is a later phase.
 
 The framework source lives at [assimalign/cohesion](https://github.com/assimalign/cohesion).
 Content under `docs/` is the site's source of truth. `Assimalign.Cohesion.Docs` generates the catalog,
@@ -13,27 +13,38 @@ shared Assimalign frontend shell.
 ## Repository layout
 
 ```text
-global.json                                   .NET and Viu SDK selection
+global.json                                   .NET, Viu, and Cohesion SDK selection
 NuGet.config                                  GitHub Packages feed and local cache
 Directory.Build.props                         Viu, Cohesion Viu, and shared frontend package pins
-CohesionDocs.slnx                              package, tests, and preview application solution
+CohesionDocs.slnx                              package, tests, Client, and Web solution
 packages/Assimalign.Cohesion.Docs/
   src/                                         host-neutral Viu micro-frontend package
   test/                                        catalog, route, navigation, and format tests
   docs/OVERVIEW.md                             package usage
   docs/DESIGN.md                               package boundaries and prefix decisions
-app/Assimalign.Cohesion.Docs.App/
-  Assimalign.Cohesion.Docs.App.csproj          thin shared-shell browser host
-  Program.cs                                  host composition and browser startup
-  LandingPage.viu                             minimal preview-only package link
-  Properties/launchSettings.json               http://localhost:5180
+app/Assimalign.Cohesion.Docs.Client/
+  Assimalign.Cohesion.Docs.Client.csproj        Viu Browser client
+  Program.cs                                  components, routing, and browser startup
+  LandingPage.viu                              minimal preview-only package link
   wwwroot/                                    bootstrap document and shared-helper import
+app/Assimalign.Cohesion.Docs.Web/
+  Assimalign.Cohesion.Docs.Web.csproj           Cohesion Web host with marked client ProjectReference
+  Program.cs                                  client middleware and host lifetime
+  appsettings.Local.json                      local HTTP endpoint at http://localhost:5000
+  Properties/launchSettings.json               selects COHESION_ENVIRONMENT=Local
 docs/
   index.md                                    landing page and top-level navigation order
   database/                                   database guides and language references
   platforms/                                  deployment platform documentation
   dotnet-apis/                                 library, resource, and SDK references
 ```
+
+## Version line
+
+- Viu SDK and router: `10.0.0-preview.0.ci.7`
+- Cohesion SDKs: `10.0.0-preview.0.ci.70`
+- `Assimalign.Cohesion.Viu.*`: `10.0.0-preview.0.ci.12`
+- `Assimalign.Frontend.*`: `1.0.0-preview.1.ci.2`
 
 ## Local development
 
@@ -43,11 +54,12 @@ them.
 
 Every `Assimalign.*` package restores from the Assimalign GitHub Packages feed
 (`https://nuget.pkg.github.com/assimalign/index.json`); no sibling checkout has to be packed first.
-Three pins select the builds, and they move together because each build must depend on the same Viu
-build:
+The SDK and package pins move together so the runtime and hosting builds stay compatible:
 
 - the `Assimalign.Viu.Sdk` entry in `global.json` selects the Viu SDK, and `Directory.Build.props`
   reads it as `ViuVersion` for every Viu package reference (keep `Assimalign.Viu.Sdk.Browser` equal);
+- the `Assimalign.Cohesion.Sdk` and `Assimalign.Cohesion.Sdk.Web` entries in `global.json` select
+  the Cohesion framework build required by the Web host and Cohesion Viu packages;
 - `CohesionViuVersion` in `Directory.Build.props` selects the viu-platforms build;
 - `FrontendVersion` in `Directory.Build.props` selects the aaln-core-frontend build, published by
   that repository's Azure pipeline as `1.0.0-preview.1.ci.<run>`.
@@ -64,15 +76,26 @@ $env:NuGetPackageSourceCredentials_assimalign = "Username=<github-user>;Password
 Then run:
 
 ```pwsh
-dotnet run --project app/Assimalign.Cohesion.Docs.App
+dotnet run --project app/Assimalign.Cohesion.Docs.Web
 ```
 
-Open `http://localhost:5180`. The launch profile sets both `applicationUrl` and `ASPNETCORE_URLS`
-because the packaged development server gives the environment variable precedence.
-`Assimalign.Cohesion.Viu.DevServer` serves the built browser assets and applies a single-page
-application fallback for direct documentation route requests such as `/cohesion/database/sql`;
-only the resource control plane (`/cohesion/v1` and its subtree) and the bare health probes are
-reserved, never the `/cohesion` module prefix.
+Open `http://localhost:5000`. The Web launch profile selects `COHESION_ENVIRONMENT=Local`, and
+`appsettings.Local.json` configures the HTTP endpoint. The Web project builds the Browser client
+through a normal `ProjectReference` marked `ViuClient="true"`. `AddViuClient()` discovers the generated
+`viu-client.json` build output; `UseViuApplication()` serves the client's asset manifests and applies
+the SPA fallback for direct documentation routes such as `/cohesion/database/sql`. No manually
+configured client output paths or separate development-server package are needed.
+
+Publishing the Web project also publishes the trimmed Browser client and bundles its `wwwroot`:
+
+```pwsh
+dotnet publish app/Assimalign.Cohesion.Docs.Web -c Release
+```
+
+Only the resource control plane (`/cohesion/v1` and its subtree) and the bare health probes are
+reserved, never the `/cohesion` module prefix. To add HTTP APIs, register `builder.Services.AddRouting()`
+and call `application.UseRouting()` before `UseViuApplication()`. Selected endpoints take precedence
+over client content without an API branch.
 
 Run `dotnet build CohesionDocs.slnx -c Release` and
 `dotnet test CohesionDocs.slnx -c Release --no-build` to verify the package and preview host.
@@ -106,6 +129,11 @@ navigation, breadcrumbs, and previous/next links. The preview app registers ever
 `builder.Services`: its own components (`AddComponents`), the shared components
 (`AddFrontendComponents`), its landing route (`AddRouting`), and the module (`AddMicroFrontends`),
 then installs the router with `application.UseRouter()` after building.
+
+Use the parameterless `AddComponents()` to register the compile-time aggregate of the application
+and its referenced component libraries. It can be combined with `AddFrontendComponents()` without
+registering a catalog twice. Keep generated catalog aggregation enabled (the SDK default); explicit
+`GeneratedViuComponents.Register` callbacks bypass that deduplication.
 
 ## Page format
 
@@ -180,8 +208,9 @@ resolution. Wide tables live in keyboard-focusable `.table-scroll` containers.
 ## Hosting boundary
 
 The package is host-neutral and renders Markdown through the shared micro-frontend contract. The
-preview application renders it in WebAssembly and its development host serves assets and fallback
-routes. The dedicated `docs.assimalign.com` Cohesion Web host belongs to the landing-zone repository.
+Client project renders it in WebAssembly. The Web project owns the HTTP pipeline and process lifetime,
+serves the client and documentation assets, and can compose API middleware. The production
+`docs.assimalign.com` landing zone remains a separate composing host.
 
 ## Sources
 
@@ -189,7 +218,7 @@ routes. The dedicated `docs.assimalign.com` Cohesion Web host belongs to the lan
   `aaln-core-frontend/libraries/Assimalign.Frontend.MicroFrontends/`.
 - **Markdown integration** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/docs/OVERVIEW.md` and `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/docs/DESIGN.md`.
 - **Catalog and runtime implementation** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/shared/ContentExtraction.cs` and `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Markdown/src/`.
-- **Development host** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.DevServer/docs/OVERVIEW.md`.
+- **Web host** — `viu-platforms/platforms/cohesion/Assimalign.Cohesion.Viu.Server/docs/OVERVIEW.md`.
 - **Template and runtime contracts** — `viu/docs/SPECIFICATION.md`, `viu/libraries/Syntax/Assimalign.Viu.Syntax.SingleFileComponent/docs/FORMAT.md`, and `viu/libraries/Runtime/Assimalign.Viu.Reactivity/docs/OVERVIEW.md`.
 - **Markdown parser** — `cohesion/libraries/Content/Assimalign.Cohesion.Content.Markdown/src/`.
 - **Branding** — `branding/README.md`, `branding/svg/on-light/cohesion.svg`, and `branding/svg/on-dark/cohesion.svg`.

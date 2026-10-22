@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/app/">
-    <Project Path="app/Assimalign.Cohesion.Docs.App/Assimalign.Cohesion.Docs.App.csproj" />
+    <Project Path="app/Assimalign.Cohesion.Docs.Client/Assimalign.Cohesion.Docs.Client.csproj" />
+    <Project Path="app/Assimalign.Cohesion.Docs.Web/Assimalign.Cohesion.Docs.Web.csproj" />
   </Folder>
   <Folder Name="/packages/Assimalign.Cohesion.Docs/">
     <Project Path="packages/Assimalign.Cohesion.Docs/src/Assimalign.Cohesion.Docs.csproj" />
