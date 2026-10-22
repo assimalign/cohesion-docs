@@ -82,7 +82,7 @@ stamps. The disk layout and storage format remain unchanged.
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
 `StorageFormatException` / COHDBS001 before reading the journal; there is no upgrade or legacy
-reader. This kernel version is separate from SQL data/catalog format 25 and Graph record format 4.
+reader. This kernel version is separate from SQL data/catalog format 26 and Graph record format 4.
 
 The changed public members are:
 
@@ -198,6 +198,33 @@ StoragePageManager allocation releases its reserved page ID if obtaining an over
 If extension or initialization fails after pinning, it releases both the pin and reservation.
 The unjournaled-write audit runs before buffer initialization, so a refusing audit preserves a
 resident free page's bytes and dirty version. Repeated pool-exhaustion refusals do not leak pages.
+
+## Maintenance scheduling hints
+
+Storage exposes two advisory properties inherited by every model storage facade:
+
+```csharp
+public bool HasPendingCommits { get; }
+public int DirtyPageCount { get; }
+```
+
+HasPendingCommits reads the grouped durability gate's requested/durable positions without I/O.
+It is false for disposed, offline, journal-less or non-durable storage. DirtyPageCount is a
+constant-time count of dirty resident pages, including pinned pages; disposed storage returns zero.
+Writing an older image cannot clear a concurrent change. Neither getter throws a disposed-object
+exception or exposes buffer frames. These are scheduling hints: work may arrive immediately after
+the read, and a subsequent operation can find no work.
+
+The model workers use the following due checks, exercised by MaintenanceCapacityTests' idle
+allocation and dispatch cases:
+
+```csharp
+static bool FlushDue(Storage storage) => storage.HasPendingCommits;
+static bool WriteBackDue(Storage storage) => storage.DirtyPageCount > 0;
+```
+
+The hints avoid dispatching lanes for idle databases. They do not replace commit durability,
+checkpoint completion or explicit flushing. See [maintenance lane isolation](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
 ## The record layer
 
@@ -634,6 +661,8 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 
 ## Sources
 
+- **Scheduling hints** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Storage.cs`, `src/Internal/StorageBufferPool.cs` and `src/Internal/StorageGroupCommitGate.cs` in the same project.
+- **Idle worker checks** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Reader progress and frame cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageCheckpointFlushTests.cs`.
 - **Checkpoint-independent readers and late promotion** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCoordinatorRecoveryTests.cs`.
 - **Opt-in measurements** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/CheckpointLatencyProbeTests.cs`.

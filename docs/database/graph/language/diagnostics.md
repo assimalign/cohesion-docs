@@ -245,6 +245,22 @@ The server drains complete shared terminal Errors and capacity refusals within i
 ShutdownDrainTimeout, with TerminalDrainLinger bounding peer close after output completion.
 TLS delivery remains limited by #1086. See [server options](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-server-options.md).
 
+## Maintenance worker events
+
+Provider `Assimalign.Cohesion.Database` reports maintenance lane delays for this model:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 35 | WorkerLaneDelayed | Warning | workerName, workerKind, database, reason, elapsedSeconds |
+| 36 | WorkerLaneDisposalWaiting | Warning | workerName, workerKind, database, elapsedSeconds |
+
+Event 35 names `capacity` deferral (zero elapsed time) or a `stuck` operation (its runtime),
+limited to once per second per database/worker. The accompanying worker failure is observational:
+engine Faulted can coexist with a serving database, and the report does not advance the offline
+policy or replace an unresolved operational fault. Event 36 repeats once per second for each
+running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
+returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
 ## Sources
 
 - **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.

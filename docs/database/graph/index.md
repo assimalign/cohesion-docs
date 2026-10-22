@@ -151,6 +151,13 @@ See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalig
 and [file diagnostics](language/diagnostics.md#database-files).
 
 ## Engine health
+Background write-back, group-commit flush, version purge and checkpoint work run per database
+on capped lanes: 64 non-stuck operations and at most 128 lane threads per engine/worker kind.
+Admission is round-robin; stuck I/O releases its admission slot after four worker intervals,
+clamped to 1–4 seconds, while keeping storage ownership. Idle checks dispatch no lane; parked
+runners retire after 30 seconds. Saturation/stuck observations leave databases serving and emit
+root warning 35; disposal joins in-flight I/O and emits warning 36 periodically. See
+[background worker limits and operations](../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
 Persistent version-purge refusals are reported once after three actual attempts spanning at least
 one second on the engine clock. They set engine Faulted while the database stays in service and

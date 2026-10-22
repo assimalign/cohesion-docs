@@ -74,6 +74,11 @@ Location.Create retains the model parser's supplied positions without normalizat
 This adapts the asynchronous completion case in QueryAnalyzerTests:
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Assimalign.Cohesion.Database.Language;
+using Assimalign.Cohesion.Database.Types;
+
 sealed class ExampleAnalyzer : QueryAnalyzer
 {
     public override async Task AnalyzeAsync(QueryAnalyzerContext context,

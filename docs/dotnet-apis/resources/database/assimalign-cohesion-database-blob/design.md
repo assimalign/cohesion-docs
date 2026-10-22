@@ -665,8 +665,41 @@ Normal peer-close linger expiry and a server hard abort do not emit this event. 
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
 
+## Maintenance lane isolation
+
+Page write-back, WAL group flush, version purge and checkpoint use dedicated lanes for each
+database. Each engine/worker kind admits 64 non-stuck operations under a hard ceiling of 128
+lane threads, including parked and stuck runners. Due databases are admitted round-robin.
+A stuck operation releases its admission slot after four intervals, clamped to 1–4 seconds,
+but retains its I/O and storage ownership until completion. At the thread ceiling, further work
+waits for a runner to return. After initialization, idle visits allocate nothing and dispatch no lane; parked runners
+retire after 30 seconds. Completion wakes collect outcomes without accelerating healthy peers'
+write-back interval. Full purge passes becoming due during running work remain owed.
+
+The pump collects outcomes and maintains per-database backoff and failure state. Saturation and
+stuck lanes are observational failures: worker Fault and engine Faulted expose the delay while
+HasFailingWorker remains false for the observation alone. Operational faults retain precedence.
+Disposal joins running lanes before closing storage, with periodic warnings and no I/O-abandonment
+timeout. See [shared admission and operations](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+## Maintenance worker events
+
+Provider `Assimalign.Cohesion.Database` reports maintenance lane delays for this model:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 35 | WorkerLaneDelayed | Warning | workerName, workerKind, database, reason, elapsedSeconds |
+| 36 | WorkerLaneDisposalWaiting | Warning | workerName, workerKind, database, elapsedSeconds |
+
+Event 35 names `capacity` deferral (zero elapsed time) or a `stuck` operation (its runtime),
+limited to once per second per database/worker. The accompanying worker failure is observational:
+engine Faulted can coexist with a serving database, and the report does not advance the offline
+policy or replace an unresolved operational fault. Event 36 repeats once per second for each
+running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
+returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
 ## Sources
 
+- **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobServerDrainTests.cs`, `BlobServerRejectionDrainTests.cs`, `BlobServerRejectionSetupTests.cs` and `BlobTerminalDrainEventTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobCommitCancellationTests.cs`.

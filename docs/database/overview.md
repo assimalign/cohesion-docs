@@ -179,13 +179,13 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 25.
+resolution and do not advise restore or drop. SQL remains at format 26.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives COHDBK006 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 25 and Graph's record
+The shared storage format is **4**, independent of SQL's data/catalog format 26 and Graph's record
 format 4. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
@@ -274,6 +274,29 @@ when non-OutOfMemoryException history maintenance also fails, attaching the clea
 `Exception.Data["HistoryMaintenanceFailure"]`. No diagnostic code or SQLSTATE is added.
 See [worker APIs and events](../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#worker-failure-reporting).
 Cache has no implemented engine or purge worker.
+
+## Maintenance operations
+
+SQL, Key-Value Pair, Document, Graph and Blob isolate page write-back, WAL group flush, version
+purge and checkpoints on dedicated database lanes. SQL/Key-Value index-maintenance dispatchers
+have the same isolation, with empty production bodies. Each engine/worker kind admits 64 non-stuck
+operations and retains at most 128 lane threads. Due databases are served round-robin. Stuck work
+releases its admission slot after four worker intervals, clamped to 1–4 seconds, while retaining
+the I/O and storage ownership. At the hard thread ceiling, more work waits for a runner to return.
+Idle checks dispatch nothing; parked runners retire after 30 seconds.
+
+Capacity/stuck observations set worker Fault and engine Faulted while databases stay served;
+they do not advance offline policy or replace unresolved operational faults. Root provider
+`Assimalign.Cohesion.Database` emits warning 35, WorkerLaneDelayed, naming database, worker kind,
+reason (`capacity` or `stuck`) and elapsed operation time, at most once per second per database/worker.
+Investigate the named storage/device and worker before treating the state as database unavailability.
+
+Disposal waits for all in-flight lane I/O before storage closes. Warning 36,
+WorkerLaneDisposalWaiting, repeats once per second per running database/worker with elapsed disposal
+time. No disposal timeout abandons I/O; a device that never answers can keep shutdown waiting.
+The lane caps are internal defaults rather than public tuning options. See
+[worker limits, APIs and events](../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+Cache has no implemented engine or workers.
 
 ## Commit and cancellation
 
@@ -371,7 +394,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 25;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 26;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
