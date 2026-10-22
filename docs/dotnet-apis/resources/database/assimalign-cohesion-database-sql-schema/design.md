@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is COHSQLE031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 25 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 7.
+Storage format 26 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 8.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports COHSQLS005
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -105,6 +105,17 @@ declarations, canonical documents, ownership, validation, and migration planning
 
 ## Current format boundary
 
+`SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v8`. Typed TimeSpan defaults
+render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock text and changing
+the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
+Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
+InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8).
+
+For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
+against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v8 documents and hashes
+are equal. TimeSpan.MinValue renders `'-922337203685.4775808 seconds'`; zero renders `'0 seconds'`.
+
 Compiled schemas have no identity representation. Reconciliation of a typed schema-owned table
 containing identity metadata is refused before changes with SqlSchemaMigrationException,
 `COHSQLP005` and "Nothing was changed." SQL script-created tables retain their SQL definitions.
@@ -112,7 +123,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports COHDBL001, including quoted names.
 
-The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+The integration branch uses SQL row-storage format 26 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -123,9 +134,10 @@ boundary when interpreting historical layout notes above.
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+upgrade path. Compiled schema format remains version 8.
 
 ## Sources
 

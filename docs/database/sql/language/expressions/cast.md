@@ -50,7 +50,8 @@ Application-registered casts and domains use the same conversion path.
   NUMERIC requires an exact `System.Decimal` representation. Numeric range faults are `COHSQLE002`.
 - Explicit character CAST truncates to the declared number of Unicode scalars; CHAR then pads with
   ASCII spaces. CHAR to TEXT strips padding. Binary bounds reject excess bytes rather than truncate.
-- Temporal text uses the strict [literal grammar](literals.md). DATE to timestamp means midnight.
+- Temporal text uses the [literal grammar](literals.md). TIME and INTERVAL assignment and DEFAULT
+  use the same reader as CAST. DATE to timestamp means midnight.
   TIMESTAMP is a zone-less wall clock interpreted as UTC when converting to TIMESTAMPTZ; the reverse
   uses UTC and returns `DateTimeKind.Unspecified`. TIMESTAMPTZ to DATE/TIME also uses UTC.
 - TIME to INTERVAL uses time since midnight. INTERVAL to TIME requires a nonnegative duration below
@@ -60,8 +61,18 @@ Application-registered casts and domains use the same conversion path.
   JSONB uses UTF-8 bytes. SQL wire scalar codecs still exclude direct JSON/JSONB components: CAST
   those results to TEXT when returning them through that codec.
 
-Invalid value text uses `COHSQLE022` (22P02). Unknown type names use `COHSQLE010` (42704);
-invalid target modifiers use `SQL0005`. CAST remains excluded from DEFAULT declarations and CHECK.
+Invalid non-temporal value text uses `COHSQLE022` (22P02). Temporal bad format uses
+`COHSQLE047` (22007), an out-of-range calendar, clock or offset field uses `COHSQLE048` (22008),
+and INTERVAL duration overflow uses `COHSQLE062` (22015). Unknown type names use `COHSQLE010`
+(42704); invalid target modifiers use `SQL0005`. CAST executes in column DEFAULT expressions;
+CHECK and typed/schema literal defaults exclude it. SQL has NULL and no MISSING scalar.
+
+TIME accepts `1:02`, `1 PM`, `12:02 am`, `13:45:00.` and a validated written zone that is
+discarded without changing the clock. INTERVAL accepts bare signed seconds (`'12'` is twelve
+seconds), `'1 2 hours'` (26 hours) and `'@ 1 day 2 hours ago'` (minus 26 hours). CLR day-dot-clock
+text such as `'1.02:03:04'` fails COHSQLE047. See [temporal input](../data-types/index.md#temporal-text-input)
+for zone and precision limits. Floating text assignment also uses CAST's parser: `'1,000'` fails
+COHSQLE022 and `'1e400'` fails COHSQLE002 (22003).
 
 A domain check that rejects the converted value reports `COHSQLE038` (23514) through
 SqlConstraintViolationException with exactly one Error diagnostic. Its message names the domain
@@ -77,6 +88,14 @@ lowercase backslash-x hex. Intervals render day fields and a clock, such as `1 d
 Boolean text is uppercase TRUE/FALSE. NULL concatenation remains NULL.
 
 ## Examples
+
+```sql
+SELECT CAST('1 PM' AS TIME), CAST('10:00+05:30' AS TIME),
+       CAST('12' AS INTERVAL), CAST('@ 1 day 2 hours ago' AS INTERVAL);
+```
+
+The row contains `13:00:00`, `10:00:00`, a twelve-second duration and a minus-26-hour duration.
+`SELECT CAST('25:00' AS TIME);` instead reports COHSQLE048 (22008).
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
 
@@ -106,6 +125,8 @@ The SELECT reports COHSQLE038 (23514), naming `positive`; the stored row remains
 
 ## Sources
 
+- **Text assignment and CAST parity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
+- **Temporal failure categories** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`.
 - **Pair matrix and examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastMatrixTests.cs`.
 - **Conversions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlStandardCasts.cs`.
 - **Bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Types/SqlCastConverter.cs`.

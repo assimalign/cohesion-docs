@@ -32,7 +32,7 @@ locally first, then in enclosing query scopes. See [SELECT](../statements/select
 | --- | --- |
 | Scalar, one row | That row's value |
 | Scalar, no rows | Typed `NULL` |
-| Scalar, more than one row | Cardinality error; never an arbitrary first row |
+| Scalar, more than one row | COHSQLE046 (21000, cardinality_violation); no arbitrary first row |
 | `IN`, equal non-null member | `TRUE` |
 | `IN`, no match, null member | `UNKNOWN` |
 | `IN`, null operand and nonempty result | `UNKNOWN` |

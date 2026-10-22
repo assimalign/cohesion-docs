@@ -25,7 +25,9 @@ CHECK rejects FALSE and accepts TRUE or UNKNOWN. A nullable domain therefore acc
 its check yields UNKNOWN; NOT NULL rejects it. A column's explicit DEFAULT NULL overrides default
 inheritance. SQL has no MISSING value.
 
-Invalid, duplicate or volatility-incompatible definitions use COHSQLD001 (no SQLSTATE).
+Invalid, duplicate or volatility-incompatible domain definitions use COHSQLD001 (no SQLSTATE).
+The SQL binder rejects an existing domain name before catalog publication; low-level catalog
+non-function definition collisions instead use COHSQLE050 (42710).
 Non-Boolean CHECK uses COHSQLE003 (42804); a valid check rejecting a value uses COHSQLE038 (23514).
 SERIAL/BIGSERIAL/SMALLSERIAL domain names, including quoted forms, use COHDBL001; use identity
 columns for generation. Domain defaults are literal-only. See [types](../data-types/index.md) and

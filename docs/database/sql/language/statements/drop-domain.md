@@ -17,7 +17,8 @@ DROP DOMAIN domain_name [ ; ]
 ## Remarks
 
 A missing domain reports COHSQLD001, a dependent column/definition/view COHSQLD002, and an
-engine-registered type COHSQLD003. No SQLSTATE is assigned to these codes. Ordinary DDL cannot
+engine-registered type COHSQLD003 (0A000). COHSQLD002 maps to 2BP01; COHSQLD001 has no assigned
+SQLSTATE. Ordinary DDL cannot
 drop schema-owned definitions. IF EXISTS and CASCADE are outside this syntax. Dropping a domain
 performs no scalar NULL or MISSING evaluation.
 

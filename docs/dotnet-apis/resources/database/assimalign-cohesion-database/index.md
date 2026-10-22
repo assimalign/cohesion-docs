@@ -96,6 +96,14 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
   `DatabaseEngine.GetOfflineError` says what took one offline. Child roots own independent
   exception roots (see [Design](design.md)).
 
+## Maintenance lanes
+
+Built-in maintenance uses [capped per-database lanes](design.md#maintenance-lane-isolation):
+64 non-stuck operations and at most 128 lane threads per engine/worker kind, with round-robin
+admission and idle retirement. Saturation/stuck observations leave databases serving and emit
+root warning 35; disposal waits for in-flight I/O and emits warning 36 periodically.
+See [protected reporting members and events](design.md#worker-failure-reporting).
+
 ## Dependencies
 
 `Core`, the eight child roots the root rolls up (`Database.Execution`, `Database.Indexing`,

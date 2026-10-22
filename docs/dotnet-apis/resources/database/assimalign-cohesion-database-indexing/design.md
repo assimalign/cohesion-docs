@@ -91,6 +91,25 @@ collation transforms count; entry-reference and writer-stamp tiebreakers are sep
   change the root page id — catalogs re-export at their persistence points.
   Dropping an index is a directory operation; its pages await vacuum.
 
+## Leaf split policy
+
+An append to the rightmost leaf keeps all but one existing entry on the left. The incoming
+entry is inserted after splitting and descending again. The same policy applies at the end of a
+duplicate run only when the whole leaf, including the incoming key, has one value and its upper
+ancestor separator proves the run ends there. An equal-key separator cannot prove this, because
+the run may continue in the next leaf. Mixed-key leaves and other insertions use the midpoint.
+Internal-node splits retain their existing byte-based midpoint policy.
+
+This adapts PostgreSQL's rightmost and single-value strategies. In the deterministic
+5,000-entry tests with 1,024-byte keys, ascending keys and duplicates inserted in reference order
+use 834 leaves at about 78% fill, compared with 1,666 leaves at about 39% under midpoint splits.
+These are page/byte measurements without pruning, rather than a throughput guarantee.
+
+Denser ascending loads leave less room for updates. Adding one new reference for every key after
+that load ends with 1,944 leaves for random updates or 2,500 for ascending updates, compared with
+1,667 under the former policy. This additional splitting is the accepted space/headroom trade-off.
+The policy changes neither B-tree page format 2 nor cursor continuation or transactional rollback.
+
 ## Transactional binding
 
 `IIndex` mutations take an `ITransactionContext` — index entries are stamped and become visible
@@ -203,5 +222,6 @@ Pure contracts and span-based value objects. No reflection.
 
 ## Sources
 
+- **Split policy and measured shapes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/src/BTreeIndex.cs` and `tests/BTreeShapeTests.cs` in the same project.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/src/Assimalign.Cohesion.Database.Indexing.csproj`.

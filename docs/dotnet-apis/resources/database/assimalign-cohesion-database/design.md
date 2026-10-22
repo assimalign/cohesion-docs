@@ -392,6 +392,41 @@ Only ordinary storage-bracket contention is retried as busy. A statement that ru
 checkpoint retains a ForeignStorage failure for the next worker checkpoint call, preserving the
 statement's already-decided outcome.
 
+## Maintenance lane isolation
+
+Every implemented model runs checkpoint, page write-back, WAL group flush and version purge on
+worker-owned dedicated lanes, with at most one operation per database and worker kind. SQL and
+Key-Value Pair's index-maintenance workers use the same dispatcher, but their production bodies
+remain empty and dispatch no idle work. Work admission starts after the last database admitted,
+serving due databases round-robin. SQL/Key-Value provisional file sets also flush on lanes; publication
+preserves the data file set's lane identity and waits for an outstanding provisional catalog flush.
+
+The cap is **64 non-stuck operations per engine and worker kind**, with a hard ceiling of
+**128 lane threads**, including parked and stuck runners. After four worker intervals, clamped to
+1–4 seconds, a stuck operation releases its admission slot while retaining its lane and storage
+ownership until I/O returns. This permits replacement work within the thread ceiling. At that
+ceiling, progress requires a runner to return. These are dedicated OS threads, separate from the
+worker pumps and application thread pool.
+
+After initialization, idle due checks dispatch no lane and allocate nothing when pass observation is disabled. They
+consult pending commits, a constant-time dirty-page count, deferred undo and owed purge passes.
+Parked runners retire after 30 seconds. A detached write-back completion wakes collection while
+healthy peers keep their regular interval; work deferred by capacity remains owed. Collected WAL
+flushes recheck late commit registrations before sleeping. Purge retry/refusal state stays on the
+pump, and a full pass becoming due while an earlier lane runs remains owed after collection.
+
+Capacity deferral and stuck lanes report observational TimeoutException failures and warning
+event 35, at most once per second per database/worker. Worker Fault and engine Faulted expose the
+delay, while HasFailingWorker(database) remains false for the observation alone. A lane delay
+neither takes the database offline nor replaces an unresolved operational fault or its retry state.
+Completion clears the observation when no unfinished work remains.
+
+Engine disposal stops pumps and joins every lane before closing storage. It has no timeout that
+abandons in-flight I/O. Warning event 36 repeats once per second for each database/worker still
+running, with elapsed disposal wait time. Investigate the named database's storage/device latency;
+an unresponsive device can keep disposal waiting indefinitely. Size and interval checkpoint triggers
+remain soft, and this isolation does not impose a hard journal bound.
+
 ## Worker failure reporting
 
 SQL, Key-Value Pair, Document, Graph and Blob report persistent version-purge refusals once per
@@ -416,6 +451,8 @@ precedence over observations in Fault publication, including cancellation before
 protected int ReportFailure(string database, Exception exception);
 protected int ReportFailure(string database, Exception exception, TimeSpan retryAfter,
     bool countsTowardOffline = true);
+protected void ReportLaneDelay(string database, string reason, TimeSpan elapsed);
+protected void ReportLaneDisposalWait(string database, TimeSpan elapsed);
 ```
 
 The two-argument form uses FailureBackoff and counts toward offline. The optional flag on the
@@ -428,6 +465,25 @@ Both forms throw ArgumentNullException for a null database or exception and Inva
 outside a running pass. The explicit-delay form throws ArgumentOutOfRangeException for a negative
 retryAfter. Zero lets a worker pace its own retries. Model purge workers apply their blocker/time
 threshold before invoking this API; the base does not infer contention from exception text.
+
+ReportLaneDelay is called during a running pass for `capacity` or `stuck` obstruction. It publishes
+an observation with zero retry delay unless an operational fault already exists, in which case it
+keeps that fault unfinished. It also emits event 35 with the worker identity and elapsed operation
+time. Its reporting path retains ReportFailure's running-pass requirement and null-database guard.
+ReportLaneDisposalWait emits event 36 during lane release, with elapsed disposal time. Derived
+workers must retain storage ownership while reporting a wait; neither helper cancels I/O.
+
+The equivalent calls inside a lane-owning derived worker are:
+
+```csharp
+// During the pass, after admission was refused:
+ReportLaneDelay("db", "capacity", TimeSpan.Zero);
+// During release, while joining a running operation:
+ReportLaneDisposalWait("db", elapsed);
+```
+
+MaintenanceCapacityTests verifies the built-in paths: engine Faulted without an offline database,
+and event 36 repeating while disposal is incomplete and the database's storage remains open.
 
 This fragment adapts ScriptedWorker's report-only path inside a derived worker:
 
@@ -455,15 +511,22 @@ or SQLSTATE.
 | --- | --- | --- | --- |
 | 1 | WorkerFailed | Warning | workerName, workerKind, database, exceptionType, exceptionMessage, consecutiveFailures |
 | 2 | WorkerRecovered | Informational | workerName, workerKind, database, failures |
+| 35 | WorkerLaneDelayed | Warning | workerName, workerKind, database, reason, elapsedSeconds |
+| 36 | WorkerLaneDisposalWaiting | Warning | workerName, workerKind, database, elapsedSeconds |
 
 WorkerFailed uses the same per-database record for observational refusals. Its consecutiveFailures
 is the episode's failed-pass count, including report-only passes; it is not the offline minimum's
-operational count. A worker failure does not stop the loop or slow other databases' maintenance.
-Checkpoint isolation tests use an internal, opt-in per-pass record to verify that a failing
-database's backoff does not delay healthy databases; this adds no public API.
+operational count. Lane isolation lets healthy databases continue within the admission/thread caps.
+WorkerLaneDelayed uses reason `capacity` (zero elapsed time) or `stuck` (operation runtime);
+WorkerLaneDisposalWaiting measures disposal wait time. Both use the root provider for all five models
+and add no diagnostic code or SQLSTATE. Opt-in internal pass observations cover all lane-worker kinds;
+checkpoint due-state evidence remains checkpoint-specific.
 
 ## Sources
 
+- **Admission, fairness, idle cost and disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
+- **Lane ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database/shared/DatabaseWorkerLanes.cs`, `DatabaseLaneWorker.cs` and `DatabaseMaintenanceWorker.cs` in the same directory.
+- **Events 35/36** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/Internal/EventSource/DatabaseEventSource.cs`.
 - **Checkpoint isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/CheckpointPassObservationTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/TestObjects/CheckpointPace.cs`.
 - **Reporting contract and fault precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseEngineWorker.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/DatabaseWorkerFailureWindowTests.cs`.
 - **Derived-worker example** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/TestObjects/ScriptedWorker.cs`.

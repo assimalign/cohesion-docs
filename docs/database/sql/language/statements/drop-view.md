@@ -25,7 +25,7 @@ its tables or views.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLD002 | RESTRICT finds a dependent view; message names it | — |
+| COHSQLD002 | RESTRICT finds a dependent view; message names it | 2BP01 |
 | COHSQLE033 | Target is absent without IF EXISTS, or is a table even with IF EXISTS | — |
 | COHSQLT003 | DDL inside an explicit transaction | — |
 

@@ -113,7 +113,11 @@ products that depend on them. Sessions remain caller-owned and must finish befor
 disposal. Borrowed SQL/KeyValue servers may terminally close their listeners during Stop despite
 remaining caller-owned for disposal.
 
-Health observes distinct engines, states and workers from the frozen runtime registry. Existing
+Health observes distinct engines, states and workers from the frozen runtime registry.
+For all five models, a maintenance lane delayed by capacity or stuck I/O can set engine Faulted
+while HasFailingWorker(database) remains false and requests continue. Root events 35 and 36
+identify delayed work and disposal waits. See [maintenance health and operations](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+Existing
 enabled-resource admin endpoints, telemetry order and health aggregation remain compatible; this
 phase does not extend those systems.
 

@@ -191,7 +191,7 @@ The first returns `(TRUE, TRUE)`. The second fails with located `COHSQLE040`; re
 with NOT LIKE also fails. A subsequent query on that session still executes.
 
 Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
-domain checks, SQL function bodies and views. Storage format 25 refuses earlier files without
+domain checks, SQL function bodies and views. Storage format 26 refuses earlier files without
 an upgrade reader. These expression forms add no named clause.
 
 ## Temporal arithmetic

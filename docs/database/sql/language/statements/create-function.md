@@ -28,8 +28,9 @@ also apply to function results. SQL has no MISSING value. The invocation's effec
 flows into parameters and the body.
 
 Tables, subqueries, aggregates, external parameters and recursion are refused. A function cannot
-call a more volatile function; CHECKs admit only Immutable calls. Duplicate or invalid definitions
-use COHSQLD001 (no SQLSTATE). Unknown types use COHSQLE010 (42704); incompatible calls use
+call a more volatile function; CHECKs admit only Immutable calls. Invalid definitions use
+COHSQLD001 (no SQLSTATE); duplicate signatures use COHSQLE065 (42723), and missing/unresolved
+implementations use COHSQLE009 (42883). Unknown types use COHSQLE010 (42704); incompatible calls use
 COHSQLE006 (42883). Domain check failures use COHSQLE038 (23514). There is no LANGUAGE clause,
 qualified function name or replacement form. Persisted call identities retain their resolved overload.
 

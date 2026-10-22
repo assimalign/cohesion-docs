@@ -235,6 +235,17 @@ A clean handshake EOF has its own message naming the startup handshake. See
 [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
+## Structured execution failures
+
+Execution, constraint, conversion, DEFAULT and DDL refusals retain the engine's stable codes and
+statement spans through SqlClientException.Diagnostics on both in-memory and TCP transports.
+The wire composes `CODE: message` exactly once; the diagnostic's Message has no embedded code
+prefix. DEFAULT wrappers preserve the underlying diagnostic and cause, and stored-expression
+offsets are replaced with current-statement locations. Previously uncoded failures now visibly
+begin with `COHSQLE0xx:`. ExecutionFailure leaves the connection usable under the existing policy.
+See [all execution codes and SQLSTATE mappings](../../../../database/sql/language/diagnostics.md#planning-and-execution-diagnostics).
+This changes no public client member or wire format.
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

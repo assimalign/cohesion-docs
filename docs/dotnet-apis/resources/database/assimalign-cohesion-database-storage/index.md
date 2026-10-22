@@ -87,6 +87,9 @@ flush; failed writes/fsync still take the database offline. See [design](design.
 
 [Parent: Database](../index.md)
 
+The Storage base also exposes [HasPendingCommits and DirtyPageCount](design.md#maintenance-scheduling-hints)
+for constant-time, I/O-free maintenance due checks. They are advisory and add no format change.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/OVERVIEW.md`.

@@ -57,6 +57,14 @@ to finish a table. After committing the batch, SqlTableReclamation also requires
 A crash after the data commit but before intent removal safely retries discovery. This changes
 neither the page format nor the public API.
 
+## Index leaf utilization
+
+SQL indexes use the shared [B-tree leaf split policy](../assimalign-cohesion-database-indexing/design.md#leaf-split-policy).
+Rightmost appends and eligible single-value run ends keep leaves denser; other leaf splits use
+the midpoint. The 5,000-entry, 1,024-byte-key ascending and duplicate tests measure about 78%
+fill instead of 39%. Updates after an ascending load can require more splits and finish with
+more leaves. This is an internal allocation policy and adds no storage format or tuning option.
+
 ## Error model
 
 No exception types of its own: everything is the substrate's `StorageException` family. The SQL

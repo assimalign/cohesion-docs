@@ -32,6 +32,13 @@ storage strategies call.
 
 [Parent: Assimalign.Cohesion.Database.Sql](index.md)
 
+## Format boundary
+
+The engine opens SQL data/catalog format 26 only. It refuses older temporal defaults before
+rebinding them; compiled schema documents must be v8. Shared physical storage format 4 and
+B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8);
+there is no upgrade reader.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/OVERVIEW.md`.

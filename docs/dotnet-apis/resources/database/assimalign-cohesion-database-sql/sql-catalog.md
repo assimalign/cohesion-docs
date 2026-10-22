@@ -131,6 +131,9 @@ Console.WriteLine(parent.PrimaryKeyColumns[0]); // key_id
 
 This table has no CHECKs, so the dictionaries are empty. Use each returned definition as the next
 expected argument; the earlier definition is stale after publication.
+Using that stale definition throws SqlCatalogException with COHSQLE064 (SQLSTATE mapping 40001),
+as checked by SqlCatalogTests.Rename. The code is in Diagnostics, with no duplicate Message prefix.
+Session SQL adds its statement span; a direct catalog call supplies no statement span.
 
 ## Related reference
 

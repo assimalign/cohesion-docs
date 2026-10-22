@@ -137,9 +137,9 @@ physical ordinals and dropped-column metadata keep existing row values aligned.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 25 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 26 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
-canonical function-name quoting. Compiled schema version remains 7. Older SQL formats are refused.
+canonical function-name quoting. Compiled schema version remains 8. Older SQL formats are refused.
 
 ### View dependencies
 
@@ -154,7 +154,7 @@ COHSQLD002. Default and nullability changes retain their usual validation.
 | `SQL0003` | Malformed action or DROP NOT NULL on a primary-key column | — |
 | `COHDBL001` | Excluded action/list or subquery in DEFAULT | — |
 | `COHSQLE013` | Rename collision, invalid default form or incompatible function result type | — |
-| `COHSQLE014` / `COHSQLE015` | Missing table / missing column | — |
+| `COHSQLE014` / `COHSQLE015` | Missing bound table / column | 42P01 / 42703 |
 | `COHSQLE015` | New CHECK names another table or schema | — |
 | `COHSQLE019` | Repeated key-list column or second PRIMARY KEY declaration, including ADD COLUMN | — |
 | `COHSQLE021` | System relation target or attempted rename over a system relation | 25006 |
@@ -165,7 +165,18 @@ COHSQLD002. Default and nullability changes retain their usual validation.
 | `COHSQLE038` | Existing/defaulted rows violate a CHECK or domain check | 23514 |
 | `COHSQLE039` | Existing/defaulted rows lack a referenced foreign-key parent | 23503 |
 | `COHSQLE042` | An existing/defaulted index key exceeds 1,024 encoded bytes during a backing build | 54000 |
-| `COHSQLD002` | Declared script retains a dependent target for a table rename | — |
+| `COHSQLE049` / `COHSQLE061` | Rename target table / column already exists | 42P07 / 42701 |
+| `COHSQLE050` / `COHSQLE052` | Duplicate constraint name / missing constraint or other catalog object | 42710 / 42704 |
+| `COHSQLE051` | Table is absent during execution | 42P01 |
+| `COHSQLE053` | Invalid table definition, including dropping its last column | 42P16 |
+| `COHSQLE054` | FOREIGN KEY column list or referenced unique-key requirement fails | 42830 |
+| `COHSQLE055` / `COHSQLE063` | FOREIGN KEY type / collation mismatch | 42804 / 42P21 |
+| `COHSQLE056` | Constraint or index depends on the object being changed | 2BP01 |
+| `COHSQLE057` | Change would require unsupported value rewriting | 0A000 |
+| `COHSQLE059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
+| `COHSQLE064` | Bound table was replaced during a DDL wait; retry the statement | 40001 |
+| `COHSQLE066` | Compiled-schema ownership refuses session DDL | 42501 |
+| `COHSQLD002` | Declared script or view retains a dependent target | 2BP01 |
 | `COHSQLT003` | DDL inside an explicit transaction; the transaction remains usable | — |
 
 Conversion and length failures retain their [normal codes](../diagnostics.md). `COHSQLE027` has no assigned SQLSTATE.
@@ -243,9 +254,10 @@ The UPDATE affects one row; each ALTER affects zero rows and changes the nullabi
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+upgrade path. Compiled schema format remains version 8.
 
 ## See also
 
