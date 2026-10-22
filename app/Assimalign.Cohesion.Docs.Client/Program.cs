@@ -14,7 +14,7 @@ using Assimalign.Viu.Router;
 ViuApplicationBuilder builder = ViuApplication.CreateBuilder();
 using HttpClient httpClient = new() { BaseAddress = ResolveBaseAddress() };
 
-builder.Services.AddComponents(global::Assimalign.Cohesion.Docs.App.GeneratedViuComponents.Register);
+builder.Services.AddComponents();
 builder.Services.AddFrontendComponents();
 builder.Services.AddRouting(routing => routing.Routes.Add(new RouteRecord(
     "/",

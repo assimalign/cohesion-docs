@@ -4,8 +4,8 @@
     {
       "name": "cohesion-docs",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "app/Assimalign.Cohesion.Docs.App"],
-      "port": 5180
+      "runtimeArgs": ["run", "--project", "app/Assimalign.Cohesion.Docs.Web"],
+      "port": 5000
     }
   ]
 }

@@ -2,8 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Assimalign.Cohesion.Docs.App</RootNamespace>
-    <AssemblyName>Assimalign.Cohesion.Docs.App</AssemblyName>
+    <RootNamespace>Assimalign.Cohesion.Docs.Client</RootNamespace>
+    <AssemblyName>Assimalign.Cohesion.Docs.Client</AssemblyName>
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -24,7 +24,6 @@
     <PackageReference Include="Assimalign.Cohesion.Viu.Hosting" Version="$(CohesionViuVersion)" />
     <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser" Version="$(CohesionViuVersion)" />
     <PackageReference Include="Assimalign.Cohesion.Viu.Routing" Version="$(CohesionViuVersion)" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.DevServer" Version="$(CohesionViuVersion)" />
     <PackageReference Include="Assimalign.Viu.Router" Version="$(ViuVersion)" />
   </ItemGroup>
 
