@@ -12,7 +12,10 @@ The shared query-language substrate for database models.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-No project overview is present. The following public declarations are taken from the C# source.
+The shared parser blocks without busy-spinning for registered analyzers, propagating their faults
+and cancellation within one timeout. No analyzers means no analyzer wait or timeout work.
+See [signatures, exceptions and example](design.md#analyzer-completion-and-diagnostics).
+The following public declarations are taken from the C# source.
 
 | Type | Source responsibility |
 |---|---|
@@ -27,7 +30,7 @@ No project overview is present. The following public declarations are taken from
 | `QueryParser` | Provides the common lexer, parsing, and analyzer flow for model-specific query parsers. |
 | `QueryParserOptions` | Public class declared in `QueryParserOptions.cs`. |
 | `Location` | Public class declared in `Location.cs`. |
-| `QueryExpression` | This represents a base node for all query expressions in the syntax tree. It serves as a common ancestor for various types of query expressions, such as select statements, insert statements, etc. Each specific query expression will inherit from this base class and provide |
+| `QueryExpression` | Base for model-specific expressions with optional source text and location. |
 | `QueryStatement` | Public class declared in `QueryStatement.cs`. |
 
 [Parent: Database](../index.md)

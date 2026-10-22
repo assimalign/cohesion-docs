@@ -42,6 +42,54 @@ therefore cannot silently inherit a flat, database-wide grammar.
   The helper records the shared diagnostic and returns whether parsing may continue; the shared
   package does not attempt to understand any model's grammar.
 
+## Analyzer completion and diagnostics
+
+The changed parser and diagnostic members retain these signatures:
+
+```csharp
+// QueryParser
+public virtual QueryStatement Parse(ReadOnlySpan<char> query);
+// QueryAnalyzer
+public abstract Task AnalyzeAsync(QueryAnalyzerContext context,
+    CancellationToken cancellationToken = default);
+// QueryParserOptions
+public List<QueryAnalyzer> Analyzers { get; }
+public TimeSpan AnalyzerTimeout { get; set; } // default: five seconds
+// QueryStatement
+public virtual void AddDiagnostic(Diagnostic diagnostic);
+public IEnumerable<Diagnostic> Diagnostics { get; }
+```
+
+Configure Analyzers before parsing. Parse invokes them in registration order and blocks without
+busy-spinning until all tasks complete, using one shared timeout. A timeout ends the wait with
+OperationCanceledException even if an analyzer ignores cancellation; a later task fault is observed.
+Analyzer faults propagate to the caller. Analyzers must honor cancellation and avoid depending on
+the caller's synchronization context. With no analyzers, Parse ignores AnalyzerTimeout, even zero,
+and creates no analyzer context, cancellation source, timer or task list.
+
+AddDiagnostic supports concurrent analyzer reporting and throws ArgumentNullException for null
+without changing the collection. Enumeration orders by severity and then source end position.
+Location.Create retains the model parser's supplied positions without normalization.
+
+This adapts the asynchronous completion case in QueryAnalyzerTests:
+
+```csharp
+sealed class ExampleAnalyzer : QueryAnalyzer
+{
+    public override async Task AnalyzeAsync(QueryAnalyzerContext context,
+        CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+        context.Statement.AddDiagnostic(new Diagnostic("TEST", "analyzed", 1, 2,
+            DiagnosticSeverity.Warning));
+    }
+}
+```
+
+Register it with `options.Analyzers.Add(new ExampleAnalyzer())` before constructing the model
+parser with those QueryParserOptions. When Parse returns, the statement includes the warning;
+faulted/canceled analysis throws instead. The example uses Language and Types namespaces.
+
 ## Non-goals
 
 - **No shared clause enum** — or universal grammar.
@@ -57,5 +105,6 @@ diagnostic creation require no reflection, dynamic code generation, or dependenc
 
 ## Sources
 
+- **Analyzer completion, timeout and null validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/tests/QueryAnalyzerTests.cs` and `QueryAnalyzerTimeoutTests.cs` in the same directory.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.
