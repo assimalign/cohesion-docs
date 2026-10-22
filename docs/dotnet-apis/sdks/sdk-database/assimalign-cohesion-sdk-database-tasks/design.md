@@ -18,6 +18,13 @@ preserved. Invalid schemas do not replace final artifacts.
 
 ## Migration boundary
 
+Runtime and SDK use `cohesion/database-schema/v8`. Typed TimeSpan defaults render exact signed
+total seconds followed by `seconds`, retaining every 100 ns tick. This changes DefaultLiteral and
+the schema hash for the same declaration. Rebuild earlier artifacts. Migration generation refuses
+older artifacts and baselines with COHDBSDK206 at `schema.format`, naming v8 and the rebuild remedy;
+it preserves every input byte and writes no migration. SQL databases also require catalog format 26;
+see the [export/recreate procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8).
+
 `SqlSchemaMigrationPlanner` compares the newest four-digit baseline with the desired schema. The
 renderer follows planner order and the guarded `dbo` -qualified dialect. New files are written as a
 pair with rollback if the second final move fails. Names are sanitized, existing paths are rejected,

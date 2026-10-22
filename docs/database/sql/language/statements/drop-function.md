@@ -17,8 +17,8 @@ and function-name casing do not change that identity.
 
 ## Remarks
 
-A missing overload reports COHSQLD001, an existing dependency (including a view) COHSQLD002, and
-an engine-registered overload COHSQLD003. These codes have no assigned SQLSTATE. Another native
+A missing overload reports COHSQLE009 (42883), an existing dependency (including a view)
+COHSQLD002 (2BP01), and an engine-registered overload COHSQLD003 (0A000). Another native
 overload with the same name does not make an absent signature native. Ordinary DDL cannot drop
 schema-owned definitions. IF EXISTS, CASCADE and qualified function names are outside this syntax.
 No scalar NULL or MISSING evaluation occurs.

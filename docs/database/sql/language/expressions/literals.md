@@ -71,11 +71,16 @@ In Boolean positions, valid Boolean input string literals receive the
 
 Typed literals work in scalar positions and literal DEFAULTs. X and N must touch the quote.
 Malformed contents report `SQL0008` over the complete literal. Years have four digits;
-TIME and TIMESTAMP reject zones and allow at most seven fractional digits. TIMESTAMPTZ accepts
-Z or +/-HH:mm within +/-14:00; no offset means UTC. Named zones and special dates are excluded.
+TIME accepts single-digit clock fields, AM/PM, a trailing fractional dot and a validated written
+zone that is discarded. TIMESTAMP rejects zones; both types allow at most seven fractional digits.
+TIMESTAMPTZ accepts Z or +/-HH:mm within +/-14:00; no offset means UTC. Regional named zones and
+special dates are excluded. See [TIME input and the bounded zone vocabulary](../data-types/index.md#temporal-text-input).
 
 INTERVAL stores an exact day-time TimeSpan at 100 ns resolution. DAY/HOUR/MINUTE/SECOND and
 descending TO ranges, PostgreSQL unit/clock strings and ISO day-time durations execute.
+An unqualified bare signed number means seconds: `INTERVAL '12'` is twelve seconds.
+`INTERVAL '1 2 hours'` is 26 hours; `INTERVAL '@ 1 day 2 hours ago'` is minus 26 hours.
+Surrounding ASCII whitespace is trimmed; TIME/INTERVAL reject non-ASCII whitespace.
 Year-month fields report `COHDBL001`; invalid or overflowing durations report `SQL0008`.
 TIME WITH TIME ZONE literals and temporal precision remain `COHDBL001`.
 
@@ -100,9 +105,10 @@ records this canonical quoting change, separately from format 17 (the insert-def
 split with table extension 6). Format 19 added PERCENT/TIES quoting. Format 20 added
 persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced persisted views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE. Every earlier format is refused at open
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
-Compiled schemas stay version 7.
+Compiled schemas stay version 8.
 
 ## Examples
 
@@ -131,6 +137,7 @@ semantics, and SQL has no MISSING value.
 
 ## Sources
 
+- **Temporal forms** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlTypedLiteralTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
 - **Function-name quoting and format 18** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlT1StorageFormatTests.cs`.
 - **Canonical names** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteStorageFormatTests.cs`.
 - **Embedded quotes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs` and `Assimalign.Cohesion.Database.Sql.Language/tests/SqlQuotedIdentifierTests.cs`.

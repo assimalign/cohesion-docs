@@ -97,6 +97,14 @@ transaction remain usable.
 | `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
 | `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
 | `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
+| `COHSQLE050` | Constraint name collides with an existing constraint/index | 42710 |
+| `COHSQLE053` | Invalid table definition during execution; conflicting explicit NULL declarations still use SQL0003 | 42P16 |
+| `COHSQLE054` | FOREIGN KEY column lists do not match or its referenced key is not unique | 42830 |
+| `COHSQLE055` | FOREIGN KEY types, CHECK function result or compared values are incompatible | 42804 |
+| `COHSQLE056` | Constraints/indexes depend on an object DDL would remove | 2BP01 |
+| `COHSQLE057` | Unsupported execution/DDL operation, including an index-backed constraint under invariant collation | 0A000 |
+| `COHSQLE059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
+| `COHSQLE063` | FOREIGN KEY columns have incompatible collations | 42P21 |
 | `COHSQLE043` | Statement deadline expires during constraint/cascade execution; statement rolls back | 57014 |
 | `COHSQLE044` | A contended row, object or unique-key lock wait expires | 55P03 |
 | `COHSQLT006` | Target definition changed during lock preparation; retry in a fresh transaction | — |

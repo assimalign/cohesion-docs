@@ -36,7 +36,7 @@ public sealed class SqlCatalogConstraint
 The constructor snapshots column/call lists. Its optional action remains Restrict; the SQL
 parser supplies NoAction for omitted ON DELETE. Pass the intended action explicitly when building
 catalog metadata. Format 20 persists NoAction, SetNull and SetDefault; every older database format
-is refused at open with no upgrade path. Compiled schema version 7 retains only Restrict/Cascade;
+is refused at open with no upgrade path. Compiled schema version 8 retains only Restrict/Cascade;
 reconciling it with a newer catalog action throws SqlSchemaMigrationException.
 
 ArgumentNullException rejects null columns. ArgumentException rejects blank names, duplicate

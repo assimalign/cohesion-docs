@@ -205,6 +205,13 @@ DROP TABLE or dropping the identity column retires the counter atomically; recre
 `SqlCatalogException : DatabaseException` for catalog violations (duplicate or missing
 tables/columns, primary-key drops, malformed persisted records).
 
+Catalog DDL guards now carry stable diagnostics separately from Message: duplicate table/index
+COHSQLE049 (42P07), duplicate constraint/non-function catalog definition COHSQLE050 (42710), missing
+table COHSQLE051 (42P01), missing object COHSQLE052 (42704), duplicate column COHSQLE061 (42701)
+and stale rename COHSQLE064 (40001). Size/generation exhaustion uses COHSQLE042 (54000).
+Session execution attaches the current statement span without changing the concrete catalog
+exception type. Direct catalog calls have no statement text. See the [complete code reference](../../../../database/sql/language/diagnostics.md).
+
 ## Non-goals
 
 - **Stored user-defined views, sequences,** — permissions (permissions are
@@ -240,7 +247,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+The integration branch uses SQL row-storage format 26 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -251,14 +258,19 @@ boundary when interpreting historical layout notes above.
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+upgrade path. Compiled schema format remains version 8.
 
 ## Persisted views
 
+Format 26 fences temporal DEFAULT and frozen missing-value spellings. Earlier catalogs are
+refused before definitions bind, carrying COHSQLE041; they are never silently rewritten.
+Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8).
+
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 25. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 26. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use COHSQLE033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with COHSQLD002.

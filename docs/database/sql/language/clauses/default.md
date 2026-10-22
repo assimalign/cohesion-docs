@@ -58,10 +58,27 @@ rejects all assignments to the identity column in UPDATE, including DEFAULT (`CO
 A bare DEFAULT in SELECT, a predicate, INSERT SELECT, arithmetic, a function argument, or a
 parenthesized scalar expression is `SQL0003`. Quoted or qualified columns named `default`
 remain ordinary column references. A NOT NULL failure is `COHSQLE024` (SQLSTATE 23502), naming
-the column with no execution-time source span. The failed statement changes no rows and preserves
+the column with the statement span when source text is available. The failed statement changes no rows and preserves
 earlier work in an explicit transaction.
 
 ## Examples
+
+TIME, INTERVAL and floating text defaults use the same conversion as assignment and CAST.
+Malformed temporal text is COHSQLE047 (22007), an out-of-range field is COHSQLE048 (22008), and
+interval overflow is COHSQLE062 (22015). Floating grouping is COHSQLE022 (22P02); overflow or
+nonzero underflow to zero is COHSQLE002 (22003). The original diagnostic survives DEFAULT wrappers.
+
+```sql
+CREATE TABLE text_defaults (clock TIME DEFAULT '1 PM', elapsed INTERVAL DEFAULT '12',
+    reading REAL DEFAULT '1e3');
+INSERT INTO text_defaults DEFAULT VALUES;
+SELECT clock, elapsed = INTERVAL '12' AS twelve_seconds, reading FROM text_defaults;
+```
+
+Execute separately; SELECT returns `(13:00:00, TRUE, 1000)`.
+Typed .NET TimeSpan defaults render exact signed total seconds with a `seconds` unit, including
+every tick at TimeSpan.MinValue/MaxValue. This changes compiled schema identity to v8; earlier
+artifacts and catalog formats are refused. See the [upgrade note](../../index.md#sql-format-26-and-schema-v8).
 
 Execute each statement separately:
 
@@ -115,6 +132,7 @@ DEFAULT. The final addition fails COHSQLE027 because rows exist, leaving the sch
 
 ## Sources
 
+- **Text defaults and reopen** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
 - **Expression defaults** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExpressionDefaultTests.cs`.
 - **Execution and atomicity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDefaultAssignmentTests.cs`.
 - **Typed declarations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTypedLiteralTests.cs`.

@@ -67,6 +67,15 @@ connector. TLS terminal delivery remains a known gap (#1086). See
 [shared framing and close contract](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes)
 and [server options](../assimalign-cohesion-database-sql/sql-database-server-options.md).
 
+## Execution diagnostic delivery
+
+Execution, constraint and DDL failures carry the engine's structured diagnostics; negotiated
+diagnostics precede Error. `CODE: message` is composed once, including previously uncoded
+COHSQLE046–066 failures. Diagnostic messages do not repeat that prefix, and spans belong inside
+the executing statement. SQLSTATEs remain [documented mappings](../../../../database/sql/language/diagnostics.md),
+not new wire fields. ExecutionFailure preserves the connection under the existing rules.
+No framing or protocol-version change accompanies this diagnostic expansion.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`.

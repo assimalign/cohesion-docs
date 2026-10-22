@@ -36,6 +36,35 @@ See [execution and transactions](design.md#sql-transaction-control-and-the-b7-se
 
 ## Example
 
+Execution, constraint and DDL failures expose stable codes through DatabaseException.Diagnostics.
+The session retains precise current-statement locations or attaches its statement span; persisted
+expression offsets are discarded first. Concrete SqlCatalogException, SqlConstraintViolationException
+and DatabaseObjectLockedException metadata remain available. Ordinary statement failures preserve
+earlier transaction work; storage/abort failures retain their existing transaction policy.
+SQLSTATEs are documented mappings, with no new SQLSTATE field on Diagnostic.
+See the [execution code reference](../../../../database/sql/language/diagnostics.md).
+
+This execution-diagnostic case adapts SqlExecutionDiagnosticConformanceTests:
+
+```csharp
+using System;
+using Assimalign.Cohesion.Database;
+using Assimalign.Cohesion.Database.Sql;
+
+await using var engine = SqlDatabaseEngine.Create("diagnostics", new());
+var database = await engine.CreateDatabaseAsync("app");
+await using var session = await database.CreateSessionAsync();
+await session.ExecuteAsync("CREATE TABLE required_value (v INT NOT NULL)");
+try { await session.ExecuteAsync("INSERT INTO required_value VALUES (NULL)"); }
+catch (DatabaseException failure)
+{
+    var detail = failure.Diagnostics[0];
+    Console.WriteLine(detail.Code); // COHSQLE024; mapped SQLSTATE 23502
+    Console.WriteLine(detail.Start); // 0
+}
+await session.ExecuteAsync("INSERT INTO required_value VALUES (1)"); // succeeds
+```
+
 This is the unique-key wait case from SqlTimeoutConformanceTests, without test helpers:
 
 ```csharp

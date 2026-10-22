@@ -47,7 +47,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
 SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 25; compiled schemas remain version 7.
+SQL storage format is 26; compiled schemas remain version 8.
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
@@ -104,6 +104,15 @@ and [session overrides](../../dotnet-apis/resources/database/assimalign-cohesion
 
 
 ## Engine health
+Background write-back, group-commit flush, version purge and checkpoint work run per database
+on capped lanes: 64 non-stuck operations and at most 128 lane threads per engine/worker kind.
+Admission is round-robin; stuck I/O releases its admission slot after four worker intervals,
+clamped to 1–4 seconds, while keeping storage ownership. Idle checks dispatch no lane; parked
+runners retire after 30 seconds. Saturation/stuck observations leave databases serving and emit
+root warning 35; disposal joins in-flight I/O and emits warning 36 periodically. See
+[background worker limits and operations](../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+SQL/Key-Value index-maintenance bodies remain empty; they dispatch no production lane work.
+
 
 Persistent version-purge refusals are reported once after three actual attempts spanning at least
 one second on the engine clock. They set engine Faulted while the database stays in service and
@@ -119,7 +128,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports COHSQLC001. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format stays 25.
+Drop removes sql.dat before the remaining file set. The current format is 26.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -151,9 +160,26 @@ and [wire exchanges](../../dotnet-apis/resources/database/assimalign-cohesion-da
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 7.
+upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 8.
+
+## SQL format 26 and schema v8
+
+SQL opens only data/catalog format **26** and compiled documents in
+**cohesion/database-schema/v8**. Format 26 prevents reinterpretation of older temporal DEFAULT
+and frozen missing-value text: an old INTERVAL `'12'` meant days, while current input means
+seconds. Typed TimeSpan defaults now render exact signed total seconds with a `seconds` unit,
+changing the canonical document and hash for the same declaration.
+
+Older catalogs are refused before stored expressions bind (COHSQLE041); earlier schema artifacts,
+applied markers and pending targets fail with SqlSchemaValidationException, InvalidDocument at
+`schema.format`, before hash comparison. SDK migration inputs fail COHDBSDK206 without writing
+a migration or changing inputs. Rebuild schema artifacts; export old data with the engine that
+wrote it, recreate the database and reapply the rebuilt declaration before reloading. There is
+no upgrade path or legacy reader (#1152). Shared physical storage remains format 4 and B-tree
+pages remain format 2; these have separate version gates.
 
 ## See also
 
@@ -165,6 +191,8 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 
 ## Sources
 
+- **Format and temporal compatibility** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`, `SqlDataStorageFormatTests.cs` and `SqlSchemaFormatTests.cs` in the same directory.
+- **SDK input preservation** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/tests/CreateDatabaseMigrationTaskTests.cs`.
 - **Dialect and measurement** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Engine architecture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`

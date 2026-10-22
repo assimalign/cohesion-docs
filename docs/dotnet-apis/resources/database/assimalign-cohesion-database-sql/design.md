@@ -36,9 +36,9 @@ COHSQLE028 (3F000), duplicate CREATE COHSQLE029 (42P06), and RESTRICT dependenci
 (2BP01); reads/DML retain COHSQLE014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
-Storage format 25 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
+Storage format 26 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
 format 23 introduced views and format 24 introduced explicit NULL placement.
-Format 25 admits distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions.
+Format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions; format 26 fences temporal default text.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
@@ -115,17 +115,17 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
-Current SQL data-storage format is 25. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 26. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
 `"sign" >= 0`). Defaults and function bodies share the renderer. Older formats are refused without
-an upgrade reader; compiled schemas stay version 7. Evidence: SqlT1StorageFormatTests,
+an upgrade reader; compiled schemas stay version 8. Evidence: SqlT1StorageFormatTests,
 SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
 ## Database creation, open and drop
 
-SQL remains at data-storage format 25. Create commits the optional default collation, dbo and then
+SQL remains at data-storage format 26. Create commits the optional default collation, dbo and then
 the format marker. An interrupted marker-free creation is completed only when its durable creation
 claim and read-only probes prove initial empty data and creation-only catalog metadata. An empty
 data scan alone cannot distinguish creation from a lost catalog after acknowledged empty-table DDL.
@@ -438,7 +438,7 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 25 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 26 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
   SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer markers are refused before opening data files for write. An unmarked catalog
   containing only creation metadata can complete only under the creation-proof rules above.
@@ -1103,8 +1103,8 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 25, including the extension-6 missing/default split and T1 identifier
-quoting. Older files are refused without an upgrade reader. Compiled schema version remains 7.
+14; the current SQL format is 26, including the extension-6 missing/default split and T1 identifier
+quoting. Older files are refused without an upgrade reader. Compiled schema version remains 8.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
 rows and excessive offsets produce none. System relations join stored/system sources through the
@@ -1144,7 +1144,7 @@ COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY decl
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 25 stores
+generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 26 stores
 immutable identity facets within table extension 6 (the identity facet originated in extension 5)
 and last reserved values in catalog kind 16.
 Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
@@ -1236,10 +1236,33 @@ intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
 | COHSQLE044 | Individual contended lock wait expired | 55P03 |
 | COHSQLE045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
 | COHSQLT006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
-| COHSQLE042 | Encoded row or write/build index key exceeds its limit | 54000 |
+| COHSQLE042 | Encoded row, index key or catalog definition exceeds its size limit, or DDL generation is exhausted | 54000 |
 | COHDBS003 | Storage or attached-index corruption | XX001 |
 | COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
 | COHSQLT005 | Aborted transaction refuses statements/commit; original cause retained | — |
+| `COHSQLE046` | Scalar subquery returns more than one row | 21000 (`cardinality_violation`) |
+| `COHSQLE047` | Malformed temporal text in assignment, DEFAULT or CAST | 22007 (`invalid_datetime_format`) |
+| `COHSQLE048` | Calendar, clock or offset field out of range in assignment, DEFAULT or CAST | 22008 (`datetime_field_overflow`) |
+| `COHSQLE049` | Table or index name already exists, including provisioning collisions | 42P07 (`duplicate_table`) |
+| `COHSQLE050` | Constraint or catalog non-function SQL definition name already exists; SQL CREATE DOMAIN duplicates retain COHSQLD001 | 42710 (`duplicate_object`) |
+| `COHSQLE051` | Missing table during execution/DDL | 42P01 (`undefined_table`) |
+| `COHSQLE052` | Missing constraint, index, collation or other catalog object; missing schemas retain COHSQLE028 / 3F000 | 42704 (`undefined_object`) |
+| `COHSQLE053` | Invalid table definition, including nullable primary key or dropping the last column | 42P16 (`invalid_table_definition`) |
+| `COHSQLE054` | Invalid FOREIGN KEY column lists or referenced key is not unique | 42830 (`invalid_foreign_key`) |
+| `COHSQLE055` | Incompatible store value, DEFAULT, FOREIGN KEY column type, CHECK function result or compared values | 42804 (`datatype_mismatch`) |
+| `COHSQLE056` | DDL refused because constraints or indexes depend on the object; namespace RESTRICT retains COHSQLE030 | 2BP01 (`dependent_objects_still_exist`) |
+| `COHSQLE057` | Unsupported execution/DDL operation, including a subquery encountered by CHECK admission | 0A000 (`feature_not_supported`) |
+| `COHSQLE058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
+| `COHSQLE059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
+| `COHSQLE060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
+| `COHSQLE061` | Column already exists | 42701 (`duplicate_column`) |
+| `COHSQLE062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
+| `COHSQLE063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
+| `COHSQLE064` | A bound table was replaced while DDL waited; retry the statement | 40001 (`serialization_failure`) |
+| `COHSQLE065` | Function signature already exists | 42723 (`duplicate_function`) |
+| `COHSQLE066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
+| COHSQLD002 | SQL definition dependency prevents DROP | 2BP01 |
+| COHSQLD003 | Engine-registered function/type cannot be dropped through SQL | 0A000 |
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
 causes, cross begin, statement, commit/rollback and create/open boundaries with COHSQLE041
@@ -1472,7 +1495,7 @@ frozen old-row values. Typed, domain and SDK default surfaces remain literal-onl
 and SET DEFAULT through cascade chains. The deletion closure precedes SET updates; deleted
 rows receive no SET assignment. Final child validation and row/index changes share the statement
 rollback bracket. NO ACTION is the omitted SQL action; the catalog constructor's optional
-argument still defaults to Restrict. Compiled schema version 7 continues to model only Restrict
+argument still defaults to Restrict. Compiled schema version 8 continues to model only Restrict
 and Cascade and refuses reconciliation with the newer catalog actions.
 
 ## ALTER rename, defaults and nullability
@@ -1490,7 +1513,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 25.
+Format 17 introduced the default/missing split with table extension 6; current format is 26.
 
 ## Declared dependencies
 
@@ -1513,9 +1536,10 @@ Format 17 introduced the default/missing split with table extension 6; current f
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Explicit earlier markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 7.
+upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 8.
 
 ## Aggregate modifiers and text results
 
@@ -1536,7 +1560,7 @@ reads; cancellation, stack exhaustion, memory, storage and I/O failures propagat
 
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
 inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
-modifiers after format 23's catalog views. Current format 25 adds the predicate forms below and
+modifiers after format 23's catalog views. Format 26 introduced the predicate forms below and
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
@@ -1565,7 +1589,7 @@ defines the charging rules. Exhaustion raises located COHSQLE040 (no SQLSTATE), 
 taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
 retain the last percent continuation; other paths retain visited boundaries, expanding from one
 inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
-search. Storage format 25 admits these persisted
+search. Storage format 26 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution
@@ -1621,7 +1645,7 @@ runs, including on apply failure. Written data keeps transaction-duration locks.
 Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
 still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
 victim; callers roll back/retry the complete transaction. Consistent input order reduces this
-residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Format 25, catalog
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Format 26, catalog
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
@@ -1664,8 +1688,56 @@ Normal peer-close linger expiry and a server hard abort do not emit this event. 
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
 
+## Structured execution diagnostics
+
+Execution diagnostics use the [complete code table](../../../../database/sql/language/diagnostics.md#planning-and-execution-diagnostics).
+Execution/DDL failures retain their code separately from message text. The session preserves
+current-statement expression locations or attaches the statement span; stored CHECK/DEFAULT/function
+offsets are discarded first. Open-time failures have no statement. Storage/abort failures retain
+their exact identity and existing policy. DEFAULT wrappers preserve the original carrier and cause;
+the wire composes one code prefix. Unknown COLLATE names now fail binding with COHSQLE052 (42704),
+while missing loaded collations use COHSQLE058 (XX001). SQL CREATE DOMAIN duplicate checks retain
+COHSQLD001; catalog non-function name collisions use COHSQLE050 (42710).
+
+## Maintenance lane isolation
+
+Page write-back, WAL group flush, version purge and checkpoint use dedicated lanes for each
+database. Each engine/worker kind admits 64 non-stuck operations under a hard ceiling of 128
+lane threads, including parked and stuck runners. Due databases are admitted round-robin.
+A stuck operation releases its admission slot after four intervals, clamped to 1–4 seconds,
+but retains its I/O and storage ownership until completion. At the thread ceiling, further work
+waits for a runner to return. After initialization, idle visits allocate nothing and dispatch no lane; parked runners
+retire after 30 seconds. Completion wakes collect outcomes without accelerating healthy peers'
+write-back interval. Full purge passes becoming due during running work remain owed.
+
+The pump collects outcomes and maintains per-database backoff and failure state. Saturation and
+stuck lanes are observational failures: worker Fault and engine Faulted expose the delay while
+HasFailingWorker remains false for the observation alone. Operational faults retain precedence.
+Disposal joins running lanes before closing storage, with periodic warnings and no I/O-abandonment
+timeout. See [shared admission and operations](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+The index-maintenance dispatcher has the same isolation, but its production body remains empty.
+Provisional SQL/Key-Value file sets also flush on lanes; publication preserves data-lane identity
+and waits for an outstanding provisional catalog flush before flushing that catalog.
+
+## Maintenance worker events
+
+Provider `Assimalign.Cohesion.Database` reports maintenance lane delays for this model:
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 35 | WorkerLaneDelayed | Warning | workerName, workerKind, database, reason, elapsedSeconds |
+| 36 | WorkerLaneDisposalWaiting | Warning | workerName, workerKind, database, elapsedSeconds |
+
+Event 35 names `capacity` deferral (zero elapsed time) or a `stuck` operation (its runtime),
+limited to once per second per database/worker. The accompanying worker failure is observational:
+engine Faulted can coexist with a serving database, and the report does not advance the offline
+policy or replace an unresolved operational fault. Event 36 repeats once per second for each
+running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
+returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
 ## Sources
 
+- **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlServerDrainTests.cs`, `SqlServerRejectionDrainTests.cs`, `SqlServerRejectionSetupTests.cs` and `SqlTerminalDrainEventTests.cs` in the same directory.
 

@@ -38,7 +38,7 @@ The three index-backed transforms use pinned Unicode 17.0 tables, not runtime lo
 They preserve original spelling in stored and returned values. Effective collation governs
 comparison, membership, ranges, `LIKE`, ordering, grouping, distinct results, extrema, and uniqueness.
 Index seeks require a matching predicate/index collation; a differing override scans.
-Foreign-key string columns must have matching effective collations.
+Foreign-key string columns must have matching effective collations; a mismatch is COHSQLE063 (42P21).
 
 Unary signs bind above COLLATE: `-a COLLATE binary` means `(-a) COLLATE binary`.
 IS [NOT] DISTINCT FROM uses the same effective collation as equality. LIKE resolves collation
@@ -56,12 +56,23 @@ allocation. Exhaustion raises located `COHSQLE040` (no SQLSTATE) for LIKE or NOT
 Boolean result. ExecutionFailure leaves the wire connection usable. Statement cancellation reaches
 the matcher and takes precedence over exhaustion. Other collations retain O(input × pattern) search.
 
-Unknown names, culture-aware rules, user-defined collations, session overrides, and collation-aware
-full-text indexes are outside the subset and produce `COHDBL001` or an explicit execution error.
+Unknown names parse as identifiers and fail binding with COHSQLE052 (42704), including column
+and DEFAULT declarations. A missing collation in loaded persisted text instead uses COHSQLE058
+(XX001). Quoted names follow ordinary delimited-identifier rules. Culture-aware rules,
+user-defined collation creation, session overrides and collation-aware full-text indexes remain
+outside the subset. CREATE INDEX under `invariant` uses COHSQLE013 (no assigned SQLSTATE);
+index-backed constraints use COHSQLE057 (0A000).
 Compatibility `invariant` fails under invariant globalization. SQL defaults do not govern the
 Document, Graph, Key-Value Pair, or Blob models.
 
 ## Examples
+
+```sql
+SELECT 'a' COLLATE "nope";
+```
+
+This reports COHSQLE052 (42704) during binding. NULL remains NULL under a collation override;
+SQL has no MISSING scalar.
 
 ```sql
 CREATE TABLE people (name TEXT COLLATE case_insensitive UNIQUE);

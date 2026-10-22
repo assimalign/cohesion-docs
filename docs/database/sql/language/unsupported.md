@@ -51,19 +51,20 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `COHDBL001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `COHDBL001` | Output ordinals belong only to ORDER BY |
 | Foreign-key `ON UPDATE` | `COHDBL001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |
-| Unknown or culture-aware collation name | `COHDBL001` | Four declared names only |
+| Unknown or culture-aware collation name | `COHSQLE052` (42704) | Identifier parses; binding resolves only the four declared names |
 | `CREATE COLLATION`, session collation override | `COHDBL001` | Database/column/expression rules only |
 | Collation-aware full-text index | `COHDBL001` or explicit execution error | Not implemented |
-| Index or index-backed constraint under `invariant` | Explicit execution error | Compatibility comparison is scan-only |
+| CREATE INDEX under `invariant` | `COHSQLE013` | Compatibility comparison is scan-only |
+| Index-backed constraint under `invariant` | `COHSQLE057` (0A000) | Compatibility comparison is scan-only |
 | CAST to an unknown name | `COHSQLE010` | Type/domain does not resolve |
 | Invalid CAST target parameters | `SQL0005` | See the conversion bounds |
 | Unsupported CAST source/target pair | `COHSQLE011` | Known source types reject while planning, even on empty input |
 | ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `COHDBL001` | Table/column RENAME and column default/nullability actions execute |
 | Volatile ADD COLUMN DEFAULT on a populated table | `COHSQLE027` | Requires no live rows; stable additions freeze one missing value |
-| CAST in CHECK | Planning error | CAST executes in column DEFAULT expressions |
+| CAST in CHECK | `COHSQLE059` (42P17) | CAST executes in column DEFAULT expressions |
 | Columns, parameters or aggregates in DEFAULT | `COHSQLE013` | Defaults have no column or parameter scope |
 
-| Parameters, aggregates, nondeterministic or non-Boolean expressions in CHECK | Planning error | Deterministic Boolean row-local checks only |
+| Parameters, aggregates or nondeterministic expressions in CHECK | `COHSQLE059` (42P17) | Deterministic row expressions only; non-Boolean predicates use COHSQLE003 (42804) |
 | Aggregate inside aggregate, WHERE, ON, or GROUP BY at its own query level | Planning error | Child queries retain independent aggregate levels |
 | Ungrouped nonaggregate column in projection, HAVING, or ORDER BY | Planning error | No arbitrary source row is chosen |
 | Projection alias in GROUP BY or HAVING | Binding/planning error when not a valid source name | Output alias scope is ORDER BY |
@@ -96,6 +97,13 @@ recovered parse tree or a name in the function vocabulary is not evidence of sup
 No code is invented above for restrictions whose source contract promises only an error or exclusion.
 
 ## Evaluation and delivery boundaries
+
+TIME's accepted PostgreSQL-style text includes AM/PM, single-digit clock fields and a written
+zone discarded after validation. Cohesion stores TimeOnly, so 24:00 is refused; fractions beyond
+seven digits are refused instead of rounded to microseconds. Regional zone names remain excluded.
+Day-time INTERVAL accepts bare signed seconds, `1 2 hours`, `@` and final `ago`, while year/month
+fields and CLR day-dot-clock text remain unavailable. See [data-type input and diagnostics](data-types/index.md#temporal-text-input).
+REAL/DOUBLE text assignment and DEFAULT use CAST's parser, rejecting grouping and finite overflow.
 
 Unordered non-DISTINCT [LIMIT](clauses/limit-offset.md) stops at the qualifying output window,
 skipping later projection/HAVING errors and volatile calls, as PostgreSQL does. OFFSET rows still

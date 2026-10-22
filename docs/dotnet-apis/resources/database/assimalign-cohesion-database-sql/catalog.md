@@ -28,7 +28,7 @@ same page/WAL durability as data, plus persistence for the physical index regist
 `Database.Indexing`.
 
 [SqlCatalogConstraint](sql-catalog-constraint.md) persists five delete actions. Its constructor
-retains a Restrict default; SQL syntax defaults to NoAction. Compiled schema version 7 still
+retains a Restrict default; SQL syntax defaults to NoAction. Compiled schema version 8 still
 models only Restrict/Cascade.
 
 - **[SqlCatalogView](sql-catalog-view.md)** — Canonical view body, frozen columns and resolved dependencies.
@@ -68,7 +68,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 25 and compiled schema version 7.
+The integration branch uses SQL row-storage format 26 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -79,9 +79,10 @@ boundary when interpreting historical layout notes above.
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+upgrade path. Compiled schema format remains version 8.
 
 ## Sources
 

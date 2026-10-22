@@ -72,10 +72,62 @@ See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 25; compiled schema artifacts are version 7. Format 17 introduced the
+SQL row-storage is format 26; compiled schema artifacts are version 8. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
+See the [format-26/schema-v8 export and rebuild procedure](../../index.md#sql-format-26-and-schema-v8).
+
+## Temporal text input
+
+TIME stores a TimeOnly clock, and INTERVAL an exact day-time TimeSpan with 100 ns resolution.
+INSERT, UPDATE, INSERT SELECT, DEFAULT and [CAST](../expressions/cast.md) share TIME/INTERVAL
+text readers, including domain columns. Surrounding ASCII whitespace is trimmed; non-ASCII
+whitespace is rejected. NULL stays NULL subject to destination constraints; SQL has no MISSING scalar.
+
+TIME accepts one- or two-digit clock fields, optional seconds with up to seven fractional digits,
+AM/PM (`1 PM`, `12:02 am`) and a trailing fractional dot (`13:45:00.`). A written zone is validated
+and discarded: `10:00+05:30` stays `10:00:00`. Numeric zones accept a sign and one or two hour
+digits, four/six compact digits, or colon-separated hour/minute/second fields, up to 15:59:59.
+The case-insensitive abbreviations are Z, UT, UTC, GMT, EST/EDT, CST/CDT, MST/MDT, PST/PDT,
+CET/CEST, EET/EEST and JST. Regional zone names are unavailable. TIME rejects 24:00 and more than
+seven fractional digits; it does not round to PostgreSQL's microsecond precision. TIMESTAMP's
+strict literal/CAST clock remains zone-free; plain timestamp assignment retains its existing grammar.
+
+An unqualified INTERVAL number means seconds: `'12'` stores twelve seconds and `'-12.5'` stores
+minus 12.5 seconds. Unit/clock strings and ISO day-time durations remain supported. `'1 2 hours'`
+means one day plus two hours; optional `@` and final `ago` are accepted in unit/clock strings,
+with `ago` negating the whole duration. CLR day-dot-clock text such as `'1.02:03:04'` is refused.
+Year/month intervals remain unsupported.
+
+Assignment, DEFAULT and CAST use COHSQLE047 / 22007 for malformed temporal text,
+COHSQLE048 / 22008 for calendar/clock/offset fields outside range, and COHSQLE062 / 22015 for
+interval overflow. Invalid typed literal contents instead fail parsing with SQL0008; typed
+year/month intervals use COHDBL001. See [literals](../expressions/literals.md).
+
+```sql
+CREATE TABLE durations (at_time TIME, elapsed INTERVAL);
+INSERT INTO durations VALUES ('1 PM', '1 2 hours');
+SELECT at_time, elapsed = INTERVAL 'PT26H' AS same_duration FROM durations;
+```
+
+Execute separately; SELECT returns `(13:00:00, TRUE)`.
+
+## Floating text input
+
+REAL and DOUBLE PRECISION text assignment and DEFAULT use CAST's invariant floating parser.
+Exponent notation is accepted. Assignment also accepts NaN and Infinity; immutable and frozen
+Stable defaults still require finite values. Grouping (`'1,000'`) fails COHSQLE022 / 22P02;
+finite overflow (`'1e400'`) and nonzero underflow to zero fail COHSQLE002 / 22003.
+SQL numeric literals still evaluate as exact Decimal; cast text for approximate input.
+
+```sql
+CREATE TABLE readings (value REAL DEFAULT '1e3');
+INSERT INTO readings DEFAULT VALUES;
+SELECT value FROM readings;
+```
+
+Execute separately; SELECT returns `1000`. Explicit NULL stays NULL when the column permits it.
 
 ## SQL domains
 
@@ -97,9 +149,10 @@ DOUBLE PRECISION, CHARACTER VARYING and TIMESTAMP.
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
-placement. Current format 25 adds distinct predicates, Boolean tests and LIKE ESCAPE.
+placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
+Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 7.
+upgrade path. Compiled schema format remains version 8.
 
 ## See also
 
@@ -107,6 +160,7 @@ upgrade path. Compiled schema format remains version 7.
 
 ## Sources
 
+- **Text inputs on every write path** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
 - **Name resolution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlTypeNames.cs`.
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCastMatrixTests.cs`.

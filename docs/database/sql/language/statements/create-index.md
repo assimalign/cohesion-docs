@@ -36,6 +36,11 @@ Duplicate keys during a unique-index build or a later write report `COHSQLE037` 
 without key values; a failed build leaves the index unpublished. See [Diagnostics](../diagnostics.md).
 
 Index DDL is self-committing and is rejected inside an explicit transaction with `COHSQLT003`.
+An existing index name reports COHSQLE049 (42P07); a conflicting constraint name reports
+COHSQLE050 (42710). CREATE INDEX under `invariant` uses COHSQLE013 (no assigned SQLSTATE);
+index-backed constraint admission instead uses COHSQLE057 (0A000).
+Schema-owned object admission can report COHSQLE066 (42501). Execution/DDL failures retain the
+statement span and expose the code separately from Message.
 
 ### Building over existing data
 

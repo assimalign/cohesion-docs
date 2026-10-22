@@ -50,6 +50,11 @@ definition unchanged, skipping key declaration validation. It does not make syst
 Normal session-created objects have `DatabaseObjectOwner.Adhoc` ownership; compiled-schema
 provisioning creates `DatabaseObjectOwner.Schema` objects.
 
+An existing table without IF NOT EXISTS reports COHSQLE049 (42P07). Duplicate constraint names
+use COHSQLE050 (42710) and duplicate columns COHSQLE061 (42701). Execution/DDL refusals carry a
+statement span when source text is available; message text has no embedded code prefix.
+See [constraint declaration diagnostics](../constraints.md) and [text DEFAULT conversion](../clauses/default.md).
+
 Columns are nullable unless constrained otherwise. [IDENTITY](../clauses/identity.md) permits one
 built-in integer generator per table, implies NOT NULL and excludes a DEFAULT declaration.
 Explicit NULL combined with NOT NULL, PRIMARY KEY (including table keys) or IDENTITY in either
