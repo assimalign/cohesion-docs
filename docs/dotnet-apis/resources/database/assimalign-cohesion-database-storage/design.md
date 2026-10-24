@@ -241,7 +241,7 @@ Data pages carry an 8-byte **owner tag** in the page header (offset 64, taken fr
 area; zero = the shared, untagged space, which is also what pre-tag files read — no format flag
 needed). The tag is model-agnostic: storage never interprets it beyond grouping.
 `InsertRecord(transaction, ownerId, data)` lands the record on the owner's current write page
-(allocating and tagging a new page when needed), `GetUnitIterator(ownerId)` iterates only the
+(trying older free-byte hints before allocating and tagging a new page), `GetUnitIterator(ownerId)` iterates only the
 owner's pages, and `GetOwnerPages(ownerId)` exposes the chain. This is what turns a model's "scan
 one object" from O(storage) into O(object) — the SQL engine passes table object ids, so a table scan
 stops decoding the whole database.
@@ -268,7 +268,7 @@ stops decoding the whole database.
   generation under the transaction lock before granting a page write lock. A committed free
   between lookup and registration invalidates the touch even after reuse by the same owner or
   while the replacement's bracket is active. A page already locked by this bracket needs no recheck.
-  A stale insert allocates afresh; owner release skips the stale page and checks the owner tag
+  A stale insert excludes that candidate and retries selection; owner release skips the stale page and checks the owner tag
   before retyping. Explicit write-open throws StorageIOException: `Page <id> is not allocated.`
   Refusal releases the pin without a write lock, pre-image or page record.
 - **Failed first-touch allocation releases its reservation.** When registration fails before
@@ -658,6 +658,18 @@ overlays — the unsafe surface is confined to `Units/` and the buffer pool's pi
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 - **Wave-7 recovery and geometry** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageHeaderReadTests.cs`, `StorageTransactionOwnershipTests.cs` and `PageTests.cs` in the same directory.
+
+## Confirmed reads and record-space reuse
+
+Unlatched record reads copy bytes and confirm against the frame's write sequence (seqlock). Forward writes, tombstone stamping, page clearing, compaction and rollback advance that sequence. A copy or absence observation overlapping a mutation retries; a stable malformed copy reports corruption. The protected ReadRecord path confirms its length/read pair together. This does not add a read latch or wait for the whole physical transaction to end.
+
+Model and catalog decoders report a decode failure only after the read is confirmed. Confirmed failures retain the original cause and page/slot context; transient rewrite bytes do not become corruption reports. Storage I/O, cancellation and existing storage exception identities keep their own paths. See [StorageCorruptionException](storage-corruption-exception.md) for its record-scoped constructor and SlotIndex.
+
+InsertRecord tries packing fragmented space on its current page before extending. UpdateRecord preflights whether the replacement and other live records fit after packing, then preserves the target slot identity. Compaction validates slot geometry and overlapping records before moving bytes, copies aliased input, retains deleted slot identities and runs inside the existing mutable writer scope with WAL coverage. A capacity refusal leaves the page unchanged.
+
+If the current page cannot fit an insert, an in-memory free-byte heap selects a partly empty older page for the same owner before extension. Hints track aggregate capacity after packing, including the new slot cost; the current target stays preferred. Selection never grants write ownership: allocation generation and actual capacity are rechecked before mutation, and stale hints are corrected or excluded. Open rebuilds hints from the existing page/owner scan; rollback invalidates measurements. No page or file format changes.
+
+StorageCompactionTests, StorageRecordReuseTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
 
 ## Sources
 

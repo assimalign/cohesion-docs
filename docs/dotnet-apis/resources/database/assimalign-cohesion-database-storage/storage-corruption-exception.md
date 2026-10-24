@@ -13,6 +13,9 @@ public sealed class StorageCorruptionException : StorageException
     public StorageCorruptionException(string message);
     public StorageCorruptionException(PageId pageId, string message);
     public StorageCorruptionException(PageId pageId, string message, Exception inner);
+    public StorageCorruptionException(PageId pageId, int slotIndex, string message,
+        Exception? inner = null);
+    public int? SlotIndex { get; }
     public string Code { get; }
     public PageId? PageId { get; }
     public static StorageCorruptionException? Find(Exception? error);
@@ -60,6 +63,10 @@ Console.WriteLine(cause.InnerException == readError); // True
 ## Related reference
 
 [Assembly](index.md) · [Page integrity and format](design.md#storage-format-4) · [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
+
+## Confirmed record failures
+
+The record-scoped overload retains PageId, SlotIndex and the optional inner decoder failure. Its contextual message names the page and slot without adding the code prefix. Other constructors leave SlotIndex null. Model decoders use this only after confirming the private record copy against the page write sequence; an overlapping mutation retries before a decoder failure is accepted. CK06003 remains the identity.
 
 ## Sources
 

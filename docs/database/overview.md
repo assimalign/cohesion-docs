@@ -421,6 +421,10 @@ to determine available behavior.
 
 SQL, Documents, Graph and Key-Value Pair prune obsolete index history during the coordinator version-purge pass, under the same safe snapshot horizon as record versions. Unique inserts also prune their key run during their single descent. Old snapshots retain required versions. This does not merge empty tree pages or change disk formats. See [index maintenance](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#safe-index-history-pruning).
 
+## Record reads and space reuse
+
+Unlatched reads confirm against the page write sequence and retry overlapping mutations; decode failures are reported only from a confirmed copy, with record location and cause. Inserts and growing updates compact fragmented pages when packed capacity suffices. Inserts also revisit partly empty older pages using in-memory free-byte hints before extending. See [storage behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
 ## Sources
 
 - **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.

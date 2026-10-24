@@ -225,6 +225,10 @@ conflict. Relationship insertion checks latest endpoint existence, so a concurre
 property update alone does not cause a conflict. See [GraphStore](graph-store.md).
 
 
+## Confirmed decoding and page reuse
+
+Record reads confirm their private bytes against a page write sequence before accepting a result or reporting a decode failure. Overlapping forward writes and rollback cause a retry. Stable malformed records retain page/slot context and the decoder cause through storage corruption translation. The shared record layer compacts fragmented pages before extension and refills partly empty older pages through in-memory free-byte hints, rechecking allocation generation and capacity. These changes preserve the stored format. See [shared record-layer behavior](../assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
 ## Sources
 
 - **Label lifecycle and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/Storage/GraphStoreLabelTests.cs`.
