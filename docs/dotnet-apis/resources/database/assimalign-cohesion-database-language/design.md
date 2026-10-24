@@ -36,7 +36,7 @@ therefore cannot silently inherit a flat, database-wide grammar.
   read-only view. Registration code can safely reuse its source arrays without mutating a running
   parser's grammar surface.
 - **One unsupported-clause diagnostic.** `QueryDiagnostics.UnsupportedClause` emits stable code
-  `COHDBL001` and a shared message naming the rejected clause and model language. Conformance
+  `CK00001` and a shared message naming the rejected clause and model language. Conformance
   corpora can distinguish an intentionally unsupported capability from malformed syntax.
 - **Parser-level gating.** Model parsers call `RequireClause` at the recognized clause boundary.
   The helper records the shared diagnostic and returns whether parsing may continue; the shared

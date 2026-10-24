@@ -102,7 +102,7 @@ discards buffered columns/rows and retains the error and negotiated diagnostics.
 prepare all result payloads before commit, inside DML's undo bracket; preparation failure rolls
 back only the statement. Read-only statements encode during delivery and may fail after partial
 frames. Both paths preserve the explicit transaction and connection on result failures.
-Uncoded failures and size refusals use COHSQLE045 (54000 for size refusals). Each header/row fits
+Uncoded failures and size refusals use CS05045 (54000 for size refusals). Each header/row fits
 16 MiB, with no aggregate result cap. Writes retain prepared payloads until delivery; reads encode
 one frame at a time alongside materialized values. Transport failure is terminal. ParseFailure
 after result frames also invalidates the rental. See [statement results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
@@ -155,12 +155,12 @@ framing, handshake and model messages are unchanged.
 SqlResultSet exposes IReadOnlyList<ProtocolDiagnostic> Diagnostics on success. SqlClientException
 preserves the shared failure carrier. Protocol 2.1 sends Warning/Error entries before completion
 or Error; 2.0 retains baseline exchanges without the frame. Overflow preserves a leading prefix
-plus COHDBP001 with exact omission counts, the original outcome and a usable session.
+plus CK07001 with exact omission counts, the original outcome and a usable session.
 All SQL codes and SQLSTATE categories are in [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
-Constraint failures use ExecutionFailure with one negotiated Error diagnostic: COHSQLE037 (23505)
-for UNIQUE/PRIMARY KEY/unique indexes, COHSQLE038 (23514) for CHECK/domain checks including CAST,
-and COHSQLE039 (23503) for foreign keys in either direction. NOT NULL retains COHSQLE024 (23502).
+Constraint failures use ExecutionFailure with one negotiated Error diagnostic: CS03037 (23505)
+for UNIQUE/PRIMARY KEY/unique indexes, CS03038 (23514) for CHECK/domain checks including CAST,
+and CS03039 (23503) for foreign keys in either direction. NOT NULL retains CS03024 (23502).
 Messages name the constraint and table without key values; domain CAST/function checks name the
 domain without a table. Available statement spans survive both transports. The rejected statement
 rolls back while the connection and explicit transaction remain usable. See
@@ -175,14 +175,14 @@ Server projection errors occur before the result header and leave the connection
 
 ## Predicate diagnostics
 
-Detected storage corruption uses COHDBS003 (SQLSTATE XX001) through the existing ExecutionFailure
+Detected storage corruption uses CK06003 (SQLSTATE XX001) through the existing ExecutionFailure
 path, naming the database and optional page and leaving the connection usable. See
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
 
 Distinct/Boolean truth tables and bound LIKE ESCAPE parameters use existing SQL frames on
-both transports. Invalid escapes (COHSQLE034, 22025) and non-Boolean truth tests (COHSQLE003,
+both transports. Invalid escapes (CS02034, 22025) and non-Boolean truth tests (CS02003,
 42804) are ExecutionFailure responses; data and the connection remain usable. Invariant LIKE/NOT
-LIKE work exhaustion is a located COHSQLE040 ExecutionFailure (no SQLSTATE), also retaining a
+LIKE work exhaustion is a located CS05040 ExecutionFailure (no SQLSTATE), also retaining a
 usable connection. The server's session lifetime token reaches row-time matching; disconnect
 cancels the matcher and closes the session on both InMemory and TCP. No client API or
 protocol format changes are required. See [predicate examples](../../../../database/sql/language/expressions/operators.md).
@@ -191,9 +191,9 @@ protocol format changes are required. See [predicate examples](../../../../datab
 
 Existing requests carry VALUES/SELECT/DEFAULT VALUES ON CONFLICT and RETURNING. QueryAsync returns
 inserted/post-update rows with their combined affected count; skips and false/UNKNOWN filters
-contribute neither. COHSQLE035 (42P10), COHSQLE036 (21000) and ordinary constraint failures are
+contribute neither. CS03035 (42P10), CS05036 (21000) and ordinary constraint failures are
 ExecutionFailure responses with usable connections; MySQL/SQLite alternatives and excluded
-inference/action forms are COHDBL001 ParseFailure. No protocol or client API change is required.
+inference/action forms are CK00001 ParseFailure. No protocol or client API change is required.
 
 Multi-row UPDATE final-state foreign-key behavior is the same on both transports. Tests select
 Snapshot/ReadCommitted through the server-session API; SQL BEGIN adds no isolation syntax.
@@ -203,23 +203,23 @@ complete transaction. The client does not retry it automatically. See
 
 ## Boolean conditions, implicit rows and storage failures
 
-Non-Boolean predicates arrive as ExecutionFailure with COHSQLE003 (42804), available spans
+Non-Boolean predicates arrive as ExecutionFailure with CS02003 (42804), available spans
 and a reusable connection/explicit transaction. FROM-less SELECT, including scalar/IN/EXISTS
 children and aggregates, uses the existing query exchange and returns the implicit row or its
 filtered result on InMemory and TCP. No client API or wire payload changes.
 
-Storage/index failures instead use COHSQLE041 (58030 for I/O), or COHDBS003 (XX001) for
-corruption. Attached-index damage retains COHDBI002 and COHSQLE041. ExecutionFailure preserves
+Storage/index failures instead use CS06041 (58030 for I/O), or CK06003 (XX001) for
+corruption. Attached-index damage retains CK06102 and CS06041. ExecutionFailure preserves
 the connection but aborts an explicit transaction; roll back before continuing.
 
-Encoded row/index-key size refusals use COHSQLE042 / SQLSTATE 54000 as ExecutionFailure.
+Encoded row/index-key size refusals use CS05042 / SQLSTATE 54000 as ExecutionFailure.
 The connection and explicit transaction remain usable, with no statement rows changed and
 earlier work intact. See [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
 
-Server-side statement and individual lock-wait deadlines use COHSQLE043 / SQLSTATE 57014
-and COHSQLE044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
+Server-side statement and individual lock-wait deadlines use CS05043 / SQLSTATE 57014
+and CS04044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
 transaction after statement rollback; earlier grants and upgrades remain, and new resources are
-released after undo. COHSQLT006 has no assigned SQLSTATE and means the bound target changed during
+released after undo. CS04006 has no assigned SQLSTATE and means the bound target changed during
 lock preparation: retry in a fresh transaction. SQLSTATE remains a reference mapping on the wire.
 See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
 
@@ -242,7 +242,7 @@ statement spans through SqlClientException.Diagnostics on both in-memory and TCP
 The wire composes `CODE: message` exactly once; the diagnostic's Message has no embedded code
 prefix. DEFAULT wrappers preserve the underlying diagnostic and cause, and stored-expression
 offsets are replaced with current-statement locations. Previously uncoded failures now visibly
-begin with `COHSQLE0xx:`. ExecutionFailure leaves the connection usable under the existing policy.
+begin with a complete `CS` code followed by a colon. ExecutionFailure leaves the connection usable under the existing policy.
 See [all execution codes and SQLSTATE mappings](../../../../database/sql/language/diagnostics.md#planning-and-execution-diagnostics).
 This changes no public client member or wire format.
 

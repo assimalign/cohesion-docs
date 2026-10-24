@@ -31,15 +31,15 @@ Unique indexes treat `NULL` as an equal key. String keys use the column's effect
 `invariant` is scan-only and cannot back an index or index-backed constraint. Predicates whose
 collation differs from the index use a scan.
 
-Duplicate keys during a unique-index build or a later write report `COHSQLE037` (SQLSTATE
+Duplicate keys during a unique-index build or a later write report `CS03037` (SQLSTATE
 23505). The constraint exception carries one Error diagnostic naming the index and table
 without key values; a failed build leaves the index unpublished. See [Diagnostics](../diagnostics.md).
 
-Index DDL is self-committing and is rejected inside an explicit transaction with `COHSQLT003`.
-An existing index name reports COHSQLE049 (42P07); a conflicting constraint name reports
-COHSQLE050 (42710). CREATE INDEX under `invariant` uses COHSQLE013 (no assigned SQLSTATE);
-index-backed constraint admission instead uses COHSQLE057 (0A000).
-Schema-owned object admission can report COHSQLE066 (42501). Execution/DDL failures retain the
+Index DDL is self-committing and is rejected inside an explicit transaction with `CS04003`.
+An existing index name reports CS03049 (42P07); a conflicting constraint name reports
+CS03050 (42710). CREATE INDEX under `invariant` uses CS05013 (no assigned SQLSTATE);
+index-backed constraint admission instead uses CS05057 (0A000).
+Schema-owned object admission can report CS03066 (42501). Execution/DDL failures retain the
 statement span and expose the code separately from Message.
 
 ### Building over existing data
@@ -63,11 +63,11 @@ and registration. After fixing the cause, the same index name can be retried.
 
 Unique and nonunique builds enforce the same **1,024-byte encoded key limit** as later writes.
 The count includes NULL markers, component delimiters and collation transforms. A key of exactly
-1,024 bytes is accepted; a larger key reports `COHSQLE042` / SQLSTATE 54000, leaves the index
+1,024 bytes is accepted; a larger key reports `CS05042` / SQLSTATE 54000, leaves the index
 unpublished and cleans up the unpublished tree. The table and connection remain usable. Historical
 versions are included in construction. See [size limits](../diagnostics.md#row-and-index-key-limits).
-Because construction precedes duplicate validation, COHSQLE042 can take precedence over a
-COHSQLE037 duplicate that occurs earlier in storage order.
+Because construction precedes duplicate validation, CS05042 can take precedence over a
+CS03037 duplicate that occurs earlier in storage order.
 
 ## Examples
 
@@ -78,7 +78,7 @@ CREATE UNIQUE INDEX ix_name ON t(name);
 SELECT id FROM t WHERE name = 'Ada';
 ```
 
-A subsequent insert of another `Ada` name reports COHSQLE037 (23505) without inserting a row.
+A subsequent insert of another `Ada` name reports CS03037 (23505) without inserting a row.
 
 In an empty database, bind `v` to `new string('x', 2000)` and execute separately:
 
@@ -89,7 +89,7 @@ CREATE INDEX ix_v ON wide_keys(v);
 SELECT id FROM wide_keys;
 ```
 
-CREATE INDEX fails with COHSQLE042; SELECT returns `1`, and no index is published.
+CREATE INDEX fails with CS05042; SELECT returns `1`, and no index is published.
 
 Execute separately in a fresh database:
 
@@ -100,7 +100,7 @@ CREATE UNIQUE INDEX ix_ab ON duplicate_keys(a, b);
 SELECT a, b FROM duplicate_keys ORDER BY a;
 ```
 
-The build fails with COHSQLE037 (23505) because the two (1, NULL) keys compare equal. No index
+The build fails with CS03037 (23505) because the two (1, NULL) keys compare equal. No index
 is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING key value.
 
 ## See also

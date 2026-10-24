@@ -25,8 +25,8 @@ admission. Depth includes arguments and ordering keys. The parser retains modifi
 calls without deciding whether they are aggregates.
 
 The engine rejects scalar-call DISTINCT/ALL/ORDER BY, or DISTINCT ordering keys absent from the
-argument list, with DatabaseException/COHSQLE032 (no SQLSTATE). Invalid arity/types use COHSQLE006
-(42883). Quantifiers on star or malformed LISTAGG ordering use SQL0003. Inspect parser diagnostics
+argument list, with DatabaseException/CS05032 (no SQLSTATE). Invalid arity/types use CS01006
+(42883). Quantifiers on star or malformed LISTAGG ordering use CS00003. Inspect parser diagnostics
 before executing. See [Aggregate functions](../../../../database/sql/language/functions/aggregate-functions.md).
 
 ## Example

@@ -132,7 +132,7 @@ work can also participate in cycles.
 the previous value on disposal. Zero disables; durations above int.MaxValue milliseconds or below
 zero are refused. Only a contended request arms a timer, with a fresh budget for each wait.
 TransactionLockTimeoutException leaves the owner and prior grants active; SQL translates it to
-COHSQLE044 / 55P03. ReleaseSince can release new resources after a failed physical bracket has
+CS04044 / 55P03. ReleaseSince can release new resources after a failed physical bracket has
 fully rolled back; it performs no undo itself. Offline/abandoned writers retain recovery locks.
 
 LockWaitStop (Verbose event 8) reports Timeout for the individual lock timer and Cancelled for

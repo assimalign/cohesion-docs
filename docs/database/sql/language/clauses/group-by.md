@@ -29,7 +29,7 @@ implicit group. Grouping works over one stored table, one system relation, or th
 join. `HAVING` filters groups before ordering and pagination.
 
 Projection aliases are outside grouping's alias-binding scope. Standalone numeric keys
-(`GROUP BY 1`) report `COHDBL001`; `GROUP BY 1 + 1` is an ordinary constant expression.
+(`GROUP BY 1`) report `CK00001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 Empty grouping sets, `GROUPING SETS`, `ROLLUP`, `CUBE`, and grouping functions are excluded.
 
 [Aggregate calls](../functions/aggregate-functions.md) accept DISTINCT/ALL and input ORDER BY.

@@ -43,10 +43,10 @@ when it is not followed by an opening parenthesis.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| COHDBG003 | Provably unsupported operand kind or Boolean numeric conversion, including under EXPLAIN |
-| COHDBG013 | Invalid dynamic kind, text, fraction, overflow, underflow or value |
-| COHDBL001 | Recognized unsupported target: type modifiers, LIST, DURATION, BYTES, ZONED TIME, INT32, SMALLINT, FLOAT32, TIMESTAMP WITHOUT TIME ZONE or LOCAL DATETIME |
-| GQL0002 | Unknown target spelling or malformed CAST syntax |
+| CG03003 | Provably unsupported operand kind or Boolean numeric conversion, including under EXPLAIN |
+| CG02013 | Invalid dynamic kind, text, fraction, overflow, underflow or value |
+| CK00001 | Recognized unsupported target: type modifiers, LIST, DURATION, BYTES, ZONED TIME, INT32, SMALLINT, FLOAT32, TIMESTAMP WITHOUT TIME ZONE or LOCAL DATETIME |
+| CG00002 | Unknown target spelling or malformed CAST syntax |
 
 These codes have no assigned SQLSTATE. EXPLAIN validates signatures without evaluating conversions.
 
@@ -58,7 +58,7 @@ RETURN CAST('2024-01-02' AS DATE) AS d;
 RETURN CAST(2.5 AS INTEGER) AS n;
 ```
 
-The first returns `(42,'FALSE')`, the second DateOnly 2024-01-02, and the third fails COHDBG013.
+The first returns `(42,'FALSE')`, the second DateOnly 2024-01-02, and the third fails CG02013.
 `RETURN toInteger(2.5) AS n` instead returns Int64 2.
 
 ## See also

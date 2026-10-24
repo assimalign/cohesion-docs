@@ -17,9 +17,9 @@ rules; UNKNOWN equality does not replace the first operand. The returned value k
 type, with no common-type coercion. GQL has NULL and no MISSING value. NULLIF is a case abbreviation,
 independent of the function registry.
 
-Malformed arity/syntax reports GQL0002; invalid programmatic shapes or unbound names use COHDBG001.
-Evaluated value failures/limits use COHDBG013. A possibly composite first operand returned over a
-wire session without graph.composite-values reports COHDBG016 before reads/writes (no SQLSTATE).
+Malformed arity/syntax reports CG00002; invalid programmatic shapes or unbound names use CG05001.
+Evaluated value failures/limits use CG02013. A possibly composite first operand returned over a
+wire session without graph.composite-values reports CG07016 before reads/writes (no SQLSTATE).
 See [limits and capability](list-values.md#limits-and-wire-capability).
 
 ## Examples

@@ -23,7 +23,7 @@ Construction is private protected; setters are internal. [SqlSelectExpression](s
 and [SqlSetOperationExpression](sql-set-operation-expression.md) inherit the WITH list and result tail.
 TOP belongs to a SELECT operand; an unparenthesized trailing ORDER BY/paging belongs to the combined body.
 Accessors add no validation exceptions. Parser errors become DatabaseParseException at execution;
-set width/type/order failures use COHSQLE013/003/018/019 during planning.
+set width/type/order failures use CS05013/CS02003/CS02018/CS01019 during planning.
 
 The following properties now accept this base instead of SqlSelectExpression:
 

@@ -42,7 +42,7 @@ removes delimiters for catalog binding while retaining identifier token classifi
 `"dbo"."order details"` qualifies a table; `"order.details"` names one table containing a dot.
 Doubled double quotes represent one embedded quote: `"a""b"` names `a"b`.
 The same rule applies to function names and canonical rendering. A final escaped quote without
-a closing delimiter, as in `"a""`, reports `SQL0003`. Whitespace separates delimited tokens:
+a closing delimiter, as in `"a""`, reports `CS00003`. Whitespace separates delimited tokens:
 `"a""x"` is one name, while `"a" "x"` is a column followed by its alias.
 See the [stored-view compatibility note](../statements/create-view.md#delimited-identifiers).
 
@@ -70,7 +70,7 @@ In Boolean positions, valid Boolean input string literals receive the
 
 
 Typed literals work in scalar positions and literal DEFAULTs. X and N must touch the quote.
-Malformed contents report `SQL0008` over the complete literal. Years have four digits;
+Malformed contents report `CS00008` over the complete literal. Years have four digits;
 TIME accepts single-digit clock fields, AM/PM, a trailing fractional dot and a validated written
 zone that is discarded. TIMESTAMP rejects zones; both types allow at most seven fractional digits.
 TIMESTAMPTZ accepts Z or +/-HH:mm within +/-14:00; no offset means UTC. Regional named zones and
@@ -81,8 +81,8 @@ descending TO ranges, PostgreSQL unit/clock strings and ISO day-time durations e
 An unqualified bare signed number means seconds: `INTERVAL '12'` is twelve seconds.
 `INTERVAL '1 2 hours'` is 26 hours; `INTERVAL '@ 1 day 2 hours ago'` is minus 26 hours.
 Surrounding ASCII whitespace is trimmed; TIME/INTERVAL reject non-ASCII whitespace.
-Year-month fields report `COHDBL001`; invalid or overflowing durations report `SQL0008`.
-TIME WITH TIME ZONE literals and temporal precision remain `COHDBL001`.
+Year-month fields report `CK00001`; invalid or overflowing durations report `CS00008`.
+TIME WITH TIME ZONE literals and temporal precision remain `CK00001`.
 
 Binary row values are independent snapshots. Mutating a returned byte array or GetBytes backing
 array cannot change another cell, later row, stored value, parameter or subsequent default insert.

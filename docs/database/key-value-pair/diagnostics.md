@@ -1,5 +1,7 @@
 # Diagnostics
 
+Key-Value Pair uses `CV` across syntax, binding, value, schema, transaction, execution, storage and protocol categories. See the [code scheme and registry](../error-codes.md).
+
 Key-Value Pair distinguishes invalid commands, conditional misses, execution failures, and protocol failures.
 
 > **Status:** Implemented.
@@ -18,39 +20,39 @@ outcomes have no Diagnostics member.
 
 | Code | Meaning |
 | --- | --- |
-| `COHKV001` | Empty command |
-| `COHKV002` | Attempted catalog mutation |
-| `COHKV003` | Unknown command verb |
-| `COHKV004` | Request-constructor validation failed |
-| `COHKV005` | Invalid PUT arity |
-| `COHKV006` | PUT requires IF |
-| `COHKV007` | Invalid DELETE arity |
-| `COHKV008` | DELETE requires IF |
-| `COHKV009` | SCAN clause operand missing |
-| `COHKV010` | Repeated SCAN clause |
-| `COHKV011` | Unknown SCAN clause |
-| `COHKV012` | Byte operand required |
-| `COHKV013` | Integer etag required |
-| `COHKV014` | Nonnegative LIMIT literal required |
-| `COHKV015` | Nonnegative integer LIMIT parameter required |
-| `COHKV016` | Parameter reference required |
-| `COHKV017` | Parameter value missing |
-| `COHKV018` | Command arity mismatch |
-| `COHKV019` | Execution failure without an engine diagnostic |
-| `COHDBK001` | Aborted transaction refuses commands/commit; original coded cause retained |
-| `COHDBK006` | Incomplete file-backed creation or missing catalog; refused before storage opens; no assigned SQLSTATE |
-| `COHDBK005` | Storage/index or open I/O operation failed, including wrapped/aggregate causes; I/O SQLSTATE 58030 |
-| `COHDBI002` | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005; no assigned SQLSTATE |
-| `COHDBS003` | Storage or attached-index corruption; database/page and original cause retained; SQLSTATE XX001 |
+| `CV00001` | Empty command |
+| `CV03002` | Attempted catalog mutation |
+| `CV00003` | Unknown command verb |
+| `CV00004` | Request-constructor validation failed |
+| `CV00005` | Invalid PUT arity |
+| `CV00006` | PUT requires IF |
+| `CV00007` | Invalid DELETE arity |
+| `CV00008` | DELETE requires IF |
+| `CV00009` | SCAN clause operand missing |
+| `CV00010` | Repeated SCAN clause |
+| `CV00011` | Unknown SCAN clause |
+| `CV02012` | Byte operand required |
+| `CV02013` | Integer etag required |
+| `CV02014` | Nonnegative LIMIT literal required |
+| `CV02015` | Nonnegative integer LIMIT parameter required |
+| `CV00016` | Parameter reference required |
+| `CV01017` | Parameter value missing |
+| `CV00018` | Command arity mismatch |
+| `CV04019` | Execution failure without an engine diagnostic |
+| `CV04101` | Aborted transaction refuses commands/commit; original coded cause retained |
+| `CV06106` | Incomplete file-backed creation or missing catalog; refused before storage opens; no assigned SQLSTATE |
+| `CV06105` | Storage/index or open I/O operation failed, including wrapped/aggregate causes; I/O SQLSTATE 58030 |
+| `CK06102` | Additional index-corruption diagnostic beside CK06003 and CV06105; no assigned SQLSTATE |
+| `CK06003` | Storage or attached-index corruption; database/page and original cause retained; SQLSTATE XX001 |
 
 Parser refusals use ParseFailure and leave the session ready. Execution errors without an engine
-code use COHKV019. Wire Error text is CODE: message, with the existing layout; Key-Value does not
-negotiate the core Diagnostics capability. For example GET without its operand reports COHKV018;
-PUT KEYSPACES @value reports COHKV002. Conditional misses remain successful outcomes.
+code use CV04019. Wire Error text is CODE: message, with the existing layout; Key-Value does not
+negotiate the core Diagnostics capability. For example GET without its operand reports CV00018;
+PUT KEYSPACES @value reports CV03002. Conditional misses remain successful outcomes.
 
 ## Missing file sets and interrupted drop
 
-COHDBS003 fails damaged reads and writes instead of returning a missing key. Legitimate reclaimed
+CK06003 fails damaged reads and writes instead of returning a missing key. Legitimate reclaimed
 entries still read as absent. Create/open and transaction operations use the same integrity
 translation, including wrapped/aggregate causes. Wire errors retain the common code through the
 existing ExecutionFailure path. Follow the message's verified-backup advice; see
@@ -59,13 +61,13 @@ existing ExecutionFailure path. Follow the message's verified-backup advice; see
 
 File-backed open requires the original data and catalog file sets, including each journal and
 backup. With the primary data file present, missing sidecars in an existing file set raise
-DatabaseException with COHDBK004 in Diagnostics (Error, no
+DatabaseException with CV06104 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
 
-`COHDBK006` is an Error diagnostic with no assigned SQLSTATE. Before opening either storage,
+`CV06106` is an Error diagnostic with no assigned SQLSTATE. Before opening either storage,
 the engine refuses file-backed data of at most one page as interrupted creation; its message
 directs `DropDatabaseAsync`, then `CreateDatabaseAsync`. Otherwise, an entirely missing catalog
 requires preserving storage and restoring the complete database from backup. This missing-catalog
@@ -75,22 +77,22 @@ and publish no database. An existing catalog is validated before data recovery.
 ## Storage failures and transaction recovery
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
-causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
+causes, cross begin, command, commit/rollback and create/open boundaries with CV06105 when
 no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes precedence:
-COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHDBK005, keeping the
-index cause and page. Format refusals retain COHDBS001/COHDBI001 and their authored messages,
+CK06003 maps to XX001; attached-index damage also retains CK06102 and CV06105, keeping the
+index cause and page. Format refusals retain CK06001/CK06101 and their authored messages,
 diagnostics and inner causes. Existing offline/unconfirmed-commit outcomes remain in force.
 
 A storage, I/O or index failure aborts an explicit transaction after command admission is released. Further
-commands and COMMIT are refused with COHDBK001 in Diagnostics, retaining the original coded
+commands and COMMIT are refused with CV04101 in Diagnostics, retaining the original coded
 cause; roll back before continuing. Ordinary command errors keep statement atomicity and the
 transaction usable. In autocommit the next command can run immediately after a recoverable
 failure. Wire ExecutionFailure preserves the session. I/O open failures release acquired file
 sets and publish no database, permitting retry after the condition is resolved.
 
 Storage-failure, corruption and aborted-transaction refusal messages are ordinary unprefixed
-embedded text. The refusal carries COHDBK001 as an Error in Diagnostics and retains the original
-InnerException cause. The wire still adds `COHDBK001: ` once. No SQLSTATE is assigned to COHDBK001.
+embedded text. The refusal carries CV04101 as an Error in Diagnostics and retains the original
+InnerException cause. The wire still adds `CV04101: ` once. No SQLSTATE is assigned to CV04101.
 
 If abort cleanup also fails, the exact coded command exception remains primary, including its
 corruption type. EventSource Assimalign.Cohesion.Database.KeyValuePair emits Warning event 11,
@@ -117,7 +119,7 @@ the model boundary.
 Attempts such as `PUT KEYSPACES @value` or `delete keyspaces` produce the stable message:
 
 ```text
-COHKV002: The KEYSPACES catalog surface is read-only.
+CV03002: The KEYSPACES catalog surface is read-only.
 ```
 
 This check concerns the command text. A parameter-bound key containing those bytes remains

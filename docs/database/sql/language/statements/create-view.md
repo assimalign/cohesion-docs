@@ -20,7 +20,7 @@ output names must be unique.
 
 The catalog stores canonical SQL with bound input qualifiers and expanded stars at every query
 level. Later ADD COLUMN does not change the view's output. Rebinding refuses a changed input
-column identity with COHSQLE033. Stored function identities keep later overloads from changing
+column identity with CS03033. Stored function identities keep later overloads from changing
 a call. Unqualified view names use dbo; tables and views share a relation namespace.
 
 OR REPLACE must retain every existing column's name, position, type, length, precision, scale,
@@ -31,7 +31,7 @@ Views work in FROM, JOIN, subqueries and INSERT SELECT. Each reference materiali
 once under the caller's statement snapshot, using memory proportional to the body rows.
 Outer filtering, grouping, ordering and paging execute over those rows. View queries have
 ordinary SQL NULL behavior and no MISSING value. INSERT, UPDATE, DELETE, ALTER TABLE,
-CREATE INDEX and DROP TABLE targeting a view fail with COHSQLE021 (25006).
+CREATE INDEX and DROP TABLE targeting a view fail with CS04021 (25006).
 
 [INFORMATION_SCHEMA](../system-views/information-schema.md) lists views in TABLES, COLUMNS and
 VIEWS. Column names and type facets are frozen; every catalog view column reports
@@ -41,9 +41,9 @@ with mismatched facets produce the unconstrained common type.
 
 A recoverable body bind failure affects reads of that view; it does not block database open,
 unrelated reads, metadata enumeration or DROP VIEW. The read retains the underlying diagnostic
-when available and otherwise uses COHSQLE033. Cancellation, insufficient stack, out-of-memory,
+when available and otherwise uses CS03033. Cancellation, insufficient stack, out-of-memory,
 storage and I/O failures propagate, including through nested exceptions. Read-time stack
-exhaustion reports COHSQLE004 (54001); malformed persisted canonical text can still fail open.
+exhaustion reports CS05004 (54001); malformed persisted canonical text can still fail open.
 
 DDL requires auto-commit. Session-created views have Adhoc ownership; declared scripts publish
 Schema-owned definitions and V: receipts atomically. Format 23 introduced view records of kind 17;
@@ -74,14 +74,14 @@ The query returns 7 under the name `c"d`.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE033 | Invalid view declaration, duplicate outputs, parameters, relation collision, incompatible replacement, dependency cycle/change, oversized record or changed bound column identity | — |
-| COHSQLE013 | Explicit output column-list width differs from the body | — |
-| COHSQLE028 | Target namespace does not exist | 3F000 |
-| COHDBL001 | MATERIALIZED, RECURSIVE, TEMP/TEMPORARY, IF NOT EXISTS, WITH options or WITH [LOCAL\|CASCADED] CHECK OPTION | — |
-| COHSQLT003 | View DDL inside an explicit transaction | — |
+| CS03033 | Invalid view declaration, duplicate outputs, parameters, relation collision, incompatible replacement, dependency cycle/change, oversized record or changed bound column identity | — |
+| CS05013 | Explicit output column-list width differs from the body | — |
+| CS01028 | Target namespace does not exist | 3F000 |
+| CK00001 | MATERIALIZED, RECURSIVE, TEMP/TEMPORARY, IF NOT EXISTS, WITH options or WITH [LOCAL\|CASCADED] CHECK OPTION | — |
+| CS04003 | View DDL inside an explicit transaction | — |
 
 Ordinary query binding and function diagnostics also apply. Dependency protection uses
-COHSQLD002: DROP TABLE/FUNCTION/DOMAIN, table rename, and drop/rename or type/length/precision/scale
+CS03302: DROP TABLE/FUNCTION/DOMAIN, table rename, and drop/rename or type/length/precision/scale
 changes to a referenced column are refused. Default and nullability changes retain their usual rules.
 
 ## Example

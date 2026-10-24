@@ -18,21 +18,21 @@ public sealed class GraphQueryRequest : GraphRequest
 
 Statement and Parameters are inherited from GraphRequest. Parameters bind case-sensitive bare
 names in WHERE, RETURN and property maps, retaining runtime scalar, list and map types. Missing/colliding/unsupported
-values fail planning with COHDBG001/014/003, including under EXPLAIN. Unused values are ignored.
+values fail planning with CG05001/CG01014/CG03003, including under EXPLAIN. Unused values are ignored.
 Embedded row requests support scalar/entity/path projections, standalone RETURN, SHOW, EXPLAIN
 and mutations. RETURN supports expressions, aliases, ALL/DISTINCT and star. Duplicate final
-column names fail COHDBG015 before reads/writes, including empty matches and EXPLAIN; no SQLSTATE
+column names fail CG01015 before reads/writes, including empty matches and EXPLAIN; no SQLSTATE
 is assigned. Only the wire Execute exchange accepts scalar and negotiated composite columns: it rejects entity
 results before reads or mutation and directs callers to ExecutePaths. EXPLAIN remains scalar.
 
 Null statements throw ArgumentNullException. FromGql rejects blank text with ArgumentException,
 parser errors with DatabaseParseException carrying complete diagnostics, and exhausted parsing
-stack with DatabaseException COHDBG008 (SQLSTATE 54001). A graph session accepts both leaves via
+stack with DatabaseException CG05008 (SQLSTATE 54001). A graph session accepts both leaves via
 DatabaseLanguageSession<GraphRequest>; other models' requests do not compile.
 
 Referenced list/map parameter trees are snapshotted once per execution, with depth 64, 65,536
 values including root and 16 MiB encoded bytes. Invalid dimensions/cycles/leaves or bounds use
-COHDBG003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
+CG03003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
 use [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) only when graph.composite-values is negotiated;
 path payloads are unchanged. Unused values remain ignored by engine planning.
 

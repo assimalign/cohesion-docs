@@ -33,12 +33,12 @@ function catalog calling convention.
 
 Unless a row below states otherwise, functions are Immutable and strict: any NULL argument returns
 NULL. SQL has no separate MISSING state. Arity and incompatible argument types fail planning with
-COHSQLE006 (42883), including empty inputs. Messages list accepted signatures. No-overload and
-ambiguous-overload diagnostics remain distinct (COHSQLE006 and COHSQLE008).
+CS01006 (42883), including empty inputs. Messages list accepted signatures. No-overload and
+ambiguous-overload diagnostics remain distinct (CS01006 and CS01008).
 
 COALESCE evaluates alternatives only until the first non-NULL and returns NULL if none exists.
 In a [Boolean position](../clauses/where.md#boolean-search-conditions), every alternative must
-qualify, including unreachable ones; mixed Boolean/non-Boolean alternatives fail COHSQLE003 (42804).
+qualify, including unreachable ones; mixed Boolean/non-Boolean alternatives fail CS02003 (42804).
 Compatible alternatives receive a common result type, including numeric and calendar promotion.
 NULLIF evaluates its operands, returns NULL when equal, otherwise preserves the first value and
 its type; a NULL first operand stays NULL, and a NULL second operand leaves the first unchanged.
@@ -93,7 +93,7 @@ INSERT INTO scalar_values VALUES ('A😀b', -2, 2.5, DATE '2024-03-04');
 Searches and trim character sets use ordinal Unicode scalar matching. LENGTH/CHAR_LENGTH/
 CHARACTER_LENGTH, SUBSTRING, POSITION/STRPOS, LEFT/RIGHT, LPAD/RPAD and REVERSE never split a
 surrogate pair. SUBSTRING uses the intersection with the string when start is before 1; a negative
-length is COHSQLE002. LPAD/RPAD with nonpositive length returns empty text; an empty fill leaves
+length is CS02002. LPAD/RPAD with nonpositive length returns empty text; an empty fill leaves
 the input unchanged when padding would otherwise be needed. UPPER/LOWER reject non-text inputs;
 LENGTH also rejects numbers instead of formatting them.
 
@@ -126,8 +126,8 @@ a division result. The same rule applies to both signs and every supported negat
 
 POWER chooses its result from operand types: a DECIMAL/REAL/DOUBLE exponent gives DOUBLE PRECISION
 even if its value is integral. SQRT/EXP/LN/LOG10 always return DOUBLE PRECISION, and SIGN always
-returns BIGINT. MOD by zero is COHSQLE001 (22012). Domain/range errors, non-finite results from
-finite inputs and overflow are COHSQLE002 (22003), including SQRT(-1), LN(0), POWER(0, -1)
+returns BIGINT. MOD by zero is CS02001 (22012). Domain/range errors, non-finite results from
+finite inputs and overflow are CS02002 (22003), including SQRT(-1), LN(0), POWER(0, -1)
 and EXP(1000).
 
 ### Clock, temporal and UUID functions
@@ -149,20 +149,20 @@ explicit transaction, it is captured when the automatic statement transaction be
 planning, rows, subqueries, SQL function bodies and later statements in that transaction agree.
 COMMIT/ROLLBACK ends that clock lifetime. There is no session time zone or public clock option.
 
-Empty parentheses on a bare clock form give SQL0003. A precision argument on CURRENT_TIME,
-CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP gives COHDBL001. NOW is written with parentheses.
+Empty parentheses on a bare clock form give CS00003. A precision argument on CURRENT_TIME,
+CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP gives CK00001. NOW is written with parentheses.
 
 EXTRACT fields are case-insensitive: YEAR, QUARTER, MONTH, WEEK (ISO week), DAY, DOW (Sunday zero),
 DOY, HOUR, MINUTE, SECOND (including fractions) and EPOCH. DATE accepts calendar fields and EPOCH;
 TIME accepts HOUR/MINUTE/SECOND/EPOCH; INTERVAL also accepts DAY. TIMESTAMP and TIMESTAMPTZ accept
-all these fields; TIMESTAMPTZ uses UTC. Unknown grammar fields give SQL0003; incompatible constant
-fields fail planning with COHSQLE006, even on empty inputs. INTERVAL uses normalized TimeSpan
+all these fields; TIMESTAMPTZ uses UTC. Unknown grammar fields give CS00003; incompatible constant
+fields fail planning with CS01006, even on empty inputs. INTERVAL uses normalized TimeSpan
 components: `EXTRACT(HOUR FROM INTERVAL '36' HOUR)` is 12 and DAY is 1. EPOCH is the full duration
 in seconds. This differs from PostgreSQL interval component storage.
 
 DATE_TRUNC accepts year/quarter/month/week/day/hour/minute/second/millisecond/microsecond;
 TIME and INTERVAL accept day and finer units. Weeks start Monday. Field values are case-insensitive;
-invalid/incompatible fields give COHSQLE006. Constant and directly bound parameter fields are checked during planning;
+invalid/incompatible fields give CS01006. Constant and directly bound parameter fields are checked during planning;
 row-dependent fields are checked during evaluation. TIMESTAMPTZ truncation uses UTC and returns +00:00. DATE stays
 DATE. Negative INTERVAL truncation removes fractional units toward zero. See
 [temporal arithmetic](../expressions/operators.md#temporal-arithmetic) for day-time INTERVAL operators.
@@ -188,28 +188,28 @@ This allocation bound is distinct from Unicode scalar positions and SQL characte
 LPAD/RPAD conservatively budget two UTF-16 units per requested scalar. REPLACE checks expanded
 length, and CONCAT/CONCAT_WS check binary-to-hex expansion and joined length before allocation.
 Slicing, trimming and reversal also bound input work buffers; UPPER/LOWER use the same cap.
-LENGTH/CHAR_LENGTH count without allocating a rune buffer. Oversized requests use COHSQLE002
+LENGTH/CHAR_LENGTH count without allocating a rune buffer. Oversized requests use CS02002
 (22003), and long loops observe statement cancellation.
 
 Column DEFAULT expressions admit Stable/Volatile calls and evaluate them per assigned row with
 this transaction clock. Immutable defaults fold at declaration. ADD COLUMN freezes a nonvolatile
-default once and refuses a volatile default on live rows (COHSQLE027). CHECK still admits only
+default once and refuses a volatile default on live rows (CS03027). CHECK still admits only
 Immutable calls. Volatile calls never supply seek bounds. See [DEFAULT](../clauses/default.md).
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
-| `SQL0003` | Malformed special-form grammar, unknown EXTRACT field, or parentheses on a bare clock | — |
-| `COHDBL001` | Clock precision or recognized unsupported function | — |
-| `COHSQLE027` | Volatile ADD COLUMN default on live rows requires a rewrite | — |
-| `COHSQLE001` | MOD divisor is zero | 22012 |
-| `COHSQLE002` | Numeric domain/range/overflow, temporal range, negative substring length or string allocation bound | 22003 |
-| `COHSQLE006` | No matching arity/types or incompatible temporal field | 42883 |
-| `COHSQLE008` | Equally good overloads; CAST to disambiguate | 42725 |
-| `COHSQLE013` | DEFAULT call result cannot be assigned to the column | — |
-| `COHSQLE016` | Unknown function outside executable and recognized vocabulary | — |
-| `COHSQLE032` | DISTINCT/ALL/ORDER BY specified on a non-aggregate call | — |
+| `CS00003` | Malformed special-form grammar, unknown EXTRACT field, or parentheses on a bare clock | — |
+| `CK00001` | Clock precision or recognized unsupported function | — |
+| `CS03027` | Volatile ADD COLUMN default on live rows requires a rewrite | — |
+| `CS02001` | MOD divisor is zero | 22012 |
+| `CS02002` | Numeric domain/range/overflow, temporal range, negative substring length or string allocation bound | 22003 |
+| `CS01006` | No matching arity/types or incompatible temporal field | 42883 |
+| `CS01008` | Equally good overloads; CAST to disambiguate | 42725 |
+| `CS05013` | DEFAULT call result cannot be assigned to the column | — |
+| `CS01016` | Unknown function outside executable and recognized vocabulary | — |
+| `CS05032` | DISTINCT/ALL/ORDER BY specified on a non-aggregate call | — |
 
-These functions introduce no new code. Recognized window functions remain COHDBL001.
+These functions introduce no new code. Recognized window functions remain CK00001.
 The profile advertises only executable names; recognition alone does not imply support.
 
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application

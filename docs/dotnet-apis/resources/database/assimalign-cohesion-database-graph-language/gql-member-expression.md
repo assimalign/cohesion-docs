@@ -18,13 +18,13 @@ public sealed class GqlMemberExpression : GqlExpression
 Stores the operand and ordinal member name. Maps, nodes and relationships support lookup;
 missing fields/properties or NULL containers return NULL. Map-valued access may chain. Entity
 access returns a scalar property and passes wire Execute's entity-result gate. Constructor inputs
-are not semantically validated: missing operand/member fails planning with COHDBG001. A non-map,
-non-entity non-NULL container fails evaluation with COHDBG013. Direct stored-property a.b.c remains
-COHDBL001 in text.
+are not semantically validated: missing operand/member fails planning with CG05001. A non-map,
+non-entity non-NULL container fails evaluation with CG02013. Direct stored-property a.b.c remains
+CK00001 in text.
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.
-Possible composite wire results require graph.composite-values under protocol 2.1 (COHDBG016
+Possible composite wire results require graph.composite-values under protocol 2.1 (CG07016
 without it, before reads/writes; no assigned SQLSTATE). See the [language reference](../../../../database/graph/language/expressions/property-access.md).
 
 ## Example

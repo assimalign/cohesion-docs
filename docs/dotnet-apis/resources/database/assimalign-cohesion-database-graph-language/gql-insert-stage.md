@@ -12,7 +12,7 @@ public sealed record GqlInsertStage(IReadOnlyList<GqlPathPattern> Paths, bool Is
 
 ## Behavior and exceptions
 
-IsCreate distinguishes compatibility CREATE. Maps evaluate scalar expressions against the incoming scope; new variables in the same INSERT are unavailable to those expressions (COHDBG001). Composite property syntax is COHDBL001; evaluated composite values are COHDBG003. Any write stage acquires the writer lock before execution of the first stage. Later MATCH sees inserted entities and newly introduced labels/types. Empty patterns use COHDBG001. See [INSERT](../../../../database/graph/language/statements/insert.md).
+IsCreate distinguishes compatibility CREATE. Maps evaluate scalar expressions against the incoming scope; new variables in the same INSERT are unavailable to those expressions (CG05001). Composite property syntax is CK00001; evaluated composite values are CG03003. Any write stage acquires the writer lock before execution of the first stage. Later MATCH sees inserted entities and newly introduced labels/types. Empty patterns use CG05001. See [INSERT](../../../../database/graph/language/statements/insert.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

@@ -1,5 +1,7 @@
 # Cache
 
+The `CC` runtime prefix is reserved. Cache retains its existing result vocabulary; no functioning Cache engine is implied. See the [code scheme and registry](../error-codes.md).
+
 Cache is a deferred database model whose current packages contain scaffolding rather than an engine.
 
 > **Status:** Not yet implemented. Cache behavior is outside the database minimum viable product.

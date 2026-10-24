@@ -17,7 +17,7 @@ The Key-Value Pair command contract excludes query composition, administration, 
 | Comments, quoted identifiers, semicolon terminators | Not in the language | Parser splits a single command on whitespace |
 | Catalog writes through `PUT KEYSPACES` or `DELETE KEYSPACES` | Not in the language | Stable read-only parse error |
 
-The key-value parser does not use `COHDBL001` for these exclusions. It reports
+The key-value parser does not use `CK00001` for these exclusions. It reports
 `DatabaseParseException`, mapped to `ParseFailure` on the wire.
 
 ## Deferred engine capabilities

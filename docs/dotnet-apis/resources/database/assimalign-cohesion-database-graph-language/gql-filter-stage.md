@@ -12,7 +12,7 @@ public sealed record GqlFilterStage(GqlExpression Predicate, Location? Location 
 
 ## Behavior and exceptions
 
-FILTER and FILTER WHERE share this node. FALSE/NULL remove rows; an evaluated non-Boolean uses COHDBG013. Unbound names, missing operands and aggregates use COHDBG001. It filters after an optional MATCH has already NULL-extended its rows. See [FILTER](../../../../database/graph/language/clauses/filter.md).
+FILTER and FILTER WHERE share this node. FALSE/NULL remove rows; an evaluated non-Boolean uses CG02013. Unbound names, missing operands and aggregates use CG05001. It filters after an optional MATCH has already NULL-extended its rows. See [FILTER](../../../../database/graph/language/clauses/filter.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

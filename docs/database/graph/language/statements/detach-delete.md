@@ -17,7 +17,7 @@ DETACH DELETE variable [ , ...n ]
 |---|---|
 | `MATCH` with optional `WHERE` | Supported |
 | Comma-separated bound variables | Supported |
-| `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
+| `RETURN` after deletion | Recognized, not supported (`CK00001`) |
 
 ## Arguments
 

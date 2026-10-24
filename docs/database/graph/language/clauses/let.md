@@ -17,8 +17,8 @@ bindings and adds new names. A statement starts with one empty row, so LET can s
 RETURN. Values may be scalar, NULL, lists, maps or entities. GQL has no separate MISSING value;
 missing properties yield NULL. A NULL assignment retains its row.
 
-Names cannot rebind an existing variable (COHDBG003). Unknown inputs use COHDBG001. Member access
-on a known scalar fails planning with COHDBG003; an invalid runtime container uses COHDBG013.
+Names cannot rebind an existing variable (CG03003). Unknown inputs use CG05001. Member access
+on a known scalar fails planning with CG03003; an invalid runtime container uses CG02013.
 These codes have no assigned SQLSTATE. Aggregates belong to RETURN/WITH, not LET.
 
 ## Example

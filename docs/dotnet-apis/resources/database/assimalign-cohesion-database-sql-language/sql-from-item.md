@@ -20,7 +20,7 @@ The parser owns construction. [SqlSelectExpression.From](sql-select-expression.m
 item per comma source. Each item's joins associate to the left; ON scope excludes other comma
 items and later relations. There is no public constructor or accessor validation exception.
 Malformed text produces parser diagnostics; unknown/out-of-scope names fail engine planning with
-COHSQLE015, even on empty inputs.
+CS01015, even on empty inputs.
 Table is a [SqlRelationReference](sql-relation-reference.md): pattern-match SqlTableReference
 for names or [SqlDerivedTableReference](sql-derived-table-reference.md) for an aliased SELECT.
 

@@ -38,15 +38,15 @@ Engine failure codes belong in Diagnostics, including translated Storage, Transa
 Indexing failures. Translation searches inner exceptions and aggregate branches, preserves an
 existing specific diagnosis and gives corruption precedence over ordinary I/O. Storage-failure
 and corruption Message text is explanatory; wire formatting supplies a missing code prefix.
-SQL, Key-Value Pair and Graph aborted-transaction refusals carry COHSQLT005, COHDBK001 and
-COHDBG007 in Diagnostics with ordinary unprefixed Message text. The wire still supplies the
+SQL, Key-Value Pair and Graph aborted-transaction refusals carry CS04005, CV04101 and
+CG04007 in Diagnostics with ordinary unprefixed Message text. The wire still supplies the
 prefix once. Inspect Diagnostics for the code instead of parsing Message.
 
 [DatabaseTransactionAbortedException](database-transaction-aborted-exception.md) accepts the same
 copied, ordered diagnostics while preserving its retryable abort kind and original cause.
 
 [DatabaseCorruptionException](database-corruption-exception.md) specializes this carrier for
-detected storage damage: COHDBS003, database name, optional page and the original storage cause.
+detected storage damage: CK06003, database name, optional page and the original storage cause.
 It applies to create/open and model operations; an affected read fails instead of omitting data.
 
 ## Example

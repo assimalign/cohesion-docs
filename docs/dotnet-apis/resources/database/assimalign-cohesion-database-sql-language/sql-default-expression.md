@@ -15,8 +15,8 @@ public sealed class SqlDefaultExpression : SqlExpression
 
 A contextual request for the target column default as a whole INSERT VALUES item or UPDATE SET
 value, not a scalar operand. There is no public constructor. Invalid scalar placement reports
-SQL0003 before planning. Omitted/default values use one path; missing nullable defaults yield NULL
-and NOT NULL failures use COHSQLE024 (23502).
+CS00003 before planning. Omitted/default values use one path; missing nullable defaults yield NULL
+and NOT NULL failures use CS03024 (23502).
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

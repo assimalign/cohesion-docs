@@ -15,19 +15,19 @@ public sealed record GqlProjection(GqlExpression Expression, string? Alias = nul
 This replaces the former variable/property tuple constructor. Construct a
 [GqlVariableExpression](gql-variable-expression.md) for a bare binding, GqlPropertyExpression for
 a property, or any executable value expression, including CASE/COALESCE/NULLIF and list/map constructors. RETURN shares WHERE's evaluator. The record
-stores values without validating them; the planner rejects a missing expression with COHDBG001.
+stores values without validating them; the planner rejects a missing expression with CG05001.
 
 Alias names the column exactly. Without an alias, parsed expressions use normalized source text;
 source-free expressions use rendered syntax, including parentheses around binary expressions.
-Names compare ordinally and case-sensitively. Duplicate implicit/explicit names report COHDBG015
+Names compare ordinally and case-sensitively. Duplicate implicit/explicit names report CG01015
 at the second expression before reads or mutations, even for empty matches or EXPLAIN; no SQLSTATE
 is assigned. Aliases do not bind neighboring expressions.
 
 Embedded row requests can return entities/paths. Wire Execute accepts scalar and negotiated composite kinds
-before reads, writer locks or writes; COHDBG001 directs entity results to ExecutePaths. A path
-request requires exactly one bare binding; invalid shapes retain COHDBG001 before duplicate-name
-validation. Evaluated value/access/limit errors use COHDBG013; path property access uses COHDBG003.
-Possible composite results need graph.composite-values (COHDBG016 before reads/writes without it).
+before reads, writer locks or writes; CG05001 directs entity results to ExecutePaths. A path
+request requires exactly one bare binding; invalid shapes retain CG05001 before duplicate-name
+validation. Evaluated value/access/limit errors use CG02013; path property access uses CG03003.
+Possible composite results need graph.composite-values (CG07016 before reads/writes without it).
 See [list values and limits](../../../../database/graph/language/expressions/list-values.md).
 
 ## Example

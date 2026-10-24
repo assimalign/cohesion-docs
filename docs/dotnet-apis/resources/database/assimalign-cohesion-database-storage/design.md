@@ -71,7 +71,7 @@ a different floor/anchor prove nothing. Refusal rethrows the original header I/O
 writing either file. A recovered leading half schedules identity repair on the next slot-0 write.
 
 When no slot verifies and a completely read half establishes damage, page-0
-[StorageCorruptionException](storage-corruption-exception.md) uses COHDBS003 and retains the other
+[StorageCorruptionException](storage-corruption-exception.md) uses CK06003 and retains the other
 half's read error as its inner cause. If both halves are unreadable, there is no checksum evidence
 and the original I/O classification survives. Every accepted I/O fallback emits Warning
 HeaderReadFallback (18), including consecutive opens. Sequence assignment resumes above the
@@ -81,7 +81,7 @@ stamps. The disk layout and storage format remain unchanged.
 ### Storage format 4
 
 `StorageFileHeader.CurrentFormatVersion` is 4. Older and newer storage formats are refused with
-`StorageFormatException` / COHDBS001 before reading the journal; there is no upgrade or legacy
+`StorageFormatException` / CK06001 before reading the journal; there is no upgrade or legacy
 reader. This kernel version is separate from SQL data/catalog format 26 and Graph record format 4.
 
 The changed public members are:
@@ -110,7 +110,7 @@ public readonly unsafe struct Page
 
 Checksum reads/writes expose the stored field; central write-back stamps it and page load verifies
 it. Integrity failures throw [StorageCorruptionException](storage-corruption-exception.md), with
-Code COHDBS003 and a PageId when known. Engine callers receive
+Code CK06003 and a PageId when known. Engine callers receive
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 
 ## File handles, positional I/O, and durability
@@ -608,7 +608,7 @@ checksum/LSN verification. Memory follows identities and cache capacity rather t
 
 `StorageException` is the child root for this library. `StorageIOException` (stream and allocation
 failures), `SlottedPageException` (record layout violations), `StorageCorruptionException`
-(COHDBS003, checksum/header integrity failures — carries the `PageId`), and `JournalException` (journal
+(CK06003, checksum/header integrity failures — carries the `PageId`), and `JournalException` (journal
 framing/state violations) all derive from it, so consumers can catch the family or the specific
 failure.
 
@@ -619,7 +619,7 @@ model diagnostics. See the [public exception API](../assimalign-cohesion-databas
 
 Foreign-storage mutations retain StorageTransactionException with Code ForeignStorage under the
 storage child root; ordinary transaction violations use Unspecified. Invalid overflow geometry and
-known page-0 integrity damage use COHDBS003. Header read failures without journal coverage, or two
+known page-0 integrity damage use CK06003. Header read failures without journal coverage, or two
 unreadable halves without checksum evidence, remain I/O failures.
 
 ## Storage EventSource

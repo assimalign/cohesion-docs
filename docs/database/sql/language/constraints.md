@@ -39,20 +39,20 @@ Column nullability is declared with `NULL` or `NOT NULL`.
 
 Explicit NULL cannot be combined with NOT NULL, PRIMARY KEY or [IDENTITY](clauses/identity.md),
 in either order, including table primary keys and CREATE/ADD/ALTER column definitions. This
-reports `SQL0003`: `Conflicting NULL/NOT NULL declarations for column 'id'.` for a column id.
+reports `CS00003`: `Conflicting NULL/NOT NULL declarations for column 'id'.` for a column id.
 An ALTER of an existing primary key to explicit NULL is likewise refused before publication.
 
 Foreign and referenced lists must have the same number of columns. String foreign keys require
 matching effective collations. Parent-key updates that would invalidate references are rejected;
-`ON UPDATE` is recognized but unsupported with `COHDBL001`.
+`ON UPDATE` is recognized but unsupported with `CK00001`.
 `ON DELETE CASCADE` does not imply `DROP TABLE ... CASCADE` support.
 
 PRIMARY KEY, UNIQUE and FOREIGN KEY column lists, including referenced columns, must contain
-distinct columns under case-insensitive binding. Repetitions report `COHSQLE019`, naming the
-column and constraint. A second PRIMARY KEY declaration also reports COHSQLE019, naming the
+distinct columns under case-insensitive binding. Repetitions report `CS01019`, naming the
+column and constraint. A second PRIMARY KEY declaration also reports CS01019, naming the
 constraint and table: inline, table-level, repeated clauses on one column, ADD CONSTRAINT and
 ADD COLUMN forms all qualify. These are declaration errors before publication, distinct from
-duplicate stored key values (COHSQLE037). Refusing repeated FOREIGN KEY child columns is stricter
+duplicate stored key values (CS03037). Refusing repeated FOREIGN KEY child columns is stricter
 than PostgreSQL. CREATE TABLE IF NOT EXISTS on an existing table skips these declaration checks.
 
 Self-referencing batch validation hashes candidate parent keys once per constraint. Regression
@@ -92,31 +92,31 @@ transaction remain usable.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHSQLE037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key | 23505 |
-| `COHSQLE042` | Final referential-action row or write/build index key exceeds its encoded size limit | 54000 |
-| `COHSQLE038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
-| `COHSQLE039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
-| `COHSQLE024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
-| `COHSQLE050` | Constraint name collides with an existing constraint/index | 42710 |
-| `COHSQLE053` | Invalid table definition during execution; conflicting explicit NULL declarations still use SQL0003 | 42P16 |
-| `COHSQLE054` | FOREIGN KEY column lists do not match or its referenced key is not unique | 42830 |
-| `COHSQLE055` | FOREIGN KEY types, CHECK function result or compared values are incompatible | 42804 |
-| `COHSQLE056` | Constraints/indexes depend on an object DDL would remove | 2BP01 |
-| `COHSQLE057` | Unsupported execution/DDL operation, including an index-backed constraint under invariant collation | 0A000 |
-| `COHSQLE059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
-| `COHSQLE063` | FOREIGN KEY columns have incompatible collations | 42P21 |
-| `COHSQLE043` | Statement deadline expires during constraint/cascade execution; statement rolls back | 57014 |
-| `COHSQLE044` | A contended row, object or unique-key lock wait expires | 55P03 |
-| `COHSQLT006` | Target definition changed during lock preparation; retry in a fresh transaction | — |
-| `COHSQLE019` | Duplicate key-list column or multiple PRIMARY KEY declarations | — |
-| `COHSQLE015` | New CHECK uses a qualifier other than the constrained table/schema | — |
+| `CS03037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key | 23505 |
+| `CS05042` | Final referential-action row or write/build index key exceeds its encoded size limit | 54000 |
+| `CS03038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
+| `CS03039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
+| `CS03024` | NOT NULL column receives NULL, including SET DEFAULT without a usable default | 23502 |
+| `CS03050` | Constraint name collides with an existing constraint/index | 42710 |
+| `CS03053` | Invalid table definition during execution; conflicting explicit NULL declarations still use CS00003 | 42P16 |
+| `CS03054` | FOREIGN KEY column lists do not match or its referenced key is not unique | 42830 |
+| `CS02055` | FOREIGN KEY types, CHECK function result or compared values are incompatible | 42804 |
+| `CS03056` | Constraints/indexes depend on an object DDL would remove | 2BP01 |
+| `CS05057` | Unsupported execution/DDL operation, including an index-backed constraint under invariant collation | 0A000 |
+| `CS03059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
+| `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 |
+| `CS05043` | Statement deadline expires during constraint/cascade execution; statement rolls back | 57014 |
+| `CS04044` | A contended row, object or unique-key lock wait expires | 55P03 |
+| `CS04006` | Target definition changed during lock preparation; retry in a fresh transaction | — |
+| `CS01019` | Duplicate key-list column or multiple PRIMARY KEY declarations | — |
+| `CS01015` | New CHECK uses a qualifier other than the constrained table/schema | — |
 
 Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
-uses `COHSQLE025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
+uses `CS03025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
 
 Referential SET NULL/SET DEFAULT actions collect all assignments to each final child row, then
 check the [row and index-key limits](diagnostics.md#row-and-index-key-limits) before apply.
-COHSQLE042 leaves both parent and child rows unchanged and an explicit transaction active.
+CS05042 leaves both parent and child rows unchanged and an explicit transaction active.
 An existing large logical row can still be updated to a fitting row or deleted; old values used
 for locks and tombstones do not undergo new-write size validation.
 
@@ -128,16 +128,16 @@ Adding a constraint validates existing live rows under Exclusive table locks wit
 the whole table. Provisioning progress can add a count pass. PRIMARY KEY/UNIQUE backing builds
 then check adjacent live keys in bounded batches over the completed index before publication;
 deleted history is retained for old snapshots and excluded from uniqueness checks. NULL key
-components still compare equal. An oversized key during construction (COHSQLE042, 54000) can
-precede duplicate detection (COHSQLE037, 23505). Failure or cancellation before publication
+components still compare equal. An oversized key during construction (CS05042, 54000) can
+precede duplicate detection (CS03037, 23505). Failure or cancellation before publication
 leaves the ALTER unapplied and removes unpublished indexes. See the
 [constraint retry example](statements/alter-table.md#retry-a-refused-constraint).
 
-A non-Boolean CHECK or domain CHECK is rejected with COHSQLE003 (42804), at the predicate
+A non-Boolean CHECK or domain CHECK is rejected with CS02003 (42804), at the predicate
 span when available, before publishing the definition. This includes non-Boolean operands
 inside logical expressions and mixed CASE/COALESCE alternatives in Boolean positions; see
 [search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
-UNKNOWN. COHSQLE038 (23514) instead means a valid Boolean check evaluated to FALSE.
+UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
 
 ## Foreign-key preparation and concurrent DDL
 
@@ -149,7 +149,7 @@ including inside an explicit transaction. Snapshot metadata views retain their c
 integrity checks use live definitions protected by object locks and latest-state row checks.
 
 After a contended object-lock wait, adjacent ADD COLUMN, child DROP and foreign-key removal rebuild
-before row reads. A changed, dropped or replaced target instead reports retryable COHSQLT006
+before row reads. A changed, dropped or replaced target instead reports retryable CS04006
 (no assigned SQLSTATE); retry in a fresh transaction. A newly added incoming reference is checked
 before mutation. Existing NULL/MATCH SIMPLE and final-row rules are unchanged.
 
@@ -158,7 +158,7 @@ before mutation. Existing NULL/MATCH SIMPLE and final-row rules are unchanged.
 
 New CHECKs accept bare columns, `table.column` and `schema.table.column` bound to the constrained
 table, using case-insensitive identity. Another table or schema qualifier reports located
-`COHSQLE015` before CREATE TABLE, ADD CONSTRAINT or ADD COLUMN publishes anything.
+`CS01015` before CREATE TABLE, ADD CONSTRAINT or ADD COLUMN publishes anything.
 Previously stored CHECKs retain their earlier qualifier binding on reopen. An already-applied
 declared or imperative schema hash also retains it; a new or changed hash must pass the strict
 qualifier validation before migration steps run.
@@ -184,10 +184,10 @@ INSERT INTO c VALUES (1), (NULL);
 ```
 
 `CREATE TABLE bad_check (a INT CHECK (a));` and
-`CREATE DOMAIN bad_domain AS INT CHECK (VALUE);` each fail with COHSQLE003 (42804).
+`CREATE DOMAIN bad_domain AS INT CHECK (VALUE);` each fail with CS02003 (42804).
 Neither definition is created.
 
-A later `INSERT INTO c VALUES (0);` fails with COHSQLE038 (23514); the two earlier rows remain.
+A later `INSERT INTO c VALUES (0);` fails with CS03038 (23514); the two earlier rows remain.
 
 ```sql
 CREATE TABLE qualified (a INT CHECK(qualified.a > 0 AND dbo.qualified.a < 100));
@@ -195,7 +195,7 @@ INSERT INTO qualified VALUES (1), (NULL);
 ALTER TABLE qualified ADD CONSTRAINT bad_check CHECK(other.a > 0);
 ```
 
-Execute separately: CREATE and INSERT succeed; ALTER reports COHSQLE015 and publishes no
+Execute separately: CREATE and INSERT succeed; ALTER reports CS01015 and publishes no
 constraint. SELECT a FROM qualified returns 1 and NULL in unspecified order.
 
 Starting from a separate database with the
@@ -251,7 +251,7 @@ UPDATE moved_rows SET id = CASE WHEN id = 1 THEN 10 ELSE id END,
 SELECT id, parent FROM moved_rows ORDER BY id;
 ```
 
-UPDATE reports COHSQLE039 (23503) because final key 1 is absent. SELECT still returns
+UPDATE reports CS03039 (23503) because final key 1 is absent. SELECT still returns
 `(1, NULL)`, `(2, NULL)`. Both examples behave the same with explicit ON DELETE RESTRICT.
 
 ## See also

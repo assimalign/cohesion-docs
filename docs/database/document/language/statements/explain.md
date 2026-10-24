@@ -12,7 +12,7 @@ EXPLAIN { select_statement | insert_statement | upsert_statement | update_statem
 
 Normal binding, parameter validation and provisioning admission apply to the wrapped statement. No
 document is read by its data executor or inserted, even if the surrounding transaction commits. DDL,
-nested EXPLAIN and ANALYZE are excluded with `COHDBL001`. Planning failures keep their codes.
+nested EXPLAIN and ANALYZE are excluded with `CK00001`. Planning failures keep their codes.
 
 The [shared eight-column shape](../../../sql/language/statements/explain.md) is node_id, parent_id,
 operator, target, index, detail, estimated_rows and actual_rows. Nodes appear in depth-first

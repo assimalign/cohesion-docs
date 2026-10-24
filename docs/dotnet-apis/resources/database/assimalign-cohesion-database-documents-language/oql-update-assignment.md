@@ -18,12 +18,12 @@ public sealed class OqlUpdateAssignment : OqlExpression
 ## Behavior and exceptions
 
 The constructor retains Path, Value and the optional assignment span without validation. The
-planner normalizes the optional alias and rejects invalid targets (COHDOC016) and duplicate or
-prefix-overlapping targets (COHDOC017), including overlap with UNSET. Both codes are carried by
+planner normalizes the optional alias and rejects invalid targets (CD02016) and duplicate or
+prefix-overlapping targets (CD01017), including overlap with UNSET. Both codes are carried by
 DatabaseException and have no assigned SQLSTATE. Value reads the pre-update document; assignments
 do not observe earlier assignments. SET-to-MISSING removes a named member or writes null to an
 existing array element; SET-to-NULL writes JSON null. Missing arrays and out-of-range indices fail
-with COHDOC016. Invalid patched JSON or storage depth uses COHDOC018, also without SQLSTATE.
+with CD02016. Invalid patched JSON or storage depth uses CD02018, also without SQLSTATE.
 
 ## Example
 

@@ -13,7 +13,7 @@ public sealed record GqlPathNode(GqlNodePattern Pattern) : GqlPathElement;
 ## Behavior and exceptions
 
 Pattern retains the node binding and constraints. Construction retains its reference with no
-additional validation exceptions. The planner validates the containing path (COHDBG001 for invalid
+additional validation exceptions. The planner validates the containing path (CG05001 for invalid
 shape, no SQLSTATE). A node declared inside a quantified segment is a list-valued group variable.
 Repeated node constraints apply at every occurrence.
 

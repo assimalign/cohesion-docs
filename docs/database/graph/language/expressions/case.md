@@ -18,7 +18,7 @@ CASE operand WHEN when_operand [ , ...n ] THEN result
 ## Remarks
 
 Searched CASE selects the first TRUE predicate; FALSE and NULL do not select a branch. A
-non-Boolean evaluated predicate reports COHDBG013. Simple CASE evaluates its operand once and
+non-Boolean evaluated predicate reports CG02013. Simple CASE evaluates its operand once and
 tests alternatives in source order. A comma list is the ISO when-operand list: any listed match
 selects the shared THEN value. Plain alternatives use equality; comparison and null-test forms
 use the written test. WHEN NULL never matches, including a NULL operand; use WHEN IS NULL.
@@ -33,12 +33,12 @@ GQL has no separate MISSING value. Missing properties read NULL.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `GQL0002` | Malformed CASE, missing WHEN/THEN/END or invalid when-operand syntax |
-| `COHDBG001` | Unbound name/parameter or invalid programmatic CASE shape, including an invalid Comparison |
-| `COHDBG013` | Evaluated predicate is not Boolean, value operation fails, or constructed result exceeds a value limit |
-| `COHDBG016` | A possible composite wire result without negotiated graph.composite-values, even in a skipped arm |
+| `CG00002` | Malformed CASE, missing WHEN/THEN/END or invalid when-operand syntax |
+| `CG05001` | Unbound name/parameter or invalid programmatic CASE shape, including an invalid Comparison |
+| `CG02013` | Evaluated predicate is not Boolean, value operation fails, or constructed result exceeds a value limit |
+| `CG07016` | A possible composite wire result without negotiated graph.composite-values, even in a skipped arm |
 
-No SQLSTATE is assigned to COHDBG016. See [value limits and wire capability](list-values.md#limits-and-wire-capability).
+No SQLSTATE is assigned to CG07016. See [value limits and wire capability](list-values.md#limits-and-wire-capability).
 
 ## Examples
 

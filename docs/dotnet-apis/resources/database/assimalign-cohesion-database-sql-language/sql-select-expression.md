@@ -40,8 +40,8 @@ refused without an upgrade reader. Compiled schema artifacts remain version 8.
 
 The node's accessors add no validation exceptions. Parser.Parse returns diagnostics for invalid
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.
-Unknown/out-of-scope names and invalid USING pairs fail planning with COHSQLE015; duplicate
-bindings use COHSQLE019. Qualified `t.*` remains COHDBL001.
+Unknown/out-of-scope names and invalid USING pairs fail planning with CS01015; duplicate
+bindings use CS01019. Qualified `t.*` remains CK00001.
 
 CommonTables contains [SqlCommonTableExpression](sql-common-table-expression.md) definitions in
 declaration order, or an empty list. The setter is internal. Each reachable definition materializes
@@ -51,8 +51,8 @@ on SelectSource.CommonTables; a leading WITH lives on the INSERT node. See [WITH
 Limit and Offset hold normalized count expressions for every paging spelling.
 [SqlLimitSyntaxKind](sql-limit-syntax-kind.md) distinguishes Limit, Fetch and Top, or null without
 a limit. The renderer retains that family and normalizes FETCH to OFFSET before FETCH FIRST and
-TOP to parentheses. Mixed families/repeated clauses report SQL0003; PERCENT, WITH TIES and DML TOP
-report COHDBL001. Invalid count values report COHSQLE018 naming the written clause.
+TOP to parentheses. Mixed families/repeated clauses report CS00003; PERCENT, WITH TIES and DML TOP
+report CK00001. Invalid count values report CS02018 naming the written clause.
 
 ```csharp
 var paging = (SqlSelectExpression)((SqlQueryStatement)new SqlQueryParser().Parse(

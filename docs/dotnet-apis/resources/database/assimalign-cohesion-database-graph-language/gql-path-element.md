@@ -18,7 +18,7 @@ public abstract record GqlPathElement
 Only [GqlPathNode](gql-path-node.md), [GqlPathRelationship](gql-path-relationship.md) and
 [GqlParenthesizedPathPattern](gql-parenthesized-path-pattern.md) are public leaves. External code
 cannot construct the abstract base or derive another leaf. The base adds no validation exceptions;
-path shape validation belongs to the planner and uses COHDBG001 (no SQLSTATE).
+path shape validation belongs to the planner and uses CG05001 (no SQLSTATE).
 
 ## Example
 

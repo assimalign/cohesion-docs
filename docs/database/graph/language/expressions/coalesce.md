@@ -18,9 +18,9 @@ Missing properties are NULL; GQL has no MISSING value. The selected runtime type
 including lists, maps and entity values. No common-type coercion occurs; metadata remains unknown.
 COALESCE is a case abbreviation, separate from aggregate function calls.
 
-Malformed arity/syntax reports GQL0002; invalid programmatic shape or unbound names report
-COHDBG001. Evaluated value failures/limits use COHDBG013. A possible composite result over an
-unnegotiated wire session reports COHDBG016 before reads or writes, including skipped operands;
+Malformed arity/syntax reports CG00002; invalid programmatic shape or unbound names report
+CG05001. Evaluated value failures/limits use CG02013. A possible composite result over an
+unnegotiated wire session reports CG07016 before reads or writes, including skipped operands;
 no SQLSTATE is assigned. See [limits and capability](list-values.md#limits-and-wire-capability).
 
 ## Examples

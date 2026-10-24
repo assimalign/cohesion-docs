@@ -140,8 +140,8 @@ executor reapplies the full predicate. The full encoded key must fit 1,024 bytes
 
 UNIQUE checks run immediately under the caller's database writer lock before publication, using
 latest committed state plus the caller's earlier writes. Keys containing NULL/MISSING never
-conflict. Array/object UNIQUE components use COHDOC021; duplicate valued scalar tuples use
-COHDOC020 (23505), both carried by
+conflict. Array/object UNIQUE components use CD02021; duplicate valued scalar tuples use
+CD03020 (23505), both carried by
 [DocumentConstraintViolationException](document-constraint-violation-exception.md). Failed builds
 publish no definition. Physical trees stay nonunique; the catalog performs uniqueness arbitration.
 

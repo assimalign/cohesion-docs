@@ -21,13 +21,13 @@ COALESCE/NULLIF are keywords; the function table contains count, sum, avg, min, 
 and collect, plus core scalar signatures/aliases and cast. GqlClauses.QuantifiedPath enables
 quantified edges/subpaths. GqlClauses.GroupBy advertises ISO GROUP BY. COALESCE and NULLIF parse into
 case-abbreviation nodes, without registry function calls. Reserved vocabulary is larger than the
-executable profile; recognized excluded constructs produce COHDBL001. NULLS, FIRST and LAST
+executable profile; recognized excluded constructs produce CK00001. NULLS, FIRST and LAST
 are contextual words outside Keywords; first and last remain usable variable names.
 
 The static accessor introduces no validation exceptions. GqlQueryParser returns diagnostics for
-malformed text, including GQL0002 for malformed conditional/composite syntax and GQL0006 for
-duplicate map keys. Semantic checks belong to the engine, including COHDBG003 parameter bounds,
-COHDBG013 evaluated value bounds and COHDBG016 for unnegotiated possible composite wire results.
+malformed text, including CG00002 for malformed conditional/composite syntax and CG00006 for
+duplicate map keys. Semantic checks belong to the engine, including CG03003 parameter bounds,
+CG02013 evaluated value bounds and CG07016 for unnegotiated possible composite wire results.
 See [GQL diagnostics](../../../../database/graph/language/diagnostics.md).
 
 ## Example
@@ -43,7 +43,7 @@ The RETURN executes as one Int64 value, 1.
 
 GqlClauses.Set and GqlClauses.Remove are enabled, bringing execution to 26 of 33 declared clauses.
 They admit property/map/label updates through [GqlSetStage](gql-set-stage.md) and
-[GqlRemoveStage](gql-remove-stage.md); MERGE remains COHDBL001.
+[GqlRemoveStage](gql-remove-stage.md); MERGE remains CK00001.
 
 ## Related reference
 

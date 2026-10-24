@@ -18,9 +18,9 @@ definition is supported; changing it later throws `DatabaseObjectLockedException
 persisted records and conflicting definitions throw `GraphCatalogException`.
 
 Direct catalog calls retain this exception. Engine and GraphSchema operations translate it by
-cause: snapshot-changed metadata uses DatabaseTransactionAbortedException with COHDBG007;
+cause: snapshot-changed metadata uses DatabaseTransactionAbortedException with CG04007;
 deterministic identity reuse/rename, name/identity mismatch, index-property retargeting or missing
-owner uses DatabaseException with COHDBG003; malformed records use COHDBG006. The original
+owner uses DatabaseException with CG03003; malformed records use CG06006. The original
 catalog exception remains the cause. These codes have no assigned SQLSTATE. Storage/index/I/O
 failure takes precedence when it accompanies a conflict or disposal.
 

@@ -26,7 +26,7 @@ public new ValueTask<GraphDatabase> OpenDatabaseAsync(DatabaseName name, Cancell
 public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default);
 ```
 
-Missing journals/backups and unrecoverable files are refused with COHDBG018 in
+Missing journals/backups and unrecoverable files are refused with CG06018 in
 DatabaseException.Diagnostics; no missing sidecar is recreated. A directory without its data file
 keeps DatabaseNotFoundException and the code. Known incomplete creation directs drop/recreate;
 ambiguous files must be preserved. Drop deletes graph.dat first. A torn uncommitted tail may recover;
@@ -39,9 +39,9 @@ See [lifecycle examples and remedies](design.md#database-creation-open-and-drop)
 
 OpenDatabaseAsync and enumeration through GetDatabasesAsync can throw DatabaseException for an
 unsupported graph record or tree-registration format. Format 4 is required; older formats produce
-COHDBG017 in Diagnostics before logical recovery scrub. The public exception is
+CG06017 in Diagnostics before logical recovery scrub. The public exception is
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003, COHDBG018 and COHDBG017; its inner StorageCorruptionException retains the
+with CK06003, CG06018 and CG06017; its inner StorageCorruptionException retains the
 coded message. Recreate the database; no upgrade path or SQLSTATE is assigned.
 GraphEngineTests checks that a cleanly closed refused file set stays unchanged.
 

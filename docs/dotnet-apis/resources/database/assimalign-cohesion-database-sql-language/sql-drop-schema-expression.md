@@ -20,10 +20,10 @@ public sealed class SqlDropSchemaExpression : SqlQueryExpression
 Construction is internal to the parser; accessors add no exceptions. CommandType is Drop.
 Cascade false means RESTRICT, including when omitted. CASCADE atomically drops contained tables/
 indexes and removes incoming FKs while preserving outside tables. IF EXISTS suppresses absence,
-not dbo/virtual-namespace or ownership protection. Codes are COHSQLE028 (3F000) for absence,
-COHSQLE030 (2BP01) for RESTRICT dependencies and COHSQLE031 (no SQLSTATE) for dbo. Reserved
-virtual namespaces use COHSQLE021 (25006), explicit transactions COHSQLT003, and changed
-dependency sets COHSQLE013. Ownership refusals use DatabaseObjectLockedException.
+not dbo/virtual-namespace or ownership protection. Codes are CS01028 (3F000) for absence,
+CS03030 (2BP01) for RESTRICT dependencies and CS03031 (no SQLSTATE) for dbo. Reserved
+virtual namespaces use CS04021 (25006), explicit transactions CS04003, and changed
+dependency sets CS05013. Ownership refusals use DatabaseObjectLockedException.
 
 ## Example
 

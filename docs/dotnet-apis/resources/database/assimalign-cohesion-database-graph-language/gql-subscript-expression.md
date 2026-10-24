@@ -18,12 +18,12 @@ public sealed class GqlSubscriptExpression : GqlExpression
 Stores the container and index. Lists require integral runtime indexes, with negative indexes
 counting from the end. Maps/nodes/relationships accept string keys. Out-of-range indexes, absent
 fields and NULL containers/indexes return NULL. Constructor inputs are retained without semantic
-validation. Missing expressions fail planning with COHDBG001; invalid evaluated container/index
-types use COHDBG013. Slicing is not represented and remains COHDBL001 in text.
+validation. Missing expressions fail planning with CG05001; invalid evaluated container/index
+types use CG02013. Slicing is not represented and remains CK00001 in text.
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.
-Possible composite wire results require graph.composite-values under protocol 2.1 (COHDBG016
+Possible composite wire results require graph.composite-values under protocol 2.1 (CG07016
 without it, before reads/writes; no assigned SQLSTATE). See the [language reference](../../../../database/graph/language/expressions/property-access.md).
 
 ## Example

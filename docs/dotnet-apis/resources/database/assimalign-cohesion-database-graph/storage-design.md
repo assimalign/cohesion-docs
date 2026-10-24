@@ -108,10 +108,10 @@ arrays, nested objects or overflow chains. Nodes and relationships are immutable
 UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
 complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2 and 3 are refused before logical
-recovery scrub with COHDBG017 and the recreation remedy; there is no upgrade reader. Graph records
+recovery scrub with CG06017 and the recreation remedy; there is no upgrade reader. Graph records
 and tree registrations use version 4; catalog and B-tree page formats are unchanged. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
-COHDBS003 and COHDBG018 in
+CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 No SQLSTATE is assigned.
 
@@ -196,7 +196,7 @@ worker's safe bound passes. Label postings follow the same lifecycle.
 Opening follows this order:
 
 1. `GraphStorage.Open(..., checkpointOnOpen: false)` runs shared physical recovery.
-2. Run GraphStore.EnsureIndexFormat before scrub, refusing older graph records/registrations with COHDBG017 and incompatible B-trees.
+2. Run GraphStore.EnsureIndexFormat before scrub, refusing older graph records/registrations with CG06017 and incompatible B-trees.
 3. With the coordinator constructed, call `AnalyzeAndScrub()` to undo unproven record writers.
 4. `GraphStore.Open` loads owner-two record directories and owner-one registrations.
 5. `RecoverIndexesAsync(plan.Aborted)` scrubs aborted index writers and deleters.

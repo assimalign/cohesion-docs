@@ -29,13 +29,13 @@ there is no upgrade path.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE029 | Namespace already exists without IF NOT EXISTS | 42P06 |
-| COHSQLE028 | Table/index DDL names a namespace that does not exist | 3F000 |
-| COHSQLE021 | CREATE targets INFORMATION_SCHEMA or COHESION_SCHEMA, including existence guards | 25006 |
-| COHDBL001 | AUTHORIZATION, with or without an explicit name, or nested CREATE/GRANT schema elements | — |
-| COHSQLT003 | DDL inside an explicit transaction | — |
+| CS03029 | Namespace already exists without IF NOT EXISTS | 42P06 |
+| CS01028 | Table/index DDL names a namespace that does not exist | 3F000 |
+| CS04021 | CREATE targets INFORMATION_SCHEMA or COHESION_SCHEMA, including existence guards | 25006 |
+| CK00001 | AUTHORIZATION, with or without an explicit name, or nested CREATE/GRANT schema elements | — |
+| CS04003 | DDL inside an explicit transaction | — |
 
-Reads and DML against a missing relation retain COHSQLE014 (42P01).
+Reads and DML against a missing relation retain CS01014 (42P01).
 DROP TABLE IF EXISTS missing.t remains a no-op. See [Diagnostics](../diagnostics.md).
 
 ## Example

@@ -22,7 +22,7 @@ column set equals the inference set, ignoring order and repeated names. Constrai
 index, including a primary-key index or standalone unique index. See [SqlOnConflictClause](sql-on-conflict-clause.md).
 
 The enum adds no exceptions. Execution without a matching unique arbiter, or DO UPDATE with None,
-raises DatabaseException/COHSQLE035 (42P10). Untargeted DO NOTHING on a table without unique indexes
+raises DatabaseException/CS03035 (42P10). Untargeted DO NOTHING on a table without unique indexes
 inserts normally.
 
 ## Example

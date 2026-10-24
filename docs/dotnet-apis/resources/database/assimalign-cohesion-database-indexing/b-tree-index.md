@@ -39,7 +39,7 @@ that acquisition; callers must provide the coordination needed for latest-state 
 | InvalidOperationException | The index is not unique |
 | OperationCanceledException | Cancellation before lookup or during key-lock acquisition |
 | TransactionDeadlockException | Key-lock acquisition closes a wait cycle |
-| IndexCorruptionException | Lookup reaches a damaged tree page (COHDBI002) |
+| IndexCorruptionException | Lookup reaches a damaged tree page (CK06102) |
 
 The lookup changes no page layout. SQL uses it for [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 arbitration and translates kernel failures at its model boundary.

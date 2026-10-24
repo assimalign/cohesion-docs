@@ -46,13 +46,13 @@ a mutation failure rolls back the owning logical transaction.
 ## Isolation and storage
 
 Graph records use format 4 MVCC version chains; older records and tree registrations are refused
-before logical recovery scrub with [COHDBG017](../diagnostics.md), the remedy to recreate the
+before logical recovery scrub with [CG06017](../diagnostics.md), the remedy to recreate the
 database and no upgrade reader. Older snapshots retain prior property,
 label, index and adjacency versions. Rollback restores old stamps and removes replacements.
 
-The engine reports that format refusal as DatabaseCorruptionException with COHDBS003,
-COHDBG018 and COHDBG017 in Diagnostics. Other detected storage damage also uses
-[COHDBS003](../diagnostics.md); it fails the operation with database and optional page context.
+The engine reports that format refusal as DatabaseCorruptionException with CK06003,
+CG06018 and CG06017 in Diagnostics. Other detected storage damage also uses
+[CK06003](../diagnostics.md); it fails the operation with database and optional page context.
 No SQLSTATE is assigned.
 
 Snapshot writers use first-updater-wins: changing an entity committed since the writer's snapshot
@@ -65,13 +65,13 @@ use the session API; GQL has no transaction statements.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| GQL0002 | Leading SET, nested target n.x.y, separated + = or property += |
-| GQL0006 | Duplicate literal map key |
-| COHDBL001 | Whole-map parameter/expression, literal composite property, or MERGE including ON CREATE/ON MATCH SET |
-| COHDBG003 | Path/group/scalar target, relationship label update, or computed composite property value |
-| COHDBG001 | ExecutePaths contains a mutation stage; unbound target or invalid direct AST |
-| GQL0007 | SET composed with read-only SHOW |
-| COHDBG009 | Resulting entity or index key exceeds its storage bound |
+| CG00002 | Leading SET, nested target n.x.y, separated + = or property += |
+| CG00006 | Duplicate literal map key |
+| CK00001 | Whole-map parameter/expression, literal composite property, or MERGE including ON CREATE/ON MATCH SET |
+| CG03003 | Path/group/scalar target, relationship label update, or computed composite property value |
+| CG05001 | ExecutePaths contains a mutation stage; unbound target or invalid direct AST |
+| CG00007 | SET composed with read-only SHOW |
+| CG02009 | Resulting entity or index key exceeds its storage bound |
 
 These codes have no assigned SQLSTATE. Ordinary scalar, schema, parameter and transaction failures
 retain their contracts. [EXPLAIN](../statements/explain.md) describes Set/UpdateEntity targets

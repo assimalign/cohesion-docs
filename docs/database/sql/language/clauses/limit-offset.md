@@ -18,7 +18,7 @@ SELECT [ DISTINCT ] TOP { ( expression ) | integer_literal | parameter } select_
 
 - **`count`** — A column-free expression yielding a nonnegative integer through `9223372036854775807`.
 - **`fetch_count`** — A PostgreSQL primary expression (`c_expr`) or signed numeric constant; omission means 1.
-  A compound expression needs parentheses: `(1 + 1)` is accepted, `1 + 1` is `SQL0003`.
+  A compound expression needs parentheses: `(1 + 1)` is accepted, `1 + 1` is `CS00003`.
   Parameters, function calls and CASE are primary expressions; signs on nonnumeric operands need parentheses.
 - **`TOP`** — A SQL Server lexical alias for a row limit. Without parentheses it consumes one integer literal or parameter.
 
@@ -53,10 +53,10 @@ saturates without wrapping.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `SQL0003` | Mixed limit families, repeated clauses, FETCH without ONLY, or malformed count grammar |
-| `COHDBL001` | TOP/FETCH PERCENT, WITH TIES, INSERT/UPDATE/DELETE TOP, or a subquery used as a count |
-| `COHSQLE018` | Negative, NULL, noninteger or out-of-range count; the message names LIMIT, OFFSET, FETCH or TOP |
-| `COHSQLE005` | Count refers to a column when no columns are in scope (SQLSTATE class 42) |
+| `CS00003` | Mixed limit families, repeated clauses, FETCH without ONLY, or malformed count grammar |
+| `CK00001` | TOP/FETCH PERCENT, WITH TIES, INSERT/UPDATE/DELETE TOP, or a subquery used as a count |
+| `CS02018` | Negative, NULL, noninteger or out-of-range count; the message names LIMIT, OFFSET, FETCH or TOP |
+| `CS01005` | Count refers to a column when no columns are in scope (SQLSTATE class 42) |
 
 ## Examples
 
@@ -72,7 +72,7 @@ SELECT TOP (1) id FROM t ORDER BY id;
 
 `SELECT id FROM t ORDER BY id FETCH FIRST ROW ONLY;` also returns `1`.
 
-For early-stop examples and their COHSQLE001 (22012) boundary, see
+For early-stop examples and their CS02001 (22012) boundary, see
 [SELECT](../statements/select.md#d-stop-before-a-later-projection-error).
 
 The renderer retains the limit family, normalizing FETCH to OFFSET before FETCH FIRST and TOP

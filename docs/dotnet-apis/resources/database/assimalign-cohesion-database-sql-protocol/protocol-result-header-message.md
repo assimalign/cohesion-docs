@@ -27,7 +27,7 @@ The current payload starts with i32 format marker `-2`, then i32 column count. E
 a length-prefixed UTF-8 name, a u8 type, and i32 MaxLength (`-1` for unbounded). Decode rejects
 other format markers, invalid counts/lengths, truncation and trailing bytes with ProtocolException;
 there is no legacy header reader. The server checks the complete encoded header against the
-16 MiB payload limit before delivery. An oversized header is a statement error, COHSQLE045
+16 MiB payload limit before delivery. An oversized header is a statement error, CS05045
 (SQLSTATE 54000), with a usable connection. See [statement results](design.md#statement-results).
 
 ## Related reference

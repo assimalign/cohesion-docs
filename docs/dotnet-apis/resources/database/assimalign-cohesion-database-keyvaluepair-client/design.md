@@ -44,9 +44,9 @@ encodes parameters, writes the command, and materializes the complete response b
 private result to the typed connection. The model's command specification
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/COMMANDS.md`) defines
 command grammar and operation result shapes. Protocol 2.1 negotiates shared startup, with unchanged baseline model payloads. Key-Value
-agrees no Diagnostics capability and retains COHKV001–019 in Error text.
+agrees no Diagnostics capability and retains Key-Value command and execution codes in Error text.
 
-Detected storage damage carries COHDBS003 through the same ExecutionFailure Error text, with
+Detected storage damage carries CK06003 through the same ExecutionFailure Error text, with
 database/page context rather than a successful missing-key result. No SQLSTATE is assigned.
 See [command diagnostics](../../../../database/key-value-pair/diagnostics.md).
 

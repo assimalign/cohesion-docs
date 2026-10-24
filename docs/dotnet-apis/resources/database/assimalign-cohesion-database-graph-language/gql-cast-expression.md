@@ -20,9 +20,9 @@ public sealed class GqlCastExpression : GqlExpression
 
 Construction retains Operand/Target without evaluating or additional validation exceptions.
 [GqlCastType](gql-cast-type.md) resolves the written type. Planning checks scope and signature
-before execution/EXPLAIN: unbound/invalid ASTs use COHDBG001; proven incompatible kinds use
-COHDBG003. Invalid dynamic values, text, fractions, overflow and nonzero floating underflow
-use COHDBG013. No SQLSTATE is assigned to these codes. NULL converts to NULL.
+before execution/EXPLAIN: unbound/invalid ASTs use CG05001; proven incompatible kinds use
+CG03003. Invalid dynamic values, text, fractions, overflow and nonzero floating underflow
+use CG02013. No SQLSTATE is assigned to these codes. NULL converts to NULL.
 
 CAST follows Cohesion SQL's conversion rules. It refuses fractional integer inputs and renders
 Boolean strings uppercase. Cypher toInteger truncates; toInteger/toFloat/toBoolean return NULL
@@ -35,7 +35,7 @@ var query = ((GqlQueryStatement)new GqlQueryParser().Parse(
     "RETURN CAST('42' AS BIGINT) AS n")).GqlExpression;
 var cast = (GqlCastExpression)query.Projections[0].Expression;
 Console.WriteLine(cast.Target); // Int64
-// Execution returns Int64 42; CAST('2.5' AS BIGINT) instead fails COHDBG013.
+// Execution returns Int64 42; CAST('2.5' AS BIGINT) instead fails CG02013.
 ```
 
 ## Related reference

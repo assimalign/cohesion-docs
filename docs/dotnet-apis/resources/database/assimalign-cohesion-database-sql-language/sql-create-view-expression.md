@@ -18,13 +18,13 @@ public sealed class SqlCreateViewExpression : SqlQueryExpression
 
 View identifies the namespace/name, Columns is the optional exact output list (empty when omitted),
 Query is a SELECT/set body, and OrReplace records the modifier. Construction is internal.
-Execution freezes bound columns and function identities. Incompatible replacements use COHSQLE033;
-a list-width mismatch uses COHSQLE013. Parameters and unsupported view forms are refused.
+Execution freezes bound columns and function identities. Incompatible replacements use CS03033;
+a list-width mismatch uses CS05013. Parameters and unsupported view forms are refused.
 See [CREATE VIEW](../../../../database/sql/language/statements/create-view.md).
 
 Accessors add no validation exceptions. Parse returns diagnostics for malformed text;
 SqlQueryRequest.FromSql and engine text execution reject parser errors with DatabaseParseException.
-View DDL inside an explicit transaction reports COHSQLT003.
+View DDL inside an explicit transaction reports CS04003.
 
 ## Example
 

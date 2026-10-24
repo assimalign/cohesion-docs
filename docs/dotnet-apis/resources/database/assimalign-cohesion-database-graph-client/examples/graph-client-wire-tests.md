@@ -143,7 +143,7 @@ public sealed class GraphClientWireTests
         var error = await Should.ThrowAsync<GraphClientException>(async () =>
             await connection.ExecuteAsync("CREATE (:Managed {name: 7})", cancellationToken: harness.Token));
         error.Code.ShouldBe(ProtocolErrorCode.ExecutionFailure);
-        error.Message.ShouldContain("COHDBG003", Case.Sensitive);
+        error.Message.ShouldContain("CG03003", Case.Sensitive);
         (await connection.QueryAsync("MATCH (n:Managed) RETURN n.name", cancellationToken: harness.Token)).ShouldBeEmpty();
         await connection.ExecuteAsync("CREATE (:Managed {name: 'Allowed', extra: TRUE})", cancellationToken: harness.Token);
         var keys = await connection.QueryAsync("SHOW PROPERTY KEYS", cancellationToken: harness.Token);
@@ -222,7 +222,7 @@ public sealed class GraphClientWireTests
         var error = await Should.ThrowAsync<GraphClientException>(async () =>
             await connection.QueryAsync(statement, cancellationToken: harness.Token));
         error.Code.ShouldBe(ProtocolErrorCode.ParseFailure);
-        error.Message.ShouldContain("GQL0007: Graph catalog introspection is read-only.", Case.Sensitive);
+        error.Message.ShouldContain("CG00007: Graph catalog introspection is read-only.", Case.Sensitive);
         connection.IsOpen.ShouldBeTrue();
         (await connection.QueryAsync("SHOW LABELS", cancellationToken: harness.Token)).ShouldBeEmpty();
     }

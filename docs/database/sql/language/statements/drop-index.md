@@ -23,7 +23,7 @@ ON [ schema_name . ] table_name
 Index names are not database-global, so `DROP INDEX index_name` is not the complete statement.
 Fresh system-view snapshots reflect removal of the index and its key-column rows.
 
-DDL is self-committing and rejected inside explicit transactions with `COHSQLT003`.
+DDL is self-committing and rejected inside explicit transactions with `CS04003`.
 Ordinary sessions cannot drop indexes owned by a compiled schema.
 
 ## Examples

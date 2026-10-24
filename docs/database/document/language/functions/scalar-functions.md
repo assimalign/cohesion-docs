@@ -7,7 +7,7 @@ expressions in projections, filters, grouping, ordering, aggregate arguments and
 
 Except for TYPE, the conditional functions and the zero-argument clocks, calls propagate
 [MISSING](../expressions/missing.md) before NULL. A wrong-kind stored value returns NULL;
-an incompatible literal or constructor fails planning with COHDOC001, even on an empty collection.
+an incompatible literal or constructor fails planning with CD05001, even on an empty collection.
 For example, LOWER(amount) returns NULL for a numeric field, while LOWER(1) fails planning.
 IS_* returns false for another known kind, but propagates NULL and MISSING.
 
@@ -82,15 +82,15 @@ use a SELECT source when computing replacement values.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| OQL0008 | Unknown function name, such as LOWER2; located at the name after arguments are parsed | — |
-| OQL0006 | Invalid argument count or star operand; only COUNT accepts star | — |
-| COHDBL001 | Deferred calls such as ARRAY_AGG and REGEXP_LIKE/REGEXP_REPLACE/REGEXP_POSITION | — |
-| COHDOC001 | Incompatible literal kind, invalid function context or grouping | — |
-| COHDOC007 | Decimal overflow or constructed string/work-buffer limit | 22003 |
-| COHDOC008 | Fractional REPLACE count | — |
-| COHDOC019 | Negative SQRT, invalid POWER domain (zero to negative power or negative base to fractional power), or fractional ROUND/TRUNC scale | — |
+| CD00008 | Unknown function name, such as LOWER2; located at the name after arguments are parsed | — |
+| CD00006 | Invalid argument count or star operand; only COUNT accepts star | — |
+| CK00001 | Deferred calls such as ARRAY_AGG and REGEXP_LIKE/REGEXP_REPLACE/REGEXP_POSITION | — |
+| CD05001 | Incompatible literal kind, invalid function context or grouping | — |
+| CD02007 | Decimal overflow or constructed string/work-buffer limit | 22003 |
+| CD02008 | Fractional REPLACE count | — |
+| CD02019 | Negative SQRT, invalid POWER domain (zero to negative power or negative base to fractional power), or fractional ROUND/TRUNC scale | — |
 
-For example, `SELECT SQRT(-1) FROM items;` fails with COHDOC019. Function evaluation failures
+For example, `SELECT SQRT(-1) FROM items;` fails with CD02019. Function evaluation failures
 abort an explicit transaction; roll it back before further work. Ordinary NULL/MISSING results
 are values rather than errors. See [Diagnostics](../diagnostics.md).
 

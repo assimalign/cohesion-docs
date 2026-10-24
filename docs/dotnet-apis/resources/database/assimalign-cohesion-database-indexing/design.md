@@ -185,10 +185,10 @@ engines that expose index failures on the area's error surface translate at thei
 
 Attached-index integrity failures cross the engine boundary as
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md),
-leading with COHDBS003 and retaining COHDBI002 plus the model diagnostic. The original
+leading with CK06003 and retaining CK06102 plus the model diagnostic. The original
 IndexCorruptionException and page remain available. Ordinary SQL, Key-Value Pair, Document and
 Graph index failures use the model code;
-specific format refusals retain COHDBI001. Inner and aggregate causes receive the same classification.
+specific format refusals retain CK06101. Inner and aggregate causes receive the same classification.
 See [model mappings](../../../../database/overview.md#engine-failure-diagnostics).
 
 ## Relationship to `Database.Storage`

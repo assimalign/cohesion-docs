@@ -21,10 +21,10 @@ Rows map to the explicit insert column list or all destination columns. Destinat
 coercion, nullability, and constraints follow [INSERT](../statements/insert.md). Supplying `NULL`
 stores a null where allowed; it does not request a default. A whole-item
 [DEFAULT](default.md) requests the destination default. `INSERT ... DEFAULT VALUES` inserts one
-row using defaults for every column. Column references in VALUES report `COHSQLE005`.
+row using defaults for every column. Column references in VALUES report `CS01005`.
 
 This is an `INSERT` clause, not a standalone query statement. Subqueries in `VALUES` report
-`COHDBL001`; use a query-source insert instead.
+`CK00001`; use a query-source insert instead.
 
 ## Examples
 

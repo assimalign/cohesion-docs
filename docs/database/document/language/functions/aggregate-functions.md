@@ -21,7 +21,7 @@ MAX ( expression )
 | `SUM(expression)` | Supported | Sums numeric nonnull inputs |
 | `AVG(expression)` | Supported | Averages numeric nonnull inputs |
 | `MIN(expression)`, `MAX(expression)` | Supported | Minimum or maximum nonnull value |
-| `DISTINCT` aggregate arguments | Recognized, not supported (`COHDBL001`) | No distinct aggregate modifier |
+| `DISTINCT` aggregate arguments | Recognized, not supported (`CK00001`) | No distinct aggregate modifier |
 
 ## Arguments
 
@@ -41,7 +41,7 @@ With no nonnull inputs, `SUM`, `AVG`, `MIN`, and `MAX` return null, while `COUNT
 An ungrouped aggregate query yields one group even for an empty source. `SUM` and `AVG` require
 numeric nonnull values.
 
-The parser reports `OQL0006` for an invalid argument count or a star argument to another aggregate.
+The parser reports `CD00006` for an invalid argument count or a star argument to another aggregate.
 The planner validates aggregate placement and grouped expressions; parser acceptance alone does
 not establish semantic validity.
 

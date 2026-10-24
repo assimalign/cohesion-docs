@@ -48,10 +48,10 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
 | Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |
 | `UNION`, `INTERSECT`, `EXCEPT` [ALL / DISTINCT] | Supported | [Set operations](../clauses/set-operations.md) in every query position; combined ORDER BY uses output names/ordinals |
-| SELECT ALL | Recognized, not supported (`COHDBL001`) | ALL as a set quantifier executes |
+| SELECT ALL | Recognized, not supported (`CK00001`) | ALL as a set quantifier executes |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs accepts per-key NULLS FIRST/LAST |
 | [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
-| Windows | Recognized, not supported (`COHDBL001`) | No window clauses |
+| Windows | Recognized, not supported (`CK00001`) | No window clauses |
 
 ## Remarks
 
@@ -63,7 +63,7 @@ A SELECT without FROM reads one implicit row, at the top level and in nested que
 derived tables, CTEs and set operands. Scalar expressions and function calls therefore return one
 row. WHERE FALSE or NULL, LIMIT 0 or OFFSET 1 can remove it. Aggregation, DISTINCT and ordering
 follow ordinary semantics; COUNT(*) over the unfiltered implicit row is 1, and over WHERE FALSE
-is 0. A wildcard without FROM fails planning with COHSQLE013.
+is 0. A wildcard without FROM fails planning with CS05013.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes
@@ -91,7 +91,7 @@ materialize before delivery; bounded selection does not provide streaming result
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
-Qualified `t.*` remains `COHDBL001`. The [JOIN examples](../clauses/join.md#examples) cover
+Qualified `t.*` remains `CK00001`. The [JOIN examples](../clauses/join.md#examples) cover
 INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Index access
@@ -165,7 +165,7 @@ SELECT answer FROM (SELECT 1 AS answer) d;
 
 The results are one row containing 1, one row containing 42, no rows, one row containing 0,
 and one row containing 1. EXISTS counts its projected NULL as a row. SELECT * without FROM
-fails COHSQLE013. A non-Boolean WHERE or HAVING fails COHSQLE003 (42804); see
+fails CS05013. A non-Boolean WHERE or HAVING fails CS02003 (42804); see
 [search conditions](../clauses/where.md#boolean-search-conditions).
 
 ### D. Stop before a later projection error
@@ -181,7 +181,7 @@ SELECT 10 / (id - 3) FROM bounded_rows LIMIT 0;
 
 The queries return one row containing `-5`, then no rows. Neither evaluates division for `id = 3`.
 `SELECT id FROM bounded_rows ORDER BY 10 / (id - 3) LIMIT 1` instead fails with
-COHSQLE001 (22012), because ordering evaluates the later key.
+CS02001 (22012), because ordering evaluates the later key.
 
 ### E. Run a query from .NET
 

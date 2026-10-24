@@ -16,7 +16,7 @@ The constructor retains the supplied list and declares no validation exceptions.
 GqlQueryExpression.Segments derives read-only segment lists from Stages, excluding NEXT itself.
 A WITH stage projects within the same segment. Execution uses the source-ordered Stages list;
 Segments provides its grouping for callers. Invalid boundaries/operands are planner errors
-(COHDBG001) or text syntax errors (GQL0002); no SQLSTATE is assigned.
+(CG05001) or text syntax errors (CG00002); no SQLSTATE is assigned.
 
 ## Example
 

@@ -29,17 +29,17 @@ flows into parameters and the body.
 
 Tables, subqueries, aggregates, external parameters and recursion are refused. A function cannot
 call a more volatile function; CHECKs admit only Immutable calls. Invalid definitions use
-COHSQLD001 (no SQLSTATE); duplicate signatures use COHSQLE065 (42723), and missing/unresolved
-implementations use COHSQLE009 (42883). Unknown types use COHSQLE010 (42704); incompatible calls use
-COHSQLE006 (42883). Domain check failures use COHSQLE038 (23514). There is no LANGUAGE clause,
+CS03301 (no SQLSTATE); duplicate signatures use CS03065 (42723), and missing/unresolved
+implementations use CS01009 (42883). Unknown types use CS02010 (42704); incompatible calls use
+CS01006 (42883). Domain check failures use CS03038 (23514). There is no LANGUAGE clause,
 qualified function name or replacement form. Persisted call identities retain their resolved overload.
 
 These definitions are database-local and self-committing. DDL inside an explicit transaction
-reports COHSQLT003 before publication. After CREATE or DROP commits, mandatory definition refresh
+reports CS04003 before publication. After CREATE or DROP commits, mandatory definition refresh
 uses CancellationToken.None and returns success despite late caller cancellation or statement-timeout
 expiration. A lost connection can still lose that response. Later invocations use their own
-statement token. Before commit, execution can fail with COHSQLE043 (57014) or a contended lock wait
-with COHSQLE044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
+statement token. Before commit, execution can fail with CS05043 (57014) or a contended lock wait
+with CS04044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
 
 ## Example
 

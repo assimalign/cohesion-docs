@@ -20,9 +20,9 @@ Documents failed-statement rule.
 
 | Code | Meaning |
 | --- | --- |
-| `COHDOC010` (SQLSTATE 42P07) | Unconditional CREATE when the collection already exists |
-| `COHDOC001` | Blank or invalid name; OQL retains the name span when available |
-| `COHDOC004` | System collection is read-only, including conditional forms |
+| `CD03010` (SQLSTATE 42P07) | Unconditional CREATE when the collection already exists |
+| `CD05001` | Blank or invalid name; OQL retains the name span when available |
+| `CD04004` | System collection is read-only, including conditional forms |
 
 ## Examples
 
@@ -36,7 +36,7 @@ DROP COLLECTION IF EXISTS scratch;
 ```
 
 Each reports zero affected rows. The final state has no scratch collection. An unconditional
-repeated CREATE reports COHDOC010 when the collection already exists.
+repeated CREATE reports CD03010 when the collection already exists.
 
 ## See also
 

@@ -31,14 +31,14 @@ key output and omitting MISSING members. A MISSING or NULL key is invalid. A who
 is invalid; explicit NULL is a valid document. Object members omit MISSING, while array elements
 convert it to JSON null. These rules are shared with [INSERT](insert.md).
 
-Repeating a key in one statement fails with DocumentDuplicateKeyException (COHDOC012), even for
+Repeating a key in one statement fails with DocumentDuplicateKeyException (CD03012), even for
 UPSERT and even when the key already exists. Its message is `Document key 'a' appears more than
 once in one statement.` There is no last-pair-wins rule. All writes and index changes roll back.
 An automatic session remains reusable after failure; failure in an explicit transaction aborts
 all its work and requires rollback. Success returns the number of written pairs with no result rows.
 
 UPSERT has no statement version precondition. Use PutAsync(expectedVersion) or UPDATE with
-META().version for a version check. OPTIONS and RETURNING remain COHDBL001. JSON storage depth is
+META().version for a version check. OPTIONS and RETURNING remain CK00001. JSON storage depth is
 128, and numbers must fit decimal exactly. Generated JSON follows the shared
 [RFC 8259 UTF-8 encoding](select.md#json-bytes) in process, over InMemory and over TCP.
 
@@ -46,15 +46,15 @@ META().version for a version check. OPTIONS and RETURNING remain COHDBL001. JSON
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
-| `OQL0002` | Missing KEY/VALUE header, malformed pair/binding, qualified destination or trailing syntax | — |
-| `COHDBL001` | OPTIONS, RETURNING or a nested SELECT in VALUES | — |
-| `COHDOC001` | VALUES reads paths/metadata/aggregates, or KEY/VALUE binding names no SELECT output | — |
-| `COHDOC002` | Destination collection does not exist | — |
-| `COHDOC004` | Read-only system destination | — |
-| `COHDOC005` | Missing parameter, including an empty source or EXPLAIN | — |
-| `COHDOC007` | Number loses digits, underflows or exceeds decimal range | 22003 |
-| `COHDOC008` | Non-string/blank/NULL/MISSING key, whole MISSING value, invalid JSON or storage depth beyond 128 | — |
-| `COHDOC012` | A key occurs more than once in this statement, in VALUES or SELECT | — |
+| `CD00002` | Missing KEY/VALUE header, malformed pair/binding, qualified destination or trailing syntax | — |
+| `CK00001` | OPTIONS, RETURNING or a nested SELECT in VALUES | — |
+| `CD05001` | VALUES reads paths/metadata/aggregates, or KEY/VALUE binding names no SELECT output | — |
+| `CD01002` | Destination collection does not exist | — |
+| `CD04004` | Read-only system destination | — |
+| `CD01005` | Missing parameter, including an empty source or EXPLAIN | — |
+| `CD02007` | Number loses digits, underflows or exceeds decimal range | 22003 |
+| `CD02008` | Non-string/blank/NULL/MISSING key, whole MISSING value, invalid JSON or storage depth beyond 128 | — |
+| `CD03012` | A key occurs more than once in this statement, in VALUES or SELECT | — |
 
 Validation failures name UPSERT, for example `UPSERT KEY must evaluate to a nonblank string.`
 Other expressions retain their [normal diagnostics](../diagnostics.md).
@@ -80,7 +80,7 @@ UPSERT INTO archive (KEY k) SELECT META(d).id AS k, d.name AS name FROM items d;
 ```
 
 Each affects two documents. The second replaces a with `{"k":"a","name":"new"}` and z with
-`{"k":"z"}`. Repeating a key within either source fails with COHDOC012.
+`{"k":"z"}`. Repeating a key within either source fails with CD03012.
 
 ## See also
 

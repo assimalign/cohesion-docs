@@ -206,9 +206,9 @@ DROP TABLE or dropping the identity column retires the counter atomically; recre
 tables/columns, primary-key drops, malformed persisted records).
 
 Catalog DDL guards now carry stable diagnostics separately from Message: duplicate table/index
-COHSQLE049 (42P07), duplicate constraint/non-function catalog definition COHSQLE050 (42710), missing
-table COHSQLE051 (42P01), missing object COHSQLE052 (42704), duplicate column COHSQLE061 (42701)
-and stale rename COHSQLE064 (40001). Size/generation exhaustion uses COHSQLE042 (54000).
+CS03049 (42P07), duplicate constraint/non-function catalog definition CS03050 (42710), missing
+table CS01051 (42P01), missing object CS01052 (42704), duplicate column CS03061 (42701)
+and stale rename CS04064 (40001). Size/generation exhaustion uses CS05042 (54000).
 Session execution attaches the current statement span without changing the concrete catalog
 exception type. Direct catalog calls have no statement text. See the [complete code reference](../../../../database/sql/language/diagnostics.md).
 
@@ -266,14 +266,14 @@ upgrade path. Compiled schema format remains version 8.
 ## Persisted views
 
 Format 26 fences temporal DEFAULT and frozen missing-value spellings. Earlier catalogs are
-refused before definitions bind, carrying COHSQLE041; they are never silently rewritten.
+refused before definitions bind, carrying CS06041; they are never silently rewritten.
 Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
 dependencies in kind 17 records introduced by format 23. Current format is 26. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
-larger than 8,092 bytes use COHSQLE033. DROP RESTRICT protects dependents; CASCADE removes dependent
-views. Table/function/domain/column changes independently protect view dependencies with COHSQLD002.
+larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
+views. Table/function/domain/column changes independently protect view dependencies with CS03302.
 Snapshots capture immutable view definitions alongside the rest of the catalog.
 
 ## Sources

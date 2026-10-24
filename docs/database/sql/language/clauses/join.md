@@ -41,7 +41,7 @@ base names and distinguish repeated tables. Unqualified names shared by inputs r
 unless USING merges them. These checks apply before rows are read, even on empty inputs.
 
 ON requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
-condition such as `ON t.age` fails before reads with COHSQLE003 (42804); untyped NULL is
+condition such as `ON t.age` fails before reads with CS02003 (42804); untyped NULL is
 UNKNOWN and matches no pair. LEFT then applies its ordinary NULL extension.
 
 ### USING columns
@@ -104,18 +104,18 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | --- | --- | --- |
 | INNER or LEFT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
 | CROSS JOIN and comma sources | Supported (measured) | Products; CROSS accepts neither ON nor USING |
-| RIGHT, FULL, NATURAL, LATERAL | Recognized, not supported (`COHDBL001`) | Outside this join subset |
-| Qualified wildcard | Recognized, not supported (`COHDBL001`) | List qualified columns explicitly |
+| RIGHT, FULL, NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
+| Qualified wildcard | Recognized, not supported (`CK00001`) | List qualified columns explicitly |
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `COHSQLE003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
-| `COHSQLE015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
-| `COHSQLE019` | Duplicate table binding or alias |
-| `COHDBL001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
-| `SQL0003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
+| `CS02003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
+| `CS01015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
+| `CS01019` | Duplicate table binding or alias |
+| `CK00001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
+| `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
 

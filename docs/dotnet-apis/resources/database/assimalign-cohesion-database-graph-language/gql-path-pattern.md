@@ -24,7 +24,7 @@ Elements null. Variable optionally names the complete MATCH path, independently 
 
 Construction retains references without executing or validating. Planning refuses contradictory
 representations, invalid bounds, nested repetitions, quantified/parenthesized INSERT paths,
-cycles/reused path instances or direct subpath depth above 128 with COHDBG001 (no SQLSTATE).
+cycles/reused path instances or direct subpath depth above 128 with CG05001 (no SQLSTATE).
 Runtime matching produces relationship-unique trails; group declarations bind ordered lists.
 
 ## Example

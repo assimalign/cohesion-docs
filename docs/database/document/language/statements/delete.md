@@ -45,13 +45,13 @@ and rows with AffectedCount set; ExecuteAsync returns the count directly.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `OQL0002` | Missing FROM, database-qualified target, malformed predicate or leftover syntax |
-| `COHDBL001` | USE KEYS, RETURNING, DELETE LIMIT or a nested SELECT; reported at the clause token |
-| `COHDOC001` | Invalid META alias/context or aggregate in the predicate |
-| `COHDOC002` | Target collection does not exist |
-| `COHDOC004` | Target is a read-only system collection |
-| `COHDOC005` | Referenced parameter is unbound, including on empty input |
-| `COHDOC006` (22012) | Division/remainder by zero while evaluating the predicate |
+| `CD00002` | Missing FROM, database-qualified target, malformed predicate or leftover syntax |
+| `CK00001` | USE KEYS, RETURNING, DELETE LIMIT or a nested SELECT; reported at the clause token |
+| `CD05001` | Invalid META alias/context or aggregate in the predicate |
+| `CD01002` | Target collection does not exist |
+| `CD04004` | Target is a read-only system collection |
+| `CD01005` | Referenced parameter is unbound, including on empty input |
+| `CD02006` (22012) | Division/remainder by zero while evaluating the predicate |
 
 Other expression diagnostics retain their [normal meanings](../diagnostics.md). A concurrent
 matched-key write can raise DatabaseTransactionAbortedException. No new diagnostic code, catalog

@@ -46,7 +46,7 @@ match (a:Person {"with space": 'it''s fine'}) return a."with space";
 ```
 
 Parameter markers such as `$age` use the supported [parameter binding](expressions/parameters.md).
-Malformed strings, quoted names, and block comments produce `GQL0003`.
+Malformed strings, quoted names, and block comments produce `CG00003`.
 This includes an escaped final quote without a closing delimiter, as in `"a""`.
 
 Execute separately in an empty graph:

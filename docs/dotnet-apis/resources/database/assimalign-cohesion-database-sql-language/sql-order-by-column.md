@@ -21,7 +21,7 @@ Construction is internal to the parser. Expression retains aliases/ordinals as w
 binding resolves them later. Aggregate-input integers remain constants. NullPlacement is
 [Default, First or Last](sql-null-placement.md). Rendering preserves an explicit modifier even
 when it equals the default and emits none when omitted. Accessors declare no exceptions.
-Malformed placement produces SQL0003 in parser diagnostics.
+Malformed placement produces CS00003 in parser diagnostics.
 
 ## Example
 

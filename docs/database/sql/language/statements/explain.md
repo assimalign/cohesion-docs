@@ -15,7 +15,7 @@ EXPLAIN { select_statement | insert_statement | update_statement | delete_statem
 EXPLAIN performs the statement's normal parameter validation, name binding, planning and
 provisioning admission. It waits for the same reserved tables as that statement. It never calls its
 data executor, even inside a transaction that later commits. DDL, transaction control, nested
-EXPLAIN and EXPLAIN ANALYZE report `COHDBL001`. Ordinary planning errors retain their codes.
+EXPLAIN and EXPLAIN ANALYZE report `CK00001`. Ordinary planning errors retain their codes.
 
 All three query languages use the [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 shape, in depth-first pre-order:

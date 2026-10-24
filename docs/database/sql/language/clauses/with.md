@@ -31,12 +31,12 @@ are resolved before the definition materializes.
 Definitions bind in declaration order. A body can read earlier CTEs. An unqualified read resolves
 an already-visible CTE before a stored table; schema qualification bypasses CTE lookup. A
 non-recursive self-reference or a later sibling's name reads a same-named stored table when one
-exists. A missing later relation uses COHSQLE026. Every definition binds, including unused ones,
+exists. A missing later relation uses CS01026. Every definition binds, including unused ones,
 so unknown columns and invalid aggregate placement fail before reads or writes.
 
 CTE output has no schema identity: use `c.id` or an alias. `dbo.c.id` requires a stored FROM
 entry or an enclosing stored relation available through correlation. A same-named CTE and stored
-relation without distinct aliases conflict (COHSQLE019). DML targets always resolve through the
+relation without distinct aliases conflict (CS01019). DML targets always resolve through the
 catalog; a CTE cannot become an UPDATE, INSERT or DELETE target.
 
 A FROM-less SELECT uses one implicit row and supports scalar or aggregate SELECT
@@ -55,15 +55,15 @@ constraints and identity generation. [EXPLAIN](../statements/explain.md) describ
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `COHSQLE026` | Duplicate CTE name, or unresolved reference to a later sibling; before reading rows |
-| `COHSQLE013` | Output-name list has the wrong width or a blank name; wildcard without FROM |
-| `COHSQLE015` | Unknown/ambiguous output column or invalid schema-qualified CTE column |
-| `COHSQLE019` | Conflicting relation names; give the CTE or stored relation an alias |
-| `COHSQLE017` | Invalid aggregate placement, including WHERE in an unused constant body |
-| `SQL0003` | Empty output-name list, malformed definition, or unsupported command kind after the list |
-| `COHDBL001` | WITH RECURSIVE, nested WITH in a subquery/derived body, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
+| `CS01026` | Duplicate CTE name, or unresolved reference to a later sibling; before reading rows |
+| `CS05013` | Output-name list has the wrong width or a blank name; wildcard without FROM |
+| `CS01015` | Unknown/ambiguous output column or invalid schema-qualified CTE column |
+| `CS01019` | Conflicting relation names; give the CTE or stored relation an alias |
+| `CS05017` | Invalid aggregate placement, including WHERE in an unused constant body |
+| `CS00003` | Empty output-name list, malformed definition, or unsupported command kind after the list |
+| `CK00001` | WITH RECURSIVE, nested WITH in a subquery/derived body, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
 
-The source assigns no SQLSTATE to COHSQLE026. Other ordinary query diagnostics still apply.
+The source assigns no SQLSTATE to CS01026. Other ordinary query diagnostics still apply.
 
 ## Examples
 
@@ -104,7 +104,7 @@ WITH a AS (SELECT id FROM b), b AS (SELECT 1 AS id)
 SELECT id FROM a ORDER BY id;
 ```
 
-This returns `7` and `9` from stored b. Without stored b, the reference in a reports COHSQLE026.
+This returns `7` and `9` from stored b. Without stored b, the reference in a reports CS01026.
 
 ## See also
 

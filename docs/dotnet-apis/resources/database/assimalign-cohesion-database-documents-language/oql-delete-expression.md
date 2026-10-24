@@ -25,9 +25,9 @@ parameters and nonaggregate filter expressions before mutation, including empty 
 materializes identities from the statement snapshot, reapplies the full filter after any index seek,
 and deletes atomically with index maintenance. Collection/index definitions survive.
 
-Invalid metadata/aggregate context raises DatabaseException `COHDOC001`, absent collection
-`COHDOC002`, system target `COHDOC004`, and unbound parameter `COHDOC005`. Predicate value errors
-retain their codes, such as `COHDOC006` (22012). A later conflict rolls back prior deletions and
+Invalid metadata/aggregate context raises DatabaseException `CD05001`, absent collection
+`CD01002`, system target `CD04004`, and unbound parameter `CD01005`. Predicate value errors
+retain their codes, such as `CD02006` (22012). A later conflict rolls back prior deletions and
 raises DatabaseTransactionAbortedException; a failed explicit transaction loses all its work.
 Malformed text is returned as parser diagnostics; requests reject it with DatabaseParseException.
 

@@ -49,13 +49,13 @@ from the backing storage. UpdateNodeAsync replaces labels/properties and UpdateR
 replaces properties. Both node methods require a caller-resolved label-name/catalog-GUID map.
 Label reads seek MVCC postings and decode only matching visible nodes. Format 4 persists catalog
 label GUIDs, label postings, snapshot-visible version chains and catalog type IDs.
-Older records and tree registrations are refused with COHDBG017; recreate the database because
+Older records and tree registrations are refused with CG06017; recreate the database because
 there is no upgrade path. CreateRelationshipAsync requires a nonempty typeId. Filtered incident
 reads stream selected node/direction/type ranges; see [changed signatures](graph-store.md).
 
 At the engine boundary, an open-time graph-format refusal becomes
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003, COHDBG018 and COHDBG017 retained in Diagnostics; no SQLSTATE is assigned.
+with CK06003, CG06018 and CG06017 retained in Diagnostics; no SQLSTATE is assigned.
 
 
 [Parent: Assimalign.Cohesion.Database.Graph](index.md)

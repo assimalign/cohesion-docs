@@ -23,10 +23,10 @@ path_length/length share PathLength; relationships/edges share Relationships; ln
 char_length/character_length, lower/toLower, upper/toUpper and ceil/ceiling also share identities.
 The [language table](../../../../database/graph/language/functions/scalar-functions.md) specifies
 arity, accepted kinds, NULLs and result types. The enum adds no methods or constructor exceptions;
-invalid direct identities use plan-time COHDBG001 (no SQLSTATE).
+invalid direct identities use plan-time CG05001 (no SQLSTATE).
 
 Abs/Ceil/Floor/Round retain numeric types (unsigned inputs become Decimal); Neo4j returns Float
-for ceil/floor/round. Round uses half away from zero. Sqrt/Log invalid domains use COHDBG013.
+for ceil/floor/round. Round uses half away from zero. Sqrt/Log invalid domains use CG02013.
 CurrentDate/CurrentTimestamp are niladic and share the transaction-start clock. ELEMENTS is not
 an enum member or executable function.
 

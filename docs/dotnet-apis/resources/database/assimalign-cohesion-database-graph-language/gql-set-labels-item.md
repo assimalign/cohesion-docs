@@ -13,11 +13,11 @@ public sealed record GqlSetLabelsItem(string Variable, IReadOnlyList<string> Lab
 
 Labels adds the listed node labels; existing labels are no-ops. IsColon distinguishes colon
 syntax from IS. Repeated colon syntax can carry multiple labels. Relationships retain an immutable
-type and reject this item with COHDBG003.
+type and reject this item with CG03003.
 
 The record constructor retains its operands without semantic validation. The planner validates binding
-scope and entity kinds. Unbound targets/invalid direct shapes use COHDBG001; path/group/scalar
-targets use COHDBG003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
+scope and entity kinds. Unbound targets/invalid direct shapes use CG05001; path/group/scalar
+targets use CG03003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
 Parser errors are diagnostics; session text execution rejects them with DatabaseParseException.
 See [SET](../../../../database/graph/language/clauses/set.md).
 

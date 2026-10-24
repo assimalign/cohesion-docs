@@ -16,13 +16,13 @@ Starts the session's explicit transaction.
 `START TRANSACTION` requires `TRANSACTION`. `START` and `WORK` remain contextual:
 columns named `start` or `work` still bind.
 Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
-Malformed suffixes report `SQL0003` before transaction state changes.
+Malformed suffixes report `CS00003` before transaction state changes.
 
 ## Remarks
 
 The session uses snapshot isolation for SQL `BEGIN`. Later statements on the same session join
 that transaction; its own writes are visible to it and remain hidden from other sessions until commit.
-A second `BEGIN` reports `COHSQLT001` and preserves the original active scope.
+A second `BEGIN` reports `CS04001` and preserves the original active scope.
 
 BEGIN reserves the transaction's sequence and snapshot without appending a journal record.
 Its first admitted write apply enrolls it with a logical BEGIN before any physical write bracket.
@@ -30,19 +30,19 @@ A transaction that only reads appends no lifecycle records and waits for no flus
 See [TransactionCoordinator](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md).
 
 Data definition language (DDL) is rejected while the explicit transaction is active with
-`COHSQLT003`. Statements outside an explicit transaction auto-commit. Session disposal or wire
+`CS04003`. Statements outside an explicit transaction auto-commit. Session disposal or wire
 disconnect rolls back an unfinished transaction. Returning a client lease to its pool does not
 dispose that server session: end or roll back an explicit transaction before disposing the
 connection. Otherwise a later renter can inherit it (known gap #1540). `TRANSACTION` alone is not
 a statement.
 
 Storage, I/O and index failures abort an explicit transaction. Later statements or COMMIT
-report COHSQLT005 with the original coded cause; roll back before continuing. Ordinary constraint,
+report CS04005 with the original coded cause; roll back before continuing. Ordinary constraint,
 evaluation and Boolean-condition failures leave it usable. Connection usability does not mean
 transaction usability; see [diagnostics](../diagnostics.md#transactions).
 
-COHSQLT005 is an Error in DatabaseException.Diagnostics; the in-process Message has no leading
-code, and InnerException retains the cause. The wire still prefixes its refusal with COHSQLT005.
+CS04005 is an Error in DatabaseException.Diagnostics; the in-process Message has no leading
+code, and InnerException retains the cause. The wire still prefixes its refusal with CS04005.
 
 The coordinator also has an API for selecting an isolation level; SQL isolation-level syntax,
 nested transactions, and savepoints are outside this language subset.
@@ -79,10 +79,10 @@ The inserted row becomes visible to an observing session after commit.
 ## Execution deadlines
 
 SQL transaction-control requests arm neither StatementTimeout nor LockTimeout. Timed DML rolls back
-only its own effects: COHSQLE043 (57014) or COHSQLE044 (55P03) leaves earlier statements and the
+only its own effects: CS05043 (57014) or CS04044 (55P03) leaves earlier statements and the
 explicit transaction usable. Earlier lock resources and their upgrades remain held. A started
 commit completes with its real outcome. A target invalidated during lock preparation instead uses
-COHSQLT006 (no SQLSTATE); roll back and retry in a fresh transaction. See
+CS04006 (no SQLSTATE); roll back and retry in a fresh transaction. See
 [timeouts](../diagnostics.md#statement-and-lock-timeouts).
 
 

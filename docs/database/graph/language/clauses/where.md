@@ -17,7 +17,7 @@ only TRUE; neither changes OPTIONAL MATCH's own predicate-before-NULL-extension 
 Expressions include AND, OR/XOR at one precedence level, NOT, arithmetic, concatenation,
 comparisons, null/truth tests, bracketed IN and string predicates. A bare Boolean property is
 accepted. [Operators](../expressions/operators.md) defines precedence, NULL propagation and value
-errors. Only TRUE retains a binding; evaluated non-Boolean conditions raise `COHDBG013`.
+errors. Only TRUE retains a binding; evaluated non-Boolean conditions raise `CG02013`.
 
 Operands can be literals, bound variables, one-level properties or [parameters](../expressions/parameters.md).
 Numeric equality, inequality, ordering and IN compare exact represented values across numeric
@@ -41,8 +41,8 @@ Label scans seek MVCC postings and decode only matching visible nodes, including
 additions and replacements. The full pattern and WHERE remain residual checks. Pure pattern
 unions merge selected ranges; a WHERE disjunction itself supplies no union anchor.
 See [EXPLAIN](../statements/explain.md) for the selected label and ordinal.
-There is no fixed comparison-count limit; recursive depth follows available stack, with GQL0009
-in the parser or COHDBG008 in engine execution.
+There is no fixed comparison-count limit; recursive depth follows available stack, with CG00009
+in the parser or CG05008 in engine execution.
 
 ## Examples
 

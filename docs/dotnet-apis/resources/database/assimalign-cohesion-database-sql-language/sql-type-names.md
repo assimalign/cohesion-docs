@@ -19,7 +19,7 @@ for multi-word/national character names, DOUBLE PRECISION and temporal names, wi
 words. FLOAT(p) selects Float32 for 1..24 bits and Float64 for 25..53 or no precision. Fixed
 national forms resolve as Character; VARYING forms as String. SQL Server spellings are lexical
 aliases, not emulated range/rounding/storage behavior. TIME WITH TIME ZONE has no shared storage
-type and returns false; the parser reports SQL0005. Unknown names return false for engine domain
+type and returns false; the parser reports CS00005. Unknown names return false for engine domain
 resolution. Null names throw ArgumentNullException. Invalid modifiers return false.
 
 ## Example

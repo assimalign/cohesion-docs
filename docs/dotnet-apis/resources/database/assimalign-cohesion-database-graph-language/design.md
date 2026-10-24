@@ -67,9 +67,9 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | --- | --- | --- |
 | `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
 | `OPTIONAL MATCH` | Same fixed/quantified paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
-| `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, labeled predicates, IN and string predicates | Three-valued filtering; positive label conjunctions can anchor nodes; value errors COHDBG013 |
+| `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, labeled predicates, IN and string predicates | Three-valued filtering; positive label conjunctions can anchor nodes; value errors CG02013 |
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
-| `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list COHDBG013; proven entity kinds retained |
+| `FOR`, `UNWIND` | List expression and new variable | NULL gives zero rows; non-list CG02013; proven entity kinds retained |
 | `WITH`, `NEXT` | Intermediate projection or RETURN/write segment boundary | Eager materialization; WITH WHERE after paging; projected scope only carried forward |
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `GROUP BY` | RETURN names or equivalent expressions, including () | Same exact keys as implicit aggregation; grouping before projection |
@@ -86,10 +86,10 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 signed 64-bit integer, finite double, and single-quoted string with doubled-quote escaping. Names
 are case-sensitive; keywords are case-insensitive. Double-quoted names preserve spaces and decode
 doubled double quotes to one embedded quote. Label-expression and source-free projection rendering
-escape embedded quotes the same way; an unterminated quoted name reports GQL0003. A single
+escape embedded quotes the same way; an unterminated quoted name reports CG00003. A single
 optional trailing semicolon is accepted. ISO abbreviated `->`, `<-`, `-` and `<->` execute without
 edge variables/types/properties; full bracketed forms carry those details. Cypher doubled-dash
-arrows are refused (GQL0008 or GQL0002), and tilde edges use COHDBL001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are
+arrows are refused (CG00008 or CG00002), and tilde edges use CK00001. Multiple statements, direct stored-property chains such as a.b.c, and return-after-delete are
 not accepted. Nested map access and entity access through value expressions execute.
 
 The stage grammar is:
@@ -120,7 +120,7 @@ catalog     := SHOW (LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJ
 Value pipelines, mutations and standalone RETURN can start without MATCH. Reading/deleting
 entities requires a binding from matching or a proven entity carried through projection/UNWIND.
 Pattern repetition-bound sums are limited to 64 relationships. Scalar chains have no comparison-count limit;
-recursive depth follows available stack (GQL0009 in parsing, COHDBG008 in the engine). `Match`
+recursive depth follows available stack (CG00009 in parsing, CG05008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
 Quantified paths are unsupported, so cycles cannot cause unbounded repetition of a path pattern. The
 executor's trail rule permits repeated nodes but forbids repeated relationship identities within one
@@ -133,7 +133,7 @@ nodes or relationships for `MATCH`. Catalog definitions have stable catalog iden
 graph elements. The extension adds no server scope or database selector and changes no public
 interface. Keywords are case-insensitive and comments and one optional trailing semicolon follow the
 ordinary lexer rules. A statement cannot combine `SHOW` with graph matching, projection or mutation.
-Attempted mutation composition produces `GQL0007`, including verbs such as `SET` and `DROP` that
+Attempted mutation composition produces `CG00007`, including verbs such as `SET` and `DROP` that
 are otherwise unsupported. The engine validates direct AST requests too.
 
 The
@@ -149,7 +149,7 @@ binding. [GqlQueryExpression](gql-query-expression.md) adds init-only ReturnStar
 ([All/Distinct](gql-set-quantifier.md)); star expands first named declarations and cannot mix with
 explicit items. Standalone RETURN evaluates once; empty MATCH retains metadata with zero rows.
 Unaliased names use normalized source text, or rendered syntax for source-free nodes. Duplicate
-final names compare ordinally and fail COHDBG015 before reads/writes, even under EXPLAIN.
+final names compare ordinally and fail CG01015 before reads/writes, even under EXPLAIN.
 
 Comparisons, property matching, IN and DISTINCT share exact represented numeric values across
 runtime types. Decimal 0.1m and Double 0.1d are unequal; Int64 1 and Double 1.0 are equal. Large
@@ -164,9 +164,9 @@ including DISTINCT or star over one binding; invalid shape precedes duplicate-na
 
 [GqlLogicalExpression](gql-logical-expression.md) holds And/Or/Xor chains; OR and XOR share one
 precedence level. Unary, IN/list, null/truth tests and string predicates have typed nodes linked
-from the [assembly index](index.md). Runtime errors use COHDBG013. Property maps hold GqlExpression
+from the [assembly index](index.md). Runtime errors use CG02013. Property maps hold GqlExpression
 values rather than only literals, including GqlParameterExpression. Bare-name lookup is ordinal
-and strips one sigil; collisions are COHDBG014, missing values COHDBG001, invalid types COHDBG003.
+and strips one sigil; collisions are CG01014, missing values CG05001, invalid types CG03003.
 
 GqlQueryExpression.IsExplain flags a parser-created EXPLAIN wrapper on a data query. Normal binding
 and provisioning admission apply and DatabasePlanDescription is returned without data execution.
@@ -188,11 +188,11 @@ creates ordinal named values. [GqlSubscriptExpression](gql-subscript-expression.
 [GqlMemberExpression](gql-member-expression.md) consume containers or read entity properties.
 [GqlInExpression.List](gql-in-expression.md) changes from GqlListExpression to GqlExpression,
 allowing list-valued parameters and computed inputs. Missing keys/out-of-range indexes are NULL;
-invalid accesses use COHDBG013. Equality is structural with FALSE dominating UNKNOWN; DISTINCT
+invalid accesses use CG02013. Equality is structural with FALSE dominating UNKNOWN; DISTINCT
 groups corresponding NULLs. Exact numeric comparison survives inside containers.
 
-Referenced parameters snapshot once; invalid leaves/cycles/dimensions or bounds use COHDBG003.
-Constructed limits use COHDBG013 inside the statement transaction, rolling back writes. Limits
+Referenced parameters snapshot once; invalid leaves/cycles/dimensions or bounds use CG03003.
+Constructed limits use CG02013 inside the statement transaction, rolling back writes. Limits
 are root depth zero through 64, 65,536 total values and 16 MiB encoded bytes. Pattern property maps
 stay scalar-only. See [value rules](../../../../database/graph/language/expressions/list-values.md).
 No new plan record is required; EXPLAIN renders the expressions through existing Project nodes.
@@ -201,15 +201,15 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
-| `GQL0001` | Empty statement |
-| `GQL0002` | Malformed supported syntax or invalid statement composition |
-| `GQL0003` | Unterminated string, quoted name, or block comment |
-| `GQL0004` | Invalid or out-of-range numeric literal |
-| `GQL0005` | Text repetition-bound sum exceeds 64 relationships |
-| `GQL0006` | Duplicate literal property key |
-| `GQL0007` | `Graph catalog introspection is read-only.`: mutation composed with `SHOW` |
-| `GQL0010` | Unknown function name; scalar/aggregate arity uses GQL0002 |
+| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `CG00001` | Empty statement |
+| `CG00002` | Malformed supported syntax or invalid statement composition |
+| `CG00003` | Unterminated string, quoted name, or block comment |
+| `CG00004` | Invalid or out-of-range numeric literal |
+| `CG00005` | Text repetition-bound sum exceeds 64 relationships |
+| `CG00006` | Duplicate literal property key |
+| `CG00007` | `Graph catalog introspection is read-only.`: mutation composed with `SHOW` |
+| `CG00010` | Unknown function name; scalar/aggregate arity uses CG00002 |
 
 Locations use zero-based absolute UTF-16 offsets with exclusive ends and one-based line numbers.
 Capability checks run before syntax parsing, so a recognized unsupported clause does not degrade
@@ -243,14 +243,14 @@ change; keyword recognition alone never enables it.
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 Parser and engine diagnostic codes are listed in [GQL diagnostics](../../../../database/graph/language/diagnostics.md),
-including GQL0008/0009 and COHDBG001–017 with available SQLSTATE/GQLSTATUS categories.
-COHDBG015 identifies a duplicate final RETURN column name. COHDBG016 rejects possible composite
-wire results without graph.composite-values before reads/writes. COHDBG017 refuses older graph
+including CG00008/CG00009 and Graph execution codes with available SQLSTATE/GQLSTATUS categories.
+CG01015 identifies a duplicate final RETURN column name. CG07016 rejects possible composite
+wire results without graph.composite-values before reads/writes. CG06017 refuses older graph
 records/tree registrations at database open, with recreation required and no upgrade path.
 These three codes have no assigned SQLSTATE.
 
-Detected storage damage uses COHDBS003 / DatabaseCorruptionException with database and optional
-page context. Open-time graph-format refusal retains COHDBG017 and COHDBG018 alongside it.
+Detected storage damage uses CK06003 / DatabaseCorruptionException with database and optional
+page context. Open-time graph-format refusal retains CG06017 and CG06018 alongside it.
 Damaged reads fail rather than omitting data; wire ExecutionFailure leaves the connection usable.
 No SQLSTATE is assigned. See the linked diagnostics reference for recovery instructions.
 
@@ -260,9 +260,9 @@ No SQLSTATE is assigned. See the linked diagnostics reference for recovery instr
 [GqlSortItem](gql-sort-item.md) carries a key and the [direction](gql-sort-direction.md) and
 [NULL placement](gql-null-ordering.md) enums. Default NULL placement is last ASC/first DESC.
 OFFSET/SKIP must precede LIMIT. Dynamic counts require an integral CLR value in nonnegative Int64
-range (COHDBG013); unsupported/non-finite CLR inputs use COHDBG003 and missing parameters COHDBG001.
+range (CG02013); unsupported/non-finite CLR inputs use CG03003 and missing parameters CG05001.
 DISTINCT keys can reference only projected values, including projected entities and structurally
-matching computed expressions. Hidden bindings are COHDBG001, including on empty graphs.
+matching computed expressions. Hidden bindings are CG05001, including on empty graphs.
 
 The total ascending order is map, node, relationship, list, path, string, Boolean, number, NULL.
 Numeric comparison is exact. Lists compare lexicographically; maps compare count, ordinal sorted
@@ -287,8 +287,8 @@ shadowing aliases. See [aggregate results, diagnostics and examples](../../../..
 [GqlQuantifier](gql-quantifier.md) carries inclusive Min/Max, null Max meaning unbounded.
 [GqlRelationshipPattern](gql-relationship-pattern.md) adds Quantifier. Group declarations bind
 source-ordered lists and RETURN */WITH * include them; FOR/UNWIND retains their entity kinds.
-Direct invalid shape/bounds, cycles/reused path instances or subpath depth above 128 use COHDBG001;
-text bounds use GQL0002/0004/0005. Runtime qualifying 65th hops use COHDBG004.
+Direct invalid shape/bounds, cycles/reused path instances or subpath depth above 128 use CG05001;
+text bounds use CG00002/CG00004/CG00005. Runtime qualifying 65th hops use CG05004.
 [Patterns](../../../../database/graph/language/patterns.md) records diagnostics and examples.
 
 ## Scalar calls and CAST
@@ -297,14 +297,14 @@ text bounds use GQL0002/0004/0005. Runtime qualifying 65th hops use COHDBG004.
 [GqlScalarFunction](gql-scalar-function.md), snapshots Arguments and exposes IsNiladic for clocks.
 [GqlCastExpression](gql-cast-expression.md) retains Operand and [GqlCastType](gql-cast-type.md).
 Every expression/shape/grouping/rendering walk includes these nodes. Static enum dispatch keeps
-planning/evaluation compatible with NativeAOT. GQL0010 reports unknown calls; GQL0002 reports
-parsed arity, COHDBG001 direct-AST arity/unbound arguments, COHDBG003 proven incompatible kinds,
-and COHDBG013 dynamic kinds or invalid values. No SQLSTATE is assigned to these codes.
+planning/evaluation compatible with NativeAOT. CG00010 reports unknown calls; CG00002 reports
+parsed arity, CG05001 direct-AST arity/unbound arguments, CG03003 proven incompatible kinds,
+and CG02013 dynamic kinds or invalid values. No SQLSTATE is assigned to these codes.
 
 [Scalar functions](../../../../database/graph/language/functions/scalar-functions.md) documents
 signatures, aliases, strict NULL behavior, exact numeric types, zero-based code-point substring
 and the difference between SQL CAST and Neo4j conversions. CURRENT_DATE/CURRENT_TIMESTAMP are
-reserved niladic names; CAST is contextual. ELEMENTS remains COHDBL001.
+reserved niladic names; CAST is contextual. ELEMENTS remains CK00001.
 
 ## SET and REMOVE
 
@@ -312,18 +312,18 @@ reserved niladic names; CAST is contextual. ELEMENTS remains COHDBL001.
 GqlQueryExpression.SetItems/RemoveItems flatten them for inspection. The parser accepts IS or
 colon labels, property assignment and literal-map replacement/merge. Touching += is a GQL-only
 operator token. Scalar right sides retain IS [NOT] LABELED. Leading SET/REMOVE and nested targets
-are GQL0002. Whole-map expressions/parameters and literal composite properties are COHDBL001;
-relationship labels and computed composite properties are COHDBG003. No new code is introduced.
+are CG00002. Whole-map expressions/parameters and literal composite properties are CK00001;
+relationship labels and computed composite properties are CG03003. No new code is introduced.
 The profile executes 26 of 33 declared clauses.
 
-Database lifecycle failures additionally use COHDBG018 for missing journal/backup, incomplete
+Database lifecycle failures additionally use CG06018 for missing journal/backup, incomplete
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
 SQLSTATE; it is separate from GQL evaluation. See [file diagnostics](../../../../database/graph/language/diagnostics.md#database-files).
 
-Catalog snapshot conflicts use structured COHDBG007 on DatabaseTransactionAbortedException;
-deterministic catalog identity/name/owner/index-target errors use COHDBG003. Malformed catalog
-records use COHDBG006, oversized UTF-8 metadata records use COHDBG009 (8,092 bytes), and disposal
-during admitted execution or a wire lifetime guard uses COHDBG019. These codes have no assigned
+Catalog snapshot conflicts use structured CG04007 on DatabaseTransactionAbortedException;
+deterministic catalog identity/name/owner/index-target errors use CG03003. Malformed catalog
+records use CG06006, oversized UTF-8 metadata records use CG02009 (8,092 bytes), and disposal
+during admitted execution or a wire lifetime guard uses CG09019. These codes have no assigned
 SQLSTATE. ExecutionFailure preserves the authenticated session; a disposed protocol transport
 faults it without another error write. See [wire and cleanup behavior](../assimalign-cohesion-database-graph/design.md#graph-wire-family).
 
@@ -336,10 +336,10 @@ merge selected ranges with duplicate suppression; EXPLAIN reports target A|B and
 WHERE disjunctions supply no union anchor. See [MATCH](../../../../database/graph/language/statements/match.md),
 [WHERE](../../../../database/graph/language/clauses/where.md) and [EXPLAIN](../../../../database/graph/language/statements/explain.md).
 
-Runtime storage/index and open I/O failures carry COHDBG006 in Diagnostics; only wire formatting
-adds its prefix. Attached-index corruption leads with COHDBS003 and retains COHDBI002 and
-COHDBG006. Graph records/registrations require format 4; older layouts are refused with
-COHDBG017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
+Runtime storage/index and open I/O failures carry CG06006 in Diagnostics; only wire formatting
+adds its prefix. Attached-index corruption leads with CK06003 and retains CK06102 and
+CG06006. Graph records/registrations require format 4; older layouts are refused with
+CG06017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
 
 ## Sources
 

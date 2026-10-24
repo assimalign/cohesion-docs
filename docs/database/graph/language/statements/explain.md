@@ -19,7 +19,7 @@ Pipeline → Let and Return, with a Project child named x, without evaluating ro
 DELETE statements include their preceding entity bindings. SHOW is not admitted under EXPLAIN.
 Normal parameter checks, binding, planning and provisioning admission apply. Mutation plans change
 neither nodes nor relationships, including if an explicit transaction subsequently commits.
-Nested EXPLAIN and EXPLAIN ANALYZE report COHDBL001. Plans use the
+Nested EXPLAIN and EXPLAIN ANALYZE report CK00001. Plans use the
 [shared eight-column shape](../../../sql/language/statements/explain.md): node_id, parent_id,
 operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-first pre-order;
 estimated and actual counts are NULL. GQL uses ordinary row-result frames, including for an
@@ -43,7 +43,7 @@ with the same fields. These describe [counting rules](../patterns.md#remarks), n
 EXPLAIN executes no hops, and estimated_rows/actual_rows remain NULL.
 A test guard requires every plan record's mapping.
 Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
-parent when requested. Duplicate final names still fail planning with COHDBG015 before execution.
+parent when requested. Duplicate final names still fail planning with CG01015 before execution.
 
 Repeated matching clauses have source-ordered Match/OptionalMatch nodes. OptionalMatch detail
 reports whether a filter is present, whether the clause matches nothing, and new variables that
@@ -57,13 +57,13 @@ without sorting or executing mutations.
 
 [Grouping](../clauses/group-by.md) adds GroupAggregate with key count and aggregate expressions.
 `EXPLAIN RETURN sum(1 / 0) AS n ORDER BY n` includes `keys=0; aggregates=sum(...)`
-without evaluating the division. Invalid placement/grouped references still fail COHDBG001.
+without evaluating the division. Invalid placement/grouped references still fail CG05001.
 
 [Quantified expansion](../patterns.md#quantified-paths) describes `quantifier={min,max}; body_hops=n;
 trail=True` on Expand (empty max is unbounded). For example, `EXPLAIN MATCH (a)-[:T]->{1,3}(b)
 RETURN b` includes `quantifier={1,3}; body_hops=1; trail=True`. Scalar calls and CAST receive normal
 signature checks without evaluation: `EXPLAIN RETURN sqrt(-1) AS n` does not evaluate the domain
-error, while proven incompatible `EXPLAIN RETURN abs('x') AS n` fails COHDBG003.
+error, while proven incompatible `EXPLAIN RETURN abs('x') AS n` fails CG03003.
 
 [SET](../clauses/set.md)/[REMOVE](../clauses/remove.md) add Set/Remove stage nodes under Pipeline,
 with UpdateEntity children naming each target and property/map/label action. For example,

@@ -15,8 +15,8 @@ Searched CASE omits operand and converts each WHEN using the [SQL++ truth rule](
 Simple CASE compares operand and WHEN values structurally. NULL and MISSING never match,
 including themselves. An unmatched CASE returns ELSE or NULL when ELSE is absent; a selected
 result may be MISSING. Only the selected result evaluates, but all branches undergo parameter,
-numeric, META, aggregate and grouping validation before execution. Grouping errors are `COHDOC001`,
-missing parameters `COHDOC005` and lossy numbers `COHDOC007` (22003).
+numeric, META, aggregate and grouping validation before execution. Grouping errors are `CD05001`,
+missing parameters `CD01005` and lossy numbers `CD02007` (22003).
 
 CASE/WHEN/THEN/ELSE/END are reserved. Existing fields work quoted or after a dot, such as d.end.
 

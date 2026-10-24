@@ -42,9 +42,9 @@ the caller reapplies the full predicate.
 
 Null required arguments throw ArgumentNullException; invalid names/paths/bounds throw
 ArgumentException. An inactive context throws InvalidOperationException. Invalid build path count
-uses DatabaseException/COHDOC022 (no SQLSTATE). Duplicate UNIQUE keys use
-[DocumentConstraintViolationException](document-constraint-violation-exception.md)/COHDOC020 (23505);
-array/object UNIQUE keys use COHDOC021 (no SQLSTATE). Missing definitions/collections/trees,
+uses DatabaseException/CD03022 (no SQLSTATE). Duplicate UNIQUE keys use
+[DocumentConstraintViolationException](document-constraint-violation-exception.md)/CD03020 (23505);
+array/object UNIQUE keys use CD02021 (no SQLSTATE). Missing definitions/collections/trees,
 unsupported or malformed catalog records and oversized keys use DocumentCatalogException.
 Open may throw IndexFormatException for an incompatible tree. Storage I/O/corruption failures
 propagate from seeks. Cancellation throws OperationCanceledException; an ended build transaction

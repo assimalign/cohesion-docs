@@ -17,7 +17,7 @@ public abstract record GqlStage
 
 The private protected constructor limits variants to the assembly. Each sealed leaf stores its
 operands; the planner validates shapes and scopes before executing any stage. Null/missing mandatory
-operands use COHDBG001. Every stage materializes eagerly in source order within one transaction.
+operands use CG05001. Every stage materializes eagerly in source order within one transaction.
 
 | Stage | Operation |
 | --- | --- |

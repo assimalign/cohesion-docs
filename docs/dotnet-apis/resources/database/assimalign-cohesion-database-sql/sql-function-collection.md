@@ -34,7 +34,7 @@ Null function/name throws ArgumentNullException. An invalid identifier, special-
 name or reserved T1 name throws ArgumentException. Duplicate signatures, mixed scalar/aggregate
 names, overlap with a builtin's accepted calls, or mutation after build begins throw
 InvalidOperationException. A valid registration does not execute its function. Planning rejects
-unmatched signatures with COHSQLE006 (42883) or ambiguous calls with COHSQLE008 (42725).
+unmatched signatures with CS01006 (42883) or ambiguous calls with CS01008 (42725).
 
 ## Example
 

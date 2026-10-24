@@ -25,10 +25,10 @@ equal non-NULL operands and false is the default ALL behavior. collect and colle
 to CollectList. Function names remain usable graph variable/property/alias names outside calls.
 
 The planner rejects unknown enum values, null operands outside non-DISTINCT Count, nested or
-misplaced aggregates, ungrouped expressions and invalid path requests with COHDBG001. Malformed
-text arguments, SUM(*) and COUNT(DISTINCT/ALL *) use GQL0002. Referenced parameters validate even
-on empty input. SUM/AVG numeric errors and bounded collection failures use COHDBG013; these codes
-have no assigned SQLSTATE. Missing composite negotiation uses COHDBG016 before wire output.
+misplaced aggregates, ungrouped expressions and invalid path requests with CG05001. Malformed
+text arguments, SUM(*) and COUNT(DISTINCT/ALL *) use CG00002. Referenced parameters validate even
+on empty input. SUM/AVG numeric errors and bounded collection failures use CG02013; these codes
+have no assigned SQLSTATE. Missing composite negotiation uses CG07016 before wire output.
 The language [aggregate reference](../../../../database/graph/language/functions/aggregate-functions.md)
 defines NULL/empty identities, exact numeric promotion, grouping and result types.
 

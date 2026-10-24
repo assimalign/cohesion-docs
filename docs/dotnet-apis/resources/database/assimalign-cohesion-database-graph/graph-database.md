@@ -23,12 +23,12 @@ public sealed partial class GraphDatabase : DatabaseInstance
 The engine creates or opens this concrete type, replacing IGraphDatabase. Node, relationship and
 traversal operations retain an explicit GraphDatabaseSession argument and follow its transaction.
 GetNodeAsync returns null for an absent node. GraphNode and GraphRelationship carry typed identities
-and scalar properties. A foreign session raises DatabaseException with COHDBG005; an aborted
-transaction uses COHDBG007. Disposed databases throw ObjectDisposedException; offline databases
-throw DatabaseOfflineException (COHDBG012). Cancellation throws OperationCanceledException.
+and scalar properties. A foreign session raises DatabaseException with CG07005; an aborted
+transaction uses CG04007. Disposed databases throw ObjectDisposedException; offline databases
+throw DatabaseOfflineException (CG06012). Cancellation throws OperationCanceledException.
 
 Direct lifetime guards retain ObjectDisposedException. Disposal inside admitted execution becomes
-DatabaseException with structured COHDBG019. Aborted-transaction refusals carry COHDBG007 in
+DatabaseException with structured CG09019. Aborted-transaction refusals carry CG04007 in
 Diagnostics with an unprefixed message and the original cause; roll back before continuing.
 CreateNodeAsync rejects a null label list and null/empty/whitespace label names before admission;
 CreateRelationshipAsync similarly validates its type. These ArgumentException/ArgumentNullException

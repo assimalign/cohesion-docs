@@ -304,23 +304,23 @@ as the `Internal` error (and closes the session), which is the pre-existing beha
 
 Engine codes are carried in Diagnostics. Translation searches inner exceptions and every
 aggregate branch, preserves specific diagnoses and gives corruption precedence over ordinary
-I/O. Attached-index damage uses DatabaseCorruptionException with COHDBS003, COHDBI002 and
+I/O. Attached-index damage uses DatabaseCorruptionException with CK06003, CK06102 and
 the model code, retaining the index cause and page. The public Create overload accepts
 IndexCorruptionException; see [signatures and example](database-corruption-exception.md).
 Storage-failure/corruption embedded messages are ordinary explanatory text; wire writers add a
-missing prefix. SQL/Key-Value Pair/Graph aborted-transaction refusals carry COHSQLT005, COHDBK001
-and COHDBG007 in Diagnostics with ordinary unprefixed Message text and the original cause.
+missing prefix. SQL/Key-Value Pair/Graph aborted-transaction refusals carry CS04005, CV04101
+and CG04007 in Diagnostics with ordinary unprefixed Message text and the original cause.
 Inspect Diagnostics for codes. See the [model mapping](../../../../database/overview.md#engine-failure-diagnostics).
 
 [DatabaseTransactionAbortedException](database-transaction-aborted-exception.md) accepts the same
 copied, ordered diagnostic sequence as DatabaseException. Graph catalog snapshot conflicts use
-it to preserve their retryable abort kind while attaching COHDBG007; deterministic caller errors
-use DatabaseException/COHDBG003. The wire formats the code once.
+it to preserve their retryable abort kind while attaching CG04007; deterministic caller errors
+use DatabaseException/CG03003. The wire formats the code once.
 
 ## Lifecycle pattern
 
 Storage integrity failures are translated to
-[DatabaseCorruptionException](database-corruption-exception.md) / COHDBS003 at engine boundaries.
+[DatabaseCorruptionException](database-corruption-exception.md) / CK06003 at engine boundaries.
 The exception names the database and optional page and retains the storage cause. Root create/open
 also translate coded and aggregate wrappers after model cleanup, preserving model diagnostics.
 The same integrity translation applies to read/statement and transaction operations. Wire execution

@@ -14,12 +14,12 @@ ROLLBACK [ WORK | TRANSACTION ] [ ; ]
 
 `WORK` and `TRANSACTION` are optional equivalent suffixes on ROLLBACK.
 Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
-Malformed suffixes report `SQL0003` before transaction state changes.
+Malformed suffixes report `CS00003` before transaction state changes.
 
 ## Remarks
 
 Rollback clears the session's active scope and undoes its row changes. Calling `ROLLBACK`
-without an active transaction reports `COHSQLT002`. Disconnect also aborts an open transaction.
+without an active transaction reports `CS04002`. Disconnect also aborts an open transaction.
 
 Only an enrolled writer appends an abort record, after undo, without waiting for that record's
 durability. Read-only rollback or disposal appends no lifecycle record and waits for no flush;
@@ -29,7 +29,7 @@ Like [COMMIT](commit-transaction.md), rollback observes caller cancellation only
 starts. Cancellation observed then leaves the transaction active and usable. A started rollback
 ignores caller cancellation and completes its end.
 
-`ROLLBACK TO` is not implemented. It produces `SQL0003` rather than silently rolling back the
+`ROLLBACK TO` is not implemented. It produces `CS00003` rather than silently rolling back the
 whole transaction. A rejected transaction-control statement leaves the active scope intact.
 Completed DDL is self-committing and cannot be undone by a later rollback.
 

@@ -42,9 +42,9 @@ Internal. These paths discard the connector and release its rental/pool slot. Se
 
 ```csharp
 var failure = new DatabaseClientException(ProtocolErrorCode.ExecutionFailure, "Rejected", [
-    new ProtocolDiagnostic(ProtocolDiagnosticSeverity.Error, "COHSQLE015", "Unknown column", 7, 8, 1)
+    new ProtocolDiagnostic(ProtocolDiagnosticSeverity.Error, "CS01015", "Unknown column", 7, 8, 1)
 ], null);
-Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE015
+Console.WriteLine(failure.Diagnostics[0].Code); // CS01015
 ```
 
 ## Related reference

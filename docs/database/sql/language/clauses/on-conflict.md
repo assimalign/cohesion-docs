@@ -32,7 +32,7 @@ Leading WITH and materialized SELECT/set-operation sources use the same conflict
   whether that update occurs; FALSE or UNKNOWN skips it.
 
 WHERE requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
-condition fails planning with COHSQLE003 (42804), before a conflicting row is needed. NULL is
+condition fails planning with CS02003 (42804), before a conflicting row is needed. NULL is
 UNKNOWN and skips the update.
 
 ## Remarks
@@ -45,10 +45,10 @@ an explicit target still fails ordinary unique enforcement.
 DO UPDATE SET/WHERE sees the original target row and `EXCLUDED`, the proposed stored row after
 coercion, defaults and identity allocation. Qualify target references by its alias or, without an
 alias, its table name. An alias hides the table name. Unqualified columns common to both relations
-are ambiguous (`COHSQLE015`); a target named or aliased excluded also makes that qualifier ambiguous
+are ambiguous (`CS01015`); a target named or aliased excluded also makes that qualifier ambiguous
 in the conflict action. Every SET expression reads the original target and proposal, rather than
 earlier assignments. SET c = DEFAULT uses ordinary UPDATE defaults. ALWAYS identity assignments
-retain `COHSQLE025`.
+retain `CS03025`.
 
 Defaults and conflict projections run in proposal source order. Identity allocations are consumed
 even for skipped proposals. For example, a BY DEFAULT identity proposal allocating 2 followed by
@@ -62,7 +62,7 @@ replacements govern self-references: a key may move with its reference, while a 
 cannot authorize a dangling child. See [foreign-key enforcement](../constraints.md).
 
 DO NOTHING discards duplicate proposed arbiter keys. DO UPDATE cannot affect a row twice in one
-statement (`COHSQLE036`), whether the first effect inserted or updated it. Rekeying releases an old
+statement (`CS05036`), whether the first effect inserted or updated it. Rekeying releases an old
 arbiter key in pending source-order state, allowing a later proposal to insert that released key.
 A false/UNKNOWN filter locks the existing row but does not mark it affected.
 
@@ -70,7 +70,7 @@ All row/index writes and RETURNING evaluations share one atomic statement bracke
 back the entire statement, preserving earlier successful statements in an explicit transaction.
 RETURNING emits inserted and post-update rows in source order; skipped proposals emit no rows.
 AffectedCount is inserted plus updated rows, excluding skips. EXCLUDED is outside RETURNING scope
-and EXCLUDED.column there uses `COHDBL001`; a real target named or aliased excluded can still use
+and EXCLUDED.column there uses `CK00001`; a real target named or aliased excluded can still use
 that qualifier for its target columns.
 
 ## Isolation, locking and retries
@@ -126,7 +126,7 @@ physical apply gate.
 
 Any failure before apply begins releases grants acquired since the original statement mark,
 including retained wait rows and arbiter keys. This includes cancellation, CHECK/NOT NULL failures,
-COHSQLE036 and an unhandled deadlock; earlier transaction grants and their upgrades remain held.
+CS05036 and an unhandled deadlock; earlier transaction grants and their upgrades remain held.
 Once apply begins, this cleanup no longer runs, even if apply fails; transaction-duration locking
 applies. The [LockManager API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/lock-manager.md)
 documents MarkStatement, ReleaseSince and LockStatementMark.
@@ -139,7 +139,7 @@ including earlier statements. Consistent input ordering reduces this residual ex
 
 If unique-index DDL creates, drops or replaces indexes while the statement waits for its table
 intent lock, it aborts retryably before default/identity allocation. Re-execution binds current
-indexes; a dropped explicit arbiter may then produce COHSQLE035. A live index entry pointing at
+indexes; a dropped explicit arbiter may then produce CS03035. A live index entry pointing at
 a missing/undecodable heap row is storage corruption, not a serialization retry.
 
 SQL BEGIN has no isolation-level clause. In-process callers select ReadCommitted through
@@ -154,28 +154,28 @@ Only rows and index keys that become writes receive [size validation](../diagnos
 DO NOTHING may discard an oversized proposal. DO UPDATE may replace an oversized proposed row
 or non-arbiter UNIQUE key with fitting values. Its final inserted/replacement row and every write
 key must fit. NOT NULL/domain/CHECK validation of proposals still precedes arbitration.
-An oversized final write reports `COHSQLE042` / SQLSTATE 54000 before apply, preserving all rows,
+An oversized final write reports `CS05042` / SQLSTATE 54000 before apply, preserving all rows,
 earlier transaction work and locks. New key and row grants from the failed statement are released,
 including a row retained after waiting.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE003 | Non-Boolean DO UPDATE WHERE condition or logical operand | 42804 |
-| COHSQLE042 | Final encoded row or write index key exceeds its size limit | 54000 |
-| COHSQLE035 | No matching unique index, unknown/nonunique constraint target, legacy primary key without an index, or DO UPDATE without a target; fails planning | 42P10 |
-| COHSQLE036 | A DO UPDATE proposal would affect a row already inserted or updated by this statement | 21000 |
-| COHSQLE037 | Unique/primary-key or unique-index violation outside the handled conflict, including DO UPDATE violating a second unique index | 23505 |
-| COHSQLE038 | A proposed or updated row fails a CHECK/domain check; proposed checks run even for DO NOTHING | 23514 |
-| COHSQLE039 | An inserted/updated row lacks a parent, or a referenced parent key would be removed | 23503 |
-| COHSQLE024 | A proposed or updated row violates NOT NULL | 23502 |
-| COHSQLE015 | Unknown/hidden qualifier or ambiguous target/EXCLUDED column | — |
-| COHSQLE019 | Duplicate whole-column SET targets, rejected before writes | — |
-| COHSQLE017 | Aggregate in conflict SET/WHERE | — |
-| COHDBL001 | Expression/COLLATE/order/operator-class/partial-WHERE inference, DO SELECT, subqueries in conflict SET/WHERE, or EXCLUDED pseudo-relation in RETURNING | — |
-| COHDBL001 | MySQL ON DUPLICATE KEY UPDATE or SQLite INSERT OR IGNORE/REPLACE; message suggests ON CONFLICT | — |
+| CS02003 | Non-Boolean DO UPDATE WHERE condition or logical operand | 42804 |
+| CS05042 | Final encoded row or write index key exceeds its size limit | 54000 |
+| CS03035 | No matching unique index, unknown/nonunique constraint target, legacy primary key without an index, or DO UPDATE without a target; fails planning | 42P10 |
+| CS05036 | A DO UPDATE proposal would affect a row already inserted or updated by this statement | 21000 |
+| CS03037 | Unique/primary-key or unique-index violation outside the handled conflict, including DO UPDATE violating a second unique index | 23505 |
+| CS03038 | A proposed or updated row fails a CHECK/domain check; proposed checks run even for DO NOTHING | 23514 |
+| CS03039 | An inserted/updated row lacks a parent, or a referenced parent key would be removed | 23503 |
+| CS03024 | A proposed or updated row violates NOT NULL | 23502 |
+| CS01015 | Unknown/hidden qualifier or ambiguous target/EXCLUDED column | — |
+| CS01019 | Duplicate whole-column SET targets, rejected before writes | — |
+| CS05017 | Aggregate in conflict SET/WHERE | — |
+| CK00001 | Expression/COLLATE/order/operator-class/partial-WHERE inference, DO SELECT, subqueries in conflict SET/WHERE, or EXCLUDED pseudo-relation in RETURNING | — |
+| CK00001 | MySQL ON DUPLICATE KEY UPDATE or SQLite INSERT OR IGNORE/REPLACE; message suggests ON CONFLICT | — |
 
 Each constraint exception carries exactly one Error diagnostic, naming the constraint and table
-without key values. Ordinary expression and identity diagnostics retain their codes. MERGE remains SQL0002.
+without key values. Ordinary expression and identity diagnostics retain their codes. MERGE remains CS00002.
 Execution failures cross the wire as ExecutionFailure; capability refusals use ParseFailure.
 Completed failures leave the connection usable. The client does not retry transactions automatically.
 
@@ -205,7 +205,7 @@ INSERT INTO t VALUES (1, 40) ON CONFLICT DO NOTHING RETURNING *;
 ```
 
 The first conflict statement returns `(1, 20)`, `(2, 30)` with count 2. DO NOTHING returns no
-rows and count 0. Repeating `(1, 30), (1, 40)` with DO UPDATE instead reports COHSQLE036 and
+rows and count 0. Repeating `(1, 30), (1, 40)` with DO UPDATE instead reports CS05036 and
 leaves the stored rows unchanged.
 
 ```sql

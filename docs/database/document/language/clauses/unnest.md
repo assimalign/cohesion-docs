@@ -40,11 +40,11 @@ adds Unnest/LeftUnnest nodes with each variable name.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| OQL0010 | Repeated FROM/UNNEST binding name, including the reserved unaliased collection name; located at the repeated/inferred path name |
-| COHDOC023 | Direct SELECT AST repeats a binding name or supplies an empty UNNEST name |
-| OQL0002 | Expression has no inferable path name and no alias |
-| COHDOC001 | META(variable) on an UNNEST variable, or aggregate in the array expression |
-| COHDBL001 | UNNEST clause in UPDATE/DELETE; JOIN, NEST, WITHIN or FLATTEN calls |
+| CD00010 | Repeated FROM/UNNEST binding name, including the reserved unaliased collection name; located at the repeated/inferred path name |
+| CD01023 | Direct SELECT AST repeats a binding name or supplies an empty UNNEST name |
+| CD00002 | Expression has no inferable path name and no alias |
+| CD05001 | META(variable) on an UNNEST variable, or aggregate in the array expression |
+| CK00001 | UNNEST clause in UPDATE/DELETE; JOIN, NEST, WITHIN or FLATTEN calls |
 
 These codes have no assigned SQLSTATE. Quantifiers may shadow outer bindings.
 

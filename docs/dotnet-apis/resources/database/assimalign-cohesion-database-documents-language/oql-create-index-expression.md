@@ -28,12 +28,12 @@ public sealed class OqlCreateIndexExpression : OqlExpression
 The single-path constructor supplies false for both flags. Paths is a read-only copy and Path
 returns Paths[0]. A null list throws ArgumentNullException. Construction does not validate its
 count; Path on an empty list throws ArgumentOutOfRangeException. Planning refuses a count outside
-1..32 with DatabaseException/COHDOC022 and duplicate paths with COHDOC001. Text uses OQL0009
-at the 33rd key and OQL0002 for duplicates. Neither count code has an assigned SQLSTATE.
+1..32 with DatabaseException/CD03022 and duplicate paths with CD05001. Text uses CD00009
+at the 33rd key and CD00002 for duplicates. Neither count code has an assigned SQLSTATE.
 
 IfNotExists preserves any existing same-named definition. Build/write UNIQUE failures use
 [DocumentConstraintViolationException](../assimalign-cohesion-database-documents/document-constraint-violation-exception.md),
-COHDOC020 (23505) or COHDOC021. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md)
+CD03020 (23505) or CD02021. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md)
 for ownership, format and NULL/MISSING rules.
 
 ## Example

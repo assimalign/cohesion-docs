@@ -77,7 +77,7 @@ try
 }
 catch (SqlClientException failure)
 {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE045
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS05045
     Console.WriteLine(failure.ConnectionUsable);    // True
 }
 var remaining = await connection.QueryAsync("SELECT COUNT(*) FROM result_sizes");

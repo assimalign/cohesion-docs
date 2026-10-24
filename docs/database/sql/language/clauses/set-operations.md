@@ -64,13 +64,13 @@ results materialize in memory, with no spilling or streaming guarantee.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE013 | Different column counts; names both counts | — |
-| COHSQLE003 | No common type; names one-based output position and both types | 42804 |
-| COHSQLE022 | Invalid unknown-literal conversion text | 22P02 |
-| COHSQLE018 | Combined ordering uses an expression, qualified/missing name or invalid ordinal; also invalid paging counts | — |
-| COHSQLE019 | Ambiguous combined output name | — |
-| SQL0003 | Operand tail appears before another operator without parentheses | — |
-| COHDBL001 | CORRESPONDING, including BY forms | — |
+| CS05013 | Different column counts; names both counts | — |
+| CS02003 | No common type; names one-based output position and both types | 42804 |
+| CS02022 | Invalid unknown-literal conversion text | 22P02 |
+| CS02018 | Combined ordering uses an expression, qualified/missing name or invalid ordinal; also invalid paging counts | — |
+| CS01019 | Ambiguous combined output name | — |
+| CS00003 | Operand tail appears before another operator without parentheses | — |
+| CK00001 | CORRESPONDING, including BY forms | — |
 
 Nested/recursive WITH and LATERAL retain their existing exclusions. See [Diagnostics](../diagnostics.md).
 

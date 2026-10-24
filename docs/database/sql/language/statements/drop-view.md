@@ -25,9 +25,9 @@ its tables or views.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLD002 | RESTRICT finds a dependent view; message names it | 2BP01 |
-| COHSQLE033 | Target is absent without IF EXISTS, or is a table even with IF EXISTS | — |
-| COHSQLT003 | DDL inside an explicit transaction | — |
+| CS03302 | RESTRICT finds a dependent view; message names it | 2BP01 |
+| CS03033 | Target is absent without IF EXISTS, or is a table even with IF EXISTS | — |
+| CS04003 | DDL inside an explicit transaction | — |
 
 ## Example
 
@@ -42,7 +42,7 @@ DROP VIEW IF EXISTS w;
 ```
 
 SELECT still returns 7. Both views are absent; the final DROP succeeds without a change.
-Replacing CASCADE with RESTRICT reports COHSQLD002 and preserves both views.
+Replacing CASCADE with RESTRICT reports CS03302 and preserves both views.
 
 ## See also
 

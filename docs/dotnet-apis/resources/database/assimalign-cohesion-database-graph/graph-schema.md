@@ -22,14 +22,14 @@ public sealed class GraphSchema
   and property changes, and node-property index creation. It rejects foreign sessions.
 
 Null arguments throw ArgumentNullException; a disposed database throws ObjectDisposedException.
-A foreign session raises DatabaseException with COHDBG005. Operations follow the bound session's
-transaction; an aborted transaction refuses work with COHDBG007 until rollback.
+A foreign session raises DatabaseException with CG07005. Operations follow the bound session's
+transaction; an aborted transaction refuses work with CG04007 until rollback.
 
-Catalog snapshot changes raise DatabaseTransactionAbortedException with structured COHDBG007.
-Deterministic identity/name/owner/index-target errors raise DatabaseException with COHDBG003,
-and malformed catalog records use COHDBG006. Metadata records over 8,092 encoded bytes, including
-names and owning schema, use COHDBG009. These engine exceptions retain ordinary unprefixed
-messages and their original cause. Disposal during an admitted operation uses COHDBG019;
+Catalog snapshot changes raise DatabaseTransactionAbortedException with structured CG04007.
+Deterministic identity/name/owner/index-target errors raise DatabaseException with CG03003,
+and malformed catalog records use CG06006. Metadata records over 8,092 encoded bytes, including
+names and owning schema, use CG02009. These engine exceptions retain ordinary unprefixed
+messages and their original cause. Disposal during an admitted operation uses CG09019;
 the direct Open/lifetime guard retains ObjectDisposedException. See [diagnostics](../../../../database/graph/language/diagnostics.md).
 
 ## Example

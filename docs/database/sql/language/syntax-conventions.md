@@ -18,7 +18,7 @@ appear in support matrices and [Unsupported syntax](unsupported.md), never as ex
 | `{ }` | Required choice of one alternative; do not type the braces |
 | `[ , ...n ]` | Repeat the preceding item up to n times, comma-separated |
 | `[ ...n ]` | Repeat the preceding item up to n times, separated by spaces |
-| `;` | Optional statement terminator; omission reports informational `SQL0100` |
+| `;` | Optional statement terminator; omission reports informational `CS00100` |
 | `<label> ::=` | Definition of a syntax block referenced elsewhere as `<label>` |
 
 Parentheses in diagrams are literal SQL punctuation. Angle brackets name reusable grammar blocks;
@@ -43,7 +43,7 @@ supported statement shape.
 
 Double quotes delimit [identifiers](expressions/literals.md); double an embedded quote:
 `"a""b"` names `a"b`. Adjacent quoted text without whitespace forms one identifier.
-An escaped final quote without its closing delimiter reports `SQL0003`.
+An escaped final quote without its closing delimiter reports `CS00003`.
 
 Submit one statement per SQL execute request. When a code block contains multiple statements,
 execute them as successive requests on the same session. Transaction examples require the same
@@ -61,8 +61,8 @@ parser tree.
 | --- | --- |
 | Supported | The stated feature is in the declared executable contract |
 | Supported (measured) | The bounded feature has live-engine execution evidence |
-| Recognized, not supported (`COHDBL001`) | A known clause or form is capability-gated |
-| Not in the dialect (`SQL0002`) | An unknown leading command |
+| Recognized, not supported (`CK00001`) | A known clause or form is capability-gated |
+| Not in the dialect (`CS00002`) | An unknown leading command |
 
 The current dialect contract defines support through measured live execution, including correct
 results, mutations, and intended semantic errors. These labels never imply complete ISO SQL support.

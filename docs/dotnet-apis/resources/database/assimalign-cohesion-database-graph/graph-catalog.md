@@ -38,7 +38,7 @@ keeps old-snapshot lookup and never returns that replacement for the old GUID.
 
 Null snapshots throw ArgumentNullException; malformed records throw GraphCatalogException.
 Save methods refuse an encoded metadata record above 8,092 bytes with GraphElementTooLargeException
-before physical apply. Engine/GraphSchema calls translate that size failure to COHDBG009 and catalog
+before physical apply. Engine/GraphSchema calls translate that size failure to CG02009 and catalog
 failures as described in [GraphCatalogException](graph-catalog-exception.md).
 
 ## Example

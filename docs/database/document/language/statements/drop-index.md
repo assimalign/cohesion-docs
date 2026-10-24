@@ -37,7 +37,7 @@ execution returns a command `DatabaseResult` with `Success` and an affected coun
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHDOC025 | Index does not exist and IF EXISTS was omitted | — |
+| CD01025 | Index does not exist and IF EXISTS was omitted | — |
 
 The engine raises DatabaseException with the code in Diagnostics and the original
 DocumentCatalogException. A failure aborts an explicit transaction; roll it back before reuse.
@@ -53,7 +53,7 @@ DROP INDEX IF EXISTS ix_postal ON people
 
 Success has zero affected documents, whether the index existed or not.
 With an existing `people` collection and no `ix_postal`, `DROP INDEX ix_postal ON people`
-fails COHDOC025. Adding IF EXISTS returns Success and zero affected documents.
+fails CD01025. Adding IF EXISTS returns Success and zero affected documents.
 
 ## See also
 

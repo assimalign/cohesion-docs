@@ -15,9 +15,9 @@ public sealed class GqlParameterExpression : GqlExpression
 ## Behavior and exceptions
 
 Name is the bare, case-sensitive parameter name. WHERE/RETURN retain runtime scalar, list and map
-types; stored pattern properties remain scalar-only. Missing bindings fail COHDBG001, normalized collisions COHDBG014, unsupported/non-finite
-values COHDBG003 during planning. This constructor retains its inputs; malformed query reference
-syntax is GQL0002.
+types; stored pattern properties remain scalar-only. Missing bindings fail CG05001, normalized collisions CG01014, unsupported/non-finite
+values CG03003 during planning. This constructor retains its inputs; malformed query reference
+syntax is CG00002.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics
 before execution. Constructor acceptance alone does not establish a valid executable AST.

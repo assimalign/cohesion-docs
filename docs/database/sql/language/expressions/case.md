@@ -32,7 +32,7 @@ Simple form chooses the first equal non-null comparison. Searched form chooses t
 evaluating to `TRUE`. An unmatched expression returns its `ELSE` value, or `NULL` when no
 `ELSE` exists. Branches remain limited to the executable scalar subset.
 
-Searched WHEN conditions require BOOLEAN; non-Boolean conditions use COHSQLE003 (42804),
+Searched WHEN conditions require BOOLEAN; non-Boolean conditions use CS02003 (42804),
 including an unreachable WHEN. Untyped NULL is UNKNOWN and selects no arm. Valid Boolean
 input string literals are accepted; text columns and parameters keep their types. Simple CASE
 compares values and does not require Boolean WHEN values.
@@ -68,7 +68,7 @@ SELECT CASE WHEN NULL THEN 1 END, CASE 1 WHEN 1 THEN 2 END;
 ```
 
 The single row is `(NULL, 2)`. `SELECT CASE WHEN 1 THEN 2 END` and
-`SELECT 1 WHERE CASE WHEN TRUE THEN TRUE ELSE 1 END` each fail COHSQLE003 (42804).
+`SELECT 1 WHERE CASE WHEN TRUE THEN TRUE ELSE 1 END` each fail CS02003 (42804).
 
 ## See also
 

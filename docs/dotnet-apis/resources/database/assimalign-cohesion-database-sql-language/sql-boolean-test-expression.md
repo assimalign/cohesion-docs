@@ -23,9 +23,9 @@ include the operand. Execution accepts BOOLEAN or NULL and returns a non-NULL BO
 IS UNKNOWN is true only for NULL. SQL has no MISSING scalar.
 
 Properties add no validation exceptions. Parse returns diagnostics; request/session factories
-reject malformed text with DatabaseParseException. Missing/invalid truth keywords use SQL0003.
+reject malformed text with DatabaseParseException. Missing/invalid truth keywords use CS00003.
 A known non-Boolean operand, including a supplied parameter, fails binding with
-DatabaseException/COHSQLE003 (42804) before reading even an empty input.
+DatabaseException/CS02003 (42804) before reading even an empty input.
 See the [six-test truth table](../../../../database/sql/language/expressions/operators.md#boolean-tests).
 
 ## Example

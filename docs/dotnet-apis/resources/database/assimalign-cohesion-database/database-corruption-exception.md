@@ -27,29 +27,29 @@ IndexCorruptionException is in `Assimalign.Cohesion.Database.Indexing`.
 
 There is no public constructor. Create retains cause as InnerException, copies its optional PageId
 and names the database and, when known, the page in Message. The message advises restoration from
-a verified backup. Code is always `COHDBS003`; SQL and Key-Value Pair map it to SQLSTATE XX001.
+a verified backup. Code is always `CK06003`; SQL and Key-Value Pair map it to SQLSTATE XX001.
 The embedded Message has ordinary explanatory text; wire writers add the diagnostic prefix.
 Diagnostics contains an
 Error with this code plus supplied additional diagnostics, using DatabaseException's snapshot and
 location ordering. Create throws ArgumentException for an empty database name and
 ArgumentNullException for a null cause.
 
-The index overload retains the IndexCorruptionException and its page, and adds COHDBI002
-before supplied model diagnostics. Thus attached-index corruption produces COHDBS003,
-COHDBI002 and the model code: COHSQLE041 (SQL), COHDBK005 (Key-Value Pair), COHDBD005
-(Documents), COHDBG006 (Graph) or COHDBB006 (Blob). COHDBI002 has no assigned SQLSTATE here.
+The index overload retains the IndexCorruptionException and its page, and adds CK06102
+before supplied model diagnostics. Thus attached-index corruption produces CK06003,
+CK06102 and the model code: CS06041 (SQL), CV06105 (Key-Value Pair), CD06105
+(Documents), CG06006 (Graph) or CB06006 (Blob). CK06102 has no assigned SQLSTATE here.
 
 SQL, Key-Value Pair, Documents, Graph and Blob translate detected storage corruption on reads,
 statements and transaction operations. Root create/open lifecycle translation also finds corruption
 inside coded wrappers and aggregate branches after model cleanup, for synchronous and deferred
 failures. An existing DatabaseCorruptionException is retained. Lifecycle translation preserves
-existing model diagnostics and removes a duplicate common code before adding COHDBS003.
-Graph, Documents and Blob refused opens also retain COHDBG018, COHDBD003 and COHDBB004,
-respectively; Graph record-format refusal retains COHDBG017 too.
+existing model diagnostics and removes a duplicate common code before adding CK06003.
+Graph, Documents and Blob refused opens also retain CG06018, CD06103 and CB06004,
+respectively; Graph record-format refusal retains CG06017 too.
 
 A damaged read fails instead of returning an absent row, key, document, node or blob. Legitimately
 reclaimed records keep their absence behavior. Remote callers catch their model client exception;
-the existing execution-failure path carries COHDBS003, with structured diagnostics where supported.
+the existing execution-failure path carries CK06003, with structured diagnostics where supported.
 
 ## Example
 
@@ -62,7 +62,7 @@ using Assimalign.Cohesion.Database.Storage;
 
 var cause = new StorageCorruptionException((PageId)9L, "Page 9 failed checksum verification.");
 var failure = DatabaseCorruptionException.Create("broken", cause);
-Console.WriteLine(failure.Code); // COHDBS003
+Console.WriteLine(failure.Code); // CK06003
 Console.WriteLine(failure.Database); // broken
 Console.WriteLine((long)failure.PageId!.Value); // 9
 Console.WriteLine(ReferenceEquals(failure.InnerException, cause)); // True
@@ -73,8 +73,8 @@ The model IndexFailureTranslationTests use the same attached-index cause and pag
 ```csharp
 var indexCause = new IndexCorruptionException("index", 42, 0);
 var indexFailure = DatabaseCorruptionException.Create("broken", indexCause);
-Console.WriteLine(indexFailure.Diagnostics[0].Code); // COHDBS003
-Console.WriteLine(indexFailure.Diagnostics[1].Code); // COHDBI002
+Console.WriteLine(indexFailure.Diagnostics[0].Code); // CK06003
+Console.WriteLine(indexFailure.Diagnostics[1].Code); // CK06102
 Console.WriteLine((long)indexFailure.PageId!.Value); // 42
 Console.WriteLine(ReferenceEquals(indexFailure.InnerException, indexCause)); // True
 ```

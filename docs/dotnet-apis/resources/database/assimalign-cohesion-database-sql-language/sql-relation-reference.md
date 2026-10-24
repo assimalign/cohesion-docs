@@ -28,7 +28,7 @@ before reading Query/Columns. Alias is inherited; it is required for a derived q
 for a named table. An explicit alias hides the underlying name in binding.
 
 Accessors have no validation exceptions. Parser failures remain statement diagnostics; the engine
-rejects unknown/hidden columns with `COHSQLE015` and duplicate relation bindings with `COHSQLE019`.
+rejects unknown/hidden columns with `CS01015` and duplicate relation bindings with `CS01019`.
 
 ## Example
 

@@ -20,8 +20,8 @@ public sealed class OqlUnnestExpression : OqlExpression
 Collection evaluates in the preceding binding scope. IsLeft preserves empty/non-array input
 with a MISSING variable; false emits only array elements. Actual null elements remain NULL.
 The constructor retains arguments without validation or evaluation. The engine rejects duplicate
-or empty UNNEST names with DatabaseException/COHDOC023; parsed duplicates use OQL0010.
-Invalid META/aggregate use gives COHDOC001. These codes have no assigned SQLSTATE.
+or empty UNNEST names with DatabaseException/CD01023; parsed duplicates use CD00010.
+Invalid META/aggregate use gives CD05001. These codes have no assigned SQLSTATE.
 
 ## Example
 

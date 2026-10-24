@@ -96,7 +96,7 @@ enum values, invalid lengths, malformed UTF-8, and trailing bytes are rejected w
 Encoding validates the complete UTF-8 record against the 8,092-byte SlottedPage.MaxRecordSize
 before physical apply. Names, owning schema and index property text all count, including headers
 and lengths; this is not a character-count limit. Exact fit is accepted. Overflow throws
-GraphElementTooLargeException at the catalog and becomes structured COHDBG009 through the engine.
+GraphElementTooLargeException at the catalog and becomes structured CG02009 through the engine.
 
 ## MVCC, mutation, and recovery
 
@@ -129,9 +129,9 @@ change is involved. This is a metadata directory; traversal uses graph adjacency
 disposal and flushing remain owned by the engine and its shared storage/coordinator.
 
 Through engine operations, snapshot-changed definitions become DatabaseTransactionAbortedException
-with COHDBG007 and the catalog cause. Deterministic identity reuse/rename, name/identity mismatch,
-index retargeting or missing owner becomes DatabaseException with COHDBG003. Malformed records
-use COHDBG006. Direct catalog calls retain GraphCatalogException; see
+with CG04007 and the catalog cause. Deterministic identity reuse/rename, name/identity mismatch,
+index retargeting or missing owner becomes DatabaseException with CG03003. Malformed records
+use CG06006. Direct catalog calls retain GraphCatalogException; see
 [exception boundaries](graph-catalog-exception.md).
 
 ## Scope

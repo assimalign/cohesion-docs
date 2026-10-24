@@ -23,9 +23,9 @@ public sealed class OqlInsertExpression : OqlExpression
 
 Retains Collection, optional Alias, ordered Values pairs, or Select plus KeyName/ValueName. Names
 bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object.
-Planning rejects invalid contexts with COHDOC001. Execution requires nonblank string keys and JSON
-values (COHDOC008), exact numbers (COHDOC007/22003), and no visible duplicate key
-(DocumentDuplicateKeyException/COHDOC012).
+Planning rejects invalid contexts with CD05001. Execution requires nonblank string keys and JSON
+values (CD02008), exact numbers (CD02007/22003), and no visible duplicate key
+(DocumentDuplicateKeyException/CD03012).
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are
 read-only snapshots. Always inspect statement diagnostics before planning; execution performs
@@ -41,7 +41,7 @@ Console.WriteLine(node.Values.Count); // 1
 ```
 
 [OqlUpsertExpression](oql-upsert-expression.md) has the same input members with replacement
-semantics. Repeated keys in either statement use COHDOC012 with their own message.
+semantics. Repeated keys in either statement use CD03012 with their own message.
 
 ## Related reference
 

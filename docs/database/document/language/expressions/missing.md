@@ -56,7 +56,7 @@ states. The tables below use T/F/N/M for TRUE/FALSE/NULL/MISSING.
 | M | T | M | N | M |
 
 NOT maps T/F/N/M to F/T/N/M. WHERE and HAVING retain only converted TRUE. NIL is a NULL synonym;
-UNDEFINED is reserved and reports `COHDBL001`, as do deferred IS KNOWN and IS UNKNOWN forms.
+UNDEFINED is reserved and reports `CK00001`, as do deferred IS KNOWN and IS UNKNOWN forms.
 
 ## Examples
 

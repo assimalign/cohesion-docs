@@ -41,8 +41,8 @@ non-null, read-only Diagnostics. Catch this client exception for remote failures
 ## Value completion
 
 Graph catalog/storage failures and execution-resource disposal report terminal ExecutionFailure;
-the authenticated session remains ready. COHDBG019 identifies disposal, COHDBG006 a malformed
-catalog record or ordinary index/storage failure, and COHDBG007 a catalog snapshot conflict or
+the authenticated session remains ready. CG09019 identifies disposal, CG06006 a malformed
+catalog record or ordinary index/storage failure, and CG04007 a catalog snapshot conflict or
 aborted explicit transaction. A disposed protocol transport instead faults/closes the session
 without a second error write. Successful autocommit retains success after ordinary cleanup
 failure, recorded by Graph Warning 13, StatementCleanupFailed; OutOfMemoryException propagates.
@@ -55,7 +55,7 @@ cancellation, or error after result output cannot certify completion.
 
 Rows require exactly the advertised number of column values. Negotiated marked columns use
 GraphValueCodec for composite/unsigned values; unmarked columns retain scalar tuple components. Columns preserve wire names
-and shared DatabaseType identities. The engine rejects duplicate final RETURN names with COHDBG015
+and shared DatabaseType identities. The engine rejects duplicate final RETURN names with CG01015
 before reads, mutation or output, including implicit/explicit collisions and EXPLAIN; no SQLSTATE
 is assigned. First-column lookup remains for manually constructed duplicate metadata.
 Scalar statements fully materialize before returning.
@@ -82,9 +82,9 @@ Limits are depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes pe
 16 MiB. Malformed components, flags, UTF-8, duplicate keys or exceeded wire bounds are protocol
 violations. Without agreement, composite parameters fail locally with GraphClientException /
 ExecutionFailure before a frame is sent and preserve reuse; invalid/oversized encoding throws
-DatabaseTypeException. Possible composite results use COHDBG016 before reads/writer locks/writes,
-including skipped arms and empty matches. Parameter validation uses COHDBG003; constructed values
-and row bounds fail COHDBG013 inside the statement transaction before commit. Statement writes
+DatabaseTypeException. Possible composite results use CG07016 before reads/writer locks/writes,
+including skipped arms and empty matches. Parameter validation uses CG03003; constructed values
+and row bounds fail CG02013 inside the statement transaction before commit. Statement writes
 roll back on a refused result. Stored property maps remain scalar-only. Path payloads are unchanged.
 
 ## Path lifetime
@@ -144,12 +144,12 @@ graph values. See [server phase counters](../assimalign-cohesion-database-graph/
 
 Query/Execute/QueryPaths accept scalar, list and map parameters under negotiated graph.composite-values. One leading sigil is stripped and
 bare names compare ordinally; runtime types survive the codec. Planner failures preserve
-COHDBG001/003/014. [GraphConnection](graph-connection.md) documents the changed signatures.
+CG05001/CG03003/CG01014. [GraphConnection](graph-connection.md) documents the changed signatures.
 
 QueryPathsAsync returns [GraphPathResult](graph-path-result.md), a single-use stream. Read its
 ProtocolDiagnostic list after EOF; scalar GraphResultSet exposes its list at return. Negotiated
 2.1 sends Warning/Error entries before completion or Error. Bounds are 4,096 entries and 1 MiB;
-COHDBP001 reports a dropped suffix while preserving the original outcome and session. Information
+CK07001 reports a dropped suffix while preserving the original outcome and session. Information
 is omitted; 2.0 retains baseline result/Error bytes. Malformed diagnostic ordering is fatal.
 
 ## Supported surface and limits
@@ -163,10 +163,10 @@ reduces writes per binding.
 
 ExecutePaths accepts exactly one bound path, node, or relationship projection from a read-only
 MATCH, including DISTINCT or star over one named binding. Computed, multiple and multi-binding
-star projections fail COHDBG001 before duplicate-name validation. A node becomes a singleton path; a relationship includes its stored-direction endpoints;
+star projections fail CG05001 before duplicate-name validation. A node becomes a singleton path; a relationship includes its stored-direction endpoints;
 a named path retains traversal order. Scalar or mixed projections and mutations are rejected,
 so no path is reconstructed from row results. Execute serves scalar/negotiated-composite rows and
-mutations. Its static result-kind gate rejects entity projections with COHDBG001 and directs callers
+mutations. Its static result-kind gate rejects entity projections with CG05001 and directs callers
 to ExecutePaths before data access, writer locks or mutation, even on empty matches.
 EXPLAIN descriptions remain scalar for entity RETURN.
 
@@ -210,23 +210,23 @@ framing, handshake and model messages are unchanged.
 
 [GQL aggregates](../../../../database/graph/language/functions/aggregate-functions.md) return Int64 counts,
 promoted numeric results and negotiated lists through QueryAsync. Decimal parameters/results keep
-scale in GraphValueCodec tag 7. Overflow uses COHDBG013 before ResultHeader and preserves a reusable
-authenticated session. Final aggregate QueryPathsAsync projections use COHDBG001; intermediate
+scale in GraphValueCodec tag 7. Overflow uses CG02013 before ResultHeader and preserves a reusable
+authenticated session. Final aggregate QueryPathsAsync projections use CG05001; intermediate
 WITH collect followed by UNWIND may produce a single mandatory entity/path final column.
 
 [Linear composition](../../../../database/graph/language/clauses/next.md) shares embedded stage
 semantics over InMemory/TCP without new frames. WITH WHERE filters after paging; carried COUNT
 columns remain Int64. Scalar final columns need no composite capability, possible list/map results
 require graph.composite-values, and entities use QueryPathsAsync. Final node/relationship lists
-remain COHDBG001 (#1662), even with that capability. A decoded composition refusal preserves
+remain CG05001 (#1662), even with that capability. A decoded composition refusal preserves
 the session. QueryPathsAsync accepts read-only composition only and refuses any write stage.
 
 ## Quantified paths
 
 QueryPathsAsync streams complete quantified trails through existing Path payloads, including
 zero-length matches. QueryAsync can project scalar values after group expansion. Possible
-composites without negotiation use COHDBG016; negotiated possibly nonempty entity lists use
-COHDBG001. A provably empty Max=0 group can project []. Malformed bounds retain parser diagnostics
+composites without negotiation use CG07016; negotiated possibly nonempty entity lists use
+CG05001. A provably empty Max=0 group can project []. Malformed bounds retain parser diagnostics
 and a reusable session. No capability or wire tag is added.
 
 ## Scalar functions and clock results
@@ -234,8 +234,8 @@ and a reusable session. No capability or wire tag is added.
 QueryAsync executes [core functions/CAST](../../../../database/graph/language/functions/scalar-functions.md)
 with the same signatures and NULL rules as embedded calls. DateOnly and DateTimeOffset results use
 existing value tags; labels/keys/properties use negotiated composite values. Dynamic failures use
-COHDBG013 before ResultHeader and preserve the pooled session. Unknown names retain GQL0010 and
-parsed arity GQL0002. Graph wire statements are autocommit, each with one transaction-start clock.
+CG02013 before ResultHeader and preserve the pooled session. Unknown names retain CG00010 and
+parsed arity CG00002. Graph wire statements are autocommit, each with one transaction-start clock.
 Computed entity results retain static Execute admission; scalar reads through entities are legal.
 
 ## Update counts

@@ -20,8 +20,8 @@ requires one output column; zero rows produces NULL, one row its value, and mult
 DatabaseException with the scalar-cardinality message (no dedicated diagnostic code).
 Correlated bodies execute in their outer statement context.
 The accessor adds no exceptions; invalid text becomes DatabaseParseException at the request/session
-boundary. Set width/type mismatches use COHSQLE013/COHSQLE003 (42804 for the latter). Nesting
-beyond 32 subquery levels uses COHDBL001. See [subquery diagnostics](../../../../database/sql/language/expressions/subqueries.md).
+boundary. Set width/type mismatches use CS05013/CS02003 (42804 for the latter). Nesting
+beyond 32 subquery levels uses CK00001. See [subquery diagnostics](../../../../database/sql/language/expressions/subqueries.md).
 
 ## Example
 

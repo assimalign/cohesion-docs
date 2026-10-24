@@ -32,7 +32,7 @@ and property reads introduce no validation exceptions.
 Input collation is resolved during planning: an explicit argument COLLATE, then a column's collation,
 then the database default. Implementations can observe the token during long work. A scalar's
 OperationCanceledException propagates as cancellation only when this context's token is canceled;
-otherwise it is a function failure, COHSQLE007 (38000). Ordinary implementation exceptions are
+otherwise it is a function failure, CS05007 (38000). Ordinary implementation exceptions are
 wrapped with that code, while DatabaseException propagates unchanged; stack and allocation failures
 retain their special handling.
 

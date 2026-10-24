@@ -18,7 +18,7 @@ ownership, and owning schema. `GraphPropertyKeyMetadata` declares optional value
 requiredness. `GraphIndexMetadata` names a node-property index.
 
 The complete UTF-8 metadata record must fit 8,092 bytes, including its property name, header and
-type facets. Overflow is GraphElementTooLargeException at the catalog and structured COHDBG009
+type facets. Overflow is GraphElementTooLargeException at the catalog and structured CG02009
 through GraphSchema/engine operations; exact fit is accepted. See [metadata limits](catalog-design.md#on-disk-format).
 
 ## Related reference

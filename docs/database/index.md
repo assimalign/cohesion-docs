@@ -1,5 +1,7 @@
 # Database
 
+- **[Error codes](error-codes.md)** — Runtime prefixes, categories and diagnostic carriers.
+
 Cohesion Database provides independent model engines over a shared durable storage and transaction kernel.
 
 > **Status:** Partial. SQL, Document, Graph, Key-Value Pair, and Blob execute; Cache is deferred.

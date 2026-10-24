@@ -38,10 +38,10 @@ shows resolved counts without reading documents.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `OQL0007` | Invalid count, at the full operand span; parse-time literals and plan-time parameters use the same clause-specific message |
-| `OQL0002` | Missing operand, duplicate clause (at its second keyword), arithmetic after a count, or ORDER BY after paging |
-| `COHDOC005` | Count parameter has no supplied value |
-| `COHDBL001` | `LIMIT m, n` (at LIMIT, before validating m), FETCH FIRST, or paging on UPDATE, DELETE or INSERT/UPSERT VALUES |
+| `CD00007` | Invalid count, at the full operand span; parse-time literals and plan-time parameters use the same clause-specific message |
+| `CD00002` | Missing operand, duplicate clause (at its second keyword), arithmetic after a count, or ORDER BY after paging |
+| `CD01005` | Count parameter has no supplied value |
+| `CK00001` | `LIMIT m, n` (at LIMIT, before validating m), FETCH FIRST, or paging on UPDATE, DELETE or INSERT/UPSERT VALUES |
 
 These codes have no assigned SQLSTATE. LIMIT/OFFSET are reserved words; quote a field name or
 use `d.limit`/`d.offset`. Projection labels after AS may still use them.

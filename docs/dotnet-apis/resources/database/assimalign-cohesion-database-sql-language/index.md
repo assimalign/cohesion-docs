@@ -86,7 +86,7 @@ alongside CASCADE/RESTRICT; omitted SQL actions are NO ACTION.
 - **Dialect contract** — DIALECT.md (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`) is the authoritative supported /
   recognized / rejected matrix. `SqlLanguageProfile.Instance` carries its lexical
   tables and implemented clause set; recognized clauses outside that set report
-  `COHDBL001` rather than an undifferentiated parse failure.
+  `CK00001` rather than an undifferentiated parse failure.
 - **Types and builtins** — `SqlTypeNames` resolves declared type names (with
   length/precision/scale) to `DatabaseType` identities; builtin function names are
   declared in the lexer tables and the dialect doc.

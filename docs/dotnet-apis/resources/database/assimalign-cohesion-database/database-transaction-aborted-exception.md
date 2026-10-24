@@ -28,7 +28,7 @@ places unlocated entries last. Diagnostics is read-only and never null; other co
 it empty. The Message stays as supplied, without adding a code prefix, and InnerException retains
 the supplied cause. A null diagnostics sequence throws ArgumentNullException.
 
-Graph catalog snapshot conflicts use this constructor to attach COHDBG007 while preserving the
+Graph catalog snapshot conflicts use this constructor to attach CG04007 while preserving the
 catalog cause and abort kind. A later refusal to use an already-aborted SQL, Key-Value or Graph
 transaction is a DatabaseException carrying its model code; it need not be this subtype.
 Remote failures use model client exceptions and ExecutionFailure wire responses.

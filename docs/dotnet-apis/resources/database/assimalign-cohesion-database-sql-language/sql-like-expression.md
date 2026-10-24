@@ -25,15 +25,15 @@ concatenations. Depth is one plus the maximum child depth, including Escape. The
 renderer retains explicit ESCAPE and conservative parentheses around concatenated operands.
 
 Properties add no validation exceptions. Parse returns diagnostics; request/session factories
-reject malformed text with DatabaseParseException. A missing ESCAPE operand uses SQL0003.
-Execution raises DatabaseException/COHSQLE034 (22025) for a multi-scalar escape or trailing
+reject malformed text with DatabaseParseException. A missing ESCAPE operand uses CS00003.
+Execution raises DatabaseException/CS02034 (22025) for a multi-scalar escape or trailing
 pattern escape. Fixed and supplied-parameter patterns validate during binding, including empty
 inputs and NULL matched values; dynamic operands validate on evaluation. Valid NULL operands
 give UNKNOWN. Wildcards consume original Unicode scalars under every collation. See
 [LIKE and ESCAPE](../../../../database/sql/language/expressions/operators.md#like-and-escape).
 
 Ordinary invariant matches use linear work in input length. Pathological invariant matching raises
-DatabaseException with located COHSQLE040 when its per-match work budget is exhausted; no SQLSTATE
+DatabaseException with located CS05040 when its per-match work budget is exhausted; no SQLSTATE
 is assigned. The linked language reference gives the exact budget and charging rules. LIKE and
 NOT LIKE both fail without a Boolean result. The executing statement token reaches row-time
 matching, including cached views and stored CHECKs; cancellation takes precedence over refusal.

@@ -29,7 +29,7 @@ throws ArgumentOutOfRangeException. Statement failures throw GraphClientExceptio
 returning this successful result.
 
 RETURN columns use explicit aliases or normalized source text. The engine rejects duplicate final
-names with COHDBG015 before output, including collisions between aliases and implicit names. Scalar
+names with CG01015 before output, including collisions between aliases and implicit names. Scalar
 standalone/computed RETURN and DISTINCT use this same container; retained values keep their runtime
 types. This adds no result frame or public member.
 
@@ -43,7 +43,7 @@ the number of returned rows. ResultComplete carries AffectedCount without a fram
 ```csharp
 var result = await connection.QueryAsync("MATCH (n:Absent) RETURN n.name");
 Console.WriteLine(result.Count); // 0 when the label is absent
-Console.WriteLine(result.Diagnostics[0].Code); // COHDBG010 with diagnostics negotiated
+Console.WriteLine(result.Diagnostics[0].Code); // CG01010 with diagnostics negotiated
 ```
 
 ```csharp

@@ -41,17 +41,17 @@ NULL can deduplicate. See [SELECT](../../../../database/document/language/statem
 Limit and Offset retain literal or parameter operands and their locations. Paging runs last,
 after grouping, DISTINCT and ordering. Planning validates counts even for direct AST requests and
 EXPLAIN: invalid kinds, NULL, negative, fractional or out-of-Int64 values raise DatabaseException
-with OQL0007 at the operand; unbound parameters use COHDOC005. No SQLSTATE is assigned.
+with CD00007 at the operand; unbound parameters use CD01005. No SQLSTATE is assigned.
 See [LIMIT/OFFSET](../../../../database/document/language/clauses/limit-offset.md).
 
 Construction stores arguments and does not execute. Engine validation rejects an empty projection,
-or IsValue with multiple expressions, an alias or star, with DatabaseException `COHDOC001`.
+or IsValue with multiple expressions, an alias or star, with DatabaseException `CD05001`.
 Under IsDistinct, an ORDER BY expression outside the projection after alias rewriting raises
-`COHDOC014`. Duplicate projected names use `COHDOC003`. Inspect parser diagnostics before planning.
+`CD01014`. Duplicate projected names use `CD01003`. Inspect parser diagnostics before planning.
 
 Unnest is the supplied ordered binding list or an empty list when null; direct construction
 retains references. Expansion precedes Predicate. A direct SELECT AST with a repeated binding
-or empty UNNEST name raises DatabaseException/COHDOC023. Parser duplicates use OQL0010, including
+or empty UNNEST name raises DatabaseException/CD01023. Parser duplicates use CD00010, including
 collision with an unaliased collection name. Star with bindings constructs synthetic objects.
 See [OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
 

@@ -34,7 +34,7 @@ TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE PRECISION and NUMERIC.
 | JSON | JSONB, character types |
 | JSONB | JSON, character types |
 
-A pair without a conversion is `COHSQLE011` (SQLSTATE 42846), rejected while planning when the
+A pair without a conversion is `CS02011` (SQLSTATE 42846), rejected while planning when the
 source type is known, including over empty input or a typed NULL. Parameter types are resolved
 from runtime values. Untyped NULL converts to a typed NULL; target validation still applies.
 Application-registered casts and domains use the same conversion path.
@@ -42,12 +42,12 @@ Application-registered casts and domains use the same conversion path.
 ## Value rules
 
 - Integer targets require a whole value in range. They never truncate a fraction. NaN or infinity
-  to an integer is `COHSQLE002` (22003).
+  to an integer is `CS02002` (22003).
 - Exact numeric text permits surrounding whitespace and `[+-]?[0-9]+(\.[0-9]+)?`; exponent text,
   grouping and a missing digit beside the decimal point are rejected. Floating targets additionally
   accept exponent notation, NaN and Infinity. Finite overflow and nonzero underflow to zero fail.
 - NUMERIC(p,s) rounds to scale with midpoint ties away from zero, then checks precision. Bare
-  NUMERIC requires an exact `System.Decimal` representation. Numeric range faults are `COHSQLE002`.
+  NUMERIC requires an exact `System.Decimal` representation. Numeric range faults are `CS02002`.
 - Explicit character CAST truncates to the declared number of Unicode scalars; CHAR then pads with
   ASCII spaces. CHAR to TEXT strips padding. Binary bounds reject excess bytes rather than truncate.
 - Temporal text uses the [literal grammar](literals.md). TIME and INTERVAL assignment and DEFAULT
@@ -61,20 +61,20 @@ Application-registered casts and domains use the same conversion path.
   JSONB uses UTF-8 bytes. SQL wire scalar codecs still exclude direct JSON/JSONB components: CAST
   those results to TEXT when returning them through that codec.
 
-Invalid non-temporal value text uses `COHSQLE022` (22P02). Temporal bad format uses
-`COHSQLE047` (22007), an out-of-range calendar, clock or offset field uses `COHSQLE048` (22008),
-and INTERVAL duration overflow uses `COHSQLE062` (22015). Unknown type names use `COHSQLE010`
-(42704); invalid target modifiers use `SQL0005`. CAST executes in column DEFAULT expressions;
+Invalid non-temporal value text uses `CS02022` (22P02). Temporal bad format uses
+`CS02047` (22007), an out-of-range calendar, clock or offset field uses `CS02048` (22008),
+and INTERVAL duration overflow uses `CS02062` (22015). Unknown type names use `CS02010`
+(42704); invalid target modifiers use `CS00005`. CAST executes in column DEFAULT expressions;
 CHECK and typed/schema literal defaults exclude it. SQL has NULL and no MISSING scalar.
 
 TIME accepts `1:02`, `1 PM`, `12:02 am`, `13:45:00.` and a validated written zone that is
 discarded without changing the clock. INTERVAL accepts bare signed seconds (`'12'` is twelve
 seconds), `'1 2 hours'` (26 hours) and `'@ 1 day 2 hours ago'` (minus 26 hours). CLR day-dot-clock
-text such as `'1.02:03:04'` fails COHSQLE047. See [temporal input](../data-types/index.md#temporal-text-input)
+text such as `'1.02:03:04'` fails CS02047. See [temporal input](../data-types/index.md#temporal-text-input)
 for zone and precision limits. Floating text assignment also uses CAST's parser: `'1,000'` fails
-COHSQLE022 and `'1e400'` fails COHSQLE002 (22003).
+CS02022 and `'1e400'` fails CS02002 (22003).
 
-A domain check that rejects the converted value reports `COHSQLE038` (23514) through
+A domain check that rejects the converted value reports `CS03038` (23514) through
 SqlConstraintViolationException with exactly one Error diagnostic. Its message names the domain
 without key values or a table, because CAST writes no table. The session attaches the statement
 span when available; the error also reaches clients as ExecutionFailure with a usable connection.
@@ -95,7 +95,7 @@ SELECT CAST('1 PM' AS TIME), CAST('10:00+05:30' AS TIME),
 ```
 
 The row contains `13:00:00`, `10:00:00`, a twelve-second duration and a minus-26-hour duration.
-`SELECT CAST('25:00' AS TIME);` instead reports COHSQLE048 (22008).
+`SELECT CAST('25:00' AS TIME);` instead reports CS02048 (22008).
 
 Use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
 
@@ -117,7 +117,7 @@ INSERT INTO domain_values VALUES (1);
 SELECT CAST(0 AS positive) FROM domain_values;
 ```
 
-The SELECT reports COHSQLE038 (23514), naming `positive`; the stored row remains unchanged.
+The SELECT reports CS03038 (23514), naming `positive`; the stored row remains unchanged.
 
 ## See also
 

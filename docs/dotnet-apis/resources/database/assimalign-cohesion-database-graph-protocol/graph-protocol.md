@@ -26,7 +26,7 @@ keeps baseline scalar tuple parameters/rows. These static accessors introduce no
 With negotiation, Execute and ExecutePaths parameter components use [GraphValueCodec](graph-value-codec.md).
 [ResultHeader](graph-protocol-result-header-message.md) bit 7 marks possibly composite columns;
 unmarked scalar columns retain their baseline bytes. Possible composite results without agreement
-fail COHDBG016 before reads, writer locks or writes, including empty matches/skipped CASE arms.
+fail CG07016 before reads, writer locks or writes, including empty matches/skipped CASE arms.
 No SQLSTATE is assigned. The typed client refuses composite parameters locally with ExecutionFailure
 before a frame is sent and preserves reuse. Path payloads and GraphPathResult are unchanged.
 

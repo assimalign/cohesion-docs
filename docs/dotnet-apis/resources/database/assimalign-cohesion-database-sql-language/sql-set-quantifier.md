@@ -21,7 +21,7 @@ Default and All pass every input row; All retains explicit syntax when rendered.
 each coerced argument tuple once under its collations and exact numeric equality. The aggregate's
 NULL rule applies. This enum describes call inputs, independently of SELECT/set-operation ALL
 and DISTINCT. It has no methods or constructor exceptions. Applying an explicit quantifier to
-a scalar function uses COHSQLE032 (no SQLSTATE); a quantified star uses SQL0003.
+a scalar function uses CS05032 (no SQLSTATE); a quantified star uses CS00003.
 
 ## Example
 

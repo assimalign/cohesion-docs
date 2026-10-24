@@ -24,7 +24,7 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 | `RETURN` after insertion | Supported |
 | Standalone RETURN | Supported; one row |
 | `DISTINCT`, `ALL`, wildcard, computed expressions | Supported; star cannot mix with explicit items |
-| `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
+| `RETURN` after deletion | Recognized, not supported (`CK00001`) |
 | [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](../clauses/group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
 
 ## Arguments
@@ -36,8 +36,8 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 ## Remarks
 
 Without incoming stages, RETURN evaluates once. LET/FOR can also supply value variables;
-unbound names/parameters fail planning with COHDBG001. `RETURN *` without a named binding is
-GQL0002. Duplicate final names fail with COHDBG015 before reads or mutations, including EXPLAIN.
+unbound names/parameters fail planning with CG05001. `RETURN *` without a named binding is
+CG00002. Duplicate final names fail with CG01015 before reads or mutations, including EXPLAIN.
 Missing properties yield NULL, with no separate MISSING value. DISTINCT compares complete tuples
 using exact numeric equality, ordinal strings, NULL grouping and entity/path identity; arithmetic
 keeps its own promotion. See the [RETURN clause](../clauses/return.md) for naming, examples and

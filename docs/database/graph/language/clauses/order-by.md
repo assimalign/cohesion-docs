@@ -21,7 +21,7 @@ Keys can use RETURN aliases and projected expressions. Without DISTINCT they may
 unprojected source bindings. With DISTINCT, references must come from projected values: a projected
 entity remains usable under its original binding or alias, and a structurally matching computed
 expression is usable. Matching requires literal type and value to agree. A hidden source reference
-fails with COHDBG001 even on empty input. An integer key is a constant expression, not a column
+fails with CG05001 even on empty input. An integer key is a constant expression, not a column
 ordinal. Aliases do not become visible to neighboring RETURN items.
 
 Missing properties yield NULL; there is no MISSING value. The default follows Cypher: NULL sorts
@@ -53,19 +53,19 @@ format change is required.
 With [grouping](group-by.md), ORDER BY sees computed aggregate results and RETURN aliases, which
 shadow input variables even inside expressions. A reused input expression is recomputed if an alias
 redefines one of its variables. Ungrouped references and aggregates absent from RETURN fail
-COHDBG001. For example, `MATCH (a:Person) RETURN count(*) AS n ORDER BY n + 1` returns the
+CG05001. For example, `MATCH (a:Person) RETURN count(*) AS n ORDER BY n + 1` returns the
 single group with count 3 from the [Person fixture](../functions/aggregate-functions.md#examples).
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `GQL0002` | Malformed key/null placement, or ORDER BY after paging |
-| `COHDBL001` | Standalone ordering before RETURN or intermediate WITH composition |
-| `COHDBG001` | Invalid/unbound key or a DISTINCT key referring to a hidden binding; no SQLSTATE assigned |
-| `COHDBG003` | Label test on a computed alias evaluates to a non-entity |
-| `COHDBG004` | Existing match/candidate cap exceeded despite LIMIT |
-| `COHDBG013` | Evaluated key value error, such as division by zero |
+| `CG00002` | Malformed key/null placement, or ORDER BY after paging |
+| `CK00001` | Standalone ordering before RETURN or intermediate WITH composition |
+| `CG05001` | Invalid/unbound key or a DISTINCT key referring to a hidden binding; no SQLSTATE assigned |
+| `CG03003` | Label test on a computed alias evaluates to a non-entity |
+| `CG05004` | Existing match/candidate cap exceeded despite LIMIT |
+| `CG02013` | Evaluated key value error, such as division by zero |
 
 Other failures retain their [normal diagnostics](../diagnostics.md).
 

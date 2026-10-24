@@ -38,8 +38,8 @@ statement snapshot before yielding. There is no candidate-expansion cap on this 
 ## Exceptions
 
 ArgumentNullException reports a null session. DatabaseException reports negative depth or undefined
-direction (COHDBG001), a foreign session (COHDBG005), closed/busy session or refused transaction
-(COHDBG007). DatabaseOfflineException reports an offline database (COHDBG012), ObjectDisposedException
+direction (CG05001), a foreign session (CG07005), closed/busy session or refused transaction
+(CG04007). DatabaseOfflineException reports an offline database (CG06012), ObjectDisposedException
 a disposed database, and OperationCanceledException cancellation during traversal or yielding.
 
 ## Example

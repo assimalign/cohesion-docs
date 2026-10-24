@@ -68,7 +68,7 @@ Null table throws ArgumentNullException. A stale description, missing identity o
 throws SqlCatalogException. Reservation persistence can throw StorageException. An unconfirmed
 reservation commit fences the catalog through StorageOfflineException until recovery/reopen;
 no caller receives a value before the reservation commit succeeds. SQL translates identity contract
-failures to `COHSQLE025`.
+failures to `CS03025`.
 
 ## Example
 
@@ -131,7 +131,7 @@ Console.WriteLine(parent.PrimaryKeyColumns[0]); // key_id
 
 This table has no CHECKs, so the dictionaries are empty. Use each returned definition as the next
 expected argument; the earlier definition is stale after publication.
-Using that stale definition throws SqlCatalogException with COHSQLE064 (SQLSTATE mapping 40001),
+Using that stale definition throws SqlCatalogException with CS04064 (SQLSTATE mapping 40001),
 as checked by SqlCatalogTests.Rename. The code is in Diagnostics, with no duplicate Message prefix.
 Session SQL adds its statement span; a direct catalog call supplies no statement span.
 
@@ -158,8 +158,8 @@ Views returns an immutable capture; TryGetView compares namespace/name without c
 false/null when absent. Offline access throws StorageOfflineException. Create accepts an
 engine-validated [SqlCatalogView](sql-catalog-view.md); it checks relation collisions, live
 dependencies, cycles and compatible append-only replacement. View-specific refusals and records
-larger than 8,092 bytes throw SqlCatalogException with COHSQLE033. Drop refuses absence/table
-targets with COHSQLE033 and RESTRICT dependencies with COHSQLD002. CASCADE removes dependent
+larger than 8,092 bytes throw SqlCatalogException with CS03033. Drop refuses absence/table
+targets with CS03033 and RESTRICT dependencies with CS03302. CASCADE removes dependent
 views atomically. Script-publication overloads commit receipt and definition/absence together.
 
 Null view/publication throws ArgumentNullException; stale publication uses SqlCatalogException.

@@ -30,7 +30,7 @@ rejections preserve it; unfinished streams, cancellation and protocol failures d
 ```csharp
 try { await connection.QueryAsync("MATCH (n) WHERE $missing RETURN n.name"); }
 catch (GraphClientException failure) {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBG001 with diagnostics negotiated
+    Console.WriteLine(failure.Diagnostics[0].Code); // CG05001 with diagnostics negotiated
 }
 ```
 

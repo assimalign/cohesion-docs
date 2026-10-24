@@ -22,7 +22,7 @@ public sealed class SqlResultSet : IReadOnlyList<SqlRow>
 The client constructs this after consuming a complete exchange. Rows own their values; columns
 retain wire identity and bounds. Diagnostics is never null. It contains the negotiated warning/error
 list and is empty when nothing was reported or without the capability. Information, including
-SQL0100, is never sent. An invalid row index fails
+CS00100, is never sent. An invalid row index fails
 through the underlying collection; statement failures throw SqlClientException instead of returning
 a successful result. Direct construction is unavailable.
 
@@ -40,7 +40,7 @@ For a stored table t:
 var plan = await connection.QueryAsync("EXPLAIN SELECT id FROM t;");
 Console.WriteLine(plan.Columns.Count); // 8
 foreach (var diagnostic in plan.Diagnostics) Console.WriteLine(diagnostic.Code);
-// Normally empty; overflow notices, when supplied by a result, retain COHDBP001.
+// Normally empty; overflow notices, when supplied by a result, retain CK07001.
 ```
 
 ```csharp

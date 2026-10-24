@@ -19,7 +19,7 @@ CREATE insertion_path [ , ...n ]
 | Node/path insertion with scalar expression properties | Supported |
 | Preceding `MATCH` and `WHERE` | Supported |
 | Following `RETURN` | Supported |
-| `CREATE DATABASE`, `CREATE GRAPH` | Recognized, not supported (`COHDBL001`) |
+| `CREATE DATABASE`, `CREATE GRAPH` | Recognized, not supported (`CK00001`) |
 
 ## Arguments
 
@@ -32,7 +32,7 @@ This is a Cohesion compatibility extension, not the standard insertion spelling.
 `CREATE` and `INSERT` compile to the same `Creates` abstract syntax tree and transaction path.
 Use [INSERT](insert.md) when choosing the profile's standard insertion verb.
 Its RETURN/DISTINCT ordering and pre-write validation apply here too: duplicate names use
-COHDBG015, and entity columns through wire Execute use COHDBG001 before mutation.
+CG01015, and entity columns through wire Execute use CG05001 before mutation.
 
 This syntax does not manage databases, graphs, schemas, labels, or indexes.
 Session-bound schema operations are provided by `GraphSchema.Open`.

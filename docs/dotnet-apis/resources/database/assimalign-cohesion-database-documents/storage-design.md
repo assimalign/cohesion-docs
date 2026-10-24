@@ -35,7 +35,7 @@ logical contexts before durably flushing storage. `Storage` owns the passed stre
 failure or cancellation. Earlier chunks stay in the undo ledger until the caller aborts.
 The engine orders its operation completion gate, transaction end gate and coordinator apply gate
 to serialize a single abort with rollback and session disposal. Storage returns the original
-failure to that handler. An explicit session retains COHDBD001 refusals until rollback.
+failure to that handler. An explicit session retains CD04101 refusals until rollback.
 See [signature, exceptions and example](storage.md#writecontentasync).
 
 ## Serialization rules, version 1

@@ -17,17 +17,17 @@ public sealed class DocumentDuplicateKeyException : DatabaseException
 
 ## Behavior and exceptions
 
-Carries one Error diagnostic, COHDOC012, with the collection and duplicate identity. Message has no
+Carries one Error diagnostic, CD03012, with the collection and duplicate identity. Message has no
 code prefix. The public constructor describes an existing INSERT key. The engine also creates this
 type for repeated keys in INSERT/UPSERT VALUES or SELECT, with the distinct message
 `Document key 'a' appears more than once in one statement.` No new public constructor is added.
 The failed statement's writes, versions and indexes roll back together. PutAsync retains
 replacement/upsert behavior. The constructor adds no validation exception beyond its value
-arguments. Over the wire, the failure becomes DocumentClientException with COHDOC012.
+arguments. Over the wire, the failure becomes DocumentClientException with CD03012.
 
 UNIQUE secondary-index failures use the catalog-owned
 [DocumentConstraintViolationException](document-constraint-violation-exception.md):
-COHDOC020 (23505) for duplicate valued scalar tuples or COHDOC021 for array/object components.
+CD03020 (23505) for duplicate valued scalar tuples or CD02021 for array/object components.
 
 ## Example
 
@@ -41,7 +41,7 @@ try {
         cancellationToken: CancellationToken.None);
 } catch (DocumentDuplicateKeyException failure) {
     Console.WriteLine(failure.CollectionName);      // items
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDOC012
+    Console.WriteLine(failure.Diagnostics[0].Code); // CD03012
 }
 ```
 

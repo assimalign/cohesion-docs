@@ -13,7 +13,7 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
 - **[StoragePageLatch](storage-page-latch.md)** — Shared/exclusive structure holds and cancellable read acquisition.
-- **[StorageCorruptionException](storage-corruption-exception.md)** — COHDBS003, page context and wrapped-cause discovery.
+- **[StorageCorruptionException](storage-corruption-exception.md)** — CK06003, page context and wrapped-cause discovery.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a buffer pool with
@@ -51,7 +51,7 @@ checkpoint. The latency probe is opt-in with COHESION_DB_PROBES=1 and sets no ti
 
 Page-0 reads can recover from either 4 KiB half only with verified journal coverage after a read
 error. Each accepted fallback emits HeaderReadFallback (Warning 18). Missing coverage refuses
-open as I/O; a damaged readable survivor with no valid slot is COHDBS003. See
+open as I/O; a damaged readable survivor with no valid slot is CK06003. See
 [recovery](design.md#page-0-and-alternating-headers) and [EventSource](design.md#storage-eventsource).
 
 ## Dependencies

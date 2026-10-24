@@ -30,10 +30,10 @@ assembly identity; update their imports. Wire and disk formats are unchanged.
 
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) persists namespaces;
 [DROP SCHEMA](../../../../database/sql/language/statements/drop-schema.md) defaults to RESTRICT.
-dbo is seeded at database creation and cannot be dropped (COHSQLE031); code-first provisioning
-stays pinned to dbo. AUTHORIZATION/nested elements use COHDBL001. Missing DDL namespaces use
-COHSQLE028 (3F000), duplicate CREATE COHSQLE029 (42P06), and RESTRICT dependencies COHSQLE030
-(2BP01); reads/DML retain COHSQLE014 (42P01). CASCADE publishes contained-table/index removal
+dbo is seeded at database creation and cannot be dropped (CS03031); code-first provisioning
+stays pinned to dbo. AUTHORIZATION/nested elements use CK00001. Missing DDL namespaces use
+CS01028 (3F000), duplicate CREATE CS03029 (42P06), and RESTRICT dependencies CS03030
+(2BP01); reads/DML retain CS01014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
 Storage format 26 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
@@ -43,9 +43,9 @@ Format 21 introduced namespace records of kind 15; earlier formats have no upgra
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
 position through SqlQueryBodyExpression. Types/widths validate before reads, including unknown
-literal coercion, unconstrained CHAR outputs and COHSQLE003 mismatches (42804). Conversion precedes
+literal coercion, unconstrained CHAR outputs and CS02003 mismatches (42804). Conversion precedes
 tuple comparison; NULLs compare equal and one common collation governs the output. Combined
-ORDER BY uses first-input output names or ordinals only. CORRESPONDING remains COHDBL001.
+ORDER BY uses first-input output names or ordinals only. CORRESPONDING remains CK00001.
 Compatible UNION chains flatten into one N-way materialization; INTERSECT/EXCEPT use hash counts.
 All operands share a statement snapshot/catalog capture. ROUND at negative scales compares the
 original exact remainder once, avoiding double rounding (#1661).
@@ -83,10 +83,10 @@ COALESCE and Boolean preparation preserve lazy evaluation. Projection and orderi
 row's child values before sorting. Retained BYTEA cells copy on delivery.
 
 Local names and aliases shadow outer ones, including across multiple levels. Ambiguity and hidden
-qualifiers use COHSQLE015. Children over completed groups may read outer grouping-key columns only
-(COHSQLE017 otherwise); aggregate arguments read source rows. Aggregate levels follow the lowest
+qualifiers use CS01015. Children over completed groups may read outer grouping-key columns only
+(CS05017 otherwise); aggregate arguments read source rows. Aggregate levels follow the lowest
 variable or aggregate dependency, including nested queries after adjusting levels. An outer-level
-aggregate receives COHDBL001 before grouping checks; mixed local dependencies can keep it local.
+aggregate receives CK00001 before grouping checks; mixed local dependencies can keep it local.
 See [Subqueries](../../../../database/sql/language/expressions/subqueries.md) for examples.
 
 Scalar queries require one column and at most one row; zero rows produce typed NULL. IN preserves
@@ -101,7 +101,7 @@ constraints. Failure leaves no partial row changes.
 [WITH](../../../../database/sql/language/clauses/with.md) binds all definitions in declaration order,
 including unused bodies. Read names prefer visible CTEs; qualified reads and DML targets use the
 catalog. Self and later-sibling names fall back to stored tables; only missing future relations use
-COHSQLE026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
+CS01026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
 rules. Reachable definitions materialize once in declaration order before any DML write. Unused
 bodies do not evaluate counts or seek bounds. Every FROM-less SELECT uses one implicit row,
 including top-level queries, nested queries, views and set operands. Wildcards still need a relation. With, Materialize, CteScan and Constant describe these
@@ -110,7 +110,7 @@ plans without executing them.
 Derived FROM/JOIN/comma relations reuse typed output metadata, including modifiers, domains,
 nullability and collation provenance. Uncorrelated relations cache once per statement; correlated
 derived bodies evaluate per enclosing frame. Only a reference that binds to a real sibling gets
-the LATERAL refusal; typos retain COHSQLE015. Outer ordering over derived outputs stays COHDBL001.
+the LATERAL refusal; typos retain CS01015. Outer ordering over derived outputs stays CK00001.
 CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
 levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
 nested/recursive CTEs and explicit LATERAL remain excluded.
@@ -138,8 +138,8 @@ stale claim before it is removed and the completed database is published.
 | File state | Create/open behavior |
 | --- | --- |
 | Valid creation claim, initial empty data and absent or creation-only unmarked catalog | Create or open completes creation before publishing the database |
-| Data or catalog shorter than a storage header, with no conflicting catalog/journal state | Open raises DatabaseNotFoundException carrying COHSQLC001 and directs a CreateDatabaseAsync or declared Build retry |
-| Missing journal/backup, ambiguous lost catalog, nonempty data beside creation-only metadata, or short files beside other persisted state | Refused with COHSQLC001; originals are preserved and no replacement sidecars are created |
+| Data or catalog shorter than a storage header, with no conflicting catalog/journal state | Open raises DatabaseNotFoundException carrying CS03401 and directs a CreateDatabaseAsync or declared Build retry |
+| Missing journal/backup, ambiguous lost catalog, nonempty data beside creation-only metadata, or short files beside other persisted state | Refused with CS03401; originals are preserved and no replacement sidecars are created |
 | Explicit old/new format marker or unmarked catalog containing user metadata | Existing format refusal; no upgrade or adoption |
 
 A retried create uses its requested collation, including after dbo was committed. An undeclared
@@ -166,7 +166,7 @@ public ValueTask DropDatabaseAsync(DatabaseName name, CancellationToken cancella
 Names use DatabaseName validation. An existing completed database still rejects create. Lifecycle
 refusals surface as DatabaseException; the SQL format-refusal subtype is internal. Disposed engines
 throw ObjectDisposedException and cancellation throws OperationCanceledException. Declared databases
-cannot be dropped. COHSQLC001 is an Error diagnostic with no assigned SQLSTATE.
+cannot be dropped. CS03401 is an Error diagnostic with no assigned SQLSTATE.
 
 On a fresh in-memory engine, the ordinary lifecycle is:
 
@@ -819,7 +819,7 @@ machinery):
   `StorageException` the engine failed to wrap) reaches the wire as `Internal`
   and closes the session — the engine's model boundary is where wrapping into
   `DatabaseException` belongs.
-  Detected storage corruption is translated to DatabaseCorruptionException / COHDBS003,
+  Detected storage corruption is translated to DatabaseCorruptionException / CK06003,
   naming the database and optional page, and uses ExecutionFailure with a usable connection.
 - **`ResultComplete` carries the result set's real `AffectedCount`** — the
   evidence-driven adjustment from the (since-reversed) shared-core extraction,
@@ -854,7 +854,7 @@ Statement timers start after parsing and are cooperative; each contended lock wa
 budget, including nested unique-index requests through LockManager.EnterLockTimeout. The cause
 that removes a queued wait fixes its diagnostic even if another deadline subsequently expires.
 
-[SqlTimeoutException](sql-timeout-exception.md) reports COHSQLE043 / 57014 or COHSQLE044 / 55P03.
+[SqlTimeoutException](sql-timeout-exception.md) reports CS05043 / 57014 or CS04044 / 55P03.
 After physical statement rollback, explicit transactions release only new resources, keeping earlier
 grants and upgrades. Offline/abandoned writers retain their locks for recovery. Caller cancellation
 keeps OperationCanceledException and its existing lock retention. Transaction-control requests arm
@@ -907,12 +907,12 @@ stateDiagram-v2
 ```
 
 State misuse returns `DatabaseResultStatus.Error` with an error diagnostic, without throwing or
-changing the active transaction. `COHSQLT001` means nested `BEGIN`; `COHSQLT002` means `COMMIT` or
+changing the active transaction. `CS04001` means nested `BEGIN`; `CS04002` means `COMMIT` or
 `ROLLBACK` without an active scope. The wire maps these to `ExecutionFailure` and includes the
 stable diagnostic code in its message. The connection remains usable.
 
 DDL still commits on the catalog's separate storage and cannot enlist in a user transaction through
-the frozen catalog contract. `COHSQLT003` therefore refuses `CREATE`, `ALTER`, and `DROP` while a
+the frozen catalog contract. `CS04003` therefore refuses `CREATE`, `ALTER`, and `DROP` while a
 session transaction is open, before catalog or data mutation. Auto-commit DDL retains its
 established durability contract. This limitation and the unavailable interface seam are recorded in
 `_out/phase4-b2-ESCALATIONS.md`.
@@ -951,7 +951,7 @@ may move with their keys; mutually referenced keys may swap when final keys rema
 tombstones all old row/index versions before inserting replacements in the same rollback bracket,
 so uniqueness also validates the final swap. A removed key cannot authorize a dangling child. These
 rules hold under Snapshot and ReadCommitted. ON CONFLICT shares the final-reference view.
-`ON UPDATE` is unsupported and returns `COHDBL001`.
+`ON UPDATE` is unsupported and returns `CK00001`.
 
 Checks require Boolean predicates made from supported deterministic row expressions. Parameters,
 subqueries, aggregates, unsupported functions and casts are rejected during binding. Multiple
@@ -1040,7 +1040,7 @@ Cascades, final-state UPDATE, SET actions and ON CONFLICT share these projection
 Preparation tries adjacent IS locks in ObjectId order before its own IX. Before waiting it releases
 new preparation grants, then rebuilds the live graph and validates catalog generation under IX.
 Adjacent definition changes refresh before row reads; a changed/dropped/replaced target returns
-DatabaseTransactionAbortedException with COHSQLT006 (no SQLSTATE), requiring a fresh-transaction
+DatabaseTransactionAbortedException with CS04006 (no SQLSTATE), requiring a fresh-transaction
 retry. Snapshot metadata reads still use their catalog image; integrity checks use live locked
 versions. Statement reference state expires even inside an explicit transaction.
 
@@ -1100,7 +1100,7 @@ and scan if detached or replaced. EXPLAIN includes the driving IndexSeek and bou
 USING maintains visible output separately from physical slots: merged names appear once, followed
 by remaining left and right columns. Merged expressions use a common implicit type, retaining
 identical domains and clearing modifiers when types/modifiers differ; qualified columns retain
-their original types. Incompatible pairs fail COHSQLE015 before reads. ORDER BY aliases after `*`
+their original types. Incompatible pairs fail CS01015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
 14; the current SQL format is 26, including the extension-6 missing/default split and T1 identifier
@@ -1110,20 +1110,20 @@ LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limit
 rows and excessive offsets produce none. System relations join stored/system sources through the
 same N-way binder. The first system binding captures one catalog image shared by all child
 queries and INSERT sources; snapshot transactions supply their BEGIN image. Aliases hide base names
-in SELECT/UPDATE/DELETE and invalid qualifiers use located COHSQLE015.
+in SELECT/UPDATE/DELETE and invalid qualifiers use located CS01015.
 
 DEFAULT items, DEFAULT VALUES and SET c = DEFAULT use the omitted-column default path. NOT NULL
-failures are COHSQLE024 (23502). Typed temporal/day-time interval and X/N literals use SqlLiteralText;
+failures are CS03024 (23502). Typed temporal/day-time interval and X/N literals use SqlLiteralText;
 shared binary values detach when supplied to rows. All defined 19-type CAST pairs execute, with
-unsupported pairs rejected during planning as COHSQLE011 (42846). Canonical CAST and concatenation
+unsupported pairs rejected during planning as CS02011 (42846). Canonical CAST and concatenation
 text follows [the conversion reference](../../../../database/sql/language/expressions/cast.md).
 
 EXPLAIN performs the wrapped statement's binding, parameter and provisioning admission and returns
 [DatabasePlanDescription](../assimalign-cohesion-database-execution/database-plan-description.md)
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
-4,096-entry/1 MiB overflow retains a prefix plus COHDBP001 and preserves the original outcome.
-All SQL000x, COHSQLE001–040 and transaction meanings and SQLSTATE categories are in
+4,096-entry/1 MiB overflow retains a prefix plus CK07001 and preserves the original outcome.
+All SQL parser codes, SQL execution codes and transaction meanings and SQLSTATE categories are in
 [SQL diagnostics](../../../../database/sql/language/diagnostics.md).
 
 ## Identity columns and allocation
@@ -1135,28 +1135,28 @@ non-null values without advancing the counter and generates for SET id = DEFAULT
 DEFAULT VALUES and whole-item DEFAULT generate per row. Explicit NULL is never generation.
 
 The planner validates type, DEFAULT conflicts, start, increment and the single-identity rule before
-catalog changes (`COHSQLE025`). ADD requires no live rows. ALTER retains the same type and NOT NULL
+catalog changes (`CS03025`). ADD requires no live rows. ALTER retains the same type and NOT NULL
 or fails the identity contract. Direction-dependent bounds are 1 through the type maximum ascending,
 type minimum through -1 descending; default start follows direction. No cycle, restart, overriding
-or generated key RETURNING is available. COHSQLE025 uses SQLSTATE reference 428C9 for explicit
+or generated key RETURNING is available. CS03025 uses SQLSTATE reference 428C9 for explicit
 ALWAYS assignments; definition/exhaustion failures share the local code. BY DEFAULT NULL uses
-COHSQLE024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY declarations use SQL0003.
+CS03024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY declarations use CS00003.
 
 Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
 the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
 generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 26 stores
 immutable identity facets within table extension 6 (the identity facet originated in extension 5)
 and last reserved values in catalog kind 16.
-Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / COHSQLP005;
+Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / CS03105;
 compiled schemas have no identity representation. SQL script definitions retain it.
 
 SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smallserial names;
-SQL reports COHDBL001, native construction throws ArgumentException with the IDENTITY suggestion.
+SQL reports CK00001, native construction throws ArgumentException with the IDENTITY suggestion.
 For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
 
 ## Declaration validation
 
-Repeated UPDATE SET targets, including DEFAULT and empty matches, fail planning with COHSQLE019.
+Repeated UPDATE SET targets, including DEFAULT and empty matches, fail planning with CS01019.
 PRIMARY KEY, UNIQUE and FOREIGN KEY child/referenced lists reject case-insensitive repeated
 columns before publication. A second PRIMARY KEY fails with the same code, including repeated
 inline clauses, mixed inline/table declarations, ADD CONSTRAINT and ADD COLUMN. Messages name
@@ -1165,7 +1165,7 @@ IF NOT EXISTS skips key validation. Refusing repeated FOREIGN KEY child columns 
 than PostgreSQL. See [constraint rules and examples](../../../../database/sql/language/constraints.md).
 
 New CHECK declarations validate table/schema qualifiers against the constrained table with
-located COHSQLE015 before publication. Stored CHECKs retain lenient qualifier binding on reopen.
+located CS01015 before publication. Stored CHECKs retain lenient qualifier binding on reopen.
 Engine build validates other declaration rules before I/O, deferring qualifier identity until
 provisioning reads the applied hash. Already-applied declared/imperative hashes retain their
 earlier qualifier contract; new or changed hashes validate strictly before any migration step.
@@ -1180,13 +1180,13 @@ promise linear total index work or impose a 50,000-row limit.
 
 WHERE, HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN, ON CONFLICT DO UPDATE WHERE
 and logical/truth-test operands require BOOLEAN. Planning rejects known non-Boolean types
-before reads with COHSQLE003 (42804); runtime checks enforce values whose types were unknown.
+before reads with CS02003 (42804); runtime checks enforce values whose types were unknown.
 Untyped NULL is UNKNOWN. Valid Boolean input string literals coerce in these positions, while
 text columns and parameters retain their types. Every CASE result and COALESCE alternative in
 a Boolean position is checked, including unreachable alternatives.
 
 Stored SQL function bodies use load-only binding. Legacy invalid Boolean operands and changed
-application return types fail with COHSQLE003 on invocation and allow the database to open.
+application return types fail with CS02003 on invocation and allow the database to open.
 See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
 
 Application scalars and aggregates receive the transaction start through
@@ -1207,7 +1207,7 @@ until delivery without re-encoding. Embedded execution uses no wire preparation 
 Read-only SELECT, EXPLAIN, system views and SHOW encode one frame at a time during delivery after
 materialization and statement admission end. A late result failure sends ExecutionFailure even
 after partial frames; the client discards them. Uncoded encoding/preparation failures use
-COHSQLE045; already-coded failures retain their diagnostics. Each header/row fits 16 MiB
+CS05045; already-coded failures retain their diagnostics. Each header/row fits 16 MiB
 (16,777,216 bytes), with no aggregate result cap. Size refusals map to 54000 and report encoded
 size and limit. Both paths leave the connection and explicit transaction usable on result failures.
 Transport failures remain terminal and cannot turn a committed write into an ordinary statement
@@ -1218,7 +1218,7 @@ failure. See [wire results](../assimalign-cohesion-database-sql-protocol/design.
 SQL validates final row and index-key sizes before DML apply. Rows include their MVCC header and
 physical column layout and must fit 8,092 bytes. Every unique/nonunique write key, including
 collation transforms and NULL markers, must fit `BTreeIndex.MaxKeyLength` (1,024 bytes).
-Exactly-at-limit values are accepted. Refusals carry Error diagnostic `COHSQLE042`, mapped to
+Exactly-at-limit values are accepted. Refusals carry Error diagnostic `CS05042`, mapped to
 SQLSTATE 54000, naming the table, encoded byte size and limit. A failure leaves the explicit
 transaction active and earlier statements intact. See [limits and examples](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
 
@@ -1227,61 +1227,61 @@ proposals do not fail. Old-value locks and tombstones are unchecked, so existing
 deletable or updatable to fitting replacements. Referential SET actions encode final rows after
 collecting all assignments. Index builds, including schema-provisioned indexes, use the same
 checked key builder and do not publish a failed tree. Deferred provisioning retains its pending
-intent and COHSQLP004 failure, with COHSQLE042 in the underlying cause.
+intent and CS03104 failure, with CS05042 in the underlying cause.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
-| COHSQLE043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
-| COHSQLE044 | Individual contended lock wait expired | 55P03 |
-| COHSQLE045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
-| COHSQLT006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
-| COHSQLE042 | Encoded row, index key or catalog definition exceeds its size limit, or DDL generation is exhausted | 54000 |
-| COHDBS003 | Storage or attached-index corruption | XX001 |
-| COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHSQLE041 | — |
-| COHSQLT005 | Aborted transaction refuses statements/commit; original cause retained | — |
-| `COHSQLE046` | Scalar subquery returns more than one row | 21000 (`cardinality_violation`) |
-| `COHSQLE047` | Malformed temporal text in assignment, DEFAULT or CAST | 22007 (`invalid_datetime_format`) |
-| `COHSQLE048` | Calendar, clock or offset field out of range in assignment, DEFAULT or CAST | 22008 (`datetime_field_overflow`) |
-| `COHSQLE049` | Table or index name already exists, including provisioning collisions | 42P07 (`duplicate_table`) |
-| `COHSQLE050` | Constraint or catalog non-function SQL definition name already exists; SQL CREATE DOMAIN duplicates retain COHSQLD001 | 42710 (`duplicate_object`) |
-| `COHSQLE051` | Missing table during execution/DDL | 42P01 (`undefined_table`) |
-| `COHSQLE052` | Missing constraint, index, collation or other catalog object; missing schemas retain COHSQLE028 / 3F000 | 42704 (`undefined_object`) |
-| `COHSQLE053` | Invalid table definition, including nullable primary key or dropping the last column | 42P16 (`invalid_table_definition`) |
-| `COHSQLE054` | Invalid FOREIGN KEY column lists or referenced key is not unique | 42830 (`invalid_foreign_key`) |
-| `COHSQLE055` | Incompatible store value, DEFAULT, FOREIGN KEY column type, CHECK function result or compared values | 42804 (`datatype_mismatch`) |
-| `COHSQLE056` | DDL refused because constraints or indexes depend on the object; namespace RESTRICT retains COHSQLE030 | 2BP01 (`dependent_objects_still_exist`) |
-| `COHSQLE057` | Unsupported execution/DDL operation, including a subquery encountered by CHECK admission | 0A000 (`feature_not_supported`) |
-| `COHSQLE058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
-| `COHSQLE059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
-| `COHSQLE060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
-| `COHSQLE061` | Column already exists | 42701 (`duplicate_column`) |
-| `COHSQLE062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
-| `COHSQLE063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
-| `COHSQLE064` | A bound table was replaced while DDL waited; retry the statement | 40001 (`serialization_failure`) |
-| `COHSQLE065` | Function signature already exists | 42723 (`duplicate_function`) |
-| `COHSQLE066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
-| COHSQLD002 | SQL definition dependency prevents DROP | 2BP01 |
-| COHSQLD003 | Engine-registered function/type cannot be dropped through SQL | 0A000 |
+| CS06041 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| CS05043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
+| CS04044 | Individual contended lock wait expired | 55P03 |
+| CS05045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
+| CS04006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
+| CS05042 | Encoded row, index key or catalog definition exceeds its size limit, or DDL generation is exhausted | 54000 |
+| CK06003 | Storage or attached-index corruption | XX001 |
+| CK06102 | Additional index-corruption diagnostic beside CK06003 and CS06041 | — |
+| CS04005 | Aborted transaction refuses statements/commit; original cause retained | — |
+| `CS02046` | Scalar subquery returns more than one row | 21000 (`cardinality_violation`) |
+| `CS02047` | Malformed temporal text in assignment, DEFAULT or CAST | 22007 (`invalid_datetime_format`) |
+| `CS02048` | Calendar, clock or offset field out of range in assignment, DEFAULT or CAST | 22008 (`datetime_field_overflow`) |
+| `CS03049` | Table or index name already exists, including provisioning collisions | 42P07 (`duplicate_table`) |
+| `CS03050` | Constraint or catalog non-function SQL definition name already exists; SQL CREATE DOMAIN duplicates retain CS03301 | 42710 (`duplicate_object`) |
+| `CS01051` | Missing table during execution/DDL | 42P01 (`undefined_table`) |
+| `CS01052` | Missing constraint, index, collation or other catalog object; missing schemas retain CS01028 / 3F000 | 42704 (`undefined_object`) |
+| `CS03053` | Invalid table definition, including nullable primary key or dropping the last column | 42P16 (`invalid_table_definition`) |
+| `CS03054` | Invalid FOREIGN KEY column lists or referenced key is not unique | 42830 (`invalid_foreign_key`) |
+| `CS02055` | Incompatible store value, DEFAULT, FOREIGN KEY column type, CHECK function result or compared values | 42804 (`datatype_mismatch`) |
+| `CS03056` | DDL refused because constraints or indexes depend on the object; namespace RESTRICT retains CS03030 | 2BP01 (`dependent_objects_still_exist`) |
+| `CS05057` | Unsupported execution/DDL operation, including a subquery encountered by CHECK admission | 0A000 (`feature_not_supported`) |
+| `CS06058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
+| `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
+| `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
+| `CS03061` | Column already exists | 42701 (`duplicate_column`) |
+| `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
+| `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
+| `CS04064` | A bound table was replaced while DDL waited; retry the statement | 40001 (`serialization_failure`) |
+| `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
+| `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
+| CS03302 | SQL definition dependency prevents DROP | 2BP01 |
+| CS03303 | Engine-registered function/type cannot be dropped through SQL | 0A000 |
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
-causes, cross begin, statement, commit/rollback and create/open boundaries with COHSQLE041
+causes, cross begin, statement, commit/rollback and create/open boundaries with CS06041
 when no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes
-precedence: COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHSQLE041
-and keeps the IndexCorruptionException and page context. Storage-format COHDBS001 and index-format
-COHDBI001 refusals retain their authored types/messages, diagnostics and inner causes. Existing
+precedence: CK06003 maps to XX001; attached-index damage also retains CK06102 and CS06041
+and keeps the IndexCorruptionException and page context. Storage-format CK06001 and index-format
+CK06101 refusals retain their authored types/messages, diagnostics and inner causes. Existing
 offline/unconfirmed-commit outcomes retain their precedence.
 
 Storage, I/O and index failures abort an explicit transaction after statement admission/snapshot release.
-Further statements and COMMIT are refused with structured COHSQLT005 retaining the coded cause;
+Further statements and COMMIT are refused with structured CS04005 retaining the coded cause;
 roll back before continuing. Ordinary constraint, evaluation and Boolean-condition failures
 retain statement atomicity and leave the transaction usable. Autocommit can execute the next
 statement after a recoverable storage failure. Wire ExecutionFailure preserves the session.
 An I/O open failure releases acquired resources and publishes no database; resolve it and retry.
 
 Storage-failure, corruption and aborted-transaction refusal messages are ordinary unprefixed
-embedded text. The refusal carries COHSQLT005 as an Error in Diagnostics and retains its original
-InnerException cause. The wire still adds `COHSQLT005: ` once; no SQLSTATE is assigned to that code.
+embedded text. The refusal carries CS04005 as an Error in Diagnostics and retains its original
+InnerException cause. The wire still adds `CS04005: ` once; no SQLSTATE is assigned to that code.
 
 If snapshot release or abort cleanup also fails, the exact coded statement exception remains
 primary, including its corruption type. EventSource Assimalign.Cohesion.Database.Sql emits
@@ -1292,7 +1292,7 @@ Warning event 25, TransactionCleanupFailed, with transactionId, exceptionType an
 
 Storage integrity failures use
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
+with CK06003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
 statements, transactions and create/open receive the translation, including coded and aggregate
 causes. Damaged reads fail rather than omitting rows; legitimate reclamation still reads as absence.
 The existing wire ExecutionFailure path carries the code and leaves the connection usable.
@@ -1300,9 +1300,9 @@ The existing wire ExecutionFailure path carries the code and leaves the connecti
 `DatabaseException` (area root) for everything user-facing: plan-time validation and execution
 errors. Named integrity violations use [SqlConstraintViolationException](sql-constraint-violation-exception.md),
 a DatabaseException carrying the constraint, table and safe offending value. It supplies exactly
-one Error diagnostic: COHSQLE037 (23505) for UNIQUE/PRIMARY KEY/unique indexes, COHSQLE038 (23514)
-for CHECK/domain checks (including CAST and function domain arguments/results), COHSQLE039 (23503)
-for either direction of foreign-key enforcement, or COHSQLE024 (23502) for NOT NULL. Messages omit
+one Error diagnostic: CS03037 (23505) for UNIQUE/PRIMARY KEY/unique indexes, CS03038 (23514)
+for CHECK/domain checks (including CAST and function domain arguments/results), CS03039 (23503)
+for either direction of foreign-key enforcement, or CS03024 (23502) for NOT NULL. Messages omit
 key values. Domain CAST/function checks name the domain without a table. The session attaches an
 available statement span, preserving the original cause or thrown violation as the inner exception;
 construction without source text remains unlocated. SQLSTATE is a documented category, with no
@@ -1468,7 +1468,7 @@ the existing reflection-free catalog. NULLIF and EXTRACT join COALESCE/CASE/CAST
 TRIM/SUBSTRING/POSITION grammar normalizes onto calls. Signatures bind before reads, even on empty
 input. UPPER/LOWER are text-only with TEXT results; LENGTH/CHAR_LENGTH count Unicode scalars.
 String-producing builtins cap results/work buffers at 1,048,576 UTF-16 units and observe cancellation.
-Numeric domain/range and allocation-bound failures retain COHSQLE002; MOD by zero is COHSQLE001.
+Numeric domain/range and allocation-bound failures retain CS02002; MOD by zero is CS02001.
 
 A session captures one UTC instant at BEGIN/API transaction start or automatic statement start.
 Bound calls, seek bounds, correlated children and SQL function bodies use that instant throughout
@@ -1487,7 +1487,7 @@ without blocking open, reads or explicit-value writes. Stable and Volatile calls
 row with the transaction-start clock, including INSERT SELECT and ON DELETE SET DEFAULT.
 
 ADD COLUMN freezes one nonvolatile result into MissingValueLiteral. Volatile defaults require
-no live rows (COHSQLE027, no SQLSTATE). NULL-producing NOT NULL defaults may be declared, but
+no live rows (CS03027, no SQLSTATE). NULL-producing NOT NULL defaults may be declared, but
 assignments and additions over live rows enforce nullability. SET/DROP DEFAULT never alters
 frozen old-row values. Typed, domain and SDK default surfaces remain literal-only.
 
@@ -1504,14 +1504,14 @@ and Cascade and refuses reconciliation with the newer catalog actions.
 and column SET/DROP DEFAULT and SET/DROP NOT NULL. Renames publish CHECK, FK and index references
 in one catalog transaction; physical identity, rows and trees stay intact. CHECK rewriting changes
 bound identifiers at the persisted parser ceiling. Table renames retained by script target claims
-are refused with COHSQLD002 after ownership checks. Name collisions use COHSQLE013.
+are refused with CS03302 after ownership checks. Name collisions use CS05013.
 
 Defaults are validated before publication, including function result assignment compatibility.
 Stable/Volatile calls execute per assigned row; defaults never execute at table open. Domain DROP DEFAULT re-inherits its default and
 SET DEFAULT NULL can preserve an explicit NULL override. Frozen ADD COLUMN missing literals are
 independent and survive later default changes. Narrowing checks them even without live rows.
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
-Identity SET/DROP DEFAULT or DROP NOT NULL uses COHSQLE025. DDL is self-committing and COHSQLT003
+Identity SET/DROP DEFAULT or DROP NOT NULL uses CS03025. DDL is self-committing and CS04003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
 Format 17 introduced the default/missing split with table extension 6; current format is 26.
 
@@ -1546,10 +1546,10 @@ upgrade path. Proven interrupted creation may be completed as described above. C
 [Aggregate calls](../../../../database/sql/language/functions/aggregate-functions.md) execute
 DISTINCT/ALL and input ORDER BY on built-in or application aggregates. DISTINCT runs after
 coercion under argument collations and exact numeric equality; ORDER BY integers are constants.
-Scalar modifiers and invalid DISTINCT order keys use COHSQLE032 (no SQLSTATE). STRING_AGG and
+Scalar modifiers and invalid DISTINCT order keys use CS05032 (no SQLSTATE). STRING_AGG and
 LISTAGG return nullable String, skip NULL values and accept only literal/parameter delimiters.
-Their 1,048,576 UTF-16-unit output cap uses COHSQLE002 (22003); incompatible signatures use
-COHSQLE006 (42883). ON OVERFLOW stays COHDBL001. Wire metadata/framing need no changes.
+Their 1,048,576 UTF-16-unit output cap uses CS02002 (22003); incompatible signatures use
+CS01006 (42883). ON OVERFLOW stays CK00001. Wire metadata/framing need no changes.
 
 ## Persisted views, ordering and RETURNING
 
@@ -1573,11 +1573,11 @@ writes and remains -1 for SELECT. EXPLAIN describes projection width/names witho
 [Distinct predicates, truth tests and LIKE ESCAPE](../../../../database/sql/language/expressions/operators.md)
 participate in binding, grouping, collation, correlation, plans and stored definitions.
 Distinct uses the ordinary comparer without NULL propagation or seek extraction. Boolean tests
-validate known operand types before reads (COHSQLE003, 42804).
+validate known operand types before reads (CS02003, 42804).
 
 LIKE tokenizes raw Unicode scalars before normalizing literal runs. Wildcards advance over original
 input boundaries under every collation. Fixed and supplied-parameter patterns compile once during
-binding; invalid escapes fail with COHSQLE034 (22025) even with empty inputs or NULL matched values,
+binding; invalid escapes fail with CS02034 (22025) even with empty inputs or NULL matched values,
 an intentional divergence from PostgreSQL's match-time validation. Dynamic patterns compile per
 evaluation. The iterative matcher observes the current statement's cancellation without
 data-dependent recursion, including in subqueries, cached views and stored CHECKs. Plans retain
@@ -1585,7 +1585,7 @@ the presence of LIKE, never a previous statement's token. Ordinary invariant pre
 and exact matches use linear work in input length. Pathological invariant matching is bounded by
 `64 × (input UTF-16 length + 1) × (raw pattern UTF-16 length + 1)` in checked 64-bit arithmetic.
 The [LIKE reference](../../../../database/sql/language/expressions/operators.md#like-and-escape)
-defines the charging rules. Exhaustion raises located COHSQLE040 (no SQLSTATE), with cancellation
+defines the charging rules. Exhaustion raises located CS05040 (no SQLSTATE), with cancellation
 taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
 retain the last percent continuation; other paths retain visited boundaries, expanding from one
 inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
@@ -1598,8 +1598,8 @@ forms and the corrected precedence; there is no upgrade reader.
 unique indexes, one named unique index, or all unique indexes for untargeted DO NOTHING. The plan
 retains the complete unique-index directory and revalidates metadata identities after obtaining IX.
 Concurrent unique-index creation/drop/replacement during that wait aborts retryably before default
-or identity evaluation. Missing arbiters use COHSQLE035 (42P10); repeated row effects use COHSQLE036
-(21000). Duplicate whole-column SET targets fail binding with COHSQLE019.
+or identity evaluation. Missing arbiters use CS03035 (42P10); repeated row effects use CS05036
+(21000). Duplicate whole-column SET targets fail binding with CS01019.
 
 VALUES, DEFAULT VALUES and materialized SELECT sources share source-order proposal/default/conflict
 projection evaluation. EXCLUDED supplies coerced/defaulted/generated proposed values beside the
@@ -1695,9 +1695,9 @@ Execution/DDL failures retain their code separately from message text. The sessi
 current-statement expression locations or attaches the statement span; stored CHECK/DEFAULT/function
 offsets are discarded first. Open-time failures have no statement. Storage/abort failures retain
 their exact identity and existing policy. DEFAULT wrappers preserve the original carrier and cause;
-the wire composes one code prefix. Unknown COLLATE names now fail binding with COHSQLE052 (42704),
-while missing loaded collations use COHSQLE058 (XX001). SQL CREATE DOMAIN duplicate checks retain
-COHSQLD001; catalog non-function name collisions use COHSQLE050 (42710).
+the wire composes one code prefix. Unknown COLLATE names now fail binding with CS01052 (42704),
+while missing loaded collations use CS06058 (XX001). SQL CREATE DOMAIN duplicate checks retain
+CS03301; catalog non-function name collisions use CS03050 (42710).
 
 ## Maintenance lane isolation
 

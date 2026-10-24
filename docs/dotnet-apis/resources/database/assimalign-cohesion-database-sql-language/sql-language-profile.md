@@ -19,8 +19,8 @@ public static class SqlLanguageProfile
 
 Instance lists the 42 executable T1 scalar names, the seven aggregates (including STRING_AGG/LISTAGG) and CAST. COALESCE, NULLIF,
 CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a function-table name. The separate read-only vocabulary lists recognized unsupported spellings for parser
-diagnostics and identifier quoting. Unsupported calls report COHDBL001 before planning; an unknown
-function outside that vocabulary reports COHSQLE016 during planning. Recognition is not an execution
+diagnostics and identifier quoting. Unsupported calls report CK00001 before planning; an unknown
+function outside that vocabulary reports CS01016 during planning. Recognition is not an execution
 promise. SupportsJoin returns true for Inner, LeftOuter and Cross over N-way stored/system
 sources. INNER/LEFT require ON or USING; CROSS accepts neither. RightOuter and FullOuter
 return false. These accessors introduce no validation exceptions.

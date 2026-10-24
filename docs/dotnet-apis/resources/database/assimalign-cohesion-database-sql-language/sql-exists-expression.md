@@ -20,7 +20,7 @@ Construction is internal. Subquery accepts SELECT or UNION/INTERSECT/EXCEPT bodi
 statement context. EXISTS tests whether any row exists, including a row of NULL values; it does
 not impose scalar-subquery cardinality. NOT EXISTS negates that Boolean result. Accessors add no
 exceptions. Parser errors become DatabaseParseException at request/session boundaries; set width
-and type mismatches use COHSQLE013/COHSQLE003 (42804 for the latter), even over empty inputs.
+and type mismatches use CS05013/CS02003 (42804 for the latter), even over empty inputs.
 Existing parameter, correlation and depth validation applies.
 
 ## Example

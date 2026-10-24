@@ -26,7 +26,7 @@ NULL follows the selected expressions' ordinary rules; SQL has no MISSING value.
 
 [ON CONFLICT](on-conflict.md) returns inserted and post-update rows in proposal source order.
 DO NOTHING and FALSE/UNKNOWN update filters return no row and contribute no affected count.
-The EXCLUDED pseudo-relation is outside RETURNING scope (COHDBL001); a real target named or
+The EXCLUDED pseudo-relation is outside RETURNING scope (CK00001); a real target named or
 aliased excluded can still qualify its own returned columns.
 
 Projection runs per row inside the write after that row's mutation and index checks. Even immutable
@@ -54,12 +54,12 @@ executing the write or projection.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHDBL001 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries or windows | — |
-| COHSQLE017 | Aggregate in RETURNING, rejected during planning even for empty input | — |
-| COHSQLE015 | Unknown/hidden target qualifier or an INSERT source reference | — |
-| SQL0003 | Empty RETURNING list or SELECT ... RETURNING | — |
-| COHSQLE001 | Projection divides or takes a remainder by zero; rolls back the statement | 22012 |
-| COHSQLE045 | Uncoded result preparation failure or encoded header/row above 16 MiB; rolls back the statement | 54000 for size refusals |
+| CK00001 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries or windows | — |
+| CS05017 | Aggregate in RETURNING, rejected during planning even for empty input | — |
+| CS01015 | Unknown/hidden target qualifier or an INSERT source reference | — |
+| CS00003 | Empty RETURNING list or SELECT ... RETURNING | — |
+| CS02001 | Projection divides or takes a remainder by zero; rolls back the statement | 22012 |
+| CS05045 | Uncoded result preparation failure or encoded header/row above 16 MiB; rolls back the statement | 54000 for size refusals |
 
 A target actually named or aliased old/new masks that pseudo-relation name. Ordinary output/old/new
 identifiers retain their quoting rules. UPDATE accepts bare output as a target alias; DELETE needs
@@ -84,7 +84,7 @@ INSERT INTO rollback_rows VALUES (1, 1), (2, 0) RETURNING 10 / divisor;
 SELECT COUNT(*) FROM rollback_rows;
 ```
 
-INSERT reports COHSQLE001 and SELECT returns 0: the earlier row was rolled back too.
+INSERT reports CS02001 and SELECT returns 0: the earlier row was rolled back too.
 
 ## See also
 

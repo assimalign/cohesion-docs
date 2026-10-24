@@ -28,10 +28,10 @@ are joined by:
 - [SqlAlterSetNotNullAction](sql-alter-set-not-null-action.md) — ColumnName.
 - [SqlAlterDropNotNullAction](sql-alter-drop-not-null-action.md) — ColumnName.
 
-Parsing returns diagnostics for malformed syntax (SQL0003) or unsupported actions/lists (COHDBL001).
+Parsing returns diagnostics for malformed syntax (CS00003) or unsupported actions/lists (CK00001).
 Requests reject parser errors with DatabaseParseException. Planning/execution retains table and
-column diagnostics (COHSQLE014/015), system protection (COHSQLE021, 25006), schema ownership and
-explicit-transaction refusal (COHSQLT003). Action pages document additional failures.
+column diagnostics (CS01014/CS01015), system protection (CS04021, 25006), schema ownership and
+explicit-transaction refusal (CS04003). Action pages document additional failures.
 DDL returns a successful command with AffectedCount zero. Properties introduce no exceptions.
 
 ## Example

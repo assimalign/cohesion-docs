@@ -17,13 +17,13 @@ public sealed class GqlVariableExpression : GqlExpression
 ## Behavior and exceptions
 
 Variable is a case-sensitive binding name. The constructor stores it and the optional source span
-without validation exceptions. The planner rejects unbound references with COHDBG001 before data
-access. Property access uses GqlPropertyExpression instead; a path has no properties (COHDBG003).
+without validation exceptions. The planner rejects unbound references with CG05001 before data
+access. Property access uses GqlPropertyExpression instead; a path has no properties (CG03003).
 Bare variables permit identity equality and IS NULL tests in WHERE or RETURN. Node/relationship
 identity and ordered path identities compare independently of object materialization.
 
 An embedded [GqlProjection](gql-projection.md) can return the bound object in a DatabaseRow.
-Wire Execute refuses entity kinds with COHDBG001 before reads or writes; ExecutePaths requires
+Wire Execute refuses entity kinds with CG05001 before reads or writes; ExecutePaths requires
 exactly one bare binding from read-only composition. Star over one named binding expands to that form.
 
 ## Example

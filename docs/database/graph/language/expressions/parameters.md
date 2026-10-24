@@ -27,11 +27,11 @@ retains its [promotion table](operators.md#arithmetic-and-concatenation).
 
 | Code | Meaning |
 | --- | --- |
-| COHDBG014 | Normalized caller keys collide, including unused keys |
-| COHDBG001 | Referenced binding missing; fails planning before reads or writer locks |
-| COHDBG003 | Invalid referenced tree: unsupported/non-finite leaf, cycle, dimensions or value bounds; composites in stored pattern properties |
-| GQL0002 | Malformed reference, bare sigil, identifier/DELETE-position parameter |
-| COHDBL001 | $$name or a whole property-map parameter |
+| CG01014 | Normalized caller keys collide, including unused keys |
+| CG05001 | Referenced binding missing; fails planning before reads or writer locks |
+| CG03003 | Invalid referenced tree: unsupported/non-finite leaf, cycle, dimensions or value bounds; composites in stored pattern properties |
+| CG00002 | Malformed reference, bare sigil, identifier/DELETE-position parameter |
+| CK00001 | $$name or a whole property-map parameter |
 
 [List and map parameters](list-values.md) accept IList (except byte[] binary scalars) and
 IReadOnlyDictionary<string, object?>. Arrays must be zero-based and one-dimensional. Referenced

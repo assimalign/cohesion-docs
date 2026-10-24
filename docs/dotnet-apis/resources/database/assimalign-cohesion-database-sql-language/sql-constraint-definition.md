@@ -28,7 +28,7 @@ OnDelete is NoAction when omitted in SQL. SetNull assigns NULL to referencing co
 SetDefault requests their defaults. See [constraints](../../../../database/sql/language/constraints.md)
 for cascade chains, final-state checks and atomicity. Property access adds no exceptions.
 Parser.Parse returns diagnostics; execution rejects invalid text with DatabaseParseException.
-ON UPDATE and deferred constraints remain COHDBL001.
+ON UPDATE and deferred constraints remain CK00001.
 
 ## Example
 

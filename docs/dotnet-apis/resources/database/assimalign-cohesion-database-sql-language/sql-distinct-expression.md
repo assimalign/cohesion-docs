@@ -25,7 +25,7 @@ including when an index exists. SQL has no MISSING scalar.
 
 Properties introduce no validation exceptions. Parse returns diagnostics; request/session
 factories reject parser errors with DatabaseParseException. A missing FROM/comparand or an
-unparenthesized non-associative chain uses SQL0003. Incompatible comparands retain ordinary
+unparenthesized non-associative chain uses CS00003. Incompatible comparands retain ordinary
 comparison errors. See [predicate behavior](../../../../database/sql/language/expressions/operators.md#is-distinct-from).
 
 ## Example

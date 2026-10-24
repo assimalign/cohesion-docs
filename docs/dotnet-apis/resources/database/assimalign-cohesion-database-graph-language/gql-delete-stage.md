@@ -12,7 +12,7 @@ public sealed record GqlDeleteStage(IReadOnlyList<string> Variables, bool Detach
 
 ## Behavior and exceptions
 
-Detach also removes incident relationships. Repeated references are deleted once; affected counts report actual deletions. Value bindings, restricted connected-node deletion and later references to deleted variables use COHDBG003; malformed/unbound deletion operands use COHDBG001. A direct RETURN after DELETE is COHDBL001; a following MATCH or NEXT can continue. Writes remain atomic with the rest of the statement. See [DELETE](../../../../database/graph/language/statements/delete.md).
+Detach also removes incident relationships. Repeated references are deleted once; affected counts report actual deletions. Value bindings, restricted connected-node deletion and later references to deleted variables use CG03003; malformed/unbound deletion operands use CG05001. A direct RETURN after DELETE is CK00001; a following MATCH or NEXT can continue. Writes remain atomic with the rest of the statement. See [DELETE](../../../../database/graph/language/statements/delete.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

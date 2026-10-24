@@ -55,7 +55,7 @@ are planning errors. Ordering can use aggregates, output aliases, or ordinals.
 DISTINCT consumes each coerced argument tuple once under its effective collations and exact
 numeric equality. Numeric 1 and 1.0 share a class; NaNs share a class. Strict aggregates skip
 NULL arguments before deduplication. ALL is the default and retains duplicates. DISTINCT state
-grows with the number of distinct values in each group. Neither quantifier accepts star (SQL0003).
+grows with the number of distinct values in each group. Neither quantifier accepts star (CS00003).
 
 Every aggregate, including application aggregates, accepts input ORDER BY. Order-insensitive
 aggregates ignore the order. Keys bind to source rows, may contain supported subqueries, and
@@ -63,8 +63,8 @@ use stable sorting with NULL first in ASC and last in DESC by default. Each key 
 NULLS FIRST/LAST independently of direction, including STRING_AGG input keys and LISTAGG
 WITHIN GROUP keys. An integer key is a constant,
 never a projection ordinal. With DISTINCT each key must structurally match an argument after
-column binding (COHSQLE032). DISTINCT, ALL or ORDER BY on a scalar function is also COHSQLE032,
-with no assigned SQLSTATE. Invalid aggregate arity uses COHSQLE006 (42883).
+column binding (CS05032). DISTINCT, ALL or ORDER BY on a scalar function is also CS05032,
+with no assigned SQLSTATE. Invalid aggregate arity uses CS01006 (42883).
 
 ## String aggregation
 
@@ -72,26 +72,26 @@ STRING_AGG takes two arguments; LISTAGG takes one or two and requires WITHIN GRO
 nullable String, skipping NULL values. A NULL or omitted LISTAGG delimiter is empty; STRING_AGG
 requires its delimiter. No delimiter precedes the first or follows the last value. Empty/all-NULL
 input returns NULL. Value and delimiter must be String or Character; CHAR trims trailing spaces
-when converted. Other types require CAST(... AS TEXT), otherwise COHSQLE006 (42883).
+when converted. Other types require CAST(... AS TEXT), otherwise CS01006 (42883).
 
 The delimiter must be a string/NULL literal or a parameter known during planning. A column or
-expression delimiter is COHDBL001. Result collation comes only from value. The output cap is
-1,048,576 UTF-16 units, checked while buffering ordered input too; overflow uses COHSQLE002
+expression delimiter is CK00001. Result collation comes only from value. The output cap is
+1,048,576 UTF-16 units, checked while buffering ordered input too; overflow uses CS02002
 (22003). Ordered DISTINCT chooses the first representative in sorted input order.
 
-LISTAGG cannot also contain an inner ORDER BY (SQL0003). The special form accepts unquoted
+LISTAGG cannot also contain an inner ORDER BY (CS00003). The special form accepts unquoted
 LISTAGG or exactly lowercase quoted `"listagg"`. Other quoted spellings are ordinary calls:
-WITHIN GROUP is COHDBL001, and a call without that ordering is refused with SQL0003.
+WITHIN GROUP is CK00001, and a call without that ordering is refused with CS00003.
 
 Aggregate FILTER, empty grouping sets, GROUPING SETS, ROLLUP, CUBE, grouping functions, windows,
-non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW (ERROR or TRUNCATE) remain COHDBL001.
+non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW (ERROR or TRUNCATE) remain CK00001.
 
 ## Correlated query levels
 
-A subquery over completed groups can reference only outer grouping-key columns (COHSQLE017
+A subquery over completed groups can reference only outer grouping-key columns (CS05017
 otherwise). Within an aggregate argument, a child instead reads the outer source row. The lowest
 variable or aggregate dependency determines an aggregate's query level, including dependencies in
-nested queries adjusted for nesting depth. An outer-level aggregate is refused with COHDBL001
+nested queries adjusted for nesting depth. An outer-level aggregate is refused with CK00001
 before grouping checks; moving it to the enclosing query is outside this subset. Mixed local and
 outer dependencies remain local when the lowest dependency is local. See
 [Subqueries](../expressions/subqueries.md#correlation-and-grouping) for an executable example and
@@ -135,7 +135,7 @@ SELECT STRING_AGG(name, ',' ORDER BY 1) FROM agg;
 
 Results are `(2, 4, 4)`, `('a,b,c', 'a,b,c', 'abc')`, and `'c,a,b'`.
 The constant ORDER BY 1 preserves input order. SUM results are Decimal. A DISTINCT call such as
-`STRING_AGG(DISTINCT name, ',' ORDER BY name)` is valid; replacing its key with id uses COHSQLE032.
+`STRING_AGG(DISTINCT name, ',' ORDER BY name)` is valid; replacing its key with id uses CS05032.
 
 ### NULL placement in aggregate inputs
 

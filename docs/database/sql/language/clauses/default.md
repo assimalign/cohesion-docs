@@ -24,7 +24,7 @@ string [literals](../expressions/literals.md) work in literal declarations.
 
 CREATE TABLE, ADD COLUMN and ALTER COLUMN SET DEFAULT admit column-free scalar expressions,
 including arithmetic, CAST and Immutable, Stable or Volatile calls. Columns, parameters and
-aggregates fail with `COHSQLE013`; subqueries fail with `COHDBL001`. Result types must satisfy
+aggregates fail with `CS05013`; subqueries fail with `CK00001`. Result types must satisfy
 INSERT assignment compatibility before publication. SQL has NULL values, with no MISSING scalar.
 
 The top-level declaration grammar admits comparisons and IS [NOT] DISTINCT FROM, retaining
@@ -42,31 +42,31 @@ reads and writes with explicit values still work; only writes needing that defau
 ADD COLUMN freezes a nonvolatile default once into an independent missing-value literal for old
 rows. A Stable clock default therefore gives old rows the addition's timestamp and later inserts
 their own transaction timestamp. A Volatile default requires an empty table; live rows cause
-`COHSQLE027`, naming the column, before publication. SET/DROP DEFAULT never changes the frozen
+`CS03027`, naming the column, before publication. SET/DROP DEFAULT never changes the frozen
 value. Domain, typed DefaultSql and SDK defaults remain literal-only.
 
 Declaration checks assignment types and bounds. A NULL-producing NOT NULL default may be declared;
-actual assignments enforce NOT NULL (`COHSQLE024`, SQLSTATE 23502). Immutable and frozen Stable
-floating defaults must be finite (`COHSQLE002`, 22003). Other evaluation and conversion failures
+actual assignments enforce NOT NULL (`CS03024`, SQLSTATE 23502). Immutable and frozen Stable
+floating defaults must be finite (`CS02002`, 22003). Other evaluation and conversion failures
 retain their [normal codes](../diagnostics.md). DROP DEFAULT re-inherits a domain default;
 SET DEFAULT NULL preserves an explicit NULL override when hiding one.
 
 [Identity columns](identity.md) exclude a declared DEFAULT, but omission or a whole INSERT DEFAULT
 item allocates a value. BY DEFAULT identity also generates for UPDATE SET id = DEFAULT; ALWAYS
-rejects all assignments to the identity column in UPDATE, including DEFAULT (`COHSQLE025`).
+rejects all assignments to the identity column in UPDATE, including DEFAULT (`CS03025`).
 
 A bare DEFAULT in SELECT, a predicate, INSERT SELECT, arithmetic, a function argument, or a
-parenthesized scalar expression is `SQL0003`. Quoted or qualified columns named `default`
-remain ordinary column references. A NOT NULL failure is `COHSQLE024` (SQLSTATE 23502), naming
+parenthesized scalar expression is `CS00003`. Quoted or qualified columns named `default`
+remain ordinary column references. A NOT NULL failure is `CS03024` (SQLSTATE 23502), naming
 the column with the statement span when source text is available. The failed statement changes no rows and preserves
 earlier work in an explicit transaction.
 
 ## Examples
 
 TIME, INTERVAL and floating text defaults use the same conversion as assignment and CAST.
-Malformed temporal text is COHSQLE047 (22007), an out-of-range field is COHSQLE048 (22008), and
-interval overflow is COHSQLE062 (22015). Floating grouping is COHSQLE022 (22P02); overflow or
-nonzero underflow to zero is COHSQLE002 (22003). The original diagnostic survives DEFAULT wrappers.
+Malformed temporal text is CS02047 (22007), an out-of-range field is CS02048 (22008), and
+interval overflow is CS02062 (22015). Floating grouping is CS02022 (22P02); overflow or
+nonzero underflow to zero is CS02002 (22003). The original diagnostic survives DEFAULT wrappers.
 
 ```sql
 CREATE TABLE text_defaults (clock TIME DEFAULT '1 PM', elapsed INTERVAL DEFAULT '12',
@@ -124,7 +124,7 @@ ALTER TABLE fast_default ADD uid UUID DEFAULT GEN_RANDOM_UUID();
 ```
 
 SELECT returns `(1, FALSE)`, `(2, TRUE)`: the old row retains its frozen timestamp after DROP
-DEFAULT. The final addition fails COHSQLE027 because rows exist, leaving the schema unchanged.
+DEFAULT. The final addition fails CS03027 because rows exist, leaving the schema unchanged.
 
 ## See also
 

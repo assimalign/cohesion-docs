@@ -43,7 +43,7 @@ owns its bytes and remains valid after later moves or disposal.
 | InvalidOperationException | CurrentKey or CurrentEntryReference before the first successful move or after exhaustion |
 | ObjectDisposedException | Move or current-value access after disposal, including a failed move |
 | OperationCanceledException | Either token is canceled; the cursor is disposed |
-| IndexCorruptionException | A move reaches a damaged index page (COHDBI002); the cursor is disposed |
+| IndexCorruptionException | A move reaches a damaged index page (CK06102); the cursor is disposed |
 
 Other storage errors propagate from moves and also dispose the cursor. Lazy opening means page
 damage is discovered when reading, rather than at OpenCursor.

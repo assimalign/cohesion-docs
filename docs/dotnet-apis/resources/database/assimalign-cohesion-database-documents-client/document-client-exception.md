@@ -35,7 +35,7 @@ decoded model Failure completion, independently of exception ancestry.
 try { await connection.ExecuteAsync("DROP COLLECTION absent"); }
 catch (DocumentClientException failure) {
     Console.WriteLine(failure.Code);                // ExecutionFailure
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDOC002
+    Console.WriteLine(failure.Diagnostics[0].Code); // CD01002
 }
 // A subsequent QueryAsync on this connection can execute.
 ```

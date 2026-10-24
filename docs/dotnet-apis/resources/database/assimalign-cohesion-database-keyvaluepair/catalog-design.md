@@ -65,7 +65,7 @@ key-space records, so introspection invents neither.
 ## Error model
 
 The engine requires this catalog to exist before opening either storage. A missing catalog
-raises `DatabaseException` with `COHDBK006`, rather than bootstrapping an empty identity over
+raises `DatabaseException` with `CV06106`, rather than bootstrapping an empty identity over
 existing entries. Existing catalog formats are checked before data recovery. See
 [creation and open](design.md#missing-file-sets-and-interrupted-drop) for the recovery remedies.
 

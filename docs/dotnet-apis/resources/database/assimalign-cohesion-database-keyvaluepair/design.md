@@ -271,29 +271,29 @@ leak), repaired by re-bootstrapping on the next open.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHDBK005 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
-| COHDBS003 | Storage or attached-index corruption | XX001 |
-| COHDBI002 | Additional index-corruption diagnostic beside COHDBS003 and COHDBK005 | — |
-| COHDBK001 | Aborted transaction refuses commands/commit; original cause retained | — |
-| COHDBK006 | Incomplete file-backed creation or missing catalog, refused before storage opens | — |
+| CV06105 | Storage/index operation failure at an engine boundary; original cause retained | 58030 for I/O |
+| CK06003 | Storage or attached-index corruption | XX001 |
+| CK06102 | Additional index-corruption diagnostic beside CK06003 and CV06105 | — |
+| CV04101 | Aborted transaction refuses commands/commit; original cause retained | — |
+| CV06106 | Incomplete file-backed creation or missing catalog, refused before storage opens | — |
 
 StorageException subclasses, IndexException and IOException, including inner and aggregate
-causes, cross begin, command, commit/rollback and create/open boundaries with COHDBK005 when
+causes, cross begin, command, commit/rollback and create/open boundaries with CV06105 when
 no more specific classification applies. I/O maps to SQLSTATE 58030. Corruption takes precedence:
-COHDBS003 maps to XX001; attached-index damage also retains COHDBI002 and COHDBK005, keeping the
-index cause and page. Format refusals retain COHDBS001/COHDBI001 and their authored messages,
+CK06003 maps to XX001; attached-index damage also retains CK06102 and CV06105, keeping the
+index cause and page. Format refusals retain CK06001/CK06101 and their authored messages,
 diagnostics and inner causes. Existing offline/unconfirmed-commit outcomes remain in force.
 
 A storage, I/O or index failure aborts an explicit transaction after command admission is released. Further
-commands and COMMIT are refused with COHDBK001 in Diagnostics, retaining the original coded
+commands and COMMIT are refused with CV04101 in Diagnostics, retaining the original coded
 cause; roll back before continuing. Ordinary command errors keep statement atomicity and the
 transaction usable. In autocommit the next command can run immediately after a recoverable
 failure. Wire ExecutionFailure preserves the session. I/O open failures release acquired file
 sets and publish no database, permitting retry after the condition is resolved.
 
 Storage-failure, corruption and aborted-transaction refusal messages are ordinary unprefixed
-embedded text. The refusal carries COHDBK001 as an Error in Diagnostics and retains its original
-InnerException cause. The wire still adds `COHDBK001: ` once; no SQLSTATE is assigned to that code.
+embedded text. The refusal carries CV04101 as an Error in Diagnostics and retains its original
+InnerException cause. The wire still adds `CV04101: ` once; no SQLSTATE is assigned to that code.
 
 If abort cleanup also fails, the exact coded command exception remains primary, including its
 corruption type. EventSource Assimalign.Cohesion.Database.KeyValuePair emits Warning event 11,
@@ -304,7 +304,7 @@ TransactionCleanupFailed, with transactionId, exceptionType and exceptionMessage
 
 Detected storage corruption uses
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
+with CK06003 (SQLSTATE XX001), the database, optional page and original storage cause. Reads,
 writes, transactions and create/open fail rather than treating damage as an absent key. Wrapped
 and aggregate storage causes receive the same translation; legitimately reclaimed entries keep
 absence semantics. Wire ExecutionFailure retains the common code. See
@@ -460,7 +460,7 @@ framing, handshake and model messages are unchanged.
 
 ## T1 transport contract
 
-All parser refusals carry COHKV001–018; uncoded execution failure uses COHKV019. The existing Error
+All parser refusals carry Key-Value command codes; uncoded execution failure uses CV04019. The existing Error
 payload contains CODE: message. Parse/Execution failures preserve session readiness. Protocol 2.1
 agrees an empty capability list; 2.0 retains empty Ready. Core Diagnostics is rejected in either
 direction. The complete [Key-Value codes](../../../../database/key-value-pair/diagnostics.md) map
@@ -470,20 +470,20 @@ each refusal to its condition.
 
 File-backed open requires the original data and catalog file sets, including each journal and
 backup. With the primary data file present, missing sidecars in an existing file set raise
-DatabaseException with COHDBK004 in Diagnostics (Error, no
+DatabaseException with CV06104 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
 
 `OpenDatabaseAsync(DatabaseName name, CancellationToken cancellationToken = default)` throws
-`DatabaseException` with Error diagnostic `COHDBK006` when file-backed data is at most one page
+`DatabaseException` with Error diagnostic `CV06106` when file-backed data is at most one page
 or its catalog is entirely missing. Neither storage opens at this gate. The short data-set
 refusal directs `DropDatabaseAsync`, then `CreateDatabaseAsync`; a longer data set with no catalog
 requires preserving storage and restoring the complete backup. The missing-catalog gate also
 applies to in-memory storage. Surviving files remain byte-identical, no catalog is recreated,
 and the engine publishes no database. Existing catalogs are decoded and format-validated before
-data opens or recovers. No SQLSTATE is assigned to `COHDBK006`.
+data opens or recovers. No SQLSTATE is assigned to `CV06106`.
 
 For an existing `kv` data set whose catalog is missing, the lifecycle tests observe this refusal:
 
@@ -491,7 +491,7 @@ For an existing `kv` data set whose catalog is missing, the lifecycle tests obse
 try { await engine.OpenDatabaseAsync("kv", CancellationToken.None); }
 catch (DatabaseException failure)
 {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBK006
+    Console.WriteLine(failure.Diagnostics[0].Code); // CV06106
     Console.WriteLine(engine.TryGetDatabase("kv", out _)); // False
 }
 ```

@@ -286,7 +286,7 @@ independently; baseline Graph scalar bytes remain when composites are not agreed
 SQL and Graph register `ProtocolCapability.Diagnostics`. When agreed, one Diagnostics
 frame carries the bounded Warning/Error list immediately before Error on failure,
 or immediately before ResultComplete (PathsComplete for graph paths) on success.
-Information, including SQL0100, is never sent. Error and result payloads are unchanged.
+Information, including CS00100, is never sent. Error and result payloads are unchanged.
 Statement failures leave the server session ready. Model clients validate diagnostic
 ordering and preserve every code, severity, message, nullable offset and source line.
 
@@ -324,7 +324,7 @@ translated by the endpoint/client to ProtocolViolation. Outbound overflow follow
 Outbound SQL and Graph diagnostics are preflighted before any result or Error output.
 If the filtered Warning/Error list exceeds 4,096 entries or 1,048,576 encoded bytes,
 the endpoint retains the longest leading prefix that fits both limits with a final
-Warning notice, code COHDBP001. The notice counts toward both limits and states the
+Warning notice, code CK07001. The notice counts toward both limits and states the
 retained count, original filtered count and omitted count. Once an entry does not fit,
 it and every following entry are omitted, even if a later entry would fit. Entries
 are never shortened. A 4,097-entry list of small diagnostics therefore keeps the first

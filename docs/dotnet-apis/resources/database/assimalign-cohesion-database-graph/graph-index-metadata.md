@@ -18,9 +18,9 @@ ownership, and owning schema. `GraphPropertyKeyMetadata` declares optional value
 requiredness. `GraphIndexMetadata` names a node-property index.
 
 The complete UTF-8 metadata record must fit 8,092 bytes, including index and property names.
-Overflow is GraphElementTooLargeException at the catalog and structured COHDBG009 through
+Overflow is GraphElementTooLargeException at the catalog and structured CG02009 through
 GraphSchema/engine operations; exact fit is accepted. Saving an existing index name for another
-property is a deterministic COHDBG003 engine error. See [catalog boundaries](graph-catalog-exception.md).
+property is a deterministic CG03003 engine error. See [catalog boundaries](graph-catalog-exception.md).
 
 ## Related reference
 

@@ -28,7 +28,7 @@ argument-dependent result. COUNT, LENGTH and POSITION use Int64; numeric scalar 
 AcceptsArity includes COUNT's star as one argument. AcceptsArgument checks a known JSON kind;
 NULL/MISSING propagation belongs to the evaluator. A negative index throws ArgumentOutOfRangeException.
 It does not validate arity; variadic positions repeat the last declared kind. The planner rejects
-incompatible literals with COHDOC001; wrong-kind stored inputs produce NULL.
+incompatible literals with CD05001; wrong-kind stored inputs produce NULL.
 
 ## Example
 

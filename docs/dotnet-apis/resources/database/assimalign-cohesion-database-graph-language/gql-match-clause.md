@@ -20,7 +20,7 @@ The predicate can reference variables declared through its clause, never later o
 
 The record stores its arguments without validation. The Graph planner rejects null clauses,
 null/empty path lists, null paths, unbound predicate references and catalog composition with
-DatabaseException carrying `COHDBG001`. Path requests also reject projections supplied only by
+DatabaseException carrying `CG05001`. Path requests also reject projections supplied only by
 optional clauses with that code.
 
 ## Example

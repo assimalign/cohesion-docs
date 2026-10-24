@@ -41,7 +41,7 @@ square brackets that surround relationship syntax.
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
 | Scalar expression property maps | Supported | Unique keys and scalar values evaluated per incoming row |
 | Quantified edges/subpaths and Cypher bracketed lengths | Supported | Relationship-unique trails; group bindings are lists; maximum 64 hops |
-| Collection-valued properties in text | Recognized, not supported (`COHDBL001`) | No list or nested map literal |
+| Collection-valued properties in text | Recognized, not supported (`CK00001`) | No list or nested map literal |
 
 ## Arguments
 
@@ -54,9 +54,9 @@ square brackets that surround relationship syntax.
 
 MATCH inline maps are predicates on the complete bound clause, including references to later
 comma-separated pattern parts. INSERT/CREATE maps see only incoming stage bindings; references
-to variables being created in that stage use COHDBG001. Only literal/parameter equalities provide
-index seek bounds. List/map property syntax remains COHDBL001; evaluated composite values use
-COHDBG003. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md) for row-supplied values.
+to variables being created in that stage use CG05001. Only literal/parameter equalities provide
+index seek bounds. List/map property syntax remains CK00001; evaluated composite values use
+CG03003. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md) for row-supplied values.
 
 For example, on P nodes with k values 1 and 2,
 `LET value = 2 MATCH (n:P {k:value}) RETURN n.k;` returns `2`.
@@ -68,8 +68,8 @@ undirected relationship, but insertion requires a direction and a type.
 `->` matches an outgoing stored edge and `<-` an incoming one. `-` and `<->` match either
 orientation, as do `-[]-` and `<-[]->`; a self-loop yields one orientation. Abbreviated arrows
 carry no variable, type or property map, so typed/named edges use brackets. Tilde edge forms are
-unsupported (`COHDBL001`). Cypher `(a)-->(b)`/`(a)--(b)` after a pattern element report `GQL0008`
-because `--` starts a comment; use `(a)->(b)`/`(a)-(b)`. Cypher `<--`/`<-->` report `GQL0002`.
+unsupported (`CK00001`). Cypher `(a)-->(b)`/`(a)--(b)` after a pattern element report `CG00008`
+because `--` starts a comment; use `(a)->(b)`/`(a)-(b)`. Cypher `<--`/`<-->` report `CG00002`.
 
 A matched path contains at most 64 relationships. Written repetition-bound sums are checked
 before execution: fixed edges contribute one, finite repetitions contribute upper bound times
@@ -89,7 +89,7 @@ dead ends. Incident-type discovery and its first stream head share one charge; r
 head does not charge it again. Unrelated directions/types
 add no candidates. The viable counter counts hops passing trail uniqueness, binding, relationship
 and safe endpoint checks before copying path state; deferred predicates retain final checks.
-Physical work above 1,000,000 fails with COHDBG004 and actual physical/viable totals, without
+Physical work above 1,000,000 fails with CG05004 and actual physical/viable totals, without
 silent truncation. These counters are not public telemetry. Selected ranges stream in bounded,
 cancellable index batches, retaining one decoded head per type/direction range. Type discovery
 uses one-entry probes and charges before head decoding, so initialization also obeys the budget.
@@ -118,16 +118,16 @@ each occurrence. Variables declared inside a quantified segment bind source-orde
 nodes or relationships. RETURN * and WITH * include them in declaration order. FOR/UNWIND
 preserves their entity kinds, including across WITH/NEXT. Indexing a group can select an entity;
 direct `r.w`, deleting r, a singleton/group name conflict or a repeated map referencing a group
-uses COHDBG003.
+uses CG03003.
 
 Unbounded quantifiers stop when no unused relationship qualifies. A qualifying 65th edge raises
-COHDBG004 before testing its endpoint; endpoint filters and LIMIT cannot suppress that error.
+CG05004 before testing its endpoint; endpoint filters and LIMIT cannot suppress that error.
 Bare unbounded quantifiers use implicit trail semantics. Relationship uniqueness is per path,
 so separate comma paths may reuse an edge; this differs from Neo4j's clause-wide default.
 
 In-process rows may contain entity lists. Wire Execute requires graph.composite-values for
-possible composites (COHDBG016 without it), then refuses possibly nonempty entity lists with
-COHDBG001. A provably empty Max=0 group can return [] when negotiated. Expand groups with
+possible composites (CG07016 without it), then refuses possibly nonempty entity lists with
+CG05001. A provably empty Max=0 group can return [] when negotiated. Expand groups with
 FOR/UNWIND and project scalar properties, or use QueryPathsAsync for one named full path.
 No new wire encoding is required.
 
@@ -135,17 +135,17 @@ No new wire encoding is required.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| GQL0002 | Reversed bounds, ISO {0}/{0,0}, node quantifier or INSERT/CREATE quantifier |
-| GQL0004 | Bound outside Int32 |
-| GQL0005 | Text repetition-bound sum above 64 |
-| GQL0008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
-| GQL0009 | Parser stack guard while nesting subpaths; engine translates to COHDBG008 (54001) |
-| COHDBL001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, explicit path modes/search prefixes |
-| COHDBG001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
-| COHDBG003 | Invalid use of group variables as described above |
-| COHDBG004 | Runtime 64-hop, 100,000-binding or 1,000,000-candidate limit |
+| CG00002 | Reversed bounds, ISO {0}/{0,0}, node quantifier or INSERT/CREATE quantifier |
+| CG00004 | Bound outside Int32 |
+| CG00005 | Text repetition-bound sum above 64 |
+| CG00008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
+| CG00009 | Parser stack guard while nesting subpaths; engine translates to CG05008 (54001) |
+| CK00001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, explicit path modes/search prefixes |
+| CG05001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
+| CG03003 | Invalid use of group variables as described above |
+| CG05004 | Runtime 64-hop, 100,000-binding or 1,000,000-candidate limit |
 
-No SQLSTATE is assigned here except COHDBG008's 54001.
+No SQLSTATE is assigned here except CG05008's 54001.
 
 ## Examples
 

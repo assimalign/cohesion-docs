@@ -21,8 +21,8 @@ keys in priority order. [Direction](gql-sort-direction.md) defaults to ascending
 aliases; DISTINCT limits references to projected values. Equal keys preserve input order.
 
 The planner rejects null keys/expressions or undefined enum values with DatabaseException carrying
-COHDBG001. Hidden DISTINCT bindings and unbound names/parameters use the same code, with no
-assigned SQLSTATE. Evaluated key errors use COHDBG013. Sort preparation and comparisons observe
+CG05001. Hidden DISTINCT bindings and unbound names/parameters use the same code, with no
+assigned SQLSTATE. Evaluated key errors use CG02013. Sort preparation and comparisons observe
 cancellation. Keys are evaluated once per retained row, with nested map keys cached in ordinal order.
 
 ## Example
