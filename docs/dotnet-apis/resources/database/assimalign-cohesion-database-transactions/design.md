@@ -338,10 +338,12 @@ with owned public payloads across the assembly boundary. Storage's internal borr
 not cross that boundary. Only sequence classification survives iteration; physical page payloads
 are not retained. This later transaction-classification read verifies checksums afresh.
 
-The safe prune bound starts at `max(manager.OldestActive, recoveredSequenceFloor)` and is reduced to
+The safe prune bound starts at `max(manager.PruneBound, recoveredSequenceFloor)` and is reduced to
 every open context's `Snapshot.Minimum`. A snapshot captured while an older writer was active can
-retain a floor below the current oldest active transaction, so using only the manager's bound would
-reclaim visible data. The purge pass retries failed abort undo before pruning, exactly as before.
+retain a floor below the current oldest active transaction, so using only the oldest active sequence would
+reclaim visible data. The purge pass retries failed abort undo before pruning. It also invokes the
+optional index pruner under its apply gate with this same bound, even after an independent record
+prune failure, then rethrows the retained failure.
 
 ## Transaction EventSource
 

@@ -58,6 +58,10 @@ the aborted-writer purge walk, and the snapshot cursor overload — are document
 
 [Parent: Database](../index.md)
 
+## Maintenance API
+
+[BTreeIndexManager and options](b-tree-index-manager.md) describe bounded history pruning and the safe-horizon provider.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/docs/OVERVIEW.md`.

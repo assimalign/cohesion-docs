@@ -71,10 +71,10 @@ collation transforms count; entry-reference and writer-stamp tiebreakers are sep
   pairs logical transaction contexts with their storage transactions.
 - **MVCC entries, tombstone deletes.** Leaf entries carry writer and deleter
   sequence stamps; reads filter through the caller's snapshot (writer visible,
-  deleter absent-or-invisible). Deletes stamp — never remove — so old snapshots
+  deleter absent-or-invisible). Deletes stamp tombstones so old snapshots
   keep seeing the entry; an aborted deleter's stamp reverts physically with its
-  page image. Physical reclamation and node merges belong to vacuum, which follows
-  version pruning (post-MVP).
+  page image. Safe index-history pruning removes obsolete entries during the coordinator purge
+  pass; empty-leaf reclamation and node merges remain separate work.
 - **Uniqueness checks the LATEST state, not the snapshot.** Two transactions that
   began before each other's commits would both pass a snapshot-visibility check
   (write skew). Instead: unique inserts *and deletes* first take an exclusive
@@ -219,6 +219,16 @@ Pure contracts and span-based value objects. No reflection.
 | `Assimalign.Cohesion.Database.Types` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Safe index-history pruning
+
+SQL, Documents, Graph and Key-Value Pair connect their B-tree manager to the coordinator's version-purge pass. The coordinator supplies the safe exclusive horizon and serializes index pruning against statement apply and physical rollback. Only nonzero deleters strictly below that horizon are removed. Active snapshots, including statement pins and minima captured while an older writer was active, retain the versions they can see.
+
+A manager call visits at most 64 leaf pages across its directory and resumes on later calls. Each leaf is its own cancellable physical bracket; earlier completed leaves stay reclaimed if a later leaf fails. Empty leaves and separator identities remain valid; this does not merge or reclaim tree pages.
+
+Unique inserts take their key lock and tree write latch, prune eligible entries in that key's run, check uniqueness and reuse the insertion position during a single descent. Read cursors remain read-only. Standalone managers need a proven PruneBound provider for opportunistic pruning; explicit PruneAsync accepts a caller-proven horizon. See [manager options and pruning API](b-tree-index-manager.md).
+
+The #1393 decision records the existing physical index-page rollback as status quo. It adds no statement stamps, index format change or new visibility model. BTreePruneTests, BTreeUniqueDescentTests and DatabaseIndexPruneTests cover horizon equality, held snapshots, continuation, cancellation and unique-descent work.
 
 ## Sources
 

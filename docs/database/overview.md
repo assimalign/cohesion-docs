@@ -417,6 +417,10 @@ to determine available behavior.
 
 [Database](index.md) · [SQL language](sql/language/index.md) · [Database .NET APIs](../dotnet-apis/resources/database/index.md) · [Database SDK](../dotnet-apis/sdks/sdk-database/index.md)
 
+## Index-history maintenance
+
+SQL, Documents, Graph and Key-Value Pair prune obsolete index history during the coordinator version-purge pass, under the same safe snapshot horizon as record versions. Unique inserts also prune their key run during their single descent. Old snapshots retain required versions. This does not merge empty tree pages or change disk formats. See [index maintenance](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#safe-index-history-pruning).
+
 ## Sources
 
 - **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.
