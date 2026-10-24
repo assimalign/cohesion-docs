@@ -28,6 +28,10 @@ an incoming clause, with optional RETURN. They are not standalone leading statem
 
 - **[Language (GQL)](../index.md)** — reference hub.
 
+## Transaction statements
+
+[START TRANSACTION, COMMIT and ROLLBACK](transactions.md) execute as standalone controls on Execute.
+
 ## Sources
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.

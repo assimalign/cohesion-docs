@@ -59,7 +59,7 @@ Snapshot writers use first-updater-wins: changing an entity committed since the 
 aborts the stale writer with DatabaseTransactionAbortedException. ReadCommitted mutations acquire
 the database writer lock, refresh the statement snapshot and replan before evaluation, so queued
 increments see the preceding committed change. Auto-commit uses ReadCommitted. Explicit transactions
-use the session API; GQL has no transaction statements.
+use the session API or standalone START TRANSACTION, COMMIT and ROLLBACK over Execute.
 
 ## Diagnostics
 

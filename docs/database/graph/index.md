@@ -31,7 +31,7 @@ SQL collation settings do not apply.
 ## Transactions and traversal
 
 Snapshot and ReadCommitted isolation are supported. Serializable is rejected. Explicit transactions
-use the session API; GQL has no transaction-control syntax. Mutations join the session transaction,
+use the session API or standalone START TRANSACTION, COMMIT and ROLLBACK text over Execute. Mutations join the session transaction,
 and a mutation failure rolls back the owning logical transaction.
 
 Cancellation observed before explicit commit starts leaves the transaction usable and commits
@@ -113,7 +113,7 @@ result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics and g
 provides the bounded value format. Constructed limits fail inside the statement transaction before
 commit. Path payloads stay unchanged; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
-Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
+Explicit wire transactions use standalone ISO text controls over Execute. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.
 
 Path frames are sent in bounded pooled batches, with unchanged per-path bytes and a 16 MiB

@@ -79,8 +79,7 @@ remains the server's responsibility.
 Disposing a typed connection returns its shared authenticated session; disposing the client closes
 its pool. Connections support one exchange at a time.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
-> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 `SqlConnection.AbortAsync` discards a rental and closes its session instead of returning it to the
 pool. `Use` it when SQL session state cannot be reset, including a failed ROLLBACK or uncertain

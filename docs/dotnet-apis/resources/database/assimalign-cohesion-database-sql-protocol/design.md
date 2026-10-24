@@ -76,6 +76,10 @@ the executing statement. SQLSTATEs remain [documented mappings](../../../../data
 not new wire fields. ExecutionFailure preserves the connection under the existing rules.
 No framing or protocol-version change accompanies this diagnostic expansion.
 
+## Execute transaction status
+
+SQL and Graph negotiate transaction-status. After completed Execute output or statement failure, a one-byte Ready postamble reports Idle, Active or Failed. Clients drain it before completing exchanges and reset open/failed transactions on pool return. See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`.

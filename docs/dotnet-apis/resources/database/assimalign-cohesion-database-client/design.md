@@ -75,9 +75,7 @@ fail with ObjectDisposedException without waiting for outstanding rentals. Closu
 Terminate. A lease cancels and joins admitted exchanges before returning its connector; cancellation
 callback failures cannot skip the join or release of its pool slot.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing the connection.
-> A healthy pooled session retains unfinished transaction state and can pass it to the next renter.
-> Server-reported transaction status and rollback on return are not implemented.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 The pool does not infer connection health from an error code. On failure, the exchange base records
 completion through protected MarkResponseComplete after the complete
@@ -256,6 +254,14 @@ intersection once; DatabaseConnection exposes ServerVersion and Capabilities. SQ
 Diagnostics; Documents retains model Failure and Blob/Key-Value agree no diagnostics. 2.0 retains
 empty Ready; different majors fail. Shared DatabaseClientException maps negotiated wire entries to
 the non-null client exception Diagnostics snapshot. Model payload readers reject malformed UTF-8.
+
+## Transaction status and pool reset
+
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+
+The transaction-status capability uses the existing Ready identifier with a one-byte I/T/E postamble after Execute completion or a statement failure. Startup Ready remains the negotiation payload. The connector drains status before completing the exchange, including statement-error paths. Cleanup sends ROLLBACK outside the pool lock with a five-second timeout. A connection loss does not prove the outcome of an unacknowledged COMMIT. Other model families do not acquire text transaction support from this shared reset path.
+
+See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
 ## Sources
 

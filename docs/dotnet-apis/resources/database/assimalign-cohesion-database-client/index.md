@@ -70,8 +70,7 @@ Disposed leases cannot reach later rentals. Metadata and execution throw ObjectD
 IsOpen returns false. Repeated disposal or abort joins the original return. Shutdown closes returned
 connectors and fails waiting renters with ObjectDisposedException.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
-> The pool preserves unfinished transaction state, which a later renter can inherit.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Declarative commands
 

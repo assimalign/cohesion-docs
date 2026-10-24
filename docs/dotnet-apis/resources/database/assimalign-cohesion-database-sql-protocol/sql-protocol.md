@@ -23,7 +23,7 @@ This type now belongs to the model Protocol package. Its namespace and assembly 
 recompile callers and update imports. Wire and disk formats are unchanged. No compatibility assembly
 or type forwarder is provided.
 
-The Sql family owns identifiers 5–9 and advertises the shared diagnostics capability. Importing
+The Sql family owns identifiers 5–9 and advertises the shared diagnostics and transaction-status capabilities. Importing
 this namespace also brings its `ProtocolMessageType` extension identifiers into scope.
 
 ## Related reference

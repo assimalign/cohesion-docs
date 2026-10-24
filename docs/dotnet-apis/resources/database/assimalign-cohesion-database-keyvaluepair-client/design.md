@@ -135,7 +135,7 @@ KeyValueConnection wraps a new shared lease for each rental; the pool retains on
 Database is captured before return, allowing operation diagnostics to finish after the core lease
 is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
 reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
-for disposal, shutdown and the explicit-transaction reset gap (#1540).
+for disposal, shutdown and SQL/Graph transaction-status reset.
 
 ## Queued terminal errors
 

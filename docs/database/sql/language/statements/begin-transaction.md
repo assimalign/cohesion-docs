@@ -31,9 +31,8 @@ See [TransactionCoordinator](../../../../dotnet-apis/resources/database/assimali
 
 Data definition language (DDL) is rejected while the explicit transaction is active with
 `CS04003`. Statements outside an explicit transaction auto-commit. Session disposal or wire
-disconnect rolls back an unfinished transaction. Returning a client lease to its pool does not
-dispose that server session: end or roll back an explicit transaction before disposing the
-connection. Otherwise a later renter can inherit it (known gap #1540). `TRANSACTION` alone is not
+disconnect rolls back an unfinished transaction. Returning a client lease resets its negotiated server transaction state: an open or failed
+transaction is rolled back before reuse, and an uncertified or failed reset discards the connector. `TRANSACTION` alone is not
 a statement.
 
 Storage, I/O and index failures abort an explicit transaction. Later statements or COMMIT

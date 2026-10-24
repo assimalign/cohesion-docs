@@ -95,6 +95,10 @@ diagnostic codes, and the conformance corpus's relationship to ISO GQL.
 
 [Parent: Database](../index.md)
 
+## Transaction AST
+
+[GqlTransactionCommand](gql-transaction-command.md) identifies parsed transaction controls on GqlQueryExpression.TransactionCommand.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/OVERVIEW.md`.

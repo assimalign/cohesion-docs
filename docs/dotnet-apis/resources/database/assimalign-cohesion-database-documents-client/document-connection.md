@@ -48,8 +48,7 @@ rental exactly once; Abort discards it. Repeated disposal cannot return a later 
 
 The wrapper caches Database at rental time, so that name remains readable after disposal; IsOpen
 returns false. Its shared DatabaseConnection lease permanently rejects execution after return.
-The shared pool does not reset explicit transactions (known gap #1540): end or roll back any
-explicit transaction before returning its connection. Document wire transactions remain unsupported.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Example
 

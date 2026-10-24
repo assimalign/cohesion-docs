@@ -152,9 +152,8 @@ await coordinator.CommitAsync(context, CancellationToken.None);
 Console.WriteLine(context.State); // Committed
 ```
 
-Pooled client disposal does not dispose the server session or reset an explicit transaction.
-End or roll back that transaction before returning the connection; otherwise the next renter can
-inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
+SQL/Graph pooled client disposal resets an open or failed transaction by rollback before reuse.
+Only a certified Idle connector returns to the pool; failed or unsupported reset discards it. See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
 
 [Assembly](index.md) · [Design](design.md) · [LockManager](lock-manager.md)
 

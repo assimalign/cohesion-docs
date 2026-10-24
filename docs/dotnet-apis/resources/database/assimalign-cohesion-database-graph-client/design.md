@@ -170,8 +170,8 @@ mutations. Its static result-kind gate rejects entity projections with CG05001 a
 to ExecutePaths before data access, writer locks or mutation, even on empty matches.
 EXPLAIN descriptions remain scalar for entity RETURN.
 
-Graph transactions remain a deliberate limit: there are no connection transaction members;
-BEGIN, COMMIT, ROLLBACK, and the reserved Transaction message are unsupported. Mutations retain
+Graph transaction control uses Execute text START TRANSACTION, COMMIT and ROLLBACK.
+BEGIN and the reserved Transaction message remain unsupported; there are no new connection transaction members. Mutations retain
 the engine's existing execution and validation semantics. Database binding remains fixed at
 handshake and catalog SHOW keeps its existing read-only and scoping diagnostics.
 
@@ -235,7 +235,7 @@ QueryAsync executes [core functions/CAST](../../../../database/graph/language/fu
 with the same signatures and NULL rules as embedded calls. DateOnly and DateTimeOffset results use
 existing value tags; labels/keys/properties use negotiated composite values. Dynamic failures use
 CG02013 before ResultHeader and preserve the pooled session. Unknown names retain CG00010 and
-parsed arity CG00002. Graph wire statements are autocommit, each with one transaction-start clock.
+parsed arity CG00002. Graph wire explicit transactions share one transaction-start instant; autocommit captures one per statement.
 Computed entity results retain static Execute admission; scalar reads through entities are legal.
 
 ## Update counts
@@ -251,7 +251,7 @@ GraphConnection wraps a new shared lease for each rental; the pool retains only 
 Database is captured before return, allowing operation diagnostics to finish after the core lease
 is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
 reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
-for disposal, shutdown and the explicit-transaction reset gap (#1540).
+for disposal, shutdown and transaction-status reset.
 
 ## Queued terminal errors
 
@@ -263,6 +263,16 @@ ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings 
 A clean handshake EOF has its own message naming the startup handshake. See
 [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
+## Explicit transaction text
+
+START TRANSACTION, COMMIT and ROLLBACK are standalone ISO text statements over Execute (GraphConnection.ExecuteAsync). START uses Snapshot. Embedded callers also retain typed Snapshot/ReadCommitted APIs. BEGIN, savepoints, isolation/options clauses, multi-statement text, composed controls and EXPLAIN of controls are unsupported. ExecutePaths rejects controls with CG05001 before taking effect.
+
+A statement failure aborts the explicit transaction; subsequent work is refused with CG04007 until rollback. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the existing transaction; COMMIT/ROLLBACK without an open transaction uses CG04023. Disconnect and session teardown roll back. Network loss after COMMIT still requires outcome reconciliation.
+
+SQL and Graph negotiate transaction-status. After Execute completion or a statement error, the server sends a Ready postamble containing I (Idle), T (Active) or E (Failed); startup Ready is unchanged. The client drains it before returning the exchange. Pool return rolls back open/failed sessions outside the pool lock with a bounded cleanup timeout, and reuses only Idle sessions. Missing/invalid status, failed reset and legacy transaction-capable peers are discarded. No new frame identifier or protocol version is introduced.
+
+See [transaction-status API](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md) and [pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset). GraphTransactionTextWireTests and GraphTransactionFailureWireTests cover InMemory and TCP behavior.
 
 ## Sources
 

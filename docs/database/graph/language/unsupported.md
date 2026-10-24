@@ -29,7 +29,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
 | Server, database, graph, or schema selection | Recognized, not supported (`CK00001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
-| Transaction statements | Recognized, not supported (`CK00001`) | `BEGIN TRANSACTION`, `COMMIT` |
+| Transaction extensions | Recognized, not supported (`CK00001`) | BEGIN, savepoints, isolation/options and composed controls; use standalone START TRANSACTION, COMMIT or ROLLBACK |
 | Cypher doubled-dash arrows | Rejected (`CG00008` or `CG00002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |
 | Tilde edge forms | Recognized, not supported (`CK00001`) | Only directed stored relationships, matched in either orientation where requested |
 | Direct stored-property chain | Recognized, not supported (`CK00001`) | `a.b.c`; nested map member access executes |
@@ -44,7 +44,7 @@ inventory, not a list of implemented features. Malformed or invalid composition 
 ## Engine and delivery limits
 
 GQL cannot select another graph or database. Database lifecycle uses the engine API, explicit
-transactions use the session API, and label/type/index management uses the session-bound schema API.
+transactions use standalone ISO text controls or the typed embedded session API, and label/type/index management uses the session-bound schema API.
 
 GraphDatabaseServer serves scalar projections, mutations, SHOW, EXPLAIN and path queries.
 ExecutePaths accepts one bare node, relationship or path binding from a read-only composed query, including

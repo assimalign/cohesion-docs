@@ -63,6 +63,10 @@ share the SQL/OQL binding contract.
 
 Reads stream under [memory/work ceilings](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md). Unordered LIMIT can stop upstream work; ordered finite pages use bounded top-N. Mutation targets and final results retain statement memory accounting.
 
+## Transaction control
+
+[START TRANSACTION, COMMIT and ROLLBACK](statements/transactions.md) execute as standalone ISO text statements, including over Execute.
+
 ## Sources
 
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/docs/DESIGN.md`.

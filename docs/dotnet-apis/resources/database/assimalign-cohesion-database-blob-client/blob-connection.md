@@ -31,8 +31,7 @@ returns a healthy session or closes a broken one. Later operations with valid ar
 ObjectDisposedException; repeated disposal cannot touch a later rental. Database is captured at
 rental time and remains readable after return; IsOpen returns false.
 
-The shared pool does not reset explicit transactions (known gap #1540): end or roll back any
-explicit transaction before returning its connection. Blob exposes no explicit wire transaction API.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 Null streams throw ArgumentNullException; unreadable streams or invalid lengths throw
 ArgumentException. Overlap throws InvalidOperationException; cancellation throws

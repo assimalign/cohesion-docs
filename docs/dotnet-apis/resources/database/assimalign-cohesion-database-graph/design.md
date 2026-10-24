@@ -180,10 +180,9 @@ transaction, including an explicit session transaction, as in Documents.
 
 Snapshot and ReadCommitted isolation are supported. ReadCommitted captures and pins a statement
 snapshot, so metadata and each hop of a traversal share a visibility horizon. Serializable is
-rejected rather than silently weakened. Explicit transactions use the existing session API; GQL
-transaction-control syntax is outside the profile. Wire transactions are deliberately deferred:
-`BEGIN`/ `COMMIT`/ `ROLLBACK` do not parse and reserved `Transaction` byte 9 is rejected with
-`ProtocolViolation`. No connection-level transaction API is exposed. Results materialize before
+rejected rather than silently weakened. Explicit transactions use typed session APIs or standalone START TRANSACTION, COMMIT and
+ROLLBACK text over Execute. BEGIN remains unsupported; reserved Transaction byte 9 is rejected
+with ProtocolViolation. Transaction controls use Execute text; no new connection transaction methods are added. Results materialize before
 the statement transaction is released, so result iteration cannot race record reclamation.
 
 `Open` defers the storage checkpoint, performs physical WAL recovery, then invokes coordinator record

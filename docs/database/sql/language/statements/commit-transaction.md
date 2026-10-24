@@ -42,8 +42,8 @@ I/O and index failures abort explicit transactions; roll back before further wor
 carries the Error code in Diagnostics and the original cause in InnerException, with ordinary
 in-process Message text; the wire adds `CS04005: ` once. See [transaction diagnostics](../diagnostics.md#transactions).
 
-End the explicit transaction before disposing its pooled connection. Pool return preserves an
-unfinished transaction for the next renter (known gap #1540); it does not roll back automatically.
+Pool return rolls back an unfinished negotiated transaction before reuse; a failed or uncertified
+reset discards the connector. This does not establish the outcome of an unacknowledged COMMIT.
 
 ## Examples
 

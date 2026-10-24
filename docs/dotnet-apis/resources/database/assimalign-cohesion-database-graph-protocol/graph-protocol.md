@@ -19,7 +19,7 @@ public static class GraphProtocol
 ## Behavior and exceptions
 
 CompositeValues names graph.composite-values and adds no message identifier. Family is named Graph,
-advertises diagnostics and composite values, and owns bytes 5–9 and 64–66. Protocol 2.1 negotiates
+advertises diagnostics, transaction-status and composite values, and owns bytes 5–9 and 64–66. Protocol 2.1 negotiates
 capabilities by intersection. This extension needs no version bump; 2.0 or 2.1 without the capability
 keeps baseline scalar tuple parameters/rows. These static accessors introduce no validation exceptions.
 

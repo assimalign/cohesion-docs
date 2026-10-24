@@ -156,8 +156,7 @@ ends the lease; metadata and execution then throw ObjectDisposedException, while
 false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
 later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
-> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).

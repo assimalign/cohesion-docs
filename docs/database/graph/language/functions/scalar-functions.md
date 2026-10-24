@@ -79,7 +79,7 @@ text uppercase; toString renders it lowercase.
 
 One UTC instant is captured before the transaction begins. Every row/stage and every statement
 in an explicit API transaction shares it, including ReadCommitted transactions. Each autocommit
-statement captures its own instant. Graph wire statements are always autocommit. CURRENT_DATE
+statement captures its own instant. Graph wire explicit transactions share that instant until they end. CURRENT_DATE
 uses that instant's UTC date; CURRENT_TIMESTAMP returns it as DateTimeOffset.
 
 Dates/timestamps can be compared and ordered but cannot be stored as Graph properties. Proven
