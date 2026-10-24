@@ -522,6 +522,12 @@ WorkerLaneDisposalWaiting measures disposal wait time. Both use the root provide
 and add no diagnostic code or SQLSTATE. Opt-in internal pass observations cover all lane-worker kinds;
 checkpoint due-state evidence remains checkpoint-specific.
 
+## Structured failure-event codes
+
+StatementFailed (event 28 of Assimalign.Cohesion.Database) selects a thrown DatabaseException's code from its non-null Diagnostics: the first Error diagnostic, otherwise the first entry, otherwise an empty code. Returned failures use the same selection. Other exception types contribute an empty code. The event records the exception type and code, never the exception/diagnostic message or statement text. Offline refusals and unconfirmed commits also carry their model identity in Diagnostics with unprefixed exception detail and the original cause. Event ids, payload layout and counters are unchanged.
+
+Verified by DatabaseEventSourceTests.StatementFailed_ThrownDivisionByZero_ShouldReportDiagnosticCode and StatementFailed_ThrownDiagnostics_ShouldPreferFirstError in the source branch.
+
 ## Sources
 
 - **Admission, fairness, idle cost and disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
