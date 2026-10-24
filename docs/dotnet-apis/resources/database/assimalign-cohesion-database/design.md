@@ -528,6 +528,14 @@ StatementFailed (event 28 of Assimalign.Cohesion.Database) selects a thrown Data
 
 Verified by DatabaseEventSourceTests.StatementFailed_ThrownDivisionByZero_ShouldReportDiagnosticCode and StatementFailed_ThrownDiagnostics_ShouldPreferFirstError in the source branch.
 
+## Construction and debugger inspection
+
+LockManager and StoragePageLatch now have public parameterless constructors; their static Create factories are removed. QueryAnalyzerContext and StorageStream are sealed; the Cache scaffold Class1 is also sealed and supplies no cache engine.
+
+Database debugger displays and private nested proxies filter internal coordination state. They project reviewed safe public/protected values and stored references without running queries, enumerating results, resolving services, acquiring locks, reading storage/streams, invoking callbacks or creating lazy data. Types with no safe projection show an empty view and type name; effective inherited views are reused. Ref-like data cannot escape through a heap view. Debugger attributes/proxies add no public runtime API, instance fields to existing types, wire/disk format or normal execution work.
+
+Messages and format templates use generated assembly-local resources. Diagnostic identities remain separate from unprefixed structured messages; framework argument guards retain their .NET types and parameter names. See [the code scheme](../../../../database/error-codes.md).
+
 ## Sources
 
 - **Admission, fairness, idle cost and disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

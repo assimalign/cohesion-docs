@@ -109,6 +109,10 @@ resolved values and register nested components while keeping the model package d
 
 [Engine options](graph-database-engine-options.md) configure memory/work ceilings; [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md) lowers embedded request limits.
 
+## Catalog diagnostics
+
+[GraphCatalogException](graph-catalog-exception.md) exposes non-null structured Diagnostics.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.

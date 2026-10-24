@@ -30,6 +30,19 @@ failure takes precedence when it accompanies a conflict or disposal.
 - **Design** — [Lifetime and implementation decisions](catalog-design.md).
 - **Examples** — [Source-backed usage](examples/catalog.md).
 
+## Structured diagnostics
+
+```csharp
+public sealed class GraphCatalogException : Exception
+{
+    public GraphCatalogException(string message);
+    public GraphCatalogException(string message, Exception innerException);
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
+}
+```
+
+Diagnostics is non-null and read-only. Public message constructors leave it empty; model-owned coded producers populate it with the condition identity separately from the unprefixed message, retaining an original cause when present. Direct catalog consumers receive this exception; model boundaries translate failures into their DatabaseException contracts. Branch on complete diagnostic codes, not message text.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph.Catalog/OVERVIEW.md`.

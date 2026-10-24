@@ -138,6 +138,10 @@ mutable registry or Use stage.
 
 [DatabaseServerOptions](database-server-options.md) owns common transport/session settings for the five model leaves.
 
+## Precise database absence
+
+[DatabaseNotFoundException](database-not-found-exception.md) adds an explicit diagnostics-bearing overload.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/OVERVIEW.md`.

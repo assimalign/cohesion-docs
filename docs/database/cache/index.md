@@ -34,6 +34,10 @@ kernel, but does not establish a command contract.
 - **[Database overview](../overview.md)** — shared kernel context.
 - **[Database API reference](../../dotnet-apis/resources/database/index.md)** — resource packages.
 
+## Scaffold type
+
+The public Class1 placeholder is sealed. It adds no cache operation or working engine.
+
 ## Sources
 
 - **Scope** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Cache/docs/OVERVIEW.md`.

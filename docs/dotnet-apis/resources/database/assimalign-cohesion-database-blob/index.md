@@ -112,6 +112,10 @@ resolved values and register nested components while keeping the model package d
 - **[Blob catalog](catalog.md)** — Reference and usage.
 - **[Blob storage](storage.md)** — Reference and usage.
 
+## Catalog diagnostics
+
+[BlobCatalogException](blob-catalog-exception.md) exposes non-null structured Diagnostics.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/docs/OVERVIEW.md`.

@@ -198,6 +198,10 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 
 The shared StatementFailed event takes its payload code from non-null Diagnostics: first Error, otherwise first entry, otherwise empty. It does not extract codes from messages or include statement/message text. Offline and unconfirmed-commit failures carry their model code in that carrier. See [failure-event selection](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#structured-failure-event-codes).
 
+## Catalog and lifecycle conditions
+
+CD04102 is a catalog snapshot conflict; CD04103 an expected-version mismatch; CD05016 a result byte/frame limit; CD07001 a session bound to another database; CD09001 a stale collection handle. These supplement the existing CD condition families and shared CK guards. See the [code scheme and registry](../../error-codes.md).
+
 ## Sources
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/StorageCorruptionTests.cs`.

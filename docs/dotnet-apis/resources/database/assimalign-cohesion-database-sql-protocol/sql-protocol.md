@@ -11,7 +11,7 @@ Assembly: `Assimalign.Cohesion.Database.Sql.Protocol.dll`. NuGet package: `Assim
 ## Signature
 
 ```csharp
-public static class SqlProtocol
+public static partial class SqlProtocol
 {
     public static ProtocolMessageFamily Family { get; }
 }

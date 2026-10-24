@@ -69,6 +69,10 @@ The model server options take `IDuplexConnectionListener`; client composition su
 
 [Parent: Database](../index.md)
 
+## Health builder dependency
+
+[HealthChecksBuilder](health-checks-builder.md) documents the public constructor used by Database admin health composition.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/OVERVIEW.md`.

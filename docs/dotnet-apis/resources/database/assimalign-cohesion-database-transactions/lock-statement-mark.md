@@ -38,7 +38,7 @@ From LockStatementMarkTests.Equals_SameBoundary_ShouldHaveValueSemantics:
 ```csharp
 using Assimalign.Cohesion.Database.Transactions;
 
-var locks = LockManager.Create();
+var locks = new LockManager();
 var owner = new TransactionSequence(1);
 var first = locks.MarkStatement(owner);
 var same = locks.MarkStatement(owner);

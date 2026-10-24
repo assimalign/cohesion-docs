@@ -185,6 +185,10 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 
 The shared StatementFailed event takes its payload code from non-null Diagnostics: first Error, otherwise first entry, otherwise empty. It does not extract codes from messages or include statement/message text. Offline and unconfirmed-commit failures carry their model code in that carrier. See [failure-event selection](../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#structured-failure-event-codes).
 
+## Additional execution conditions
+
+CV05001 identifies a Put execution without an outcome row, CV05002 an unsupported executor request kind, CV06107 an unsupported entry-space format and CV07001 a session bound to another database. Shared CK identities cover common lifecycle/state/value guards. See the [registry](../error-codes.md).
+
 ## Sources
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.

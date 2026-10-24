@@ -652,7 +652,7 @@ InsertRecord tries packing fragmented space on its current page before extending
 
 If the current page cannot fit an insert, an in-memory free-byte heap selects a partly empty older page for the same owner before extension. Hints track aggregate capacity after packing, including the new slot cost; the current target stays preferred. Selection never grants write ownership: allocation generation and actual capacity are rechecked before mutation, and stale hints are corrected or excluded. Open rebuilds hints from the existing page/owner scan; rollback invalidates measurements. No page or file format changes.
 
-StorageCompactionTests, StorageRecordReuseTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
+StorageCompactionTests, StorageRecordFreeBytesTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
 
 ## Sources
 

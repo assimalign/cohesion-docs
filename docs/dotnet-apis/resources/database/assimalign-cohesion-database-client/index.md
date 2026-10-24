@@ -102,6 +102,10 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 
 [Parent: Database](../index.md)
 
+## Exchange postamble contract
+
+[DatabaseProtocolExchange](database-protocol-exchange.md) adds a protected transaction-status constructor.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/docs/OVERVIEW.md`.
