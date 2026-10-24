@@ -425,6 +425,10 @@ SQL, Documents, Graph and Key-Value Pair prune obsolete index history during the
 
 Unlatched reads confirm against the page write sequence and retry overlapping mutations; decode failures are reported only from a confirmed copy, with record location and cause. Inserts and growing updates compact fragmented pages when packed capacity suffices. Inserts also revisit partly empty older pages using in-memory free-byte hints before extending. See [storage behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
+## Buffer-pool concurrency
+
+Cached page pins use concurrent lookup and frame-local pin counts. Clock replacement chooses unpinned victims, and a single pending load coalesces readers of the same cold page. Reads, writes and growth run outside the global mapping lock; capacity includes loading reservations. Flush, resize and disposal retain explicit I/O ownership and WAL ordering. See [buffer-pool design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#the-buffer-pool).
+
 ## Sources
 
 - **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.

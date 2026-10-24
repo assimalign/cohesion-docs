@@ -162,37 +162,20 @@ request: operating-system buffering can preserve bytes even when no durable flus
 
 ## The buffer pool
 
-`Pin`-counting with RAII handles (`IStoragePageHandle`): a page cannot be evicted while pinned, dirty
+`Pin`-counting with scoped handles (`StoragePageHandle`): a page cannot be evicted while pinned, dirty
 pages are written back (checksum-stamped) before eviction, and handles release their pin on dispose.
 Contrast with a `Memory<byte>` -pooling design: pages are *pinned* GC handles exposing raw pointers
 because the slotted-page and header structs are `unsafe` overlays — the pool guarantees pointer
 stability for the handle's lifetime.
 
-- **Eviction is least-recently-used** over unpinned entries: pins and cache hits move a
-  page to the MRU end; capacity overflow evicts from the LRU end, skipping pinned
-  pages, and fails loudly (`StorageIOException`) when every resident page is pinned —
-  the pool never silently exceeds its memory budget. LRU (not clock/2Q) because the
-  pool is fully lock-serialized anyway, so the precise policy costs nothing extra and
-  is trivially testable.
-- **Buffers are reused**: evicted entries return their pinned 8 KiB buffers (GC handle
-  and all) to a recycle stack, so steady-state page churn performs zero allocations —
-  fresh pages are zeroed on reuse so recycled buffers never leak prior content.
-- **Failed loads never poison the cache**: a page that fails checksum verification is
-  not cached; its buffer goes straight back to the recycle stack and the exception
-  propagates.
-- **One lock.** All pool state is guarded by a single monitor. Page *content* access is
-  the caller's concern (a handle hands out a raw pointer); the transaction layer above
-  provides content-level isolation. Sharding the lock is a measured-need optimization,
-  not a default.
+- **Clock replacement.** Cached hits use concurrent lookup, a frame-local atomic pin and a binding recheck, then set a reference bit. Release hits and unpins do not move a shared LRU list or enter the mapping monitor. A miss scans at most twice the resident count; an atomic zero-pin reservation excludes new pins before eviction. Existing pins keep their buffers stable. All-pinned exhaustion still throws StorageIOException.
+- **Single-flight cold loads.** One pending load per page coalesces concurrent readers. The synchronous pin API waits internally, then retries lookup. A frame becomes visible only after its read and validation finish. Independent page misses can perform I/O concurrently; resident and reserved loading frames together stay within Capacity.
+- **Page I/O outside mapping locks.** Reads, dirty-victim writes, WAL waits, checksums, growth and device flush do not hold the global mapping monitor. Short monitor sections manage admission, the clock, recycled frames and pending faults. Per-page I/O stripes order physical reads/writes, and an extension gate serializes grow-only Length/SetLength checks. Backing handles retain their own synchronization.
+- **Failure ownership.** A failed dirty-victim write retains its old mapping and dirty bytes. A failed incoming read recycles the unpublished frame and propagates the original exception. Every load completion wakes waiters on success or failure. Recycled pinned arrays and clock nodes are reused; cold faults still allocate completion/map bookkeeping.
 
-Flush I/O releases the pool monitor. A flush snapshots dirty frame identities, copies one
-page image under the monitor, then writes outside it in 16-page bursts with a yield between
-bursts. The final stream flush also runs outside the monitor. Cached pins and dirty marks
-can progress while write-ahead, page-write or stream-flush I/O is blocked. An I/O lease keeps
-the copied frame from being recycled; eviction skips it or waits with the monitor released.
-Dirty-version checks preserve changes made while an older image is in flight. A separate
-gate serializes flush, resize and disposal; disposal drains I/O before clearing frames.
-Foreground cache misses and evictions still perform their own I/O under the pool monitor.
+Flush takes dirty identity snapshots and writes private page images outside the mapping monitor in bounded bursts. Frame I/O leases prevent recycling; dirty-version checks retain newer changes for a later write. Flush, resize and disposal share a separate maintenance gate. Resize/disposal close cold-I/O admission and drain reservations with the monitor released; cached pins on other resident frames can continue. Shrink publishes capacity after required evictions, releasing surplus recycled buffers. Disposal drains I/O before clearing bookkeeping. WAL-before-data ordering, checksum validation and the synchronous public pin API are unchanged.
+
+StorageBufferPoolConcurrencyTests and StorageBufferPoolIoTests cover cached progress during blocked I/O, coalesced loads, failure wakeup, eviction, shrink and disposal. No public buffer-pool type, disk format or asynchronous pin API is added.
 
 StoragePageManager allocation releases its reserved page ID if obtaining an overwrite pin fails.
 If extension or initialization fails after pinning, it releases both the pin and reservation.
