@@ -95,8 +95,8 @@ counter.
 
 A lock table keyed by `LockResource` with the classic five-mode compatibility matrix (S/U/X/IS/IX),
 same-owner upgrades (an owner's own grants never block it), FIFO waiter wake-up on `ReleaseAll`,
-and wait-for-graph deadlock detection: a request that would close a cycle aborts *itself* with
-`TransactionDeadlockException` — the newest-waiter-as-victim policy, chosen because it needs no cost
+and wait-for-graph deadlock detection: a detected cycle first attempts soft queue repair.
+An unavoidable held-lock cycle aborts the requester with `TransactionDeadlockException` — the newest-waiter-as-victim policy, chosen because it needs no cost
 model and the victim is retryable by construction. Waits are `TaskCompletionSource` -based and honor
 cancellation.
 
@@ -387,6 +387,12 @@ code generation, or `Microsoft.Extensions.*`.
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Cascade backoff and queue repair
+
+When cascade lock preparation encounters a refused lock, SQL releases grants acquired since its retry mark, waits for the refused resource and rebuilds statement preparation before trying again. Grants from earlier statements remain held; waited grants can be retained across later restarts. No lock wait runs inside the physical apply gate. A failure before apply releases the new statement grants when storage remains online. Ordinary hard-deadlock victims still require transaction rollback and retry.
+
+The lock manager distinguishes held-lock dependencies from queue-order dependencies. On a soft cycle it builds consistent queue orders that preserve compatible FIFO edges without allowing an incompatible holder grant. A hard cycle leaves queue orders unchanged and selects a victim. Repair keeps the original waiter, cancellation and timeout registrations; notification stays outside the lock-table monitor. Queues without a detected cycle retain their normal FIFO rules. LockQueueReorderTests and SQL cascade retry tests cover these paths. This behavior does not promise a starvation bound.
 
 ## Sources
 

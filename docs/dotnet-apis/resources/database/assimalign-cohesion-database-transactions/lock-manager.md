@@ -27,7 +27,8 @@ belong to a TransactionSequence. AcquireAsync waits for a compatible grant in th
 queue. TryAcquire uses the same grant rules without waiting, returning false when the request
 would queue. Existing owner grants can be re-granted or upgraded; every granted mode remains held.
 
-AcquireAsync can throw TransactionDeadlockException when a wait closes a cycle,
+AcquireAsync first tries repairing a detected soft queue cycle. It can throw
+TransactionDeadlockException for an unavoidable held-lock cycle,
 OperationCanceledException on cancellation, or TransactionAbortedException when the owner ends
 while waiting or an engine-mode wait is abandoned because storage goes offline. An engine-mode
 request that would wait inside the statement apply gate throws InvalidOperationException.
@@ -122,6 +123,10 @@ locks.ReleaseAll(owner);
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md#unwritten-statement-marks) · [LockStatementMark](lock-statement-mark.md) · [Examples](examples/index.md)
+
+## Soft queue cycles
+
+A detected cycle caused by queue order can be repaired by consistent reordering across affected resources. Repair never grants against an incompatible holder and preserves waiter cancellation/timeout registrations. Normal FIFO rules continue when no cycle is detected. Held-lock cycles still use deadlock victim handling. See [cascade backoff and queue repair](design.md#cascade-backoff-and-queue-repair).
 
 ## Sources
 
