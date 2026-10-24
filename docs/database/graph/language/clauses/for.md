@@ -23,8 +23,8 @@ retain their entity kind through FOR/UNWIND and subsequent WITH/NEXT projections
 can anchor MATCH or DELETE. Mixed/unproven elements remain value bindings; using them as entities
 is CG03003. List/map values remain transient and cannot be stored as graph properties.
 
-FOR and matching share the 100,000 intermediate-row bound. Expansion is eager and runs before
-later paging; LIMIT does not reduce earlier writes or expansion work. Scalar/list/map final wire
+FOR and matching stream under shared physical-work and retained-memory budgets. Unordered
+read LIMIT can stop upstream expansion. Paging does not reduce an admitted mutation target set. Scalar/list/map final wire
 results use normal composite negotiation. Lists of nodes or relationships cannot yet be returned
 over the wire, even with graph.composite-values (CG05001; #1662). UNWIND them and project scalar
 properties, or use the path API for one mandatory entity/path final column.
@@ -36,7 +36,7 @@ properties, or use the path API for one mandatory entity/path final column.
 | CG05001 | Unbound input/parameter, invalid stage shape, or final entity-list wire result |
 | CG03003 | Rebinding the loop variable or using a value variable as an entity |
 | CG02013 | Non-list input or runtime element incompatible with a proven entity kind |
-| CG05004 | Intermediate-row bound exceeded |
+| CG05004 | Physical-work budget exceeded |
 | CK00001 | WITH ORDINALITY or WITH OFFSET suffix, FOREACH or unsupported scalar call |
 
 No SQLSTATE is assigned to these codes. See [Diagnostics](../diagnostics.md).

@@ -44,8 +44,9 @@ Exact comparison distinguishes adjacent large integers above 2^53 and Decimal 0.
 0.1d. Ordering comparisons in predicates keep their separate NULL/incomparable-value rules.
 
 Mutations run for every matched binding before projection. DISTINCT then removes duplicate output
-tuples; sorting, offset and limit follow. All matches and rows materialize, subject to the existing
-100,000-match and 1,000,000-candidate bounds. Each sort key is evaluated once per retained row;
+tuples; sorting, offset and limit follow. Read stages stream; a finite ordered page retains bounded top-N state for OFFSET + LIMIT
+while still visiting the input needed to order it. Retained state and final results share the
+statement memory budget, and visited candidates consume physical work. Each sort key is evaluated once per retained row;
 map keys, including nested maps, are cached in ordinal order. Sort preparation and comparisons
 observe cancellation, which follows ordinary statement rollback behavior. No catalog or wire
 format change is required.

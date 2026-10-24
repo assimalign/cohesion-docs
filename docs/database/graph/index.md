@@ -61,8 +61,8 @@ mandatory clause; bindings supplied only by optionals are refused during plannin
 
 [ORDER BY](language/clauses/order-by.md) supports explicit NULL placement and stable ties.
 [OFFSET/SKIP and LIMIT](language/clauses/limit-offset.md) page rows or supported path returns;
-offset precedes limit. The output tail follows all mutations and DISTINCT, with full materialization
-and existing match/candidate caps. Default NULL order is last ascending, first descending.
+offset precedes limit. The output tail follows all mutations and DISTINCT, while reads stream and unordered LIMIT can stop upstream work. Ordered finite pages
+use bounded top-N; retained state and final results share statement memory/work budgets. Default NULL order is last ascending, first descending.
 
 [Aggregates](language/functions/aggregate-functions.md) and [GROUP BY](language/clauses/group-by.md)
 execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 locally and on the wire;
@@ -130,7 +130,7 @@ without another error write. Cleanup disposal after a successful autocommit pres
 ## See also
 
 [Linear composition](language/clauses/next.md) executes LET, FILTER, FOR/UNWIND, RETURN … NEXT
-and Cypher WITH as eager stages. WITH WHERE filters after paging. Intermediate entity lists may
+and Cypher WITH as source-ordered stages. WITH WHERE filters after paging. Intermediate entity lists may
 be unwound, but final entity lists remain unavailable over the wire (CG05001; #1662).
 
 - **[Database](../index.md)** — engine navigation.

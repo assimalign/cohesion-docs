@@ -43,6 +43,10 @@ Console.WriteLine(request.Parameters!["age"]); // 18 (Int32)
 
 [GraphQueryRequest](graph-query-request.md) · [GraphPathsQueryRequest](graph-paths-query-request.md) · [Assembly](index.md)
 
+## Execution limits
+
+The public GraphQueryLimits? Limits getter carries optional lower limits on embedded row/path requests. Existing overloads leave it null. See [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphRequest.cs`.

@@ -65,7 +65,8 @@ entities and [FOR/UNWIND](../clauses/for.md) retains proven element kinds. Execu
 final grouping/aggregate projections with CG05001, but permits such intermediate stages when
 the final column is one mandatory bare entity/path and the statement has no writes.
 
-Grouping and LIMIT do not reduce the 100,000-match input cap. Aggregate result errors roll back
+Grouping consumes input incrementally, retaining group/aggregate state within the shared memory
+budget. LIMIT does not reduce the input needed to form complete groups. Aggregate result errors roll back
 statement mutations. EXPLAIN describes GroupAggregate without evaluating arguments.
 
 ## Diagnostics

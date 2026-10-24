@@ -12,7 +12,7 @@ public sealed record GqlForStage(string Variable, GqlExpression List, bool IsUnw
 
 ## Behavior and exceptions
 
-IsUnwind preserves the spelling. The list evaluates per row; NULL/empty lists produce no rows and non-lists use CG02013, including strings/byte arrays. Incoming bindings remain and Variable must be new (CG03003). Proven node/relationship element kinds survive expansion and can anchor MATCH/DELETE. Unknown/mixed elements stay values. Expansion shares the 100,000-row bound (CG05004). WITH ORDINALITY/OFFSET suffixes are CK00001. Entity lists remain unavailable as final wire results (CG05001; #1662). See [FOR/UNWIND](../../../../database/graph/language/clauses/for.md).
+IsUnwind preserves the spelling. The list evaluates per row; NULL/empty lists produce no rows and non-lists use CG02013, including strings/byte arrays. Incoming bindings remain and Variable must be new (CG03003). Proven node/relationship element kinds survive expansion and can anchor MATCH/DELETE. Unknown/mixed elements stay values. Expansion shares the statement memory/work budgets. WITH ORDINALITY/OFFSET suffixes are CK00001. Entity lists remain unavailable as final wire results (CG05001; #1662). See [FOR/UNWIND](../../../../database/graph/language/clauses/for.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

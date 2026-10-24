@@ -82,19 +82,19 @@ expansion. Boolean type expressions select the visible catalog types they accept
 hops select all types. Expansion left of an anchor reverses the seek direction. The same selection
 applies to edges inserted earlier in the statement. Either-direction reads return a self-loop once.
 
-The executor limits intermediate materialized matches to 100,000 across clauses. Its separate
+Read execution streams within retained-memory and physical-work budgets. The
 physical counter charges visited anchor candidates and selected visible relationship candidates as
 they are consumed, including heads needed to initialize the identity-ordered stream merge and
 dead ends. Incident-type discovery and its first stream head share one charge; returning a primed
 head does not charge it again. Unrelated directions/types
 add no candidates. The viable counter counts hops passing trail uniqueness, binding, relationship
 and safe endpoint checks before copying path state; deferred predicates retain final checks.
-Physical work above 1,000,000 fails with CG05004 and actual physical/viable totals, without
+Physical work above the effective configured ceiling fails with CG05004 and actual physical/viable totals, without
 silent truncation. These counters are not public telemetry. Selected ranges stream in bounded,
 cancellable index batches, retaining one decoded head per type/direction range. Type discovery
 uses one-entry probes and charges before head decoding, so initialization also obeys the budget.
 Budget refusal, cancellation and errors close every active parent stream. Result materialization
-and the existing match/hop limits still apply. See [EXPLAIN](statements/explain.md)
+and the 64-hop trail limit still apply. An unordered read LIMIT can stop before visiting a branch. See [EXPLAIN](statements/explain.md)
 for the counting description; LIMIT does not reduce matching work.
 
 [Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
@@ -121,7 +121,8 @@ direct `r.w`, deleting r, a singleton/group name conflict or a repeated map refe
 uses CG03003.
 
 Unbounded quantifiers stop when no unused relationship qualifies. A qualifying 65th edge raises
-CG05004 before testing its endpoint; endpoint filters and LIMIT cannot suppress that error.
+CG05004 before testing its endpoint if visited; endpoint filters cannot suppress a visited
+65th hop. An unordered read LIMIT can stop upstream before that branch.
 Bare unbounded quantifiers use implicit trail semantics. Relationship uniqueness is per path,
 so separate comma paths may reuse an edge; this differs from Neo4j's clause-wide default.
 
@@ -143,7 +144,7 @@ No new wire encoding is required.
 | CK00001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, explicit path modes/search prefixes |
 | CG05001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
 | CG03003 | Invalid use of group variables as described above |
-| CG05004 | Runtime 64-hop, 100,000-binding or 1,000,000-candidate limit |
+| CG05004 | Runtime 64-hop trail or configured physical-work limit |
 
 No SQLSTATE is assigned here except CG05008's 54001.
 

@@ -36,7 +36,7 @@ and appends `combine=union` to detail. The full pattern and WHERE remain residua
 can change row order in queries without ORDER BY, which have no guaranteed row order.
 Expand also reports
 `adjacency=(node,direction,type_id,relationship); seek_direction=Outgoing; type_filter=KNOWS;
-physical=visited_candidates; viable=accepted_hops; physical_limit=1000000` for an outgoing KNOWS
+physical=visited_candidates; viable=accepted_hops; physical_limit=<effective-work-ceiling>` for an outgoing KNOWS
 hop expanded from its left endpoint. seek_direction reverses when expanding left of an anchor;
 type_filter is the type expression/name, or % for all types. Quantified bodies describe their hops
 with the same fields. These describe [counting rules](../patterns.md#remarks), not runtime totals:

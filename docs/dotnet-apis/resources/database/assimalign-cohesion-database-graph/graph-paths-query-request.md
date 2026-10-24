@@ -53,6 +53,19 @@ var result = await session.ExecuteAsync(request, CancellationToken.None);
 
 [GraphRequest](graph-request.md) · [Assembly](index.md) · [GQL parameters](../../../../database/graph/language/expressions/parameters.md)
 
+## Lower execution limits
+
+The existing constructors/factories remain. Added overloads accept GraphQueryLimits after parameters:
+
+```csharp
+public GraphPathsQueryRequest(GqlQueryStatement statement,
+    IReadOnlyDictionary<string, object?>? parameters, GraphQueryLimits limits);
+public static GraphPathsQueryRequest FromGql(string gql,
+    IReadOnlyDictionary<string, object?>? parameters, GraphQueryLimits limits);
+```
+
+Null limits throw ArgumentNullException. Limits is inherited from GraphRequest. Execution requires positive values no greater than the engine ceilings, otherwise CG08021. See [limits DTO](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphPathsQueryRequest.cs`.

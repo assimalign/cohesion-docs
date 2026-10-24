@@ -74,7 +74,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `RETURN` | Value expressions with aliases, optional ALL/DISTINCT or named-binding star; standalone or after MATCH/insertion | Projects tuples; DISTINCT compares exact values and entity/path identities |
 | `GROUP BY` | RETURN names or equivalent expressions, including () | Same exact keys as implicit aggregation; grouping before projection |
 | `ORDER BY` | Keys with ASC/ASCENDING/DESC/DESCENDING and NULLS FIRST/LAST | Sorts projected rows/paths after DISTINCT; stable ties |
-| `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; output only, with full materialization |
+| `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; unordered read LIMIT can stop upstream work |
 | `INSERT` | Node/path insertion with row-evaluated scalar maps | Inserts nodes and relationships transactionally per input row |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
@@ -269,7 +269,8 @@ Numeric comparison is exact. Lists compare lexicographically; maps compare count
 keys and values; paths compare starting node, relationship sequence and length. Ties retain input
 order. Mutations precede projection, DISTINCT, sort, offset and limit. Every key evaluates once per
 retained row and nested map keys are cached. Sort preparation/comparisons observe cancellation.
-Full materialization and match/candidate caps remain in force. EXPLAIN describes SortPage and
+Read stages stream; unordered LIMIT can stop expansion and ordered finite pages use bounded
+top-N. Retained state and final results share statement memory/work budgets. EXPLAIN describes SortPage and
 SortKey without execution. See the [language rules](../../../../database/graph/language/clauses/order-by.md).
 
 ## Aggregates and grouping

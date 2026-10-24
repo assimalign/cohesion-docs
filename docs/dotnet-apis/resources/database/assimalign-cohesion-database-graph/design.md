@@ -33,9 +33,8 @@ in source order. LET adds sequential bindings, FILTER retains TRUE and FOR/UNWIN
 (NULL gives zero rows; non-list CG02013). WITH or RETURN … NEXT retains only referenceable
 projected names, preserving entity kinds, optionality, possible composites and Int64 COUNT types.
 WITH ORDER BY/WHERE can see incoming names only without DISTINCT/aggregation; WHERE executes
-after sorting/paging. A write anywhere locks before the first stage. Every stage materializes
-eagerly and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
-starts one empty row and no scope. FOR shares the 100,000-row bound with matching.
+after sorting/paging. A write anywhere locks before the first stage. Read stages stream owned slot bindings and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
+starts one empty row and no scope. FOR shares statement memory/work accounting with matching; mutations stage complete target tables.
 
 Proven node/relationship list elements survive UNWIND and can anchor MATCH/DELETE. Intermediate
 collect/UNWIND is valid for read-only ExecutePaths with one mandatory final entity/path. Writes
@@ -225,9 +224,9 @@ GQL patterns have fixed/quantified edges and parenthesized segments with repetit
 of at most 64 relationships. Each matched path is a trail: an edge
 identity is used at most once within that path; a node may recur. Separate comma-separated paths
 have separate edge sets and share variable bindings. This makes a three-edge cycle a valid three-hop
-result but forbids reusing its first edge on a fourth hop. At most 100,000 intermediate path matches
-materialize across matching clauses, and a statement examines at most 1,000,000 node/edge candidates, including
-dead ends; either overflow fails with `CG05004`, never silent truncation. Cancellation is
+result but forbids reusing its first edge on a fourth hop. Retained execution state and final results share a statement memory budget; visited node/edge
+candidates, including dead ends, share a physical-work budget. Memory exhaustion uses CG05020
+and work exhaustion uses CG05004, never silent truncation. Cancellation is
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
 
@@ -235,13 +234,13 @@ Physical work charges visited anchors and selected visible relationships, includ
 needed to initialize the identity-ordered merge and dead ends. Incident-type discovery and its
 first head share one charge; consuming a primed head does not charge again. Viable work counts hops passing trail, binding,
 relationship and safe endpoint checks before state copying. CG05004 includes actual physical and
-viable totals when the 1,000,000 physical cap is exceeded. The 100,000-binding and 64-hop limits
-remain. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
+viable totals when the effective physical-work ceiling is exceeded. The 64-hop trail limit
+remains. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
 head per range. Type discovery uses one-entry probes; budget checks precede head decoding,
 including initialization. Refusal, cancellation and errors dispose every active parent stream.
 EXPLAIN Expand describes
 `adjacency=(node,direction,type_id,relationship)`, effective seek_direction, type_filter,
-`physical=visited_candidates; viable=accepted_hops; physical_limit=1000000`; it executes no hops
+`physical=visited_candidates; viable=accepted_hops; physical_limit=<effective-work-ceiling>`; it executes no hops
 and reports no runtime totals. EXPLAIN ANALYZE remains unsupported.
 
 `TraverseAsync` implements the frozen `GraphTraversal` contract separately: breadth-first traversal,
@@ -345,7 +344,8 @@ created, ordinary graph writes cannot address or change these result rows.
 
 The common row/path tail projects, removes DISTINCT duplicates, caches each sort key, sorts,
 offsets and limits. Mutations run for every matched binding before this tail; paging does not reduce
-the match or candidate caps. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
+an admitted mutation set. Unordered read LIMIT can stop upstream work; finite ordered pages
+retain bounded top-N state for OFFSET + LIMIT under the memory/work budgets. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
 comparison is exact, ties retain input order and nested map keys are canonicalized once for sorting.
 Preparation and comparisons check cancellation; comparer cancellation reaches ordinary rollback
 without a List.Sort wrapper. EXPLAIN maps SortPage and SortKey. Invalid dynamic counts use
@@ -376,7 +376,7 @@ not included.
 | `CG05001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `CG01002` | Unknown label or relationship type |
 | `CG03003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
-| `CG05004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
+| `CG05004` | Physical-work budget or runtime 64-hop trail limit exceeded |
 | `CG07005` | Session/database binding mismatch |
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
@@ -796,7 +796,8 @@ constraints on one node and bind empty lists. Source order survives right/left i
 Only outer singleton entities can anchor. Repeated property maps apply at every occurrence.
 The heap-based expansion frontier retains depth-proportional search state; materialized results
 still have the existing budgets. Runtime unbounded paths fail CG05004 at a qualifying 65th
-relationship before endpoint tests, regardless of LIMIT. EXPLAIN Expand detail reports
+relationship before endpoint tests if that branch is visited. An unordered read LIMIT can stop
+upstream before visiting it. EXPLAIN Expand detail reports
 `quantifier={min,max}; body_hops=n; trail=True`; an empty max means unbounded.
 Group/singleton conflicts and invalid group access use CG03003; invalid direct AST paths use
 CG05001. Wire composite admission (CG07016) precedes the entity-list gate (CG05001).
@@ -973,6 +974,14 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Streaming execution budgets
+
+Read operators pass owned slot bindings incrementally; retaining operators copy or acquire ownership before requesting the next row. LIMIT without ORDER BY can stop upstream read expansion. Ordered finite pages use top-N bounded by OFFSET + LIMIT; grouping consumes its input incrementally. Mutations acquire the writer lock before their stages and materialize complete mutation target tables, so paging never reduces admitted writes. Final row/path results remain materialized before wire output.
+
+GraphDatabaseEngineOptions.QueryMemoryBudget and QueryWorkBudget are positive engine ceilings copied at creation. Retained rows, values, groups, DISTINCT/sort state, writer overlays, cursor batches, merge heads and traversal state share deterministic statement-local memory accounting. Physical work includes visited anchors, selected relationship candidates, merge initialization, dead ends and FOR elements. This is retained-state accounting, not a process heap limit.
+
+In-process GraphQueryLimits can lower MemoryBytes and/or WorkUnits; omitted members inherit the engine ceiling and requests cannot raise it. GraphQueryRequest/GraphPathsQueryRequest add limits overloads, and GraphTraversal.Limits uses the same policy. Remote Execute payloads carry no per-request limits and use server engine ceilings. CG05020 reports memory exhaustion, CG05004 work/trail exhaustion and CG08021 invalid request limits. Cancellation and iterator disposal release retained state. No disk/wire format or event/counter change is added. See [configuration](graph-database-engine-options.md). GqlExecutionBudgetTests covers limits, early stop, ownership and top-N.
 
 ## Sources
 

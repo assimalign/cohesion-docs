@@ -1,6 +1,6 @@
 # NEXT
 
-Starts the next segment of one eagerly evaluated GQL statement.
+Starts the next segment of one source-ordered GQL statement.
 
 > **Status:** Implemented. Applies after RETURN or a modifying segment.
 

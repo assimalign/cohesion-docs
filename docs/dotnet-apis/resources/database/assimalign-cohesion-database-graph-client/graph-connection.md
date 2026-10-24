@@ -40,7 +40,7 @@ use CG05001 before duplicate-name checks.
 through QueryAsync with GraphResultSet.AffectedCount. The count includes distinct changed
 entities; repeated rows do not multiply it, and pure no-ops or OPTIONAL NULL targets count zero.
 
-LET/FILTER/FOR/UNWIND, WITH and RETURN … NEXT run as eager stages. WITH WHERE filters after
+LET/FILTER/FOR/UNWIND, WITH and RETURN … NEXT run in source order with streaming read stages. WITH WHERE filters after
 paging. Only final columns determine wire admission; intermediate collect/UNWIND preserves proven
 entity kinds. Any write stage excludes QueryPathsAsync. Final node/relationship lists remain
 CG05001 (#1662), even with graph.composite-values. See [stage rules](../../../../database/graph/language/clauses/next.md).

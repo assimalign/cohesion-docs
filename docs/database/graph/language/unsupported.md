@@ -66,7 +66,7 @@ Serializable isolation is rejected.
 Final lists of nodes/relationships remain outside wire Execute, even with graph.composite-values
 (CG05001; #1662). Intermediate collect and UNWIND preserve entity kinds and can produce scalar
 properties or a single mandatory final entity through ExecutePaths. A write anywhere in a composed
-statement excludes ExecutePaths. [Linear composition](clauses/next.md) documents the eager stage order.
+statement excludes ExecutePaths. [Linear composition](clauses/next.md) documents the source-ordered execution.
 
 - **[Language (GQL)](index.md)** — supported reference.
 - **[Graph](../index.md)** — engine status.

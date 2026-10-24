@@ -31,7 +31,7 @@ own validation scope; a previous stage's aliases cannot validate a later stage.
 
 NULL properties and expression results follow ordinary GQL rules; WHERE keeps only TRUE.
 WITH does not finish a query and cannot be followed immediately by NEXT. Continue with another
-stage and eventually RETURN or a write. Each stage materializes eagerly in source order.
+stage and eventually RETURN or a write. Read stages stream in source order; mutation targets materialize.
 
 ## Diagnostics
 

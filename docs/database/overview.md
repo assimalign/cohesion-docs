@@ -397,7 +397,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 26;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
-and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
+and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
 The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the

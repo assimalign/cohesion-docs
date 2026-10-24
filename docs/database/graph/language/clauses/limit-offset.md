@@ -30,9 +30,9 @@ for pagination. Tied sort keys preserve input order; include further keys when t
 depends on distinguishing ties.
 
 Paging applies to scalar/composite rows and supported path projections. It never reduces the
-mutation set: insertion executes for every matched binding even when LIMIT is zero. Full
-materialization and the match/candidate caps remain in force. A LIMIT 1 query exceeding 100,000
-matches still fails with CG05004. EXPLAIN validates counts before returning SortPage plan rows.
+mutation set: insertion executes for every matched binding even when LIMIT is zero. For reads, LIMIT without ORDER BY can stop upstream expansion, including LIMIT 0 before
+the first move. Final results remain materialized under the statement memory budget. Ordered
+finite pages retain a top set bounded by OFFSET + LIMIT; the physical-work budget still applies. EXPLAIN validates counts before returning SortPage plan rows.
 
 ## Diagnostics
 

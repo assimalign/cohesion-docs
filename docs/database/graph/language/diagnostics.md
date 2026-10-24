@@ -37,7 +37,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG05001` | Invalid hand-built function arity or unbound argument; invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
 | `CG01002` | Unknown label or relationship type |
 | `CG03003` | Provably incompatible function/CAST kind or temporal stored property; schema/data mismatch, restricted deletion, LET/FOR rebinding, value used as entity, known scalar member owner or later reference to deleted variable; deterministic catalog identity/name/owner/index-target error |
-| `CG05004` | Materialized MATCH/FOR row, candidate-expansion or runtime 64-hop trail limit exceeded |
+| `CG05004` | Physical-work budget or runtime 64-hop trail limit exceeded |
 | `CG07005` | Session/database binding mismatch |
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
@@ -107,7 +107,8 @@ Ordering and paging add no codes or SQLSTATE categories. Missing key/count param
 CG05001. Invalid bound count values (NULL, negative, floating, nonnumeric or out of Int64 range)
 use CG02013 before reads or writer locks; non-finite/unsupported CLR inputs retain CG03003.
 [ORDER BY](clauses/order-by.md) and [paging](clauses/limit-offset.md) apply to output after all
-mutations and DISTINCT; LIMIT does not bypass CG05004 bounds.
+mutations and DISTINCT. Unordered read LIMIT can stop before visiting a branch; visited work
+remains subject to CG05004 and retained memory to CG05020.
 
 SET/REMOVE add no diagnostic codes. Leading clauses, nested targets, separated + = and property
 += use CG00002; duplicate map keys CG00006. Whole-map parameters/expressions, literal composite
@@ -142,8 +143,8 @@ with an unknown name can still empty it. Optional null extension leaves an expli
 | Text repetition-bound sum | 64 relationships | `CG00005` |
 | Runtime trail length | 64; qualifying 65th edge fails before endpoint tests | `CG05004` |
 | Recursive expression depth | Available thread stack | `CG00009` / `CG05008` |
-| Materialized intermediate matches | 100,000 across matching clauses | `CG05004` |
-| Physical candidate visits | 1,000,000 per statement: anchors plus selected visible relationships, including merge-initialization heads, type discovery and dead ends; discovery/first head share one charge; overflow reports actual physical/viable totals | `CG05004` |
+| Accounted retained execution memory | Configured engine ceiling, optionally lowered per request | `CG05020` |
+| Physical candidate visits | Configured per-statement ceiling: anchors plus selected visible relationships, including merge-initialization heads, type discovery and dead ends; discovery/first head share one charge; overflow reports actual physical/viable totals | `CG05004` |
 | Composite value depth (root zero) | 64 | Parameter CG03003; constructed CG02013 |
 | Total values per value, including root | 65,536 | Parameter CG03003; constructed CG02013 |
 | Encoded value or result-row bytes | 16,777,216 | Parameter CG03003; constructed/row CG02013 |
@@ -266,6 +267,10 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 ## Failure tracing
 
 The shared StatementFailed event takes its payload code from non-null Diagnostics: first Error, otherwise first entry, otherwise empty. It does not extract codes from messages or include statement/message text. Offline and unconfirmed-commit failures carry their model code in that carrier. See [failure-event selection](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#structured-failure-event-codes).
+
+## Execution budgets
+
+CG05020 reports accounted retained-memory exhaustion. CG05004 reports physical-work or runtime trail exhaustion. CG08021 rejects nonpositive request limits or values above engine ceilings. None has an assigned SQLSTATE. Configure [engine ceilings and lower embedded limits](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md).
 
 ## Sources
 

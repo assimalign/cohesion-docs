@@ -69,6 +69,10 @@ Result: b, then c. Incoming traversal at depth one from a returns c; an unknown 
 - **Design** — [Lifetime and implementation decisions](design.md).
 - **Examples** — [Source-backed usage](examples/index.md).
 
+## Execution limits
+
+The public GraphQueryLimits? Limits init property applies optional lower memory/work limits to typed traversal. Null inherits engine ceilings. See [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.

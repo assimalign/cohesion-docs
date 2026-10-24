@@ -51,7 +51,7 @@ matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names 
 
 [RETURN … NEXT](../clauses/next.md) carries projected aliases and bare-variable bindings into a
 following segment. [WITH](../clauses/with.md) projects intermediate rows and applies WHERE after
-its paging. Every stage materializes in source order; only final columns govern wire admission.
+its paging. Read stages stream in source order; mutation targets materialize; only final columns govern wire admission.
 
 ## Examples
 

@@ -16,7 +16,7 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
-- **[GqlStage](gql-stage.md)** — Source-ordered stage family and eager execution.
+- **[GqlStage](gql-stage.md)** — Source-ordered stage family and source-ordered execution.
 - **[GqlMatchStage](gql-match-stage.md)** — MATCH/OPTIONAL MATCH over incoming rows.
 - **[GqlLetStage](gql-let-stage.md)** — Sequential value bindings.
 - **[GqlFilterStage](gql-filter-stage.md)** — TRUE-only stage filtering.

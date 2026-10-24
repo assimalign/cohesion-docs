@@ -105,6 +105,10 @@ resolved values and register nested components while keeping the model package d
 - **[StoredGraphNode](stored-graph-node.md)** — Reference and usage.
 - **[StoredGraphRelationship](stored-graph-relationship.md)** — Reference and usage.
 
+## Execution budgets
+
+[Engine options](graph-database-engine-options.md) configure memory/work ceilings; [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md) lowers embedded request limits.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
