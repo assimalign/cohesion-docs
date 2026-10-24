@@ -63,7 +63,7 @@ NULLS FIRST/LAST in every ordering position.
 | Catalog component in `Assimalign.Cohesion.Database.Sql` | Durable table, column, constraint, index, collation, ownership, and applied-schema metadata |
 | `Assimalign.Cohesion.Database.Sql.Schema` | `SqlSchema.Compile`, compiled relational shapes, canonical serialization, and migration planning |
 | Storage component in `Assimalign.Cohesion.Database.Sql` | SQL row operations over shared pages, record chains, and write-ahead logging |
-| `Assimalign.Cohesion.Database.Sql.Tcp` | Optional `SqlDatabaseServerOptions.Listen(Uri)` Transmission Control Protocol (TCP) composition helper |
+| `Assimalign.Cohesion.Database.Tcp` | Optional `SqlDatabaseServerOptions.Listen(Uri)` Transmission Control Protocol (TCP) composition helper |
 | `Assimalign.Cohesion.Database.Sql.Client` | Typed commands, parameters, materialized result sets, errors, and observer hooks over the shared client |
 
 ## Execution and lifetime
@@ -205,5 +205,5 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 - **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Schema** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/docs/DESIGN.md`
 - **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
-- **TCP integration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Tcp/docs/OVERVIEW.md`
+- **TCP integration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Tcp/docs/OVERVIEW.md`
 - **Client** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`

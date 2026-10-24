@@ -83,7 +83,7 @@ nested factory execute during `Build`:
 
 See the [source-backed usage examples](examples/index.md).
 
-The `Listen` helper ships in `Database.Sql.Tcp`. Omit `AddServer` for embedded SQL.
+The `Listen` helper ships in `Database.Tcp`. Omit `AddServer` for embedded SQL.
 `SqlDatabaseEngine.Create(options)` also remains available for standalone use. See
 [DESIGN.md](design.md) for the execution model and its decisions.
 

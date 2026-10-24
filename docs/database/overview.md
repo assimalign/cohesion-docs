@@ -81,12 +81,13 @@ The original template receives its path and endpoint through generated
 `Resource.Mounts.Data.Path` and `Resource.Endpoints.Db`.
 
 In a Database SDK executable, this host provisions an `audit` database containing a schema-owned
-`t` table. The TCP integration package supplies `Listen`; it uses the SQL namespace.
+`t` table. The TCP integration package supplies `Listen`; import Assimalign.Cohesion.Database to use it with any model options.
 
 ```csharp
 using System;
 
 using Assimalign.Cohesion.Database.Hosting;
+using Assimalign.Cohesion.Database;
 using Assimalign.Cohesion.Database.Sql;
 using Assimalign.Cohesion.Database.Sql.Schema;
 using Assimalign.Cohesion.Hosting;
@@ -362,8 +363,8 @@ Engine-owned maintenance runs in embedded and hosted modes alike.
 ## Wire model
 
 Each model server owns its own `IDuplexConnectionListener`; the endpoint selects the model.
-Transport selection belongs to the composition root. `Database.Sql.Tcp` supplies the existing
-`Listen(Uri)` convenience for consumers that choose TCP. Engine packages reference no concrete
+Transport selection belongs to the composition root. `Database.Tcp` supplies the shared
+`Listen(Uri)` convenience for all five model server options for consumers that choose TCP. Engine packages reference no concrete
 transport.
 
 Each endpoint fixes a model family for the entire connection. The shared protocol owns framing,

@@ -56,7 +56,7 @@ projects are retired. Public component namespaces remain unchanged. The five Pro
 | [`Assimalign.Cohesion.Database.Sql.Client`](assimalign-cohesion-database-sql-client/index.md) | Client | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Language`](assimalign-cohesion-database-sql-language/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Sql.Schema`](assimalign-cohesion-database-sql-schema/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.Sql.Tcp`](assimalign-cohesion-database-sql-tcp/index.md) | Feature library | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Tcp`](assimalign-cohesion-database-tcp/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Storage`](assimalign-cohesion-database-storage/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Testing`](assimalign-cohesion-database-testing/index.md) | Testing | Not listed in this framework |
 | [`Assimalign.Cohesion.Database.Transactions`](assimalign-cohesion-database-transactions/index.md) | Feature library | Public reference and runtime |
@@ -117,7 +117,7 @@ inventory below.
 | `Assimalign.Cohesion.Database.Hosting` |
 | `Assimalign.Cohesion.Database.Sql` |
 | `Assimalign.Cohesion.Database.Sql.Protocol` |
-| `Assimalign.Cohesion.Database.Sql.Tcp` |
+| `Assimalign.Cohesion.Database.Tcp` |
 | `Assimalign.Cohesion.Database.Sql.Language` |
 | `Assimalign.Cohesion.Database.Sql.Schema` |
 | `Assimalign.Cohesion.Database.Sql.Client` |

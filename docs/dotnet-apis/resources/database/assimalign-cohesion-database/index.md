@@ -134,6 +134,10 @@ mutable registry or Use stage.
 
 [Examples](examples/index.md) · [Parent: Database](../index.md)
 
+## Shared server options
+
+[DatabaseServerOptions](database-server-options.md) owns common transport/session settings for the five model leaves.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/OVERVIEW.md`.

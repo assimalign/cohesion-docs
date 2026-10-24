@@ -1391,7 +1391,7 @@ mechanism. Wire format
 every message and scalar component for independent clients. The server binds `SqlProtocol.Family` once
 on accept, negotiates shared protocol 2.1 while preserving baseline model bytes, and negotiates incompatible majors
 before authentication. Result materialization belongs to `Database.Sql.Client`. The TCP `Listen`(Uri)
-extension lives in the optional `Database.Sql.Tcp` composition package; this engine references only
+extension lives in the optional `Database.Tcp` composition package; this engine references only
 generic Connections.
 
 Payload offsets are zero-based and exclude the shared five-byte frame header. `Execute` (5) starts
