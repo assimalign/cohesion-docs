@@ -393,6 +393,10 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 
 The shared StatementFailed event takes its payload code from non-null Diagnostics: first Error, otherwise first entry, otherwise empty. It does not extract codes from messages or include statement/message text. Offline and unconfirmed-commit failures carry their model code in that carrier. See [failure-event selection](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#structured-failure-event-codes).
 
+## Hash-build refusal
+
+CS05067 reports exhausted statement hash-build memory (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure SqlDatabaseEngineOptions.StatementMemoryBudget; the engine does not spill a build to disk. See [hash joins](clauses/join.md#hash-joins-and-memory).
+
 ## Sources
 
 - **Execution/DDL corpus and span provenance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`, `SqlExecutionDiagnosticTests.cs` and `SqlExecutionDiagnosticInterleavingTests.cs` in the same directory.

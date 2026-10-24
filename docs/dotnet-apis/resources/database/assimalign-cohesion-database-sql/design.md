@@ -358,24 +358,20 @@ unsupported-clause diagnostics.
 
 ## Execution model
 
-- **Rule-based planning, plan/execute split.** `SqlPlanner` binds the AST against
+- **Binding, costing and the plan/execute split.** `SqlPlanner` binds the AST against
   the catalog into a small `SqlPlan` IR and rejects everything outside the
   executor's surface at plan time with precise messages. N-way joins, grouping, supported
   subqueries, aggregates and INSERT ... SELECT have executable plan nodes. The IR
-  is deliberately thin — a cost-based planner replaces the binding internals
-  later without changing the executor seam (#178's plan-stage requirement, MVP
-  shape). That promise paid out with index adoption: the IR gained exactly one
+  stays small while transient probe costing chooses among bound access candidates.
+  Index adoption added one
   node family (`SqlAccessPath` on SELECT, UPDATE and DELETE plans — scan | index seek) and the
   executor seam did not move.
-- **Access-path selection (rule-based; no cost model — the MVP planner
-  contract).** The planner flattens the WHERE clause's top-level `AND`
+- **Access eligibility and probe costs.** The planner flattens the WHERE clause's top-level `AND`
   conjuncts into per-column sargable predicates — `column op comparand` where
   the comparand is plan-time evaluable (literal/parameter, no column
   references), non-null, and coercible to the column's storage type; `BETWEEN`
-  contributes its two bounds — then picks the index with the **longest
-  equality prefix** over its leading key columns (ties prefer a usable range
-  bound, then uniqueness, then name — deterministic), extended by range bounds
-  on the next key column. **Range sargability is a type matrix**: only types
+  contributes its two bounds. Bounded snapshot-visible probes rank eligible costs; ties retain
+  the longest leading equality prefix, usable next-key range, uniqueness and ordinal name. **Range sargability is a type matrix**: only types
   whose evaluator comparison order provably equals the key codec's byte order
   (integers, decimal, boolean, temporal types and strings under matching
   byte-expressible collations) get range seeks; Guid/binary/json remain equality-only.
@@ -1118,7 +1114,7 @@ shared binary values detach when supplied to rows. All defined 19-type CAST pair
 unsupported pairs rejected during planning as CS02011 (42846). Canonical CAST and concatenation
 text follows [the conversion reference](../../../../database/sql/language/expressions/cast.md).
 
-EXPLAIN performs the wrapped statement's binding, parameter and provisioning admission and returns
+Plain EXPLAIN performs the wrapped statement's binding, parameter and provisioning admission and returns
 [DatabasePlanDescription](../assimalign-cohesion-database-execution/database-plan-description.md)
 without data execution. Every plan record has a guarded description mapping.
 DatabaseException carries sorted, non-null diagnostics. SQL/GQL negotiate frame 14 under 2.1;
@@ -1364,8 +1360,7 @@ shippable steps:
 
 ## Non-goals (current cut)
 
-RIGHT/FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), cost-based
-optimization (selection stays rule-based), index seeks for UPDATE/DELETE target collection, and
+RIGHT/FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the
@@ -1734,6 +1729,12 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Probe costing and hash builds
+
+Binding proves eligible paths and preserves complete residuals. Statement-local bounded B-tree probes rank access costs without persisted statistics or ANALYZE maintenance. Eligible equijoins compare hash-build/probe work with nested loops; safe smaller first INNER inputs can become the driver, while LEFT preserves its written outer side. Hash memory is reserved against StatementMemoryBudget before retained allocation and released on every exit. CS05067 / 53200 refuses exhausted builds; no spill exists.
+
+Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
 
 ## Sources
 

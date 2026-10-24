@@ -65,8 +65,7 @@ Qualified wildcards such as `t.*` remain excluded.
 
 ### Access paths
 
-Execution is left-deep. Only the first INNER pair may swap inputs; a WHERE seek covering a full
-unique key takes priority when choosing its driver. Later steps may seek into the added input,
+Execution is left-deep. Only the first INNER pair may swap inputs; bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
 and LEFT always drives from its preserved left side.
 Mandatory equalities can probe an index's leading key prefix under the existing type/collation
 rules; the full predicate still filters candidates. Otherwise the added input buffers once.
@@ -77,7 +76,9 @@ INNER inputs and from the preserved to the nullable input of LEFT. Floating keys
 text types or collations do not infer constants. Complete ON and WHERE predicates still run;
 duplicates and mixed numeric comparisons keep their ordinary results. A dropped or replaced index,
 including a same-name index with different keys, falls back to a residual-filtered scan.
-[EXPLAIN](../statements/explain.md) describes the driving input and each join step's scan or seek.
+[EXPLAIN](../statements/explain.md) describes the driving input and each step's scan, seek or hash access.
+Bounded probe costs can select among eligible accesses and first-pair directions; a complete unique
+lookup retains its cheap path.
 
 ### Predicate safety
 
@@ -179,6 +180,14 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
+
+## Hash joins and memory
+
+Eligible broad mandatory equijoins can choose HashJoin by comparing bounded build/probe costs with nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input; LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes retain index nested loops. Unsupported key shapes or predicates whose movement could change error evaluation keep the existing loop/probe path.
+
+The hash path retains duplicates and evaluates the complete ON/WHERE residuals. NULL keys do not match; LEFT still emits unmatched outer rows. Type and collation equality rules apply to hashes and collisions.
+
+SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. The budget does not cap result materialization or transient planning. See [performance and configuration](../../performance.md).
 
 ## Sources
 

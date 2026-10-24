@@ -204,7 +204,7 @@ B+Tree implementation binds the two. (An earlier string-based `IStorageIndexMana
 
 - **No full-text or spatial** — indexes in the MVP surface (future `IndexKind` members; the enum is the extension point).
 - **No online index rebuild in the contract yet** — DDL-blocking builds first.
-- **No cost/statistics surface here** — planners get statistics through their model catalogs.
+- **No persisted statistics** — planners use bounded CountRange probes under their statement snapshot.
 
 ## AOT posture
 

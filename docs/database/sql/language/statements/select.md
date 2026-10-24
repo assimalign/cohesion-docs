@@ -100,7 +100,7 @@ Index ranges are read in bounded cancellable batches. Cancellation reaches curso
 move, latch waits and page/entry reads; pages and the tree latch are released before expression
 evaluation. This bounds index-range buffering; SELECT retains its result-materialization rules.
 
-SELECT, [UPDATE](update.md) and [DELETE](delete.md) share rule-based index selection. Mandatory
+SELECT, [UPDATE](update.md) and [DELETE](delete.md) share index eligibility and bounded probe-based cost selection. Mandatory
 AND terms can supply `=`, `<`, `<=`, `>` or `>=` comparisons between a direct indexed column and
 a non-NULL, nonvolatile value evaluable during planning, such as a literal or bound parameter.
 The column may be on either side; non-negated BETWEEN supplies inclusive bounds. Target aliases
@@ -108,7 +108,7 @@ and qualified references resolve normally. Conversion to the column's storage ty
 the comparison value.
 
 An index can use equality on a leading key prefix, optionally followed by a range on the next key;
-a range on its first key also qualifies. Selection prefers the longest equality prefix, then a usable
+a range on its first key also qualifies. Bounded probes rank eligible costs first; ties prefer the longest equality prefix, then a usable
 range, uniqueness and index name. Ranges support integer, Decimal, Boolean and temporal keys,
 and string/character keys under the index's matching byte-expressible collation. Guid, binary and
 JSON keys support equality only. Floating-point ranges scan, and floating signed-zero comparisons

@@ -7,7 +7,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 The profile measures 51 of 57 named clauses against the live engine. The 6 excluded names are
 `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
-[EXPLAIN](statements/explain.md) adds the plan-description clause. It executes no data statement.
+[EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
+SELECT-only EXPLAIN ANALYZE executes to report candidate work. Standalone ANALYZE remains unsupported.
 
 ## Exclusion matrix
 

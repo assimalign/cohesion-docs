@@ -15,6 +15,8 @@ public sealed class DatabasePlanNode
     public string? Target { get; init; }
     public string? Index { get; init; }
     public string? Detail { get; init; }
+    public long? EstimatedRows { get; init; }
+    public long? ActualRows { get; init; }
 }
 ```
 
@@ -82,6 +84,10 @@ await using var description = DatabasePlanDescription.Create([seek]);
 ## Related reference
 
 [DatabasePlanDescription](database-plan-description.md) · [Assembly](index.md) · [Design](design.md)
+
+## Optional work counts
+
+EstimatedRows is the model's candidate-row estimate, with incomplete bounds or heuristic qualifications in Detail. ActualRows is observed candidate work for an executed description, otherwise null. SQL populates available estimates and SELECT-only EXPLAIN ANALYZE counts; these are not final output cardinalities. The initializer stores the nullable values without executing a plan. The eight result columns are unchanged.
 
 ## Sources
 

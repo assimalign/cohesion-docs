@@ -108,6 +108,15 @@ static async Task InspectAsync(BTreeIndex index, TransactionContext writer,
 
 [Assembly](index.md) · [Design](design.md) · [Examples](examples/index.md)
 
+## Bounded range counts
+
+```csharp
+public BTreeRangeCount CountRange(TransactionSnapshot snapshot, IndexKeyRange range,
+    int entryLimit = 512, int pageLimit = 32, CancellationToken cancellationToken = default);
+```
+
+Counts visible entries without retaining keys under the tree read latch. Physical limits include invisible entries, stopping keys, descent pages and empty leaves. Limits below one throw ArgumentOutOfRangeException; cancellation and tree corruption retain their usual exceptions. Keep the caller's snapshot pinned. The returned public readonly record struct BTreeRangeCount has positional members Count (long), IsComplete (bool), EntriesExamined (int) and PagesVisited (int). IsComplete=false identifies a lower bound. See BTreeRangeCountTests in the source branch.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Indexing/src/BTreeIndex.cs`.

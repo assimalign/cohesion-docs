@@ -189,6 +189,10 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 
 [Database](../index.md) · [Overview](../overview.md) · [Database .NET APIs](../../dotnet-apis/resources/database/index.md)
 
+## Query performance
+
+[Probe costing, hash memory and plan analysis](performance.md) describe access selection and its limits.
+
 ## Sources
 
 - **Format and temporal compatibility** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`, `SqlDataStorageFormatTests.cs` and `SqlSchemaFormatTests.cs` in the same directory.

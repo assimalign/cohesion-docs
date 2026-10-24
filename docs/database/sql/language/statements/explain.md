@@ -1,21 +1,24 @@
 # EXPLAIN (Cohesion SQL)
 
-Returns the chosen plan without executing the wrapped statement.
+Describes the chosen plan; ANALYZE executes a SELECT to collect candidate-work counts.
 
 > **Status:** Implemented. Supports data statements.
 
 ## Syntax
 
 ```syntaxsql
-EXPLAIN { select_statement | insert_statement | update_statement | delete_statement } [ ; ]
+EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | delete_statement } [ ; ]
 ```
 
 ## Remarks
 
-EXPLAIN performs the statement's normal parameter validation, name binding, planning and
+Plain EXPLAIN performs the statement's normal parameter validation, name binding, planning and
 provisioning admission. It waits for the same reserved tables as that statement. It never calls its
 data executor, even inside a transaction that later commits. DDL, transaction control, nested
-EXPLAIN and EXPLAIN ANALYZE report `CK00001`. Ordinary planning errors retain their codes.
+EXPLAIN report `CK00001`. EXPLAIN ANALYZE accepts SELECT query bodies, including read-only WITH
+and set operations. Data changes, including WITH data changes, normally report `CS05057` (0A000)
+before execution; the earlier system-relation read-only check can retain `CS04021`. Standalone
+ANALYZE remains unsupported. Ordinary planning errors retain their codes.
 
 All three query languages use the [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 shape, in depth-first pre-order:
@@ -28,10 +31,10 @@ shape, in depth-first pre-order:
 | target | String | Yes |
 | index | String | Yes |
 | detail | String | Yes |
-| estimated_rows | Int64 | Yes; always NULL |
-| actual_rows | Int64 | Yes; always NULL |
+| estimated_rows | Int64 | Yes; probe count or explicitly heuristic estimate when available |
+| actual_rows | Int64 | Yes; NULL for plain EXPLAIN, measured candidates for ANALYZE |
 
-SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, JoinStep, Group, Insert, InsertSelect,
+SQL operators include TableScan, IndexSeek, SystemView, NestedLoopJoin, HashJoin, JoinStep, Group, Insert, InsertSelect,
 Update and Delete. IndexSeek includes the chosen index and bounds. These are model descriptions, not
 an execution API. SQL carries the rows through ordinary result frames. A source test guard requires
 every concrete plan record to have a description mapping.
@@ -45,11 +48,11 @@ targets before writes, and falls back to a scan if its bound index was dropped o
 N-way joins expose one JoinStep child per join with its kind and scan/seek access, including
 steps whose inputs will be empty. Plan output uses the same eight columns.
 The first child describes the chosen driving input, which can now be an IndexSeek with constant
-bounds from a selective predicate. A full unique-key WHERE seek takes priority for the first INNER
-pair, including when that table is written second. JoinStep children describe the other inputs'
+bounds from a selective predicate. Probe costs can choose either first INNER input, including when the cheaper input is written second;
+complete unique-key paths retain their cheap lookup. JoinStep children describe the other inputs'
 constant or correlated seeks, or scans. Only [proven non-throwing restrictions](../clauses/join.md#predicate-safety)
 can move into an input. EXPLAIN describes the planned access; execution falls back to a scan if a
-planned input or inner-probe index was dropped or replaced. The output adds no columns or row estimates.
+planned input or inner-probe index was dropped or replaced. The eight-column shape is unchanged; estimated_rows and detail carry available cost observations.
 Derived inputs add a DerivedTable node with their child plan. UPDATE/DELETE predicate subqueries
 are described beneath Subqueries or CorrelatedSubqueries; EXPLAIN does not materialize their data or mutate the target.
 
@@ -91,8 +94,8 @@ EXPLAIN DELETE FROM dbo.t AS x WHERE x.id = 2;
 ```
 
 The first returns Update → IndexSeek and the second Delete → IndexSeek. The seek target is dbo.t,
-index names the primary-key index, and detail is `id = 2`. Both row-count fields remain NULL;
-no rows are changed. SqlExplainTests checks the same shape with `@key` bound to 2.
+index names the primary-key index, and detail is `id = 2`. actual_rows remains NULL; estimated_rows can contain a probe observation.
+No rows are changed. SqlExplainTests checks the same shape with `@key` bound to 2.
 
 With the [three-input JOIN fixture](../clauses/join.md#left-using-and-computed-output):
 
@@ -121,11 +124,25 @@ WHERE o.id = 1 ORDER BY l.line;
 
 The plan's driving child is IndexSeek on `dbo.orders`, with detail `id = 1` and its primary-key
 index name. The JoinStep has an IndexSeek on `dbo.lines` using `ix_lines` with a correlated key.
-The SELECT returns `(1, 10)` and `(1, 11)`. Both row-count fields in EXPLAIN remain NULL.
+The SELECT returns `(1, 10)` and `(1, 11)`. actual_rows stays NULL; available estimates are reported with probe qualifications.
 
 ## See also
 
 [Statements](index.md) · [SELECT](select.md) · [Diagnostics](../diagnostics.md)
+
+## Estimates and analysis
+
+Planning uses bounded snapshot-visible range-count probes, at most 512 physical entries and 32 page visits per probe. Invisible entries and the stopping key consume work. Detail distinguishes exact_probe, lower_bound and heuristic estimates; an unfinished probe is not an exact cardinality. No persisted statistics or standalone ANALYZE command is introduced. Plain EXPLAIN can read indexes for costing but never invokes the wrapped data executor.
+
+EXPLAIN ANALYZE executes and drains its SELECT under ordinary snapshot, cancellation, timeout and hash-memory rules. Scalar expressions and application functions run normally. Instrumented actual_rows counts candidates before residual predicates rather than final output rows. Repeated correlated invocations accumulate on child nodes; parent counts exclude descendant work. Unmeasured nodes remain NULL.
+
+On the fixture above, execute separately:
+
+```sql
+EXPLAIN ANALYZE SELECT id FROM t WHERE id >= 1;
+```
+
+The returned rows describe the executed SELECT, including measured work where available. See [query performance](../../performance.md) and [hash joins](../clauses/join.md#hash-joins-and-memory).
 
 ## Sources
 
