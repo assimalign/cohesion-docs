@@ -263,7 +263,7 @@ Successful index DDL returns a command `DatabaseResult` with `Success` status an
 zero; index definition changes are not document-row mutations.
 
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
-values, reversed operands, and conjunctive bounds. Choice ranks longest leading equality prefix,
+values, reversed operands, and conjunctive bounds. Bounded snapshot-visible probes rank candidate costs first; ties use longest leading equality prefix,
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
@@ -652,6 +652,14 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Bounded access probes and intersection
+
+Candidate index paths use BTreeIndex.CountRange under the statement snapshot, bounded to 512 physical entries and 32 page visits. Complete counts measure visible index entries, which can exceed JSON candidate identities; incomplete probes are lower bounds. Ties retain prefix/range/UNIQUE/name rules. Ordinary execution skips a probe when only one path is eligible; EXPLAIN can probe that sole input for its estimate.
+
+Comparable complete inputs can intersect ordinal, deduplicated document identities before any JSON read. The chosen inputs add constrained paths and are bounded in number; incomplete inputs keep one driver. The merge stops when empty and the complete predicate still filters surviving documents. SELECT, UPDATE, DELETE and INSERT/UPSERT SELECT share access selection; mutations stage identities before writes. Results remain materialized.
+
+EXPLAIN labels IndexSeek estimates exact_index_entries or lower_bound with probe_entries/probe_pages. IndexIntersection's minimum-input estimate is an upper bound, not joint selectivity. actual_rows stays NULL. No persisted statistics, ANALYZE command, disk-format or wire change is added. DocumentAccessCostTests covers skewed choices, pre-JSON intersection and mutation semantics.
 
 ## Sources
 

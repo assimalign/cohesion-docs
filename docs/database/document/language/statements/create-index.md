@@ -26,8 +26,9 @@ schema-owned collections reject index creation and system collections are read-o
 DDL returns Success and zero affected documents. Snapshot conflicts are checked before no-ops.
 
 Composite access uses a leading equality prefix and at most one range on the next path. A
-predicate only on a non-leading path scans. Selection ranks the longest equality prefix, then a
-range, then UNIQUE, then ordinal index name. The full predicate always filters seek candidates.
+predicate only on a non-leading path scans. Bounded probes rank access costs first; ties use the longest equality prefix, then a
+range, then UNIQUE, then ordinal index name. Comparable complete indexed inputs may intersect
+identities before JSON reads. The full predicate always filters seek candidates.
 
 Keys collate as Couchbase does: MISSING < NULL < FALSE < TRUE < numbers < ordinal strings <
 arrays < objects. Numbers 1 and 1.00 have the same key. Leading MISSING omits the entry; trailing

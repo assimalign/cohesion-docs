@@ -139,6 +139,12 @@ returns three NULL rows. `SELECT DISTINCT category FROM items ORDER BY name` fai
 [Statements](index.md), [FROM](../clauses/from.md), [Expressions](../expressions/index.md),
 and [Aggregate functions](../functions/aggregate-functions.md).
 
+## Probe costs and indexed intersection
+
+Bounded snapshot-visible index probes choose among eligible accesses; equal costs retain equality-prefix, range, UNIQUE and ordinal-name ties. Comparable complete indexed predicates may intersect ordered document identities before JSON reads, then apply the full predicate. Incomplete inputs keep a single driver. No persisted statistics or ANALYZE command exists.
+
+EXPLAIN can read index metadata for costing but executes no document statement. IndexSeek estimates identify exact visible index-entry counts or lower bounds; IndexIntersection reports the minimum input count as an upper bound. actual_rows stays NULL. See [access design](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#bounded-access-probes-and-intersection).
+
 ## Sources
 
 - **Projection and transport results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Projections.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentProjectionWireTests.cs`.
