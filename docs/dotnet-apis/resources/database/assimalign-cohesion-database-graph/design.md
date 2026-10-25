@@ -249,7 +249,8 @@ by identity, making the breadth-first result deterministic. Its result contains 
 projected `a,r,b` values expose the actual frozen `GraphNode` /`GraphRelationship` objects through
 `DatabaseRow.GetValue`. Property projections return scalars. This does not add a path member to the
 frozen traversal contract. It uses the same filtered adjacency lookup, resolves type names through
-the catalog (an unknown type visits nothing), and has no candidate-expansion cap.
+the catalog (an unknown type visits nothing), and uses the engine's memory and physical-work
+ceilings, including the default 1,000,000-unit work cap (`CG05004`).
 
 `GraphPathsQueryRequest.FromGql` selects real path execution through the existing
 `GraphDatabaseSession.ExecuteAsync(GraphRequest)` capability. Row and path requests
@@ -978,7 +979,20 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 
 Read operators pass owned slot bindings incrementally; retaining operators copy or acquire ownership before requesting the next row. LIMIT without ORDER BY can stop upstream read expansion. Ordered finite pages use top-N bounded by OFFSET + LIMIT; grouping consumes its input incrementally. Mutations acquire the writer lock before their stages and materialize complete mutation target tables, so paging never reduces admitted writes. Final row/path results remain materialized before wire output.
 
-GraphDatabaseEngineOptions.QueryMemoryBudget and QueryWorkBudget are positive engine ceilings copied at creation. Retained rows, values, groups, DISTINCT/sort state, writer overlays, cursor batches, merge heads and traversal state share deterministic statement-local memory accounting. Physical work includes visited anchors, selected relationship candidates, merge initialization, dead ends and FOR elements. This is retained-state accounting, not a process heap limit.
+`GraphDatabaseEngineOptions.QueryMemoryBudget` defaults to 256 MiB and `QueryWorkBudget` to
+1,000,000 units; both are positive engine ceilings copied at creation. Retained rows, values,
+groups, DISTINCT/sort state, writer overlays, cursor batches, merge heads and traversal state share
+deterministic statement-local memory accounting. Shared containers and supported immutable leaves,
+including small strings, byte arrays and boxed scalars, are counted once across operators without
+duplicate owner bookkeeping charges. Physical work includes visited anchors, selected relationship
+candidates, merge initialization, dead ends and FOR elements. This is retained-state accounting,
+not a process heap limit.
+
+Default options admit 100,000 one-property rows for SET, FOR … INSERT, RETURN n and QueryPaths;
+the ten-times-larger regression workloads refuse with `CG05020`. Wider rows and retained
+intermediate stages reduce capacity. Raise the server engine ceilings for larger workloads.
+`TraverseAsync` also uses both ceilings and now refuses beyond 1,000,000 work units by default
+with `CG05004`, replacing its previously uncapped work.
 
 In-process GraphQueryLimits can lower MemoryBytes and/or WorkUnits; omitted members inherit the engine ceiling and requests cannot raise it. GraphQueryRequest/GraphPathsQueryRequest add limits overloads, and GraphTraversal.Limits uses the same policy. Remote Execute payloads carry no per-request limits and use server engine ceilings. CG05020 reports memory exhaustion, CG05004 work/trail exhaustion and CG08021 invalid request limits. Cancellation and iterator disposal release retained state. No disk/wire format or event/counter change is added. See [configuration](graph-database-engine-options.md). GqlExecutionBudgetTests covers limits, early stop, ownership and top-N.
 

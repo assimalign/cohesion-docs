@@ -50,8 +50,9 @@ and list-valued group variables. [Core scalar functions and CAST](language/funct
 execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.
 Both surfaces seek only the selected directions and catalog type IDs; self-loops appear once in
-either-direction reads. TraverseAsync yields deterministic breadth-first results and has no
-candidate-expansion cap. GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
+either-direction reads. `TraverseAsync` yields deterministic breadth-first results under the same
+engine memory/work ceilings as queries; its default work cap is now 1,000,000 units (`CG05004`).
+GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
@@ -63,6 +64,12 @@ mandatory clause; bindings supplied only by optionals are refused during plannin
 [OFFSET/SKIP and LIMIT](language/clauses/limit-offset.md) page rows or supported path returns;
 offset precedes limit. The output tail follows all mutations and DISTINCT, while reads stream and unordered LIMIT can stop upstream work. Ordered finite pages
 use bounded top-N; retained state and final results share statement memory/work budgets. Default NULL order is last ascending, first descending.
+
+The default retained-memory budget is 256 MiB. It admits 100,000 one-property rows for SET,
+FOR … INSERT, RETURN n and QueryPaths; much larger retained workloads refuse with `CG05020`.
+Capacity depends on row width and intermediate state. Raise `QueryMemoryBudget` and, when needed,
+`QueryWorkBudget` on the server engine; embedded `GraphQueryLimits` can only lower them. See
+[execution ceilings](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md#execution-ceilings).
 
 [Aggregates](language/functions/aggregate-functions.md) and [GROUP BY](language/clauses/group-by.md)
 execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 locally and on the wire;
