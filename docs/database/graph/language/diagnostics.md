@@ -125,6 +125,11 @@ whose graph record format is unsupported; there is no upgrade reader.
 The engine requires format 4. A cleanly closed older file set stays byte-identical on refusal;
 physical WAL recovery can precede the fence for a crashed file set.
 
+A graph record shorter than its 18-byte format header is located truncation corruption,
+not an unsupported format. It reports `CK06003` with page/slot context and an
+`EndOfStreamException` cause. Only a readable unsupported version receives `CG06017` and
+the recreate-database remedy.
+
 CK06003 also applies to damaged reads, statements, transactions and create/open failures,
 including wrapped or aggregate storage corruption. It names the database and page when known
 and advises restoration from a verified backup. A read fails rather than omitting damaged nodes
