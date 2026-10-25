@@ -681,10 +681,10 @@ an execution context alone does not let a concurrent fork bypass the writer. A p
 identity alone also does not grant raw read permission.
 
 Nested mutable scopes for one page must remain on one thread. Opening a nested writer on another
-thread, or moving a handle while another mutable scope remains open, throws
+thread, or moving a handle to another thread while a nested scope remains open, throws
 `StorageTransactionException` before exposing mutable bytes. Never use a mutable handle or its
-borrowed memory concurrently across threads. Disposal may occur on another thread; it retires the
-epoch and permission registration together. Ordinary read pins and synchronous typed record
+borrowed memory concurrently across threads. Disposal may occur on another thread; it removes
+that handle's permission registration as it releases its writer scope. Ordinary read pins and synchronous typed record
 operations create no ambient mutable scope.
 
 InsertRecord tries packing fragmented space on its current page before extending. UpdateRecord

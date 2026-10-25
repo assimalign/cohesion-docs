@@ -186,8 +186,8 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 Eligible mandatory equijoins can choose `HashJoin` by comparing bounded build/probe costs with
 nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input;
 LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes
-retain index nested loops. Inputs without countable indexes use a 4,096-row heuristic, so
-unindexed tables can select a hash join regardless of actual size, even when empty or tiny.
+retain index nested loops. When both inputs lack countable indexes, eligible equijoins select
+hash joins regardless of actual size, even when empty or tiny; both estimates use 4,096 rows.
 
 Unsupported key shapes or predicates whose movement could change error evaluation retain the
 loop/probe path. An ON condition referencing any text column (String, Json or Character) from a

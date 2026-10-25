@@ -11,9 +11,9 @@ total is probed only when the selected seek estimate exceeds 16 candidates. Join
 input access counts and run only for hash choices or competing indexed directions; a complete
 unique first-step probe skips pair costing, and later unique/indexed steps need no pair estimates.
 
-Eligible equijoins can use an in-memory hash build. Without a countable index, an input uses the
-4,096-row heuristic: unindexed tables can select a hash join regardless of actual size, including
-empty or tiny inputs. Small exact indexed inputs and complete unique probes retain index nested
+Eligible equijoins between tables without countable indexes select an in-memory hash join
+regardless of actual size, including empty or tiny inputs: both estimates use the 4,096-row
+heuristic. Small exact indexed inputs and complete unique probes retain index nested
 loops. Any ON reference to a derived String/Json/Character column prevents hash selection, even
 in a residual term, preserving deferred collation/Unicode errors. Full predicates, duplicates,
 NULL and LEFT semantics remain intact. See [joins](language/clauses/join.md#hash-joins-and-memory).

@@ -1737,8 +1737,9 @@ Binding proves eligible paths and preserves complete residuals. Statement-local 
 Probes use tree read latches with table/index identity validation and no transaction object locks.
 Costing is lazy: the primary-key/base-table total is probed only when the selected seek estimate
 exceeds 16; join estimates reuse access counts, complete unique probes skip pair costing, and
-later indexed steps need no pair estimates. Inputs without a countable index use the 4,096-row
-heuristic, so even empty or tiny unindexed tables can select hash joins. Any ON reference to a
+later indexed steps need no pair estimates. When both inputs lack countable indexes, eligible
+equijoins select hash joins regardless of actual size, even when empty or tiny, using 4,096-row
+heuristic estimates. Any ON reference to a
 derived String/Json/Character column prevents hash selection, including residual-only references,
 to preserve deferred collation/Unicode errors.
 

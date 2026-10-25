@@ -28,8 +28,8 @@ always route to that owner. A refused foreign mutation leaves both file sets unc
 not release a local bracket's locks.
 
 Nested mutable scopes for one page on another thread also throw this exception before exposing
-mutable bytes. A sole mutable handle may move across serialized continuations; moving it while
-another mutable scope remains open is refused. See [mutable handle ownership](design.md#confirmed-reads-and-record-space-reuse).
+mutable bytes. A sole mutable handle may move across serialized continuations; moving it to
+another thread while a nested scope remains open is refused. See [mutable handle ownership](design.md#confirmed-reads-and-record-space-reuse).
 
 ## Example
 
