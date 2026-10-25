@@ -274,6 +274,14 @@ SQL and Graph negotiate transaction-status. After Execute completion or a statem
 
 See [transaction-status API](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md) and [pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset). GraphTransactionTextWireTests and GraphTransactionFailureWireTests cover InMemory and TCP behavior.
 
+Once an open wire transaction acquires the database writer lock, it holds it even while idle,
+until COMMIT, ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default).
+New clients do not pool sessions against pre-#1540 servers without negotiated transaction-status.
+The shared connector automatically consumes Ready status after Execute/ExecutePaths, including
+application exchanges; cancellation after a completed result preserves an acknowledged committed
+result. Rollback reply and status drain each have a five-second internal bound, up to ten seconds
+total on pool return.
+
 ## Sources
 
 - **Path ownership, order and allocation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphPathAllocationTests.cs` and `GraphClientFailureTests.cs` in the same directory.

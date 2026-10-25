@@ -18,6 +18,11 @@ await connection.ExecuteAsync("ROLLBACK");
 
 The client drains negotiated server I/T/E transaction status after Execute. Returning a SQL/Graph connection rolls back an open or failed transaction before reuse; a failed or uncertified reset discards it. Session teardown/disconnect also rolls back. A lost COMMIT response leaves an unknown outcome; pool cleanup cannot establish it. See [client transaction behavior](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/design.md#explicit-transaction-text).
 
+Once an open wire transaction acquires the database writer lock, it holds it even while idle,
+until COMMIT, ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default).
+Keep transactions short because an idle writer blocks other writers. New clients do not pool
+sessions against pre-#1540 servers that cannot negotiate transaction-status.
+
 [Statements](index.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources

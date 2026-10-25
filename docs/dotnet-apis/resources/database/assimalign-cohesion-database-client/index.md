@@ -104,7 +104,9 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 
 ## Exchange postamble contract
 
-[DatabaseProtocolExchange](database-protocol-exchange.md) adds a protected transaction-status constructor.
+[DatabaseProtocolExchange](database-protocol-exchange.md) automatically drains negotiated Ready
+transaction status after Execute/ExecutePaths, including application exchanges using its
+one-argument constructor. The explicit transaction-status constructor remains available.
 
 ## Sources
 

@@ -35,6 +35,11 @@ disconnect rolls back an unfinished transaction. Returning a client lease resets
 transaction is rolled back before reuse, and an uncertified or failed reset discards the connector. `TRANSACTION` alone is not
 a statement.
 
+Once an open wire transaction acquires the database writer lock, it holds it even while idle,
+until COMMIT, ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default).
+Keep transactions short because an idle writer blocks other writers. New clients do not pool
+sessions against pre-#1540 servers that cannot negotiate transaction-status.
+
 Storage, I/O and index failures abort an explicit transaction. Later statements or COMMIT
 report CS04005 with the original coded cause; roll back before continuing. Ordinary constraint,
 evaluation and Boolean-condition failures leave it usable. Connection usability does not mean

@@ -259,7 +259,25 @@ the non-null client exception Diagnostics snapshot. Model payload readers reject
 
 SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
-The transaction-status capability uses the existing Ready identifier with a one-byte I/T/E postamble after Execute completion or a statement failure. Startup Ready remains the negotiation payload. The connector drains status before completing the exchange, including statement-error paths. Cleanup sends ROLLBACK outside the pool lock with a five-second timeout. A connection loss does not prove the outcome of an unacknowledged COMMIT. Other model families do not acquire text transaction support from this shared reset path.
+The transaction-status capability uses the existing Ready identifier with a one-byte I/T/E
+postamble after Execute/ExecutePaths completion or a statement failure. Startup Ready remains the
+negotiation payload. The connector detects written Execute (5) and ExecutePaths (64) frames and
+automatically drains status, including for application exchanges using the one-argument
+`DatabaseProtocolExchange` constructor. Applications consume the model response; they no longer
+need to opt into or consume the status postamble. The explicit `transactionStatus` flag can still
+require it.
+
+After a completed result or statement error, the status drain uses a five-second internal token.
+Caller cancellation after the result does not discard an acknowledged committed result or turn
+an acknowledged COMMIT into cancellation. Broken/missing status still discards the connector;
+an original statement error survives a failed status read.
+
+Pool return joins the last lease operation and sends ROLLBACK outside the pool lock. The rollback
+reply and Ready drain each have a five-second internal bound, up to ten seconds total. Idle
+sessions need no reset exchange. New SQL/Graph clients discard sessions against pre-#1540 servers
+without negotiated transaction-status, so those servers are not pooled. A connection loss does
+not prove the outcome of an unacknowledged COMMIT. Other model families do not acquire text
+transaction support from this shared reset path.
 
 See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
