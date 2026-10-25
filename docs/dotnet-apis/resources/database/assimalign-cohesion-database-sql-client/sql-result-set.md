@@ -22,7 +22,7 @@ public sealed class SqlResultSet : IReadOnlyList<SqlRow>
 The client constructs this after consuming a complete exchange. Rows own their values; columns
 retain wire identity and bounds. Diagnostics is never null. It contains the negotiated warning/error
 list and is empty when nothing was reported or without the capability. Information, including
-CS00100, is never sent. An invalid row index fails
+CS00009, is never sent. An invalid row index fails
 through the underlying collection; statement failures throw SqlClientException instead of returning
 a successful result. Direct construction is unavailable.
 

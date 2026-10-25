@@ -19,7 +19,7 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `CS00006` | Configured expression nesting limit exceeded; default 256 |
 | `CS00007` | Parsing thread has insufficient stack; engine text execution translates to CS05004 |
 | `CS00008` | Malformed or overflowing typed temporal, interval or X binary literal; span covers the literal |
-| `CS00100` | Information: optional terminating semicolon omitted |
+| `CS00009` | Information: optional terminating semicolon omitted; `CS00100` is retired and reserved |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports CS00008 before execution.
 Recognized unsupported window functions such as RANK report CK00001, including over an empty

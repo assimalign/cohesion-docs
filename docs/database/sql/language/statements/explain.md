@@ -20,6 +20,10 @@ and set operations. Data changes, including WITH data changes, normally report `
 before execution; the earlier system-relation read-only check can retain `CS04021`. Standalone
 ANALYZE remains unsupported. Ordinary planning errors retain their codes.
 
+Plain EXPLAIN can fail with `CS04006` when an index cost probe races committed DDL that changes
+a bound table definition. Roll back an explicit transaction and retry in a fresh transaction.
+This failure does not imply execution of the wrapped data statement.
+
 All three query languages use the [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 shape, in depth-first pre-order:
 
@@ -104,7 +108,9 @@ EXPLAIN SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON b.id = c.id;
 ```
 
 The description contains two JoinStep children, one Inner and one LeftOuter, with table scans
-because this fixture defines no indexes. It returns plan rows without reading or changing data rows.
+under the hash joins because this fixture defines no indexes. Unknown counts use the 4,096-row
+heuristic, so the tiny actual inputs do not prevent hash selection. It returns plan rows without
+reading or changing data rows.
 
 ### A selective driving input
 
@@ -134,7 +140,15 @@ The SELECT returns `(1, 10)` and `(1, 11)`. actual_rows stays NULL; available es
 
 Planning uses bounded snapshot-visible range-count probes, at most 512 physical entries and 32 page visits per probe. Invisible entries and the stopping key consume work. Detail distinguishes exact_probe, lower_bound and heuristic estimates; an unfinished probe is not an exact cardinality. No persisted statistics or standalone ANALYZE command is introduced. Plain EXPLAIN can read indexes for costing but never invokes the wrapped data executor.
 
+Probes use tree read latches and catalog identity validation without transaction object locks.
+The primary-key/base-table total is probed only when a selected seek estimate exceeds 16.
+Join estimates are lazy and reuse input counts; complete unique probes skip pair costing.
+
 EXPLAIN ANALYZE executes and drains its SELECT under ordinary snapshot, cancellation, timeout and hash-memory rules. Scalar expressions and application functions run normally. Instrumented actual_rows counts candidates before residual predicates rather than final output rows. Repeated correlated invocations accumulate on child nodes; parent counts exclude descendant work. Unmeasured nodes remain NULL.
+
+Separate references to a cached view body have independent relation-path counters, including
+nested views. Repeated correlated invocations at one reference still accumulate. A SELECT with
+one derived input counts its input candidates without incrementing join-pair totals.
 
 On the fixture above, execute separately:
 

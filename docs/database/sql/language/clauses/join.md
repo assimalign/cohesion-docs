@@ -183,7 +183,16 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 
 ## Hash joins and memory
 
-Eligible broad mandatory equijoins can choose HashJoin by comparing bounded build/probe costs with nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input; LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes retain index nested loops. Unsupported key shapes or predicates whose movement could change error evaluation keep the existing loop/probe path.
+Eligible mandatory equijoins can choose `HashJoin` by comparing bounded build/probe costs with
+nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input;
+LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes
+retain index nested loops. Inputs without countable indexes use a 4,096-row heuristic, so
+unindexed tables can select a hash join regardless of actual size, even when empty or tiny.
+
+Unsupported key shapes or predicates whose movement could change error evaluation retain the
+loop/probe path. An ON condition referencing any text column (String, Json or Character) from a
+derived relation prevents hash selection, including references only in residual terms. This
+preserves deferred collation/Unicode errors that skipping nonmatching key pairs could hide.
 
 The hash path retains duplicates and evaluates the complete ON/WHERE residuals. NULL keys do not match; LEFT still emits unmatched outer rows. Type and collation equality rules apply to hashes and collisions.
 

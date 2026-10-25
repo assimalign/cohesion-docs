@@ -1734,6 +1734,19 @@ returns. These events add no diagnostic code or SQLSTATE. See [lane limits and w
 
 Binding proves eligible paths and preserves complete residuals. Statement-local bounded B-tree probes rank access costs without persisted statistics or ANALYZE maintenance. Eligible equijoins compare hash-build/probe work with nested loops; safe smaller first INNER inputs can become the driver, while LEFT preserves its written outer side. Hash memory is reserved against StatementMemoryBudget before retained allocation and released on every exit. CS05067 / 53200 refuses exhausted builds; no spill exists.
 
+Probes use tree read latches with table/index identity validation and no transaction object locks.
+Costing is lazy: the primary-key/base-table total is probed only when the selected seek estimate
+exceeds 16; join estimates reuse access counts, complete unique probes skip pair costing, and
+later indexed steps need no pair estimates. Inputs without a countable index use the 4,096-row
+heuristic, so even empty or tiny unindexed tables can select hash joins. Any ON reference to a
+derived String/Json/Character column prevents hash selection, including residual-only references,
+to preserve deferred collation/Unicode errors.
+
+Plain EXPLAIN can fail with `CS04006` when cost probes race committed DDL changing a bound table
+definition. Analysis counters distinguish separate relation paths through cached view bodies;
+repeated correlated calls at the same path accumulate. Single-derived-input SELECTs count input
+candidates without adding join pairs.
+
 Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
 
 ## Sources

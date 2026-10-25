@@ -18,7 +18,7 @@ appear in support matrices and [Unsupported syntax](unsupported.md), never as ex
 | `{ }` | Required choice of one alternative; do not type the braces |
 | `[ , ...n ]` | Repeat the preceding item up to n times, comma-separated |
 | `[ ...n ]` | Repeat the preceding item up to n times, separated by spaces |
-| `;` | Optional statement terminator; omission reports informational `CS00100` |
+| `;` | Optional statement terminator; omission reports informational `CS00009` |
 | `<label> ::=` | Definition of a syntax block referenced elsewhere as `<label>` |
 
 Parentheses in diagrams are literal SQL punctuation. Angle brackets name reusable grammar blocks;
