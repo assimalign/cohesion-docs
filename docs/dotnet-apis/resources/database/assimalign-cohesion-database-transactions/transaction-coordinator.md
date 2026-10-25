@@ -159,6 +159,10 @@ Only a certified Idle connector returns to the pool; failed or unsupported reset
 
 ## Index maintenance
 
+`RunVersionPurgePass` called inside this coordinator's `ApplyStatementAsync` callback immediately
+throws `StorageTransactionException`, before undo or pruning. `Checkpoint` and `TryCheckpoint`
+have the same refusal because the shared apply semaphore is not reentrant.
+
 The optional indexPruner callback runs under the coordinator apply gate after record pruning in RunVersionPurgePass. It receives the same conservative exclusive PruneBound and returns the removed-entry count, which contributes to the pass total. An independent record-prune failure does not suppress index maintenance; the retained failure is rethrown afterward. Cancellation, disposal and out-of-memory failures are not treated as ordinary deferred maintenance failures.
 
 PruneBound includes active transaction snapshot minima and statement pins. Do not substitute the oldest active sequence. See [safe index-history pruning](../assimalign-cohesion-database-indexing/design.md#safe-index-history-pruning).

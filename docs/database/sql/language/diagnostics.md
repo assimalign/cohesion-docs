@@ -280,6 +280,7 @@ A recoverable I/O open failure publishes no database and permits retry after res
 | `CS04003` | DDL inside an explicit transaction |
 | `CS04006` | Bound target table changed, was dropped or replaced during lock preparation; retry in a fresh transaction; no SQLSTATE assigned |
 | `CS04005` | Transaction was aborted or ended beneath its caller; later statements/commit refused with the original coded cause |
+| `CS04065` | Hard-deadlock lock refusal; SQLSTATE `40P01` (`deadlock_detected`); caller rolls back the victim transaction |
 
 A malformed transaction spelling reports CS00003 before changing transaction state.
 
@@ -298,7 +299,10 @@ committed Snapshot conflict or invalidated unique-index directory, and DatabaseT
 for residual cycles, including multi-row upserts reaching keys or retained rows in opposite orders.
 Contended-row arbitration releases new grants before waiting, retains the wait's row grant and
 retries internally. Roll back and retry a deadlock victim's entire transaction, including earlier
-statements. ReadCommitted instead skips/updates the newest
+statements. Hard-deadlock failures carry `CS04065` / SQLSTATE `40P01` on embedded and wire paths.
+The refusal does not roll back an explicit victim transaction: statement atomicity retains its
+earlier work and locks until the caller rolls it back, allowing surviving waiters to proceed.
+ReadCommitted instead skips/updates the newest
 committed conflict. Ordinary constraint failures and CS03035/CS05036 roll back the statement;
 their wire ExecutionFailure leaves the connection usable. MySQL ON DUPLICATE KEY UPDATE,
 SQLite INSERT OR IGNORE/REPLACE, unsupported inference and subqueries in conflict actions use CK00001.

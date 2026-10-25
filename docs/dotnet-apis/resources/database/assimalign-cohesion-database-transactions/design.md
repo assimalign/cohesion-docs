@@ -325,6 +325,10 @@ detection. Statement brackets commit non-durably unless the caller selects the e
 DDL/bootstrap path; the logical commit makes earlier statement records durable by journal ordering.
 `Open`-time scrub remains ungated because no sessions exist yet.
 
+`Checkpoint`, `TryCheckpoint` and `RunVersionPurgePass` called inside that coordinator's
+`ApplyStatementAsync` callback immediately throw `StorageTransactionException`. The apply semaphore
+is not reentrant; version purge is refused at entry, before undo or pruning work.
+
 Logical undo, pruning, and recovery scrub apply at most 64 record/index mutations per physical
 bracket. A blob transaction can contain many thousands of chunks; retaining every touched page's
 before-image in one undo bracket would otherwise buffer the entire object. Each batch commits before
@@ -390,9 +394,26 @@ code generation, or `Microsoft.Extensions.*`.
 
 ## Cascade backoff and queue repair
 
-When cascade lock preparation encounters a refused lock, SQL releases grants acquired since its retry mark, waits for the refused resource and rebuilds statement preparation before trying again. Grants from earlier statements remain held; waited grants can be retained across later restarts. No lock wait runs inside the physical apply gate. A failure before apply releases the new statement grants when storage remains online. Ordinary hard-deadlock victims still require transaction rollback and retry.
+Cascade lock preparation uses bounded release-and-retry. The first two refusals release grants
+acquired since the retry mark, wait for the refused resource and rebuild preparation. Completed
+wait grants stay retained across every restart; grants from earlier statements also remain held.
+From the third refusal onward, the cascade retains its closure grants and queues normally on
+each refused resource. A hot stream of child inserters therefore cannot indefinitely starve the
+parent delete by forcing repeated release and rebuild. No lock wait runs inside the physical
+apply gate. A failure before apply releases new statement grants when storage remains online.
 
-The lock manager distinguishes held-lock dependencies from queue-order dependencies. On a soft cycle it builds consistent queue orders that preserve compatible FIFO edges without allowing an incompatible holder grant. A hard cycle leaves queue orders unchanged and selects a victim. Repair keeps the original waiter, cancellation and timeout registrations; notification stays outside the lock-table monitor. Queues without a detected cycle retain their normal FIFO rules. LockQueueReorderTests and SQL cascade retry tests cover these paths. This behavior does not promise a starvation bound.
+A hard deadlock still selects a victim and refuses its lock request. SQL exposes
+`DatabaseTransactionDeadlockException` with `CS04065`, mapped to SQLSTATE `40P01`. Statement
+atomicity preserves earlier explicit-transaction work and locks; the caller must roll back the
+victim transaction so survivors can progress, then retry the entire transaction.
+
+The lock manager distinguishes held-lock dependencies from queue-order dependencies. On a soft
+cycle it builds consistent queue orders that preserve compatible FIFO edges without allowing an
+incompatible holder grant. A hard cycle leaves queue orders unchanged and selects a victim.
+Repair keeps the original waiter, cancellation and timeout registrations; notification stays
+outside the lock-table monitor. Queues without a detected cycle retain normal FIFO rules.
+`LockQueueReorderTests` and `SqlLockingReviewTests` cover these paths. Bounded cascade retry does
+not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
 

@@ -70,6 +70,13 @@ and bound key projections rather than rediscovering references per row. Adjacent
 during an object-lock wait rebuild before reads. A changed target reports CS04006 (no assigned
 SQLSTATE); roll back an explicit transaction and retry in a fresh transaction.
 
+Cascade preparation releases new attempt grants on the first two refusals, waits and rebuilds,
+retaining every completed wait grant. From the third refusal onward it retains the closure grants
+and queues normally. This bounds release-and-retry so hot child inserts cannot starve the parent
+delete. Genuine hard deadlocks still report `CS04065` / SQLSTATE `40P01`. The failed statement
+preserves earlier explicit-transaction work and locks; the caller must roll back the victim
+transaction before retrying it. See [cascade backoff](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#cascade-backoff-and-queue-repair).
+
 [Statement timeout](../diagnostics.md#statement-and-lock-timeouts) reports CS05043 (57014);
 an individual lock-wait timeout reports CS04044 (55P03). Failure restores the whole statement,
 including child actions, releases its new resources and leaves earlier transaction work usable.
