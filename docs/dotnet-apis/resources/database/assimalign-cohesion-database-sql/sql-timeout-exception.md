@@ -15,8 +15,8 @@ public sealed class SqlTimeoutException : DatabaseException
 
 ## Behavior and exceptions
 
-There is no public constructor. Statement expiration produces one Error diagnostic, COHSQLE043,
-and SqlState 57014 (query_canceled). An individual lock-wait expiration produces COHSQLE044 and
+There is no public constructor. Statement expiration produces one Error diagnostic, CS05043,
+and SqlState 57014 (query_canceled). An individual lock-wait expiration produces CS04044 and
 55P03 (lock_not_available), retaining TransactionLockTimeoutException as its inner cause. Available
 statement spans locate the diagnostic. A later statement deadline does not relabel an earlier
 lock timeout. Caller cancellation retains OperationCanceledException.
@@ -35,7 +35,7 @@ In the blocked unique-key [session example](sql-database-session.md#example), ca
 try { await waiter.ExecuteAsync("INSERT INTO items VALUES (1)"); }
 catch (SqlTimeoutException failure) {
     Console.WriteLine(failure.SqlState);            // 55P03
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE044
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS04044
 }
 ```
 

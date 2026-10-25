@@ -1,5 +1,7 @@
 # Assimalign.Cohesion.Database — Overview
 
+See the [runtime error-code scheme](../../../../database/error-codes.md) for prefixes, categories and the per-model registry.
+
 The contract root of the Cohesion Data Platform: the model-agnostic abstract bases every engine
 derives from and every consumer programs against — `DatabaseEngine` (a data machine managing
 logical databases), `DatabaseInstance` (a logical database), `DatabaseSession` (scoped execution
@@ -22,7 +24,7 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
 
 - **[DatabaseException](database-exception.md)** — Public contract and usage.
 - **[DatabaseTransactionAbortedException](database-transaction-aborted-exception.md)** — Retryable abort kind and copied, ordered diagnostics.
-- **[DatabaseCorruptionException](database-corruption-exception.md)** — COHDBS003 with database, page and storage cause.
+- **[DatabaseCorruptionException](database-corruption-exception.md)** — CK06003 with database, page and storage cause.
 
 ## Scope
 
@@ -90,7 +92,7 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
   database whose journal or data fsync (#1243), journal drain (#1252) or header slot write
   (#1268) failed, or whose engine gave up on it (owner decision 25), until it is reopened, and
   `DatabaseTransactionCommitUnconfirmedException` for work that may have committed when it did.
-  `DatabaseCorruptionException` reports storage integrity failure with COHDBS003, the database,
+  `DatabaseCorruptionException` reports storage integrity failure with CK06003, the database,
   optional page and original cause; corruption never reads as absence.
   `DatabaseEngine.OfflineDatabases` lists the offline databases for health, and
   `DatabaseEngine.GetOfflineError` says what took one offline. Child roots own independent
@@ -131,6 +133,14 @@ builder exposes AddEngine(instance) and AddEngine(name, factory) plus one-shot B
 mutable registry or Use stage.
 
 [Examples](examples/index.md) · [Parent: Database](../index.md)
+
+## Shared server options
+
+[DatabaseServerOptions](database-server-options.md) owns common transport/session settings for the five model leaves.
+
+## Precise database absence
+
+[DatabaseNotFoundException](database-not-found-exception.md) adds an explicit diagnostics-bearing overload.
 
 ## Sources
 

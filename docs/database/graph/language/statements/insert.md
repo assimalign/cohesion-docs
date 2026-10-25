@@ -19,7 +19,7 @@ INSERT insertion_path [ , ...n ]
 | `MATCH` and `WHERE` | Supported | Supply existing bound elements |
 | `RETURN` | Supported | Expressions, aliases, DISTINCT/ALL and named-binding star |
 | [SET](../clauses/set.md), [REMOVE](../clauses/remove.md) | Supported | Update inserted or existing entities; created-then-updated counts once |
-| MERGE | Recognized, not supported (COHDBL001) | Includes ON CREATE SET and ON MATCH SET |
+| MERGE | Recognized, not supported (CK00001) | Includes ON CREATE SET and ON MATCH SET |
 
 ## Arguments
 
@@ -32,20 +32,20 @@ INSERT insertion_path [ , ...n ]
 `INSERT` is the standard graph-insertion spelling in this profile. Its abstract syntax tree uses
 the same `Creates` collection as `CREATE`. Relationship insertion requires a type and direction;
 undirected relationship creation fails planning. Property maps contain scalar literals or [parameters](../expressions/parameters.md).
-Bindings preserve runtime types; missing/invalid values and collisions use COHDBG001/003/014.
+Bindings preserve runtime types; missing/invalid values and collisions use CG05001/CG03003/CG01014.
 
 Insertion joins the session transaction. A failed mutation rolls back the owning logical
 transaction, including an explicit transaction.
 
 RETURN expressions evaluate after insertion for every matched binding. DISTINCT removes result
 duplicates after all writes, without reducing insertion counts. Duplicate final column names fail
-COHDBG015 before mutation. Wire Execute accepts scalar result kinds; `INSERT (a:P) RETURN a` or
-`INSERT (a:P) RETURN *` fails COHDBG001 directing callers to ExecutePaths before writing. Path requests require
+CG01015 before mutation. Wire Execute accepts scalar result kinds; `INSERT (a:P) RETURN a` or
+`INSERT (a:P) RETURN *` fails CG05001 directing callers to ExecutePaths before writing. Path requests require
 a read-only composed statement, so they cannot return insertion results; embedded rows can expose entities.
 
 [FOR/UNWIND](../clauses/for.md) can supply rows to INSERT. Inline maps evaluate scalar expressions
 against the incoming scope; newly inserted variables in the same stage are not available there
-(COHDBG001). Lists/maps remain invalid stored properties. A later MATCH sees source-ordered writes,
+(CG05001). Lists/maps remain invalid stored properties. A later MATCH sees source-ordered writes,
 including introduced labels/types. [NEXT](../clauses/next.md) after a write without RETURN starts
 one empty binding with no scope.
 

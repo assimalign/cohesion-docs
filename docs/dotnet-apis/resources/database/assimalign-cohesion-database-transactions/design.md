@@ -95,8 +95,8 @@ counter.
 
 A lock table keyed by `LockResource` with the classic five-mode compatibility matrix (S/U/X/IS/IX),
 same-owner upgrades (an owner's own grants never block it), FIFO waiter wake-up on `ReleaseAll`,
-and wait-for-graph deadlock detection: a request that would close a cycle aborts *itself* with
-`TransactionDeadlockException` — the newest-waiter-as-victim policy, chosen because it needs no cost
+and wait-for-graph deadlock detection: a detected cycle first attempts soft queue repair.
+An unavoidable held-lock cycle aborts the requester with `TransactionDeadlockException` — the newest-waiter-as-victim policy, chosen because it needs no cost
 model and the victim is retryable by construction. Waits are `TaskCompletionSource` -based and honor
 cancellation.
 
@@ -132,7 +132,7 @@ work can also participate in cycles.
 the previous value on disposal. Zero disables; durations above int.MaxValue milliseconds or below
 zero are refused. Only a contended request arms a timer, with a fresh budget for each wait.
 TransactionLockTimeoutException leaves the owner and prior grants active; SQL translates it to
-COHSQLE044 / 55P03. ReleaseSince can release new resources after a failed physical bracket has
+CS04044 / 55P03. ReleaseSince can release new resources after a failed physical bracket has
 fully rolled back; it performs no undo itself. Offline/abandoned writers retain recovery locks.
 
 LockWaitStop (Verbose event 8) reports Timeout for the individual lock timer and Cancelled for
@@ -325,6 +325,10 @@ detection. Statement brackets commit non-durably unless the caller selects the e
 DDL/bootstrap path; the logical commit makes earlier statement records durable by journal ordering.
 `Open`-time scrub remains ungated because no sessions exist yet.
 
+`Checkpoint`, `TryCheckpoint` and `RunVersionPurgePass` called inside that coordinator's
+`ApplyStatementAsync` callback immediately throw `StorageTransactionException`. The apply semaphore
+is not reentrant; version purge is refused at entry, before undo or pruning work.
+
 Logical undo, pruning, and recovery scrub apply at most 64 record/index mutations per physical
 bracket. A blob transaction can contain many thousands of chunks; retaining every touched page's
 before-image in one undo bracket would otherwise buffer the entire object. Each batch commits before
@@ -338,10 +342,12 @@ with owned public payloads across the assembly boundary. Storage's internal borr
 not cross that boundary. Only sequence classification survives iteration; physical page payloads
 are not retained. This later transaction-classification read verifies checksums afresh.
 
-The safe prune bound starts at `max(manager.OldestActive, recoveredSequenceFloor)` and is reduced to
+The safe prune bound starts at `max(manager.PruneBound, recoveredSequenceFloor)` and is reduced to
 every open context's `Snapshot.Minimum`. A snapshot captured while an older writer was active can
-retain a floor below the current oldest active transaction, so using only the manager's bound would
-reclaim visible data. The purge pass retries failed abort undo before pruning, exactly as before.
+retain a floor below the current oldest active transaction, so using only the oldest active sequence would
+reclaim visible data. The purge pass retries failed abort undo before pruning. It also invokes the
+optional index pruner under its apply gate with this same bound, even after an independent record
+prune failure, then rethrows the retained failure.
 
 ## Transaction EventSource
 
@@ -385,6 +391,29 @@ code generation, or `Microsoft.Extensions.*`.
 | `Assimalign.Cohesion.Database.Storage` | `CohesionProjectReference` |
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
+
+## Cascade backoff and queue repair
+
+Cascade lock preparation uses bounded release-and-retry. The first two refusals release grants
+acquired since the retry mark, wait for the refused resource and rebuild preparation. Completed
+wait grants stay retained across every restart; grants from earlier statements also remain held.
+From the third refusal onward, the cascade retains its closure grants and queues normally on
+each refused resource. A hot stream of child inserters therefore cannot indefinitely starve the
+parent delete by forcing repeated release and rebuild. No lock wait runs inside the physical
+apply gate. A failure before apply releases new statement grants when storage remains online.
+
+A hard deadlock still selects a victim and refuses its lock request. SQL exposes
+`DatabaseTransactionDeadlockException` with `CS04065`, mapped to SQLSTATE `40P01`. Statement
+atomicity preserves earlier explicit-transaction work and locks; the caller must roll back the
+victim transaction so survivors can progress, then retry the entire transaction.
+
+The lock manager distinguishes held-lock dependencies from queue-order dependencies. On a soft
+cycle it builds consistent queue orders that preserve compatible FIFO edges without allowing an
+incompatible holder grant. A hard cycle leaves queue orders unchanged and selects a victim.
+Repair keeps the original waiter, cancellation and timeout registrations; notification stays
+outside the lock-table monitor. Queues without a detected cycle retain normal FIFO rules.
+`LockQueueReorderTests` and `SqlLockingReviewTests` cover these paths. Bounded cascade retry does
+not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
 

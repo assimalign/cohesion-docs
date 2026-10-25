@@ -32,7 +32,7 @@ locally first, then in enclosing query scopes. See [SELECT](../statements/select
 | --- | --- |
 | Scalar, one row | That row's value |
 | Scalar, no rows | Typed `NULL` |
-| Scalar, more than one row | COHSQLE046 (21000, cardinality_violation); no arbitrary first row |
+| Scalar, more than one row | CS02046 (21000, cardinality_violation); no arbitrary first row |
 | `IN`, equal non-null member | `TRUE` |
 | `IN`, no match, null member | `UNKNOWN` |
 | `IN`, null operand and nonempty result | `UNKNOWN` |
@@ -49,29 +49,29 @@ materialization, including empty and null scalar results.
 These forms compose with supported SELECT projections, predicates, joins, grouping, ordering,
 ordinary numeric pagination and UPDATE/DELETE WHERE. At most 32 query levels, including derived
 bodies, are allowed beneath the
-top-level query or insert source; level 33 reports `COHDBL001`.
+top-level query or insert source; level 33 reports `CK00001`.
 
 ### Scope and aggregate levels
 
 Local names and aliases shadow outer names, including names two or more levels out. A local
 qualifier with no matching column stops lookup; it cannot fall back to the same qualifier outside.
-Unknown/hidden qualifiers and ambiguity within a scope report located `COHSQLE015`, even on empty input.
+Unknown/hidden qualifiers and ambiguity within a scope report located `CS01015`, even on empty input.
 SELECT lists, WHERE, HAVING, JOIN ON, grouping expressions, ordering and UPDATE/DELETE WHERE
 accept correlation. CASE, COALESCE and Boolean short-circuiting evaluate only reached children.
 
 A child evaluated over completed outer groups may read grouping-key columns only; another outer
-column reports `COHSQLE017` naming it. Children inside aggregate arguments, WHERE and ON read
+column reports `CS05017` naming it. Children inside aggregate arguments, WHERE and ON read
 source rows, including ungrouped columns of that source. Grouped references compare bound
 grouping values and types, including USING merges/coercions. Aggregate levels follow PostgreSQL: the lowest variable or aggregate dependency
 sets the level, including dependencies inside nested queries after adjusting for their depth.
-An aggregate belonging to an outer query level reports `COHDBL001` before grouped-column checks;
+An aggregate belonging to an outer query level reports `CK00001` before grouped-column checks;
 relocating it to that query is excluded. A mixed aggregate with a local dependency remains local.
 
 Quantified ANY/ALL/SOME comparisons, LATERAL syntax and subqueries in UPDATE SET, VALUES,
-CHECK, DEFAULT or pagination expressions remain `COHDBL001`. [WITH](../clauses/with.md) is supported
+CHECK, DEFAULT or pagination expressions remain `CK00001`. [WITH](../clauses/with.md) is supported
 before data statements; nested and recursive WITH remain excluded. A [derived body](../clauses/from.md#derived-tables)
 may correlate to enclosing queries, but a real sibling relation reference requires unsupported
-LATERAL. A typo keeps `COHSQLE015`. SQL has NULL, with no separate MISSING value.
+LATERAL. A typo keeps `CS01015`. SQL has NULL, with no separate MISSING value.
 
 ### UPDATE and DELETE snapshots
 
@@ -165,7 +165,7 @@ ORDER BY s.k;
 ```
 
 The result is `(1, 10, 9)`. The child reads the completed outer grouping key k.
-`SELECT (SELECT SUM(s.amount) FROM labels l) FROM sales s` reports COHDBL001:
+`SELECT (SELECT SUM(s.amount) FROM labels l) FROM sales s` reports CK00001:
 SUM depends only on the outer query. `SUM(l.threshold + s.amount)` in that child has a local
 dependency and remains at the child's level when the surrounding query is otherwise valid.
 

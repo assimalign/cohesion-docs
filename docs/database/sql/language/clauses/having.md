@@ -24,7 +24,7 @@ an aggregate must satisfy grouping validity. Invalid ungrouped references are pl
 when no input rows exist. A supported correlated or uncorrelated subquery may participate in the predicate.
 
 HAVING requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
-aggregate such as `HAVING SUM(age)` fails with COHSQLE003 (42804), including on empty input.
+aggregate such as `HAVING SUM(age)` fails with CS02003 (42804), including on empty input.
 Untyped NULL is UNKNOWN and retains no group.
 
 Without ORDER BY or DISTINCT, LIMIT stops HAVING and group projection after OFFSET + LIMIT

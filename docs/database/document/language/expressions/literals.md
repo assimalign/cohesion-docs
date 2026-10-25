@@ -23,9 +23,9 @@ and plus are operators applied to numeric expressions.
 
 ## Remarks
 
-Numbers retain their digits as JsonElement tokens during parsing. Malformed syntax is `OQL0004`;
+Numbers retain their digits as JsonElement tokens during parsing. Malformed syntax is `CD00004`;
 valid numbers that cannot fit decimal exactly, including underflow and lost fractional digits,
-report `COHDOC007` (22003) during planning/evaluation. UNDEFINED remains reserved and unsupported;
+report `CD02007` (22003) during planning/evaluation. UNDEFINED remains reserved and unsupported;
 [object constructors](object-constructors.md) execute.
 
 ## Examples

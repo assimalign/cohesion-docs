@@ -12,7 +12,7 @@ public sealed record GqlMatchStage(GqlMatchClause Clause, Location? Location = n
 
 ## Behavior and exceptions
 
-Clause carries paths, its predicate and Optional. It validates against the incoming scope and prefers carried entities as anchors. All comma-pattern variables are declared before inline maps are validated; maps filter complete bindings, including references to later pattern parts. Unknown labels/types affect this stage only and retain warning codes COHDBG010/011. Missing paths and unbound references use COHDBG001; a value used as an entity uses COHDBG003. See [MATCH](../../../../database/graph/language/statements/match.md).
+Clause carries paths, its predicate and Optional. It validates against the incoming scope and prefers carried entities as anchors. All comma-pattern variables are declared before inline maps are validated; maps filter complete bindings, including references to later pattern parts. Unknown labels/types affect this stage only and retain warning codes CG01010/CG01011. Missing paths and unbound references use CG05001; a value used as an entity uses CG03003. See [MATCH](../../../../database/graph/language/statements/match.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

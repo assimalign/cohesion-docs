@@ -304,23 +304,23 @@ as the `Internal` error (and closes the session), which is the pre-existing beha
 
 Engine codes are carried in Diagnostics. Translation searches inner exceptions and every
 aggregate branch, preserves specific diagnoses and gives corruption precedence over ordinary
-I/O. Attached-index damage uses DatabaseCorruptionException with COHDBS003, COHDBI002 and
+I/O. Attached-index damage uses DatabaseCorruptionException with CK06003, CK06102 and
 the model code, retaining the index cause and page. The public Create overload accepts
 IndexCorruptionException; see [signatures and example](database-corruption-exception.md).
 Storage-failure/corruption embedded messages are ordinary explanatory text; wire writers add a
-missing prefix. SQL/Key-Value Pair/Graph aborted-transaction refusals carry COHSQLT005, COHDBK001
-and COHDBG007 in Diagnostics with ordinary unprefixed Message text and the original cause.
+missing prefix. SQL/Key-Value Pair/Graph aborted-transaction refusals carry CS04005, CV04101
+and CG04007 in Diagnostics with ordinary unprefixed Message text and the original cause.
 Inspect Diagnostics for codes. See the [model mapping](../../../../database/overview.md#engine-failure-diagnostics).
 
 [DatabaseTransactionAbortedException](database-transaction-aborted-exception.md) accepts the same
 copied, ordered diagnostic sequence as DatabaseException. Graph catalog snapshot conflicts use
-it to preserve their retryable abort kind while attaching COHDBG007; deterministic caller errors
-use DatabaseException/COHDBG003. The wire formats the code once.
+it to preserve their retryable abort kind while attaching CG04007; deterministic caller errors
+use DatabaseException/CG03003. The wire formats the code once.
 
 ## Lifecycle pattern
 
 Storage integrity failures are translated to
-[DatabaseCorruptionException](database-corruption-exception.md) / COHDBS003 at engine boundaries.
+[DatabaseCorruptionException](database-corruption-exception.md) / CK06003 at engine boundaries.
 The exception names the database and optional page and retains the storage cause. Root create/open
 also translate coded and aggregate wrappers after model cleanup, preserving model diagnostics.
 The same integrity translation applies to read/statement and transaction operations. Wire execution
@@ -521,6 +521,20 @@ WorkerLaneDelayed uses reason `capacity` (zero elapsed time) or `stuck` (operati
 WorkerLaneDisposalWaiting measures disposal wait time. Both use the root provider for all five models
 and add no diagnostic code or SQLSTATE. Opt-in internal pass observations cover all lane-worker kinds;
 checkpoint due-state evidence remains checkpoint-specific.
+
+## Structured failure-event codes
+
+StatementFailed (event 28 of Assimalign.Cohesion.Database) selects a thrown DatabaseException's code from its non-null Diagnostics: the first Error diagnostic, otherwise the first entry, otherwise an empty code. Returned failures use the same selection. Other exception types contribute an empty code. The event records the exception type and code, never the exception/diagnostic message or statement text. Offline refusals and unconfirmed commits also carry their model identity in Diagnostics with unprefixed exception detail and the original cause. Event ids, payload layout and counters are unchanged.
+
+Verified by DatabaseEventSourceTests.StatementFailed_ThrownDivisionByZero_ShouldReportDiagnosticCode and StatementFailed_ThrownDiagnostics_ShouldPreferFirstError in the source branch.
+
+## Construction and debugger inspection
+
+LockManager and StoragePageLatch now have public parameterless constructors; their static Create factories are removed. QueryAnalyzerContext and StorageStream are sealed; the Cache scaffold Class1 is also sealed and supplies no cache engine.
+
+Database debugger displays and private nested proxies filter internal coordination state. They project reviewed safe public/protected values and stored references without running queries, enumerating results, resolving services, acquiring locks, reading storage/streams, invoking callbacks or creating lazy data. Types with no safe projection show an empty view and type name; effective inherited views are reused. Ref-like data cannot escape through a heap view. Debugger attributes/proxies add no public runtime API, instance fields to existing types, wire/disk format or normal execution work.
+
+Messages and format templates use generated assembly-local resources. Diagnostic identities remain separate from unprefixed structured messages; framework argument guards retain their .NET types and parameter names. See [the code scheme](../../../../database/error-codes.md).
 
 ## Sources
 

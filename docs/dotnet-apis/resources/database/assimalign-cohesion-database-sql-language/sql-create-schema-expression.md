@@ -17,10 +17,10 @@ public sealed class SqlCreateSchemaExpression : SqlQueryExpression
 ## Behavior and exceptions
 
 The parser owns construction; Name is unqualified and retains spelling. CommandType is Create.
-The accessors add no exceptions. AUTHORIZATION/nested elements report COHDBL001. Execution
-rejects parser errors with DatabaseParseException. Existing namespaces use COHSQLE029 (42P06)
-unless guarded; reserved virtual namespaces use COHSQLE021 (25006), and explicit transactions
-COHSQLT003. Creating a namespace does not redirect code-first provisioning from dbo.
+The accessors add no exceptions. AUTHORIZATION/nested elements report CK00001. Execution
+rejects parser errors with DatabaseParseException. Existing namespaces use CS03029 (42P06)
+unless guarded; reserved virtual namespaces use CS04021 (25006), and explicit transactions
+CS04003. Creating a namespace does not redirect code-first provisioning from dbo.
 
 ## Example
 

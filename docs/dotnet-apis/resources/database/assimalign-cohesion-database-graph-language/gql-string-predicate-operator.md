@@ -9,7 +9,7 @@ public enum GqlStringPredicateOperator { StartsWith, EndsWith, Contains }
 ## Behavior and exceptions
 
 Selects ordinal, case-sensitive text predicates. Non-string or NULL inputs yield unknown. Undefined
-enum values are invalid AST shapes and fail planning with COHDBG001.
+enum values are invalid AST shapes and fail planning with CG05001.
 
 ## Example
 

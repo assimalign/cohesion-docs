@@ -27,6 +27,10 @@ Page locks identify the bracket object, including its immutable Storage owner. C
 always route to that owner. A refused foreign mutation leaves both file sets unchanged and does
 not release a local bracket's locks.
 
+Nested mutable scopes for one page on another thread also throw this exception before exposing
+mutable bytes. A sole mutable handle may move across serialized continuations; moving it to
+another thread while a nested scope remains open is refused. See [mutable handle ownership](design.md#confirmed-reads-and-record-space-reuse).
+
 ## Example
 
 Adapted from StorageTransactionOwnershipTests, with two open model Storage facades first and second:

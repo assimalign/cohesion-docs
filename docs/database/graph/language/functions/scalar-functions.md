@@ -60,17 +60,17 @@ is outside this GQL subset. CAST has its own [conversion rules](../expressions/c
 abs/ceil/floor/round preserve numeric CLR types and exact integer identity above 2^53. Neo4j
 returns Float for ceil/floor/round; Cohesion keeps the input type. Round uses half away from zero,
 including negative ties. sqrt requires a nonnegative argument. Logarithms require positive
-values; a written base must be positive and unequal to 1. Invalid domains raise COHDBG013,
+values; a written base must be positive and unequal to 1. Invalid domains raise CG02013,
 with no NaN/infinity result. MOD follows [arithmetic promotion](../expressions/operators.md).
 
 Substring indexes/counts use Unicode code points and start at zero. Floating coordinates truncate
 toward zero before checking the resulting nonnegative Int32 range; thus -0.5 becomes zero.
-Invalid ranges use COHDBG013. Replacement checks expansion size before allocation, including
+Invalid ranges use CG02013. Replacement checks expansion size before allocation, including
 empty-search insertion. Existing composite depth, value-count and encoded-byte bounds apply to
 function outputs.
 
 toInteger/toFloat/toBoolean return NULL for unparsable strings, following Neo4j conversion behavior.
-String/Decimal range overflow and nonfinite results still fail COHDBG013. toInteger saturates
+String/Decimal range overflow and nonfinite results still fail CG02013. toInteger saturates
 finite floating overflow to the Int64 endpoints; CAST refuses it. toString retains a fractional
 digit for floating integers and uses Cypher scientific-notation thresholds. CAST renders Boolean
 text uppercase; toString renders it lowercase.
@@ -79,11 +79,11 @@ text uppercase; toString renders it lowercase.
 
 One UTC instant is captured before the transaction begins. Every row/stage and every statement
 in an explicit API transaction shares it, including ReadCommitted transactions. Each autocommit
-statement captures its own instant. Graph wire statements are always autocommit. CURRENT_DATE
+statement captures its own instant. Graph wire explicit transactions share that instant until they end. CURRENT_DATE
 uses that instant's UTC date; CURRENT_TIMESTAMP returns it as DateTimeOffset.
 
 Dates/timestamps can be compared and ordered but cannot be stored as Graph properties. Proven
-temporal property values fail planning with COHDBG003; dynamic values use COHDBG013 and roll back.
+temporal property values fail planning with CG03003; dynamic values use CG02013 and roll back.
 Total ordering places zoned timestamps, then dates, between paths and strings.
 
 labels/keys/properties and other list/map wire results require graph.composite-values.
@@ -95,13 +95,13 @@ ExecutePaths. No new wire tag or format is introduced.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| GQL0010 | Unknown function name, reported during parsing |
-| GQL0002 | Parsed scalar/aggregate arity mismatch, or parentheses on a niladic clock |
-| COHDBG001 | Invalid hand-built arity or unbound function argument |
-| COHDBG003 | Provably incompatible argument kind, including non-integral numeric toBoolean; temporal stored property |
-| COHDBG013 | Dynamic wrong kind, invalid conversion/domain/range, zero divisor, overflow or output bound |
-| COHDBG016 | Possible composite wire result without negotiated capability |
-| COHDBL001 | Recognized unsupported calls, including ELEMENTS(), CARDINALITY, temporal constructors, reduce, head/last/tail/reverse/range, LTRIM/RTRIM/BTRIM, LEFT/RIGHT, LOG10 and toXList conversions |
+| CG00010 | Unknown function name, reported during parsing |
+| CG00002 | Parsed scalar/aggregate arity mismatch, or parentheses on a niladic clock |
+| CG05001 | Invalid hand-built arity or unbound function argument |
+| CG03003 | Provably incompatible argument kind, including non-integral numeric toBoolean; temporal stored property |
+| CG02013 | Dynamic wrong kind, invalid conversion/domain/range, zero divisor, overflow or output bound |
+| CG07016 | Possible composite wire result without negotiated capability |
+| CK00001 | Recognized unsupported calls, including ELEMENTS(), CARDINALITY, temporal constructors, reduce, head/last/tail/reverse/range, LTRIM/RTRIM/BTRIM, LEFT/RIGHT, LOG10 and toXList conversions |
 
 These codes have no assigned SQLSTATE. EXPLAIN checks signatures without evaluating functions.
 Runtime failures precede ResultHeader and preserve the authenticated wire session.
@@ -121,7 +121,7 @@ RETURN CURRENT_TIMESTAMP = CURRENT_TIMESTAMP AS same, CURRENT_DATE AS today;
 
 Results are `('😀B',3)`, `(-3.0,9007199254740993)`, `'XaXbXcX'`, `(2,NULL,NULL)`,
 `('false','FALSE')`, and `(TRUE,the transaction's UTC date)`. `RETURN sqrt(-1)` and
-`RETURN log(1,2)` fail COHDBG013. `RETURN abs(NULL)` returns NULL.
+`RETURN log(1,2)` fail CG02013. `RETURN abs(NULL)` returns NULL.
 
 With a path inserted separately:
 

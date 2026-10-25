@@ -7,12 +7,12 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 ## SQL namespace target
 
 Code-first table/constraint/index/domain provisioning remains pinned to dbo. The builder has no
-target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is COHSQLE031.
+target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
 Storage format 26 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 8.
 
-Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports COHSQLS005
+Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
 
 This package owns SQL schema declarations, immutable compiled relational shapes, canonical JSON,
@@ -64,7 +64,7 @@ have compensating statements, and the SQL provisioner includes their definitions
 reconstructing the live catalog after a failed apply.
 
 The engine validates new CHECK table/schema qualifiers against the constrained table with
-COHSQLE015. Already stored checks and already-applied declared/imperative schema hashes keep
+CS01015. Already stored checks and already-applied declared/imperative schema hashes keep
 their earlier qualifier binding. Build validates other rules before I/O; provisioning checks
 qualifiers for a new or changed hash after reading catalog state and before migration steps.
 See [CHECK binding](../../../../database/sql/language/constraints.md#check-binding).
@@ -118,10 +118,10 @@ are equal. TimeSpan.MinValue renders `'-922337203685.4775808 seconds'`; zero ren
 
 Compiled schemas have no identity representation. Reconciliation of a typed schema-owned table
 containing identity metadata is refused before changes with SqlSchemaMigrationException,
-`COHSQLP005` and "Nothing was changed." SQL script-created tables retain their SQL definitions.
+`CS03105` and "Nothing was changed." SQL script-created tables retain their SQL definitions.
 Compiled domain declarations named serial, bigserial or smallserial fail validation with
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
-throws ArgumentException; SQL CREATE DOMAIN reports COHDBL001, including quoted names.
+throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
 The integration branch uses SQL row-storage format 26 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18

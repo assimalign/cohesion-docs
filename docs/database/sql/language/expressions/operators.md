@@ -37,12 +37,12 @@ expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`
 EXISTS: `NOT EXISTS (query) IS TRUE` means `NOT ((EXISTS (query)) IS TRUE)`.
 
 Non-associative chains such as `a < b < c`, `a LIKE b LIKE c`, and
-`a IS DISTINCT FROM b IS NULL` report one `SQL0003` at the second operator. Parentheses can
+`a IS DISTINCT FROM b IS NULL` report one `CS00003` at the second operator. Parentheses can
 group an intermediate result explicitly. A completed IN/NOT IN list or subquery may feed another
 predicate: `1 IN (1) IN (TRUE)` and `1 IN (SELECT id FROM t WHERE id = 1) IN (TRUE)` test the
 first Boolean result. Completed postfix tests may also continue: `NULL IS NULL = TRUE` is TRUE.
 The lower BETWEEN bound accepts restricted comparison/distinct expressions.
-Prefix/infix `~`, binary `&`, `|`, `<<`, `>>`, and `::` casts report `COHDBL001`.
+Prefix/infix `~`, binary `&`, `|`, `<<`, `>>`, and `::` casts report `CK00001`.
 
 ```sql
 SELECT 1 = 1 IS TRUE, TRUE = 'abc' LIKE 'a%', 1 IN (1) IN (TRUE), 'x' || 1 + 2
@@ -65,7 +65,7 @@ Only true conditions retain rows in `WHERE`, `ON`, and `HAVING`.
 [Subqueries](subqueries.md); a null-containing candidate list can also produce unknown.
 AND, OR, NOT and truth-test operands require BOOLEAN under the
 [search-condition rules](../clauses/where.md#boolean-search-conditions). Known non-Boolean operands
-fail COHSQLE003 (42804), even in a short-circuited branch. Untyped NULL remains UNKNOWN;
+fail CS02003 (42804), even in a short-circuited branch. Untyped NULL remains UNKNOWN;
 valid Boolean input string literals coerce in these positions.
 
 SQL has NULL, with no MISSING scalar. The predicates below also work in projections, JOIN ON,
@@ -113,7 +113,7 @@ Truth tests accept BOOLEAN or NULL and always return a non-NULL BOOLEAN.
 | FALSE | FALSE | TRUE | TRUE | FALSE | FALSE | TRUE |
 | NULL | FALSE | TRUE | FALSE | TRUE | TRUE | FALSE |
 
-A known non-Boolean operand, including a supplied parameter, fails binding with `COHSQLE003`
+A known non-Boolean operand, including a supplied parameter, fails binding with `CS02003`
 (42804), even on an empty table. `CHECK (flag IS TRUE)` rejects NULL, whereas `CHECK (flag)`
 accepts it as UNKNOWN.
 
@@ -123,7 +123,7 @@ FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 ```
 
 The result is `(FALSE, TRUE, TRUE)`. Postfix ISNULL/NOTNULL, ILIKE/NOT ILIKE, SIMILAR TO/NOT
-SIMILAR TO, and IS JSON/IS OF/IS NORMALIZED report `COHDBL001`.
+SIMILAR TO, and IS JSON/IS OF/IS NORMALIZED report `CK00001`.
 
 ## LIKE and ESCAPE
 
@@ -134,7 +134,7 @@ is recognized before wildcards, even when it is `%` or `_`. Patterns and escapes
 parameters, columns or concatenated expressions.
 
 For valid patterns, NULL in any operand gives UNKNOWN; NOT LIKE preserves UNKNOWN. A longer
-escape or a pattern ending in its escape raises `COHSQLE034` (22025). Constant and supplied
+escape or a pattern ending in its escape raises `CS02034` (22025). Constant and supplied
 parameter patterns/escapes, including concatenations, validate during binding and compile once,
 so invalid fixed patterns fail even on empty input or with a NULL matched value. This eager
 validation intentionally differs from PostgreSQL's match-time trailing-escape check. Dynamic
@@ -160,7 +160,7 @@ costs one unit. Each linguistic comparison/search additionally costs the sum of 
 with a minimum of one unit. Successful anchors charge only through the matched prefix; an
 independent prefix failure after boundary analysis charges the literal extent. Each zero-initialized
 32-bit visited-state word costs one unit, charged before allocation. Exceeding the budget raises
-located `COHSQLE040` (no assigned SQLSTATE). LIKE and NOT LIKE both fail; neither returns an
+located `CS05040` (no assigned SQLSTATE). LIKE and NOT LIKE both fail; neither returns an
 estimated Boolean. Over the wire this is ExecutionFailure and leaves the connection usable.
 Cancellation reaches row-time matching, including cached views and stored CHECKs, and takes
 precedence over a budget refusal. Other collations retain O(input × pattern) search.
@@ -174,7 +174,7 @@ FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 
 All five outputs are TRUE. The default backslash and empty escape follow PostgreSQL; ISO SQL
 has no implicit escape and refuses an empty one. Malformed predicates, missing FROM in a
-distinct test, or a missing ESCAPE operand use `SQL0003`.
+distinct test, or a missing ESCAPE operand use `CS00003`.
 
 These examples need only the built-in dbo schema:
 
@@ -187,7 +187,7 @@ SELECT RPAD('เก', 1024, 'เก') COLLATE invariant
 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 ```
 
-The first returns `(TRUE, TRUE)`. The second fails with located `COHSQLE040`; replacing LIKE
+The first returns `(TRUE, TRUE)`. The second fails with located `CS05040`; replacing LIKE
 with NOT LIKE also fails. A subsequent query on that session still executes.
 
 Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
@@ -209,10 +209,10 @@ The following pairs execute; operands keep their written order.
 | TIMESTAMP/TIMESTAMPTZ - either timestamp type | INTERVAL; zone-less timestamp is interpreted at +00:00 |
 | INTERVAL + or - INTERVAL, unary - INTERVAL | INTERVAL |
 
-NULL operands propagate NULL. Other temporal arithmetic pairs fail planning with COHSQLE003
+NULL operands propagate NULL. Other temporal arithmetic pairs fail planning with CS02003
 (42804), including empty inputs: TIME + INTERVAL, TIMESTAMP - DATE, INTERVAL + integer and
 multiplication/division/remainder over temporal values are excluded. Overflow or results outside
-years 1..9999 use COHSQLE002 (22003). TIMESTAMPTZ keeps its written offset when its resulting
+years 1..9999 use CS02002 (22003). TIMESTAMPTZ keeps its written offset when its resulting
 local clock fits; otherwise it uses +00:00.
 
 DATE compares with TIMESTAMP/TIMESTAMPTZ at midnight. A zone-less TIMESTAMP reads as UTC when

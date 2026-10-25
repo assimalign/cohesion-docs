@@ -15,8 +15,8 @@ Removes Property from a node or relationship. An absent key is a no-op; subseque
 reads return NULL and keys(entity) excludes the removed key.
 
 The record constructor retains its operands without semantic validation. The planner validates binding
-scope and entity kinds. Unbound targets/invalid direct shapes use COHDBG001; path/group/scalar
-targets use COHDBG003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
+scope and entity kinds. Unbound targets/invalid direct shapes use CG05001; path/group/scalar
+targets use CG03003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
 Parser errors are diagnostics; session text execution rejects them with DatabaseParseException.
 See [REMOVE](../../../../database/graph/language/clauses/remove.md).
 

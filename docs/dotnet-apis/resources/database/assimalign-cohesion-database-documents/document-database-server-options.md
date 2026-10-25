@@ -5,14 +5,9 @@ Namespace: `Assimalign.Cohesion.Database.Documents`.
 ## Signature
 
 ```csharp
-public sealed class DocumentDatabaseServerOptions
+public sealed class DocumentDatabaseServerOptions : DatabaseServerOptions
 {
-    public IDuplexConnectionListener? Listener { get; set; }
-    public DatabaseAuthenticator? Authenticator { get; set; }
-    public int MaxSessions { get; set; } = 100;
-    public TimeSpan AuthenticationTimeout { get; set; } = TimeSpan.FromSeconds(10);
-    public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(30);
-    public TimeSpan ShutdownDrainTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    // Common members are inherited from DatabaseServerOptions.
     public TimeSpan TerminalDrainLinger { get; set; } = TimeSpan.FromSeconds(2);
 }
 ```
@@ -45,6 +40,10 @@ await using var server = DocumentDatabaseServer.Create(engine, options);
 ## Related reference
 
 [Server](document-database-server.md) · [Assembly](index.md)
+
+## Shared TCP composition
+
+Common members come from [DatabaseServerOptions](../assimalign-cohesion-database/database-server-options.md). [Database.Tcp](../assimalign-cohesion-database-tcp/index.md) supplies Listen(Uri) for this leaf; add `using Assimalign.Cohesion.Database;`. The extension returns the same concrete options type and the server owns the transferred listener.
 
 ## Sources
 

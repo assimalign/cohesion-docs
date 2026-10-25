@@ -24,8 +24,8 @@ results count as not true. Empty ANY is false and empty EVERY true. MISSING coll
 MISSING; NULL/non-array collections yield NULL. See the [truth table](../../../../database/document/language/expressions/quantified-predicates.md).
 
 Construction retains child references and adds no validation exceptions. Planning rejects
-aggregates or META(variable) on this binding with DatabaseException/COHDOC001, even when the
-name shadows the source alias. Nested SELECT and multi-binding text forms use COHDBL001.
+aggregates or META(variable) on this binding with DatabaseException/CD05001, even when the
+name shadows the source alias. Nested SELECT and multi-binding text forms use CK00001.
 
 ## Example
 

@@ -37,43 +37,43 @@ definitions once under the statement snapshot, before any write. Targets remain 
 
 A whole-item [DEFAULT](../clauses/default.md) requests the destination default;
 `DEFAULT VALUES` inserts one row of defaults. A missing default on a NOT NULL column is
-`COHSQLE024` (SQLSTATE 23502). Without a column list, values map to all destination columns. Omitted columns use their declared
+`CS03024` (SQLSTATE 23502). Without a column list, values map to all destination columns. Omitted columns use their declared
 defaults or nullable `NULL`; an explicit `NULL` does not request the default. Destination coercion,
 nullability, checks, primary and unique keys, and foreign keys apply to written rows.
 [ON CONFLICT](../clauses/on-conflict.md) skips or updates unique-key conflicts for every source
 form. Proposed NOT NULL/domain/CHECK validation still precedes arbitration; foreign keys validate
 only rows actually written. DO UPDATE requires an arbiter and exposes target plus EXCLUDED values.
 Each DO UPDATE SET target may appear only once, including assignments using DEFAULT;
-case-insensitive duplicates report `COHSQLE019` before writes. See [SET](../clauses/set.md).
+case-insensitive duplicates report `CS01019` before writes. See [SET](../clauses/set.md).
 RETURNING includes inserted/updated rows and their combined count, excluding skips. See the clause
-for COHSQLE035 (42P10), COHSQLE036 (21000), isolation and transaction retry rules.
+for CS03035 (42P10), CS05036 (21000), isolation and transaction retry rules.
 
 For an [identity column](../clauses/identity.md), omission or DEFAULT allocates one value per row,
 including DEFAULT VALUES and omitted INSERT SELECT destinations. ALWAYS rejects explicit values
-(`COHSQLE025`); BY DEFAULT accepts non-null explicit values without advancing the counter.
+(`CS03025`); BY DEFAULT accepts non-null explicit values without advancing the counter.
 Explicit NULL never requests generation. Failed statements can consume values without inserting rows.
 [RETURNING](../clauses/returning.md) retrieves allocated identities and stored values.
-OVERRIDING remains unsupported (`COHDBL001`).
+OVERRIDING remains unsupported (`CK00001`).
 
 `INSERT ... SELECT` validates output width and declared type compatibility even on empty input.
 It materializes the entire source under the statement snapshot before writing. Reading from the
 destination is therefore supported without feeding newly inserted rows back into the source.
 Any failure leaves none of the query-source statement's rows inserted.
 
-Constraint failures carry one Error diagnostic: `COHSQLE037` (23505) for a duplicate primary,
-unique or unique-index key, `COHSQLE038` (23514) for a CHECK/domain check, `COHSQLE039` (23503)
-for a missing foreign-key parent, or `COHSQLE024` (23502) for NOT NULL. Messages name the
+Constraint failures carry one Error diagnostic: `CS03037` (23505) for a duplicate primary,
+unique or unique-index key, `CS03038` (23514) for a CHECK/domain check, `CS03039` (23503)
+for a missing foreign-key parent, or `CS03024` (23502) for NOT NULL. Messages name the
 constraint and table without key values. The statement rolls back and an explicit transaction
 remains usable. See [Diagnostics](../diagnostics.md) for wire delivery and source spans.
 
-Subqueries inside VALUES or RETURNING report COHDBL001.
+Subqueries inside VALUES or RETURNING report CK00001.
 Use `INSERT ... SELECT` when input comes from a query. The source may also start with WITH:
 `INSERT INTO target WITH c AS (SELECT ...) SELECT ... FROM c`.
 
 ## Size limits
 
 Rows and every write index key must fit the [encoded size limits](../diagnostics.md#row-and-index-key-limits).
-An oversized value reports `COHSQLE042` / SQLSTATE 54000 before any row in the statement is
+An oversized value reports `CS05042` / SQLSTATE 54000 before any row in the statement is
 inserted. Earlier statements in an explicit transaction remain intact and the transaction stays active.
 
 Execute separately in an empty database, binding `value` to `new string('x', 9000)`:
@@ -84,7 +84,7 @@ INSERT INTO large_rows VALUES (2, 'ok'), (3, @value);
 SELECT id FROM large_rows;
 ```
 
-INSERT fails with COHSQLE042; SELECT returns no rows. This follows SqlProgramLimitConformanceTests.
+INSERT fails with CS05042; SELECT returns no rows. This follows SqlProgramLimitConformanceTests.
 ON CONFLICT checks only proposals that become writes; see [discarded proposals](../clauses/on-conflict.md#size-limits).
 
 ## Examples

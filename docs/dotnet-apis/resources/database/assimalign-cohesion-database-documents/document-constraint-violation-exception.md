@@ -20,8 +20,8 @@ public sealed class DocumentConstraintViolationException : DatabaseException
 
 ## Behavior and exceptions
 
-There is no public constructor. Duplicate valued scalar keys carry COHDOC020, CollectionName
-and SqlState `23505`, with Path null. An array/object UNIQUE component carries COHDOC021 and
+There is no public constructor. Duplicate valued scalar keys carry CD03020, CollectionName
+and SqlState `23505`, with Path null. An array/object UNIQUE component carries CD02021 and
 Path, with CollectionName and SqlState null. Each has one Error diagnostic and a code-free
 message. Duplicate messages name the index/collection without exposing key data.
 
@@ -29,7 +29,7 @@ Keys containing NULL or MISSING never conflict. Constraints are immediate per ro
 back statement writes and aborts an explicit transaction until RollbackAsync. Wire callers receive
 DocumentClientException with ExecutionFailure (6) and the diagnostic, preserving the connection.
 [DocumentDuplicateKeyException](document-duplicate-key-exception.md)
-instead describes document identities and uses COHDOC012.
+instead describes document identities and uses CD03012.
 
 ## Example
 
@@ -42,7 +42,7 @@ try {
 } catch (DocumentConstraintViolationException failure) {
     Console.WriteLine(failure.IndexName);            // uq
     Console.WriteLine(failure.CollectionName);       // items
-    Console.WriteLine(failure.Diagnostics[0].Code);   // COHDOC020
+    Console.WriteLine(failure.Diagnostics[0].Code);   // CD03020
     Console.WriteLine(failure.SqlState);             // 23505
 }
 ```

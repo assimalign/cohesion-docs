@@ -22,11 +22,11 @@ copied in source order. The first TRUE match selects Then lazily; otherwise Othe
 or NULL when absent. No common-type coercion is applied; the selected runtime type survives.
 Planning validates all bindings and shapes, including skipped arms. Constructors do not validate
 semantic shape: null/empty alternatives, invalid Comparison or missing expressions fail planning
-with COHDBG001. Evaluation errors use COHDBG013.
+with CG05001. Evaluation errors use CG02013.
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.
-Possible composite wire results require graph.composite-values under protocol 2.1 (COHDBG016
+Possible composite wire results require graph.composite-values under protocol 2.1 (CG07016
 without it, before reads/writes; no assigned SQLSTATE). See the [language reference](../../../../database/graph/language/expressions/case.md).
 
 ## Example

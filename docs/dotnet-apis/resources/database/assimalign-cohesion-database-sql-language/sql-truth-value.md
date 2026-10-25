@@ -20,7 +20,7 @@ public enum SqlTruthValue
 True and False select Boolean values; Unknown selects NULL. This enum describes a test rather
 than a nullable result value. Negation lives on [SqlBooleanTestExpression](sql-boolean-test-expression.md).
 The enum introduces no exceptions. Execution of a truth test over a non-Boolean operand uses
-COHSQLE003 (42804).
+CS02003 (42804).
 
 ## Example
 

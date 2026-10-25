@@ -27,12 +27,12 @@ refused in an explicit transaction. Dropping a table does not drop its namespace
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| COHSQLE028 | Namespace absent without IF EXISTS | 3F000 |
-| COHSQLE030 | RESTRICT finds contained objects; message offers CASCADE | 2BP01 |
-| COHSQLE031 | DROP targets dbo, including IF EXISTS and CASCADE | — |
-| COHSQLE021 | DROP targets INFORMATION_SCHEMA or COHESION_SCHEMA | 25006 |
-| COHSQLE013 | Namespace or dependency set changed while DROP waited; retry the statement | — |
-| COHSQLT003 | DDL inside an explicit transaction | — |
+| CS01028 | Namespace absent without IF EXISTS | 3F000 |
+| CS03030 | RESTRICT finds contained objects; message offers CASCADE | 2BP01 |
+| CS03031 | DROP targets dbo, including IF EXISTS and CASCADE | — |
+| CS04021 | DROP targets INFORMATION_SCHEMA or COHESION_SCHEMA | 25006 |
+| CS05013 | Namespace or dependency set changed while DROP waited; retry the statement | — |
+| CS04003 | DDL inside an explicit transaction | — |
 
 Schema ownership refusals use DatabaseObjectLockedException. See [Diagnostics](../diagnostics.md).
 
@@ -49,7 +49,7 @@ SELECT id FROM external_child;
 ```
 
 The query returns `1`: the outside table survives and its FK is removed. SCHEMATA no longer lists
-sales, and sales.parent is absent. Replacing CASCADE with RESTRICT fails with COHSQLE030 and
+sales, and sales.parent is absent. Replacing CASCADE with RESTRICT fails with CS03030 and
 preserves every object.
 
 ## See also

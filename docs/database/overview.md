@@ -81,12 +81,13 @@ The original template receives its path and endpoint through generated
 `Resource.Mounts.Data.Path` and `Resource.Endpoints.Db`.
 
 In a Database SDK executable, this host provisions an `audit` database containing a schema-owned
-`t` table. The TCP integration package supplies `Listen`; it uses the SQL namespace.
+`t` table. The TCP integration package supplies `Listen`; import Assimalign.Cohesion.Database to use it with any model options.
 
 ```csharp
 using System;
 
 using Assimalign.Cohesion.Database.Hosting;
+using Assimalign.Cohesion.Database;
 using Assimalign.Cohesion.Database.Sql;
 using Assimalign.Cohesion.Database.Sql.Schema;
 using Assimalign.Cohesion.Hosting;
@@ -156,8 +157,7 @@ ends the lease; metadata and execution then throw ObjectDisposedException, while
 false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
 later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
-> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
@@ -171,18 +171,18 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 | Model | File-set refusal code | Reference |
 | --- | --- | --- |
-| SQL | COHSQLC001 | [Creation and open](sql/language/diagnostics.md#database-creation-and-open) |
-| Graph | COHDBG018 | [Database files](graph/language/diagnostics.md#database-files) |
-| Document | COHDBD003 | [Database files](document/language/diagnostics.md#database-files) |
-| Blob | COHDBB004 | [Database files](blob/operations.md#database-file-diagnostics) |
-| Key-Value Pair | COHDBK004; COHDBK006 for incomplete creation or missing catalog | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
+| SQL | CS03401 | [Creation and open](sql/language/diagnostics.md#database-creation-and-open) |
+| Graph | CG06018 | [Database files](graph/language/diagnostics.md#database-files) |
+| Document | CD06103 | [Database files](document/language/diagnostics.md#database-files) |
+| Blob | CB06004 | [Database files](blob/operations.md#database-file-diagnostics) |
+| Key-Value Pair | CV06104; CV06106 for incomplete creation or missing catalog | [File sets](key-value-pair/diagnostics.md#missing-file-sets-and-interrupted-drop) |
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
 resolution and do not advise restore or drop. SQL remains at format 26.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
-data of at most one page also receives COHDBK006 and a drop/recreate remedy; longer data with no
+data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
 The shared storage format is **4**, independent of SQL's data/catalog format 26 and Graph's record
@@ -193,12 +193,12 @@ header-slot checksums. See [page integrity](../dotnet-apis/resources/database/as
 
 Detected storage damage raises
 [DatabaseCorruptionException](../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md)
-with COHDBS003, the database, optional page and original cause. Refused opens retain existing
-model diagnostics; Graph, Document and Blob also carry COHDBG018, COHDBD003 and COHDBB004.
+with CK06003, the database, optional page and original cause. Refused opens retain existing
+model diagnostics; Graph, Document and Blob also carry CG06018, CD06103 and CB06004.
 Reads fail instead of silently omitting damaged data. Legitimate record reclamation still reads
-as absence. SQL and Key-Value Pair map COHDBS003 to SQLSTATE XX001; other model references
+as absence. SQL and Key-Value Pair map CK06003 to SQLSTATE XX001; other model references
 assign none. Follow its verified-backup recovery advice. Attached-index corruption also retains
-COHDBI002 and the model diagnostic with the index cause/page.
+CK06102 and the model diagnostic with the index cause/page.
 
 Recovery preserves both complete, verified checkpoint-anchor chains. Retired anchors outside those
 chains are reclaimable even after a torn write or missing checksum; ordinary Free/Reclaimed pages
@@ -210,7 +210,7 @@ still require full verification. Newly initialized anchors have journal repair i
 Storage reads page 0 in independent 4 KiB halves. After a read error it accepts the other valid
 slot only when the retained journal proves coverage, before replay writes. Every accepted fallback
 emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
-survivor with no valid slot is COHDBS003 corruption; two wholly unreadable halves retain I/O.
+survivor with no valid slot is CK06003 corruption; two wholly unreadable halves retain I/O.
 See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
 The journal-size checkpoint setting remains a soft trigger; the hard bound is deferred.
 
@@ -225,23 +225,23 @@ resources and publishes no database, permitting retry once the condition is reso
 
 | Model | Storage/I/O | Catalog/index | Additional failure codes |
 | --- | --- | --- | --- |
-| SQL | COHSQLE041 (58030 for I/O) | COHSQLE041 | COHSQLT005: aborted transaction; COHSQLE042 (54000): encoded row/index-key size limit; COHSQLE043 (57014): statement timeout; COHSQLE044 (55P03): lock timeout; COHSQLE045 (54000 for size refusals): result encoding or header/row limit; COHSQLT006: changed-target retry |
-| Key-Value Pair | COHDBK005 (58030 for I/O) | COHDBK005 | COHDBK001: aborted transaction |
-| Document | COHDBD004 | COHDBD005 | COHDOC024: index exists; COHDOC025: index absent; COHDOC026: encoded key exceeds 1,024 bytes; COHDBD001: aborted transaction |
-| Graph | COHDBG006 | COHDBG006 | COHDBG007: catalog snapshot conflict/aborted transaction; COHDBG003: deterministic catalog error; COHDBG009: oversized metadata; COHDBG019: disposed execution resource |
-| Blob | COHDBB005 | COHDBB006 | COHDBB007: failed/inactive upload; COHDBB001: aborted transaction |
+| SQL | CS06041 (58030 for I/O) | CS06041 | CS04005: aborted transaction; CS05042 (54000): encoded row/index-key size limit; CS05043 (57014): statement timeout; CS04044 (55P03): lock timeout; CS05045 (54000 for size refusals): result encoding or header/row limit; CS04006: changed-target retry |
+| Key-Value Pair | CV06105 (58030 for I/O) | CV06105 | CV04101: aborted transaction |
+| Document | CD06104 | CD06105 | CD03024: index exists; CD01025: index absent; CD02026: encoded key exceeds 1,024 bytes; CD04101: aborted transaction |
+| Graph | CG06006 | CG06006 | CG04007: catalog snapshot conflict/aborted transaction; CG03003: deterministic catalog error; CG02009: oversized metadata; CG09019: disposed execution resource |
+| Blob | CB06005 | CB06006 | CB02007: failed/inactive upload; CB04001: aborted transaction |
 
 No SQLSTATE is assigned to these codes except the mappings shown.
-Attached-index corruption leads with COHDBS003 and retains COHDBI002 plus the model's catalog/index
+Attached-index corruption leads with CK06003 and retains CK06102 plus the model's catalog/index
 code. Storage/index failures abort explicit transactions; roll back before continuing. SQL and
 Key-Value Pair ordinary statement errors keep their existing statement-atomic behavior. SQL,
 Document, Graph and Key-Value Pair wire ExecutionFailure preserves the session; Blob closes it.
 Codes belong in Diagnostics. Storage-failure/corruption and SQL/Key-Value Pair/Graph aborted-transaction
-refusal messages are ordinary unprefixed text. Refusals retain COHSQLT005, COHDBK001 or COHDBG007
+refusal messages are ordinary unprefixed text. Refusals retain CS04005, CV04101 or CG04007
 and their original cause. Wire writers format the prefix once. SQL event 25 and Key-Value Pair event 11, TransactionCleanupFailed,
 record secondary cleanup failures while preserving the original coded cause.
 
-Graph disposal during execution or a wire lifetime guard reports COHDBG019 and keeps the
+Graph disposal during execution or a wire lifetime guard reports CG09019 and keeps the
 authenticated session ready; disposal of the protocol transport faults it without another write.
 Graph Warning event 13, StatementCleanupFailed, records cleanup failure after successful
 autocommit without changing that success, except OutOfMemoryException still propagates.
@@ -363,8 +363,8 @@ Engine-owned maintenance runs in embedded and hosted modes alike.
 ## Wire model
 
 Each model server owns its own `IDuplexConnectionListener`; the endpoint selects the model.
-Transport selection belongs to the composition root. `Database.Sql.Tcp` supplies the existing
-`Listen(Uri)` convenience for consumers that choose TCP. Engine packages reference no concrete
+Transport selection belongs to the composition root. `Database.Tcp` supplies the shared
+`Listen(Uri)` convenience for all five model server options for consumers that choose TCP. Engine packages reference no concrete
 transport.
 
 Each endpoint fixes a model family for the entire connection. The shared protocol owns framing,
@@ -397,7 +397,7 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 26;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
-and Graph supports [eager stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
+and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
 The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
@@ -416,6 +416,25 @@ to determine available behavior.
 ## See also
 
 [Database](index.md) · [SQL language](sql/language/index.md) · [Database .NET APIs](../dotnet-apis/resources/database/index.md) · [Database SDK](../dotnet-apis/sdks/sdk-database/index.md)
+
+## Index-history maintenance
+
+SQL, Documents, Graph and Key-Value Pair prune obsolete index history during the coordinator version-purge pass, under the same safe snapshot horizon as record versions. Unique inserts also prune their key run during their single descent. Old snapshots retain required versions. This does not merge empty tree pages or change disk formats. See [index maintenance](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#safe-index-history-pruning).
+
+## Record reads and space reuse
+
+Unlatched reads confirm against the page write sequence and retry overlapping mutations; decode failures are reported only from a confirmed copy, with record location and cause. Inserts and growing updates compact fragmented pages when packed capacity suffices. Inserts also revisit partly empty older pages using in-memory free-byte hints before extending. See [storage behavior](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
+## Buffer-pool concurrency
+
+Cached page pins use concurrent lookup and frame-local pin counts. Clock replacement chooses unpinned victims, and a single pending load coalesces readers of the same cold page. Reads, writes and growth run outside the global mapping lock; capacity includes loading reservations. Flush, resize and disposal retain explicit I/O ownership and WAL ordering. See [buffer-pool design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#the-buffer-pool).
+
+Replacement uses clock reference bits rather than LRU ordering. Buffer-pool growth and shrink
+both wait for in-flight cold I/O. Open seeds free-byte hints from page headers; unknown candidate
+geometry is measured under a read pin before write touch, avoiding pre-images for full pages.
+A sole mutable page handle carries read permission across serialized thread handoffs and awaits;
+nested writers for that page on another thread are refused before exposing mutable bytes. See
+[confirmed reads and reuse](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
 ## Sources
 

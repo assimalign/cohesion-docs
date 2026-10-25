@@ -9,7 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Transactions`.
 ```csharp
 public sealed class LockManager
 {
-    public static LockManager Create();
+    public LockManager();
     public ValueTask AcquireAsync(TransactionSequence owner, LockResource resource,
         LockMode mode, CancellationToken cancellationToken = default);
     public IDisposable EnterLockTimeout(TimeSpan timeout);
@@ -22,12 +22,13 @@ public sealed class LockManager
 
 ## Behavior and exceptions
 
-Create returns a standalone lock manager; the coordinator supplies the engine's manager. Locks
+The public parameterless constructor creates a standalone lock manager; the coordinator supplies the engine's manager. Locks
 belong to a TransactionSequence. AcquireAsync waits for a compatible grant in the resource's FIFO
 queue. TryAcquire uses the same grant rules without waiting, returning false when the request
 would queue. Existing owner grants can be re-granted or upgraded; every granted mode remains held.
 
-AcquireAsync can throw TransactionDeadlockException when a wait closes a cycle,
+AcquireAsync first tries repairing a detected soft queue cycle. It can throw
+TransactionDeadlockException for an unavoidable held-lock cycle,
 OperationCanceledException on cancellation, or TransactionAbortedException when the owner ends
 while waiting or an engine-mode wait is abandoned because storage goes offline. An engine-mode
 request that would wait inside the statement apply gate throws InvalidOperationException.
@@ -78,7 +79,7 @@ grant awaiting notification. No lock wait is allowed inside the coordinator appl
 Adapted from LockTimeoutTests:
 
 ```csharp
-var timedLocks = LockManager.Create();
+var timedLocks = new LockManager();
 var holder = new TransactionSequence(1);
 var waiter = new TransactionSequence(2);
 var row = LockResource.Entry(7, 7);
@@ -101,7 +102,7 @@ been written in this standalone example:
 ```csharp
 using Assimalign.Cohesion.Database.Transactions;
 
-var locks = LockManager.Create();
+var locks = new LockManager();
 var owner = new TransactionSequence(1);
 var other = new TransactionSequence(2);
 var earlier = LockResource.Entry(1, 1);
@@ -122,6 +123,14 @@ locks.ReleaseAll(owner);
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md#unwritten-statement-marks) · [LockStatementMark](lock-statement-mark.md) · [Examples](examples/index.md)
+
+## Soft queue cycles
+
+A detected cycle caused by queue order can be repaired by consistent reordering across affected resources. Repair never grants against an incompatible holder and preserves waiter cancellation/timeout registrations. Normal FIFO rules continue when no cycle is detected. Held-lock cycles still use deadlock victim handling. See [cascade backoff and queue repair](design.md#cascade-backoff-and-queue-repair).
+
+## Construction migration
+
+Use new LockManager(); the parameterless static Create factory is removed. This changes construction only, preserving lock modes, statement marks, timeout and deadlock behavior.
 
 ## Sources
 

@@ -32,7 +32,7 @@ WHERE, [HAVING](having.md), [JOIN ON](join.md), [CHECK](../constraints.md), doma
 [searched CASE WHEN](../expressions/case.md) and [ON CONFLICT DO UPDATE WHERE](on-conflict.md)
 require BOOLEAN. AND, OR, NOT and IS TRUE/FALSE/UNKNOWN operands follow the same rule.
 Known non-Boolean types fail during planning, before rows are read, including empty tables.
-The diagnostic is COHSQLE003 (SQLSTATE 42804), naming the construct with its available source span.
+The diagnostic is CS02003 (SQLSTATE 42804), naming the construct with its available source span.
 Runtime validation applies the same rule when a type could not be established earlier.
 
 Untyped NULL and parameters whose type is unknown are accepted as UNKNOWN. Supplied Boolean
@@ -45,7 +45,7 @@ Unadorned string literals accept these Boolean inputs, case-insensitively:
 | --- | --- |
 | 'true', 't', 'yes', 'y', 'on', '1' | 'false', 'f', 'no', 'n', 'off', '0' |
 
-Other strings fail COHSQLE003. Text columns, text parameters and explicit TEXT casts retain
+Other strings fail CS02003. Text columns, text parameters and explicit TEXT casts retain
 their types and receive no literal coercion. Every CASE result and COALESCE alternative used
 in a Boolean position must qualify, even an unreachable alternative. Boolean short-circuiting
 still skips later runtime evaluation once the result is decided; it does not skip type validation.
@@ -70,7 +70,7 @@ SELECT 1 WHERE COALESCE(NULL, TRUE);
 ```
 
 They return `1`, no rows, and `1`, respectively. `SELECT 1 WHERE 1` and
-`SELECT 1 WHERE CASE WHEN TRUE THEN TRUE ELSE 1 END` each fail with COHSQLE003 (42804).
+`SELECT 1 WHERE CASE WHEN TRUE THEN TRUE ELSE 1 END` each fail with CS02003 (42804).
 
 ## See also
 

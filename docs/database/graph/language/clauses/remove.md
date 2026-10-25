@@ -31,10 +31,10 @@ RETURN reports the mutation count alongside rows; pure no-ops count zero.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| GQL0002 | Leading REMOVE or nested property target |
-| COHDBG003 | Path/group/scalar target or removal of a relationship label/type |
-| COHDBG001 | Mutation through ExecutePaths, unbound target or invalid direct AST |
-| GQL0007 | REMOVE composed with SHOW |
+| CG00002 | Leading REMOVE or nested property target |
+| CG03003 | Path/group/scalar target or removal of a relationship label/type |
+| CG05001 | Mutation through ExecutePaths, unbound target or invalid direct AST |
+| CG00007 | REMOVE composed with SHOW |
 
 No SQLSTATE is assigned to these codes. Ordinary schema/transaction refusals retain their behavior.
 [EXPLAIN](../statements/explain.md) describes Remove/UpdateEntity without mutation.

@@ -30,16 +30,15 @@ assembly identity; update their imports. Wire and disk formats are unchanged.
 
 The planner/executor consumes [GqlStage](../assimalign-cohesion-database-graph-language/gql-stage.md)
 in source order. LET adds sequential bindings, FILTER retains TRUE and FOR/UNWIND expands lists
-(NULL gives zero rows; non-list COHDBG013). WITH or RETURN … NEXT retains only referenceable
+(NULL gives zero rows; non-list CG02013). WITH or RETURN … NEXT retains only referenceable
 projected names, preserving entity kinds, optionality, possible composites and Int64 COUNT types.
 WITH ORDER BY/WHERE can see incoming names only without DISTINCT/aggregation; WHERE executes
-after sorting/paging. A write anywhere locks before the first stage. Every stage materializes
-eagerly and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
-starts one empty row and no scope. FOR shares the 100,000-row bound with matching.
+after sorting/paging. A write anywhere locks before the first stage. Read stages stream owned slot bindings and sees earlier writes under Snapshot/ReadCommitted. NEXT after a write without RETURN
+starts one empty row and no scope. FOR shares statement memory/work accounting with matching; mutations stage complete target tables.
 
 Proven node/relationship list elements survive UNWIND and can anchor MATCH/DELETE. Intermediate
 collect/UNWIND is valid for read-only ExecutePaths with one mandatory final entity/path. Writes
-exclude ExecutePaths; final entity lists remain outside wire Execute (COHDBG001; #1662). No catalog
+exclude ExecutePaths; final entity lists remain outside wire Execute (CG05001; #1662). No catalog
 format or wire frame changes. See [language rules](../../../../database/graph/language/clauses/next.md)
 and [diagnostics](../../../../database/graph/language/diagnostics.md).
 
@@ -98,7 +97,7 @@ Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
 kind, byte 17 is format version 4, bytes 18–25 are a nonzero unsigned 64-bit identity and
 bytes 26–33 hold the increasing revision. Older records and tree registrations are refused before logical recovery scrub with
-COHDBG017; recreate the database because there is no upgrade path. Graph
+CG06017; recreate the database because there is no upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
 identity. `Database`-local IDs must always be paired with the correct session.
 
@@ -181,10 +180,9 @@ transaction, including an explicit session transaction, as in Documents.
 
 Snapshot and ReadCommitted isolation are supported. ReadCommitted captures and pins a statement
 snapshot, so metadata and each hop of a traversal share a visibility horizon. Serializable is
-rejected rather than silently weakened. Explicit transactions use the existing session API; GQL
-transaction-control syntax is outside the profile. Wire transactions are deliberately deferred:
-`BEGIN`/ `COMMIT`/ `ROLLBACK` do not parse and reserved `Transaction` byte 9 is rejected with
-`ProtocolViolation`. No connection-level transaction API is exposed. Results materialize before
+rejected rather than silently weakened. Explicit transactions use typed session APIs or standalone START TRANSACTION, COMMIT and
+ROLLBACK text over Execute. BEGIN remains unsupported; reserved Transaction byte 9 is rejected
+with ProtocolViolation. Transaction controls use Execute text; no new connection transaction methods are added. Results materialize before
 the statement transaction is released, so result iteration cannot race record reclamation.
 
 `Open` defers the storage checkpoint, performs physical WAL recovery, then invokes coordinator record
@@ -225,23 +223,23 @@ GQL patterns have fixed/quantified edges and parenthesized segments with repetit
 of at most 64 relationships. Each matched path is a trail: an edge
 identity is used at most once within that path; a node may recur. Separate comma-separated paths
 have separate edge sets and share variable bindings. This makes a three-edge cycle a valid three-hop
-result but forbids reusing its first edge on a fourth hop. At most 100,000 intermediate path matches
-materialize across matching clauses, and a statement examines at most 1,000,000 node/edge candidates, including
-dead ends; either overflow fails with `COHDBG004`, never silent truncation. Cancellation is
+result but forbids reusing its first edge on a fourth hop. Retained execution state and final results share a statement memory budget; visited node/edge
+candidates, including dead ends, share a physical-work budget. Memory exhaustion uses CG05020
+and work exhaustion uses CG05004, never silent truncation. Cancellation is
 observed during expansion and materialization. Repeated node/relationship variables enforce identity
 equality, and conflicting variable kinds fail before execution.
 
 Physical work charges visited anchors and selected visible relationships, including stream heads
 needed to initialize the identity-ordered merge and dead ends. Incident-type discovery and its
 first head share one charge; consuming a primed head does not charge again. Viable work counts hops passing trail, binding,
-relationship and safe endpoint checks before state copying. COHDBG004 includes actual physical and
-viable totals when the 1,000,000 physical cap is exceeded. The 100,000-binding and 64-hop limits
-remain. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
+relationship and safe endpoint checks before state copying. CG05004 includes actual physical and
+viable totals when the effective physical-work ceiling is exceeded. The 64-hop trail limit
+remains. Type/direction ranges stream through bounded cancellable B+Tree batches with one decoded
 head per range. Type discovery uses one-entry probes; budget checks precede head decoding,
 including initialization. Refusal, cancellation and errors dispose every active parent stream.
 EXPLAIN Expand describes
 `adjacency=(node,direction,type_id,relationship)`, effective seek_direction, type_filter,
-`physical=visited_candidates; viable=accepted_hops; physical_limit=1000000`; it executes no hops
+`physical=visited_candidates; viable=accepted_hops; physical_limit=<effective-work-ceiling>`; it executes no hops
 and reports no runtime totals. EXPLAIN ANALYZE remains unsupported.
 
 `TraverseAsync` implements the frozen `GraphTraversal` contract separately: breadth-first traversal,
@@ -251,7 +249,8 @@ by identity, making the breadth-first result deterministic. Its result contains 
 projected `a,r,b` values expose the actual frozen `GraphNode` /`GraphRelationship` objects through
 `DatabaseRow.GetValue`. Property projections return scalars. This does not add a path member to the
 frozen traversal contract. It uses the same filtered adjacency lookup, resolves type names through
-the catalog (an unknown type visits nothing), and has no candidate-expansion cap.
+the catalog (an unknown type visits nothing), and uses the engine's memory and physical-work
+ceilings, including the default 1,000,000-unit work cap (`CG05004`).
 
 `GraphPathsQueryRequest.FromGql` selects real path execution through the existing
 `GraphDatabaseSession.ExecuteAsync(GraphRequest)` capability. Row and path requests
@@ -336,7 +335,7 @@ execution time and never materialized into the graph's persistent record space.
 
 `SHOW` always targets the session's logical database. There is no database qualifier, server
 listing, graph selection, filtering, projection, or mutation composition in this bounded extension.
-An attempt to append a mutation clause returns `GQL0007: Graph catalog introspection is read-only.`
+An attempt to append a mutation clause returns `CG00007: Graph catalog introspection is read-only.`
 before any writer lock or data mutation; hand-built ASTs have the same protection. Unsupported read
 composition returns the ordinary syntax/binding diagnostic. Since no synthetic graph objects are
 created, ordinary graph writes cannot address or change these result rows.
@@ -345,12 +344,13 @@ created, ordinary graph writes cannot address or change these result rows.
 
 The common row/path tail projects, removes DISTINCT duplicates, caches each sort key, sorts,
 offsets and limits. Mutations run for every matched binding before this tail; paging does not reduce
-the match or candidate caps. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
+an admitted mutation set. Unordered read LIMIT can stop upstream work; finite ordered pages
+retain bounded top-N state for OFFSET + LIMIT under the memory/work budgets. Default NULL placement is Cypher-style last ASC/first DESC. Numeric
 comparison is exact, ties retain input order and nested map keys are canonicalized once for sorting.
 Preparation and comparisons check cancellation; comparer cancellation reaches ordinary rollback
 without a List.Sort wrapper. EXPLAIN maps SortPage and SortKey. Invalid dynamic counts use
-COHDBG013 before reads/writer locks, unsupported/non-finite CLR inputs COHDBG003 and missing
-parameters COHDBG001. No new code, SQLSTATE, catalog format or wire version is introduced.
+CG02013 before reads/writer locks, unsupported/non-finite CLR inputs CG03003 and missing
+parameters CG05001. No new code, SQLSTATE, catalog format or wire version is introduced.
 See [ORDER BY](../../../../database/graph/language/clauses/order-by.md) and
 [OFFSET/SKIP and LIMIT](../../../../database/graph/language/clauses/limit-offset.md).
 
@@ -369,31 +369,31 @@ not included.
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Unsupported language capability, reported on the parsed statement |
-| `GQL0001`–`GQL0006` | Parser syntax/literal/bound errors; see language design |
-| `GQL0007` | Attempt to mutate catalog introspection results |
-| `GQL0010` | Unknown function spelling; parsed arity uses GQL0002 |
-| `COHDBG001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
-| `COHDBG002` | Unknown label or relationship type |
-| `COHDBG003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
-| `COHDBG004` | Materialized path-match, candidate-expansion or runtime 64-hop trail limit exceeded |
-| `COHDBG005` | Session/database binding mismatch |
-| `COHDBG006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
-| `COHDBI002` | Attached-index corruption retained beside leading COHDBS003 and additional COHDBG006; no assigned SQLSTATE |
-| `COHDBG007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
-| `COHDBG008` | Statement too complex for available stack (SQLSTATE 54001) |
-| `COHDBG009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
-| `COHDBG010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
-| `COHDBG011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
-| `COHDBG012` | Database offline after durable storage failure |
-| `COHDBG013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST kind, conversion or domain failure, computed temporal property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
-| `COHDBG014` | Caller parameter keys collide after stripping one sigil |
-| `COHDBG015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
-| `COHDBG016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
-| `COHDBG017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
-| `COHDBG018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; no assigned SQLSTATE |
-| `COHDBG019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
-| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
+| `CK00001` | Unsupported language capability, reported on the parsed statement |
+| `CG00001`–`CG00006` | Parser syntax/literal/bound errors; see language design |
+| `CG00007` | Attempt to mutate catalog introspection results |
+| `CG00010` | Unknown function spelling; parsed arity uses CG00002 |
+| `CG05001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
+| `CG01002` | Unknown label or relationship type |
+| `CG03003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
+| `CG05004` | Physical-work budget or runtime 64-hop trail limit exceeded |
+| `CG07005` | Session/database binding mismatch |
+| `CG06006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
+| `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
+| `CG04007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
+| `CG05008` | Statement too complex for available stack (SQLSTATE 54001) |
+| `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
+| `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
+| `CG01011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
+| `CG06012` | Database offline after durable storage failure |
+| `CG02013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST kind, conversion or domain failure, computed temporal property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
+| `CG01014` | Caller parameter keys collide after stripping one sigil |
+| `CG01015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
+| `CG07016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
+| `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
+| `CG06018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; no assigned SQLSTATE |
+| `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
+| `CK06003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
 aggregate causes. A damaged read fails instead of omitting nodes/relationships; legitimate
@@ -402,7 +402,7 @@ the connection. See [DatabaseCorruptionException](../assimalign-cohesion-databas
 for the public API and additional open-time codes.
 
 Planner/data errors carry stable codes in `DatabaseException.Diagnostics` with code-free messages.
-Unknown labels/types in optional clauses warn with COHDBG010/011 while preserving NULL-extended
+Unknown labels/types in optional clauses warn with CG01010/CG01011 while preserving NULL-extended
 rows; a later unmatched mandatory clause can still empty the result. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
 Ownership uses the shared dedicated exception rather than an invented graph ownership code.
@@ -447,17 +447,17 @@ little-endian length and GraphValueCodec component; unsigned and Decimal scalars
 scalar columns keep their baseline bytes and avoid a preflight pass. Direct COUNT projection metadata is Int64; other query metadata stays unknown.
 
 Values allow depth 64 (root zero), 65,536 total values and 16 MiB encoded bytes, counting UTF-8,
-escaping and framing. A row also fits 16 MiB. Invalid referenced trees fail planning with COHDBG003;
-constructors enforce bounds during evaluation inside the transaction with COHDBG013. Header sizes
+escaping and framing. A row also fits 16 MiB. Invalid referenced trees fail planning with CG03003;
+constructors enforce bounds during evaluation inside the transaction with CG02013. Header sizes
 check before locks and row sizes before commit, so a refused result leaves no statement writes
-committed. Possible composite results without negotiation fail COHDBG016 statically before data
+committed. Possible composite results without negotiation fail CG07016 statically before data
 access, including skipped branches and empty matches. Stored properties/index keys stay scalar;
 there is no catalog/storage format change. Path frames and GraphPathResult are unchanged.
 
 ## Graph wire family
 
-Catalog decode failures use COHDBG006, snapshot conflicts use structured COHDBG007, and disposal
-inside admitted execution or at a wire lifetime guard uses COHDBG019. Each is ExecutionFailure
+Catalog decode failures use CG06006, snapshot conflicts use structured CG04007, and disposal
+inside admitted execution or at a wire lifetime guard uses CG09019. Each is ExecutionFailure
 and leaves the authenticated session ready. An explicit transaction aborted by a failed admitted
 statement requires rollback before more work. Pre-statement direct-API guards retain
 ObjectDisposedException. A disposed protocol reader/writer instead faults the session without
@@ -485,7 +485,7 @@ flushes throw IOException, so the session closes without appending a best-effort
 uncertain stream. A separate flush failure after a successful write does not fault the writer;
 soft-stop cancellation of the final Ready flush can still permit its terminal Unavailable
 notice. A disposed path latency/completion flush closes the session as a transport fault,
-without translating it into COHDBG019 or trying a second write. See
+without translating it into CG09019 or trying a second write. See
 [shared batching](../assimalign-cohesion-database-protocol/design.md#bounded-batches-and-borrowed-payloads).
 
 ### Path performance counters
@@ -742,14 +742,14 @@ framing, handshake and model messages are unchanged.
 ## T1 scalar planning and EXPLAIN
 
 WHERE and RETURN execute the [expanded scalar grammar](../../../../database/graph/language/expressions/operators.md)
-with three-valued logic and COHDBG013 value errors. Parameters bind in WHERE, RETURN and property maps,
-preserving runtime scalar/list/map values; normalized collisions use COHDBG014. EXPLAIN performs normal parameter,
+with three-valued logic and CG02013 value errors. Parameters bind in WHERE, RETURN and property maps,
+preserving runtime scalar/list/map values; normalized collisions use CG01014. EXPLAIN performs normal parameter,
 binding and provisioning checks, then returns DatabasePlanDescription without executing writes.
 
 RETURN accepts computed/aliased expressions, DISTINCT/ALL, named-binding star and standalone
 evaluation. Columns follow source item order; star follows first declarations, with a named path
 before its elements. Implicit names use normalized source text, or rendered syntax for source-free
-ASTs. Final duplicate names fail COHDBG015 before execution. DISTINCT compares complete tuples and
+ASTs. Final duplicate names fail CG01015 before execution. DISTINCT compares complete tuples and
 retains the first representative's types; it does not reduce mutation counts. Entity/path equality
 uses identities and ordered traversal, independently of materialization. Arithmetic uses Double
 for floating operands, otherwise Decimal for decimal/ulong, otherwise checked Int64; comparison
@@ -757,10 +757,10 @@ and DISTINCT use exact values as described above.
 
 Embedded rows can contain GraphNode, GraphRelationship and GraphPath. Wire Execute checks planned
 result kinds before data reads, writer locks or mutation and rejects possible entity-valued columns with
-COHDBG001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
+CG05001 directing callers to ExecutePaths, including on empty inputs. EXPLAIN remains scalar.
 Path requests require one bare bound entity/path from read-only composition, including DISTINCT or
-star over one binding; invalid shapes use COHDBG001 before duplicate-name validation. A binding
-supplied only by optional clauses is rejected with COHDBG001 during planning, even when all actual
+star over one binding; invalid shapes use CG05001 before duplicate-name validation. A binding
+supplied only by optional clauses is rejected with CG05001 during planning, even when all actual
 rows would match. A mandatory clause may bind or subsequently constrain the returned entity/path.
 
 Protocol 2.1 sends bounded Warning/Error diagnostics before scalar/path completion or Error.
@@ -779,9 +779,9 @@ ORDER BY honors aliases that shadow input variables. Match bounds and mutation i
 COUNT returns Int64, with Int64 wire metadata for a direct COUNT projection. SUM retains exact
 integral and Decimal subtotals, promotes once to Double for floating inputs, and uses Decimal if
 any retained input is Decimal/UInt64. Decimal SUM retains input scale; AVG returns Double unless
-Decimal is present and rounds a Decimal average once. Invalid operands/overflow use COHDBG013.
+Decimal is present and rounds a Decimal average once. Invalid operands/overflow use CG02013.
 COLLECT_LIST skips NULL, preserves order and observes composite limits during accumulation.
-Malformed/nested/misplaced aggregates and group mismatches use COHDBG001; no SQLSTATE is assigned.
+Malformed/nested/misplaced aggregates and group mismatches use CG05001; no SQLSTATE is assigned.
 
 Negotiated GraphValueCodec tag 7 preserves Decimal's four 32-bit words, including scale. Lists
 require graph.composite-values; COUNT does not. ExecutePaths keeps its projection-shape rejection.
@@ -795,19 +795,20 @@ with lists for variables inside repeated segments. Zero repetitions join both ou
 constraints on one node and bind empty lists. Source order survives right/left index anchoring.
 Only outer singleton entities can anchor. Repeated property maps apply at every occurrence.
 The heap-based expansion frontier retains depth-proportional search state; materialized results
-still have the existing budgets. Runtime unbounded paths fail COHDBG004 at a qualifying 65th
-relationship before endpoint tests, regardless of LIMIT. EXPLAIN Expand detail reports
+still have the existing budgets. Runtime unbounded paths fail CG05004 at a qualifying 65th
+relationship before endpoint tests if that branch is visited. An unordered read LIMIT can stop
+upstream before visiting it. EXPLAIN Expand detail reports
 `quantifier={min,max}; body_hops=n; trail=True`; an empty max means unbounded.
-Group/singleton conflicts and invalid group access use COHDBG003; invalid direct AST paths use
-COHDBG001. Wire composite admission (COHDBG016) precedes the entity-list gate (COHDBG001).
+Group/singleton conflicts and invalid group access use CG03003; invalid direct AST paths use
+CG05001. Wire composite admission (CG07016) precedes the entity-list gate (CG05001).
 No storage/catalog/wire format changes are needed.
 
 ## Scalar evaluation and transaction clock
 
 [Scalar functions and CAST](../../../../database/graph/language/functions/scalar-functions.md)
 validate signatures during planning/EXPLAIN, including empty matches. Strict NULL returns NULL;
-dynamic kind/domain/conversion errors use COHDBG013. Proven incompatible kinds use COHDBG003,
-invalid hand-built arity/unbound arguments COHDBG001, and unknown calls GQL0010 (no SQLSTATE).
+dynamic kind/domain/conversion errors use CG02013. Proven incompatible kinds use CG03003,
+invalid hand-built arity/unbound arguments CG05001, and unknown calls CG00010 (no SQLSTATE).
 Entity result shapes drive static wire admission before reads or writes; scalar properties of
 computed entities remain legal. Composite outputs use the existing negotiation and bounds.
 
@@ -840,18 +841,18 @@ EXPLAIN adds Set/Remove stages and UpdateEntity children. No wire-format change 
 ## Database creation, open and drop
 
 File-backed Graph databases require their original graph.dat, graph.log and graph.bak.
-Create and open refuse a missing journal or backup with COHDBG018 in DatabaseException.Diagnostics;
+Create and open refuse a missing journal or backup with CG06018 in DatabaseException.Diagnostics;
 neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
 ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
 
-A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBG018.
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining CG06018.
 A data file no larger than one page is an incomplete create, since successful creation flushes two
 pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
 ordinary create does not adopt them. Drop removes graph.dat before deleting the remaining directory.
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses DatabaseCorruptionException / COHDBS003 with COHDBG018 retained as an additional
+corruption uses DatabaseCorruptionException / CK06003 with CG06018 retained as an additional
 diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
 without drop or backup advice. The shared storage format is 4; Graph records remain at format 4.
@@ -884,24 +885,24 @@ file-set refusal, crash recovery and transient-open cases.
 
 ## Engine failure boundaries
 
-Storage and index failures use COHDBG006 in Diagnostics with ordinary embedded messages;
+Storage and index failures use CG06006 in Diagnostics with ordinary embedded messages;
 only wire formatting adds the prefix. Begin and operations share the translator. Attached-index
-damage becomes DatabaseCorruptionException / COHDBS003 and retains COHDBI002 and COHDBG006
+damage becomes DatabaseCorruptionException / CK06003 and retains CK06102 and CG06006
 with the index cause/page. Existing offline classifications remain in force. I/O open failures
 release resources and publish no database; resolve the condition and retry. Failed operations
 abort explicit transactions until rollback; wire ExecutionFailure keeps the session.
 
 Catalog snapshot conflicts translate to
 [DatabaseTransactionAbortedException](../assimalign-cohesion-database/database-transaction-aborted-exception.md)
-with COHDBG007. Deterministic identity reuse/rename, identity/name mismatch, retargeted index
-properties or missing owners use COHDBG003. Malformed catalog records use COHDBG006; oversized
-encoded metadata uses COHDBG009. Disposal during execution or coordinator end refusal uses
-COHDBG019 and retains its cause. Storage/index/I/O failure takes precedence over accompanying
+with CG04007. Deterministic identity reuse/rename, identity/name mismatch, retargeted index
+properties or missing owners use CG03003. Malformed catalog records use CG06006; oversized
+encoded metadata uses CG02009. Disposal during execution or coordinator end refusal uses
+CG09019 and retains its cause. Storage/index/I/O failure takes precedence over accompanying
 disposal or catalog conflict, while kernel abort/unconfirmed-commit outcomes keep their type.
 
-An aborted-transaction refusal is DatabaseException with an Error diagnostic COHDBG007 and
+An aborted-transaction refusal is DatabaseException with an Error diagnostic CG04007 and
 ordinary unprefixed Message text; InnerException retains the original failure. The wire adds
-`COHDBG007: ` once. Rollback clears the refused transaction before embedded session reuse.
+`CG04007: ` once. Rollback clears the refused transaction before embedded session reuse.
 
 ## Terminal errors and drain
 
@@ -973,6 +974,27 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Streaming execution budgets
+
+Read operators pass owned slot bindings incrementally; retaining operators copy or acquire ownership before requesting the next row. LIMIT without ORDER BY can stop upstream read expansion. Ordered finite pages use top-N bounded by OFFSET + LIMIT; grouping consumes its input incrementally. Mutations acquire the writer lock before their stages and materialize complete mutation target tables, so paging never reduces admitted writes. Final row/path results remain materialized before wire output.
+
+`GraphDatabaseEngineOptions.QueryMemoryBudget` defaults to 256 MiB and `QueryWorkBudget` to
+1,000,000 units; both are positive engine ceilings copied at creation. Retained rows, values,
+groups, DISTINCT/sort state, writer overlays, cursor batches, merge heads and traversal state share
+deterministic statement-local memory accounting. Shared containers and supported immutable leaves,
+including small strings, byte arrays and boxed scalars, are counted once across operators without
+duplicate owner bookkeeping charges. Physical work includes visited anchors, selected relationship
+candidates, merge initialization, dead ends and FOR elements. This is retained-state accounting,
+not a process heap limit.
+
+Default options admit 100,000 one-property rows for SET, FOR … INSERT, RETURN n and QueryPaths;
+the ten-times-larger regression workloads refuse with `CG05020`. Wider rows and retained
+intermediate stages reduce capacity. Raise the server engine ceilings for larger workloads.
+`TraverseAsync` also uses both ceilings and now refuses beyond 1,000,000 work units by default
+with `CG05004`, replacing its previously uncapped work.
+
+In-process GraphQueryLimits can lower MemoryBytes and/or WorkUnits; omitted members inherit the engine ceiling and requests cannot raise it. GraphQueryRequest/GraphPathsQueryRequest add limits overloads, and GraphTraversal.Limits uses the same policy. Remote Execute payloads carry no per-request limits and use server engine ceilings. CG05020 reports memory exhaustion, CG05004 work/trail exhaustion and CG08021 invalid request limits. Cancellation and iterator disposal release retained state. No disk/wire format or event/counter change is added. See [configuration](graph-database-engine-options.md). GqlExecutionBudgetTests covers limits, early stop, ownership and top-N.
 
 ## Sources
 

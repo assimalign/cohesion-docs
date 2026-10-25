@@ -63,7 +63,7 @@ NULLS FIRST/LAST in every ordering position.
 | Catalog component in `Assimalign.Cohesion.Database.Sql` | Durable table, column, constraint, index, collation, ownership, and applied-schema metadata |
 | `Assimalign.Cohesion.Database.Sql.Schema` | `SqlSchema.Compile`, compiled relational shapes, canonical serialization, and migration planning |
 | Storage component in `Assimalign.Cohesion.Database.Sql` | SQL row operations over shared pages, record chains, and write-ahead logging |
-| `Assimalign.Cohesion.Database.Sql.Tcp` | Optional `SqlDatabaseServerOptions.Listen(Uri)` Transmission Control Protocol (TCP) composition helper |
+| `Assimalign.Cohesion.Database.Tcp` | Optional `SqlDatabaseServerOptions.Listen(Uri)` Transmission Control Protocol (TCP) composition helper |
 | `Assimalign.Cohesion.Database.Sql.Client` | Typed commands, parameters, materialized result sets, errors, and observer hooks over the shared client |
 
 ## Execution and lifetime
@@ -95,7 +95,7 @@ not claimed; reversible completed steps are compensated on failure.
 
 [Statement and lock timeouts](language/diagnostics.md#statement-and-lock-timeouts) are disabled by
 default. Engine options and nullable session overrides bound cooperative statement execution and
-each contended lock wait. COHSQLE043 (57014) and COHSQLE044 (55P03) preserve the session and explicit
+each contended lock wait. CS05043 (57014) and CS04044 (55P03) preserve the session and explicit
 transaction after rolling back the failed statement. Started commits and mandatory cleanup after
 self-committing DDL complete without these deadlines. Provisioning schema sessions disable both.
 
@@ -125,7 +125,7 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its
 creation claim and read-only probes prove initial empty data and creation-only catalog metadata.
 Pre-header files with no conflicting persisted state require CreateDatabaseAsync or declared Build;
-plain open reports COHSQLC001. Missing journals/backups and ambiguous lost catalogs are refused
+plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
 Drop removes sql.dat before the remaining file set. The current format is 26.
@@ -152,7 +152,7 @@ wire transaction payload.
 Writing statements prepare all result frames before commit, so an encoding failure rolls back
 only that statement. Reads encode during delivery and can end a partial result with ExecutionFailure;
 the client discards it. Result failures keep the connection and explicit transaction usable.
-COHSQLE045 identifies uncoded encoding/preparation failures and header/row size refusals (54000
+CS05045 identifies uncoded encoding/preparation failures and header/row size refusals (54000
 for size refusals). Each header/row fits 16 MiB; there is no aggregate cap. Transport failures
 during delivery are terminal. See [result diagnostics](language/diagnostics.md#result-encoding-and-delivery)
 and [wire exchanges](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-protocol/design.md#statement-results).
@@ -173,7 +173,7 @@ and frozen missing-value text: an old INTERVAL `'12'` meant days, while current 
 seconds. Typed TimeSpan defaults now render exact signed total seconds with a `seconds` unit,
 changing the canonical document and hash for the same declaration.
 
-Older catalogs are refused before stored expressions bind (COHSQLE041); earlier schema artifacts,
+Older catalogs are refused before stored expressions bind (CS06041); earlier schema artifacts,
 applied markers and pending targets fail with SqlSchemaValidationException, InvalidDocument at
 `schema.format`, before hash comparison. SDK migration inputs fail COHDBSDK206 without writing
 a migration or changing inputs. Rebuild schema artifacts; export old data with the engine that
@@ -189,6 +189,10 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 
 [Database](../index.md) · [Overview](../overview.md) · [Database .NET APIs](../../dotnet-apis/resources/database/index.md)
 
+## Query performance
+
+[Probe costing, hash memory and plan analysis](performance.md) describe access selection and its limits.
+
 ## Sources
 
 - **Format and temporal compatibility** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`, `SqlDataStorageFormatTests.cs` and `SqlSchemaFormatTests.cs` in the same directory.
@@ -201,5 +205,5 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 - **Catalog** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
 - **Schema** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/docs/DESIGN.md`
 - **Storage** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`
-- **TCP integration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Tcp/docs/OVERVIEW.md`
+- **TCP integration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Tcp/docs/OVERVIEW.md`
 - **Client** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`

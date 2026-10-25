@@ -22,9 +22,9 @@ Date, and ZONED DATETIME/TIMESTAMP WITH TIME ZONE to Timestamp. String targets a
 Timestamp returns DateTimeOffset.
 
 The enum adds no methods or constructor exceptions. Text INT32, SMALLINT and FLOAT32 are
-recognized unsupported (COHDBL001), despite enum identities Int32/Float32. Type modifiers and
-other excluded target families also use COHDBL001; unknown names use GQL0002. Invalid direct AST
-targets use COHDBG001. These codes have no assigned SQLSTATE. See the language CAST page.
+recognized unsupported (CK00001), despite enum identities Int32/Float32. Type modifiers and
+other excluded target families also use CK00001; unknown names use CG00002. Invalid direct AST
+targets use CG05001. These codes have no assigned SQLSTATE. See the language CAST page.
 
 ## Example
 

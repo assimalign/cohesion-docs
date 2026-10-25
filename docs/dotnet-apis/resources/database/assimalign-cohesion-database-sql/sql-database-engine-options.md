@@ -6,13 +6,14 @@ Namespace: `Assimalign.Cohesion.Database.Sql`.
 
 ## Signature
 
-The timeout members are:
+Execution-budget members include:
 
 ```csharp
 public sealed class SqlDatabaseEngineOptions
 {
     public TimeSpan StatementTimeout { get; set; }
     public TimeSpan LockTimeout { get; set; }
+    public long StatementMemoryBudget { get; set; }
 }
 ```
 
@@ -47,6 +48,10 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 ## Related reference
 
 [Assembly](index.md) · [Session](sql-database-session.md) · [Timeout exception](sql-timeout-exception.md)
+
+## Hash-build memory
+
+StatementMemoryBudget defaults to 67,108,864 bytes (64 MiB) and must be positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value. It limits accounted concurrently live hash-build memory across one statement's nested queries; it does not cap output materialization or planning. Exhaustion reports CS05067 / SQLSTATE 53200. Hash builds do not spill. See [query performance](../../../../database/sql/performance.md).
 
 ## Sources
 

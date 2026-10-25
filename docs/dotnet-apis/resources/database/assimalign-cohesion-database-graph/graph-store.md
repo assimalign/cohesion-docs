@@ -76,8 +76,8 @@ statement view retains its horizon and may conflict; the caller chooses whether 
 
 EnsureIndexFormat checks graph record and B-tree formats before logical recovery scrub.
 Records and tree registrations must be format 4. Older formats throw StorageCorruptionException
-with COHDBG017 and the recreation remedy; no upgrade reader exists. Open also validates these
-formats. The engine retains COHDBG017 alongside COHDBS003 and COHDBG018 in
+with CG06017 and the recreation remedy; no upgrade reader exists. Open also validates these
+formats. The engine retains CG06017 alongside CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md);
 no SQLSTATE is assigned.
 

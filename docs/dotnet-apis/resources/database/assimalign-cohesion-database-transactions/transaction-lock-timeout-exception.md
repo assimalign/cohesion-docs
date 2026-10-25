@@ -17,7 +17,7 @@ public sealed class TransactionLockTimeoutException : TimeoutException
 There is no public constructor. LockManager.AcquireAsync throws it when the current
 EnterLockTimeout budget removes a queued request. Existing grants and the transaction remain
 active; the caller owns rollback and release. The exception retains its cancellation cause.
-SQL maps it to SqlTimeoutException, COHSQLE044 / SQLSTATE 55P03. This kernel exception has no
+SQL maps it to SqlTimeoutException, CS04044 / SQLSTATE 55P03. This kernel exception has no
 Diagnostics or SqlState member and is separate from TransactionAbortedException.
 
 ## Example

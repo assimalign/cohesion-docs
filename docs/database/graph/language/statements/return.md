@@ -24,7 +24,7 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 | `RETURN` after insertion | Supported |
 | Standalone RETURN | Supported; one row |
 | `DISTINCT`, `ALL`, wildcard, computed expressions | Supported; star cannot mix with explicit items |
-| `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
+| `RETURN` after deletion | Recognized, not supported (`CK00001`) |
 | [Aggregates](../functions/aggregate-functions.md) and [GROUP BY](../clauses/group-by.md) | Supported; implicit keys, ISO RETURN names/expressions and GROUP BY () |
 
 ## Arguments
@@ -36,8 +36,8 @@ For insertion followed by projection, see [INSERT](insert.md) and [CREATE](creat
 ## Remarks
 
 Without incoming stages, RETURN evaluates once. LET/FOR can also supply value variables;
-unbound names/parameters fail planning with COHDBG001. `RETURN *` without a named binding is
-GQL0002. Duplicate final names fail with COHDBG015 before reads or mutations, including EXPLAIN.
+unbound names/parameters fail planning with CG05001. `RETURN *` without a named binding is
+CG00002. Duplicate final names fail with CG01015 before reads or mutations, including EXPLAIN.
 Missing properties yield NULL, with no separate MISSING value. DISTINCT compares complete tuples
 using exact numeric equality, ordinal strings, NULL grouping and entity/path identity; arithmetic
 keeps its own promotion. See the [RETURN clause](../clauses/return.md) for naming, examples and
@@ -51,7 +51,7 @@ matches return no rows. [GROUP BY](../clauses/group-by.md) resolves plain names 
 
 [RETURN … NEXT](../clauses/next.md) carries projected aliases and bare-variable bindings into a
 following segment. [WITH](../clauses/with.md) projects intermediate rows and applies WHERE after
-its paging. Every stage materializes in source order; only final columns govern wire admission.
+its paging. Read stages stream in source order; mutation targets materialize; only final columns govern wire admission.
 
 ## Examples
 

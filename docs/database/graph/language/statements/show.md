@@ -15,9 +15,9 @@ SHOW { LABELS | RELATIONSHIP TYPES | PROPERTY KEYS | INDEXES | OBJECT OWNERSHIP 
 | Construct | Support |
 |---|---|
 | The five catalog subjects in the diagram | Supported |
-| `SHOW DATABASES` | Recognized, not supported (`COHDBL001`) |
+| `SHOW DATABASES` | Recognized, not supported (`CK00001`) |
 | Database qualification, filtering, projection | Not in the language |
-| Mutation composed with `SHOW` | Not in the language; produces `GQL0007` |
+| Mutation composed with `SHOW` | Not in the language; produces `CG00007` |
 
 ## Arguments
 
@@ -54,7 +54,7 @@ ordering for definition and child names.
 
 `GraphDatabaseServer` accepts these catalog statements. General GQL queries are not supported by
 that wire server. Mutation composition is rejected before writer locks or data mutation, with
-`GQL0007`; direct abstract syntax tree requests receive the same protection.
+`CG00007`; direct abstract syntax tree requests receive the same protection.
 
 ## Examples
 

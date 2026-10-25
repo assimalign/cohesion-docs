@@ -25,7 +25,7 @@ Console.WriteLine(rows[0].IsNull(2));    // True
 try {
     await connection.ExecuteAsync("INSERT INTO items (KEY, VALUE) VALUES ('a', 2)");
 } catch (DocumentClientException failure) {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDOC012
+    Console.WriteLine(failure.Diagnostics[0].Code); // CD03012
 }
 var plan = await connection.QueryAsync("EXPLAIN SELECT name FROM items");
 Console.WriteLine(plan.Columns.Count); // 8; the explained SELECT was not executed
@@ -47,7 +47,7 @@ for DISTINCT, RAW and constructor results checked over InMemory and TCP.
 After inserting the fixture documents, [DocumentConnection](../document-connection.md) can run
 `UPDATE items d SET d.nested.score = 9, d.tags = ['red'] UNSET d.category WHERE category = 'z'`.
 The wire test has two matching documents: QueryAsync returns AffectedCount 2 with empty Columns,
-Documents and rows. A later invalid `name.first` target reports COHDOC016 through ExecutionFailure,
+Documents and rows. A later invalid `name.first` target reports CD02016 through ExecutionFailure,
 and `UPDATE items UNSET tags WHERE nested.score = 9` succeeds with count 2 on the same connection.
 
 ## Sources

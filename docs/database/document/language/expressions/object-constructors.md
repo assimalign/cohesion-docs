@@ -13,15 +13,15 @@ Builds one JSON object from named expressions.
 Names are case-sensitive. MISSING members are omitted; explicit NULL remains. Repeated names resolve
 to the last included value rather than creating duplicate JSON properties. A later MISSING does not
 remove an earlier value. Nested objects follow the same rules. The result can be projected or used
-as an INSERT VALUE. A MISSING whole INSERT value is `COHDOC008`; numeric values must fit the decimal
-domain exactly (`COHDOC007`, SQLSTATE 22003).
+as an INSERT VALUE. A MISSING whole INSERT value is `CD02008`; numeric values must fit the decimal
+domain exactly (`CD02007`, SQLSTATE 22003).
 
 Objects and [arrays](array-constructors.md) compose in projections (including VALUE/RAW), grouped
 expressions, predicates and INSERT. SELECT constructor results may be at most 256 levels deep,
 including nested stored or parameter values and the outer object for named projections.
-Exceeding that limit raises `COHDOC015` at the constructor expression. INSERT retains its
-128-level JSON storage limit (`COHDOC008`); recursive text parsing has a separate 128-level limit
-(`OQL0005`). Computed member names and path access on constructor results remain unsupported.
+Exceeding that limit raises `CD05015` at the constructor expression. INSERT retains its
+128-level JSON storage limit (`CD02008`); recursive text parsing has a separate 128-level limit
+(`CD00005`). Computed member names and path access on constructor results remain unsupported.
 
 Constructors use the shared [RFC 8259 UTF-8 encoder](../statements/select.md#json-bytes).
 INSERT and [UPSERT](../statements/upsert.md) share the 128-level storage bound.

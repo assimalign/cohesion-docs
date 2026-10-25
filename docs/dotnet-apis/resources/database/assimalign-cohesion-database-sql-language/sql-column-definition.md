@@ -24,12 +24,12 @@ public sealed class SqlColumnDefinition
 ResolvedType holds the built-in DatabaseTypeInfo resolved during parsing, including contextual
 multi-word type names and modifiers. It is null for engine-resolved domains or invalid types, so
 inspect diagnostics before use. DataType retains the parsed declaration; DefaultValue may contain
-typed literal nodes. No public constructor is exposed. Invalid modifiers use SQL0005; an unresolved
-engine type uses COHSQLE010 (42704).
+typed literal nodes. No public constructor is exposed. Invalid modifiers use CS00005; an unresolved
+engine type uses CS02010 (42704).
 Identity holds the [generation facet](sql-identity-definition.md), or null for an ordinary column.
 It implies IsNullable false. Explicit NULL with NOT NULL, PRIMARY KEY or IDENTITY in either order
-is SQL0003, including table primary keys. Engine identity definition/assignment failures use
-COHSQLE025; inspect diagnostics before consuming a recovered node.
+is CS00003, including table primary keys. Engine identity definition/assignment failures use
+CS03025; inspect diagnostics before consuming a recovered node.
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.

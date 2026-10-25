@@ -38,11 +38,11 @@ ALTER TABLE [ schema_name . ] table_name
 
 Adding PRIMARY KEY/UNIQUE constraints or columns that build an index checks the
 [1,024-byte encoded key limit](../diagnostics.md#row-and-index-key-limits). Oversized keys fail
-with `COHSQLE042` / SQLSTATE 54000 before the new column, constraint or index is published;
+with `CS05042` / SQLSTATE 54000 before the new column, constraint or index is published;
 the old schema and rows remain usable.
 
 One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT, PostgreSQL TYPE/SET DATA TYPE,
-TYPE ... USING and comma-separated action lists are outside this subset (COHDBL001).
+TYPE ... USING and comma-separated action lists are outside this subset (CK00001).
 
 ### Renames
 
@@ -53,19 +53,19 @@ changes bound identifier tokens only, preserving strings, function/type names an
 it handles persisted definitions created under a raised parser nesting limit. System views expose
 the new names immediately. Queries using old names fail normal table/column binding.
 
-A name collision, including renaming an object to itself, is COHSQLE013. A rename cannot overwrite
-a system relation (COHSQLE021, 25006). After ownership checks, a table rename whose target is retained
-by a declared script claim is COHSQLD002 naming that script.
+A name collision, including renaming an object to itself, is CS05013. A rename cannot overwrite
+a system relation (CS04021, 25006). After ownership checks, a table rename whose target is retained
+by a declared script claim is CS03302 naming that script.
 
 ### Defaults and nullability
 
 SET DEFAULT changes later omitted-column and whole-item DEFAULT assignments. Function result types
-must satisfy INSERT assignment compatibility (COHSQLE013 naming the column); literals must convert
+must satisfy INSERT assignment compatibility (CS05013 naming the column); literals must convert
 within the destination bounds before publication. Immutable expressions fold at declaration; Stable
 and Volatile calls execute per assigned row using the transaction-start clock. Defaults never run at table open.
 DROP DEFAULT on a domain column re-inherits the domain default. SET DEFAULT NULL preserves an
 explicit NULL override when hiding a domain default. On a NOT NULL column without a usable default,
-later omitted values fail COHSQLE024 (23502).
+later omitted values fail CS03024 (23502).
 
 Neither SET nor DROP DEFAULT changes old rows or their frozen missing values. ADD COLUMN captures
 that missing value once, including NULL when no default exists; it survives default changes and
@@ -74,8 +74,8 @@ literal under the new bounds even when no live rows remain; an unconvertible val
 
 SET NOT NULL scans current live rows, including synthesized missing fields, under the table lock.
 A NULL refuses the change and leaves metadata intact. DROP NOT NULL allows later NULL writes but
-refuses primary-key columns (SQL0003). SET/DROP DEFAULT and DROP NOT NULL refuse identity columns
-(COHSQLE025). Even an already satisfied facet publishes a replacement definition.
+refuses primary-key columns (CS00003). SET/DROP DEFAULT and DROP NOT NULL refuse identity columns
+(CS03025). Even an already satisfied facet publishes a replacement definition.
 
 ### Added columns and publication
 
@@ -87,21 +87,21 @@ not make the ALTER an online operation or remove the work of scanning existing r
 
 PRIMARY KEY/UNIQUE backing indexes validate the completed tree in bounded key batches before
 publication. Only current live keys participate in duplicate checks; historical entries remain
-available to older snapshots. A duplicate reports COHSQLE037 (23505). Construction checks the
-encoded key limit first, so COHSQLE042 (54000) can precede a duplicate encountered earlier in
+available to older snapshots. A duplicate reports CS03037 (23505). Construction checks the
+encoded key limit first, so CS05042 (54000) can precede a duplicate encountered earlier in
 storage order. A validation failure or cancellation before publication removes unpublished
 indexes and leaves the old schema, constraints and rows intact; another request can retry.
 See [unique-index builds](create-index.md#building-over-existing-data).
 
 ADD CONSTRAINT rejects repeated PRIMARY KEY, UNIQUE or FOREIGN KEY columns, including the
-referenced list, with `COHSQLE019`. ADD CONSTRAINT or ADD COLUMN cannot declare a second primary
+referenced list, with `CS01019`. ADD CONSTRAINT or ADD COLUMN cannot declare a second primary
 key over an existing one; repeated PRIMARY KEY clauses on a single added column also fail with
 that code. Validation uses case-insensitive column identity and leaves the catalog unchanged.
 New CHECKs in either action must qualify columns with this table and schema, or leave them
-unqualified; another qualifier reports located `COHSQLE015`. See [Constraints](../constraints.md).
+unqualified; another qualifier reports located `CS01015`. See [Constraints](../constraints.md).
 
 ADD COLUMN admits expression defaults. A nonvolatile expression freezes once for old rows;
-a volatile expression is refused on live rows with `COHSQLE027` and admitted on an empty table. Old rows resolve a missing trailing
+a volatile expression is refused on live rows with `CS03027` and admitted on an empty table. Old rows resolve a missing trailing
 field from persisted catalog metadata; their bytes and multi-version concurrency control (MVCC)
 stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update writes the full row.
 
@@ -110,7 +110,7 @@ stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update
 | Nullable, no default or `DEFAULT NULL` | `NULL` | `NULL` |
 | Immutable default | Folded value | Validated declaration value |
 | Stable default | One frozen addition-time value | Per-row value using transaction-start clock |
-| Volatile default | Refused with `COHSQLE027` when live rows exist | Per-row value if added to an empty table |
+| Volatile default | Refused with `CS03027` when live rows exist | Per-row value if added to an empty table |
 | `NOT NULL`, non-null default | Default value | Default value |
 | `NOT NULL`, no non-null default | Rejected if currently committed rows exist | Must supply a value if addition succeeds on an empty table |
 
@@ -118,10 +118,10 @@ The emptiness check uses current committed rows. Historical versions visible onl
 snapshot can retain a missing `NULL` field after a default-free addition to a currently empty table.
 
 ADD [IDENTITY](../clauses/identity.md) requires no live rows, including when old deleted versions
-remain. A populated-table ADD fails `COHSQLE025`. Full-definition ALTER preserves identity only
+remain. A populated-table ADD fails `CS03025`. Full-definition ALTER preserves identity only
 with its existing type, NOT NULL and no DEFAULT; type/nullability/default or generation changes
-fail `COHSQLE025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
-`SQL0003`; ALTER also rejects making an existing primary-key column explicitly NULL.
+fail `CS03025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
+`CS00003`; ALTER also rejects making an existing primary-key column explicitly NULL.
 
 ADD COLUMN defaults must fit destination bounds. Invalid defaults, invalid conversions, and out-of-range
 values fail before schema publication. The complete definition is published atomically; a failed
@@ -131,7 +131,7 @@ Already bound plans retain their immutable definition. Statements planned after 
 the new definition even when an older row snapshot selects earlier versions. Ordinary table schemas
 are not pinned to `BEGIN`; system-view catalog snapshots have their own contract.
 
-DDL is self-committing and fails inside explicit transactions with `COHSQLT003`. Session alteration
+DDL is self-committing and fails inside explicit transactions with `CS04003`. Session alteration
 of schema-owned tables is refused. DROP COLUMN changes catalog metadata without rewriting rows;
 physical ordinals and dropped-column metadata keep existing row values aligned.
 
@@ -145,41 +145,41 @@ canonical function-name quoting. Compiled schema version remains 8. Older SQL fo
 
 [Persisted views](create-view.md) block table rename and drop/rename of columns they read.
 ALTER COLUMN also refuses changes to those columns' type, length, precision or scale with
-COHSQLD002. Default and nullability changes retain their usual validation.
+CS03302. Default and nullability changes retain their usual validation.
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
-| `SQL0003` | Malformed action or DROP NOT NULL on a primary-key column | — |
-| `COHDBL001` | Excluded action/list or subquery in DEFAULT | — |
-| `COHSQLE013` | Rename collision, invalid default form or incompatible function result type | — |
-| `COHSQLE014` / `COHSQLE015` | Missing bound table / column | 42P01 / 42703 |
-| `COHSQLE015` | New CHECK names another table or schema | — |
-| `COHSQLE019` | Repeated key-list column or second PRIMARY KEY declaration, including ADD COLUMN | — |
-| `COHSQLE021` | System relation target or attempted rename over a system relation | 25006 |
-| `COHSQLE024` | NOT NULL validation finds NULL | 23502 |
-| `COHSQLE025` | Protected identity facet change | — |
-| `COHSQLE027` | Volatile ADD COLUMN default requires a rewrite because live rows exist | — |
-| `COHSQLE037` | Existing/defaulted rows violate a new PRIMARY KEY, UNIQUE constraint or unique index | 23505 |
-| `COHSQLE038` | Existing/defaulted rows violate a CHECK or domain check | 23514 |
-| `COHSQLE039` | Existing/defaulted rows lack a referenced foreign-key parent | 23503 |
-| `COHSQLE042` | An existing/defaulted index key exceeds 1,024 encoded bytes during a backing build | 54000 |
-| `COHSQLE049` / `COHSQLE061` | Rename target table / column already exists | 42P07 / 42701 |
-| `COHSQLE050` / `COHSQLE052` | Duplicate constraint name / missing constraint or other catalog object | 42710 / 42704 |
-| `COHSQLE051` | Table is absent during execution | 42P01 |
-| `COHSQLE053` | Invalid table definition, including dropping its last column | 42P16 |
-| `COHSQLE054` | FOREIGN KEY column list or referenced unique-key requirement fails | 42830 |
-| `COHSQLE055` / `COHSQLE063` | FOREIGN KEY type / collation mismatch | 42804 / 42P21 |
-| `COHSQLE056` | Constraint or index depends on the object being changed | 2BP01 |
-| `COHSQLE057` | Change would require unsupported value rewriting | 0A000 |
-| `COHSQLE059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
-| `COHSQLE064` | Bound table was replaced during a DDL wait; retry the statement | 40001 |
-| `COHSQLE066` | Compiled-schema ownership refuses session DDL | 42501 |
-| `COHSQLD002` | Declared script or view retains a dependent target | 2BP01 |
-| `COHSQLT003` | DDL inside an explicit transaction; the transaction remains usable | — |
+| `CS00003` | Malformed action or DROP NOT NULL on a primary-key column | — |
+| `CK00001` | Excluded action/list or subquery in DEFAULT | — |
+| `CS05013` | Rename collision, invalid default form or incompatible function result type | — |
+| `CS01014` / `CS01015` | Missing bound table / column | 42P01 / 42703 |
+| `CS01015` | New CHECK names another table or schema | — |
+| `CS01019` | Repeated key-list column or second PRIMARY KEY declaration, including ADD COLUMN | — |
+| `CS04021` | System relation target or attempted rename over a system relation | 25006 |
+| `CS03024` | NOT NULL validation finds NULL | 23502 |
+| `CS03025` | Protected identity facet change | — |
+| `CS03027` | Volatile ADD COLUMN default requires a rewrite because live rows exist | — |
+| `CS03037` | Existing/defaulted rows violate a new PRIMARY KEY, UNIQUE constraint or unique index | 23505 |
+| `CS03038` | Existing/defaulted rows violate a CHECK or domain check | 23514 |
+| `CS03039` | Existing/defaulted rows lack a referenced foreign-key parent | 23503 |
+| `CS05042` | An existing/defaulted index key exceeds 1,024 encoded bytes during a backing build | 54000 |
+| `CS03049` / `CS03061` | Rename target table / column already exists | 42P07 / 42701 |
+| `CS03050` / `CS01052` | Duplicate constraint name / missing constraint or other catalog object | 42710 / 42704 |
+| `CS01051` | Table is absent during execution | 42P01 |
+| `CS03053` | Invalid table definition, including dropping its last column | 42P16 |
+| `CS03054` | FOREIGN KEY column list or referenced unique-key requirement fails | 42830 |
+| `CS02055` / `CS02063` | FOREIGN KEY type / collation mismatch | 42804 / 42P21 |
+| `CS03056` | Constraint or index depends on the object being changed | 2BP01 |
+| `CS05057` | Change would require unsupported value rewriting | 0A000 |
+| `CS03059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
+| `CS04064` | Bound table was replaced during a DDL wait; retry the statement | 40001 |
+| `CS03066` | Compiled-schema ownership refuses session DDL | 42501 |
+| `CS03302` | Declared script or view retains a dependent target | 2BP01 |
+| `CS04003` | DDL inside an explicit transaction; the transaction remains usable | — |
 
-Conversion and length failures retain their [normal codes](../diagnostics.md). `COHSQLE027` has no assigned SQLSTATE.
+Conversion and length failures retain their [normal codes](../diagnostics.md). `CS03027` has no assigned SQLSTATE.
 
 ## Examples
 
@@ -198,7 +198,7 @@ All three original rows and the omitted-column insert read `7` for `extra` befor
 Each statement is a separate request.
 
 With `CREATE TABLE keyed (id INT PRIMARY KEY);` already executed, each of these separate
-requests fails with COHSQLE019 and leaves keyed unchanged:
+requests fails with CS01019 and leaves keyed unchanged:
 
 ```sql
 ALTER TABLE keyed ADD COLUMN other INT PRIMARY KEY;
@@ -218,7 +218,7 @@ DELETE FROM existing_keys WHERE id = 1;
 ALTER TABLE existing_keys ADD CONSTRAINT uq_id UNIQUE(id);
 ```
 
-The first ALTER fails with COHSQLE037 (23505) and publishes no constraint or index. SELECT still
+The first ALTER fails with CS03037 (23505) and publishes no constraint or index. SELECT still
 returns 1, 1, 2. DELETE removes both 1 rows, and the retried ALTER succeeds with affected count
 zero. A later duplicate 2 is refused. NULL key components still compare equal for uniqueness.
 

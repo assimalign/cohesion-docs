@@ -33,7 +33,7 @@ the integral subtotal to Double once. Decimal SUM preserves the largest input sc
 inputs have scale zero. Decimal AVG rounds once, ties to even, to available precision. Mixed
 Decimal/floating aggregation converts floating inputs to Decimal and fails when unrepresentable.
 AVG can stay finite even when summing its inputs directly would overflow. Numeric overflow,
-non-finite numeric results and nonnumeric SUM/AVG inputs report COHDBG013.
+non-finite numeric results and nonnumeric SUM/AVG inputs report CG02013.
 
 ## Grouping, NULL and ordering
 
@@ -57,29 +57,30 @@ in ORDER BY. RETURN items themselves use input scope.
 
 COLLECT_LIST requires graph.composite-values on protocol 2.1, even for an empty result. Constructed
 lists have depth 64, 65,536 total values including the root, and 16 MiB encoded-byte bounds, checked
-during accumulation (COHDBG013). Exact Decimal bits and scale survive negotiated parameters and
+during accumulation (CG02013). Exact Decimal bits and scale survive negotiated parameters and
 results. Scalar COUNT needs no composite capability. Embedded aggregates may select or collect
-entities; final lists of nodes/relationships remain outside wire Execute (COHDBG001; #1662), even
+entities; final lists of nodes/relationships remain outside wire Execute (CG05001; #1662), even
 with composite negotiation. Intermediate [WITH](../clauses/with.md) aggregation can collect
 entities and [FOR/UNWIND](../clauses/for.md) retains proven element kinds. ExecutePaths rejects
-final grouping/aggregate projections with COHDBG001, but permits such intermediate stages when
+final grouping/aggregate projections with CG05001, but permits such intermediate stages when
 the final column is one mandatory bare entity/path and the statement has no writes.
 
-Grouping and LIMIT do not reduce the 100,000-match input cap. Aggregate result errors roll back
+Grouping consumes input incrementally, retaining group/aggregate state within the shared memory
+budget. LIMIT does not reduce the input needed to form complete groups. Aggregate result errors roll back
 statement mutations. EXPLAIN describes GroupAggregate without evaluating arguments.
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `GQL0002` | Wrong arity, missing argument, SUM(*), COUNT(DISTINCT *) or COUNT(ALL *) |
-| `COHDBG001` | Nested/misplaced aggregate, ungrouped reference, GROUP BY mismatch/aggregate alias, missing operand parameter or invalid path request |
-| `COHDBG013` | SUM/AVG nonnumeric operand, overflow/non-finite result, unrepresentable Decimal conversion or collection bound |
-| `COHDBG016` | Possible composite wire result without negotiated graph.composite-values |
-| `COHDBL001` | HAVING, WITH composition, STDDEV_SAMP/POP or PERCENTILE_CONT/DISC |
+| `CG00002` | Wrong arity, missing argument, SUM(*), COUNT(DISTINCT *) or COUNT(ALL *) |
+| `CG05001` | Nested/misplaced aggregate, ungrouped reference, GROUP BY mismatch/aggregate alias, missing operand parameter or invalid path request |
+| `CG02013` | SUM/AVG nonnumeric operand, overflow/non-finite result, unrepresentable Decimal conversion or collection bound |
+| `CG07016` | Possible composite wire result without negotiated graph.composite-values |
+| `CK00001` | HAVING, WITH composition, STDDEV_SAMP/POP or PERCENTILE_CONT/DISC |
 
 These aggregate failures have no assigned SQLSTATE. Invalid parameters retain their
-[normal diagnostics](../diagnostics.md), including COHDBG003 for non-finite CLR inputs.
+[normal diagnostics](../diagnostics.md), including CG03003 for non-finite CLR inputs.
 
 ## Examples
 

@@ -15,7 +15,7 @@ packages are retired. Wire contracts ship separately in [Sql.Protocol](../assima
 
 - **[SqlDatabaseEngineOptions](sql-database-engine-options.md)** — Statement and per-lock execution budgets.
 - **[SqlDatabaseSession](sql-database-session.md)** — Nullable timeout overrides, execution and retry behavior.
-- **[SqlTimeoutException](sql-timeout-exception.md)** — COHSQLE043/57014 and COHSQLE044/55P03.
+- **[SqlTimeoutException](sql-timeout-exception.md)** — CS05043/57014 and CS04044/55P03.
 
 - **[SqlFunctionCollection](sql-function-collection.md)** — Registration, reserved T1 names and freezing.
 - **[SqlFunctionContext](sql-function-context.md)** — Database, collation, transaction timestamp and cancellation context.
@@ -67,7 +67,7 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
 ## Database lifecycle
 
 Create/open complete only a provably empty interrupted creation with its creation claim. Missing
-sidecars and ambiguous catalogs are preserved and refused with COHSQLC001; pre-header retries use
+sidecars and ambiguous catalogs are preserved and refused with CS03401; pre-header retries use
 CreateDatabaseAsync or declared Build. Drop removes the primary data file first. Format remains 25.
 See [signatures, remedies and examples](design.md#database-creation-open-and-drop).
 
@@ -83,7 +83,7 @@ nested factory execute during `Build`:
 
 See the [source-backed usage examples](examples/index.md).
 
-The `Listen` helper ships in `Database.Sql.Tcp`. Omit `AddServer` for embedded SQL.
+The `Listen` helper ships in `Database.Tcp`. Omit `AddServer` for embedded SQL.
 `SqlDatabaseEngine.Create(options)` also remains available for standalone use. See
 [DESIGN.md](design.md) for the execution model and its decisions.
 

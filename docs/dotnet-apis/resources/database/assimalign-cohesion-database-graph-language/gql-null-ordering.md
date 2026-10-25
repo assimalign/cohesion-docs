@@ -16,7 +16,7 @@ Default (0) uses Cypher placement: last ascending and first descending. First (1
 place NULL explicitly regardless of direction. A missing graph property is NULL; GQL has no
 MISSING state. These settings apply per key; nested composite NULL values retain the total
 value comparison rules. Undefined enum values in a supplied AST cause DatabaseException with
-COHDBG001 during planning, with no SQLSTATE assigned. Enum access introduces no exceptions.
+CG05001 during planning, with no SQLSTATE assigned. Enum access introduces no exceptions.
 
 ## Example
 

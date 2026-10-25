@@ -16,7 +16,7 @@ public sealed class OqlMetaExpression : OqlExpression
 ## Behavior and exceptions
 
 Arguments retain an optional source alias; Member selects id or version. The planner validates
-arity, member and stored-source context with COHDOC001. id evaluates as string and version as
+arity, member and stored-source context with CD05001. id evaluates as string and version as
 decimal. Bare META and system-source metadata do not execute.
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are

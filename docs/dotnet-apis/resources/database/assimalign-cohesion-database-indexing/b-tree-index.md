@@ -39,7 +39,7 @@ that acquisition; callers must provide the coordination needed for latest-state 
 | InvalidOperationException | The index is not unique |
 | OperationCanceledException | Cancellation before lookup or during key-lock acquisition |
 | TransactionDeadlockException | Key-lock acquisition closes a wait cycle |
-| IndexCorruptionException | Lookup reaches a damaged tree page (COHDBI002) |
+| IndexCorruptionException | Lookup reaches a damaged tree page (CK06102) |
 
 The lookup changes no page layout. SQL uses it for [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 arbitration and translates kernel failures at its model boundary.
@@ -107,6 +107,15 @@ static async Task InspectAsync(BTreeIndex index, TransactionContext writer,
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md) · [Examples](examples/index.md)
+
+## Bounded range counts
+
+```csharp
+public BTreeRangeCount CountRange(TransactionSnapshot snapshot, IndexKeyRange range,
+    int entryLimit = 512, int pageLimit = 32, CancellationToken cancellationToken = default);
+```
+
+Counts visible entries without retaining keys under the tree read latch. Physical limits include invisible entries, stopping keys, descent pages and empty leaves. Limits below one throw ArgumentOutOfRangeException; cancellation and tree corruption retain their usual exceptions. Keep the caller's snapshot pinned. The returned public readonly record struct BTreeRangeCount has positional members Count (long), IsComplete (bool), EntriesExamined (int) and PagesVisited (int). IsComplete=false identifies a lower bound. See BTreeRangeCountTests in the source branch.
 
 ## Sources
 

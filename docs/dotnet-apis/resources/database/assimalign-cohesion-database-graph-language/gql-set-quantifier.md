@@ -25,10 +25,10 @@ IN share this equality; arithmetic keeps its own promotion. Entity/path results 
 including ordered path traversal. DISTINCT does not reduce the number of mutations.
 
 The enum itself throws no exceptions. An undefined value or Distinct without star/items in a
-programmatic query fails planning with COHDBG001. Duplicate final column names fail COHDBG015,
+programmatic query fails planning with CG05001. Duplicate final column names fail CG01015,
 regardless of quantifier; no SQLSTATE is assigned. Non-finite programmatic AST literals or referenced
-parameters fail COHDBG003 before equality or DISTINCT execution; out-of-range numeric text uses
-GQL0004 during parsing.
+parameters fail CG03003 before equality or DISTINCT execution; out-of-range numeric text uses
+CG00004 during parsing.
 
 ## Example
 

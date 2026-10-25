@@ -55,15 +55,15 @@ properties. Enumerate to completion to verify the terminal count; abandoning an 
 enumeration discards its connection.
 
 Dispose each connection to return a healthy authenticated session to the pool, and dispose the
-client to close the pool. Scalar parse/execution failures retain the session; a terminal pre-output path refusal also preserves it. Unfinished streams discard it. Explicit transactions are not exposed:
-BEGIN/COMMIT/ROLLBACK and the reserved Transaction message are unsupported.
+client to close the pool. Scalar parse/execution failures retain the session; a terminal pre-output path refusal also preserves it. Unfinished streams discard it. Explicit transactions use START TRANSACTION, COMMIT and ROLLBACK over Execute.
+BEGIN and the reserved Transaction message remain unsupported.
 
 Parameters bind WHERE, RETURN and property-map values under the shared bare-name contract.
 RETURN supports standalone/computed expressions, aliases and DISTINCT/ALL. Duplicate final names
-fail COHDBG015 before reads, mutation or output. Wire Execute rejects entity projections before
+fail CG01015 before reads, mutation or output. Wire Execute rejects entity projections before
 writes; QueryPathsAsync accepts one bare binding, including DISTINCT or star over one named binding.
 Lists materialize as object?[] and maps as read-only ordinal dictionaries. Protocol 2.1 negotiates
-graph.composite-values; possible unnegotiated composite results fail COHDBG016 before writes,
+graph.composite-values; possible unnegotiated composite results fail CG07016 before writes,
 and the client refuses composite parameters locally before sending. Depth/count/encoded-byte
 limits are enforced before commit. See [GraphRow](graph-row.md), [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md),
 [GraphConnection](graph-connection.md) and [RETURN](../../../../database/graph/language/clauses/return.md).

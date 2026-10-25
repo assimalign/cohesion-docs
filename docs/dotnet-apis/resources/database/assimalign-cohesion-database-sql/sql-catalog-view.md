@@ -39,7 +39,7 @@ Null collections throw ArgumentNullException. Blank names/definition, empty or i
 duplicate column names, blank dependency/call identities, zero table identities and invalid
 ownership throw ArgumentException. Construction alone does not publish a view.
 [SqlCatalog.CreateViewAsync](sql-catalog.md#view-members) enforces publication invariants and the
-8,092-byte record cap, with SqlCatalogException carrying COHSQLE033 for view-specific refusals.
+8,092-byte record cap, with SqlCatalogException carrying CS03033 for view-specific refusals.
 
 ## Example
 

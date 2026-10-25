@@ -25,7 +25,7 @@ IN accepts any list-valued expression, including a parameter or parenthesized li
 the full list before testing membership; a later item error still fails after an earlier match.
 Empty-list IN is FALSE even for NULL. Otherwise an equal member wins, then a NULL operand or
 unknown element comparison yields UNKNOWN, otherwise FALSE. A NULL list yields NULL; a non-list
-right operand reports COHDBG013.
+right operand reports CG02013.
 
 ## Comparison
 
@@ -47,13 +47,13 @@ including lexicographic lists, with nested NULL last ascending.
 | Encoded bytes | 16,777,216 (16 MiB), including UTF-8 bytes, escaping and framing |
 
 A result row must also fit 16 MiB. Referenced parameter trees are snapshotted once per execution;
-unsupported/non-finite leaves, invalid dimensions, cycles or exceeded bounds use COHDBG003 before
+unsupported/non-finite leaves, invalid dimensions, cycles or exceeded bounds use CG03003 before
 reads/writes. Constructed values enforce limits during evaluation inside the statement transaction
-with COHDBG013, including embedded execution. A refused result rolls back its statement's writes.
+with CG02013, including embedded execution. A refused result rolls back its statement's writes.
 Result header sizes check before writer locks; row sizes check before commit.
 
 Protocol 2.1 negotiates graph.composite-values independently of diagnostics. Without it, a possible
-composite result uses COHDBG016 before reads/writer locks/writes, even for empty matches or skipped
+composite result uses CG07016 before reads/writer locks/writes, even for empty matches or skipped
 CASE arms. No SQLSTATE is assigned. The typed client rejects composite parameters locally with
 ExecutionFailure before sending a frame; the connection stays reusable. Scalar columns keep their
 baseline tuple bytes. [GraphValueCodec](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-protocol/graph-value-codec.md)
@@ -63,11 +63,11 @@ provides the public component format. Path payloads are unchanged.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `COHDBG003` | Invalid/oversized referenced parameter or composite stored-property parameter |
-| `COHDBG013` | Evaluated value/access error or constructed value/row exceeds a limit |
-| `COHDBG016` | Possible composite wire result without negotiated capability |
-| `COHDBL001` | List/pattern comprehension, slicing or composite literal in a stored property map |
-| `GQL0002` | Malformed list or membership syntax |
+| `CG03003` | Invalid/oversized referenced parameter or composite stored-property parameter |
+| `CG02013` | Evaluated value/access error or constructed value/row exceeds a limit |
+| `CG07016` | Possible composite wire result without negotiated capability |
+| `CK00001` | List/pattern comprehension, slicing or composite literal in a stored property map |
+| `CG00002` | Malformed list or membership syntax |
 
 ## Examples
 
@@ -84,9 +84,9 @@ with those two elements, rather than two columns.
 
 ## See also
 
-[FOR/UNWIND](../clauses/for.md) expands lists; NULL gives zero rows and a non-list is COHDBG013.
+[FOR/UNWIND](../clauses/for.md) expands lists; NULL gives zero rows and a non-list is CG02013.
 Proven node/relationship kinds survive expansion, but final entity lists cannot cross the wire
-(COHDBG001; #1662), even with graph.composite-values. Project scalar properties after expansion.
+(CG05001; #1662), even with graph.composite-values. Project scalar properties after expansion.
 
 [Expressions](index.md) · [Map values](map-values.md) · [Property access](property-access.md) · [Diagnostics](../diagnostics.md)
 

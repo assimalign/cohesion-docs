@@ -26,12 +26,12 @@ FALSE dominates UNKNOWN; matching NULL values produce UNKNOWN for ordinary equal
 groups corresponding NULLs. Ordering comparisons compare count, sorted ordinal keys, then values;
 an encountered NULL/incomparable value yields UNKNOWN. See [comparison and limits](list-values.md).
 
-Duplicate literal keys report GQL0006; malformed syntax GQL0002. Invalid programmatic map shape
-uses COHDBG001. Invalid referenced parameter trees use COHDBG003; evaluated value/access failures
-or limits COHDBG013. Possible composite wire results without graph.composite-values use COHDBG016
+Duplicate literal keys report CG00006; malformed syntax CG00002. Invalid programmatic map shape
+uses CG05001. Invalid referenced parameter trees use CG03003; evaluated value/access failures
+or limits CG02013. Possible composite wire results without graph.composite-values use CG07016
 before reads/writes (no SQLSTATE). Constructors obey the [transactional limits](list-values.md#limits-and-wire-capability).
 Composite syntax in stored MATCH/INSERT/CREATE property maps, whole property-map parameters and
-map projection `a {.name}` remain COHDBL001.
+map projection `a {.name}` remain CK00001.
 
 ## Examples
 

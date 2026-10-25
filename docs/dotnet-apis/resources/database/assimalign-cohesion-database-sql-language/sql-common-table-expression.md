@@ -24,9 +24,9 @@ definition. Accessors add no validation exceptions. CommonTables on SELECT/INSER
 is an empty list when WITH is absent; its setter is internal.
 
 All definitions bind, even unused ones. Duplicate names and unresolved future references use
-COHSQLE026 without an assigned SQLSTATE; a stored table with a future/self name resolves normally.
-Output width or blank names use COHSQLE013. Parser diagnostics reject recursive/nested/modifying
-bodies and materialization hints with COHDBL001. SqlQueryRequest.FromSql rejects parser errors with
+CS01026 without an assigned SQLSTATE; a stored table with a future/self name resolves normally.
+Output width or blank names use CS05013. Parser diagnostics reject recursive/nested/modifying
+bodies and materialization hints with CK00001. SqlQueryRequest.FromSql rejects parser errors with
 DatabaseParseException; semantic errors arise during planning. Reachable definitions materialize
 once before writes. See [WITH](../../../../database/sql/language/clauses/with.md) for snapshot and scope rules.
 

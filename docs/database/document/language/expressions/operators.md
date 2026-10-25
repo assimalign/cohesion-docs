@@ -22,8 +22,8 @@ NOT (age < 18). Parentheses override grouping. CASE is a primary expression.
 
 ## Comparison, arithmetic and logic
 
-Arithmetic requires decimal operands. Division/remainder by zero is `COHDOC006` (22012),
-numeric range failure is `COHDOC007` (22003), and invalid operand types are `COHDOC008`.
+Arithmetic requires decimal operands. Division/remainder by zero is `CD02006` (22012),
+numeric range failure is `CD02007` (22003), and invalid operand types are `CD02008`.
 Ordinary comparisons and arithmetic propagate MISSING before NULL. String comparison is ordinal
 and case-sensitive; range comparison requires matching scalar kinds. SQL COLLATE does not apply.
 
@@ -41,7 +41,7 @@ operand, a match wins; without a match a NULL list item wins over a MISSING item
 NOT IN negates only Boolean results. For array IN, MISSING on either side gives MISSING;
 a NULL/non-array right operand gives NULL. With a valued left operand, a matching element wins;
 without a match, a NULL element gives NULL, otherwise FALSE. NULL IN [] remains NULL on this
-branch, while a valued operand IN [] is FALSE. Nested SELECT remains COHDBL001.
+branch, while a valued operand IN [] is FALSE. Nested SELECT remains CK00001.
 
 [ANY/SOME/EVERY](quantified-predicates.md) use scoped SATISFIES predicates with different element
 truth handling: NULL/MISSING predicate results are not true.
@@ -58,8 +58,8 @@ do not consume it. ESCAPE accepts one Unicode scalar; an empty string disables e
 quotes the following scalar, including itself, % or _.
 
 MISSING takes precedence; non-string or NULL operands, patterns or escape values give NULL.
-A literal escape longer than one scalar is `OQL0002`. An evaluated invalid escape or a trailing
-pattern escape is `COHDOC013`. LIKE checks the statement cancellation token while compiling and
+A literal escape longer than one scalar is `CD00002`. An evaluated invalid escape or a trailing
+pattern escape is `CD02013`. LIKE checks the statement cancellation token while compiling and
 matching; cancellation raises OperationCanceledException. NOT LIKE preserves NULL/MISSING.
 
 ## Examples

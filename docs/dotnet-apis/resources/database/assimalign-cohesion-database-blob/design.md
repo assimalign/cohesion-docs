@@ -507,8 +507,8 @@ reject malformed UTF-8. Structured Diagnostics is not a Blob result mechanism.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHDBB004` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
-| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain COHDBB004 | — |
+| `CB06004` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `CK06003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain CB06004 | — |
 
 Reads, operations, transactions and create/open translate storage corruption, including coded and
 aggregate causes. A damaged read fails instead of omitting a blob; legitimate reclamation retains
@@ -518,23 +518,23 @@ absence semantics. The existing wire execution-failure path carries the code. Se
 This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
 with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
-a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBB004.
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to CB06004.
 
 ## Database creation, open and drop
 
 File-backed Blob databases require their original blob.dat, blob.log and blob.bak.
-Create and open refuse a missing journal or backup with COHDBB004 in DatabaseException.Diagnostics;
+Create and open refuse a missing journal or backup with CB06004 in DatabaseException.Diagnostics;
 neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
 ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
 
-A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBB004.
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining CB06004.
 A data file no larger than one page is an incomplete create, since successful creation flushes two
 pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
 ordinary create does not adopt them. Drop removes blob.dat before deleting the remaining directory.
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses DatabaseCorruptionException / COHDBS003 with COHDBB004 retained as an additional
+corruption uses DatabaseCorruptionException / CK06003 with CB06004 retained as an additional
 diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
 without drop or backup advice. The shared storage format is 4; this does not change Blob record formats.
@@ -569,25 +569,25 @@ file-set refusal, crash recovery and transient-open cases.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHDBB005` | Storage operation or open I/O failure; original cause retained | — |
-| `COHDBB006` | Malformed/unsupported catalog metadata; additional model diagnostic for attached-index corruption | — |
-| `COHDBB007` | Upload has failed or its transaction is no longer active; later writes/publication refused | — |
+| `CB06005` | Storage operation or open I/O failure; original cause retained | — |
+| `CB06006` | Malformed/unsupported catalog metadata; additional model diagnostic for attached-index corruption | — |
+| `CB02007` | Upload has failed or its transaction is no longer active; later writes/publication refused | — |
 
 Child-root storage and catalog failures cross the engine boundary as DatabaseException with
 Error diagnostics and the original InnerException. Explicit and automatic transaction begin use
-the same translation. Storage corruption leads with COHDBS003; attached-index corruption also
-retains COHDBI002 and COHDBB006. Existing offline/unconfirmed-commit classifications remain in
+the same translation. Storage corruption leads with CK06003; attached-index corruption also
+retains CK06102 and CB06006. Existing offline/unconfirmed-commit classifications remain in
 force. An I/O open failure releases acquired resources, publishes no database and permits retry
 after the condition is resolved.
 
 A failed operation aborts an explicit transaction; roll it back before further work. The embedded
-session can then be reused. COHDBB001 is a structured aborted-transaction diagnostic with an
+session can then be reused. CB04001 is a structured aborted-transaction diagnostic with an
 ordinary embedded message. The wire adds the first Error code as a prefix when absent, sends
 ExecutionFailure and closes the connection.
 
-A failed upload or one whose transaction ended raises COHDBB007 on later writes rather than
+A failed upload or one whose transaction ended raises CB02007 on later writes rather than
 accepting buffered content. It cannot publish partial content; disposal after rollback also
-reports COHDBB007. Unrelated InvalidOperationException/ObjectDisposedException retain their
+reports CB02007. Unrelated InvalidOperationException/ObjectDisposedException retain their
 ordinary .NET types. See [upload behavior](../../../../database/blob/operations.md#failure-behavior).
 
 ### Upload after rollback
@@ -603,12 +603,12 @@ await transaction.RollbackAsync(CancellationToken.None);
 try { await upload.WriteAsync(new byte[1], CancellationToken.None); }
 catch (DatabaseException failure)
 {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBB007
+    Console.WriteLine(failure.Diagnostics[0].Code); // CB02007
 }
 try { await upload.DisposeAsync(); }
 catch (DatabaseException failure)
 {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHDBB007
+    Console.WriteLine(failure.Diagnostics[0].Code); // CB02007
 }
 Console.WriteLine(await files.GetPropertiesAsync("one", CancellationToken.None) is null); // True
 ```

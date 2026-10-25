@@ -23,9 +23,9 @@ or explicit DISTINCT. INTERSECT binds tighter than UNION/EXCEPT, which associate
 Inherited OrderBy/Limit/Offset describe the combined result. Canonical rendering preserves the
 query tree and normalizes redundant parentheses, including IN ((SELECT …)) membership.
 
-Accessors do not validate. Planning checks equal widths (COHSQLE013), common types (COHSQLE003,
-42804) and output-name/ordinal ordering (COHSQLE018; ambiguous names COHSQLE019) before reads.
-CORRESPONDING is COHDBL001. SqlQueryRequest.FromSql rejects parser errors with DatabaseParseException.
+Accessors do not validate. Planning checks equal widths (CS05013), common types (CS02003,
+42804) and output-name/ordinal ordering (CS02018; ambiguous names CS01019) before reads.
+CORRESPONDING is CK00001. SqlQueryRequest.FromSql rejects parser errors with DatabaseParseException.
 The executor materializes operands; compatible UNION chains flatten to an N-way plan. EXPLAIN
 describes set operators and conversion/output metadata without executing them.
 

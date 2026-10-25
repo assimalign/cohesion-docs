@@ -45,9 +45,9 @@ tree's read latch. LIMIT stops consuming after the requested rows; it does not c
 selected index range. The command still builds its result, and disposal releases the cursor's
 owned keys. See [range cursors](../../../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/b-tree-cursor.md).
 
-Repeated clauses fail with `COHKV010`, even when the first operand is empty. A null or non-byte
-operand fails with `COHKV012`; a non-empty prefix combined with non-empty explicit bounds fails
-request validation with `COHKV004`. These are parse failures and execute nothing.
+Repeated clauses fail with `CV00010`, even when the first operand is empty. A null or non-byte
+operand fails with `CV02012`; a non-empty prefix combined with non-empty explicit bounds fails
+request validation with `CV00004`. These are parse failures and execute nothing.
 
 ## Examples
 
@@ -71,7 +71,7 @@ SCAN TO @empty
 ```
 
 `SCAN PREFIX @p FROM @empty TO @empty` returns `b:1` and `b:2`. Repeating the upper clause
-as `SCAN TO @empty TO @e` fails with `COHKV010`.
+as `SCAN TO @empty TO @e` fails with `CV00010`.
 
 These separate corpus commands cap the scan at two rows and at the bound count, respectively:
 

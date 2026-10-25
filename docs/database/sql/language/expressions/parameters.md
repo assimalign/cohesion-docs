@@ -24,9 +24,9 @@ All three query languages bind by the exact, case-sensitive bare name, ignoring 
 `@` or `$` on caller keys, regardless of the dictionary's comparer. `$01` binds key `01`,
 not `1`; numbered names consist only of ASCII digits and are names, not positional slots.
 Named forms start with a letter or underscore and continue with letters, digits or underscores.
-Unused keys are ignored, but normalized collisions always report `COHSQLE023`, even for transaction
-commands. Missing bindings report `COHSQLE020` before any rows are read or written. Supplied NULL
-is a binding. Malformed references, `?` and `:name` report `SQL0003`; unsupported markers share
+Unused keys are ignored, but normalized collisions always report `CS01023`, even for transaction
+commands. Missing bindings report `CS01020` before any rows are read or written. Supplied NULL
+is a binding. Malformed references, `?` and `:name` report `CS00003`; unsupported markers share
 this shared message:
 
 ```text

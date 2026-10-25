@@ -31,16 +31,16 @@ own validation scope; a previous stage's aliases cannot validate a later stage.
 
 NULL properties and expression results follow ordinary GQL rules; WHERE keeps only TRUE.
 WITH does not finish a query and cannot be followed immediately by NEXT. Continue with another
-stage and eventually RETURN or a write. Each stage materializes eagerly in source order.
+stage and eventually RETURN or a write. Read stages stream in source order; mutation targets materialize.
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| COHDBG001 | Hidden/unbound name, aggregate in WHERE or invalid grouping/stage shape |
-| COHDBG015 | Duplicate carried binding, including under EXPLAIN and on empty input |
-| COHDBG013 | Evaluated non-Boolean predicate or invalid paging count |
-| GQL0002 | WITH followed immediately by NEXT or malformed clause order |
+| CG05001 | Hidden/unbound name, aggregate in WHERE or invalid grouping/stage shape |
+| CG01015 | Duplicate carried binding, including under EXPLAIN and on empty input |
+| CG02013 | Evaluated non-Boolean predicate or invalid paging count |
+| CG00002 | WITH followed immediately by NEXT or malformed clause order |
 
 These codes have no assigned SQLSTATE. See [Diagnostics](../diagnostics.md).
 
@@ -57,7 +57,7 @@ WHERE removes it.
 LET x = 1 WITH x AS y WHERE x = 1 RETURN y;
 ```
 
-Result: `1`. Adding DISTINCT makes the reference to incoming `x` in WHERE fail with COHDBG001;
+Result: `1`. Adding DISTINCT makes the reference to incoming `x` in WHERE fail with CG05001;
 `y` remains visible. `FOR x IN [1,1.0,2] WITH DISTINCT x RETURN x;` returns `1`, `2`.
 
 ## See also

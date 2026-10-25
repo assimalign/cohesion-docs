@@ -25,9 +25,9 @@ INNER/LEFT require exactly one ON or USING. CROSS accepts neither.
 Table is now a [SqlRelationReference](sql-relation-reference.md), with named-table and
 [derived-query](sql-derived-table-reference.md) leaves. Both use the same join/null-extension rules.
 
-Malformed USING or CROSS with a condition reports SQL0003. Missing INNER/LEFT conditions and
-RIGHT/FULL report COHDBL001. Accessors do not throw validation exceptions. Planning checks USING
-names and common types with COHSQLE015 before reading data. See [JOIN](../../../../database/sql/language/clauses/join.md)
+Malformed USING or CROSS with a condition reports CS00003. Missing INNER/LEFT conditions and
+RIGHT/FULL report CK00001. Accessors do not throw validation exceptions. Planning checks USING
+names and common types with CS01015 before reading data. See [JOIN](../../../../database/sql/language/clauses/join.md)
 for merged column order, common-type coercion, NULL extension and qualified-column behavior.
 
 ## Example

@@ -26,7 +26,7 @@ query GraphColumn.Type remains DatabaseType.Null (unknown). There is no MISSING 
 Ordinal access throws IndexOutOfRangeException outside the row. Name access throws
 ArgumentNullException for null or KeyNotFoundException for an absent exact name. For manually
 supplied duplicate column metadata, the first name wins; the engine rejects duplicate final
-RETURN names with COHDBG015 before output. Enumeration follows column order.
+RETURN names with CG01015 before output. Enumeration follows column order.
 
 ## Example
 

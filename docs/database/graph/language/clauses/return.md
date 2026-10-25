@@ -39,7 +39,7 @@ RETURN [ DISTINCT | ALL ] { * | expression [ AS alias ] [ , ...n ] }
 RETURN may precede [NEXT](next.md); [WITH](with.md) uses the same projection machinery between
 stages. Only aliased items and bare-variable projections carry names to later stages. Star includes
 LET/FOR values and quantified group lists, and preserves the preceding projection order. Entity kinds and NULL optionality
-survive boundaries. Duplicate carried names use COHDBG015 after decoding variable names.
+survive boundaries. Duplicate carried names use CG01015 after decoding variable names.
 
 Columns preserve item order. An alias names its column exactly; otherwise the name is normalized
 source text, with comments removed and token spacing normalized, preserving spelling, quoted text
@@ -94,16 +94,16 @@ multi-binding star projections fail the path-request shape check before duplicat
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `COHDBG015` | Duplicate final column name at the second expression; fails planning before reads/writes, even on empty matches or under EXPLAIN |
-| `COHDBG001` | Unbound variable/parameter, invalid programmatic RETURN shape, invalid path-request projection, or entity result through wire Execute |
-| `COHDBG003` | Path property access, or unsupported/non-finite referenced parameter/programmatic AST literal |
-| `COHDBG013` | Evaluated value/access error, arithmetic failure or constructed value/row limit |
-| `COHDBG016` | Possible composite wire result without negotiated graph.composite-values; before reads/writes, no SQLSTATE |
-| `GQL0002` | Malformed RETURN, mixing star/items, or star without a named binding |
-| `GQL0004` | Numeric text outside the signed Int64 or finite Double range |
-| `COHDBL001` | Unsupported scalar/statistical calls, HAVING, map projection, or RETURN after deletion |
+| `CG01015` | Duplicate final column name at the second expression; fails planning before reads/writes, even on empty matches or under EXPLAIN |
+| `CG05001` | Unbound variable/parameter, invalid programmatic RETURN shape, invalid path-request projection, or entity result through wire Execute |
+| `CG03003` | Path property access, or unsupported/non-finite referenced parameter/programmatic AST literal |
+| `CG02013` | Evaluated value/access error, arithmetic failure or constructed value/row limit |
+| `CG07016` | Possible composite wire result without negotiated graph.composite-values; before reads/writes, no SQLSTATE |
+| `CG00002` | Malformed RETURN, mixing star/items, or star without a named binding |
+| `CG00004` | Numeric text outside the signed Int64 or finite Double range |
+| `CK00001` | Unsupported scalar/statistical calls, HAVING, map projection, or RETURN after deletion |
 
-The source assigns no SQLSTATE to COHDBG015. Wire failures retain ExecutionFailure and a usable
+The source assigns no SQLSTATE to CG01015. Wire failures retain ExecutionFailure and a usable
 connection when rejected before output; negotiated diagnostics preserve the engine code and span.
 
 [Aggregates](../functions/aggregate-functions.md) run over implicit or explicit groups before
@@ -132,8 +132,8 @@ RETURN 1 AS x, 2 AS x;
 ```
 
 The star returns one `a` column containing Alice's GraphNode in embedded rows or a singleton
-path through QueryPathsAsync; wire QueryAsync rejects it with COHDBG001 before reading.
-The second statement reports COHDBG015. `RETURN 1 AS x, 2 AS X` succeeds with `(1, 2)`.
+path through QueryPathsAsync; wire QueryAsync rejects it with CG05001 before reading.
+The second statement reports CG01015. `RETURN 1 AS x, 2 AS X` succeeds with `(1, 2)`.
 
 ## See also
 

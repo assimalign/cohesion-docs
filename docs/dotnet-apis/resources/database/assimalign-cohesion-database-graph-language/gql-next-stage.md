@@ -12,7 +12,7 @@ public sealed record GqlNextStage(Location? Location = null) : GqlStage(Location
 
 ## Behavior and exceptions
 
-After RETURN, only referenceable projected bindings carry forward. After a modifying segment without RETURN, NEXT starts with one empty binding and no scope. Leading/trailing NEXT, NEXT after bare MATCH and NEXT immediately after WITH are GQL0002 in text (invalid hand-built stages use COHDBG001). NEXT YIELD is COHDBL001. Segments excludes the boundary node; Stages retains it. See [NEXT](../../../../database/graph/language/clauses/next.md).
+After RETURN, only referenceable projected bindings carry forward. After a modifying segment without RETURN, NEXT starts with one empty binding and no scope. Leading/trailing NEXT, NEXT after bare MATCH and NEXT immediately after WITH are CG00002 in text (invalid hand-built stages use CG05001). NEXT YIELD is CK00001. Segments excludes the boundary node; Stages retains it. See [NEXT](../../../../database/graph/language/clauses/next.md).
 
 The record constructor stores its operands; semantic validation belongs to the planner. Location
 is the optional source span inherited from [GqlStage](gql-stage.md). Text parsing returns diagnostics;

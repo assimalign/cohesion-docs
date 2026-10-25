@@ -177,6 +177,14 @@ replay ownership. This does not change declaration ownership or permit dropping 
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## Shared TCP delivery
+
+Database SDK hosts receive the public Database.Tcp package through App.Database; Connections.Tcp remains runtime-private. Import Assimalign.Cohesion.Database for Listen(Uri), usable with all five server-options leaves. See [TCP composition](../assimalign-cohesion-database-tcp/index.md).
+
+## Health builder construction
+
+The admin endpoint constructs the public sealed HealthChecksBuilder in Assimalign.Cohesion.Web.Health. The standalone HealthChecks.CreateBuilder factory is removed; IHealthChecksBuilder extensions and immutable service snapshots remain. See [builder API](health-checks-builder.md).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`.

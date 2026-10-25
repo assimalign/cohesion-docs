@@ -38,6 +38,10 @@ forwarders; wire bytes, disk formats, limits and validation behavior stay the sa
 
 [Engine](../assimalign-cohesion-database-graph/index.md) · [Client](../assimalign-cohesion-database-graph-client/index.md) · [Database](../index.md)
 
+## Query limit DTO
+
+[GraphQueryLimits](graph-query-limits.md) carries optional in-process limits; it does not change Execute payloads.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Protocol/docs/OVERVIEW.md`.

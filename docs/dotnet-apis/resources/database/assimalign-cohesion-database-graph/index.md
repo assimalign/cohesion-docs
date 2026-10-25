@@ -59,7 +59,7 @@ For real path results, pass `GraphPathsQueryRequest.FromGql(...)` to the existin
 one-node path, a single relationship includes its stored endpoints, and
 `MATCH p = (a)-[r:KNOWS]->(b) RETURN p` preserves the matched traversal order. Scalar and mutation
 requests continue to use ordinary execution. Explicit transactions remain available through the
-in-process session API; Graph wire transaction control is deliberately deferred.
+in-process session API and standalone START TRANSACTION, COMMIT and ROLLBACK over Execute.
 
 `GraphDatabaseEngine.CreateBuilder(name)` returns the same model builder for standalone composition or
 the concrete hosting builder's build-aware engine factory. This lets the consumer pass already
@@ -104,6 +104,14 @@ resolved values and register nested components while keeping the model package d
 - **[Graph storage](storage.md)** — Reference and usage.
 - **[StoredGraphNode](stored-graph-node.md)** — Reference and usage.
 - **[StoredGraphRelationship](stored-graph-relationship.md)** — Reference and usage.
+
+## Execution budgets
+
+[Engine options](graph-database-engine-options.md) configure memory/work ceilings; [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md) lowers embedded request limits.
+
+## Catalog diagnostics
+
+[GraphCatalogException](graph-catalog-exception.md) exposes non-null structured Diagnostics.
 
 ## Sources
 

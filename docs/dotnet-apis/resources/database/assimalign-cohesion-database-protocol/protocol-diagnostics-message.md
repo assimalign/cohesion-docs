@@ -19,7 +19,7 @@ public sealed record ProtocolDiagnosticsMessage(IReadOnlyList<ProtocolDiagnostic
 Encodes i32 count then severity, code, message, start/end and line for each entry, using big-endian
 integers. Null Entries throws ArgumentNullException at construction or init/with assignment. Invalid
 spans, severity, line, counts, UTF-8, trailing data or size limits throw ProtocolException. Codec
-bounds remain strict; SQL/GQL servers apply the outbound prefix-plus-COHDBP001 policy before
+bounds remain strict; SQL/GQL servers apply the outbound prefix-plus-CK07001 policy before
 encoding. They preserve the original outcome and session when diagnostics overflow. Information
 entries are never sent.
 
@@ -27,10 +27,10 @@ entries are never sent.
 
 ```csharp
 var message = new ProtocolDiagnosticsMessage([
-    new(ProtocolDiagnosticSeverity.Warning, "COHDBG010", "Unknown label", null, null, 1)
+    new(ProtocolDiagnosticSeverity.Warning, "CG01010", "Unknown label", null, null, 1)
 ]);
 var decoded = ProtocolDiagnosticsMessage.Decode(message.Encode());
-Console.WriteLine(decoded.Entries[0].Code); // COHDBG010
+Console.WriteLine(decoded.Entries[0].Code); // CG01010
 ```
 
 ## Related reference

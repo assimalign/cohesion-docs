@@ -46,8 +46,7 @@ permanently rejects later commands with ObjectDisposedException, and repeated di
 that cannot return a later rental. Database is cached and stays readable; IsOpen returns false.
 The shared lease cancels and joins admitted work before returning a healthy session or closing it.
 
-The shared pool does not reset explicit transactions (known gap #1540): end or roll back any explicit
-transaction before returning its connection. This typed client's wire transactions remain unsupported.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Example
 

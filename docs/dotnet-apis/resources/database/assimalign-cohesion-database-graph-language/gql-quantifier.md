@@ -13,9 +13,9 @@ public sealed record GqlQuantifier(int Min, int? Max);
 ## Behavior and exceptions
 
 Null Max means unbounded. Construction has no validation exceptions; the parser/planner validate
-bounds. Text reversed bounds and ISO {0} use GQL0002; overflow uses GQL0004; repetition-bound sums
-above 64 use GQL0005. Direct AST invalid bounds use COHDBG001 (no SQLSTATE). An unbounded trail
-needing a qualifying 65th edge uses COHDBG004. Zero repetition emits empty group lists.
+bounds. Text reversed bounds and ISO {0} use CG00002; overflow uses CG00004; repetition-bound sums
+above 64 use CG00005. Direct AST invalid bounds use CG05001 (no SQLSTATE). An unbounded trail
+needing a qualifying 65th edge uses CG05004. Zero repetition emits empty group lists.
 See [GqlRelationshipPattern](gql-relationship-pattern.md) and
 [GqlParenthesizedPathPattern](gql-parenthesized-path-pattern.md).
 

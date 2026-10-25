@@ -13,7 +13,7 @@ public sealed record GqlPathRelationship(GqlRelationshipPattern Pattern) : GqlPa
 ## Behavior and exceptions
 
 Pattern retains direction, type/properties and optional repetition bounds. Construction adds no
-validation exceptions; invalid containing paths fail planning with COHDBG001 (no SQLSTATE).
+validation exceptions; invalid containing paths fail planning with CG05001 (no SQLSTATE).
 A named quantified relationship binds a source-ordered list. Each relationship identity may occur
 only once per matched path; repeated nodes are permitted.
 

@@ -20,7 +20,7 @@ public sealed record DocumentProtocolCommandMessage(DocumentProtocolOperation Op
 Command (69) selects Get/Put/Delete or collection management. Content and optional expected version
 apply to document mutations. Encode validates operation and field combinations with
 ProtocolException; malformed payloads/trailing bytes fail Decode. A decoded blank collection name is
-handled inside the server statement boundary as COHDOC001, preserving the session.
+handled inside the server statement boundary as CD05001, preserving the session.
 
 Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
 shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish

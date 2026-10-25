@@ -25,20 +25,20 @@ CHECK rejects FALSE and accepts TRUE or UNKNOWN. A nullable domain therefore acc
 its check yields UNKNOWN; NOT NULL rejects it. A column's explicit DEFAULT NULL overrides default
 inheritance. SQL has no MISSING value.
 
-Invalid, duplicate or volatility-incompatible domain definitions use COHSQLD001 (no SQLSTATE).
+Invalid, duplicate or volatility-incompatible domain definitions use CS03301 (no SQLSTATE).
 The SQL binder rejects an existing domain name before catalog publication; low-level catalog
-non-function definition collisions instead use COHSQLE050 (42710).
-Non-Boolean CHECK uses COHSQLE003 (42804); a valid check rejecting a value uses COHSQLE038 (23514).
-SERIAL/BIGSERIAL/SMALLSERIAL domain names, including quoted forms, use COHDBL001; use identity
+non-function definition collisions instead use CS03050 (42710).
+Non-Boolean CHECK uses CS02003 (42804); a valid check rejecting a value uses CS03038 (23514).
+SERIAL/BIGSERIAL/SMALLSERIAL domain names, including quoted forms, use CK00001; use identity
 columns for generation. Domain defaults are literal-only. See [types](../data-types/index.md) and
 [constraints](../constraints.md) for assignment rules.
 
 These definitions are database-local and self-committing. DDL inside an explicit transaction
-reports COHSQLT003 before publication. After CREATE or DROP commits, mandatory definition refresh
+reports CS04003 before publication. After CREATE or DROP commits, mandatory definition refresh
 uses CancellationToken.None and returns success despite late caller cancellation or statement-timeout
 expiration. A lost connection can still lose that response. Later invocations use their own
-statement token. Before commit, execution can fail with COHSQLE043 (57014) or a contended lock wait
-with COHSQLE044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
+statement token. Before commit, execution can fail with CS05043 (57014) or a contended lock wait
+with CS04044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
 
 ## Example
 
@@ -52,7 +52,7 @@ SELECT v FROM uses_domain;
 ```
 
 CREATE DOMAIN succeeds with affected count zero. SELECT returns 1 and NULL in unspecified order.
-A later INSERT of 0 fails with COHSQLE038 (23514); the two rows remain.
+A later INSERT of 0 fails with CS03038 (23514); the two rows remain.
 
 ## See also
 

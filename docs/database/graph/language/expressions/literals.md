@@ -23,7 +23,7 @@ A `string_literal` is single-quoted text with embedded quotes doubled.
 | Signed integer | Supported | Signed 64-bit integer |
 | Floating point | Supported | Finite double |
 | Single-quoted string | Supported | Text with doubled-quote escaping |
-| List and nested map literals | Recognized, not supported (`COHDBL001`) | No collection-valued expression |
+| List and nested map literals | Recognized, not supported (`CK00001`) | No collection-valued expression |
 
 ## Arguments
 
@@ -34,10 +34,10 @@ A `string_literal` is single-quoted text with embedded quotes doubled.
 ## Remarks
 
 Numeric parsing uses invariant culture. Integers outside -9223372036854775808 through
-9223372036854775807 produce `GQL0004`. Invalid or nonfinite double values also produce
-`GQL0004`. Unterminated strings produce `GQL0003`.
+9223372036854775807 produce `CG00004`. Invalid or nonfinite double values also produce
+`CG00004`. Unterminated strings produce `CG00003`.
 
-This text-parsing diagnostic differs from COHDBG003 for non-finite referenced parameters or
+This text-parsing diagnostic differs from CG03003 for non-finite referenced parameters or
 programmatic GqlLiteralExpression values. GQL numeric text has no Decimal suffix; bind a .NET
 Decimal parameter to retain that runtime type. Numeric comparisons, IN and DISTINCT use exact
 represented values across runtime types: integer `1` equals floating `1.0`, while Decimal `0.1m`
@@ -46,7 +46,7 @@ and Double `0.1d` parameter values compare unequal. Arithmetic keeps its own pro
 
 Literal properties are accepted on both node and relationship patterns. An outer pattern map
 provides property assignments; it does not make a nested map an accepted scalar literal.
-Duplicate keys produce `GQL0006`.
+Duplicate keys produce `CG00006`.
 
 ## Examples
 
@@ -58,7 +58,7 @@ INSERT (:P {min: -9223372036854775808, max: 9223372036854775807, text: 'a''b', n
 
 The test verifies both integer boundaries, the decoded string `a'b`, and the double value -250.
 
-`RETURN 1e999;` reports GQL0004 during parsing because the text is outside the finite Double range.
+`RETURN 1e999;` reports CG00004 during parsing because the text is outside the finite Double range.
 
 ## See also
 

@@ -38,11 +38,17 @@ reach another renter. Database is cached and remains readable; IsOpen returns fa
 The core DatabaseConnection's repeated disposal joins the original return; the typed wrapper's
 repeated disposal is a no-op. AbortAsync on a live wrapper discards its session without cancellation.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing its connection.
-> A healthy pooled session retains unfinished transaction state, which a later renter can inherit.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 SQL uses ordinary BEGIN/COMMIT/ROLLBACK commands on the same connection. If cleanup fails, abort
 the live rental. Abort cannot establish the outcome of an unacknowledged COMMIT or undo published writes.
+
+An idle open wire transaction retains its table-intent, row and unique-key locks until COMMIT,
+ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default), blocking
+conflicting writers. New clients discard sessions against pre-#1540 servers without negotiated
+transaction-status rather than
+pooling them. The connector consumes Ready status automatically after every Execute; caller
+cancellation after a completed result preserves an acknowledged committed result.
 
 ## Example
 
@@ -77,7 +83,7 @@ try
 }
 catch (SqlClientException failure)
 {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE045
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS05045
     Console.WriteLine(failure.ConnectionUsable);    // True
 }
 var remaining = await connection.QueryAsync("SELECT COUNT(*) FROM result_sizes");

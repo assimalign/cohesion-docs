@@ -28,8 +28,8 @@ public static class GqlClauses
 
 GroupBy is enabled by GqlLanguageProfile.Instance. It admits explicit ISO RETURN names/expressions
 and GROUP BY (); implicit grouping uses nonaggregate RETURN keys when aggregates are present.
-The constant adds no exceptions. Malformed syntax uses GQL0002 and invalid grouped scope uses
-COHDBG001. These grouping codes have no assigned SQLSTATE.
+The constant adds no exceptions. Malformed syntax uses CG00002 and invalid grouped scope uses
+CG05001. These grouping codes have no assigned SQLSTATE.
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.GroupBy)); // True
@@ -41,7 +41,7 @@ See [GROUP BY](../../../../database/graph/language/clauses/group-by.md) for resu
 The six composition names are enabled in GqlLanguageProfile.Instance. FOR/UNWIND share
 GqlForStage; WITH/RETURN share GqlReturnStage. NEXT marks a segment boundary. The constants
 add no exceptions. [Composition](../../../../database/graph/language/clauses/next.md) documents
-scope, NULL handling and diagnostics; standalone ordering/page stages remain COHDBL001.
+scope, NULL handling and diagnostics; standalone ordering/page stages remain CK00001.
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Let)); // True
@@ -53,7 +53,7 @@ QuantifiedPath enables [quantified edges and subpaths](../../../../database/grap
 The constant adds no exceptions; `Instance.Supports(GqlClauses.QuantifiedPath)` returns true.
 
 Set and Remove are enabled in GqlLanguageProfile.Instance. They name ordered update stages
-following an incoming clause; leading SET/REMOVE remains GQL0002. The constants add no exceptions.
+following an incoming clause; leading SET/REMOVE remains CG00002. The constants add no exceptions.
 See [SET](../../../../database/graph/language/clauses/set.md) and [REMOVE](../../../../database/graph/language/clauses/remove.md).
 
 ## Documented behavior

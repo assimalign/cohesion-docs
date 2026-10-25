@@ -30,7 +30,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[UPDATE](update.md)** — Assign column values to selected rows.
 - **[DELETE](delete.md)** — Remove selected rows.
 
-- **[EXPLAIN](explain.md)** — Describe a chosen plan without executing it.
+- **[EXPLAIN](explain.md)** — Describe a chosen plan; ANALYZE executes SELECT for candidate-work counts.
 
 ## Transaction control
 

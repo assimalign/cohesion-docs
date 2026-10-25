@@ -32,9 +32,9 @@ and indexes atomically. AffectedCount counts matched documents, including unchan
 are no result rows. Each match receives a higher version. Untouched JSON fragments retain their
 original bytes; whitespace around rewritten container members can change.
 
-Invalid targets or incompatible paths raise DatabaseException with COHDOC016, overlapping targets
-COHDOC017, and invalid/deep stored JSON COHDOC018. No SQLSTATE is assigned to these codes.
-Absent collections use COHDOC002, system targets COHDOC004 and missing parameters COHDOC005.
+Invalid targets or incompatible paths raise DatabaseException with CD02016, overlapping targets
+CD01017, and invalid/deep stored JSON CD02018. No SQLSTATE is assigned to these codes.
+Absent collections use CD01002, system targets CD04004 and missing parameters CD01005.
 Malformed text produces parser diagnostics and requests reject it with DatabaseParseException.
 A concurrent committed writer can raise DatabaseTransactionAbortedException. Failure rolls back
 the statement or aborts the entire explicit transaction.

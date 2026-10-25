@@ -22,10 +22,10 @@ under the Documents failed-statement rule.
 
 | Code | Meaning |
 | --- | --- |
-| `COHDOC002` | Unconditional DROP when the collection does not exist |
-| `COHDOC001` | Blank or invalid name; OQL retains the name span when available |
-| `COHDOC004` | System collection is read-only, including conditional forms |
-| `COHDOC011` | Schema-owned DROP, even with IF EXISTS; DatabaseObjectLockedException |
+| `CD01002` | Unconditional DROP when the collection does not exist |
+| `CD05001` | Blank or invalid name; OQL retains the name span when available |
+| `CD04004` | System collection is read-only, including conditional forms |
+| `CD03011` | Schema-owned DROP, even with IF EXISTS; DatabaseObjectLockedException |
 
 ## Examples
 
@@ -39,7 +39,7 @@ DROP COLLECTION IF EXISTS scratch;
 ```
 
 Each reports zero affected rows. The final state has no scratch collection. An unconditional
-repeated DROP reports COHDOC002 when the collection does not exist.
+repeated DROP reports CD01002 when the collection does not exist.
 
 ## See also
 

@@ -54,6 +54,10 @@ values flow through the `Hosting.Resources` `ResourceContext`.
 
 [Parent: Database](../index.md)
 
+## Manifest property DTOs
+
+[Checked path/source properties](manifest-property-types.md) describe the public manifest property types used by Database.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.ApplicationModel/docs/OVERVIEW.md`.

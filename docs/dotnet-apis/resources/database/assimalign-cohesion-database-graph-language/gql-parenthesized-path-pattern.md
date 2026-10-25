@@ -18,8 +18,8 @@ applying both boundary constraints. Variables declared in a repeated body are or
 zero repetitions bind empty lists and conjoin outer endpoints on one node.
 
 Construction retains references without validation exceptions. Nested quantifiers and subpath
-assignment/WHERE use COHDBL001 in text. Invalid direct shapes, nesting beyond 128, cycles/reused
-path instances and parenthesized INSERT paths use COHDBG001 (no SQLSTATE).
+assignment/WHERE use CK00001 in text. Invalid direct shapes, nesting beyond 128, cycles/reused
+path instances and parenthesized INSERT paths use CG05001 (no SQLSTATE).
 
 ## Example
 

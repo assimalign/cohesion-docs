@@ -24,8 +24,8 @@ Numeric names such as 01 remain names, distinct from 1. Unused bindings are igno
 Null/blank input names throw ArgumentException; reading an absent name throws KeyNotFoundException.
 
 For raw parameter dictionaries, use the SqlConnection string overloads or the session API. The
-server rejects normalized collisions with COHSQLE023, including unused keys, and unbound references
-with COHSQLE020 before reading or writing rows.
+server rejects normalized collisions with CS01023, including unused keys, and unbound references
+with CS01020 before reading or writing rows.
 
 ## Example
 

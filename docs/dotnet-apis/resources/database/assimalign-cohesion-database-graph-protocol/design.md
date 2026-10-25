@@ -60,6 +60,10 @@ connector. TLS terminal delivery remains a known gap (#1086). See
 [shared framing and close contract](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes)
 and [server options](../assimalign-cohesion-database-graph/graph-database-server-options.md).
 
+## Execute transaction status
+
+SQL and Graph negotiate transaction-status. After completed Execute output or statement failure, a one-byte Ready postamble reports Idle, Active or Failed. Clients drain it before completing exchanges and reset open/failed transactions on pool return. See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
+
 ## Sources
 
 - **Path byte equivalence and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Protocol/tests/GraphPathEncodingTests.cs`.

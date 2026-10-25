@@ -43,13 +43,13 @@ FROM collection_name [ [ AS ] iteration_variable ]
 
 `SELECT *` returns a `document` column containing the complete JSON value. Objects and arrays remain
 `JsonElement` values; scalars become null, Boolean, decimal, or string. Mixed-type result columns use
-`DatabaseType.Null` to indicate an unknown type. Duplicate output names report `COHDOC003`; resolve them with aliases. Projected MISSING members
+`DatabaseType.Null` to indicate an unknown type. Duplicate output names report `CD01003`; resolve them with aliases. Projected MISSING members
 are omitted from JSON objects; explicit NULL members remain. In-process rows distinguish the two
 with SupportsMissing/IsMissing; the wire sends one JSON Document per projected row.
 
 `SELECT VALUE expression` and `SELECT RAW expression` return the expression itself, without a
-member-name wrapper. They require exactly one expression without an alias or star (`OQL0002` in
-text; `COHDOC001` for an invalid direct AST). The single metadata column is named `value`.
+member-name wrapper. They require exactly one expression without an alias or star (`CD00002` in
+text; `CD05001` for an invalid direct AST). The single metadata column is named `value`.
 A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, and completion
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
 deduplication. Named projections retain their MISSING cells.
@@ -59,8 +59,8 @@ compares complete projected rows using structural equality: numeric 2 and 2.0 co
 arrays compare by ordered elements, and objects by ordinal keys and their values independently of
 member order. It retains the first representative. Named MISSING and NULL remain distinct;
 VALUE/RAW has already normalized them to NULL. Under DISTINCT every ORDER BY key must match a
-projected expression after alias rewriting, otherwise `COHDOC014` is reported at the ordering key.
-DISTINCT inside an aggregate, such as `COUNT(DISTINCT x)`, remains unsupported (`COHDBL001`).
+projected expression after alias rewriting, otherwise `CD01014` is reported at the ordering key.
+DISTINCT inside an aggregate, such as `COUNT(DISTINCT x)`, remains unsupported (`CK00001`).
 
 Results have the same shape on every transport. A lone star without UNNEST returns the stored JSON bytes unchanged,
 including whitespace and scalar roots. Named projections form one object per row; a star mixed
@@ -69,7 +69,7 @@ sets IsDocumentQuery for lone star and VALUE/RAW even on an empty result. See
 [DocumentResultSet](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-result-set.md).
 
 VALUE and RAW are reserved: quote a field as `"value"` or `"raw"`, or use `d.value`/`d.raw`.
-Bare reserved fields in these positions report `OQL0002`. After AS, projection labels may use
+Bare reserved fields in these positions report `CD00002`. After AS, projection labels may use
 reserved words. [Object](../expressions/object-constructors.md) and
 [array constructors](../expressions/array-constructors.md) can shape named or bare projections.
 
@@ -132,12 +132,18 @@ FROM items WHERE name = 'alpha';
 
 Results are `{"category":"a"}`, `{"category":"b"}`; one bare `null`; bare `"gamma"`;
 and `{"n":"alpha","t":["a",{"x":null},null]}`, respectively. Without DISTINCT, VALUE x
-returns three NULL rows. `SELECT DISTINCT category FROM items ORDER BY name` fails `COHDOC014`.
+returns three NULL rows. `SELECT DISTINCT category FROM items ORDER BY name` fails `CD01014`.
 
 ## See also
 
 [Statements](index.md), [FROM](../clauses/from.md), [Expressions](../expressions/index.md),
 and [Aggregate functions](../functions/aggregate-functions.md).
+
+## Probe costs and indexed intersection
+
+Bounded snapshot-visible index probes choose among eligible accesses; equal costs retain equality-prefix, range, UNIQUE and ordinal-name ties. Comparable complete indexed predicates may intersect ordered document identities before JSON reads, then apply the full predicate. Incomplete inputs keep a single driver. No persisted statistics or ANALYZE command exists.
+
+EXPLAIN can read index metadata for costing but executes no document statement. IndexSeek estimates identify exact visible index-entry counts or lower bounds; IndexIntersection reports the minimum input count as an upper bound. actual_rows stays NULL. See [access design](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#bounded-access-probes-and-intersection).
 
 ## Sources
 

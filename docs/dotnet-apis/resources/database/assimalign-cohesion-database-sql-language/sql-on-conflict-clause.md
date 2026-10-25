@@ -30,13 +30,13 @@ proposed-row relation, with alias EXCLUDED, for binding alongside the original t
 
 These properties add no validation exceptions. Parse returns diagnostics; request/session factories
 reject parser errors with DatabaseParseException. Unsupported inference modifiers, subqueries in
-SET/WHERE, DO SELECT and MySQL/SQLite alternate spellings use COHDBL001. Execution raises
-DatabaseException with COHSQLE035 (42P10) for an absent/nonunique arbiter or untargeted DO UPDATE,
-and COHSQLE036 (21000) for affecting a row twice. Duplicate SET targets use COHSQLE019; ambiguous
-target/EXCLUDED columns use COHSQLE015 and aggregates use COHSQLE017.
+SET/WHERE, DO SELECT and MySQL/SQLite alternate spellings use CK00001. Execution raises
+DatabaseException with CS03035 (42P10) for an absent/nonunique arbiter or untargeted DO UPDATE,
+and CS05036 (21000) for affecting a row twice. Duplicate SET targets use CS01019; ambiguous
+target/EXCLUDED columns use CS01015 and aggregates use CS05017.
 Constraint failures use [SqlConstraintViolationException](../assimalign-cohesion-database-sql/sql-constraint-violation-exception.md)
-with one Error diagnostic: COHSQLE037 (23505) for uniqueness, COHSQLE038 (23514) for CHECK/domain
-checks, COHSQLE039 (23503) for foreign keys, or COHSQLE024 (23502) for NOT NULL.
+with one Error diagnostic: CS03037 (23505) for uniqueness, CS03038 (23514) for CHECK/domain
+checks, CS03039 (23503) for foreign keys, or CS03024 (23502) for NOT NULL.
 
 EXCLUDED holds values after coercion/default/identity allocation. SET expressions all read the
 original target plus proposal. A false/UNKNOWN filter locks but skips the row. RETURNING exposes

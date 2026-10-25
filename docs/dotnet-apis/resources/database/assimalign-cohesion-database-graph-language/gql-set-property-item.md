@@ -12,12 +12,12 @@ public sealed record GqlSetPropertyItem(string Variable, string Property, GqlExp
 ## Behavior and exceptions
 
 Value is a scalar expression evaluated against the current working entity. NULL removes Property;
-INSERT's explicit NULL storage rule remains different. Composite literals are COHDBL001 and
-computed composites COHDBG003. Node and relationship targets are accepted.
+INSERT's explicit NULL storage rule remains different. Composite literals are CK00001 and
+computed composites CG03003. Node and relationship targets are accepted.
 
 The record constructor retains its operands without semantic validation. The planner validates binding
-scope and entity kinds. Unbound targets/invalid direct shapes use COHDBG001; path/group/scalar
-targets use COHDBG003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
+scope and entity kinds. Unbound targets/invalid direct shapes use CG05001; path/group/scalar
+targets use CG03003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
 Parser errors are diagnostics; session text execution rejects them with DatabaseParseException.
 See [SET](../../../../database/graph/language/clauses/set.md).
 

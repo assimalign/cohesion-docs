@@ -25,11 +25,11 @@ diagnostic whose Message equals the exception's Message. It adds no argument-val
 
 | ConstraintKind | Diagnostic code | SQLSTATE mapping |
 | --- | --- | --- |
-| `UNIQUE` or `PRIMARY KEY` | `COHSQLE037` | 23505 |
-| `CHECK` or `DOMAIN` | `COHSQLE038` | 23514 |
-| `FOREIGN KEY` | `COHSQLE039` | 23503 |
-| `NOT NULL` | `COHSQLE024` | 23502 |
-| Any other caller-supplied kind | `COHSQLE038` | 23514 |
+| `UNIQUE` or `PRIMARY KEY` | `CS03037` | 23505 |
+| `CHECK` or `DOMAIN` | `CS03038` | 23514 |
+| `FOREIGN KEY` | `CS03039` | 23503 |
+| `NOT NULL` | `CS03024` | 23502 |
+| Any other caller-supplied kind | `CS03038` | 23514 |
 
 ConstraintName is the declared/generated constraint or index name, or the domain name. Table is
 schema-qualified for row violations and empty for domain CAST/function checks that write no table.
@@ -40,7 +40,7 @@ Direct construction leaves the diagnostic unlocated. During execution, the sessi
 available enclosing statement span without replacing an existing location. The located copy keeps
 an existing inner cause, or the original thrown violation when there is no cause, preserving its
 validator/executor stack. A rejected statement rolls back and leaves an explicit transaction usable.
-Other NOT NULL assignment failures can use DatabaseException with the same COHSQLE024 code.
+Other NOT NULL assignment failures can use DatabaseException with the same CS03024 code.
 
 Over the wire, [SqlClientException](../assimalign-cohesion-database-sql-client/sql-client-exception.md)
 preserves ExecutionFailure, the code-prefixed message and negotiated diagnostics.
@@ -57,7 +57,7 @@ try { await session.ExecuteAsync("INSERT INTO t VALUES (1)"); }
 catch (SqlConstraintViolationException failure) {
     Console.WriteLine(failure.ConstraintName);      // pk_t
     Console.WriteLine(failure.Table);               // dbo.t
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE037
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS03037
     Console.WriteLine(failure.Diagnostics.Count);   // 1
 }
 ```

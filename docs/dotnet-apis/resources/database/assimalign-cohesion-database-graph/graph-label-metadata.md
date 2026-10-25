@@ -19,7 +19,7 @@ requiredness. `GraphIndexMetadata` names a node-property index.
 
 The complete encoded metadata record, including UTF-8 Name and OwningSchema, must fit 8,092
 bytes. Exact fit is accepted; overflow is GraphElementTooLargeException at the catalog and
-structured COHDBG009 through GraphSchema/engine operations. See [metadata limits](catalog-design.md#on-disk-format).
+structured CG02009 through GraphSchema/engine operations. See [metadata limits](catalog-design.md#on-disk-format).
 
 ## Related reference
 

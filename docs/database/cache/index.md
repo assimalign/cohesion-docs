@@ -1,5 +1,7 @@
 # Cache
 
+The `CC` runtime prefix is reserved. Cache retains its existing result vocabulary; no functioning Cache engine is implied. See the [code scheme and registry](../error-codes.md).
+
 Cache is a deferred database model whose current packages contain scaffolding rather than an engine.
 
 > **Status:** Not yet implemented. Cache behavior is outside the database minimum viable product.
@@ -31,6 +33,10 @@ kernel, but does not establish a command contract.
 - **[Database](../index.md)** — model navigation.
 - **[Database overview](../overview.md)** — shared kernel context.
 - **[Database API reference](../../dotnet-apis/resources/database/index.md)** — resource packages.
+
+## Scaffold type
+
+The public Class1 placeholder is sealed. It adds no cache operation or working engine.
 
 ## Sources
 

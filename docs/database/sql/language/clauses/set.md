@@ -18,13 +18,13 @@ SET column_name = { expression | DEFAULT } [ , ...n ]
 ## Remarks
 
 `c = DEFAULT` uses the same [default](default.md) as an omitted INSERT column.
-No default means NULL where allowed, otherwise `COHSQLE024` (SQLSTATE 23502).
+No default means NULL where allowed, otherwise `CS03024` (SQLSTATE 23502).
 For [BY DEFAULT identity](identity.md), SET id = DEFAULT allocates a new value. ALWAYS rejects
-all assignments to its identity column, including DEFAULT, with `COHSQLE025`.
+all assignments to its identity column, including DEFAULT, with `CS03025`.
 
 The measured `UPDATE` subset accepts multiple assignments and an optional `WHERE`.
 Each target may appear only once, using case-insensitive column identity. Repeating a target,
-including an assignment using DEFAULT, reports `COHSQLE019` before writes, even when no row
+including an assignment using DEFAULT, reports `CS01019` before writes, even when no row
 matches. [ON CONFLICT DO UPDATE](on-conflict.md) applies the same duplicate-target rule.
 Expressions read the original row values; assigning NULL stores NULL where allowed. SQL has no
 MISSING value, and NULL does not request a default.
@@ -48,7 +48,7 @@ The conformance case changes Ada's age to `46`.
 UPDATE t SET age = DEFAULT, AGE = 2 WHERE 1 = 0;
 ```
 
-This reports COHSQLE019 and changes no rows. DEFAULT still counts as an assignment.
+This reports CS01019 and changes no rows. DEFAULT still counts as an assignment.
 
 ## See also
 

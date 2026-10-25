@@ -75,9 +75,7 @@ fail with ObjectDisposedException without waiting for outstanding rentals. Closu
 Terminate. A lease cancels and joins admitted exchanges before returning its connector; cancellation
 callback failures cannot skip the join or release of its pool slot.
 
-> **Known gap (#1540):** End or roll back an explicit transaction before disposing the connection.
-> A healthy pooled session retains unfinished transaction state and can pass it to the next renter.
-> Server-reported transaction status and rollback on return are not implemented.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 The pool does not infer connection health from an error code. On failure, the exchange base records
 completion through protected MarkResponseComplete after the complete
@@ -256,6 +254,32 @@ intersection once; DatabaseConnection exposes ServerVersion and Capabilities. SQ
 Diagnostics; Documents retains model Failure and Blob/Key-Value agree no diagnostics. 2.0 retains
 empty Ready; different majors fail. Shared DatabaseClientException maps negotiated wire entries to
 the non-null client exception Diagnostics snapshot. Model payload readers reject malformed UTF-8.
+
+## Transaction status and pool reset
+
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+
+The transaction-status capability uses the existing Ready identifier with a one-byte I/T/E
+postamble after Execute/ExecutePaths completion or a statement failure. Startup Ready remains the
+negotiation payload. The connector detects written Execute (5) and ExecutePaths (64) frames and
+automatically drains status, including for application exchanges using the one-argument
+`DatabaseProtocolExchange` constructor. Applications consume the model response; they no longer
+need to opt into or consume the status postamble. The explicit `transactionStatus` flag can still
+require it.
+
+After a completed result or statement error, the status drain uses a five-second internal token.
+Caller cancellation after the result does not discard an acknowledged committed result or turn
+an acknowledged COMMIT into cancellation. Broken/missing status still discards the connector;
+an original statement error survives a failed status read.
+
+Pool return joins the last lease operation and sends ROLLBACK outside the pool lock. The rollback
+reply and Ready drain each have a five-second internal bound, up to ten seconds total. Idle
+sessions need no reset exchange. New SQL/Graph clients discard sessions against pre-#1540 servers
+without negotiated transaction-status, so those servers are not pooled. A connection loss does
+not prove the outcome of an unacknowledged COMMIT. Other model families do not acquire text
+transaction support from this shared reset path.
+
+See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
 ## Sources
 

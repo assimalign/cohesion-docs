@@ -36,9 +36,9 @@ through their inner predicate.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| COHDOC001 | META(variable) on a quantified variable, including one shadowing the FROM alias, or an aggregate in its collection/predicate |
-| COHDBL001 | Multi-binding quantifiers, ANY AND EVERY, ARRAY/FIRST comprehensions, ODMG FOR ALL/EXISTS or nested SELECT |
-| OQL0010 | Duplicate names within one parsed binding list |
+| CD05001 | META(variable) on a quantified variable, including one shadowing the FROM alias, or an aggregate in its collection/predicate |
+| CK00001 | Multi-binding quantifiers, ANY AND EVERY, ARRAY/FIRST comprehensions, ODMG FOR ALL/EXISTS or nested SELECT |
+| CD00010 | Duplicate names within one parsed binding list |
 
 No SQLSTATE is assigned to these codes. A nested quantifier may reuse an outer name.
 

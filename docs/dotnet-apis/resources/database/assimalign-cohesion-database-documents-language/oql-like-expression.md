@@ -19,7 +19,7 @@ public sealed class OqlLikeExpression : OqlExpression
 
 Operand and Pattern use ordinal Unicode-scalar matching. Null Escape means default backslash; an
 empty evaluated string disables escaping. MISSING precedes non-string/NULL results. Invalid
-evaluated escapes or trailing pattern escapes fail COHDOC013; a malformed literal escape is OQL0002.
+evaluated escapes or trailing pattern escapes fail CD02013; a malformed literal escape is CD00002.
 Evaluation honors cancellation with OperationCanceledException.
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are

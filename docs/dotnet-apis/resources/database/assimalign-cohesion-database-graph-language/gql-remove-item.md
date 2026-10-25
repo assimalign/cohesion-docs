@@ -19,8 +19,8 @@ Location retains the optional source span. The public variants remove a
 [property](gql-remove-property-item.md) or [node labels](gql-remove-labels-item.md).
 
 Accessors add no validation exceptions. The planner validates binding
-scope and entity kinds. Unbound targets/invalid direct shapes use COHDBG001; path/group/scalar
-targets use COHDBG003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
+scope and entity kinds. Unbound targets/invalid direct shapes use CG05001; path/group/scalar
+targets use CG03003. OPTIONAL NULL targets do nothing. The codes have no assigned SQLSTATE.
 Parser errors are diagnostics; session text execution rejects them with DatabaseParseException.
 See [REMOVE](../../../../database/graph/language/clauses/remove.md).
 

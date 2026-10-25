@@ -48,8 +48,7 @@ rental exactly once; Abort discards it. Repeated disposal cannot return a later 
 
 The wrapper caches Database at rental time, so that name remains readable after disposal; IsOpen
 returns false. Its shared DatabaseConnection lease permanently rejects execution after return.
-The shared pool does not reset explicit transactions (known gap #1540): end or roll back any
-explicit transaction before returning its connection. Document wire transactions remain unsupported.
+SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Example
 
@@ -73,11 +72,11 @@ Console.WriteLine(matched); // 1; stored amount is 3
 ```
 
 UPDATE emits no result rows. Invalid path/overlap/stored-JSON results raise DocumentClientException
-with COHDOC016/017/018, respectively, and a completed Failure permits reuse. See
+with CD02016/CD01017/CD02018, respectively, and a completed Failure permits reuse. See
 [UPDATE](../../../../database/document/language/statements/update.md) for NULL/MISSING and version rules.
 
 ExecuteAsync accepts [UPSERT](../../../../database/document/language/statements/upsert.md) and returns
-the number of replaced/inserted pairs, with no rows. COHDOC012 rejects repeated input keys; decoded
+the number of replaced/inserted pairs, with no rows. CD03012 rejects repeated input keys; decoded
 Failure preserves the rental. Generated UTF-8 JSON bytes agree with in-process and InMemory results.
 
 ## Related reference

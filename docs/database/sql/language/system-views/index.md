@@ -21,7 +21,7 @@ These read-only relations join with each other or with stored tables through the
 [N-way INNER/LEFT/CROSS and comma joins](../clauses/join.md). Every system relation in a statement, including
 subqueries and INSERT SELECT sources, reads one immutable catalog image. Snapshot transactions
 use their BEGIN-time image; automatic and ReadCommitted statements capture it at first system
-relation binding. Mutations report `COHSQLE021` (SQLSTATE 25006).
+relation binding. Mutations report `CS04021` (SQLSTATE 25006).
 
 ## Sources
 

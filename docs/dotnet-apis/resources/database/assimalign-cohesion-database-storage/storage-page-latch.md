@@ -9,7 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Storage`.
 ```csharp
 public sealed class StoragePageLatch
 {
-    public static StoragePageLatch Create();
+    public StoragePageLatch();
     public void EnterRead();
     public void EnterRead(CancellationToken cancellationToken);
     public void ExitRead();
@@ -41,7 +41,7 @@ The token controls acquisition only; after success the caller releases with Exit
 This follows the successful tokened read path in StoragePageLatchTests:
 
 ```csharp
-var latch = StoragePageLatch.Create();
+var latch = new StoragePageLatch();
 latch.EnterRead(cancellationToken);
 try
 {
@@ -59,6 +59,10 @@ cancel queued readers while the writer remains held and verify that no shared ho
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md) · [BTreeCursor](../assimalign-cohesion-database-indexing/b-tree-cursor.md)
+
+## Construction migration
+
+Use new StoragePageLatch(); the parameterless static Create factory is removed. Read/write acquisition and rollback-latch ownership are unchanged.
 
 ## Sources
 

@@ -35,6 +35,10 @@ The following public declarations are taken from the C# source.
 
 [Parent: Database](../index.md)
 
+## Analyzer context
+
+[QueryAnalyzerContext](query-analyzer-context.md) is a sealed parser-owned context.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.

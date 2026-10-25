@@ -26,10 +26,10 @@ a match wins, otherwise a NULL operand/candidate yields UNKNOWN, and an empty qu
 
 A completed list or subquery membership result may feed another predicate, as in
 `1 IN (1) IN (TRUE)` or `1 IN (SELECT id FROM t) = TRUE`. Other non-associative
-predicate chains retain SQL0003 at their second operator. See [precedence](../../../../database/sql/language/expressions/operators.md).
+predicate chains retain CS00003 at their second operator. See [precedence](../../../../database/sql/language/expressions/operators.md).
 
 Request/session factories reject parser errors with DatabaseParseException. Query width and set
-width failures use COHSQLE013; incompatible set types use COHSQLE003 (42804). Existing correlation,
+width failures use CS05013; incompatible set types use CS02003 (42804). Existing correlation,
 parameter and depth rules apply. See [Subqueries](../../../../database/sql/language/expressions/subqueries.md).
 
 ## Example

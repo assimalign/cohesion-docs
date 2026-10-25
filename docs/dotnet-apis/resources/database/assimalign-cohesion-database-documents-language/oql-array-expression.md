@@ -21,10 +21,10 @@ Evaluation preserves element order and converts MISSING to JSON null without rem
 Validation and grouping visit every element; parameters are bound even for an empty source or
 an unevaluated branch. Elements can include objects, arrays and aggregate expressions where allowed.
 
-A SELECT constructor result over 256 levels raises DatabaseException with `COHDOC015` at its span,
+A SELECT constructor result over 256 levels raises DatabaseException with `CD05015` at its span,
 including nested stored/parameter values and the named projection wrapper. INSERT keeps its
-128-level storage limit (`COHDOC008`). Malformed text and recursive parsing limits are statement
-diagnostics (`OQL0002`/`OQL0005`), not constructor exceptions.
+128-level storage limit (`CD02008`). Malformed text and recursive parsing limits are statement
+diagnostics (`CD00002`/`CD00005`), not constructor exceptions.
 
 ## Example
 

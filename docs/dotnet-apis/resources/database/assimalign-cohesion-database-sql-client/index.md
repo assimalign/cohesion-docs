@@ -52,7 +52,7 @@ the client has no dependency on the SQL engine, catalog or storage implementatio
   with widening numeric getters.
 - **`SqlClientException` + `SqlClientErrorKind`** — a SQL-scoped failure taxonomy mapped
   from the core's wire codes, with a `ConnectionUsable` flag.
-  Result encoding/preparation failures use COHSQLE045 (54000 for size refusals). A partial read
+  Result encoding/preparation failures use CS05045 (54000 for size refusals). A partial read
   result is discarded; write results prepare before commit and a failure rolls back only the
   statement. The connection and explicit transaction remain usable. See [result delivery](design.md#lifecycle-errors-and-telemetry).
 - **`SqlClientObserver`** — an allocation-free telemetry hook fired around every command.

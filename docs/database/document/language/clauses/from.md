@@ -18,7 +18,7 @@ FROM collection_name [ [ AS ] iteration_variable ]
 | One collection | Supported | Required source |
 | `AS iteration_variable` or `iteration_variable` | Supported | Optional path qualifier |
 | `COHESION_SCHEMA` source | Supported | Reserved current-database metadata collection |
-| `JOIN` | Recognized, not supported (`COHDBL001`) | No multi-source query |
+| `JOIN` | Recognized, not supported (`CK00001`) | No multi-source query |
 
 ## Arguments
 
@@ -44,7 +44,7 @@ case-insensitive, including fully quoted names, while JSON field names remain ca
 
 [UNNEST and LEFT UNNEST](unnest.md) can follow the one collection source. They expand arrays
 before WHERE; a missing alias defaults to the final named path step. Bindings must be unique,
-including the reserved unaliased collection name (OQL0010 in text, COHDOC023 in a direct AST).
+including the reserved unaliased collection name (CD00010 in text, CD01023 in a direct AST).
 The unaliased collection name does not become an implicit path variable.
 
 ## Examples

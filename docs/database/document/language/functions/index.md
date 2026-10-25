@@ -9,7 +9,7 @@ OQL implements 34 SQL++ scalar functions, five aggregates and META over document
 
 Each aggregate takes one argument, and only `COUNT` accepts `*`. Function names are
 case-insensitive. The Documents planner and executor validate placement, grouping, and values.
-Unknown functions produce `OQL0008`; deferred calls such as REGEXP_LIKE produce `COHDBL001`.
+Unknown functions produce `CD00008`; deferred calls such as REGEXP_LIKE produce `CK00001`.
 
 ## See also
 

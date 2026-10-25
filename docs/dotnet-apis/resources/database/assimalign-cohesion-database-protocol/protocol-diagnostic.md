@@ -21,8 +21,8 @@ wire fields and throws ProtocolException for malformed entries.
 
 ```csharp
 var entry = new ProtocolDiagnostic(ProtocolDiagnosticSeverity.Warning,
-    "COHDBG010", "Unknown label", 9, 15, 1);
-Console.WriteLine(entry.Code); // COHDBG010
+    "CG01010", "Unknown label", 9, 15, 1);
+Console.WriteLine(entry.Code); // CG01010
 ```
 
 ## Related reference

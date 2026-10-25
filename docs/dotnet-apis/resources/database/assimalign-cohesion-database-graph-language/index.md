@@ -16,7 +16,7 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
-- **[GqlStage](gql-stage.md)** — Source-ordered stage family and eager execution.
+- **[GqlStage](gql-stage.md)** — Source-ordered stage family and source-ordered execution.
 - **[GqlMatchStage](gql-match-stage.md)** — MATCH/OPTIONAL MATCH over incoming rows.
 - **[GqlLetStage](gql-let-stage.md)** — Sequential value bindings.
 - **[GqlFilterStage](gql-filter-stage.md)** — TRUE-only stage filtering.
@@ -81,7 +81,7 @@ See the [source-backed usage examples](examples/index.md).
 The supported surface is fixed/quantified `MATCH`/`OPTIONAL MATCH` paths in one or several clauses, scalar Boolean/arithmetic filters with parameters,
 RETURN expressions/aliases, scalar functions/CAST, CASE/COALESCE/NULLIF, list/map values with subscripts/member access,
 DISTINCT and star, standalone RETURN, implicit/ISO GROUP BY, aggregates, ORDER BY, OFFSET/SKIP and LIMIT, `INSERT`, `CREATE` as an insertion compatibility extension, and restricted or
-cascading deletion. Unsupported features produce `COHDBL001`; malformed supported syntax produces
+cascading deletion. Unsupported features produce `CK00001`; malformed supported syntax produces
 stable `GQL` diagnostics. The parser does not throw for malformed query text.
 
 `Read` [DESIGN.md](design.md) for the standard decision, exact clause matrix, AST model, bounds,
@@ -94,6 +94,10 @@ diagnostic codes, and the conformance corpus's relationship to ISO GQL.
 | `Assimalign.Cohesion.Database.Language` | `CohesionProjectReference` |
 
 [Parent: Database](../index.md)
+
+## Transaction AST
+
+[GqlTransactionCommand](gql-transaction-command.md) identifies parsed transaction controls on GqlQueryExpression.TransactionCommand.
 
 ## Sources
 

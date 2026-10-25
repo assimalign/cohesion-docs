@@ -24,7 +24,7 @@ MISSING from either operand; a NULL/non-array right operand gives NULL. NULL IN 
 for a valued operand an empty array gives FALSE. Both overloads retain child references. Operand MISSING/NULL
 retains its state. For a present operand, a structural match wins, then NULL, then MISSING, then
 FALSE. Negated reverses only Boolean results. Invalid context/list shapes are rejected while
-planning with COHDOC001.
+planning with CD05001.
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are
 read-only snapshots. Always inspect statement diagnostics before planning; execution performs

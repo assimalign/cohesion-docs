@@ -16,18 +16,18 @@ DROP DOMAIN domain_name [ ; ]
 
 ## Remarks
 
-A missing domain reports COHSQLD001, a dependent column/definition/view COHSQLD002, and an
-engine-registered type COHSQLD003 (0A000). COHSQLD002 maps to 2BP01; COHSQLD001 has no assigned
+A missing domain reports CS03301, a dependent column/definition/view CS03302, and an
+engine-registered type CS03303 (0A000). CS03302 maps to 2BP01; CS03301 has no assigned
 SQLSTATE. Ordinary DDL cannot
 drop schema-owned definitions. IF EXISTS and CASCADE are outside this syntax. Dropping a domain
 performs no scalar NULL or MISSING evaluation.
 
 These definitions are database-local and self-committing. DDL inside an explicit transaction
-reports COHSQLT003 before publication. After CREATE or DROP commits, mandatory definition refresh
+reports CS04003 before publication. After CREATE or DROP commits, mandatory definition refresh
 uses CancellationToken.None and returns success despite late caller cancellation or statement-timeout
 expiration. A lost connection can still lose that response. Later invocations use their own
-statement token. Before commit, execution can fail with COHSQLE043 (57014) or a contended lock wait
-with COHSQLE044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
+statement token. Before commit, execution can fail with CS05043 (57014) or a contended lock wait
+with CS04044 (55P03); see [timeouts](../diagnostics.md#statement-and-lock-timeouts).
 
 ## Example
 
@@ -39,8 +39,8 @@ DROP DOMAIN positive;
 SELECT CAST(1 AS positive);
 ```
 
-CREATE and DROP succeed with affected count zero; the later CAST fails with COHSQLE010 (42704)
-because the type is absent. A column using positive would instead block the DROP with COHSQLD002.
+CREATE and DROP succeed with affected count zero; the later CAST fails with CS02010 (42704)
+because the type is absent. A column using positive would instead block the DROP with CS03302.
 
 ## See also
 

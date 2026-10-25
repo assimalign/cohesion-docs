@@ -21,10 +21,10 @@ This parser-created action has no public constructor. Its read-only properties r
 payload; property access performs no execution or semantic validation. It is the Action of a
 [SqlAlterTableExpression](sql-alter-table-expression.md).
 
-Identity columns use COHSQLE025. Later writes without a usable default into a NOT NULL column use
-COHSQLE024 (23502).
+Identity columns use CS03025. Later writes without a usable default into a NOT NULL column use
+CS03024 (23502).
 Engine failures are DatabaseException diagnostics. No SQLSTATE is assigned above unless stated.
-All actions retain ownership checks and refuse explicit transactions with COHSQLT003, leaving
+All actions retain ownership checks and refuse explicit transactions with CS04003, leaving
 that transaction usable. Malformed text returns parser diagnostics; execution rejects it with
 DatabaseParseException.
 

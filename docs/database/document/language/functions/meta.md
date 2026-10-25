@@ -13,12 +13,12 @@ META ( [ iteration_variable ] ) . { id | version }
 META().id returns the document's string key; META().version returns its version as a decimal value.
 When supplied, the argument must be the SELECT or DELETE source alias. META accepts zero or one argument and
 only id/version members, on stored collection sources. Invalid member, arity, alias or system-source
-context is `COHDOC001`. The metadata values are present, not NULL/MISSING. META is also available
+context is `CD05001`. The metadata values are present, not NULL/MISSING. META is also available
 inside an INSERT SELECT source; it is not a VALUES source.
 In [DELETE](../statements/delete.md), META predicates filter snapshot candidates and do not provide
 a document-key lookup access path.
 
-META on an UNNEST or quantified variable reports COHDOC001, including when a quantifier shadows
+META on an UNNEST or quantified variable reports CD05001, including when a quantifier shadows
 the FROM alias. META() and META(source_alias) still refer to the stored source document after
 expansion.
 

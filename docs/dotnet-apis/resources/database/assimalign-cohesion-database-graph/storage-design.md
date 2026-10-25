@@ -108,10 +108,10 @@ arrays, nested objects or overflow chains. Nodes and relationships are immutable
 UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
 complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2 and 3 are refused before logical
-recovery scrub with COHDBG017 and the recreation remedy; there is no upgrade reader. Graph records
+recovery scrub with CG06017 and the recreation remedy; there is no upgrade reader. Graph records
 and tree registrations use version 4; catalog and B-tree page formats are unchanged. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
-COHDBS003 and COHDBG018 in
+CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 No SQLSTATE is assigned.
 
@@ -196,7 +196,7 @@ worker's safe bound passes. Label postings follow the same lifecycle.
 Opening follows this order:
 
 1. `GraphStorage.Open(..., checkpointOnOpen: false)` runs shared physical recovery.
-2. Run GraphStore.EnsureIndexFormat before scrub, refusing older graph records/registrations with COHDBG017 and incompatible B-trees.
+2. Run GraphStore.EnsureIndexFormat before scrub, refusing older graph records/registrations with CG06017 and incompatible B-trees.
 3. With the coordinator constructed, call `AnalyzeAndScrub()` to undo unproven record writers.
 4. `GraphStore.Open` loads owner-two record directories and owner-one registrations.
 5. `RecoverIndexesAsync(plan.Aborted)` scrubs aborted index writers and deleters.
@@ -225,7 +225,18 @@ conflict. Relationship insertion checks latest endpoint existence, so a concurre
 property update alone does not cause a conflict. See [GraphStore](graph-store.md).
 
 
+## Confirmed decoding and page reuse
+
+A record shorter than the 18-byte graph format header reports located truncation corruption
+(`CK06003`), preserving its page, slot and `EndOfStreamException` cause. It does not receive the
+unsupported-format `CG06017` code or recreation advice. A readable unsupported version still
+uses that format refusal.
+
+Record reads confirm their private bytes against a page write sequence before accepting a result or reporting a decode failure. Overlapping forward writes and rollback cause a retry. Stable malformed records retain page/slot context and the decoder cause through storage corruption translation. The shared record layer compacts fragmented pages before extension and refills partly empty older pages through in-memory free-byte hints, rechecking allocation generation and capacity. These changes preserve the stored format. See [shared record-layer behavior](../assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
 ## Sources
+
+- **Header truncation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Storage/GraphRecordCodec.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs`.
 
 - **Label lifecycle and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/Storage/GraphStoreLabelTests.cs`.
 

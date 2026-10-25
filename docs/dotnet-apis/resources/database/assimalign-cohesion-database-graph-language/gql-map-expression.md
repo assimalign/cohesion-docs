@@ -17,13 +17,13 @@ public sealed class GqlMapExpression : GqlExpression
 
 Copies entries in source order. Evaluation creates a read-only ordinal string dictionary and
 retains nested values and NULLs. Constructor acceptance is not semantic validation. A null entry list,
-null keys, duplicate ordinal keys or missing value expressions fail planning with COHDBG001.
-Text duplicate keys use GQL0006. Evaluated bounds/errors use COHDBG013; stored properties remain
-scalar-only (COHDBG003 for composite parameters, COHDBL001 for composite syntax).
+null keys, duplicate ordinal keys or missing value expressions fail planning with CG05001.
+Text duplicate keys use CG00006. Evaluated bounds/errors use CG02013; stored properties remain
+scalar-only (CG03003 for composite parameters, CK00001 for composite syntax).
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.
-Possible composite wire results require graph.composite-values under protocol 2.1 (COHDBG016
+Possible composite wire results require graph.composite-values under protocol 2.1 (CG07016
 without it, before reads/writes; no assigned SQLSTATE). See the [language reference](../../../../database/graph/language/expressions/map-values.md).
 
 ## Example

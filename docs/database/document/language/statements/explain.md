@@ -12,11 +12,12 @@ EXPLAIN { select_statement | insert_statement | upsert_statement | update_statem
 
 Normal binding, parameter validation and provisioning admission apply to the wrapped statement. No
 document is read by its data executor or inserted, even if the surrounding transaction commits. DDL,
-nested EXPLAIN and ANALYZE are excluded with `COHDBL001`. Planning failures keep their codes.
+nested EXPLAIN and ANALYZE are excluded with `CK00001`. Planning failures keep their codes.
 
 The [shared eight-column shape](../../../sql/language/statements/explain.md) is node_id, parent_id,
 operator, target, index, detail, estimated_rows and actual_rows. Nodes appear in depth-first
-pre-order; estimates and actual counts are NULL. Operators include CollectionScan, IndexSeek,
+pre-order; available index-entry estimates are populated and actual counts remain NULL.
+Operators include CollectionScan, IndexSeek, IndexIntersection,
 SystemCollection, Insert, InsertSelect, Upsert, UpsertSelect, Update and Delete. IndexSeek reports its selected index and bounds.
 Documents sends one JSON Document per row, including explicit null members. A test guard checks
 that every plan record has a description mapping; this does not admit DDL under EXPLAIN.
@@ -58,6 +59,12 @@ score < 10`. The second includes Insert; no fresh document is created.
 ## See also
 
 [Statements](index.md) · [SELECT](select.md) · [INSERT](insert.md) · [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
+
+## Probe costs and indexed intersection
+
+Bounded snapshot-visible index probes choose among eligible accesses; equal costs retain equality-prefix, range, UNIQUE and ordinal-name ties. Comparable complete indexed predicates may intersect ordered document identities before JSON reads, then apply the full predicate. Incomplete inputs keep a single driver. No persisted statistics or ANALYZE command exists.
+
+EXPLAIN can read index metadata for costing but executes no document statement. IndexSeek estimates identify exact visible index-entry counts or lower bounds; IndexIntersection reports the minimum input count as an upper bound. actual_rows stays NULL. See [access design](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#bounded-access-probes-and-intersection).
 
 ## Sources
 

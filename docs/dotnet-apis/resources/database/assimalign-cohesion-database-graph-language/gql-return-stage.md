@@ -24,16 +24,16 @@ public sealed record GqlReturnStage(IReadOnlyList<GqlProjection> Projections,
 
 IsWith distinguishes intermediate WITH from RETURN. SetQuantifier defaults to All; GroupBy null
 means implicit keys and an empty list means GROUP BY (). Predicate belongs only to WITH and
-executes after sorting/paging; a hand-built RETURN predicate uses COHDBG001. A statement cannot
+executes after sorting/paging; a hand-built RETURN predicate uses CG05001. A statement cannot
 end with WITH or place NEXT immediately after it. Constructors retain supplied operands without
-semantic validation; null/missing mandatory operands fail planning with COHDBG001.
+semantic validation; null/missing mandatory operands fail planning with CG05001.
 
 WITH and RETURN … NEXT carry aliases/bare variables only, including decoded names under star.
-Duplicate carried names use COHDBG015. Unaliased computed items are accepted without a later
+Duplicate carried names use CG01015. Unaliased computed items are accepted without a later
 binding. Entity kinds, optionality, composite possibilities and Int64 COUNT metadata survive.
 Without DISTINCT/aggregation, WITH ORDER BY/WHERE also sees incoming bindings; projected aliases
 shadow them. DISTINCT/aggregation restricts WHERE to projected names. Aggregate calls in WHERE
-use COHDBG001; aggregate aliases remain usable. Counts retain COHDBG013 validation. These codes
+use CG05001; aggregate aliases remain usable. Counts retain CG02013 validation. These codes
 have no assigned SQLSTATE. See [WITH](../../../../database/graph/language/clauses/with.md).
 
 ## Example

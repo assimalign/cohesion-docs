@@ -41,7 +41,7 @@ VALUE/RAW uses one `value` column. The engine converts top-level MISSING to NULL
 projected ordering and result counting. InMemory/TCP and embedded byte results agree. GetBytes(0)
 for bare rows returns JSON, including quoted strings and `null`; lone star preserves raw stored
 bytes. Named strings use unquoted UTF-8 and named NULL/MISSING uses empty memory. SELECT constructors
-execute to 256 levels (`COHDOC015`); DISTINCT ordering outside the projection uses `COHDOC014`.
+execute to 256 levels (`CD05015`); DISTINCT ordering outside the projection uses `CD01014`.
 
 ExecuteAsync returns affected count: inserted/deleted document count, zero for DDL, -1 for reads. Collection
 operations return names; server-side session-bound collection handles do not cross the wire.
@@ -50,7 +50,7 @@ removed. Expected-version checks retain engine semantics. OQL INSERT is insert-o
 
 [UPSERT](../../../../database/document/language/statements/upsert.md) uses the same Execute exchange,
 returning written-pair count without Document frames. Existing keys are replaced; repeated input
-keys fail COHDOC012, retaining diagnostics and a reusable connection. Generated INSERT/UPSERT,
+keys fail CD03012, retaining diagnostics and a reusable connection. Generated INSERT/UPSERT,
 constructor and VALUE/RAW bytes use the engine's one RFC 8259 encoder: literal UTF-8 Unicode with
 only quotes, backslashes and control characters escaped. Wire framing is unchanged.
 
@@ -69,20 +69,20 @@ discard it. Mutations canceled after publication can have unknown outcomes.
 
 OQL UPDATE also uses Complete without Document frames; AffectedCount is the matched count,
 including unchanged matches. Every match receives a new version. QueryAsync returns empty Columns,
-Documents and rows. SET/UNSET path failures (COHDOC016), target overlaps (COHDOC017) and invalid/deep
-patched storage JSON (COHDOC018) have no assigned SQLSTATE and use the same reusable Failure path.
+Documents and rows. SET/UNSET path failures (CD02016), target overlaps (CD01017) and invalid/deep
+patched storage JSON (CD02018) have no assigned SQLSTATE and use the same reusable Failure path.
 See [UPDATE](../../../../database/document/language/statements/update.md).
 
 Server failure text is bounded to 4096 UTF-16 characters and diagnostics to 256, with explicit
 truncation/omission markers. Retained codes/spans stay intact. See the complete
-[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for COHDOC001–023 and
+[OQL diagnostic table](../../../../database/document/language/diagnostics.md) for Documents execution codes and
 parser codes; all these statement refusals use the same structured Failure carrier.
 
 The [34 scalar functions](../../../../database/document/language/functions/scalar-functions.md)
 share embedded execution semantics. COUNT, LENGTH, POSITION, ARRAY_LENGTH and epoch-millisecond
 functions decode Int64 columns to long, including metadata on empty grouped results. Mixed numeric
 columns promote to Decimal; heterogeneous columns normalize numeric cells to Decimal. Domain errors
-such as SQRT(-1) retain COHDOC019 (no SQLSTATE) through Failure and leave the connection reusable.
+such as SQRT(-1) retain CD02019 (no SQLSTATE) through Failure and leave the connection reusable.
 
 Dispose returns a healthy rental once. Abort discards it. Operation registration shares the
 wrapper's teardown lock, so repeated disposal cannot return a later rental of the same connection.
@@ -101,7 +101,7 @@ and model-specific security policies remain unsupported.
 
 OQL [LIMIT/OFFSET](../../../../database/document/language/clauses/limit-offset.md) uses ordinary JSON
 parameters. Complete counts returned Document frames and query AffectedCount stays -1. Empty pages
-retain columns, IsDocumentQuery and static function types. Invalid counts preserve OQL0007 and
+retain columns, IsDocumentQuery and static function types. Invalid counts preserve CD00007 and
 the operand span over InMemory and TCP; the authenticated session remains reusable.
 
 ## Array query results
@@ -113,7 +113,7 @@ elements remain null. Without expansion, star retains the stored bytes. Grouped 
 expanded rows retains Int64 metadata and values.
 
 ANY/SOME/EVERY and array IN use the same result encoding. Duplicate parsed binding names retain
-OQL0010; direct AST duplicate/empty bindings use COHDOC023. Neither code has an assigned SQLSTATE.
+CD00010; direct AST duplicate/empty bindings use CD01023. Neither code has an assigned SQLSTATE.
 These failures use the existing structured Failure carrier and leave the connection reusable.
 
 ## Rental isolation
@@ -122,7 +122,7 @@ DocumentConnection wraps a new shared lease for each rental; the pool retains on
 Database is captured before return, allowing operation diagnostics to finish after the core lease
 is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
 reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
-for disposal, shutdown and the explicit-transaction reset gap (#1540).
+for disposal, shutdown and SQL/Graph transaction-status reset.
 
 ## Queued terminal errors
 

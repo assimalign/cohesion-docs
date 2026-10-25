@@ -18,12 +18,12 @@ public sealed class GqlNullIfExpression : GqlExpression
 Stores both operands without semantic constructor validation. Both evaluate once. TRUE equality
 returns NULL; otherwise Left retains its runtime type. Equality uses exact numeric and structural
 three-valued comparison, so UNKNOWN does not replace Left. Missing operands fail planning with
-COHDBG001; evaluated value/access errors use COHDBG013. NULLIF is a case abbreviation, outside
+CG05001; evaluated value/access errors use CG02013. NULLIF is a case abbreviation, outside
 the function registry.
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.
-Possible composite wire results require graph.composite-values under protocol 2.1 (COHDBG016
+Possible composite wire results require graph.composite-values under protocol 2.1 (CG07016
 without it, before reads/writes; no assigned SQLSTATE). See the [language reference](../../../../database/graph/language/expressions/nullif.md).
 
 ## Example

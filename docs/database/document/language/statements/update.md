@@ -70,15 +70,15 @@ CollectionScan/IndexSeek child without writing.
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
-| `OQL0002` | Missing SET/UNSET, malformed path or assignment, qualified database target or leftover syntax | — |
-| `COHDBL001` | USE KEYS, RETURNING, LIMIT, FOR or a nested SELECT | — |
-| `COHDOC001` | Invalid metadata or aggregate context | — |
-| `COHDOC002` | Collection does not exist | — |
-| `COHDOC004` | Read-only system collection target | — |
-| `COHDOC005` | Unbound parameter, including on empty input | — |
-| `COHDOC016` | Invalid target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
-| `COHDOC017` | Duplicate or prefix-overlapping targets after alias normalization | — |
-| `COHDOC018` | Patched JSON is invalid or exceeds storage's 128-level depth | — |
+| `CD00002` | Missing SET/UNSET, malformed path or assignment, qualified database target or leftover syntax | — |
+| `CK00001` | USE KEYS, RETURNING, LIMIT, FOR or a nested SELECT | — |
+| `CD05001` | Invalid metadata or aggregate context | — |
+| `CD01002` | Collection does not exist | — |
+| `CD04004` | Read-only system collection target | — |
+| `CD01005` | Unbound parameter, including on empty input | — |
+| `CD02016` | Invalid target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
+| `CD01017` | Duplicate or prefix-overlapping targets after alias normalization | — |
+| `CD02018` | Patched JSON is invalid or exceeds storage's 128-level depth | — |
 
 Other expressions retain their [normal diagnostics](../diagnostics.md). A leaf-value depth failure
 locates the failing target; whole-document validation uses the statement span.
@@ -109,7 +109,7 @@ UPDATE updates UNSET missing_array[0].name;
 ```
 
 The first two statements each affect one document, leaving `extra` as `{"deep":{}}`.
-The third fails with COHDOC016 and changes nothing because missing_array is absent.
+The third fails with CD02016 and changes nothing because missing_array is absent.
 
 Use [UPSERT](upsert.md) for whole-document replacement. Newly encoded SET values use the
 shared [RFC 8259 UTF-8 encoder](select.md#json-bytes).

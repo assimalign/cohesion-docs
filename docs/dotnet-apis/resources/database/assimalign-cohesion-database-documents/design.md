@@ -117,8 +117,8 @@ for signatures, examples and NULL/MISSING rules. Calls validate every argument/c
 lazy conditionals evaluate only through their selected argument. Functions are not index seek bounds.
 String indexing counts code points. Constructed strings/work buffers cap at 1,048,576 UTF-16 units.
 ROUND uses exact digits once, including at negative scales. SQRT and fractional POWER calculate in
-double and convert through round-trip text to Decimal. Function domain failures use COHDOC019
-(no assigned SQLSTATE); overflow/string limits use COHDOC007 (22003).
+double and convert through round-trip text to Decimal. Function domain failures use CD02019
+(no assigned SQLSTATE); overflow/string limits use CD02007 (22003).
 
 Each explicit transaction captures one UTC clock instant, reused by NOW_STR/NOW_MILLIS across
 statements; autocommit captures one per statement. Strings use yyyy-MM-ddTHH:mm:ss.fffZ.
@@ -171,7 +171,7 @@ stays unchanged.
 The sources are read-only. `CREATE INDEX` and `DROP INDEX` targeting either source, and
 `CreateCollectionAsync` or `DropCollectionAsync` using either reserved name, throw
 `DatabaseException` with `System collection '<canonical source>' is read-only.` before ordinary
-catalog lookup or mutation with COHDOC004. OQL INSERT, UPSERT, UPDATE and DELETE execute for stored collections; system targets use COHDOC004. Virtual sources do not provide
+catalog lookup or mutation with CD04004. OQL INSERT, UPSERT, UPDATE and DELETE execute for stored collections; system targets use CD04004. Virtual sources do not provide
 mutable `IDocumentCollection` handles.
 
 ### Stored document queries
@@ -180,7 +180,7 @@ The supported clause matrix lives in the language package's
 [DESIGN.md](../assimalign-cohesion-database-documents-language/design.md) . SELECT, FROM, WHERE,
 GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN, collection and index DDL execute. Nested queries
 and database administration statements are rejected with
-`COHDBL001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
+`CK00001`. The parser advertises only clauses this executor supports. AST diagnostics are checked
 both for text requests and directly constructed requests.
 
 Projection supports whole documents, nested field paths, zero-based array element paths, literals,
@@ -197,9 +197,9 @@ VALUE/RAW produces one bare `value` column and normalizes a root MISSING to NULL
 projected ordering and completion counting. Named projections omit MISSING object members; array
 elements become JSON null. DISTINCT uses grouping's structural collation, retains the first value,
 and runs after projection and before ordering. Ordering outside the projection after alias rewriting
-is `COHDOC014` (no SQLSTATE). SELECT constructors allow 256 result levels, including nested
-parameters/stored values and a named wrapper; exceeding this is `COHDOC015` at the constructor
-(no SQLSTATE). INSERT retains its 128-level JSON limit and `COHDOC008`.
+is `CD01014` (no SQLSTATE). SELECT constructors allow 256 result levels, including nested
+parameters/stored values and a named wrapper; exceeding this is `CD05015` at the constructor
+(no SQLSTATE). INSERT retains its 128-level JSON limit and `CD02008`.
 
 The internal DocumentRowWriter maps every result to one JSON value on every transport: named lists
 become objects, VALUE/RAW stays bare, mixed star becomes a `document` member and lone star preserves
@@ -233,8 +233,8 @@ they do not retain a transaction or borrowed storage memory after execution.
 
 [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
 carries Limit and Offset. Planning checks nonnegative Int64 counts before collection lookup,
-including EXPLAIN/direct AST calls. Invalid counts, including NULL, use OQL0007; missing parameters
-retain COHDOC005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
+including EXPLAIN/direct AST calls. Invalid counts, including NULL, use CD00007; missing parameters
+retain CD01005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
 pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes only the page.
 
 ## `Index` planning and writes
@@ -263,14 +263,14 @@ Successful index DDL returns a command `DatabaseResult` with `Success` status an
 zero; index definition changes are not document-row mutations.
 
 The physical planner uses applicable equality/range predicates on indexed paths, including parameter
-values, reversed operands, and conjunctive bounds. Choice ranks longest leading equality prefix,
+values, reversed operands, and conjunctive bounds. Bounded snapshot-visible probes rank candidate costs first; ties use longest leading equality prefix,
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
 records use v2; v1 indexes are refused before recovery writes with a recreate remedy and no upgrade.
 UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
-DocumentConstraintViolationException/COHDOC020 (23505); array/object components use COHDOC021.
-Direct path counts outside 1..32 use COHDOC022. Constraints are immediate per row; failed explicit
+DocumentConstraintViolationException/CD03020 (23505); array/object components use CD02021.
+Direct path counts outside 1..32 use CD03022. Constraints are immediate per row; failed explicit
 transactions require RollbackAsync. Conditional CREATE keeps any same-named definition; conditional
 DROP ignores an absent index. Snapshot conflicts precede no-ops; an existing schema-owned index
 still refuses DROP. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
@@ -292,7 +292,7 @@ snapshot conflicts, tombstones content and removes catalog/index entries in one 
 Rollback restores both documents and index visibility; older snapshots can still read deleted
 documents. A later conflict rolls back earlier deletions; failure in an explicit transaction aborts
 all its work. No WHERE deletes every document while retaining the collection and index definitions.
-Schema ownership permits content deletion, system sources use COHDOC004 and absent targets COHDOC002.
+Schema ownership permits content deletion, system sources use CD04004 and absent targets CD01002.
 Success reports deleted count with no Document frames. No format or protocol version changes.
 
 Nested objects, arrays, and scalar roots are accepted. JSON validation and exact byte-preservation
@@ -316,8 +316,8 @@ container members can normalize; surviving members keep order and new members ap
 order. Missing objects can be created for SET. Every index requires an existing in-range array,
 including removal paths beneath missing members. UNSET of an absent member is a no-op; UNSET cannot
 end in an index. SET-to-MISSING removes object members or writes null to existing array elements.
-COHDOC016 identifies invalid targets/shapes, COHDOC017 normalized duplicate/prefix overlaps and
-COHDOC018 invalid stored JSON or a patched depth beyond 128. No SQLSTATE is assigned to these codes.
+CD02016 identifies invalid targets/shapes, CD01017 normalized duplicate/prefix overlaps and
+CD02018 invalid stored JSON or a patched depth beyond 128. No SQLSTATE is assigned to these codes.
 
 ## Lifecycle and durability
 
@@ -391,7 +391,7 @@ then Complete with two Int64 fields: result count and affected count. ResultRow 
 Command 69 carries CRUD/collection operations, StoredDocument 70 and Collection 71 carry responses,
 and Failure 72 is terminal without Complete. Malformed UTF-8 is rejected. See the codec pages for
 payload validation and [OQL diagnostics](../../../../database/document/language/diagnostics.md) for
-COHDOC001–022, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
+Documents execution codes, including collection ownership, duplicate keys, LIKE errors, DISTINCT ordering,
 SELECT constructor depth, UPDATE target/overlap/stored-JSON failures and scalar domain errors.
 
 The formatter retains one encoded frame, with backpressure supplied by TCP. InMemory can queue
@@ -457,7 +457,7 @@ demonstrated by tests exercising the public factory through that base interface.
 ## UPSERT and generated JSON bytes
 
 [UPSERT](../../../../database/document/language/statements/upsert.md) shares INSERT validation and
-the Put write primitive. Inputs materialize before writes; repeated keys fail COHDOC012 with
+the Put write primitive. Inputs materialize before writes; repeated keys fail CD03012 with
 `Document key 'a' appears more than once in one statement.` Whole-document versions and indexes
 change atomically. Shared validation messages name INSERT or UPSERT as written.
 
@@ -474,9 +474,9 @@ star constructs owned objects keyed by binding names. Quantifiers use inner lexi
 true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
 Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
 
-FROM/UNNEST names are unique, reserving the unaliased source name (OQL0010 in text, COHDOC023
+FROM/UNNEST names are unique, reserving the unaliased source name (CD00010 in text, CD01023
 for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
-an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
+an array/quantifier variable is CD05001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
 the profile executes 31 of 32 declared clauses.
 
@@ -484,8 +484,8 @@ the profile executes 31 of 32 declared clauses.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
-| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain COHDBD003 | — |
+| `CD06103` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `CK06003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original cause; refused opens also retain CD06103 | — |
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
 aggregate causes. Damaged reads fail instead of omitting documents; legitimate reclamation retains
@@ -495,23 +495,23 @@ connection usable. See [DatabaseCorruptionException](../assimalign-cohesion-data
 This is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
 with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
-a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBD003.
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to CD06103.
 
 ## Database creation, open and drop
 
 File-backed Documents databases require their original document.dat, document.log and document.bak.
-Create and open refuse a missing journal or backup with COHDBD003 in DatabaseException.Diagnostics;
+Create and open refuse a missing journal or backup with CD06103 in DatabaseException.Diagnostics;
 neither operation recreates a sidecar, even beside an empty, cleanly closed database. Preserve an
 ambiguous file set and restore the complete backup: a lost journal can contain acknowledged commits.
 
-A leftover directory without its data file is DatabaseNotFoundException on open, retaining COHDBD003.
+A leftover directory without its data file is DatabaseNotFoundException on open, retaining CD06103.
 A data file no larger than one page is an incomplete create, since successful creation flushes two
 pages. These known incomplete cases direct DropDatabaseAsync followed by CreateDatabaseAsync;
 ordinary create does not adopt them. Drop removes document.dat before deleting the remaining directory.
 
 A partial final data page goes through WAL recovery. An uncommitted torn extension at the tail is
 tolerated and overwritten by the next allocation, preserving committed content. Unrecoverable
-corruption uses DatabaseCorruptionException / COHDBS003 with COHDBD003 retained as an additional
+corruption uses DatabaseCorruptionException / CK06003 with CD06103 retained as an additional
 diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
 without drop or backup advice. The shared storage format is 4; this does not change Document record formats.
@@ -547,27 +547,27 @@ file-set refusal, crash recovery and transient-open cases.
 Content chunk failures return from storage to the engine's failure handler. It orders the
 operation completion gate, transaction end gate and coordinator apply gate, so exactly one abort
 runs even when failure races rollback or session disposal. Earlier chunks and statements are
-undone together. An explicit session refuses commands with COHDBD001 until the caller rolls back.
+undone together. An explicit session refuses commands with CD04101 until the caller rolls back.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHDBD004` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
-| `COHDBD005` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
-| `COHDOC024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
-| `COHDOC025` | DROP INDEX finds no index without IF EXISTS | — |
-| `COHDOC026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
+| `CD06104` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
+| `CD06105` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
+| `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `CD01025` | DROP INDEX finds no index without IF EXISTS | — |
+| `CD02026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
 
 Child-root storage, catalog and index failures cross the engine boundary as DatabaseException
 with Error diagnostics and the original InnerException. Explicit and automatic transaction begin
-use the same translator. Wrapped I/O keeps COHDBD004. Attached-index corruption instead uses
-DatabaseCorruptionException, leading with COHDBS003 and retaining COHDBI002 and COHDBD005.
+use the same translator. Wrapped I/O keeps CD06104. Attached-index corruption instead uses
+DatabaseCorruptionException, leading with CK06003 and retaining CK06102 and CD06105.
 Existing offline/unconfirmed-commit classifications remain in force. An I/O open failure releases
 acquired resources, publishes no database and permits retry after resolution.
 
 A failed operation aborts an explicit transaction; roll it back before further work. In autocommit
-the next statement can run immediately. COHDBD001 is in Diagnostics with an ordinary embedded
+the next statement can run immediately. CD04101 is in Diagnostics with an ordinary embedded
 message. The wire adds its prefix and returns ExecutionFailure with diagnostics, preserving the
-connection. Index-name/key-size user failures retain their distinct COHDOC024–026 diagnostics.
+connection. Index-name/key-size user failures retain their distinct CD03024, CD01025 and CD02026 diagnostics.
 
 ### Cleanup diagnostics
 
@@ -652,6 +652,14 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Bounded access probes and intersection
+
+Candidate index paths use BTreeIndex.CountRange under the statement snapshot, bounded to 512 physical entries and 32 page visits. Complete counts measure visible index entries, which can exceed JSON candidate identities; incomplete probes are lower bounds. Ties retain prefix/range/UNIQUE/name rules. Ordinary execution skips a probe when only one path is eligible; EXPLAIN can probe that sole input for its estimate.
+
+Comparable complete inputs can intersect ordinal, deduplicated document identities before any JSON read. The chosen inputs add constrained paths and are bounded in number; incomplete inputs keep one driver. The merge stops when empty and the complete predicate still filters surviving documents. SELECT, UPDATE, DELETE and INSERT/UPSERT SELECT share access selection; mutations stage identities before writes. Results remain materialized.
+
+EXPLAIN labels IndexSeek estimates exact_index_entries or lower_bound with probe_entries/probe_pages. IndexIntersection's minimum-input estimate is an upper bound, not joint selectivity. actual_rows stays NULL. No persisted statistics, ANALYZE command, disk-format or wire change is added. DocumentAccessCostTests covers skewed choices, pre-JSON intersection and mutation semantics.
 
 ## Sources
 

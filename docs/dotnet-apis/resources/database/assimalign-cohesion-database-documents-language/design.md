@@ -14,7 +14,7 @@ DocumentQueryRequest and session execution reject all parser errors before plann
 have a 128-level recursive parse bound. [OqlFunctions](oql-functions.md) is the immutable table of
 META, five aggregates and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
 records arity, JSON kinds and result type; [OqlCallExpression](oql-call-expression.md) retains calls.
-Unknown calls report OQL0008, invalid arity/star OQL0006 and deferred calls COHDBL001.
+Unknown calls report CD00008, invalid arity/star CD00006 and deferred calls CK00001.
 
 ## SQL++ values
 
@@ -25,7 +25,7 @@ WHERE/HAVING/AND/OR/NOT/searched WHEN share SQL++ truth conversion: nonzero numb
 strings/arrays/objects are true. See the [truth tables](../../../../database/document/language/expressions/missing.md).
 
 OqlLiteralExpression.Value holds parsed numbers as JsonElement tokens, preserving every digit until
-engine validation. Lossy decimal conversion is COHDOC007 (22003), malformed syntax OQL0004.
+engine validation. Lossy decimal conversion is CD02007 (22003), malformed syntax CD00004.
 OqlInExpression, OqlBetweenExpression, OqlLikeExpression and OqlCaseExpression retain their operands,
 negation, optional escape or ordered branches. LIKE is ordinal, Unicode-scalar based and cancellable.
 Object constructors retain keyed members; META binds stored-document id/version.
@@ -42,8 +42,8 @@ capability names. Constructors validate and group recursively; text parsing keep
 OqlClauses.Limit (`LIMIT`) and Offset (`OFFSET`) enable final SELECT paging.
 [OqlSelectExpression](oql-select-expression.md) retains optional Limit and Offset operands, after
 IsValue in its constructor. Both survive alias rewriting. Counts are nonnegative Int64 integer
-literals or parameters; NULL is invalid. Invalid values use located OQL0007 during parsing or
-planning; missing values use COHDOC005. LIMIT m, n is COHDBL001; use LIMIT n OFFSET m.
+literals or parameters; NULL is invalid. Invalid values use located CD00007 during parsing or
+planning; missing values use CD01005. LIMIT m, n is CK00001; use LIMIT n OFFSET m.
 Either clause may come first. INSERT/UPSERT SELECT consumes the final page; DML VALUES, UPDATE
 and DELETE paging remain unsupported.
 
@@ -51,28 +51,28 @@ and DELETE paging remain unsupported.
 
 [OqlUpsertExpression](oql-upsert-expression.md) uses INSERT's KEY/VALUE shapes with a distinct
 OqlClauses.Upsert capability. VALUES or materialized SELECT input replaces whole documents.
-Repeated keys use DocumentDuplicateKeyException/COHDOC012 with a statement-specific message.
-EXPLAIN includes Upsert/UpsertSelect. OPTIONS and RETURNING remain excluded with COHDBL001.
+Repeated keys use DocumentDuplicateKeyException/CD03012 with a statement-specific message.
+EXPLAIN includes Upsert/UpsertSelect. OPTIONS and RETURNING remain excluded with CK00001.
 
 ## Partial updates
 
 [OqlUpdateExpression](oql-update-expression.md) retains Collection, Alias, Assignments, Unset and
 Predicate. [OqlUpdateAssignment](oql-update-assignment.md) retains a Path and Value. OqlClauses.Update
 and OqlClauses.Unset enable UPDATE and UNSET. SET precedes optional UNSET; UNSET alone is valid.
-Every value reads the original document. Invalid targets/shapes use COHDOC016, normalized overlaps
-COHDOC017 and invalid/deep patched JSON COHDOC018; none has an assigned SQLSTATE. Missing arrays
+Every value reads the original document. Invalid targets/shapes use CD02016, normalized overlaps
+CD01017 and invalid/deep patched JSON CD02018; none has an assigned SQLSTATE. Missing arrays
 and out-of-range indices fail for removals too. SET-to-MISSING removes named members or writes null
-to existing array elements. USE KEYS, RETURNING, LIMIT, FOR and nested queries remain COHDBL001.
+to existing array elements. USE KEYS, RETURNING, LIMIT, FOR and nested queries remain CK00001.
 
 ## Names and reservations
 
 Collection, property, alias and parameter names preserve case; keywords are case-insensitive.
 Double-quoted collection, property and alias names decode doubled `""` to one embedded quote.
 The shared lexer retains one raw token; OQL verifies its closing delimiter before unescaping.
-An escaped final quote without a closing delimiter reports OQL0003. See
+An escaped final quote without a closing delimiter reports CD00003. See
 [lexical examples](../../../../database/document/language/syntax-conventions.md#delimited-identifier-example).
 The shared parameter contract accepts $name/@name/$n with ASCII numeric names, case-sensitive
-bare-name binding and one stripped key sigil. Collisions are COHDOC009; unbound values COHDOC005.
+bare-name binding and one stripped key sigil. Collisions are CD01009; unbound values CD01005.
 
 DEFINE, ELEMENT, FLATTEN, STRUCT, LIST, BAG, LISTTOSET and TYPEOF are ordinary field names. Their
 retired command/call positions remain rejected. MISSING/VALUED and CASE/WHEN/THEN/ELSE/END/ESCAPE
@@ -93,19 +93,19 @@ validates every branch and parameter even when CASE/logic would skip it at runti
 SELECT/INSERT/UPSERT/UPDATE/DELETE, invokes normal planning/admission, and returns DatabasePlanDescription without writes.
 
 [Language reference](../../../../database/document/language/index.md) documents all executable syntax.
-[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and COHDOC001–026
+[Diagnostics](../../../../database/document/language/diagnostics.md) lists parser and Documents execution codes
 codes with source SQLSTATE categories. Each public node is linked from the [assembly index](index.md).
-Database lifecycle failures additionally use COHDBD003 for missing sidecars, incomplete creation or
+Database lifecycle failures additionally use CD06103 for missing sidecars, incomplete creation or
 unrecoverable files, with no assigned SQLSTATE. See [file diagnostics](../../../../database/document/language/diagnostics.md#database-files).
 
-Detected storage damage uses COHDBS003 / DatabaseCorruptionException with database and optional
-page context; refused opens also retain COHDBD003. A damaged read fails instead of omitting a
+Detected storage damage uses CK06003 / DatabaseCorruptionException with database and optional
+page context; refused opens also retain CD06103. A damaged read fails instead of omitting a
 document. Wire execution failure carries the diagnostic and leaves the connection usable.
-COHDBS003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
+CK06003 has no assigned SQLSTATE; follow its verified-backup recovery advice.
 
-Storage failures additionally carry COHDBD004; catalog/index failures carry COHDBD005.
-Wrapped I/O retains COHDBD004, including during open. Attached-index corruption retains
-COHDBI002 and COHDBD005 beside COHDBS003. COHDBD001 is a structured aborted-transaction
+Storage failures additionally carry CD06104; catalog/index failures carry CD06105.
+Wrapped I/O retains CD06104, including during open. Attached-index corruption retains
+CK06102 and CD06105 beside CK06003. CD04101 is a structured aborted-transaction
 refusal. These codes have no assigned SQLSTATE. The wire returns ExecutionFailure with
 diagnostics and preserves the connection; explicit transactions require rollback after failure.
 
@@ -114,7 +114,7 @@ diagnostics and preserves the connection; explicit transactions require rollback
 [Scalar functions](../../../../database/document/language/functions/scalar-functions.md) propagate
 MISSING before NULL, except TYPE and lazy conditionals. Known incompatible literals fail planning;
 wrong-kind stored values return NULL. SQRT/POWER domain failures and fractional ROUND/TRUNC scales
-use COHDOC019 (no assigned SQLSTATE); fractional REPLACE counts use COHDOC008.
+use CD02019 (no assigned SQLSTATE); fractional REPLACE counts use CD02008.
 COUNT/LENGTH/POSITION/ARRAY_LENGTH and epoch milliseconds expose Int64 metadata and long values.
 NOW_STR/NOW_MILLIS share the transaction-start UTC instant; output strings end in Z.
 
@@ -122,13 +122,13 @@ NOW_STR/NOW_MILLIS share the transaction-start UTC instant; output strings end i
 
 [OqlCreateIndexExpression](oql-create-index-expression.md) snapshots ordered Paths and retains
 IsUnique/IfNotExists; Path is its leading member. [OqlDropIndexExpression](oql-drop-index-expression.md)
-adds IfExists while preserving its preceding constructor. The parser caps keys at 32 with OQL0009
-at the 33rd path; direct AST planning uses COHDOC022. Duplicate paths are OQL0002 in text.
+adds IfExists while preserving its preceding constructor. The parser caps keys at 32 with CD00009
+at the 33rd path; direct AST planning uses CD03022. Duplicate paths are CD00002 in text.
 The catalog stores all index definitions and registrations as v2 and refuses v1 before recovery
-writes, with a recreate remedy and no upgrade. UNIQUE failures are COHDOC020 (23505) or
-COHDOC021 (non-scalar component), carried by the catalog-owned constraint exception.
-Unconditional duplicate CREATE uses COHDOC024, absent unconditional DROP uses COHDOC025,
-and an encoded composite key beyond 1,024 bytes uses COHDOC026. The engine carries these in
+writes, with a recreate remedy and no upgrade. UNIQUE failures are CD03020 (23505) or
+CD02021 (non-scalar component), carried by the catalog-owned constraint exception.
+Unconditional duplicate CREATE uses CD03024, absent unconditional DROP uses CD01025,
+and an encoded composite key beyond 1,024 bytes uses CD02026. The engine carries these in
 DatabaseException.Diagnostics with the original catalog cause, aborting an explicit transaction
 until rollback. Autocommit can run the next statement. These codes have no assigned SQLSTATE.
 
@@ -140,9 +140,9 @@ star constructs owned objects keyed by binding names. Quantifiers use inner lexi
 true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
 Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
 
-FROM/UNNEST names are unique, reserving the unaliased source name (OQL0010 in text, COHDOC023
+FROM/UNNEST names are unique, reserving the unaliased source name (CD00010 in text, CD01023
 for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
-an array/quantifier variable is COHDOC001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
+an array/quantifier variable is CD05001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
 the profile executes 31 of 32 declared clauses.
 
@@ -161,7 +161,7 @@ public static class OqlClauses
 These constant reads have no exceptions. SOME uses Any. OqlLanguageProfile.Instance advertises
 all four; `OqlLanguageProfile.Instance.Supports(OqlClauses.LeftUnnest)` returns true. IN's existing
 capability now also admits an array operand. Malformed text still returns parser diagnostics;
-duplicate bindings use OQL0010 and direct SELECT AST duplicates/empty names use COHDOC023.
+duplicate bindings use CD00010 and direct SELECT AST duplicates/empty names use CD01023.
 
 ## Sources
 

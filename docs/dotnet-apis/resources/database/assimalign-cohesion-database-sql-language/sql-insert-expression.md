@@ -27,13 +27,13 @@ produces SqlSetOperationExpression in SelectSource. Width/type mismatches fail b
 IsDefaultValues identifies INSERT DEFAULT VALUES, inserting one row with every column omitted. Both
 Values and SelectSource are null in that form; the optional column list is retained. Ordinary VALUES
 may contain SqlDefaultExpression items. The parser owns construction. Invalid DEFAULT placement is
-SQL0003; NOT NULL failures use COHSQLE024 (23502).
+CS00003; NOT NULL failures use CS03024 (23502).
 
 OnConflict is null for an ordinary INSERT, otherwise the parser-owned
 [SqlOnConflictClause](sql-on-conflict-clause.md). It applies to VALUES, DEFAULT VALUES and query
 sources. Execution binds an arbiter and the original target plus EXCLUDED proposal; RETURNING
 projects only inserted/post-update target rows and counts them together. Missing arbiters use
-COHSQLE035 (42P10); repeated row effects use COHSQLE036 (21000). See
+CS03035 (42P10); repeated row effects use CS05036 (21000). See
 [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md) for constraint and retry rules.
 
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
@@ -55,7 +55,7 @@ Console.WriteLine(node.IsDefaultValues); // True
 Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
 binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
 DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
-use COHSQLE017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use COHDBL001.
+use CS05017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use CK00001.
 See [RETURNING](../../../../database/sql/language/clauses/returning.md).
 
 ```csharp

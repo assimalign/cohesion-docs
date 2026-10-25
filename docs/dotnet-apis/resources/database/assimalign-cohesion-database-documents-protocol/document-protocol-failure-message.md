@@ -29,7 +29,7 @@ response completion.
 ## Example
 
 ```csharp
-var message = new DocumentProtocolFailureMessage(ProtocolErrorCode.ExecutionFailure, "COHDOC002: Missing collection", []);
+var message = new DocumentProtocolFailureMessage(ProtocolErrorCode.ExecutionFailure, "CD01002: Missing collection", []);
 var decoded = DocumentProtocolFailureMessage.Decode(message.Encode());
 Console.WriteLine(decoded.Code); // ExecutionFailure
 ```

@@ -24,7 +24,7 @@ With an aggregate, every nonaggregate RETURN item is an implicit grouping key. O
 Cypher-style implicit grouping, or list exactly those distinct keys in any order. A plain name
 resolves to a RETURN name first, including a shadowing alias. An aggregate item's alias is invalid
 as a grouping name. Other key expressions retain input scope. Structurally duplicated RETURN keys
-count once; duplicate explicit keys or a different key set fail COHDBG001.
+count once; duplicate explicit keys or a different key set fail CG05001.
 
 GROUP BY without an aggregate eliminates duplicate keys. GROUP BY () creates one group even for
 an empty match. Empty input with one or more keys returns no rows. Keys compare with exact numeric,
@@ -41,13 +41,13 @@ reduces match/candidate limits or mutation inputs.
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `GQL0002` | Malformed GROUP BY list |
-| `COHDBG001` | Key mismatch/duplicate key, aggregate grouping alias, nested/misplaced aggregate or ungrouped RETURN/ORDER BY reference |
-| `COHDBL001` | HAVING or intermediate WITH composition |
+| `CG00002` | Malformed GROUP BY list |
+| `CG05001` | Key mismatch/duplicate key, aggregate grouping alias, nested/misplaced aggregate or ungrouped RETURN/ORDER BY reference |
+| `CK00001` | HAVING or intermediate WITH composition |
 
 No SQLSTATE is assigned to these grouping errors. Missing key parameters and invalid runtime
 inputs retain their [normal diagnostics](../diagnostics.md). ExecutePaths rejects GROUP BY with
-COHDBG001; grouped scalar/list/map results use Execute/QueryAsync.
+CG05001; grouped scalar/list/map results use Execute/QueryAsync.
 
 ## Examples
 

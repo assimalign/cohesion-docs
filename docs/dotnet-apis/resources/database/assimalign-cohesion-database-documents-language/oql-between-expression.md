@@ -19,7 +19,7 @@ public sealed class OqlBetweenExpression : OqlExpression
 
 Operand, Lower and Upper form an inclusive same-kind scalar range. MISSING takes precedence over
 NULL from any of them. Negated preserves unknown results. Constant path bounds can seek an index.
-Invalid grouping/aggregate contexts fail COHDOC001.
+Invalid grouping/aggregate contexts fail CD05001.
 
 These AST constructors retain child references and do not execute a query. Parser-produced lists are
 read-only snapshots. Always inspect statement diagnostics before planning; execution performs

@@ -48,6 +48,10 @@ linger. Clients consume a queued Error before the next request. See
 [Protocol counters](design.md#protocol-eventsource) measure batched transport attempts and pooled
 buffer ownership, including work before a listener attaches.
 
+## Statement transaction status
+
+[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated one-byte Ready postamble; ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/docs/OVERVIEW.md`.

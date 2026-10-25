@@ -19,15 +19,15 @@ public abstract class GraphRequest : DatabaseRequest
 Construction is restricted to the two graph request leaves. Their constructors fix statement,
 parameter dictionary and result shape. Statement cannot be null (ArgumentNullException in the leaf
 constructor). Parameters are optional and retain the caller's dictionary; planning normalizes by
-ordinal bare name and validates referenced values. Collisions are COHDBG014, absent references
-COHDBG001 and unsupported/non-finite values COHDBG003. Null is a binding and unused values are
+ordinal bare name and validates referenced values. Collisions are CG01014, absent references
+CG05001 and unsupported/non-finite values CG03003. Null is a binding and unused values are
 ignored. Parameters can occur in maps, WHERE and RETURN. [Row requests](graph-query-request.md)
 support standalone/computed projections and DISTINCT; [path requests](graph-paths-query-request.md)
 require one bare entity/path binding, including DISTINCT or star over one named binding.
 
 Referenced list/map parameter trees are snapshotted once per execution, with depth 64, 65,536
 values including root and 16 MiB encoded bytes. Invalid dimensions/cycles/leaves or bounds use
-COHDBG003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
+CG03003 before reads/writes. Stored property-map values remain scalar-only. Wire parameters
 use [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) only when graph.composite-values is negotiated;
 path payloads are unchanged. Unused values remain ignored by engine planning.
 
@@ -42,6 +42,10 @@ Console.WriteLine(request.Parameters!["age"]); // 18 (Int32)
 ## Related reference
 
 [GraphQueryRequest](graph-query-request.md) · [GraphPathsQueryRequest](graph-paths-query-request.md) · [Assembly](index.md)
+
+## Execution limits
+
+The public GraphQueryLimits? Limits getter carries optional lower limits on embedded row/path requests. Existing overloads leave it null. See [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
 
 ## Sources
 

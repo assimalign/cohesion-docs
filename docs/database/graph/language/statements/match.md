@@ -25,7 +25,7 @@ MATCH binds graph variables using fixed or quantified node and relationship patt
 | `DELETE`, `DETACH DELETE` | Supported | Delete bound elements |
 | `OPTIONAL MATCH` | Supported | Preserve unmatched inputs with NULL for new variables |
 | Multiple `MATCH` clauses | Supported | Source-ordered product joined on shared variables |
-| `MANDATORY MATCH` | Recognized, not supported (`COHDBL001`) | Outside the profile |
+| `MANDATORY MATCH` | Recognized, not supported (`CK00001`) | Outside the profile |
 
 ## Arguments
 
@@ -42,7 +42,7 @@ variable bindings within a clause.
 Repeated variable names enforce element identity equality. A variable cannot represent both a node
 and a relationship.
 
-Result names must be unique ordinally; duplicate RETURN names fail COHDBG015 before data access,
+Result names must be unique ordinally; duplicate RETURN names fail CG01015 before data access,
 even on empty matches. WHERE/RETURN numeric comparisons and IN use exact represented values,
 agreeing with DISTINCT; arithmetic keeps its own promotion. See [Operators](../expressions/operators.md).
 
@@ -54,11 +54,11 @@ a later optional cannot restore it. A NULL binding cannot match a later pattern.
 and label tests on a NULL binding yield NULL; `IS NULL` yields TRUE. Graph has no MISSING value.
 
 DELETE ignores NULL bindings and counts only deleted entities. INSERT with a NULL endpoint fails
-with `COHDBG003` and rolls back the statement. Path requests reject projections bound only by
-optional clauses with `COHDBG001`, even when all data would match; a binding constrained by a
+with `CG03003` and rolls back the statement. Path requests reject projections bound only by
+optional clauses with `CG05001`, even when all data would match; a binding constrained by a
 mandatory clause can be returned as a path.
 
-Unknown labels/types in an optional clause warn with `COHDBG010`/`COHDBG011` and null-extend
+Unknown labels/types in an optional clause warn with `CG01010`/`CG01011` and null-extend
 that clause's input. A later unmatched mandatory clause can still empty the result.
 
 The planner first anchors on a node bound by an earlier path or clause at any pattern position,
@@ -135,12 +135,11 @@ order. The repeated MATCH query returns `(Alice, Bob)`. In an empty database,
 
 With 1,001 isolated `N` nodes, `MATCH (a:N) OPTIONAL MATCH (b)-[]->(a) RETURN a.name, b.name`
 examines 2,002 candidates in the test corpus, down from 1,003,002 before bound-node anchoring.
-The 100,000 intermediate-binding and 1,000,000 statement-candidate limits still apply across clauses
-(`COHDBG004`); this is a measured fixture, not a general complexity guarantee.
+The configured memory/work budgets apply across clauses; this is a measured fixture, not a general complexity guarantee.
 
 The RETURN tail accepts [ORDER BY](../clauses/order-by.md) and
 [OFFSET/SKIP before LIMIT](../clauses/limit-offset.md), including supported path projections.
-Paging does not reduce matching bounds.
+Unordered read LIMIT can stop upstream matching. Paging never reduces an admitted mutation set.
 
 ## See also
 

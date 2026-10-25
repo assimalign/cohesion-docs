@@ -30,20 +30,20 @@ for pagination. Tied sort keys preserve input order; include further keys when t
 depends on distinguishing ties.
 
 Paging applies to scalar/composite rows and supported path projections. It never reduces the
-mutation set: insertion executes for every matched binding even when LIMIT is zero. Full
-materialization and the match/candidate caps remain in force. A LIMIT 1 query exceeding 100,000
-matches still fails with COHDBG004. EXPLAIN validates counts before returning SortPage plan rows.
+mutation set: insertion executes for every matched binding even when LIMIT is zero. For reads, LIMIT without ORDER BY can stop upstream expansion, including LIMIT 0 before
+the first move. Final results remain materialized under the statement memory budget. Ordered
+finite pages retain a top set bounded by OFFSET + LIMIT; the physical-work budget still applies. EXPLAIN validates counts before returning SortPage plan rows.
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `GQL0002` | Negative, floating or nonnumeric literal, repeated paging clause, OFFSET/SKIP after LIMIT, or ordering after paging |
-| `GQL0004` | Integer literal exceeds Int64 |
-| `COHDBL001` | Standalone paging before RETURN |
-| `COHDBG001` | Missing parameter; checked before reads or writes |
-| `COHDBG003` | Non-finite or unsupported CLR parameter during binding |
-| `COHDBG013` | Bound graph value is not an integral CLR count in range; rejected before reads or writer locking, including EXPLAIN and empty matches |
+| `CG00002` | Negative, floating or nonnumeric literal, repeated paging clause, OFFSET/SKIP after LIMIT, or ordering after paging |
+| `CG00004` | Integer literal exceeds Int64 |
+| `CK00001` | Standalone paging before RETURN |
+| `CG05001` | Missing parameter; checked before reads or writes |
+| `CG03003` | Non-finite or unsupported CLR parameter during binding |
+| `CG02013` | Bound graph value is not an integral CLR count in range; rejected before reads or writer locking, including EXPLAIN and empty matches |
 
 No new diagnostic code or SQLSTATE is introduced. See [diagnostics](../diagnostics.md).
 
@@ -58,7 +58,7 @@ MATCH (a:Person) RETURN a.name LIMIT 0;
 ```
 
 The first returns Bob and Isolated. With start = integral 1 and rows = integral 2, the second
-returns the same sequence. The third returns zero rows. `RETURN 1 LIMIT 2 OFFSET 1` is GQL0002.
+returns the same sequence. The third returns zero rows. `RETURN 1 LIMIT 2 OFFSET 1` is CG00002.
 
 ## See also
 

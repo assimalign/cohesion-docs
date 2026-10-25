@@ -1,89 +1,91 @@
 # Diagnostics
 
+Documents uses `CD` across syntax, binding, value, schema, transaction, execution, storage, protocol and lifecycle categories. See the [code scheme and registry](../../error-codes.md).
+
 OQL reports coded parser, planner and execution failures with available source locations.
 
 ## Parser codes
 
 | Code | Meaning |
 | --- | --- |
-| `COHDBL001` | Recognized form outside the executable SQL++ subset |
-| `OQL0001` | Empty/comment-only statement |
-| `OQL0002` | Malformed syntax, identifier, path, parameter, literal LIKE escape or multiple statements |
-| `OQL0003` | Unterminated string, quoted identifier or block comment |
-| `OQL0004` | Malformed numeric literal syntax |
-| `OQL0005` | More than 128 recursive expression parse levels |
-| `OQL0006` | Invalid function arity or star operand; only COUNT accepts star |
-| `OQL0007` | Invalid LIMIT/OFFSET count at its operand, during parsing or planning; NULL is invalid |
-| `OQL0008` | Unknown function name; span covers its name after arguments are parsed |
-| `OQL0010` | Duplicate name in one FROM/UNNEST or quantifier binding list; span covers the repeated name or inferred final path step |
-| `OQL0009` | Index exceeds 32 key paths; located at the 33rd path |
+| `CK00001` | Recognized form outside the executable SQL++ subset |
+| `CD00001` | Empty/comment-only statement |
+| `CD00002` | Malformed syntax, identifier, path, parameter, literal LIKE escape or multiple statements |
+| `CD00003` | Unterminated string, quoted identifier or block comment |
+| `CD00004` | Malformed numeric literal syntax |
+| `CD00005` | More than 128 recursive expression parse levels |
+| `CD00006` | Invalid function arity or star operand; only COUNT accepts star |
+| `CD00007` | Invalid LIMIT/OFFSET count at its operand, during parsing or planning; NULL is invalid |
+| `CD00008` | Unknown function name; span covers its name after arguments are parsed |
+| `CD00010` | Duplicate name in one FROM/UNNEST or quantifier binding list; span covers the repeated name or inferred final path step |
+| `CD00009` | Index exceeds 32 key paths; located at the 33rd path |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
-underflows, or loses nonzero fractional digits fails during planning/evaluation as COHDOC007,
+underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
 rather than being rounded by the parser.
 
 ## Engine codes
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
-| `COHDOC001` | Invalid statement, index definition, expression, metadata or grouping context | — |
-| `COHDOC002` | Collection does not exist | — |
-| `COHDOC003` | Duplicate projected name; supply distinct aliases | — |
-| `COHDOC004` | System collection is read-only | — |
-| `COHDOC005` | Referenced parameter has no value | — |
-| `COHDOC006` | Division or remainder by zero | 22012 |
-| `COHDOC007` | Numeric value cannot fit decimal exactly, scalar overflow, or string result/work buffer exceeds 1,048,576 UTF-16 units | 22003 |
-| `COHDOC008` | Invalid operand/parameter type, document key or JSON value | — |
-| `COHDOC009` | Caller keys collide after one leading parameter sigil is stripped | — |
-| `COHDOC010` | CREATE COLLECTION finds an existing collection without IF NOT EXISTS | 42P07 |
-| `COHDOC011` | DROP COLLECTION targets a schema-owned collection, including IF EXISTS | — |
-| `COHDOC012` | INSERT finds an existing key, or INSERT/UPSERT repeats a key in one statement | — |
-| `COHDOC013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
-| `COHDOC014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
-| `COHDOC015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
-| `COHDOC016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
-| `COHDOC017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
-| `COHDOC018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
-| `COHDOC019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
-| `COHDOC020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
-| `COHDOC021` | Array/object UNIQUE key component | — |
-| `COHDOC023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
-| `COHDOC022` | Index path count outside 1..32 in a direct AST/catalog call | — |
-| `COHDOC024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
-| `COHDOC025` | DROP INDEX finds no index without IF EXISTS | — |
-| `COHDOC026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
+| `CD05001` | Invalid statement, index definition, expression, metadata or grouping context | — |
+| `CD01002` | Collection does not exist | — |
+| `CD01003` | Duplicate projected name; supply distinct aliases | — |
+| `CD04004` | System collection is read-only | — |
+| `CD01005` | Referenced parameter has no value | — |
+| `CD02006` | Division or remainder by zero | 22012 |
+| `CD02007` | Numeric value cannot fit decimal exactly, scalar overflow, or string result/work buffer exceeds 1,048,576 UTF-16 units | 22003 |
+| `CD02008` | Invalid operand/parameter type, document key or JSON value | — |
+| `CD01009` | Caller keys collide after one leading parameter sigil is stripped | — |
+| `CD03010` | CREATE COLLECTION finds an existing collection without IF NOT EXISTS | 42P07 |
+| `CD03011` | DROP COLLECTION targets a schema-owned collection, including IF EXISTS | — |
+| `CD03012` | INSERT finds an existing key, or INSERT/UPSERT repeats a key in one statement | — |
+| `CD02013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
+| `CD01014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
+| `CD05015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
+| `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
+| `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
+| `CD02018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
+| `CD02019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
+| `CD03020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
+| `CD02021` | Array/object UNIQUE key component | — |
+| `CD01023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
+| `CD03022` | Index path count outside 1..32 in a direct AST/catalog call | — |
+| `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `CD01025` | DROP INDEX finds no index without IF EXISTS | — |
+| `CD02026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
 
 [Scalar functions](functions/scalar-functions.md) validate literal kinds and contexts with
-COHDOC001 before reading documents. A wrong-kind stored argument produces NULL. Fractional
-REPLACE counts use COHDOC008; COHDOC019 has no assigned SQLSTATE. Evaluation failures abort an
+CD05001 before reading documents. A wrong-kind stored argument produces NULL. Fractional
+REPLACE counts use CD02008; CD02019 has no assigned SQLSTATE. Evaluation failures abort an
 explicit transaction.
 
 For example, repeating `INSERT INTO items (KEY, VALUE) VALUES ('a', 1)` on the same visible
-collection reports COHDOC012. A malformed static escape such as ESCAPE 'ab' is OQL0002 instead
-of COHDOC013. Ordinary NULL and MISSING results are values, not diagnostics.
+collection reports CD03012. A malformed static escape such as ESCAPE 'ab' is CD00002 instead
+of CD02013. Ordinary NULL and MISSING results are values, not diagnostics.
 
-COHDOC016–018 have no assigned SQLSTATE. [UPDATE](statements/update.md) reports target locations
+CD02016, CD01017 and CD02018 have no assigned SQLSTATE. [UPDATE](statements/update.md) reports target locations
 where available and validates all patched documents before the first write.
 
 INSERT/UPSERT repeated-key failures use `Document key 'a' appears more than once in one statement.`
-(COHDOC012, no SQLSTATE). Other shared key/value, binding and JSON validation messages name the
+(CD03012, no SQLSTATE). Other shared key/value, binding and JSON validation messages name the
 written verb, including UPSERT. See [UPSERT diagnostics](statements/upsert.md#diagnostics).
 
-Paging count errors retain OQL0007 and the operand span over the wire; unbound parameters retain
-COHDOC005. Neither code has an assigned SQLSTATE. [LIMIT/OFFSET](clauses/limit-offset.md)
-distinguishes syntax errors (OQL0002) and the unsupported comma spelling (COHDBL001).
+Paging count errors retain CD00007 and the operand span over the wire; unbound parameters retain
+CD01005. Neither code has an assigned SQLSTATE. [LIMIT/OFFSET](clauses/limit-offset.md)
+distinguishes syntax errors (CD00002) and the unsupported comma spelling (CK00001).
 
-[CREATE INDEX](statements/create-index.md) uses COHDOC020 for duplicate valued scalar keys during
-writes/builds, COHDOC021 for array/object UNIQUE components, and COHDOC022 for direct AST/catalog
-path counts outside 1..32. COHDOC021/022 and OQL0009 have no assigned SQLSTATE. Constraints are
+[CREATE INDEX](statements/create-index.md) uses CD03020 for duplicate valued scalar keys during
+writes/builds, CD02021 for array/object UNIQUE components, and CD03022 for direct AST/catalog
+path counts outside 1..32. CD02021/CD03022 and CD00009 have no assigned SQLSTATE. Constraints are
 immediate per row; a failed explicit transaction requires RollbackAsync. These constraint failures
-are distinct from DocumentDuplicateKeyException/COHDOC012 (document identity collisions).
+are distinct from DocumentDuplicateKeyException/CD03012 (document identity collisions).
 
 [Array bindings](clauses/unnest.md) reserve the unaliased collection name for duplicate checks.
-OQL0010 and COHDOC023 have no assigned SQLSTATE. META on an UNNEST/quantified variable, including
-one shadowing the source alias, uses COHDOC001. Quantifiers may shadow outer bindings.
+CD00010 and CD01023 have no assigned SQLSTATE. META on an UNNEST/quantified variable, including
+one shadowing the source alias, uses CD05001. Quantifiers may shadow outer bindings.
 
-Index-name/key-size failures use DatabaseException with structured COHDOC024–026 diagnostics
+Index-name/key-size failures use DatabaseException with structured CD03024, CD01025 and CD02026 diagnostics
 and the original DocumentCatalogException. They abort an explicit transaction; roll back before
 continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
 
@@ -113,37 +115,37 @@ UTF-8/payloads and message order are protocol violations. The client exception r
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| `COHDBD004` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
-| `COHDBD005` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
-| `COHDBD001` | Explicit transaction is aborted; operations/commit refused until rollback | — |
-| `COHDBI002` | Additional attached-index corruption diagnostic beside COHDBS003 and COHDBD005 | — |
-| `COHDBD003` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
-| `COHDBS003` | Detected storage corruption; DatabaseCorruptionException names the database and optional page and retains the storage cause; refused opens also retain COHDBD003 | — |
+| `CD06104` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
+| `CD06105` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
+| `CD04101` | Explicit transaction is aborted; operations/commit refused until rollback | — |
+| `CK06102` | Additional attached-index corruption diagnostic beside CK06003 and CD06105 | — |
+| `CD06103` | Missing journal/backup, incomplete creation or unrecoverable files during create/open; preserve ambiguous files and restore the complete file set, or drop/recreate only a known incomplete create as directed | — |
+| `CK06003` | Detected storage corruption; DatabaseCorruptionException names the database and optional page and retains the storage cause; refused opens also retain CD06103 | — |
 
-COHDBD003 is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
+CD06103 is a database lifecycle diagnostic carried by DatabaseException.Diagnostics, rather than a
 query evaluation error. A leftover directory without its data file remains DatabaseNotFoundException
 with the same diagnostic. Missing sidecars are never recreated. Transient open I/O failures ask for
-a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to COHDBD003.
+a retry once resolved and carry no restore/drop advice. No SQLSTATE is assigned to CD06103.
 
-COHDBS003 also fails damaged reads/statements and transaction operations instead of silently
+CK06003 also fails damaged reads/statements and transaction operations instead of silently
 omitting a document. Legitimate reclamation keeps its absence semantics. The existing wire
 execution-failure path carries the diagnostic and leaves the connection usable. Follow the
 message's verified-backup advice. See [storage recovery](../../overview.md#database-file-sets-and-lifecycle)
 and [DatabaseCorruptionException](../../../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md).
 
 Storage, catalog and index failures use structured model diagnostics with their original
-InnerException. Wrapped I/O remains COHDBD004. Attached-index corruption leads with COHDBS003
-and retains COHDBI002 and COHDBD005. Begin uses the same translator as operations. An I/O open
+InnerException. Wrapped I/O remains CD06104. Attached-index corruption leads with CK06003
+and retains CK06102 and CD06105. Begin uses the same translator as operations. An I/O open
 failure releases resources and publishes no database, permitting retry after resolution. An
 operation failure aborts an explicit transaction; rollback permits embedded-session reuse.
-The wire returns ExecutionFailure with diagnostics and preserves the connection. COHDBD001
+The wire returns ExecutionFailure with diagnostics and preserves the connection. CD04101
 is in Diagnostics; only the wire adds its message prefix.
 
 ## Operation cleanup
 
 A content chunk failure or execution cancellation aborts through the engine's transaction end
 gate, once; storage does not abort the borrowed context as well. An explicit session then
-refuses commands/commit with COHDBD001 until rollback, retaining the original cause. Earlier
+refuses commands/commit with CD04101 until rollback, retaining the original cause. Earlier
 uncommitted chunks and writes are undone; no partial document becomes visible.
 
 After successful automatic commit, a snapshot-cleanup failure preserves success and emits
@@ -191,6 +193,14 @@ engine Faulted can coexist with a serving database, and the report does not adva
 policy or replace an unresolved operational fault. Event 36 repeats once per second for each
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+
+## Failure tracing
+
+The shared StatementFailed event takes its payload code from non-null Diagnostics: first Error, otherwise first entry, otherwise empty. It does not extract codes from messages or include statement/message text. Offline and unconfirmed-commit failures carry their model code in that carrier. See [failure-event selection](../../../dotnet-apis/resources/database/assimalign-cohesion-database/design.md#structured-failure-event-codes).
+
+## Catalog and lifecycle conditions
+
+CD04102 is a catalog snapshot conflict; CD04103 an expected-version mismatch; CD05016 a result byte/frame limit; CD07001 a session bound to another database; CD09001 a stale collection handle. These supplement the existing CD condition families and shared CK guards. See the [code scheme and registry](../../error-codes.md).
 
 ## Sources
 

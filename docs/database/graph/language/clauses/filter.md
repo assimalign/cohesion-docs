@@ -13,11 +13,11 @@ FILTER [ WHERE ] predicate
 ## Remarks
 
 Only TRUE retains a row; FALSE and NULL/UNKNOWN remove it. Non-Boolean evaluated values use
-COHDBG013. FILTER sees the current stage's bindings, including LET/FOR values. Unlike an OPTIONAL
+CG02013. FILTER sees the current stage's bindings, including LET/FOR values. Unlike an OPTIONAL
 MATCH WHERE predicate, FILTER runs after the optional stage has already produced its NULL-extended
 rows. It can therefore remove those rows. GQL has NULL and no separate MISSING value.
 
-Unknown names, missing parameters and aggregate calls in FILTER use COHDBG001; the codes have
+Unknown names, missing parameters and aggregate calls in FILTER use CG05001; the codes have
 no assigned SQLSTATE. Ordinary expression errors retain their [diagnostics](../diagnostics.md).
 
 ## Example

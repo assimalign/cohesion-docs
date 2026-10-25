@@ -11,6 +11,11 @@ public sealed class TransactionCoordinator : IAsyncDisposable
 {
     public TransactionCoordinator(Storage storage, StorageJournal journal,
         TransactionRecordSpace records);
+    public TransactionCoordinator(Storage storage, StorageJournal journal,
+        TransactionRecordSpace records,
+        Func<TransactionSequence, CancellationToken, ValueTask<long>> indexPruner);
+    public TransactionSequence PruneBound { get; }
+    public long RunVersionPurgePass(CancellationToken cancellationToken);
     public ValueTask<TransactionContext> BeginAsync(IsolationLevel isolationLevel,
         CancellationToken cancellationToken = default);
     public ValueTask<TransactionContext> BeginSnapshotPinAsync(
@@ -147,11 +152,20 @@ await coordinator.CommitAsync(context, CancellationToken.None);
 Console.WriteLine(context.State); // Committed
 ```
 
-Pooled client disposal does not dispose the server session or reset an explicit transaction.
-End or roll back that transaction before returning the connection; otherwise the next renter can
-inherit it (known gap #1540). See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
+SQL/Graph pooled client disposal resets an open or failed transaction by rollback before reuse.
+Only a certified Idle connector returns to the pool; failed or unsupported reset discards it. See [client lease lifetime](../assimalign-cohesion-database-client/database-connection.md).
 
 [Assembly](index.md) · [Design](design.md) · [LockManager](lock-manager.md)
+
+## Index maintenance
+
+`RunVersionPurgePass` called inside this coordinator's `ApplyStatementAsync` callback immediately
+throws `StorageTransactionException`, before undo or pruning. `Checkpoint` and `TryCheckpoint`
+have the same refusal because the shared apply semaphore is not reentrant.
+
+The optional indexPruner callback runs under the coordinator apply gate after record pruning in RunVersionPurgePass. It receives the same conservative exclusive PruneBound and returns the removed-entry count, which contributes to the pass total. An independent record-prune failure does not suppress index maintenance; the retained failure is rethrown afterward. Cancellation, disposal and out-of-memory failures are not treated as ordinary deferred maintenance failures.
+
+PruneBound includes active transaction snapshot minima and statement pins. Do not substitute the oldest active sequence. See [safe index-history pruning](../assimalign-cohesion-database-indexing/design.md#safe-index-history-pruning).
 
 ## Sources
 

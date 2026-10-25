@@ -19,14 +19,14 @@ public static class GraphProtocol
 ## Behavior and exceptions
 
 CompositeValues names graph.composite-values and adds no message identifier. Family is named Graph,
-advertises diagnostics and composite values, and owns bytes 5–9 and 64–66. Protocol 2.1 negotiates
+advertises diagnostics, transaction-status and composite values, and owns bytes 5–9 and 64–66. Protocol 2.1 negotiates
 capabilities by intersection. This extension needs no version bump; 2.0 or 2.1 without the capability
 keeps baseline scalar tuple parameters/rows. These static accessors introduce no validation exceptions.
 
 With negotiation, Execute and ExecutePaths parameter components use [GraphValueCodec](graph-value-codec.md).
 [ResultHeader](graph-protocol-result-header-message.md) bit 7 marks possibly composite columns;
 unmarked scalar columns retain their baseline bytes. Possible composite results without agreement
-fail COHDBG016 before reads, writer locks or writes, including empty matches/skipped CASE arms.
+fail CG07016 before reads, writer locks or writes, including empty matches/skipped CASE arms.
 No SQLSTATE is assigned. The typed client refuses composite parameters locally with ExecutionFailure
 before a frame is sent and preserves reuse. Path payloads and GraphPathResult are unchanged.
 

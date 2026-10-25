@@ -38,10 +38,10 @@ outside range now throw OverflowException, as does a duration outside TimeSpan.
 Null interval/binary input throws ArgumentNullException;
 null date/time/timestamp input fails the respective grammar with FormatException.
 
-The SQL parser converts malformed literal contents to SQL0008 and unsupported year-month forms to
-COHDBL001. Assignment, DEFAULT and CAST share the temporal reader implementation and classify
-bad format as COHSQLE047 (22007), out-of-range fields as COHSQLE048 (22008), and interval overflow
-as COHSQLE062 (22015). DATE/timestamp string assignment retains its established additional grammar.
+The SQL parser converts malformed literal contents to CS00008 and unsupported year-month forms to
+CK00001. Assignment, DEFAULT and CAST share the temporal reader implementation and classify
+bad format as CS02047 (22007), out-of-range fields as CS02048 (22008), and interval overflow
+as CS02062 (22015). DATE/timestamp string assignment retains its established additional grammar.
 Day-time TimeSpan results participate in
 [temporal arithmetic and fields](../../../../database/sql/language/expressions/operators.md#temporal-arithmetic);
 this does not add year/month intervals or a time-zone setting.

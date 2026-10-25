@@ -16,12 +16,12 @@ Elements may be scalars, paths, parameters, aggregates or nested object/array co
 MISSING elements become JSON null and keep their positions; explicit NULL also becomes null.
 Unlike [object members](object-constructors.md), elements are never omitted. Arrays compose with
 SELECT, VALUE/RAW, grouping, predicates and INSERT. Array comprehensions and IN's array operand
-form remain unsupported (`COHDBL001`); path access on constructor results is also outside the subset.
+form remain unsupported (`CK00001`); path access on constructor results is also outside the subset.
 
 SELECT constructor results are limited to 256 levels, including nested stored/parameter values
-and the wrapper object for named projections (`COHDOC015` at the constructor). INSERT retains
-the 128-level JSON storage limit (`COHDOC008`). Text expression parsing is separately limited to
-128 recursive levels (`OQL0005`). These limits have no SQLSTATE assigned by the source.
+and the wrapper object for named projections (`CD05015` at the constructor). INSERT retains
+the 128-level JSON storage limit (`CD02008`). Text expression parsing is separately limited to
+128 recursive levels (`CD00005`). These limits have no SQLSTATE assigned by the source.
 
 Constructors use the shared [RFC 8259 UTF-8 encoder](../statements/select.md#json-bytes).
 INSERT and [UPSERT](../statements/upsert.md) share the 128-level storage bound.

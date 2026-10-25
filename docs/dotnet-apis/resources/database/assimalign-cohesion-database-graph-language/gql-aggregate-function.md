@@ -18,11 +18,11 @@ type and CollectList returns an object array. collect is an exact parser alias f
 All operand aggregates skip NULL; Count with no operand counts rows. DISTINCT uses exact numeric
 and structural value equality. See [aggregate results](../../../../database/graph/language/functions/aggregate-functions.md).
 
-The enum itself adds no exceptions. A programmatic value outside the enum is COHDBG001 during
-planning; numeric failures/overflow are COHDBG013 during evaluation. Wire lists require
-GraphProtocol.CompositeValues. Final aggregate path projections retain COHDBG001; intermediate
+The enum itself adds no exceptions. A programmatic value outside the enum is CG05001 during
+planning; numeric failures/overflow are CG02013 during evaluation. Wire lists require
+GraphProtocol.CompositeValues. Final aggregate path projections retain CG05001; intermediate
 WITH collect followed by FOR/UNWIND can produce one mandatory final entity/path. Final lists of
-nodes/relationships remain unavailable over the wire (COHDBG001; #1662).
+nodes/relationships remain unavailable over the wire (CG05001; #1662).
 
 ## Example
 

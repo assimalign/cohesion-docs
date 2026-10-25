@@ -19,9 +19,9 @@ public sealed record GqlRelationshipPattern(string? Variable, string? Type,
 
 Quantifier retains inclusive repetitions; a named quantified relationship is a group list.
 LabelExpression is the full type condition. When present, Type must be null or agree with its
-single name; a contradictory representation fails planning with COHDBG001. The record retains
+single name; a contradictory representation fails planning with CG05001. The record retains
 its supplied references without constructor validation. Invalid direct bounds/insertion quantifiers
-also use COHDBG001 (no SQLSTATE); text insertion quantifiers use GQL0002.
+also use CG05001 (no SQLSTATE); text insertion quantifiers use CG00002.
 
 ## Example
 

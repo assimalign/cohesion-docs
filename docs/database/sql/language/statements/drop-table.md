@@ -21,10 +21,10 @@ A fresh catalog snapshot no longer includes the dropped table's columns, constra
 ownership rows. System relations remain read-only, including with `IF EXISTS`.
 `DROP TABLE ... CASCADE` is not supported. [DROP SCHEMA CASCADE](drop-schema.md) removes a
 namespace's contained tables/indexes and incoming FKs atomically. A table drop leaves its namespace.
-Missing namespaces use COHSQLE028 (3F000), except DROP TABLE IF EXISTS missing.t remains a no-op.
+Missing namespaces use CS01028 (3F000), except DROP TABLE IF EXISTS missing.t remains a no-op.
 
 This data definition language (DDL) statement commits independently and is rejected within an
-explicit transaction with `COHSQLT003`. Ordinary sessions cannot drop schema-owned tables.
+explicit transaction with `CS04003`. Ordinary sessions cannot drop schema-owned tables.
 A later `ROLLBACK` cannot undo
 a completed table drop.
 
@@ -39,8 +39,8 @@ DROP TABLE IF EXISTS t;
 
 The second statement succeeds although the table is already absent.
 
-A [persisted view](create-view.md) depending on the table blocks DROP with COHSQLD002.
-DROP TABLE targeting a view instead reports COHSQLE021 (25006); use [DROP VIEW](drop-view.md).
+A [persisted view](create-view.md) depending on the table blocks DROP with CS03302.
+DROP TABLE targeting a view instead reports CS04021 (25006); use [DROP VIEW](drop-view.md).
 
 ## See also
 

@@ -32,14 +32,15 @@ TraverseAsync resolves RelationshipType through the catalog and seeks only that 
 direction ranges. Null selects all types; an unknown type yields no nodes and no warning. Edges
 are ordered by identity before breadth-first traversal. Self-loops and cycles never emit the start,
 and each other node is emitted at most once. A zero depth emits nothing. Results materialize in one
-statement snapshot before yielding. There is no candidate-expansion cap on this API; GQL's
-[physical budget](../../../../database/graph/language/patterns.md#remarks) applies to pattern matching.
+statement snapshot before yielding. Traversal now uses the engine's memory and physical-work
+ceilings: 256 MiB and 1,000,000 units by default. Work was previously uncapped on this API.
 
 ## Exceptions
 
 ArgumentNullException reports a null session. DatabaseException reports negative depth or undefined
-direction (COHDBG001), a foreign session (COHDBG005), closed/busy session or refused transaction
-(COHDBG007). DatabaseOfflineException reports an offline database (COHDBG012), ObjectDisposedException
+direction (CG05001), a foreign session (CG07005), closed/busy session or refused transaction
+(CG04007), invalid limits (CG08021), retained-memory exhaustion (CG05020) or physical-work
+exhaustion (CG05004). DatabaseOfflineException reports an offline database (CG06012), ObjectDisposedException
 a disposed database, and OperationCanceledException cancellation during traversal or yielding.
 
 ## Example
@@ -69,9 +70,16 @@ Result: b, then c. Incoming traversal at depth one from a returns c; an unknown 
 - **Design** — [Lifetime and implementation decisions](design.md).
 - **Examples** — [Source-backed usage](examples/index.md).
 
+## Execution limits
+
+The public `GraphQueryLimits? Limits` init property applies optional lower memory/work limits to
+typed traversal. Null inherits engine ceilings. Raise `QueryMemoryBudget` and `QueryWorkBudget`
+before engine creation for larger traversals. See [engine configuration](graph-database-engine-options.md)
+and [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
+
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/ValueObjects/GraphTraversal.cs`.
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabase.cs`.
 - **Tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphEngineTests.cs`.

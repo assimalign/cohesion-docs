@@ -16,7 +16,7 @@ public enum SqlLimitSyntaxKind { Limit, Fetch, Top }
 Limit, Fetch and Top share the same normalized Limit expression and execution path. Top is a
 SQL Server lexical alias. Rendering retains the family; FETCH renders FIRST with an explicit
 count and TOP renders parentheses. This enum adds no validation exceptions. Parser diagnostics
-reject malformed/mixed paging with SQL0003, and excluded PERCENT/WITH TIES/DML TOP with COHDBL001.
+reject malformed/mixed paging with CS00003, and excluded PERCENT/WITH TIES/DML TOP with CK00001.
 
 ## Example
 

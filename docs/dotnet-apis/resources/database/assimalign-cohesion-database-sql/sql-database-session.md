@@ -24,14 +24,14 @@ to subsequent statements. Each setter throws ArgumentOutOfRangeException below z
 int.MaxValue milliseconds. Configuration and execution require single-threaded session use.
 
 Both text ExecuteAsync and typed SqlQueryRequest execution observe the same timers after parsing.
-COHSQLE043 / 57014 and COHSQLE044 / 55P03 throw [SqlTimeoutException](sql-timeout-exception.md).
+CS05043 / 57014 and CS04044 / 55P03 throw [SqlTimeoutException](sql-timeout-exception.md).
 The failed statement rolls back, releasing its new resources after undo. Earlier transaction work,
 grants and upgrades remain; offline/abandoned writers retain locks for recovery. Caller cancellation
 remains OperationCanceledException with its prior lock behavior. Transaction-control requests arm
 neither timer, and started commits and committed DDL cleanup finish without cancellation.
 
 If an object-lock wait invalidates the target definition, DatabaseTransactionAbortedException carries
-COHSQLT006 (no SQLSTATE); retry in a fresh transaction. Adjacent FK changes refresh before row reads.
+CS04006 (no SQLSTATE); retry in a fresh transaction. Adjacent FK changes refresh before row reads.
 See [execution and transactions](design.md#sql-transaction-control-and-the-b7-seam).
 
 ## Example
@@ -59,7 +59,7 @@ try { await session.ExecuteAsync("INSERT INTO required_value VALUES (NULL)"); }
 catch (DatabaseException failure)
 {
     var detail = failure.Diagnostics[0];
-    Console.WriteLine(detail.Code); // COHSQLE024; mapped SQLSTATE 23502
+    Console.WriteLine(detail.Code); // CS03024; mapped SQLSTATE 23502
     Console.WriteLine(detail.Start); // 0
 }
 await session.ExecuteAsync("INSERT INTO required_value VALUES (1)"); // succeeds
@@ -79,7 +79,7 @@ await using var transaction = await waiter.BeginTransactionAsync();
 waiter.LockTimeout = TimeSpan.FromMilliseconds(80);
 try { await waiter.ExecuteAsync("INSERT INTO items VALUES (1)"); }
 catch (SqlTimeoutException failure) {
-    Console.WriteLine(failure.Diagnostics[0].Code); // COHSQLE044
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS04044
     Console.WriteLine(failure.SqlState);            // 55P03
 }
 await held.RollbackAsync();

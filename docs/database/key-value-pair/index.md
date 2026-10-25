@@ -43,14 +43,14 @@ commit takes over without the command token after execution completes; `PutAsync
 its materialized outcome without that token. Execution and lock waits remain cancellable. A dead
 wire connection can still lose the result frame. See [commit and rollback](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
 
-Storage/index corruption and I/O failures abort an explicit transaction; COHDBK001 refuses
+Storage/index corruption and I/O failures abort an explicit transaction; CV04101 refuses
 further commands until rollback. Ordinary command errors retain statement atomicity and keep
-the transaction usable. Storage/I/O uses COHDBK005 (58030 for I/O); corruption uses COHDBS003
-(XX001), with COHDBI002 and COHDBK005 additionally retained for attached-index damage.
+the transaction usable. Storage/I/O uses CV06105 (58030 for I/O); corruption uses CK06003
+(XX001), with CK06102 and CV06105 additionally retained for attached-index damage.
 See [diagnostics](diagnostics.md#storage-failures-and-transaction-recovery).
 
-Aborted commands and COMMIT refusals carry COHDBK001 as a structured Error with the original
-cause. The in-process Message is unprefixed; the wire message still starts with COHDBK001.
+Aborted commands and COMMIT refusals carry CV04101 as a structured Error with the original
+cause. The in-process Message is unprefixed; the wire message still starts with CV04101.
 
 Storage is in memory when `KeyValueDatabaseEngineOptions.RootPath` is omitted. File-backed
 databases use two file sets: `<name>` for entries and index pages, and `<name>.catalog` for
@@ -61,13 +61,13 @@ shared storage kernel; it does not implement a separate physical storage system.
 
 File-backed open requires the original data and catalog file sets, including each journal and
 backup. With the primary data file present, missing sidecars in an existing file set raise
-DatabaseException with COHDBK004 in Diagnostics (Error, no
+DatabaseException with CV06104 in Diagnostics (Error, no
 assigned SQLSTATE), before replacement files can be created. Preserve all files and restore the
 complete backup, since the journal may contain acknowledged commits. Drop deletes keyvalue.dat
 first, then other data files, then the remaining directory. It cannot resurrect a partially
 dropped database by recreating a sidecar.
 
-`OpenDatabaseAsync` refuses an entirely missing catalog with `COHDBK006` (Error, no assigned
+`OpenDatabaseAsync` refuses an entirely missing catalog with `CV06106` (Error, no assigned
 SQLSTATE) before either storage opens. For file-backed data of at most one page, creation
 stopped before both initial pages were flushed: follow the refusal's `DropDatabaseAsync`, then
 `CreateDatabaseAsync` remedy. Longer data without a catalog requires preserving all storage

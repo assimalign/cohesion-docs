@@ -92,13 +92,13 @@ operations described in [Operations](operations.md).
 
 ## Database lifecycle
 
-Detected storage damage uses [COHDBS003](operations.md#database-file-diagnostics) through
+Detected storage damage uses [CK06003](operations.md#database-file-diagnostics) through
 DatabaseCorruptionException with database and optional page context. A damaged read fails;
-refused corrupt opens also retain COHDBB004. Restore from a verified backup as directed by the
+refused corrupt opens also retain CB06004. Restore from a verified backup as directed by the
 error. No SQLSTATE is assigned.
 
 Create/open require the original blob.dat, blob.log and blob.bak file set. Missing sidecars
-are refused with COHDBB004 and never recreated, including for an empty closed database. Preserve
+are refused with CB06004 and never recreated, including for an empty closed database. Preserve
 ambiguous files and restore the complete backup. A directory without data or a data file no larger
 than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
 Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;

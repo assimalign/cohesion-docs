@@ -44,7 +44,7 @@ DefaultLiteral retains canonical SQL for a scalar expression as well as a litera
 records resolved call identities. SQL DDL folds Immutable defaults at declaration and runs Stable/Volatile
 calls per assignment on the transaction clock. Opening/rebinding never evaluates an expression default.
 ADD COLUMN freezes a nonvolatile result in MissingValueLiteral; a volatile default on live rows uses
-COHSQLE027. See [DEFAULT](../../../../database/sql/language/clauses/default.md).
+CS03027. See [DEFAULT](../../../../database/sql/language/clauses/default.md).
 
 ## Example
 

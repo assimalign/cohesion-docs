@@ -31,7 +31,7 @@ SQL collation settings do not apply.
 ## Transactions and traversal
 
 Snapshot and ReadCommitted isolation are supported. Serializable is rejected. Explicit transactions
-use the session API; GQL has no transaction-control syntax. Mutations join the session transaction,
+use the session API or standalone START TRANSACTION, COMMIT and ROLLBACK text over Execute. Mutations join the session transaction,
 and a mutation failure rolls back the owning logical transaction.
 
 Cancellation observed before explicit commit starts leaves the transaction usable and commits
@@ -41,17 +41,18 @@ remain cancellable. A lost wire connection can still lose a committed result. Se
 [the shared transaction boundary](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#commit-and-rollback).
 
 An aborted explicit transaction refuses statements, BEGIN and COMMIT until rollback with
-structured COHDBG007 and the original cause. Its in-process message is unprefixed; the wire
-still starts with COHDBG007. Catalog snapshot conflicts are retryable aborts with that code;
-deterministic catalog identity/name errors use COHDBG003. See [error handling](language/diagnostics.md).
+structured CG04007 and the original cause. Its in-process message is unprefixed; the wire
+still starts with CG04007. Catalog snapshot conflicts are retryable aborts with that code;
+deterministic catalog identity/name errors use CG03003. See [error handling](language/diagnostics.md).
 
 GQL matches bounded relationship-unique trails, including [quantified edges/subpaths](language/patterns.md#quantified-paths)
 and list-valued group variables. [Core scalar functions and CAST](language/functions/scalar-functions.md)
 execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.
 Both surfaces seek only the selected directions and catalog type IDs; self-loops appear once in
-either-direction reads. TraverseAsync yields deterministic breadth-first results and has no
-candidate-expansion cap. GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
+either-direction reads. `TraverseAsync` yields deterministic breadth-first results under the same
+engine memory/work ceilings as queries; its default work cap is now 1,000,000 units (`CG05004`).
+GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
@@ -61,8 +62,14 @@ mandatory clause; bindings supplied only by optionals are refused during plannin
 
 [ORDER BY](language/clauses/order-by.md) supports explicit NULL placement and stable ties.
 [OFFSET/SKIP and LIMIT](language/clauses/limit-offset.md) page rows or supported path returns;
-offset precedes limit. The output tail follows all mutations and DISTINCT, with full materialization
-and existing match/candidate caps. Default NULL order is last ascending, first descending.
+offset precedes limit. The output tail follows all mutations and DISTINCT, while reads stream and unordered LIMIT can stop upstream work. Ordered finite pages
+use bounded top-N; retained state and final results share statement memory/work budgets. Default NULL order is last ascending, first descending.
+
+The default retained-memory budget is 256 MiB. It admits 100,000 one-property rows for SET,
+FOR … INSERT, RETURN n and QueryPaths; much larger retained workloads refuse with `CG05020`.
+Capacity depends on row width and intermediate state. Raise `QueryMemoryBudget` and, when needed,
+`QueryWorkBudget` on the server engine; embedded `GraphQueryLimits` can only lower them. See
+[execution ceilings](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md#execution-ceilings).
 
 [Aggregates](language/functions/aggregate-functions.md) and [GROUP BY](language/clauses/group-by.md)
 execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 locally and on the wire;
@@ -79,12 +86,12 @@ update the current working copy and count each changed entity once.
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
 lock and replan before evaluation. Format-4 records keep prior versions visible to old snapshots;
 older graph records/registrations are refused before logical recovery scrub with
-[COHDBG017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
+[CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
 33 declared clauses.
 
-Detected storage damage uses [COHDBS003](language/diagnostics.md), with database/page context
-in DatabaseCorruptionException. An unsupported graph-record open also retains COHDBG017 and
-COHDBG018. Reads fail instead of silently omitting damaged data.
+Detected storage damage uses [CK06003](language/diagnostics.md), with database/page context
+in DatabaseCorruptionException. An unsupported graph-record open also retains CG06017 and
+CG06018. Reads fail instead of silently omitting damaged data.
 
 ## Storage and catalog
 
@@ -96,7 +103,7 @@ with `DatabaseObjectLockedException`.
 Catalog lookups use in-memory identity and parent directories while preserving MVCC visibility;
 dropping and recreating a name does not return its replacement for the old identity. Complete
 UTF-8 metadata records, including names and owning schema, must fit 8,092 bytes. Overflow reports
-COHDBG009 before publication. See [catalog design](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/catalog-design.md).
+CG02009 before publication. See [catalog design](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/catalog-design.md).
 
 ## Delivery boundaries
 
@@ -113,7 +120,7 @@ result kinds before reads or mutation. Protocol 2.1 negotiates diagnostics and g
 provides the bounded value format. Constructed limits fail inside the statement transaction before
 commit. Path payloads stay unchanged; path completion exposes
 warnings through [GraphPathResult](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/graph-path-result.md).
-Explicit wire transactions remain unsupported. Graph security-policy integration, replication,
+Explicit wire transactions use standalone ISO text controls over Execute. Graph security-policy integration, replication,
 large property chunking and compiled-schema provisioning remain outside this delivery.
 
 Path frames are sent in bounded pooled batches, with unchanged per-path bytes and a 16 MiB
@@ -123,15 +130,15 @@ one-slot queue; the server still materializes matched paths. See
 and [client lifetime/performance](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-client/design.md#path-lifetime).
 
 Catalog/storage failures return coded ExecutionFailure and leave the authenticated session ready.
-Execution-resource disposal uses COHDBG019; a disposed protocol transport faults the session
+Execution-resource disposal uses CG09019; a disposed protocol transport faults the session
 without another error write. Cleanup disposal after a successful autocommit preserves success
 (except OutOfMemoryException) and emits Graph Warning event 13, StatementCleanupFailed.
 
 ## See also
 
 [Linear composition](language/clauses/next.md) executes LET, FILTER, FOR/UNWIND, RETURN … NEXT
-and Cypher WITH as eager stages. WITH WHERE filters after paging. Intermediate entity lists may
-be unwound, but final entity lists remain unavailable over the wire (COHDBG001; #1662).
+and Cypher WITH as source-ordered stages. WITH WHERE filters after paging. Intermediate entity lists may
+be unwound, but final entity lists remain unavailable over the wire (CG05001; #1662).
 
 - **[Database](../index.md)** — engine navigation.
 - **[Database overview](../overview.md)** — shared database model.
@@ -141,7 +148,7 @@ be unwound, but final entity lists remain unavailable over the wire (COHDBG001; 
 ## Database lifecycle
 
 Create/open require the original graph.dat, graph.log and graph.bak file set. Missing sidecars
-are refused with COHDBG018 and never recreated, including for an empty closed database. Preserve
+are refused with CG06018 and never recreated, including for an empty closed database. Preserve
 ambiguous files and restore the complete backup. A directory without data or a data file no larger
 than one page is an incomplete create; its refusal directs DropDatabaseAsync then CreateDatabaseAsync.
 Drop deletes the data file first. Recovery tolerates a torn uncommitted extension at the tail;

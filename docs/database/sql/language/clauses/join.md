@@ -41,7 +41,7 @@ base names and distinguish repeated tables. Unqualified names shared by inputs r
 unless USING merges them. These checks apply before rows are read, even on empty inputs.
 
 ON requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
-condition such as `ON t.age` fails before reads with COHSQLE003 (42804); untyped NULL is
+condition such as `ON t.age` fails before reads with CS02003 (42804); untyped NULL is
 UNKNOWN and matches no pair. LEFT then applies its ordinary NULL extension.
 
 ### USING columns
@@ -65,8 +65,7 @@ Qualified wildcards such as `t.*` remain excluded.
 
 ### Access paths
 
-Execution is left-deep. Only the first INNER pair may swap inputs; a WHERE seek covering a full
-unique key takes priority when choosing its driver. Later steps may seek into the added input,
+Execution is left-deep. Only the first INNER pair may swap inputs; bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
 and LEFT always drives from its preserved left side.
 Mandatory equalities can probe an index's leading key prefix under the existing type/collation
 rules; the full predicate still filters candidates. Otherwise the added input buffers once.
@@ -77,7 +76,9 @@ INNER inputs and from the preserved to the nullable input of LEFT. Floating keys
 text types or collations do not infer constants. Complete ON and WHERE predicates still run;
 duplicates and mixed numeric comparisons keep their ordinary results. A dropped or replaced index,
 including a same-name index with different keys, falls back to a residual-filtered scan.
-[EXPLAIN](../statements/explain.md) describes the driving input and each join step's scan or seek.
+[EXPLAIN](../statements/explain.md) describes the driving input and each step's scan, seek or hash access.
+Bounded probe costs can select among eligible accesses and first-pair directions; a complete unique
+lookup retains its cheap path.
 
 ### Predicate safety
 
@@ -104,18 +105,18 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | --- | --- | --- |
 | INNER or LEFT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
 | CROSS JOIN and comma sources | Supported (measured) | Products; CROSS accepts neither ON nor USING |
-| RIGHT, FULL, NATURAL, LATERAL | Recognized, not supported (`COHDBL001`) | Outside this join subset |
-| Qualified wildcard | Recognized, not supported (`COHDBL001`) | List qualified columns explicitly |
+| RIGHT, FULL, NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
+| Qualified wildcard | Recognized, not supported (`CK00001`) | List qualified columns explicitly |
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| `COHSQLE003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
-| `COHSQLE015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
-| `COHSQLE019` | Duplicate table binding or alias |
-| `COHDBL001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
-| `SQL0003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
+| `CS02003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
+| `CS01015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
+| `CS01019` | Duplicate table binding or alias |
+| `CK00001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
+| `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
 
@@ -179,6 +180,23 @@ and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
+
+## Hash joins and memory
+
+Eligible mandatory equijoins can choose `HashJoin` by comparing bounded build/probe costs with
+nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input;
+LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes
+retain index nested loops. When both inputs lack countable indexes, eligible equijoins select
+hash joins regardless of actual size, even when empty or tiny; both estimates use 4,096 rows.
+
+Unsupported key shapes or predicates whose movement could change error evaluation retain the
+loop/probe path. An ON condition referencing any text column (String, Json or Character) from a
+derived relation prevents hash selection, including references only in residual terms. This
+preserves deferred collation/Unicode errors that skipping nonmatching key pairs could hide.
+
+The hash path retains duplicates and evaluates the complete ON/WHERE residuals. NULL keys do not match; LEFT still emits unmatched outer rows. Type and collation equality rules apply to hashes and collisions.
+
+SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. The budget does not cap result materialization or transient planning. See [performance and configuration](../../performance.md).
 
 ## Sources
 

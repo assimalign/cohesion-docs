@@ -17,7 +17,7 @@ DELETE variable [ , ...n ]
 |---|---|
 | `MATCH` with optional `WHERE` | Supported |
 | Comma-separated bound node/relationship variables | Supported |
-| `RETURN` after deletion | Recognized, not supported (`COHDBL001`) |
+| `RETURN` after deletion | Recognized, not supported (`CK00001`) |
 
 ## Arguments
 

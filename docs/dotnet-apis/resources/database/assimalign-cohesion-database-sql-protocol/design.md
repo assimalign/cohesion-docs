@@ -42,7 +42,7 @@ Error or successful completion.
 | Read-only SELECT, EXPLAIN, system view or SHOW | Encode during delivery after materialization. ExecutionFailure may end a partial result; the client discards all partial columns/rows. |
 
 Each header and row has a **16 MiB (16,777,216-byte)** payload limit. There is no aggregate
-encoded-result cap. Uncoded result failures and size refusals carry COHSQLE045; existing coded
+encoded-result cap. Uncoded result failures and size refusals carry CS05045; existing coded
 failures retain their diagnostics. Size refusals map to SQLSTATE 54000, reporting encoded size
 and frame limit. SQLSTATE adds no wire field. Writes retain prepared payloads until delivery;
 reads retain only the current encoded frame alongside their materialized result.
@@ -71,10 +71,14 @@ and [server options](../assimalign-cohesion-database-sql/sql-database-server-opt
 
 Execution, constraint and DDL failures carry the engine's structured diagnostics; negotiated
 diagnostics precede Error. `CODE: message` is composed once, including previously uncoded
-COHSQLE046–066 failures. Diagnostic messages do not repeat that prefix, and spans belong inside
+SQL execution failures. Diagnostic messages do not repeat that prefix, and spans belong inside
 the executing statement. SQLSTATEs remain [documented mappings](../../../../database/sql/language/diagnostics.md),
 not new wire fields. ExecutionFailure preserves the connection under the existing rules.
 No framing or protocol-version change accompanies this diagnostic expansion.
+
+## Execute transaction status
+
+SQL and Graph negotiate transaction-status. After completed Execute output or statement failure, a one-byte Ready postamble reports Idle, Active or Failed. Clients drain it before completing exchanges and reset open/failed transactions on pool return. See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
 ## Sources
 

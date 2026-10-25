@@ -17,8 +17,8 @@ SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
 contract, not aspiration — the parser, the matrix, and the conformance corpus change together, and
 anything outside the matrix fails loudly instead of half-parsing. `SqlLanguageProfile.Instance` is
 the executable contract: it owns the SQL keyword/function tables and opts into only the clauses the
-parser implements today. Recognized clauses outside that set produce the shared `COHDBL001`
-model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
+parser implements today. Recognized clauses outside that set produce the shared `CK00001`
+model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
 
 ## Why-this-not-that decisions
 
@@ -51,7 +51,7 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   literal parsing and diagnostics continue to consume raw token text. Doubled double quotes
   decode to one embedded quote, and expression rendering escapes them the same way.
   Column-reference spans include the complete raw token for persisted-view binding edits.
-  An escaped final quote without a closing delimiter reports SQL0003. Earlier stored view text
+  An escaped final quote without a closing delimiter reports CS00003. Earlier stored view text
   may use adjacent quoted tokens for a column and alias; `"a""x"` now names one identifier.
   Recreate affected views with whitespace or AS; see the
   [view compatibility note](../../../../database/sql/language/statements/create-view.md#delimited-identifiers).
@@ -67,8 +67,8 @@ model-specific diagnostic; `SQL0002` remains the unknown-command diagnostic.
   and unsupported join forms remain absent. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
-  statement, so analyzers observe `COHDBL001` with the token location and the `SQL`
-  surface name. An actually unknown leading command still receives `SQL0002`, even
+  statement, so analyzers observe `CK00001` with the token location and the `SQL`
+  surface name. An actually unknown leading command still receives `CS00002`, even
   when a later recognized token is also unsupported.
 
 ## SELECT evaluation
@@ -84,7 +84,7 @@ aggregation/join/set materialization remain. These are engine rules, documented 
 
 ## Result encoding diagnostics
 
-Result encoding uses COHSQLE045 for uncoded preparation failures and header/row size refusals
+Result encoding uses CS05045 for uncoded preparation failures and header/row size refusals
 (SQLSTATE 54000 for size refusals). Writes prepare before commit and roll back only the failed
 statement; reads encode during delivery and may terminate partial results. The connection and
 explicit transaction remain usable. The 16 MiB limit applies per header/row, with no aggregate cap.
@@ -99,12 +99,12 @@ consumers existed.
 ## Non-goals (current dialect)
 
 Boolean positions use the existing AST. The engine requires Boolean search conditions in WHERE,
-HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN and ON CONFLICT WHERE, with COHSQLE003
+HAVING, JOIN ON, CHECK/domain CHECK, searched CASE WHEN and ON CONFLICT WHERE, with CS02003
 (42804) for non-Boolean types. Valid Boolean string literals coerce only in Boolean positions;
 every CASE/COALESCE alternative there must qualify. See [search conditions](../../../../database/sql/language/clauses/where.md#boolean-search-conditions).
 
 Every SELECT may omit FROM and operate on one implicit row, including top-level and nested
-queries, views, derived tables and set operands. A wildcard still needs a relation (COHSQLE013).
+queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
 Recursive/nested CTEs, window functions, `ON UPDATE`, `MERGE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
@@ -114,24 +114,24 @@ feature lands.
 ## Namespaces and query bodies
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
-carry namespace guards and dependency policy. AUTHORIZATION/nested elements are COHDBL001.
+carry namespace guards and dependency policy. AUTHORIZATION/nested elements are CK00001.
 The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 26, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
-include COHSQLE028–031 and their source SQLSTATE categories.
+include CS01028, CS03029, CS03030 and CS03031 and their source SQLSTATE categories.
 
 [SqlQueryBodyExpression](sql-query-body-expression.md) now owns CommonTables and result tails;
 SELECT and binary [set operations](sql-set-operation-expression.md) inherit it. CTE, derived,
 scalar/IN/EXISTS and INSERT query-source members use this base. Parser precedence is INTERSECT
 before left-associative UNION/EXCEPT. Combined ORDER BY accepts output names/ordinals only;
-CORRESPONDING remains contextual COHDBL001 and changes no persisted keyword quoting.
+CORRESPONDING remains contextual CK00001 and changes no persisted keyword quoting.
 
 ## Transactions and B7 extension points
 
 `SqlTransactionExpression` identifies `BEGIN`, `COMMIT`, and `ROLLBACK` through
 `SqlQueryCommandType`. BEGIN/COMMIT/ROLLBACK also accept WORK; START TRANSACTION maps to BEGIN and bare END to COMMIT.
-START/WORK remain contextual. END takes no suffix; unsupported suffixes are SQL0003. The executor joins
+START/WORK remain contextual. END takes no suffix; unsupported suffixes are CS00003. The executor joins
 subsequent statements to the session's active scope, and disconnect aborts that transaction. The
-language adds no concurrency machinery. Malformed suffixes produce `SQL0003` instead of silently
+language adds no concurrency machinery. Malformed suffixes produce `CS00003` instead of silently
 treating `ROLLBACK TO` as a complete rollback.
 
 B7 anticipates **`SAVEPOINT <name>`**, **`ROLLBACK TO [SAVEPOINT] <name>`**, **`RELEASE [SAVEPOINT]
@@ -149,7 +149,7 @@ their own constraints so `ALTER TABLE ADD COLUMN` carries the same information. 
 consumes the normalized table list once. `CHECK` retains both its expression tree and exact
 predicate source; the catalog persists source and reparses it after restart without reflection or a
 second expression codec. `New` constraint syntax follows the DDL parser's diagnostic recovery
-discipline and emits `SQL0003` on malformed input.
+discipline and emits `CS00003` on malformed input.
 
 **`UNIQUE` is a unique index, not a new compiled-schema constraint kind.** The syntax still has a
 `Unique` AST kind so it can preserve the declaration and name, but execution lowers it to the same
@@ -157,7 +157,7 @@ unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUn
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
 Foreign keys and checks remain constraint catalog records. ON DELETE accepts CASCADE, RESTRICT,
 NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE stays outside the profile
-and reports `COHDBL001`. See [constraint semantics](../../../../database/sql/language/constraints.md).
+and reports `CK00001`. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
 ## T1 literal, type and request forms
 
@@ -179,26 +179,26 @@ an upgrade reader; compiled schema version remains 8.
 
 [SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval
 and hexadecimal text, reused by CAST. Typed literals and literal DEFAULTs carry canonical text;
-malformed contents are SQL0008 and year-month intervals COHDBL001. [SqlTypeNames](sql-type-names.md)
+malformed contents are CS00008 and year-month intervals CK00001. [SqlTypeNames](sql-type-names.md)
 resolves contextual multi-word/national-character and SQL Server lexical aliases without reserving
-new words. TIME WITH TIME ZONE is recognized but rejected with SQL0005.
+new words. TIME WITH TIME ZONE is recognized but rejected with CS00005.
 
 SqlDefaultExpression is valid only as a whole VALUES item or SET value. SqlInsertExpression exposes
 IsDefaultValues. SqlExplainExpression wraps data statements for planning without execution. The
-profile contains only functions with executors; recognized unsupported calls use COHDBL001.
-Parameter names share SQL/OQL/GQL's ordinal bare-name rules (COHSQLE023 for collisions).
+profile contains only functions with executors; recognized unsupported calls use CK00001.
+Parameter names share SQL/OQL/GQL's ordinal bare-name rules (CS01023 for collisions).
 
 [SqlColumnDefinition.Identity](sql-column-definition.md) exposes [SqlIdentityDefinition](sql-identity-definition.md):
 mode, signed start and increment. SqlClauses.Identity is the `IDENTITY` capability name. CREATE and
 ADD accept GENERATED ALWAYS/BY DEFAULT or the SQL Server alias. Identity implies NOT NULL;
-explicit NULL with NOT NULL/PRIMARY KEY/IDENTITY is SQL0003 in either order. SERIAL-family type
+explicit NULL with NOT NULL/PRIMARY KEY/IDENTITY is CS00003 in either order. SERIAL-family type
 and domain names are reserved unsupported, suggesting GENERATED BY DEFAULT AS IDENTITY.
 
-[SQL diagnostics](../../../../database/sql/language/diagnostics.md) lists SQL0008, COHSQLE001–066,
+[SQL diagnostics](../../../../database/sql/language/diagnostics.md) lists CS00008, SQL execution codes,
 transaction codes and source SQLSTATE categories; binding spans survive in DatabaseException.
-COHSQLE042 / SQLSTATE 54000 is the engine's pre-apply encoded row/index-key size refusal;
+CS05042 / SQLSTATE 54000 is the engine's pre-apply encoded row/index-key size refusal;
 see [size limits](../../../../database/sql/language/diagnostics.md#row-and-index-key-limits).
-Database creation/open additionally uses COHSQLC001 for incomplete or ambiguous file sets, with no
+Database creation/open additionally uses CS03401 for incomplete or ambiguous file sets, with no
 assigned SQLSTATE. See [creation diagnostics](../../../../database/sql/language/diagnostics.md#database-creation-and-open).
 
 ## AOT posture
@@ -239,7 +239,7 @@ upgrade path. Compiled schema format remains version 8.
 ## Aggregate call modifiers
 
 [SqlFunctionCallExpression](sql-function-call-expression.md) carries Quantifier, OrderBy and
-HasWithinGroupOrdering. The catalog decides aggregate identity; scalar modifiers use COHSQLE032,
+HasWithinGroupOrdering. The catalog decides aggregate identity; scalar modifiers use CS05032,
 as do DISTINCT ordering keys absent from arguments (no assigned SQLSTATE). Rendering, depth,
 structural equality and persisted validation include order keys. LISTAGG WITHIN GROUP uses the
 same ordered input shape; explicit ALL renders but executes like Default. STRING_AGG and LISTAGG
@@ -256,7 +256,7 @@ persisted NULL modifiers, following format 23's view records. Format 25 introduc
 
 DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
 are contextual refusals; ordinary identifier quoting is unchanged. Subqueries and windows remain
-excluded there, while aggregates are refused by the planner with COHSQLE017.
+excluded there, while aggregates are refused by the planner with CS05017.
 
 ## Predicate nodes and precedence
 
@@ -266,11 +266,11 @@ and [SqlTruthValue](sql-truth-value.md) represent NULL-safe distinct predicates 
 rendering and every child walk include all operands. Constructors remain internal.
 
 The parser follows PostgreSQL's IS/comparison/predicate/ESCAPE ladder, with concatenation below
-addition and unary signs above COLLATE. Non-associative chains report SQL0003 at their second
+addition and unary signs above COLLATE. Non-associative chains report CS00003 at their second
 operator; completed IN/NOT IN lists or subqueries may continue through another predicate.
 Canonical rendering preserves conservative comparison/IS grouping and LIKE operand parentheses.
 DEFAULT's restricted grammar includes comparisons/distinct predicates while leaving following
-constraints unconsumed. Contextual ILIKE/SIMILAR TO and postfix ISNULL/NOTNULL are COHDBL001.
+constraints unconsumed. Contextual ILIKE/SIMILAR TO and postfix ISNULL/NOTNULL are CK00001.
 These expressions add no named clause or reserved identifier spelling. Format 26 gates the
 persisted grammar and changed precedence; earlier files have no upgrade reader.
 
@@ -284,14 +284,14 @@ shape explicit. SqlClauses.OnConflict enables the new named clause, bringing exe
 57 declared clauses. Existing keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
-alternatives receive COHDBL001. Binding owns unique-index selection (COHSQLE035, 42P10) and repeated
-effects use COHSQLE036 (21000). See [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
+alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated
+effects use CS05036 (21000). See [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 for EXCLUDED scope, constraints, isolation and retries.
 
-Server-side statement and individual lock-wait deadlines use COHSQLE043 / SQLSTATE 57014
-and COHSQLE044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
+Server-side statement and individual lock-wait deadlines use CS05043 / SQLSTATE 57014
+and CS04044 / SQLSTATE 55P03. ExecutionFailure preserves the connection and explicit
 transaction after statement rollback; earlier grants and upgrades remain, and new resources are
-released after undo. COHSQLT006 has no assigned SQLSTATE and means the bound target changed during
+released after undo. CS04006 has no assigned SQLSTATE and means the bound target changed during
 lock preparation: retry in a fresh transaction. SQLSTATE remains a reference mapping on the wire.
 See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
 

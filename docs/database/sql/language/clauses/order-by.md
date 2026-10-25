@@ -22,8 +22,8 @@ ORDER BY <order_by_item> [ , ...n ]
 ## Remarks
 
 After [UNION/INTERSECT/EXCEPT](set-operations.md), ordering accepts first-operand output names or
-positive one-based ordinals only. Expressions and qualified names use COHSQLE018; ambiguous
-output names use COHSQLE019. Parenthesized operands can retain their own ordinary SELECT ordering.
+positive one-based ordinals only. Expressions and qualified names use CS02018; ambiguous
+output names use CS01019. Parenthesized operands can retain their own ordinary SELECT ordering.
 
 Keys compare left to right. `NULL` sorts first ascending and last descending by default. Per-key NULLS FIRST/LAST overrides
 that placement independently of direction. Equal keys retain input order; add a tie-breaker for
@@ -49,14 +49,14 @@ remain in input scope; inner queries resolve their own names. Collation follows 
 
 Placement works in SELECT tails, aggregate inputs, set results, derived tables, CTEs and views,
 including aliases, ordinals and merged USING values. Malformed `ORDER BY a NULLS` or
-`ORDER BY a NULLS MIDDLE` reports SQL0003. NULLS/FIRST/LAST remain contextual identifiers.
+`ORDER BY a NULLS MIDDLE` reports CS00003. NULLS/FIRST/LAST remain contextual identifiers.
 EXPLAIN records the effective placement per key. Every ORDER BY sorts after its access path;
 indexes do not supply result order.
 Ordinals are exclusive to `ORDER BY`; numeric grouping keys do not identify outputs.
 
 With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinals count the
 visible merged output: each USING pair contributes one column. Repeated wildcards each expand
-their visible columns. Out-of-range positions report `COHSQLE018`, even on empty inputs.
+their visible columns. Out-of-range positions report `CS02018`, even on empty inputs.
 
 [Aggregate input ORDER BY](../functions/aggregate-functions.md#aggregate-modifiers) binds to source
 rows. Unlike this outer clause, its integer keys are constants rather than output ordinals.
@@ -110,7 +110,7 @@ SELECT *, -a.id AS sort FROM a LEFT JOIN b USING (id) ORDER BY 2;
 ```
 
 The first query returns `(1, 1, -1)`, `(2, 2, -2)` with three columns. The second returns
-`(2, -2)`, `(1, -1)` with two columns; `ORDER BY 3` there would report `COHSQLE018`.
+`(2, -2)`, `(1, -1)` with two columns; `ORDER BY 3` there would report `CS02018`.
 
 ### Explicit placement
 

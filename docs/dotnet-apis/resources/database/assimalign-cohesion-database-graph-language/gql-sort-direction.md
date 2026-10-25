@@ -15,7 +15,7 @@ public enum GqlSortDirection { Ascending, Descending }
 Ascending (0) places smaller non-null values first; Descending (1) reverses their order. ASC and
 ASCENDING parse to Ascending; DESC and DESCENDING parse to Descending. Equal keys keep input order
 in either direction. NULL placement follows [GqlNullOrdering](gql-null-ordering.md).
-Undefined enum values on a supplied AST cause DatabaseException with COHDBG001 during planning;
+Undefined enum values on a supplied AST cause DatabaseException with CG05001 during planning;
 no SQLSTATE is assigned. Enum access introduces no exceptions.
 
 ## Example

@@ -33,17 +33,17 @@ Each item can contain any number of [INNER, LEFT or CROSS joins](join.md). Comma
 items produce a Cartesian product. JOIN binds more tightly
 than comma: in `FROM a, b JOIN c ON ...`, ON sees only b and c. It cannot see later inputs.
 An explicit alias hides the base name in SELECT,
-UPDATE and DELETE: `SELECT t.id FROM t AS x` reports located `COHSQLE015`; use `x.id`.
+UPDATE and DELETE: `SELECT t.id FROM t AS x` reports located `CS01015`; use `x.id`.
 Unknown or ambiguous columns fail during planning, including on empty inputs.
-Invalid qualifiers/columns use `COHSQLE015`; duplicate table bindings use `COHSQLE019`.
+Invalid qualifiers/columns use `CS01015`; duplicate table bindings use `CS01019`.
 
 ### Derived tables
 
 A parenthesized SELECT is a read-only relation in FROM, JOIN or a comma list. Its alias is required
-(`SQL0003` if absent) and hides every underlying table name. The optional column list renames every
+(`CS00003` if absent) and hides every underlying table name. The optional column list renames every
 output by position: it must have exactly the output width, unlike a partial PostgreSQL list.
-Shorter/longer lists and empty or whitespace-only output names fail planning with `COHSQLE013`,
-including empty inputs. Duplicate output names remain ambiguous when referenced (`COHSQLE015`).
+Shorter/longer lists and empty or whitespace-only output names fail planning with `CS05013`,
+including empty inputs. Duplicate output names remain ambiguous when referenced (`CS01015`).
 
 An independent body runs once in the enclosing statement context; a correlated body runs again
 for each enclosing evaluation frame. Its WHERE, GROUP BY/HAVING, ORDER BY and
@@ -53,12 +53,12 @@ domains and collation provenance follow the projected expression and survive emp
 Qualified USING outputs keep their physical metadata; unqualified USING outputs use merged metadata.
 An IN/NOT IN projection is Boolean, regardless of the membership element type. SQL has no MISSING.
 
-Each body has its own FROM scope. A real sibling reference fails `COHDBL001` with
+Each body has its own FROM scope. A real sibling reference fails `CK00001` with
 `A derived table cannot reference sibling relations without LATERAL.` followed by the binding
-detail at the offending reference. A typo or nonexistent/hidden qualifier keeps `COHSQLE015`.
+detail at the offending reference. A typo or nonexistent/hidden qualifier keeps `CS01015`.
 An enclosing-query reference from a body nested in a subquery follows the ordinary
 [correlation scope chain](../expressions/subqueries.md) and executes for each outer row. Explicit LATERAL syntax remains unsupported. Derived bodies and
-expression subqueries share the 32-level nesting limit (`COHDBL001` at level 33).
+expression subqueries share the 32-level nesting limit (`CK00001` at level 33).
 
 Outer [ORDER BY](order-by.md) accepts derived outputs, including aliases and ordinals, with
 per-key NULLS FIRST/LAST. Ordering inside nested derived bodies follows the same rules.

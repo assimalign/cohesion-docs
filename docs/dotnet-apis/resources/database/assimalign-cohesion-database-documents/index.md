@@ -83,6 +83,10 @@ resolved values and register nested components while keeping the model package d
 - **[DocumentIndexMetadata](document-index-metadata.md)** — Reference and usage.
 - **[Documents storage](storage.md)** — Reference and usage.
 
+## Catalog diagnostics
+
+[DocumentCatalogException](document-catalog-exception.md) exposes non-null structured Diagnostics.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.

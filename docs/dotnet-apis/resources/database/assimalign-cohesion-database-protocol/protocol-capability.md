@@ -38,6 +38,10 @@ Console.WriteLine(capability.MessageTypes[0]); // 14
 
 [Assembly](index.md) · [Negotiation and wire ordering](design.md)
 
+## Statement transaction status
+
+[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated one-byte Ready postamble; ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/src/ProtocolCapability.cs`.

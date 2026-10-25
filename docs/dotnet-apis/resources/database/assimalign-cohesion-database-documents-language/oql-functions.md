@@ -19,8 +19,8 @@ public static class OqlFunctions
 All is immutable and ordered by declaration: META, five aggregates and 34 SQL++ scalars.
 Find compares names with OrdinalIgnoreCase and returns null for an unknown name; it declares no
 lookup exception. It does not register user functions. Function names remain usable as fields.
-The parser emits OQL0008 for unknown calls and OQL0006 for invalid arity/star arguments.
-Deferred calls such as REGEXP_LIKE retain COHDBL001.
+The parser emits CD00008 for unknown calls and CD00006 for invalid arity/star arguments.
+Deferred calls such as REGEXP_LIKE retain CK00001.
 
 ## Example
 

@@ -20,8 +20,8 @@ public sealed class OqlCallExpression : OqlExpression
 
 The constructor stores its arguments without validation; supply an uppercase Name. Text parsing
 normalizes the name and checks [OqlFunctions](oql-functions.md). META uses OqlMetaExpression.
-Unknown text calls report OQL0008; invalid arity/star reports OQL0006. Programmatic invalid calls,
-incompatible literal kinds, invalid aggregate placement and grouping fail planning with COHDOC001.
+Unknown text calls report CD00008; invalid arity/star reports CD00006. Programmatic invalid calls,
+incompatible literal kinds, invalid aggregate placement and grouping fail planning with CD05001.
 Text/session factories reject parser errors with DatabaseParseException.
 
 Scalar calls can wrap aggregate results or appear inside aggregate arguments, but aggregates cannot

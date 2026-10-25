@@ -17,7 +17,7 @@ public sealed class GqlUnaryExpression : GqlExpression
 
 Operator supports NOT and unary +/-. NOT requires Boolean/NULL, preserves unknown, and reverses
 true/false. Signs promote numeric operands and propagate NULL. Invalid evaluated types, overflow or
-non-finite results raise COHDBG013; unsupported hand-built operator shapes fail COHDBG001.
+non-finite results raise CG02013; unsupported hand-built operator shapes fail CG05001.
 
 Sign promotion is arithmetic only. Numeric comparisons, IN and RETURN DISTINCT compare exact
 represented values across runtime types; see [Operators](../../../../database/graph/language/expressions/operators.md).

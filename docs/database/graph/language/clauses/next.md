@@ -1,6 +1,6 @@
 # NEXT
 
-Starts the next segment of one eagerly evaluated GQL statement.
+Starts the next segment of one source-ordered GQL statement.
 
 > **Status:** Implemented. Applies after RETURN or a modifying segment.
 
@@ -28,17 +28,17 @@ transaction rules.
 
 Only final columns govern wire result admission. Read-only composed queries can use ExecutePaths
 for one mandatory entity/path final column; any write stage is refused by that path API. Intermediate
-collect/UNWIND is permitted. Final lists of entities remain unsupported over the wire (COHDBG001; #1662).
+collect/UNWIND is permitted. Final lists of entities remain unsupported over the wire (CG05001; #1662).
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| GQL0002 | Leading/trailing NEXT, NEXT after a bare MATCH, or WITH immediately followed by NEXT |
-| COHDBG001 | Reference to a name omitted by a projection or invalid path/wire result shape |
-| COHDBG003 | Reference to a deleted variable or a value used as an entity |
-| COHDBG015 | Duplicate carried name |
-| COHDBL001 | NEXT YIELD, UNION, CALL, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
+| CG00002 | Leading/trailing NEXT, NEXT after a bare MATCH, or WITH immediately followed by NEXT |
+| CG05001 | Reference to a name omitted by a projection or invalid path/wire result shape |
+| CG03003 | Reference to a deleted variable or a value used as an entity |
+| CG01015 | Duplicate carried name |
+| CK00001 | NEXT YIELD, UNION, CALL, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
 
 These codes have no assigned SQLSTATE. See [Diagnostics](../diagnostics.md).
 

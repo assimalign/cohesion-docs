@@ -23,10 +23,10 @@ Function uses [GqlScalarFunction](gql-scalar-function.md); aliases resolve to th
 The constructor copies a non-null argument sequence to a read-only list; null is retained for
 planner validation rather than throwing. IsNiladic is true for CurrentDate and CurrentTimestamp.
 Construction does not evaluate or check signatures. The planner refuses invalid enums/arity or
-unbound arguments with COHDBG001, proven incompatible kinds with COHDBG003, and dynamic
-kind/domain/conversion failures with COHDBG013. These codes have no assigned SQLSTATE.
+unbound arguments with CG05001, proven incompatible kinds with CG03003, and dynamic
+kind/domain/conversion failures with CG02013. These codes have no assigned SQLSTATE.
 
-Parsed arity uses GQL0002; unknown names use GQL0010. Every argument evaluates, then a NULL
+Parsed arity uses CG00002; unknown names use CG00010. Every argument evaluates, then a NULL
 argument yields NULL before signature kind/domain checks. Clocks share one transaction-start
 UTC instant across rows, stages and explicit-transaction statements.
 

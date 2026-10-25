@@ -22,9 +22,9 @@ This parser-created action has no public constructor. Its read-only properties r
 payload; property access performs no execution or semantic validation. It is the Action of a
 [SqlAlterTableExpression](sql-alter-table-expression.md).
 
-A missing column uses COHSQLE015; a conflicting new name (including the same name) uses COHSQLE013.
+A missing column uses CS01015; a conflicting new name (including the same name) uses CS05013.
 Engine failures are DatabaseException diagnostics. No SQLSTATE is assigned above unless stated.
-All actions retain ownership checks and refuse explicit transactions with COHSQLT003, leaving
+All actions retain ownership checks and refuse explicit transactions with CS04003, leaving
 that transaction usable. Malformed text returns parser diagnostics; execution rejects it with
 DatabaseParseException.
 
