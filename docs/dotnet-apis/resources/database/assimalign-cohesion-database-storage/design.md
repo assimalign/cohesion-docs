@@ -508,7 +508,7 @@ and shutdown retain lane ownership, and unfinished work is reported once per dat
 This resolves the deferred-lane wake gap only; #1283 remains open and journal growth is not bounded.
 
 See the root and storage DESIGN sources and
-`cohesion/resources/Database/Assimalign.Cohesion.Database/shared/DatabaseCheckpointWorker.cs`.
+`cohesion/resources/Database/Assimalign.Cohesion.Database/shared/Engine/DatabaseCheckpointWorker.cs`.
 
 The journal-size checkpoint setting remains a soft trigger: one atomic statement can overshoot it
 before a checkpoint runs. The hard journal-size bound is deferred; wave 7 does not impose bracket

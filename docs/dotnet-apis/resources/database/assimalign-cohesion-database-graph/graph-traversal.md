@@ -79,7 +79,7 @@ and [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-quer
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/ValueObjects/GraphTraversal.cs`.
 - **Execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabase.cs`.
 - **Tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphEngineTests.cs`.

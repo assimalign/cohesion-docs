@@ -43,8 +43,9 @@ SQL and Graph negotiate server-reported transaction status. Pool return rolls ba
 SQL uses ordinary BEGIN/COMMIT/ROLLBACK commands on the same connection. If cleanup fails, abort
 the live rental. Abort cannot establish the outcome of an unacknowledged COMMIT or undo published writes.
 
-After acquiring the database writer lock, an idle open wire transaction holds it until COMMIT,
-ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default). New clients
+An idle open wire transaction retains its table-intent, row and unique-key locks until COMMIT,
+ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default), blocking
+conflicting writers. New clients
 discard sessions against pre-#1540 servers without negotiated transaction-status rather than
 pooling them. The connector consumes Ready status automatically after every Execute; caller
 cancellation after a completed result preserves an acknowledged committed result.
