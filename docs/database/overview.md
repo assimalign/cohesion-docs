@@ -429,6 +429,13 @@ Unlatched reads confirm against the page write sequence and retry overlapping mu
 
 Cached page pins use concurrent lookup and frame-local pin counts. Clock replacement chooses unpinned victims, and a single pending load coalesces readers of the same cold page. Reads, writes and growth run outside the global mapping lock; capacity includes loading reservations. Flush, resize and disposal retain explicit I/O ownership and WAL ordering. See [buffer-pool design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#the-buffer-pool).
 
+Replacement uses clock reference bits rather than LRU ordering. Buffer-pool growth and shrink
+both wait for in-flight cold I/O. Open seeds free-byte hints from page headers; unknown candidate
+geometry is measured under a read pin before write touch, avoiding pre-images for full pages.
+A sole mutable page handle carries read permission across serialized thread handoffs and awaits;
+nested writers for that page on another thread are refused before exposing mutable bytes. See
+[confirmed reads and reuse](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
+
 ## Sources
 
 - **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.

@@ -168,12 +168,36 @@ Contrast with a `Memory<byte>` -pooling design: pages are *pinned* GC handles ex
 because the slotted-page and header structs are `unsafe` overlays — the pool guarantees pointer
 stability for the handle's lifetime.
 
-- **Clock replacement.** Cached hits use concurrent lookup, a frame-local atomic pin and a binding recheck, then set a reference bit. Release hits and unpins do not move a shared LRU list or enter the mapping monitor. A miss scans at most twice the resident count; an atomic zero-pin reservation excludes new pins before eviction. Existing pins keep their buffers stable. All-pinned exhaustion still throws StorageIOException.
+- **Clock replacement.** Replacement uses clock reference bits rather than LRU recency ordering.
+  Cached hits use concurrent lookup, a frame-local atomic pin and a binding recheck, then set a
+  reference bit. Release hits and unpins do not enter the mapping monitor. A miss scans at most
+  twice the resident count; an atomic zero-pin reservation excludes new pins before eviction.
+  Existing pins keep their buffers stable. All-pinned exhaustion still throws StorageIOException.
 - **Single-flight cold loads.** One pending load per page coalesces concurrent readers. The synchronous pin API waits internally, then retries lookup. A frame becomes visible only after its read and validation finish. Independent page misses can perform I/O concurrently; resident and reserved loading frames together stay within Capacity.
 - **Page I/O outside mapping locks.** Reads, dirty-victim writes, WAL waits, checksums, growth and device flush do not hold the global mapping monitor. Short monitor sections manage admission, the clock, recycled frames and pending faults. Per-page I/O stripes order physical reads/writes, and an extension gate serializes grow-only Length/SetLength checks. Backing handles retain their own synchronization.
-- **Failure ownership.** A failed dirty-victim write retains its old mapping and dirty bytes. A failed incoming read recycles the unpublished frame and propagates the original exception. Every load completion wakes waiters on success or failure. Recycled pinned arrays and clock nodes are reused; cold faults still allocate completion/map bookkeeping.
+- **Failure ownership.** A failed dirty-victim write retains its old mapping and dirty bytes. A
+  failed incoming read recycles the unpublished frame; normal readers of that page receive the
+  original I/O/checksum exception. Overwrite waiters retry without inheriting a read failure.
+  Victim write/WAL failures and loader thread interrupts belong to the loader, so waiters retry.
+  Every completion wakes waiters on success or failure. Recycled pinned arrays and clock nodes
+  are reused; a cold fault creates its completion record/task only when the first waiter arrives,
+  and completions are never reused across faults.
 
-Flush takes dirty identity snapshots and writes private page images outside the mapping monitor in bounded bursts. Frame I/O leases prevent recycling; dirty-version checks retain newer changes for a later write. Flush, resize and disposal share a separate maintenance gate. Resize/disposal close cold-I/O admission and drain reservations with the monitor released; cached pins on other resident frames can continue. Shrink publishes capacity after required evictions, releasing surplus recycled buffers. Disposal drains I/O before clearing bookkeeping. WAL-before-data ordering, checksum validation and the synchronous public pin API are unchanged.
+Flush takes dirty identity snapshots and writes private page images outside the mapping monitor
+in bounded bursts. An atomic zero-pin reservation protects the copy; writers may pin again after
+the copy while physical I/O continues. A full flush also confirms private copies of stable
+read-pinned pages against the write sequence. A mutable image qualifies only for its serialized
+owning scope. If dirty images cannot be copied, full flush refuses with `StorageIOException` and
+preserves their journal recovery base. Frame I/O leases prevent recycling; dirty-version checks
+retain newer changes for a later write.
+
+Flush, resize and disposal share a separate maintenance gate. Both growth and shrink close
+cold-I/O admission and wait for in-flight pool I/O to drain with the monitor released; growth
+does not take effect immediately. Cached pins on other resident frames can continue. Shrink
+uses clock-selected unpinned victims and publishes capacity after required evictions, releasing
+surplus recycled buffers. Disposal drains I/O before clearing bookkeeping. Interrupted drains
+still release ownership and reopen admission in cleanup. WAL-before-data ordering, checksum
+validation and the synchronous public pin API are unchanged.
 
 StorageBufferPoolConcurrencyTests and StorageBufferPoolIoTests cover cached progress during blocked I/O, coalesced loads, failure wakeup, eviction, shrink and disposal. No public buffer-pool type, disk format or asynchronous pin API is added.
 
@@ -445,9 +469,10 @@ hardened from "no page write locks" to an **active-transaction count** taken in 
 under the transaction lock and released exactly once per commit/rollback: a begun-but-untouched
 transaction holds no page lock yet has already appended its begin record, and the whole checkpoint
 now runs *under* the transaction lock, so no transaction can slip between the emptiness check and
-the truncation. Lock order is transaction lock → header → flush gate → buffer pool monitor →
-journal medium → journal append. Flush I/O releases the pool monitor; eviction never takes the
-flush gate and waits for a frame lease with the monitor released. Never wait for the medium while holding the append lock. Medium owners briefly
+the truncation. Lock order is transaction lock → header → flush gate. Mapping snapshots briefly
+take the pool monitor; page I/O takes its stripe → journal medium → journal append with the
+monitor released. Eviction never takes the flush gate, and frame-lease waits release the monitor.
+Never wait for the medium while holding the append lock. Medium owners briefly
 take the append lock to detach/publish prefixes and latch failures before yielding the medium.
 A checkpoint attempted while transactions are active still throws
 `StorageTransactionException` — background checkpointers treat that as "busy, retry next pass".
@@ -648,13 +673,50 @@ Unlatched record reads copy bytes and confirm against the frame's write sequence
 
 Model and catalog decoders report a decode failure only after the read is confirmed. Confirmed failures retain the original cause and page/slot context; transient rewrite bytes do not become corruption reports. Storage I/O, cancellation and existing storage exception identities keep their own paths. See [StorageCorruptionException](storage-corruption-exception.md) for its record-scoped constructor and SlotIndex.
 
-InsertRecord tries packing fragmented space on its current page before extending. UpdateRecord preflights whether the replacement and other live records fit after packing, then preserves the target slot identity. Compaction validates slot geometry and overlapping records before moving bytes, copies aliased input, retains deleted slot identities and runs inside the existing mutable writer scope with WAL coverage. A capacity refusal leaves the page unchanged.
+Public raw mutable handles from `OpenPageForWrite` or `AllocatePageForWrite` carry read permission
+with the handle and writer epoch across serialized thread handoffs and awaits. An awaited
+continuation can read before accessing `Page` again. Accessing `Page` from another execution
+context transfers the handle's permission and revokes the previous context's token; inheriting
+an execution context alone does not let a concurrent fork bypass the writer. A physical thread
+identity alone also does not grant raw read permission.
 
-If the current page cannot fit an insert, an in-memory free-byte heap selects a partly empty older page for the same owner before extension. Hints track aggregate capacity after packing, including the new slot cost; the current target stays preferred. Selection never grants write ownership: allocation generation and actual capacity are rechecked before mutation, and stale hints are corrected or excluded. Open rebuilds hints from the existing page/owner scan; rollback invalidates measurements. No page or file format changes.
+Nested mutable scopes for one page must remain on one thread. Opening a nested writer on another
+thread, or moving a handle while another mutable scope remains open, throws
+`StorageTransactionException` before exposing mutable bytes. Never use a mutable handle or its
+borrowed memory concurrently across threads. Disposal may occur on another thread; it retires the
+epoch and permission registration together. Ordinary read pins and synchronous typed record
+operations create no ambient mutable scope.
+
+InsertRecord tries packing fragmented space on its current page before extending. UpdateRecord
+preflights whether the replacement and other live records fit after packing, then preserves the
+target slot identity. Compaction validates slot geometry and overlapping records before moving
+bytes, copies aliased input, retains deleted slot identities and runs inside the existing mutable
+writer scope with WAL coverage. A capacity refusal leaves the page unchanged. Compaction
+notification follows replacement publication and its final dirty mark; a throwing notification
+cannot leave the row absent until rollback. Reclaim marks dirty after its body and headers change.
+
+If the current page cannot fit an insert, an in-memory free-byte heap selects a partly empty older
+page for the same owner before extension. Hints track aggregate capacity after packing, including
+the new slot cost; the current target stays preferred. Older candidates use the first fitting
+node in heap traversal order; the root prefers greatest capacity, then lower page id for ties.
+Selection never grants write ownership: allocation generation and actual capacity are rechecked
+before mutation, stale hints are corrected or excluded, and another bracket's locked page is
+skipped. A temporarily reserved allocation keeps its hint for later publication.
+
+Open seeds capacity bounds from `SlotCount` and `FreeDataEnd` in the existing page-header scan
+(offsets 22 and 24), preserving potential dead space until measurement. Unknown candidates are
+measured from a write-sequence-confirmed private header/slot-directory copy under a read pin,
+before any write touch. Only a fitting page acquires a write lock, pre-image and full-page journal
+base. Rollback invalidates measurements; the next read-pin probe validates them. Reading N full
+candidates after reopen or rollback therefore needs only O(1) write pre-images/journal images
+for the fitting target. No eager full-page scan, persisted map or page/file format change is added.
 
 StorageCompactionTests, StorageRecordFreeBytesTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
 
 ## Sources
+
+- **Review regressions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageReviewTests.cs` and `StorageBufferPoolIoTests.Review.cs` in the same directory.
+- **Mutable handle ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/StoragePageHandle.cs`.
 
 - **Scheduling hints** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Storage.cs`, `src/Internal/StorageBufferPool.cs` and `src/Internal/StorageGroupCommitGate.cs` in the same project.
 - **Idle worker checks** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
