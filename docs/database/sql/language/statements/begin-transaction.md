@@ -35,6 +35,11 @@ disconnect rolls back an unfinished transaction. Returning a client lease resets
 transaction is rolled back before reuse, and an uncertified or failed reset discards the connector. `TRANSACTION` alone is not
 a statement.
 
+[TRUNCATE](truncate.md) has its own explicit-transaction refusal, CS04066 (SQLSTATE 25001).
+Earlier work and the transaction's active state are kept. A snapshot predating another session's
+TRUNCATE keeps its old rows, including joins, views and indexed reads, until it ends; reclamation
+waits for all older snapshot pins.
+
 An open wire transaction retains its acquired table-intent, row and unique-key locks even while
 idle, until COMMIT, ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by
 default). Keep transactions short because an idle writer blocks conflicting writers. Graph uses

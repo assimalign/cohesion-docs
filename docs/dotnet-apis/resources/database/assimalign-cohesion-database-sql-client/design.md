@@ -253,6 +253,21 @@ CS02055 (42804) for compared incompatible non-NULL values and CS05013 for subque
 complete statement errors preserve connection reuse. See
 [quantified comparisons](../../../../database/sql/language/expressions/quantified-comparisons.md).
 
+## TRUNCATE
+
+[TRUNCATE](../../../../database/sql/language/statements/truncate.md) uses the ordinary exchange on
+InMemory and TCP and returns affected count 0. Defaults are CONTINUE IDENTITY and RESTRICT;
+CASCADE recursively includes referencing tables and RESTART restores declared identity starts.
+Older reader snapshots retain rows, including indexed reads, views and joins, until they end;
+retired storage is reclaimed afterwards.
+
+SqlClientException carries CS03067 (0A000) for incomplete RESTRICT closure, CS04066 (25001) inside
+an explicit transaction, and retryable CS04064 (40001) for concurrent closure changes. The explicit
+refusal preserves earlier work, active state and connection usability. CTAS remains refused with
+CS00003. SqlTruncateWireTests checks both transports. RIGHT joins execute, while direct RIGHT or
+unaliased grouped joined-DML sources use CS05069 (no SQLSTATE); derived SELECT sources containing
+RIGHT execute. See [JOIN](../../../../database/sql/language/clauses/join.md).
+
 ## Joined DML
 
 UPDATE FROM and DELETE USING use the ordinary command/result exchange over InMemory and TCP.
