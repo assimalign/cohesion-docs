@@ -37,6 +37,8 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 - **[`GraphRelationship`](../assimalign-cohesion-database-graph-protocol/graph-relationship.md)** — Documented public type.
 - **[`GraphSchema`](graph-schema.md)** — Documented public type.
 - **[`GraphTraversal`](graph-traversal.md)** — Documented public type.
+- **[GraphShortestPathSearch](graph-shortest-path-search.md)** — Endpoints, direction, type and lower limits.
+- **[GraphShortestPathResult](graph-shortest-path-result.md)** — Selected path and unweighted distance.
 - **[`GraphDatabase`](graph-database.md)** — Documented public type.
 - **[`GraphDatabaseEngineBuilder`](graph-database-engine-builder.md)** — Documented public type.
 - **[GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md)** — Bounded scalar/list/map wire components.

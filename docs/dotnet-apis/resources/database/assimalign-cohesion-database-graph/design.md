@@ -382,6 +382,7 @@ not included.
 | `CG01002` | Unknown label or relationship type |
 | `CG03003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
 | `CG05004` | Physical-work budget or runtime 64-hop trail limit exceeded |
+| `CG05022` | Selected shortest-path node or relationship absent during active reconstruction; lifecycle refusals take precedence; no SQLSTATE |
 | `CG07005` | Session/database binding mismatch |
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |

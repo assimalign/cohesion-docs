@@ -85,6 +85,12 @@ one column (no SQLSTATE), CS01015 for name binding (42703 for unknown columns), 
 incompatible compared non-NULL values (42804). Repeated grouping keys that do not match still
 use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expressions/quantified-comparisons.md).
 
+## Graph shortest paths
+
+Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
+while the operation remains active (no SQLSTATE). Session/transaction termination keeps its
+lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-shortest-search).
+
 ## Graph format requirement
 
 Graph record and tree-registration format 5 is required. `CG06017` refuses earlier formats,
