@@ -11,6 +11,15 @@ basic SQL, declared precisely — and structured to be extended without churning
 
 ## Design intent
 
+[SqlTruncateExpression](sql-truncate-expression.md) stores an immutable ordered target list and
+effective RestartIdentity/Cascade flags; [SqlTruncateTable](sql-truncate-table.md) retains each
+table's ONLY modifier. TABLE is optional; CONTINUE IDENTITY and RESTRICT are defaults. Canonical
+rendering supplies TABLE and both effective policies. SqlQueryCommandType.Truncate is appended
+as value 12; Begin/Commit/Rollback keep 9/10/11. SqlClauses.Truncate is `TRUNCATE`.
+The [statement reference](../../../../database/sql/language/statements/truncate.md) describes
+CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transaction with earlier
+work retained), and retryable CS04064 (40001, concurrent closure change). CTAS retains CS00003.
+
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`) is a
@@ -289,7 +298,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM and DELETE USING, execution measures 54 of 60 declared clauses. Existing
+UPDATE FROM and DELETE USING, execution measures 55 of 61 declared clauses. Existing
 keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite

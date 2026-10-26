@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 54 of 60 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 55 of 61 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -16,8 +16,8 @@ expressions, functions, types, and diagnostics. Start with
 
 The measured surface includes table and index data definition language (DDL), row mutations,
 session transactions, column constraints, and queries over stored tables and virtual system
-relations with N-way [INNER, LEFT, CROSS and comma joins](language/clauses/join.md).
-INNER/LEFT accept ON or USING; USING merges each named pair into one common-typed visible column.
+relations with N-way [INNER, LEFT, RIGHT, CROSS and comma joins](language/clauses/join.md).
+INNER/LEFT/RIGHT accept ON or USING; USING merges each named pair into one common-typed visible column.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
 collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
@@ -28,13 +28,18 @@ correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-s
 UPDATE or DELETE. Outer ordering over derived outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
+[TRUNCATE](language/statements/truncate.md) empties table sets with CONTINUE/RESTART IDENTITY and
+RESTRICT/recursive CASCADE. It is autocommit-only (CS04066 in an explicit transaction, preserving
+prior work) and reports affected count 0. Older snapshots keep their rows through joins, views and
+indexes until they end; retired storage is reclaimed afterwards. CREATE TABLE AS SELECT remains refused.
+
 [ON CONFLICT](language/clauses/on-conflict.md) executes DO NOTHING or targeted DO UPDATE SET/WHERE
 with EXCLUDED over VALUES, DEFAULT VALUES and query sources. RETURNING includes inserted/updated
 rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or updates the newest
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 54-of-60 measure is not a percentage of complete SQL. The
+The 55-of-61 measure is not a percentage of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.

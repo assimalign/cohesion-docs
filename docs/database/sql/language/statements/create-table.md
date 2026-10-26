@@ -41,6 +41,10 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 
 ## Remarks
 
+CREATE TABLE ... AS SELECT remains refused with CS00003. Declare the table, then use
+[INSERT SELECT](insert.md). [TRUNCATE](truncate.md) empties existing table sets with identity and
+foreign-key policies while preserving definitions.
+
 The namespace must already exist; use [CREATE SCHEMA](create-schema.md). Unqualified names use dbo,
 and code-first provisioning remains pinned to dbo. Missing namespaces use CS01028 (3F000)
 for DDL; ordinary reads/DML retain CS01014 (42P01).

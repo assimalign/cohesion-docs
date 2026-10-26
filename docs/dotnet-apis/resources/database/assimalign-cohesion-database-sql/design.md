@@ -1270,7 +1270,9 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
-| `CS04064` | A bound table was replaced while DDL waited; retry the statement | 40001 (`serialization_failure`) |
+| `CS04064` | A bound table was replaced while DDL waited, or TRUNCATE closure changed; retry the statement | 40001 (`serialization_failure`) |
+| `CS03067` | TRUNCATE RESTRICT omits a required referencing table, even an empty one | 0A000 (`feature_not_supported`) |
+| `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
 | CS03302 | SQL definition dependency prevents DROP | 2BP01 |
@@ -1374,7 +1376,7 @@ shippable steps:
    a version a live snapshot with an older minimum still needs (the
    pinned-snapshot test is the proof).
 
-## Non-goals (current cut)
+## RIGHT normalization and groups
 
 [RIGHT JOIN](../../../../database/sql/language/clauses/join.md) executes by physical LEFT
 normalization while retaining written column slots and namespaces. Its entire left subtree becomes
@@ -1383,7 +1385,24 @@ derived-first groups, retain their association and survive persisted views. EXPL
 normalization and chosen access path. Direct RIGHT or unaliased grouped joined-DML sources fail
 CS05069 before reads/writes; derived SELECT sources containing RIGHT execute with the target pinned.
 
-FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+## TRUNCATE
+
+[TRUNCATE](../../../../database/sql/language/statements/truncate.md) atomically replaces storage
+for its complete incoming foreign-key closure. RESTRICT requires every referencing table in the
+written set; CASCADE recursively adds dependents independently of ON DELETE actions. Closure is
+checked at reservation and publication, with retryable CS04064 for concurrent changes. Definitions,
+ownership, indexes and defaults survive. CONTINUE IDENTITY is the default and preserves the exact
+in-process next value/reservation block; RESTART resets START while retaining INCREMENT.
+
+An explicit transaction is refused with CS04066 while retaining its active state and prior work.
+Success reports affected count 0. Older snapshots retain retired table/index/view bindings, including
+joins and joining views; old storage is reclaimed after all older transaction/statement pins end.
+DML targeting retired tables or joining them as sources retains CS04006 before writes. CTAS remains
+refused with CS00003. See the [session example](sql-database-session.md#truncate-and-old-snapshots).
+
+## Non-goals (current cut)
+
+FULL/NATURAL joins, qualified wildcards, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the

@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 54 of 60 named clauses against the live engine. The 6 excluded names are
+The profile measures 55 of 61 named clauses against the live engine. The 6 excluded names are
 `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
@@ -84,7 +84,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
-| `MERGE`, `TRUNCATE`, `GRANT` | `CS00002` | Unknown leading commands |
+| `MERGE`, `GRANT` | `CS00002` | Unknown leading commands; TRUNCATE executes |
+| CREATE TABLE ... AS SELECT | `CS00003` | CTAS remains excluded; create the table and use INSERT SELECT |
+| TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
 | Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |
 | Mutation of a built-in system relation | `CS04021` (25006) | System relations are read-only |

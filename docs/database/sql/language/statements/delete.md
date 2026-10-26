@@ -2,6 +2,9 @@
 
 Removes rows selected from a stored table.
 
+Use [TRUNCATE](truncate.md) to empty complete table sets with FK closure and identity policies.
+It preserves definitions, reports affected count 0 and runs only as an automatic statement.
+
 > **Status:** Partial. The documented subset is measured against the live SQL engine.
 
 ## Syntax
