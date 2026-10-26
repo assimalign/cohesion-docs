@@ -11,6 +11,25 @@ packages are retired. Wire contracts ship separately in [Documents.Protocol](../
 
 ## Reference pages
 
+- **[DocumentFunctionContext](document-function-context.md)** — Database identity and statement cancellation.
+- **[DocumentArguments](document-arguments.md)** — Borrowed callback values.
+
+- **[DocumentFunctionName](document-function-name.md)** — Generated function identifier and validation.
+- **[DocumentValue](document-value.md)** — A function value preserving MISSING separately from NULL.
+
+- **[DocumentFunctionArgumentKind](document-function-argument-kind.md)** — Valued JSON-kind masks accepted by document parameters.
+- **[DocumentFunctionKind](document-function-kind.md)** — Distinguishes a row scalar from a group aggregate.
+
+- **[DocumentNullBehavior](document-null-behavior.md)** — Controls NULL and MISSING propagation into callbacks.
+- **[DocumentAggregateAccumulator](document-aggregate-accumulator.md)** — One document aggregate call's state for one group.
+
+- **[DocumentAggregateFunction](document-aggregate-function.md)** — Creates one document accumulator per group and call appearance.
+- **[DocumentScalarFunction](document-scalar-function.md)** — A validated document scalar over a protected callback core.
+
+- **[DocumentFunction](document-function.md)** — Immutable metadata for native and application document functions.
+- **[DocumentFunctionCollection](document-function-collection.md)** — Register functions before the builder starts.
+
+- **[DocumentFunctionCatalog](document-function-catalog.md)** — Immutable engine-wide function lookup.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[DocumentDatabaseServer](document-database-server.md)** and [options](document-database-server-options.md).
@@ -33,14 +52,14 @@ transactions, and durable file or in-memory storage.
 The public entry point is `DocumentDatabaseEngine.Create(name, options)`. Cast a created database to
 `IDocumentDatabase`, create a collection, and use a session with the existing `IDocumentCollection`
 methods. `session.Database` carries collection changes into the session transaction. `Index`
-definitions are changed with OQL on the session, using its active transaction or an automatic
-statement transaction; `IDocumentDatabase` has no index-management members.
+definitions are changed with OQL on the session in an automatic statement transaction;
+OQL DDL in an explicit transaction reports CD04105 and faults it; `IDocumentDatabase` has no index-management members.
 
 See the [source-backed usage examples](examples/index.md).
 
 `AddDocuments((context, engine) => ...)` captures engine construction on the root
 `IDatabaseApplicationBuilder` and returns that application builder. During `Build`, the callback
-configures `IDocumentDatabaseEngineBuilder`, including an optional borrowed
+configures `DocumentDatabaseEngineBuilder`, including an optional borrowed
 `IDocumentStorageStrategy` and deferred worker/server factories. The application owns the resulting
 engine and its nested components. The model has no Hosting dependency. Standalone `Create` remains
 available; all four built-in workers start with engine creation and stop when the engine is
@@ -86,6 +105,13 @@ resolved values and register nested components while keeping the model package d
 ## Catalog diagnostics
 
 [DocumentCatalogException](document-catalog-exception.md) exposes non-null structured Diagnostics.
+
+## Application functions
+
+[DocumentFunction](document-function.md) covers scalar/aggregate registration on the concrete
+DocumentDatabaseEngine.CreateBuilder(name).Functions collection and the engine's frozen
+DocumentFunctionCatalog Functions property. The callback API preserves NULL and MISSING
+through [DocumentValue](document-value.md).
 
 ## Sources
 

@@ -1751,6 +1751,14 @@ never executes its wrapped data statement.
 
 Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
 
+## Bound source DML
+
+UPDATE ... FROM and DELETE ... USING parse and bind comma-separated sources and joins.
+EXPLAIN shows the source plan; bare RETURNING * expands target columns followed by visible
+source columns. Execution reports CK00001 in this batch before callbacks or writes, leaving
+an explicit SQL transaction usable. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources-parsing-and-binding-only)
+and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources-parsing-and-binding-only).
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

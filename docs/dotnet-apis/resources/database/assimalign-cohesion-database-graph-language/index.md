@@ -16,6 +16,9 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
+- **[GqlNamedFunctionCallExpression](gql-named-function-call-expression.md)** — Engine-resolved application function calls.
+
+- **[GraphFunctionName](graph-function-name.md)** — Generated function identifier and validation.
 - **[GqlPathMode](gql-path-mode.md)** — Outer path identity-reuse policies.
 
 - **[GqlStage](gql-stage.md)** — Source-ordered stage family and source-ordered execution.
@@ -28,7 +31,6 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GqlReturnStage](gql-return-stage.md)** — RETURN/WITH projection and per-stage tails.
 - **[GqlNextStage](gql-next-stage.md)** — Segment boundary.
 - **[GqlQuerySegment](gql-query-segment.md)** — Stages between NEXT boundaries.
-
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`GqlClauses`](gql-clauses.md)** — Documented public type.

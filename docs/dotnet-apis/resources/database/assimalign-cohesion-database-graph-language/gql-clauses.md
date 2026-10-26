@@ -14,6 +14,7 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 public static class GqlClauses
 {
     public const string QuantifiedPath = "QUANTIFIED PATH";
+    public const string PathMode = "PATH MODE";
     public const string GroupBy = "GROUP BY";
     public const string Let = "LET";
     public const string Filter = "FILTER";
@@ -67,6 +68,16 @@ executable clauses. `GqlClauses` names lexical capability keys, including deferr
 - **Assembly** — [`Assimalign.Cohesion.Database.Graph.Language`](index.md).
 - **Design** — [Lifetime and implementation decisions](design.md).
 - **Examples** — [Source-backed usage](examples/index.md).
+
+## PathMode
+
+PathMode is enabled in GqlLanguageProfile.Instance and adds no accessor exceptions. It names
+the outer [WALK/TRAIL/SIMPLE/ACYCLIC](gql-path-mode.md) capability. Nested modes, unbounded
+WALK even with LIMIT, and selectors still use CK00001.
+
+```csharp
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.PathMode)); // True
+```
 
 ## Sources
 

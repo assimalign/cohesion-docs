@@ -110,7 +110,7 @@ and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-
 
 ## Array queries
 
-OQL executes 31 of 32 declared clauses. [UNNEST and LEFT UNNEST](language/clauses/unnest.md)
+[UNNEST and LEFT UNNEST](language/clauses/unnest.md)
 expand arrays before filtering; [ANY/SOME/EVERY](language/expressions/quantified-predicates.md)
 and [array IN](language/expressions/operators.md#in-and-between) test elements with SQL++
 NULL/MISSING rules. SELECT * with UNNEST returns synthetic binding objects.

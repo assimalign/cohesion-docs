@@ -148,6 +148,14 @@ Unordered read LIMIT can stop upstream matching. Paging never reduces an admitte
 - **[RETURN](../clauses/return.md)** — projection.
 - **[Patterns](../patterns.md)** — bounds and direction.
 
+## Path modes
+
+Each outer comma-separated path may specify WALK, TRAIL, SIMPLE or ACYCLIC after its optional
+assignment; omitted mode means TRAIL. The mode covers the complete path, including repeated
+segments, and does not change OPTIONAL MATCH NULL extension. See
+[identity rules and examples](../patterns.md#path-modes). Nested modes, unbounded WALK even
+with LIMIT, and selectors report CK00001. Every mode retains hop/work and memory limits.
+
 ## Sources
 
 - **Label postings, cost selection and unions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.

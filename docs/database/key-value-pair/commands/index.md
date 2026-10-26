@@ -1,6 +1,6 @@
 # Commands
 
-The Key-Value Pair command grammar supplies six operations through the session text execution surface.
+The Key-Value Pair command grammar supplies data/discovery operations and application CALL through the session text execution surface.
 
 > **Status:** Implemented.
 
@@ -12,6 +12,7 @@ and its named tuple-codec parameters.
 
 | Command | Support | Result |
 |---|---|---|
+| [CALL](call.md) | Supported | One declared nullable primitive value |
 | [GET](get.md) | Supported | Zero or one entry |
 | [PUT](put.md) | Supported | One applied/etag outcome |
 | [DELETE](delete.md) | Supported | Affected count |

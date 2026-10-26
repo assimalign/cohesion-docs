@@ -45,7 +45,8 @@ structured CG04007 and the original cause. Its in-process message is unprefixed;
 still starts with CG04007. Catalog snapshot conflicts are retryable aborts with that code;
 deterministic catalog identity/name errors use CG03003. See [error handling](language/diagnostics.md).
 
-GQL matches bounded relationship-unique trails, including [quantified edges/subpaths](language/patterns.md#quantified-paths)
+GQL matches paths under outer [WALK/TRAIL/SIMPLE/ACYCLIC modes](language/patterns.md#path-modes),
+with TRAIL as its default, including [quantified edges/subpaths](language/patterns.md#quantified-paths)
 and list-valued group variables. [Core scalar functions and CAST](language/functions/scalar-functions.md)
 execute with plan-time signatures and a shared transaction-start clock. Typed `TraverseAsync` is a separate breadth-first
 operation with an explicit maximum depth and a visited-node set; it excludes the starting node.

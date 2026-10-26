@@ -189,6 +189,24 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CV05001 identifies a Put execution without an outcome row, CV05002 an unsupported executor request kind, CV06107 an unsupported entry-space format and CV07001 a session bound to another database. Shared CK identities cover common lifecycle/state/value guards. See the [registry](../error-codes.md).
 
+## Registered CALL functions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CV00019 | CALL lacks its function name; ParseFailure | — |
+| CV01018 | Function is absent from the engine catalog | — |
+| CV01019 | No overload accepts the argument count | — |
+| CV01020 | No overload accepts the exact non-NULL primitive types | — |
+| CV01021 | Multiple overloads accept NULL-compatible inputs | — |
+| CV02016 | Result violates its declared primitive type | — |
+| CV05003 | External callback failure, retaining its cause | — |
+| CK07003 | Nested/concurrent command refused while CALL owns the session | — |
+
+All execution function failures use ExecutionFailure, retain the completed wire session and
+leave an explicit transaction active. Application I/O/timeouts are CV05003, not storage
+classification. DatabaseException, out-of-memory, insufficient stack and actual statement
+cancellation retain their identity at invocation. See [CALL](commands/call.md).
+
 ## Sources
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueIndexReadIntegrityTests.cs`.

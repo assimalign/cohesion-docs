@@ -65,7 +65,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
-| `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches paths under the resolved outer mode (default TRAIL) |
 | `OPTIONAL MATCH` | Same fixed/quantified paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, labeled predicates, IN and string predicates | Three-valued filtering; positive label conjunctions can anchor nodes; value errors CG02013 |
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
@@ -316,7 +316,7 @@ colon labels, property assignment and literal-map replacement/merge. Touching +=
 operator token. Scalar right sides retain IS [NOT] LABELED. Leading SET/REMOVE and nested targets
 are CG00002. Whole-map expressions/parameters and literal composite properties are CK00001;
 relationship labels and computed composite properties are CG03003. No new code is introduced.
-The profile executes 26 of 33 declared clauses.
+The profile enables outer path modes in addition to the existing clause subset.
 
 Database lifecycle failures additionally use CG06018 for missing journal/backup, incomplete
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned

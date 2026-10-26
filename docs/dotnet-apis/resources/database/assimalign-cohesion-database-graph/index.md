@@ -11,6 +11,22 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 
 ## Reference pages
 
+- **[GraphFunctionContext](graph-function-context.md)** — Database identity and statement cancellation.
+- **[GraphArguments](graph-arguments.md)** — Borrowed callback values.
+
+- **[GraphFunctionCollection](graph-function-collection.md)** — Register functions before the builder starts.
+- **[GraphFunctionCatalog](graph-function-catalog.md)** — Immutable engine-wide function lookup.
+
+- **[GraphNullBehavior](graph-null-behavior.md)** — Controls whether NULL reaches a Graph callback.
+- **[GraphFunctionValueKind](graph-function-value-kind.md)** — The public category of a GraphFunctionType.
+
+- **[GraphFunctionType](graph-function-type.md)** — Immutable scalar, entity and recursive container shape metadata.
+- **[GraphAggregateAccumulator](graph-aggregate-accumulator.md)** — Single-group state with one-time attachment and retained-memory accounting.
+
+- **[GraphAggregateFunction](graph-aggregate-function.md)** — Creates fresh aggregate state for each group and call appearance.
+- **[GraphScalarFunction](graph-scalar-function.md)** — Validated scalar invocation over a protected implementation core.
+
+- **[GraphFunction](graph-function.md)** — Immutable metadata shared by native and application scalar/aggregate functions.
 - **[GraphDatabaseServerOptions](graph-database-server-options.md)** — Terminal drain deadline and peer-close linger.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.

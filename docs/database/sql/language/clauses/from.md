@@ -97,6 +97,13 @@ returns 1, 2, 3.
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
 
+## UPDATE source binding
+
+UPDATE ... FROM recognizes and binds this source-list/join syntax in this batch, but execution
+reports CK00001 before callbacks or writes. EXPLAIN shows its source plan. DELETE ... USING
+has the same binding-only boundary. See [UPDATE](../statements/update.md#from-sources-parsing-and-binding-only)
+and [DELETE](../statements/delete.md#using-sources-parsing-and-binding-only).
+
 ## Sources
 
 - **Derived execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDerivedTableExecutionTests.cs`.

@@ -2,13 +2,13 @@
 
 The Key-Value Pair command contract excludes query composition, administration, and several deferred engine features.
 
-> **Status:** Partial. The six-command surface is implemented; the capabilities below are excluded or deferred.
+> **Status:** Partial. The data/discovery commands and registered CALL execute; the capabilities below are excluded or deferred.
 
 ## Grammar boundary
 
 | Construct | Support | Boundary |
 |---|---|---|
-| `GET`, `PUT`, `DELETE`, `EXISTS`, `SCAN`, `KEYSPACES` | Supported | See the command reference |
+| `GET`, `PUT`, `DELETE`, `EXISTS`, `SCAN`, `KEYSPACES`, `CALL` | Supported | See the command reference |
 | `BEGIN`, `COMMIT`, `ROLLBACK` | Not in the language | Embedded session transactions exist; wire transaction frames are deferred |
 | Multi-key or atomic batch commands | Not in the language | No batch grammar |
 | Database-management commands or database selectors | Not in the language | Provisioning belongs to the host-owned engine |

@@ -2,7 +2,7 @@
 
 GQL provides finite graph matching, scalar filtering, insertion, property/label updates, deletion, and catalog discovery.
 
-> **Status:** Partial. Executes 26 of 33 declared clauses in a bounded ISO GQL subset with Cohesion extensions.
+> **Status:** Partial. Executes a bounded ISO GQL subset with Cohesion extensions, including outer path modes.
 
 This reference describes the executable Cohesion subset of ISO/IEC 39075:2024.
 `INSERT` is the graph-insertion verb; `CREATE` is a compatibility extension and `SHOW` is a

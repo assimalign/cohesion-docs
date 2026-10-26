@@ -80,10 +80,15 @@ Supply an `IDuplexConnectionFactory` through `KeyValueClientOptions.ConnectionFa
 
 - **[KeyValueClientException](key-value-client-exception.md)** — Reference and usage.
 
+## Registered scalar calls
+
+[KeyValueConnection.InvokeFunctionAsync](key-value-connection.md#registered-call-functions)
+invokes server-registered functions through CALL and returns a primitive or NULL. Function
+identifiers ship in KeyValuePair.Protocol; clients retain no engine reference.
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
-
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair.Client/src/Assimalign.Cohesion.Database.KeyValuePair.Client.csproj`.

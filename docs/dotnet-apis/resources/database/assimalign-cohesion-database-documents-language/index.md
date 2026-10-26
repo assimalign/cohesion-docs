@@ -7,11 +7,9 @@ This package parses the Documents engine's executable OQL surface into typed sta
 ## Reference pages
 
 - **[OqlClauses](oql-clauses.md)** — Transaction grammar and session-control metadata.
-
 - **[OqlTransactionIsolation](oql-transaction-isolation.md)** — Transaction grammar and session-control metadata.
 
 - **[OqlTransactionCommand](oql-transaction-command.md)** — Transaction grammar and session-control metadata.
-
 - **[OqlTransactionExpression](oql-transaction-expression.md)** — Transaction grammar and session-control metadata.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -39,7 +37,6 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlMissingExpression](oql-missing-expression.md)** — AST members and execution contract.
 - **[OqlLiteralExpression](oql-literal-expression.md)** — AST members and execution contract.
 - **[OqlExplainExpression](oql-explain-expression.md)** — SELECT/INSERT/UPDATE/DELETE wrapper.
-
 - **[OqlUnnestExpression](oql-unnest-expression.md)** — Ordered INNER/LEFT array binding.
 - **[OqlQuantifiedExpression](oql-quantified-expression.md)** — Scoped ANY/SOME/EVERY predicate.
 

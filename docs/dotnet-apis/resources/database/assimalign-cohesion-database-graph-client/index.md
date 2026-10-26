@@ -89,6 +89,5 @@ Supply an `IDuplexConnectionFactory` through `GraphClientOptions.ConnectionFacto
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.
-
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Assimalign.Cohesion.Database.Graph.Client.csproj`.

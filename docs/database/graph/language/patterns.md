@@ -8,9 +8,10 @@ Graph patterns describe fixed or quantified paths of labeled nodes and typed rel
 
 ```syntaxsql
 <paths> ::= path [ , ...n ]
-<path> ::= [ variable "=" ] [ { WALK | TRAIL | SIMPLE | ACYCLIC } [ PATH | PATHS ] ] path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
+<path> ::= [ variable "=" ] [ { WALK | TRAIL | SIMPLE | ACYCLIC } [ PATH | PATHS ] ] path_body
+<path_body> ::= path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
 <path_primary> ::= node | parenthesized
-<parenthesized> ::= "(" path ")" [ quantifier ]
+<parenthesized> ::= "(" path_body ")" [ quantifier ]
 <quantifier> ::= "{" m [ "," [ n ] ] "}" | "{," [ n ] "}" | "+" | "*"
 
 <node> ::= "(" [ variable ] [ ":" label_name ...n ] [ property_map ] ")"

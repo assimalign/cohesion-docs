@@ -790,7 +790,7 @@ statement mutations. GraphAggregateTests and GraphAggregateWireTests cover local
 
 ## Quantified expansion
 
-[Quantified paths](../../../../database/graph/language/patterns.md#quantified-paths) enumerate trails,
+[Quantified paths](../../../../database/graph/language/patterns.md#quantified-paths) use the outer path mode (default TRAIL),
 with lists for variables inside repeated segments. Zero repetitions join both outer endpoint
 constraints on one node and bind empty lists. Source order survives right/left index anchoring.
 Only outer singleton entities can anchor. Repeated property maps apply at every occurrence.
@@ -798,7 +798,7 @@ The heap-based expansion frontier retains depth-proportional search state; mater
 still have the existing budgets. Runtime unbounded paths fail CG05004 at a qualifying 65th
 relationship before endpoint tests if that branch is visited. An unordered read LIMIT can stop
 upstream before visiting it. EXPLAIN Expand detail reports
-`quantifier={min,max}; body_hops=n; trail=True`; an empty max means unbounded.
+quantifier bounds, body_hops and the resolved mode; an empty max means unbounded.
 Group/singleton conflicts and invalid group access use CG03003; invalid direct AST paths use
 CG05001. Wire composite admission (CG07016) precedes the entity-list gate (CG05001).
 No storage/catalog/wire format changes are needed.
@@ -1003,6 +1003,29 @@ TRAIL. [Patterns](../../../../database/graph/language/patterns.md#path-modes) de
 and examples. Nested modes, unbounded WALK even with LIMIT, and selectors report CK00001.
 Undefined direct AST modes and insertion modes use CG05001; text insertion modes use CG00002.
 All modes retain CG05004 for hop/work and CG05020 for memory limits, with no SQLSTATE.
+
+## Application function API
+
+GraphDatabaseEngine.CreateBuilder(name).Functions.Add(function) registers functions before
+the builder's single Build/BuildAsync attempt. The builder owns
+[GraphFunctionCollection](graph-function-collection.md); the engine's public
+GraphFunctionCatalog Functions property exposes the frozen engine-local catalog.
+Registration freezes before storage/workers, even after a failed attempt. Names compare
+ordinally ignoring case. Functions serve every database/session and are not persisted.
+
+[GraphFunction](graph-function.md) documents the callback contract: trusted, stateless
+or thread-safe code, no engine reentry, no retained borrowed values/context, and cooperative
+cancellation through derived cores. Same-session reentry uses CK07003 before nested execution.
+There is no determinism/volatility metadata or purity guarantee.
+
+Graph application callback/result/accumulator failures use CG05021. Dynamic argument conversions use CG02013 and known incompatible query kinds use CG03003. Retained state is charged to the existing memory budget (CG05020). Each aggregate appearance owns independent group state.
+
+External I/O and timeout exceptions retain their cause under the callback code.
+DatabaseException, out-of-memory, insufficient stack and actual statement cancellation keep
+their identity. Completed wire failures leave the connection reusable.
+Statement failures abort an explicit transaction; roll back to recover.
+No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
+be rolled back.
 
 ## Sources
 

@@ -44,6 +44,16 @@ Console.WriteLine(call.Arguments.Count); // 4
 
 [Assembly](index.md) · [Design](design.md) · [OqlFunction](oql-function.md)
 
+## Application function calls
+
+OqlQueryParser(allowUnregisteredFunctions: true) admits ordinary named calls without requiring
+an OqlFunctions entry. Engine request factories and session/wire execution enable this
+automatically, then bind the name/arity against the executing engine's DocumentFunctionCatalog.
+Standalone parsing keeps CD00008 for unknown names. An unregistered engine name still uses
+CD00008 but fails during binding/execution (ExecutionFailure, no StatementParseFailed).
+Native/reserved names cannot be replaced. See [DocumentFunction](../assimalign-cohesion-database-documents/document-function.md)
+for callback metadata, NULL/MISSING policies and failures.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlCallExpression.cs`.

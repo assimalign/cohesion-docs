@@ -69,6 +69,27 @@ Optional SQL costing falls back on committed definition changes; mutation execut
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
 
+## Developer function conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG05021 | Graph callback/result/accumulator contract failure | — |
+| CD05017 | Document callback/result/accumulator contract failure | — |
+| CV00019 | CALL lacks its function name | — |
+| CV01018 | Unknown Key-Value function | — |
+| CV01019 | No Key-Value overload for the argument count | — |
+| CV01020 | No Key-Value overload for the exact non-NULL types | — |
+| CV01021 | Multiple NULL-compatible Key-Value overloads | — |
+| CV02016 | Key-Value result violates the declared primitive type | — |
+| CV05003 | Key-Value callback failed | — |
+| CK07003 | Same-session callback reentry refused before nested execution | — |
+
+External callback I/O/timeouts retain the callback code and cause. Existing DatabaseException,
+out-of-memory, insufficient stack and actual statement cancellation retain their identity.
+See [Graph](graph/language/diagnostics.md#application-function-conditions),
+[Documents](document/language/diagnostics.md#application-function-conditions) and
+[Key-Value](key-value-pair/diagnostics.md#registered-call-functions).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `e33bb46c1`.
