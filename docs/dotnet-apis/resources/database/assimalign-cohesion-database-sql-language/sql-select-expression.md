@@ -32,7 +32,8 @@ before casting to SELECT. A CTE/derived/subquery/INSERT source accepts either bo
 The parser owns construction. From replaces the former single table and flat join shape; consume
 each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN binds more tightly
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
-SqlTableReference or [SqlDerivedTableReference](sql-derived-table-reference.md). Renderer and
+SqlTableReference, [SqlDerivedTableReference](sql-derived-table-reference.md), or
+[SqlJoinedTableReference](sql-joined-table-reference.md) for an unaliased parenthesized join. Renderer and
 persisted expressions use this same shape. Current SQL storage format 26 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are

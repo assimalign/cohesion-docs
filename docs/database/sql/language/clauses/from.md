@@ -11,6 +11,8 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
                  | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
+                 | ( <table_source> <join> [ <join> ...n ] )
+                   [ [ AS ] table_alias [ ( column_name [ , ...n ] ) ] ]
 ```
 
 ## Arguments
@@ -29,13 +31,18 @@ including nested queries, CTEs and views. A wildcard still requires a relation. 
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 
-Each item can contain any number of [INNER, LEFT or CROSS joins](join.md). Comma-separated
+Each item can contain any number of [INNER, LEFT, RIGHT or CROSS joins](join.md). Comma-separated
 items produce a Cartesian product. JOIN binds more tightly
 than comma: in `FROM a, b JOIN c ON ...`, ON sees only b and c. It cannot see later inputs.
 An explicit alias hides the base name in SELECT,
 UPDATE and DELETE: `SELECT t.id FROM t AS x` reports located `CS01015`; use `x.id`.
 Unknown or ambiguous columns fail during planning, including on empty inputs.
 Invalid qualifiers/columns use `CS01015`; duplicate table bindings use `CS01019`.
+
+Parenthesized join groups preserve association, including groups starting with an aliased derived
+SELECT. Without an alias, component names remain visible. A group alias hides them and behaves as
+a derived SELECT *, with the same complete column-alias-list rule. RIGHT preserves its written
+right side while making the left subtree nullable; visible column order stays as written.
 
 ### Derived tables
 

@@ -124,6 +124,16 @@ WHERE and RETURNING bind target and source columns. Aliases hide base names; sel
 distinct names. A source JOIN ON excludes the target and other comma items; target/source
 conditions belong in WHERE.
 
+A direct RIGHT join or unaliased parenthesized joined source is refused before reads or writes
+with CS05069 (no SQLSTATE). A derived SELECT source containing RIGHT executes with the target
+pinned; FULL JOIN remains CK00001. With the [UPDATE FROM fixture](update.md#from-sources), this
+branch test deletes only target id 2, leaving `(1,0)`:
+
+```sql
+DELETE FROM t USING (SELECT b.id FROM a RIGHT JOIN b USING (id)) q
+WHERE t.id = q.id;
+```
+
 The engine collects target/source matches under one statement snapshot before any deletion.
 Only TRUE selects an association; NULL comparisons yield UNKNOWN, and LEFT sources can supply
 NULL-extended columns. SQL has no MISSING value. Earlier uncommitted session changes are visible;

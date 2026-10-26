@@ -1266,6 +1266,7 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
+| `CS05069` | Direct RIGHT or unaliased parenthesized joined-DML source; refused before reads/writes | — |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
@@ -1375,7 +1376,14 @@ shippable steps:
 
 ## Non-goals (current cut)
 
-RIGHT/FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+[RIGHT JOIN](../../../../database/sql/language/clauses/join.md) executes by physical LEFT
+normalization while retaining written column slots and namespaces. Its entire left subtree becomes
+nullable; USING reads the coerced right value and collation. Parenthesized groups, including
+derived-first groups, retain their association and survive persisted views. EXPLAIN describes the
+normalization and chosen access path. Direct RIGHT or unaliased grouped joined-DML sources fail
+CS05069 before reads/writes; derived SELECT sources containing RIGHT execute with the target pinned.
+
+FULL/NATURAL joins, qualified wildcards and outer ordering over derived outputs, explicit NULL placement, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the
