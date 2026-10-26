@@ -4,6 +4,8 @@ OQL accepts one SQL++ query, data mutation, collection definition or index state
 
 ## Statements
 
+- **Control an in-process transaction** — [BEGIN/START, COMMIT and ROLLBACK](transactions.md); wire controls are refused.
+
 - **Create a collection** — [CREATE COLLECTION](create-collection.md).
 - **Remove a collection** — [DROP COLLECTION](drop-collection.md).
 - **Insert documents** — [INSERT](insert.md), from VALUES or SELECT.

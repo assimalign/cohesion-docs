@@ -12,13 +12,12 @@ DROP COLLECTION [ IF EXISTS ] collection_name [ ; ]
 
 Use [DELETE](delete.md) to remove documents while retaining the collection and its index definitions.
 
-Names are case-sensitive and local to the session database. Success reports affected count zero. IF
-EXISTS ignores an absent collection; it does not permit dropping a schema-owned collection. The
-operation uses the same core as the session API and participates in an explicit transaction or an
-automatic transaction. CREATE is visible to later statements in its transaction; rollback removes
-it. DROP rollback restores the collection, documents and indexes together. Snapshot conflicts are
-checked before a conditional no-op. A failed collection statement aborts an explicit transaction
-under the Documents failed-statement rule.
+Names are case-sensitive and local to the session database. Success reports affected count zero.
+IF EXISTS ignores an absent collection; it does not permit dropping a schema-owned collection.
+OQL collection DDL runs in an automatic statement transaction. Inside an explicit transaction it
+reports CD04105 before mutation and faults that transaction, including conditional no-ops.
+Use [ROLLBACK](transactions.md) to recover. Typed C# collection operations retain their existing
+transaction contract. Snapshot conflicts are checked before an automatic conditional no-op.
 
 | Code | Meaning |
 | --- | --- |

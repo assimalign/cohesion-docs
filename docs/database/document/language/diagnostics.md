@@ -202,6 +202,18 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CD04102 is a catalog snapshot conflict; CD04103 an expected-version mismatch; CD05016 a result byte/frame limit; CD07001 a session bound to another database; CD09001 a stale collection handle. These supplement the existing CD condition families and shared CK guards. See the [code scheme and registry](../../error-codes.md).
 
+## Text transactions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04004 | Nested BEGIN/START; faults the existing transaction | — |
+| CD04104 | COMMIT/ROLLBACK without an explicit transaction | — |
+| CD04105 | OQL collection/index DDL inside an explicit transaction, including conditional no-ops | — |
+| CD07002 | Documents server refuses text transaction control over InMemory or TCP | — |
+
+CD04101 also covers work and COMMIT after a statement faults the transaction. ROLLBACK recovers
+the session; a faulted COMMIT ends it without committing. See [transactions](statements/transactions.md).
+
 ## Sources
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/StorageCorruptionTests.cs`.

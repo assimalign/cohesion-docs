@@ -43,7 +43,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | EXPLAIN | Supported | Chosen data plan without execution |
 | [Scalar functions](functions/scalar-functions.md) and [CAST](expressions/cast.md) | Supported | Plan-time signatures, strict NULLs, code-point substring and transaction-start clocks |
 | [Aggregates](functions/aggregate-functions.md) | Supported | COUNT, SUM, AVG, MIN, MAX, COLLECT_LIST/collect; implicit and [ISO GROUP BY](clauses/group-by.md) |
-| [Quantified paths](patterns.md#quantified-paths) | Supported | ISO edge/subpath and Cypher lengths, trail semantics, list-valued group variables |
+| [Quantified paths](patterns.md#quantified-paths) | Supported | ISO edge/subpath and Cypher lengths, outer WALK/TRAIL/SIMPLE/ACYCLIC (default TRAIL), list-valued groups |
 
 The keyword table is larger than the executable clause list. Recognition does not imply support.
 The parser conformance corpus checks the subset's syntax and abstract syntax tree; it is not an

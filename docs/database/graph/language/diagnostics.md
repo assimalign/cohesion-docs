@@ -277,6 +277,14 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CG05020 reports accounted retained-memory exhaustion. CG05004 reports physical-work or runtime trail exhaustion. CG08021 rejects nonpositive request limits or values above engine ceilings. None has an assigned SQLSTATE. Configure [engine ceilings and lower embedded limits](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md).
 
+## Path modes
+
+Outer WALK, TRAIL, SIMPLE and ACYCLIC execute; omitted mode means TRAIL. CK00001 refuses a
+mode inside a parenthesized/quantified subpath, an unbounded WALK even with LIMIT, or a path
+selector. CG00002 covers text insertion modes; CG05001 covers undefined direct AST modes or
+insertion modes. All modes retain CG05004 for hop/work limits and CG05020 for retained-memory
+limits. No SQLSTATE is assigned to these conditions. See [path modes](patterns.md#path-modes).
+
 ## Sources
 
 - **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.

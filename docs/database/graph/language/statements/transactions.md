@@ -1,14 +1,14 @@
 # Graph transactions
 
 ```syntaxsql
-START TRANSACTION [ ; ]
+{ START TRANSACTION | BEGIN [ TRANSACTION ] } [ ; ]
 COMMIT [ ; ]
 ROLLBACK [ ; ]
 ```
 
-Each statement is a separate Execute request on the same connection. START uses Snapshot; typed embedded sessions also offer ReadCommitted. A statement failure aborts the explicit transaction; later work requires ROLLBACK. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the current transaction; COMMIT/ROLLBACK without one uses CG04023. ExecutePaths rejects controls with CG05001 before changing transaction state.
+Each statement is a separate Execute request on the same connection. START and BEGIN use Snapshot; typed embedded sessions also offer ReadCommitted. A statement failure aborts the explicit transaction; later work requires ROLLBACK. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the current transaction; COMMIT/ROLLBACK without one uses CG04023. ExecutePaths rejects controls with CG05001 before changing transaction state.
 
-BEGIN, savepoints, transaction options, EXPLAIN controls, composed controls and multiple statements in one text request remain unsupported. Transaction-start datetime functions retain one instant throughout the explicit transaction.
+Savepoints, transaction options, EXPLAIN controls, composed controls and multiple statements in one text request remain unsupported. Transaction-start datetime functions retain one instant throughout the explicit transaction.
 
 ```csharp
 await connection.ExecuteAsync("START TRANSACTION");
@@ -24,6 +24,13 @@ Keep transactions short because an idle writer blocks other writers. New clients
 sessions against pre-#1540 servers that cannot negotiate transaction-status.
 
 [Statements](index.md) · [Diagnostics](../diagnostics.md)
+
+## BEGIN alias
+
+BEGIN and BEGIN TRANSACTION execute in process and over the wire with the same Snapshot
+semantics as START TRANSACTION. WORK, isolation clauses and other options report CG00002.
+Duplicate BEGIN uses CG04022; absent COMMIT/ROLLBACK uses CG04023. These conditions have no
+assigned SQLSTATE. The same rollback, pool reset and failed-transaction rules apply.
 
 ## Sources
 

@@ -122,9 +122,10 @@ entities requires a binding from matching or a proven entity carried through pro
 Pattern repetition-bound sums are limited to 64 relationships. Scalar chains have no comparison-count limit;
 recursive depth follows available stack (CG00009 in parsing, CG05008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
-Quantified paths are unsupported, so cycles cannot cause unbounded repetition of a path pattern. The
-executor's trail rule permits repeated nodes but forbids repeated relationship identities within one
-path.
+Quantified paths execute with an outer [GqlPathMode](gql-path-mode.md). Omitted mode means
+Trail; Walk permits repeated identities only with bounded quantifiers; Simple permits only
+first-to-last node closure; Acyclic forbids repeated nodes. Nested modes, unbounded Walk
+even with LIMIT, and selectors remain CK00001. All modes retain the 64-hop and work/memory limits.
 
 ### Dedicated catalog statement choice (C2)
 
@@ -341,6 +342,12 @@ Runtime storage/index and open I/O failures carry CG06006 in Diagnostics; only w
 adds its prefix. Attached-index corruption leads with CK06003 and retains CK06102 and
 CG06006. Graph records/registrations require format 4; older layouts are refused with
 CG06017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
+
+## BEGIN transaction alias
+
+BEGIN [TRANSACTION] maps to the same GqlTransactionCommand.Start as START TRANSACTION,
+in process and over the wire, with Snapshot isolation. Options such as WORK, TRAN, READ ONLY
+and ISOLATION LEVEL report CG00002. See [transactions](../../../../database/graph/language/statements/transactions.md).
 
 ## Sources
 

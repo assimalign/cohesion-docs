@@ -181,7 +181,7 @@ transaction, including an explicit session transaction, as in Documents.
 Snapshot and ReadCommitted isolation are supported. ReadCommitted captures and pins a statement
 snapshot, so metadata and each hop of a traversal share a visibility horizon. Serializable is
 rejected rather than silently weakened. Explicit transactions use typed session APIs or standalone START TRANSACTION, COMMIT and
-ROLLBACK text over Execute. BEGIN remains unsupported; reserved Transaction byte 9 is rejected
+ROLLBACK text over Execute. BEGIN [TRANSACTION] is a Snapshot alias of START TRANSACTION; reserved Transaction byte 9 is rejected
 with ProtocolViolation. Transaction controls use Execute text; no new connection transaction methods are added. Results materialize before
 the statement transaction is released, so result iteration cannot race record reclamation.
 
@@ -995,6 +995,14 @@ intermediate stages reduce capacity. Raise the server engine ceilings for larger
 with `CG05004`, replacing its previously uncapped work.
 
 In-process GraphQueryLimits can lower MemoryBytes and/or WorkUnits; omitted members inherit the engine ceiling and requests cannot raise it. GraphQueryRequest/GraphPathsQueryRequest add limits overloads, and GraphTraversal.Limits uses the same policy. Remote Execute payloads carry no per-request limits and use server engine ceilings. CG05020 reports memory exhaustion, CG05004 work/trail exhaustion and CG08021 invalid request limits. Cancellation and iterator disposal release retained state. No disk/wire format or event/counter change is added. See [configuration](graph-database-engine-options.md). GqlExecutionBudgetTests covers limits, early stop, ownership and top-N.
+
+## Path modes
+
+Outer WALK, TRAIL, SIMPLE and ACYCLIC apply to the complete matched path; omitted mode is
+TRAIL. [Patterns](../../../../database/graph/language/patterns.md#path-modes) defines reuse
+and examples. Nested modes, unbounded WALK even with LIMIT, and selectors report CK00001.
+Undefined direct AST modes and insertion modes use CG05001; text insertion modes use CG00002.
+All modes retain CG05004 for hop/work and CG05020 for memory limits, with no SQLSTATE.
 
 ## Sources
 

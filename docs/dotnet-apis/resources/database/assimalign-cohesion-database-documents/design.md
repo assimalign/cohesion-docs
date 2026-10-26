@@ -478,7 +478,7 @@ FROM/UNNEST names are unique, reserving the unaliased source name (CD00010 in te
 for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
 an array/quantifier variable is CD05001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
-the profile executes 31 of 32 declared clauses.
+the profile also admits in-process text transaction control.
 
 ## Database files
 
@@ -660,6 +660,21 @@ Candidate index paths use BTreeIndex.CountRange under the statement snapshot, bo
 Comparable complete inputs can intersect ordinal, deduplicated document identities before any JSON read. The chosen inputs add constrained paths and are bounded in number; incomplete inputs keep one driver. The merge stops when empty and the complete predicate still filters surviving documents. SELECT, UPDATE, DELETE and INSERT/UPSERT SELECT share access selection; mutations stage identities before writes. Results remain materialized.
 
 EXPLAIN labels IndexSeek estimates exact_index_entries or lower_bound with probe_entries/probe_pages. IndexIntersection's minimum-input estimate is an upper bound, not joint selectivity. actual_rows stays NULL. No persisted statistics, ANALYZE command, disk-format or wire change is added. DocumentAccessCostTests covers skewed choices, pre-JSON intersection and mutation semantics.
+
+## OQL text transactions
+
+[OqlTransactionExpression](../assimalign-cohesion-database-documents-language/oql-transaction-expression.md)
+represents BEGIN/START, COMMIT and ROLLBACK. In-process sessions dispatch controls against
+their current transaction, using Snapshot by default or explicit READ COMMITTED. Server
+sessions refuse text controls with CD07002 over InMemory and TCP in this batch.
+
+Nested BEGIN reports CK04004 and faults the current transaction. COMMIT/ROLLBACK without
+one reports CD04104. A faulted transaction retains CD04101 until ROLLBACK; faulted COMMIT
+ends it without committing. OQL CREATE/DROP COLLECTION/INDEX, including conditional no-ops,
+report CD04105 before mutation in an explicit transaction and fault it. These text DDL forms
+use automatic statement transactions; typed C# collection operations retain their existing
+contract. SAVEPOINT and SET TRANSACTION remain CK00001. These conditions have no SQLSTATE.
+See [syntax and examples](../../../../database/document/language/statements/transactions.md).
 
 ## Sources
 

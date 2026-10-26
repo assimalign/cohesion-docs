@@ -56,7 +56,7 @@ enumeration discards its connection.
 
 Dispose each connection to return a healthy authenticated session to the pool, and dispose the
 client to close the pool. Scalar parse/execution failures retain the session; a terminal pre-output path refusal also preserves it. Unfinished streams discard it. Explicit transactions use START TRANSACTION, COMMIT and ROLLBACK over Execute.
-BEGIN and the reserved Transaction message remain unsupported.
+BEGIN [TRANSACTION] is a Snapshot alias of START TRANSACTION; the reserved Transaction message remains unsupported.
 
 Parameters bind WHERE, RETURN and property-map values under the shared bare-name contract.
 RETURN supports standalone/computed expressions, aliases and DISTINCT/ALL. Duplicate final names

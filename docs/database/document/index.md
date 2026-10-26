@@ -148,6 +148,13 @@ operational failures. Catalog history-maintenance failure preserves the original
 See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#version-purge-refusals)
 and [shared engine health](../overview.md#engine-health-and-version-purge).
 
+## Text transaction control
+
+In-process sessions accept [BEGIN/START, COMMIT and ROLLBACK](language/statements/transactions.md),
+with Snapshot by default or explicit READ COMMITTED. Documents servers refuse these commands
+over InMemory and TCP with CD07002 in this batch. OQL collection/index DDL inside an explicit
+transaction reports CD04105 and faults it; ROLLBACK recovers the session.
+
 ## Sources
 
 - **Engine** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/OVERVIEW.md`.

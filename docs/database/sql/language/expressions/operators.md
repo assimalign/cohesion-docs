@@ -247,6 +247,16 @@ These conformance queries exercise predicates and row arithmetic.
 
 [Expressions](index.md) · [SELECT](../statements/select.md) · [Data types](../data-types/index.md)
 
+## Less-than followed by minus
+
+In SQL, `a<-1` and `a <- 1` both mean `a < -1`, following PostgreSQL's lexical rule.
+`a<--1` starts a `--1` line comment after `<`; it leaves the comparison without a right operand
+and reports CS00003. Only GQL recognizes `<-` as a relationship arrow. NULL comparison
+behavior is unchanged.
+
+For a row with a = -2, `SELECT a FROM t WHERE a<-1` returns -2. The corresponding
+`WHERE a<--1` form reports CS00003.
+
 ## Sources
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

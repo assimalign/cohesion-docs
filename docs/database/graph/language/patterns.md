@@ -8,7 +8,7 @@ Graph patterns describe fixed or quantified paths of labeled nodes and typed rel
 
 ```syntaxsql
 <paths> ::= path [ , ...n ]
-<path> ::= path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
+<path> ::= [ variable "=" ] [ { WALK | TRAIL | SIMPLE | ACYCLIC } [ PATH | PATHS ] ] path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
 <path_primary> ::= node | parenthesized
 <parenthesized> ::= "(" path ")" [ quantifier ]
 <quantifier> ::= "{" m [ "," [ n ] ] "}" | "{," [ n ] "}" | "+" | "*"
@@ -40,7 +40,7 @@ square brackets that surround relationship syntax.
 | Incoming, outgoing, either-direction matching | Supported | Full bracketed or ISO abbreviated arrows |
 | Repeated colon labels | Supported | Cohesion convenience; one label is the portable form |
 | Scalar expression property maps | Supported | Unique keys and scalar values evaluated per incoming row |
-| Quantified edges/subpaths and Cypher bracketed lengths | Supported | Relationship-unique trails; group bindings are lists; maximum 64 hops |
+| Quantified edges/subpaths and Cypher bracketed lengths | Supported | Outer WALK/TRAIL/SIMPLE/ACYCLIC mode; group bindings are lists; maximum 64 hops |
 | Collection-valued properties in text | Recognized, not supported (`CK00001`) | No list or nested map literal |
 
 ## Arguments
@@ -73,9 +73,9 @@ because `--` starts a comment; use `(a)->(b)`/`(a)-(b)`. Cypher `<--`/`<-->` rep
 
 A matched path contains at most 64 relationships. Written repetition-bound sums are checked
 before execution: fixed edges contribute one, finite repetitions contribute upper bound times
-body edge count, and unbounded repetitions contribute their lower bound times body edge count. Repeated nodes are permitted; a relationship identity
+body edge count, and unbounded repetitions contribute their lower bound times body edge count. The omitted mode is TRAIL: repeated nodes are permitted but a relationship identity
 cannot repeat within one matched path. Comma-separated paths share variables but keep separate
-relationship-identity sets. Conflicting node/relationship variable kinds fail planning.
+identity-reuse scopes. Conflicting node/relationship variable kinds fail planning.
 
 Fixed and quantified hops seek direction and catalog relationship-type IDs before candidate
 expansion. Boolean type expressions select the visible catalog types they accept; wildcard/untyped
@@ -99,6 +99,42 @@ for the counting description; LIMIT does not reduce matching work.
 
 [Parameters](expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
+## Path modes
+
+Write the mode after any path assignment: `MATCH p = WALK PATHS (a)->{1,3}(b) RETURN p`.
+PATH and PATHS are optional synonyms. A mode applies to the complete outer path, including all
+fixed edges and parenthesized/quantified segments, regardless of the chosen index anchor.
+
+| Mode | Identity reuse within one complete path |
+| --- | --- |
+| WALK | Nodes and relationships may repeat; every quantifier must have a finite upper bound |
+| TRAIL | Relationship identities cannot repeat; node identities may repeat; the default when omitted |
+| SIMPLE | Node identities cannot repeat except that the final node may close onto the first |
+| ACYCLIC | Node identities cannot repeat, including the first at the end |
+
+SIMPLE permits a self-loop and an out-and-back over the same relationship; traversal stops at
+closure. It does not add TRAIL's relationship-uniqueness requirement. All modes allow zero hops.
+Each comma-separated path has its own mode and may reuse another path's identities.
+
+A mode inside a parenthesized or quantified subpath reports CK00001. Unbounded WALK reports
+CK00001 even with LIMIT: this includes +, *, open ISO upper bounds and open Cypher lengths.
+Path selectors, including shortest selectors, remain CK00001. Mode words remain contextual
+identifiers. INSERT/CREATE modes report CG00002; invalid direct AST mode values or insertion
+modes report CG05001. Work, retained-memory, cancellation and the 64-hop limit apply to every
+mode (CG05004 for hop/work limits, CG05020 for memory). EXPLAIN shows the resolved mode.
+
+On a fresh graph, execute separately:
+
+```sql
+INSERT (a:Pair {k:0})-[:P]->(b:Pair {k:1});
+MATCH SIMPLE (a:Pair {k:0})-[:P]->(b)<-[:P]-(c) RETURN count(*);
+MATCH TRAIL (a:Pair {k:0})-[:P]->(b)<-[:P]-(c) RETURN count(*);
+MATCH ACYCLIC (a:Pair {k:0})-[:P]->(b)<-[:P]-(c) RETURN count(*);
+```
+
+The counts are 1, 0 and 0. SIMPLE allows closure to a over the same edge; TRAIL rejects the
+repeated relationship and ACYCLIC rejects the repeated node. WALK also returns 1 for this fixed path.
+
 ## Quantified paths
 
 | Form | Inclusive repetitions |
@@ -120,7 +156,7 @@ preserves their entity kinds, including across WITH/NEXT. Indexing a group can s
 direct `r.w`, deleting r, a singleton/group name conflict or a repeated map referencing a group
 uses CG03003.
 
-Unbounded quantifiers stop when no unused relationship qualifies. A qualifying 65th edge raises
+With the default TRAIL mode, unbounded quantifiers stop when no unused relationship qualifies. A qualifying 65th edge raises
 CG05004 before testing its endpoint if visited; endpoint filters cannot suppress a visited
 65th hop. An unordered read LIMIT can stop upstream before that branch.
 Bare unbounded quantifiers use implicit trail semantics. Relationship uniqueness is per path,
@@ -141,10 +177,10 @@ No new wire encoding is required.
 | CG00005 | Text repetition-bound sum above 64 |
 | CG00008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
 | CG00009 | Parser stack guard while nesting subpaths; engine translates to CG05008 (54001) |
-| CK00001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, explicit path modes/search prefixes |
+| CK00001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, nested explicit modes, unbounded WALK or path selectors |
 | CG05001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
 | CG03003 | Invalid use of group variables as described above |
-| CG05004 | Runtime 64-hop trail or configured physical-work limit |
+| CG05004 | Runtime 64-hop path or configured physical-work limit |
 
 No SQLSTATE is assigned here except CG05008's 54001.
 

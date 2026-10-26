@@ -11,6 +11,7 @@ public sealed class SqlDeleteExpression : SqlQueryExpression
 {
     public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
+    public IReadOnlyList<SqlFromItem> Using { get; }
     public IReadOnlyList<SqlSelectColumn>? Returning { get; }
     public SqlExpression? Where { get; }
 }
@@ -56,6 +57,14 @@ Console.WriteLine(((SqlDeleteExpression)returningStatement.SqlExpression).Return
 ## Related reference
 
 [Assembly](index.md) · [SqlCommonTableExpression](sql-common-table-expression.md) · [DELETE](../../../../database/sql/language/statements/delete.md)
+
+## Source binding
+
+Using holds comma-separated sources and their join trees, or an empty list when absent.
+Source forms parse and bind but execution reports CK00001 in this batch before callbacks or
+writes. EXPLAIN describes the source plan. With sources present, bare RETURNING * binds
+target columns followed by visible source columns; the target-only execution description
+above applies to statements without sources. See [DELETE](../../../../database/sql/language/statements/delete.md).
 
 ## Sources
 

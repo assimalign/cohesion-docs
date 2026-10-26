@@ -6,6 +6,14 @@ This package parses the Documents engine's executable OQL surface into typed sta
 
 ## Reference pages
 
+- **[OqlClauses](oql-clauses.md)** — Transaction grammar and session-control metadata.
+
+- **[OqlTransactionIsolation](oql-transaction-isolation.md)** — Transaction grammar and session-control metadata.
+
+- **[OqlTransactionCommand](oql-transaction-command.md)** — Transaction grammar and session-control metadata.
+
+- **[OqlTransactionExpression](oql-transaction-expression.md)** — Transaction grammar and session-control metadata.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[OqlFunctions](oql-functions.md)** — Immutable executable vocabulary and case-insensitive lookup.
