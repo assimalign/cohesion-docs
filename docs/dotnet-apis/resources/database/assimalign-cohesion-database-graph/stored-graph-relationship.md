@@ -18,7 +18,7 @@ Create now accepts the complete record: reserve a nonzero Id from the backing st
 ReserveTransactionSequence. The store validates names/scalar properties, copies collections and
 rejects duplicate identities. CreateRelationshipAsync also takes a nonempty catalog typeId;
 the store does not check that it matches Type. Updates keep identity, endpoints, type and that GUID.
-Earlier snapshots can read earlier values in the format-4 chain.
+Earlier snapshots can read earlier values in the format-5 chain.
 
 [GraphStore](graph-store.md) documents ArgumentException/ArgumentNullException for invalid values,
 ArgumentOutOfRangeException for zero create IDs and GraphElementTooLargeException for bounds.

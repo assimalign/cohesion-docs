@@ -85,7 +85,7 @@ in process and on the wire. OPTIONAL NULL targets and pure no-ops count zero; re
 update the current working copy and count each changed entity once.
 
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
-lock and replan before evaluation. Format-4 records keep prior versions visible to old snapshots;
+lock and replan before evaluation. Format-5 records keep prior versions visible to old snapshots;
 older graph records/registrations are refused before logical recovery scrub with
 [CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
 33 declared clauses.
@@ -172,6 +172,12 @@ one second on the engine clock. They set engine Faulted while the database stays
 HasFailingWorker remains false for the observation. ForeignStorage refusals report immediately as
 operational failures. See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/design.md#version-purge-refusals)
 and [shared engine health](../overview.md#engine-health-and-version-purge).
+
+## Relationship-type storage
+
+Graph format 5 adds persistent relationship-type postings maintained with relationship mutations.
+Internal storage scans use them; the planner does not yet use them for type-anchored patterns.
+See [storage indexes](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/storage-design.md#secondary-indexes).
 
 ## Sources
 

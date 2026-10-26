@@ -23,7 +23,7 @@ cannot. Path, group and scalar bindings are invalid targets. GQL has no MISSING 
 
 Items and rows execute in order and refresh carried aliases, lists, maps and paths.
 [SET](set.md) describes shared affected-count, transaction, Snapshot first-updater-wins,
-ReadCommitted snapshot-refresh and format-4 version-chain behavior. The final working version
+ReadCommitted snapshot-refresh and format-5 version-chain behavior. The final working version
 publishes once per updated entity. An entity changed then restored still counts and publishes.
 RETURN reports the mutation count alongside rows; pure no-ops count zero.
 

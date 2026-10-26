@@ -45,7 +45,7 @@ a mutation failure rolls back the owning logical transaction.
 
 ## Isolation and storage
 
-Graph records use format 4 MVCC version chains; older records and tree registrations are refused
+Graph records use format 5 MVCC version chains; older records and tree registrations are refused
 before logical recovery scrub with [CG06017](../diagnostics.md), the remedy to recreate the
 database and no upgrade reader. Older snapshots retain prior property,
 label, index and adjacency versions. Rollback restores old stamps and removes replacements.

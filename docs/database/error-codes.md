@@ -69,6 +69,12 @@ Optional SQL costing falls back on committed definition changes; mutation execut
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
 
+## Graph format requirement
+
+Graph record and tree-registration format 5 is required. `CG06017` refuses earlier formats,
+including format 4, at open before logical recovery scrub. Recreate the database; there is no
+in-place upgrade or assigned SQLSTATE. See [Graph format diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
+
 ## Developer function conditions
 
 | Code | Meaning and trigger | SQLSTATE |

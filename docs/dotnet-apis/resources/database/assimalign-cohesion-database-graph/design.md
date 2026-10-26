@@ -93,9 +93,14 @@ select a server, another database, or another graph.
 
 ## Physical records and adjacency
 
+Graph format 5 requires persistent relationship-type postings. Each relationship has one posting
+keyed by catalog type GUID and relationship identity; mutations, rollback, recovery and purge
+maintain it with records and adjacency. Internal type scans use it, but the planner does not yet
+use postings as type-pattern anchors. See [storage indexes](storage-design.md#secondary-indexes).
+
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
-kind, byte 17 is format version 4, bytes 18–25 are a nonzero unsigned 64-bit identity and
+kind, byte 17 is format version 5, bytes 18–25 are a nonzero unsigned 64-bit identity and
 bytes 26–33 hold the increasing revision. Older records and tree registrations are refused before logical recovery scrub with
 CG06017; recreate the database because there is no upgrade path. Graph
 identities are reserved from the shared storage sequence allocator, so rollback does not recycle an
@@ -390,7 +395,7 @@ not included.
 | `CG01014` | Caller parameter keys collide after stripping one sigil |
 | `CG01015` | Duplicate final RETURN column name, compared ordinally and case-sensitively; rejected before reads/mutations, including empty matches and EXPLAIN; no SQLSTATE assigned |
 | `CG07016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
-| `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
+| `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2, 3 and 4; requires format 5 and recreation, with no upgrade path or assigned SQLSTATE |
 | `CG06018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; no assigned SQLSTATE |
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
@@ -826,7 +831,7 @@ GQL [SET/REMOVE](../../../../database/graph/language/clauses/set.md) keep statem
 working copies. Rows observe earlier rows; items execute left to right. Carried lists/maps/paths
 refresh after each stage; later scans, seeks and endpoint functions consult the working copy.
 INSERT reserves stable IDs and publishes final nodes before final relationships. Each changed
-entity publishes one format-4 replacement; type-exact no-ops publish nothing. Changed-then-restored
+entity publishes one format-5 replacement; type-exact no-ops publish nothing. Changed-then-restored
 entities still count and publish, preserving Snapshot conflicts.
 
 Snapshot writers use first-updater-wins and old snapshots retain records and index/adjacency
@@ -855,7 +860,7 @@ tolerated and overwritten by the next allocation, preserving committed content. 
 corruption uses DatabaseCorruptionException / CK06003 with CG06018 retained as an additional
 diagnostic and verified-backup recovery advice. Transient storage I/O, including a full
 pinned buffer pool, instead asks callers to retry OpenDatabaseAsync after resolving the condition,
-without drop or backup advice. The shared storage format is 4; Graph records remain at format 4.
+without drop or backup advice. The shared storage format is 4; Graph records remain at format 5.
 
 ### Lifecycle API
 
