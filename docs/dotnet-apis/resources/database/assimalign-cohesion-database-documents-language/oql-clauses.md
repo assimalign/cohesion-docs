@@ -20,7 +20,7 @@ public static class OqlClauses
 
 These transaction constants are accepted by OqlLanguageProfile.Instance. START maps to Begin;
 there is no separate Start constant. Profile support describes grammar admission, not transport
-support: Documents servers still refuse text controls with CD07002. Reading constants throws
+support. Wire controls require negotiated transaction-status (CD07002 when absent). Reading constants throws
 no exceptions.
 
 ## Example

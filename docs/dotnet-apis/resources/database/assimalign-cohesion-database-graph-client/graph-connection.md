@@ -69,7 +69,7 @@ Database and the negotiated composite-value flag are captured when the wrapper r
 lease. Database remains readable after disposal and IsOpen returns false. After a failed or abandoned
 path stream returns that lease, subsequent queries fail as disposed while retaining operation
 telemetry. AbortAsync then joins the original shared return and cannot affect a later renter.
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Example
 

@@ -14,7 +14,8 @@ public enum OqlTransactionCommand { Begin, Commit, Rollback }
 
 BEGIN and START spellings parse as Begin. COMMIT and ROLLBACK parse as their corresponding
 values. Enum access has no exceptions; OqlTransactionExpression refuses undefined values.
-Execution uses the owning session; text controls over the wire report CD07002.
+Execution uses the owning session, including over the wire. CD07002 applies only without
+negotiated transaction-status.
 
 ## Example
 

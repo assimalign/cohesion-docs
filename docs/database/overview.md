@@ -157,7 +157,7 @@ ends the lease; metadata and execution then throw ObjectDisposedException, while
 false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
 later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
@@ -406,8 +406,8 @@ governance projects are removed and supply no current API.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
-foreign-key validation for multi-row UPDATE. OQL adds [in-process text transactions](document/language/statements/transactions.md);
-its servers refuse those controls with CD07002 in this batch. GQL supports outer
+foreign-key validation for multi-row UPDATE. OQL supports [text transactions](document/language/statements/transactions.md) in process and over
+the wire; CD07002 only refuses peers without negotiated transaction-status. GQL supports outer
 [WALK/TRAIL/SIMPLE/ACYCLIC modes](graph/language/patterns.md#path-modes), with TRAIL as its default.
 SQL UPDATE ... FROM / DELETE ... USING parse and bind but execution remains CK00001.
 
