@@ -6,8 +6,9 @@ Inserts absent keys and wholly replaces documents whose keys already exist.
 
 ```syntaxsql
 UPSERT INTO collection [ AS alias ] (KEY, VALUE)
-    VALUES (key_expression, value_expression) [ , ...n ]
+    VALUES (key_expression, value_expression) [ , ...n ] [ RETURNING projection ]
 UPSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) select_statement
+    [ RETURNING projection ]
 ```
 
 ## Arguments
@@ -35,10 +36,12 @@ Repeating a key in one statement fails with DocumentDuplicateKeyException (CD030
 UPSERT and even when the key already exists. Its message is `Document key 'a' appears more than
 once in one statement.` There is no last-pair-wins rule. All writes and index changes roll back.
 An automatic session remains reusable after failure; failure in an explicit transaction aborts
-all its work and requires rollback. Success returns the number of written pairs with no result rows.
+all its work and requires rollback. Success returns the number of written pairs. Without RETURNING
+there are no result rows. [RETURNING](../clauses/returning.md) projects each stored post-image and
+new version in VALUES or final SELECT source order; projection failure rolls back the writes.
 
 UPSERT has no statement version precondition. Use PutAsync(expectedVersion) or UPDATE with
-META().version for a version check. OPTIONS and RETURNING remain CK00001. JSON storage depth is
+META().version for a version check. OPTIONS remains CK00001. JSON storage depth is
 128, and numbers must fit decimal exactly. Generated JSON follows the shared
 [RFC 8259 UTF-8 encoding](select.md#json-bytes) in process, over InMemory and over TCP.
 
@@ -47,7 +50,7 @@ META().version for a version check. OPTIONS and RETURNING remain CK00001. JSON s
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `CD00002` | Missing KEY/VALUE header, malformed pair/binding, qualified destination or trailing syntax | — |
-| `CK00001` | OPTIONS, RETURNING or a nested SELECT in VALUES | — |
+| `CK00001` | OPTIONS or a nested SELECT in VALUES | — |
 | `CD05001` | VALUES reads paths/metadata/aggregates, or KEY/VALUE binding names no SELECT output | — |
 | `CD01002` | Destination collection does not exist | — |
 | `CD04004` | Read-only system destination | — |

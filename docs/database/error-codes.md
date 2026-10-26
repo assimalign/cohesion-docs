@@ -85,6 +85,13 @@ one column (no SQLSTATE), CS01015 for name binding (42703 for unknown columns), 
 incompatible compared non-NULL values (42804). Repeated grouping keys that do not match still
 use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expressions/quantified-comparisons.md).
 
+## Document RETURNING
+
+OQL [RETURNING](document/language/clauses/returning.md) adds CD01026 (empty direct-AST output name),
+CD05018 (retained-result budget exceeded) and CD05019 (serialized depth above 256 including a named
+wrapper). None has an assigned SQLSTATE. The existing CD05016 enforces the 16 MiB frame cap inside
+the write transaction. See [Document diagnostics](document/language/diagnostics.md#engine-codes).
+
 ## Graph shortest paths
 
 Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent

@@ -10,10 +10,11 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 public sealed class OqlDeleteExpression : OqlExpression
 {
     public OqlDeleteExpression(string collection, string? alias, OqlExpression? predicate,
-        Location? location = null);
+        Location? location = null, OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public OqlExpression? Predicate { get; }
+    public OqlReturningExpression? Returning { get; }
 }
 ```
 
@@ -33,6 +34,9 @@ Malformed text is returned as parser diagnostics; requests reject it with Databa
 
 [OqlExplainExpression](oql-explain-expression.md) can wrap DELETE, producing a Delete root and
 CollectionScan/IndexSeek child without deletion. OqlClauses.Delete is the `DELETE` capability name.
+
+Returning optionally retains an [affected-image projection](oql-returning-expression.md).
+DELETE projects pre-images and old metadata; null retains count-only execution.
 
 ## Example
 

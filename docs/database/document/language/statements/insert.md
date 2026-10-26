@@ -6,8 +6,9 @@ Creates documents with explicit keys from VALUES or a SELECT snapshot.
 
 ```syntaxsql
 INSERT INTO collection [ AS alias ] (KEY, VALUE)
-    VALUES (key_expression, value_expression) [ , ...n ]
+    VALUES (key_expression, value_expression) [ , ...n ] [ RETURNING projection ]
 INSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) select_statement
+    [ RETURNING projection ]
 ```
 
 ## Remarks
@@ -43,7 +44,9 @@ Documents transaction rule. Success reports the number inserted.
 | `CD02008` | Invalid/non-string/blank key, MISSING whole value or invalid JSON |
 | `CD03012` | Existing destination key or repeated key in the statement |
 
-RETURNING remains outside the executable subset. [UPSERT](upsert.md) inserts or replaces whole documents. [UPDATE](update.md) changes
+[RETURNING](../clauses/returning.md) projects each stored post-image and its new version, in VALUES
+or final SELECT source order, with the inserted count. Projection failure rolls back the write.
+[UPSERT](upsert.md) inserts or replaces whole documents. [UPDATE](update.md) changes
 selected document paths.
 [DELETE](delete.md) removes matching documents through the same transaction pipeline.
 

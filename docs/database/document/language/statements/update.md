@@ -8,7 +8,7 @@ Partially updates matching documents with SET assignments and UNSET property rem
 UPDATE collection_name [ [ AS ] iteration_variable ]
 { SET path = expression [ , ...n ] [ UNSET path [ , ...n ] ]
   | UNSET path [ , ...n ] }
-[ WHERE predicate ] [ ; ]
+[ WHERE predicate ] [ RETURNING projection ] [ ; ]
 ```
 
 ## Arguments
@@ -63,7 +63,10 @@ permit content updates; system collections are read-only.
 
 Success returns the matched count, including matches whose content is unchanged or whose UNSET
 removes nothing. Every matched document receives a higher version. Wire completion carries that
-count with no Document frames. [EXPLAIN UPDATE](explain.md) returns an Update root and its
+count with no Document frames when RETURNING is omitted.
+[RETURNING](../clauses/returning.md) projects stored post-images and new versions in ordinal
+document-ID order, with the matched count; projection failure rolls back the writes.
+[EXPLAIN UPDATE](explain.md) returns an Update root and its
 CollectionScan/IndexSeek child without writing.
 
 ## Diagnostics
@@ -71,7 +74,7 @@ CollectionScan/IndexSeek child without writing.
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `CD00002` | Missing SET/UNSET, malformed path or assignment, qualified database target or leftover syntax | — |
-| `CK00001` | USE KEYS, RETURNING, LIMIT, FOR or a nested SELECT | — |
+| `CK00001` | USE KEYS, LIMIT, FOR or a nested SELECT | — |
 | `CD05001` | Invalid metadata or aggregate context | — |
 | `CD01002` | Collection does not exist | — |
 | `CD04004` | Read-only system collection target | — |

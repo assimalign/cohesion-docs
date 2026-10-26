@@ -9,17 +9,22 @@ public sealed class OqlInsertExpression : OqlExpression
 {
     public OqlInsertExpression(string collection, string? alias,
         IReadOnlyList<(OqlExpression Key, OqlExpression Value)> values, OqlSelectExpression? select,
-        string? keyName, string? valueName, Location? location = null);
+        string? keyName, string? valueName, Location? location = null,
+        OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<(OqlExpression Key, OqlExpression Value)> Values { get; }
     public OqlSelectExpression? Select { get; }
     public string? KeyName { get; }
     public string? ValueName { get; }
+    public OqlReturningExpression? Returning { get; }
 }
 ```
 
 ## Behavior and exceptions
+
+Returning optionally retains an [affected-image projection](oql-returning-expression.md).
+INSERT projects stored post-images with new metadata; null retains count-only execution.
 
 Retains Collection, optional Alias, ordered Values pairs, or Select plus KeyName/ValueName. Names
 bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object.
