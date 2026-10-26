@@ -87,6 +87,14 @@ changes, while their document contents remain mutable.
 
 ## Server and pooled client
 
+[RETURNING](language/clauses/returning.md) projects INSERT/UPSERT/UPDATE post-images or DELETE
+pre-images with the affected count. Projection and 16 MiB frame/256-level serialization preflight
+run before commit. A positive StatementMemoryBudget (64 MiB default) estimates RETURNING retention;
+existing query and mutation staging allocations are outside it. No capability flag is negotiated.
+Older clients reject RETURNING completion after an autocommit write has committed; retry reapplies
+it. Closing an explicit session rolls its uncommitted work back. See
+[client compatibility](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/design.md#returning-and-client-compatibility).
+
 DocumentDatabaseServer serves OQL and document/collection operations through messages 64–72.
 Protocol 2.0 changed projected rows to JSON Document frames; current shared protocol 2.1 negotiates
 startup capabilities. Documents uses its Failure frame for structured diagnostics. Model payload

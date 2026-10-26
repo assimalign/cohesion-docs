@@ -21,6 +21,11 @@ The order above is the grammar order. `FROM` is required; the other clauses are 
 [SET and UNSET](../statements/update.md#set-and-unset-paths) assign original-document values or
 remove named members. SET precedes UNSET when both occur, followed by an optional WHERE.
 
+## Mutation results
+
+[RETURNING](returning.md) follows INSERT/UPSERT VALUES or SELECT, or UPDATE/DELETE's optional WHERE.
+It projects stored post-images, or DELETE pre-images, with the affected count.
+
 ## See also
 
 [Language (OQL)](../index.md) and [SELECT](../statements/select.md).

@@ -19,8 +19,14 @@ public sealed record DocumentProtocolCompleteMessage(long ResultCount, long Affe
 Complete (66) records ResultCount and AffectedCount as two big-endian Int64 values. Count is
 nonnegative; affected count is at least -1 (-1 for reads). Invalid counts or a payload other than 16
 bytes throw ProtocolException.
-For OQL DELETE, ResultCount is zero and AffectedCount is the deleted-document count; no Document
+For OQL DELETE without RETURNING, ResultCount is zero and AffectedCount is the deleted-document count; no Document
 frames precede that completion. A zero-match DELETE reports both counts as zero.
+
+With [RETURNING](../../../../database/document/language/clauses/returning.md), result and affected
+counts are equal and nonnegative. There is no capability flag or frame-layout change. Updated
+clients accept this combination; older clients can reject it after an autocommit write has committed.
+Retrying reapplies it; explicit-session closure rolls back uncommitted work. See
+[client compatibility](../assimalign-cohesion-database-documents-client/design.md#returning-and-client-compatibility).
 
 Record construction stores fields; Encode/Decode enforce the wire grammar. Each payload must fit the
 shared frame limit. Use the model protocol's exchange ordering, not these codecs alone, to establish

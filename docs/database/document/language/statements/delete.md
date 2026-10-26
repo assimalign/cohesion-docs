@@ -6,7 +6,7 @@ Deletes matching documents from one collection while retaining its definition an
 
 ```syntaxsql
 DELETE FROM collection_name [ [ AS ] iteration_variable ]
-[ WHERE predicate ] [ ; ]
+[ WHERE predicate ] [ RETURNING projection ] [ ; ]
 ```
 
 ## Arguments
@@ -38,15 +38,18 @@ rolls back the statement. Re-inserting a deleted key receives a higher version.
 Without WHERE, every document is removed; the collection and its index definitions remain. A
 schema-owned stored collection permits content deletion. System collections are read-only.
 Success returns the deleted-document count, including zero. The wire sends that affected count in
-Complete with no Document frames. Client QueryAsync therefore returns empty Columns, Documents
+Complete with no Document frames when RETURNING is omitted. Client QueryAsync then returns empty Columns, Documents
 and rows with AffectedCount set; ExecuteAsync returns the count directly.
+
+[RETURNING](../clauses/returning.md) projects each pre-image and its old metadata in ordinal
+document-ID order, with the deleted count. Projection failure rolls back the deletions.
 
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
 | `CD00002` | Missing FROM, database-qualified target, malformed predicate or leftover syntax |
-| `CK00001` | USE KEYS, RETURNING, DELETE LIMIT or a nested SELECT; reported at the clause token |
+| `CK00001` | USE KEYS, DELETE LIMIT or a nested SELECT; reported at the clause token |
 | `CD05001` | Invalid META alias/context or aggregate in the predicate |
 | `CD01002` | Target collection does not exist |
 | `CD04004` | Target is a read-only system collection |

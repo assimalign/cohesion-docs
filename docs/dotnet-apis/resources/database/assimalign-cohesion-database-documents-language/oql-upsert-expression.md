@@ -12,13 +12,14 @@ public sealed class OqlUpsertExpression : OqlExpression
     public OqlUpsertExpression(string collection, string? alias,
         IReadOnlyList<(OqlExpression Key, OqlExpression Value)> values,
         OqlSelectExpression? select, string? keyName, string? valueName,
-        Location? location = null);
+        Location? location = null, OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<(OqlExpression Key, OqlExpression Value)> Values { get; }
     public OqlSelectExpression? Select { get; }
     public string? KeyName { get; }
     public string? ValueName { get; }
+    public OqlReturningExpression? Returning { get; }
 }
 ```
 
@@ -32,11 +33,14 @@ all parameters and expressions before writes, including for EXPLAIN or an empty 
 [UPSERT](../../../../database/document/language/statements/upsert.md) inserts or replaces whole
 JSON values, returning one affected count per input pair. Invalid scope/binding uses CD05001,
 invalid key/value/depth CD02008, missing parameters CD01005 and lossy decimal values CD02007
-(22003). Repeated keys throw DocumentDuplicateKeyException/CD03012. OPTIONS, RETURNING and
+(22003). Repeated keys throw DocumentDuplicateKeyException/CD03012. OPTIONS and
 nested SELECT in VALUES remain CK00001. Parser diagnostics become DatabaseParseException at
 execution. EXPLAIN describes Upsert/UpsertSelect without writes.
 
 The statement capability is `OqlClauses.Upsert` (`public const string Upsert = "UPSERT"`).
+
+Returning optionally retains an [affected-image projection](oql-returning-expression.md).
+UPSERT projects stored post-images and new metadata; null retains count-only execution.
 
 ## Example
 

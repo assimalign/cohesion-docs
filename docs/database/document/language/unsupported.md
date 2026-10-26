@@ -10,7 +10,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | LIMIT m, n and FETCH FIRST | CK00001 | Use [LIMIT n OFFSET m](clauses/limit-offset.md); SELECT paging executes |
 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS | CK00001 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) with one binding and [array IN](expressions/operators.md#in-and-between) execute |
 | UNNEST in UPDATE/DELETE, NEST, WITHIN, FLATTEN calls | CK00001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |
-| RETURNING/OPTIONS | CK00001 | INSERT, [UPSERT](statements/upsert.md), UPDATE SET/UNSET and DELETE execute; no statement TTL/version header |
+| OPTIONS | CK00001 | No statement TTL/version header; [RETURNING](clauses/returning.md) executes on INSERT, UPSERT, UPDATE and DELETE |
 | UPDATE USE KEYS, LIMIT or FOR | CK00001 | One collection, SET and/or UNSET and optional WHERE |
 | DELETE USE KEYS or LIMIT | CK00001 | One collection and optional WHERE; no key-selector or delete pagination |
 | IS KNOWN/IS UNKNOWN, UNDEFINED | CK00001 | MISSING is the absent value; NIL means NULL |
