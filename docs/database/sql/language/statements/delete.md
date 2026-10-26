@@ -47,7 +47,7 @@ and select no row; IS NULL can filter rows but supplies no seek bound.
 their WHERE subquery checks, materialize in one statement snapshot before any deletion. A dropped
 or replaced bound index falls back to a residual-filtered scan. RETURNING order is unspecified.
 
-Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+Correlated and uncorrelated scalar, IN/NOT IN, EXISTS/NOT EXISTS and ANY/SOME/ALL [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE. Independent children materialize once; correlated children evaluate for each
 candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
 cascades together. [RETURNING](../clauses/returning.md) projects old values of directly targeted
