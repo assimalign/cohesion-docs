@@ -96,6 +96,20 @@ finish for every candidate before writes; prior uncommitted session changes rema
 INSERT SELECT materializes the complete source before applying destination coercion, defaults and
 constraints. Failure leaves no partial row changes.
 
+### Quantified comparisons and repeated group keys
+
+[ANY/SOME/ALL comparisons](../../../../database/sql/language/expressions/quantified-comparisons.md)
+reuse typed subquery slots and the ordinary scalar comparer. ANY/SOME folds with OR and ALL
+with AND, preserving UNKNOWN; empty results return FALSE/TRUE respectively and skip scalar
+operand evaluation. Independent children materialize once, correlated children per reached
+outer frame. Compared incompatible non-NULL values retain CS02055 (42804), and child width
+retains CS05013. No disk or wire format changes.
+
+Complete scalar-subquery, EXISTS, quantified-comparison and IN grouping keys compare query
+bodies structurally, including identical correlations. Operators, quantifiers, negation and bound
+operands remain significant. A repeated whole key reads its retained group value in SELECT,
+HAVING and ORDER BY; unproven keys retain ordinary CS05017 grouping errors.
+
 ### WITH and derived relations
 
 [WITH](../../../../database/sql/language/clauses/with.md) binds all definitions in declaration order,
@@ -112,7 +126,7 @@ nullability and collation provenance. Uncorrelated relations cache once per stat
 derived bodies evaluate per enclosing frame. Only a reference that binds to a real sibling gets
 the LATERAL refusal; typos retain CS01015. Outer ordering over derived outputs stays CK00001.
 CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
-levels. SET, VALUES, CHECK/DEFAULT and pagination-expression subqueries, quantified comparisons,
+levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
 nested/recursive CTEs and explicit LATERAL remain excluded.
 
 Current SQL data-storage format is 26. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;

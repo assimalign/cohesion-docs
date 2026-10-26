@@ -46,7 +46,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS02010` | Unknown type/domain or unavailable stored domain | 42704 |
 | `CS02011` | No conversion for a CAST pair; known pairs checked during planning | 42846 |
 | `CS02012` | Character assignment exceeds length with non-space overflow | 22001 |
-| `CS05013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
+| `CS05013` | Invalid statement/expression/DDL/query shape; scalar/IN/ANY/SOME/ALL subquery width, derived width/name error, rename collision or incompatible DEFAULT function result type | — |
 | `CS01014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
 | `CS01015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, new CHECK naming another table/schema, missing DDL column, or missing/repeated/ambiguous/incompatible-type USING column | 42703 for unknown columns |
 | `CS01016` | Unknown function absent from executable and recognized-unsupported vocabulary | 42883 |

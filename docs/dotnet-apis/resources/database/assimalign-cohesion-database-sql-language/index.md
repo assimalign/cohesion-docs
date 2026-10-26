@@ -14,6 +14,8 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlSubqueryExpression](sql-subquery-expression.md)** — SELECT/set bodies in scalar positions.
 - **[SqlInExpression](sql-in-expression.md)** — Value lists or SELECT/set membership.
 - **[SqlExistsExpression](sql-exists-expression.md)** — Row existence over SELECT/set bodies.
+- **[SqlQuantifiedComparisonExpression](sql-quantified-comparison-expression.md)** — Scalar comparison over a query body.
+- **[SqlComparisonQuantifier](sql-comparison-quantifier.md)** — ANY, SOME or ALL combination.
 - **[SqlDistinctExpression](sql-distinct-expression.md)** — NULL-safe IS [NOT] DISTINCT FROM.
 - **[SqlBooleanTestExpression](sql-boolean-test-expression.md)** — IS [NOT] TRUE/FALSE/UNKNOWN.
 - **[SqlTruthValue](sql-truth-value.md)** — Truth-test selection.

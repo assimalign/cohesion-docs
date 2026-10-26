@@ -1,6 +1,6 @@
 # Subqueries (Cohesion SQL)
 
-Embeds a correlated or uncorrelated query as a scalar, membership test, or existence test.
+Embeds a correlated or uncorrelated query as a scalar, membership test, existence test or quantified comparison.
 
 > **Status:** Partial. This page describes the executable subset and its boundaries.
 
@@ -18,6 +18,9 @@ expression [ NOT ] IN ( select_statement )
 - **`expression`** — The value tested against a one-column membership result.
 
 ## Remarks
+
+[Quantified ANY/SOME/ALL comparisons](quantified-comparisons.md) also accept single-column query
+bodies and use the same lexical scopes and statement snapshot.
 
 [Set operations](../clauses/set-operations.md) execute in scalar, IN/NOT IN and EXISTS/NOT EXISTS
 positions, including correlated operands. `IN ((SELECT …))` is membership; a query followed by
@@ -67,11 +70,15 @@ sets the level, including dependencies inside nested queries after adjusting for
 An aggregate belonging to an outer query level reports `CK00001` before grouped-column checks;
 relocating it to that query is excluded. A mixed aggregate with a local dependency remains local.
 
-Quantified ANY/ALL/SOME comparisons, LATERAL syntax and subqueries in UPDATE SET, VALUES,
+LATERAL syntax and subqueries in UPDATE SET, VALUES, RETURNING,
 CHECK, DEFAULT or pagination expressions remain `CK00001`. [WITH](../clauses/with.md) is supported
 before data statements; nested and recursive WITH remain excluded. A [derived body](../clauses/from.md#derived-tables)
 may correlate to enclosing queries, but a real sibling relation reference requires unsupported
 LATERAL. A typo keeps `CS01015`. SQL has NULL, with no separate MISSING value.
+
+Repeated complete subquery grouping expressions match structurally in SELECT, HAVING and
+ORDER BY, including identical correlations. Different bodies, operators, quantifiers or negation
+remain distinct; see [GROUP BY](../clauses/group-by.md#repeated-subquery-keys).
 
 ### UPDATE and DELETE snapshots
 
