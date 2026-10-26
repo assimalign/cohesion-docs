@@ -54,7 +54,7 @@ Changing an indexed key cannot revisit a row that moves within the sought range.
 replaced bound index falls back to a residual-filtered scan. Constraint checks and conflict behavior
 remain unchanged; RETURNING order is unspecified.
 
-Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+Correlated and uncorrelated scalar, IN/NOT IN, EXISTS/NOT EXISTS and ANY/SOME/ALL [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE over the pre-statement snapshot, including the target table and the session's
 earlier uncommitted changes. Independent children materialize once; correlated children evaluate
 for each candidate row before writes. Subqueries in SET and RETURNING report CK00001.

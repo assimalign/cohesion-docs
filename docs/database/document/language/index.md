@@ -2,7 +2,7 @@
 
 OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPSERT, UPDATE and DELETE.
 
-> **Status:** Partial. Queries, mutations and DDL execute; text transaction control is available in process.
+> **Status:** Partial. Queries, mutations and DDL execute; text transaction control is available in process and through the Documents client.
 
 OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
 uses its session database. [UPDATE](statements/update.md) changes selected paths and

@@ -479,7 +479,7 @@ FROM/UNNEST names are unique, reserving the unaliased source name (CD00010 in te
 for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
 an array/quantifier variable is CD05001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
-the profile also admits in-process text transaction control.
+the profile also admits text transaction control in process and over the wire.
 
 ## Database files
 

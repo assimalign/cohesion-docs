@@ -9,7 +9,8 @@ protected DatabaseProtocolExchange(ProtocolMessageFamily family);
 protected DatabaseProtocolExchange(ProtocolMessageFamily family, bool transactionStatus);
 ```
 
-The connector detects written Execute (5) and ExecutePaths (64) frames and automatically consumes
+The connector detects written Execute (5), ExecutePaths/Documents Execute (64) and Documents
+Command (69) frames and automatically consumes
 their negotiated transaction-status Ready postamble. Application exchanges using the one-argument
 constructor do not opt in or consume Ready themselves. `transactionStatus: true` can still require
 the postamble explicitly. Exchanges consume the full model response and use `MarkResponseComplete`
