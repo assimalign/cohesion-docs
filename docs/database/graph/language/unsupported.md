@@ -45,6 +45,9 @@ inventory, not a list of implemented features. Malformed or invalid composition 
 
 ## Engine and delivery limits
 
+GQL path selectors, including ANY SHORTEST, remain CK00001. Minimum-hop searches are available
+through the typed [GraphDatabase API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database.md#shortest-distance-and-path).
+
 GQL cannot select another graph or database. Database lifecycle uses the engine API, explicit
 transactions use standalone ISO text controls or the typed embedded session API, and label/type/index management uses the session-bound schema API.
 
