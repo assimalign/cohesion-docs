@@ -96,7 +96,8 @@ The server formatter retains one encoded frame. TCP backpressure bounds queued o
 can queue more bytes if its reader stops. Engine queries and client results remain materialized. DocumentClient rents authenticated, database-bound connections and exposes QueryAsync,
 ExecuteAsync, Get/Put/Delete and collection operations. One operation runs at a time. Completed
 statement failures preserve the connection; malformed protocol traffic or unfinished cancellation
-discards it. Explicit wire transactions are unsupported.
+discards it. [Text transactions](language/statements/transactions.md) execute on the same rental;
+return rolls back active or failed work before reuse, or discards an uncertified session.
 
 See [DocumentClient](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/document-client.md)
 and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-protocol/document-protocol.md).
@@ -150,9 +151,9 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 
 ## Text transaction control
 
-In-process sessions accept [BEGIN/START, COMMIT and ROLLBACK](language/statements/transactions.md),
-with Snapshot by default or explicit READ COMMITTED. Documents servers refuse these commands
-over InMemory and TCP with CD07002 in this batch. OQL collection/index DDL inside an explicit
+In-process and wire sessions accept [BEGIN/START, COMMIT and ROLLBACK](language/statements/transactions.md),
+with Snapshot by default or explicit READ COMMITTED. CD07002 refuses controls only when the peer
+has not negotiated transaction-status; a current client negotiates it. OQL collection/index DDL inside an explicit
 transaction reports CD04105 and faults it; ROLLBACK recovers the session.
 
 ## Sources

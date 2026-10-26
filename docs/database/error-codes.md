@@ -57,10 +57,10 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CK04004 | Nested in-process OQL BEGIN/START; faults the existing transaction | — |
+| CK04004 | Nested OQL BEGIN/START; faults the existing transaction | — |
 | CD04104 | Document COMMIT/ROLLBACK without an explicit transaction | — |
 | CD04105 | OQL collection/index DDL inside an explicit transaction | — |
-| CD07002 | Documents server refuses text transaction control in this batch | — |
+| CD07002 | Text transaction control without the negotiated transaction-status capability | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes, unbounded WALK even with LIMIT, path selectors,

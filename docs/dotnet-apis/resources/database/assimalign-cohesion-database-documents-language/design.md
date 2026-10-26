@@ -166,9 +166,12 @@ duplicate bindings use CD00010 and direct SELECT AST duplicates/empty names use 
 ## OQL text transactions
 
 [OqlTransactionExpression](../assimalign-cohesion-database-documents-language/oql-transaction-expression.md)
-represents BEGIN/START, COMMIT and ROLLBACK. In-process sessions dispatch controls against
-their current transaction, using Snapshot by default or explicit READ COMMITTED. Server
-sessions refuse text controls with CD07002 over InMemory and TCP in this batch.
+represents BEGIN/START, COMMIT and ROLLBACK. In-process and wire sessions dispatch controls
+against their current transaction, using Snapshot by default or explicit READ COMMITTED.
+CD07002 refuses controls only without negotiated transaction-status. A current Documents client
+negotiates status after Execute and Command and rolls back active or failed work before reuse,
+or discards the connection if reuse cannot be certified. See
+[wire transactions](../assimalign-cohesion-database-documents-client/document-connection.md#text-transactions).
 
 Nested BEGIN reports CK04004 and faults the current transaction. COMMIT/ROLLBACK without
 one reports CD04104. A faulted transaction retains CD04101 until ROLLBACK; faulted COMMIT

@@ -2,7 +2,7 @@
 
 A pooled Documents client for OQL, document operations and collection management.
 
-> **Status:** Implemented. Support covers the documented surface; explicit wire transactions are unsupported.
+> **Status:** Implemented. Support includes text transactions over InMemory and TCP, with safe pooled reset.
 
 ## Contract dependencies and client errors
 

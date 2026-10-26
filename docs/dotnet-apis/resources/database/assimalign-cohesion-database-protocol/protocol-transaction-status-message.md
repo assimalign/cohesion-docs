@@ -17,7 +17,7 @@ public sealed record ProtocolTransactionStatusMessage(ProtocolTransactionStatus 
 }
 ```
 
-ProtocolCapability.TransactionStatus has Name transaction-status. SQL and Graph negotiate a one-byte Ready postamble after completed Execute exchanges or statement failures; startup Ready retains its existing encoding. Encode rejects invalid enum values; Decode requires exactly one valid byte, otherwise ProtocolException. Idle certifies no open explicit transaction; Active accepts statements; Failed requires rollback. Pool return resets open/failed transactions and reuses only certified Idle sessions.
+ProtocolCapability.TransactionStatus has Name transaction-status. SQL, Graph and Documents negotiate a one-byte Ready postamble after completed Execute exchanges or statement failures (also Graph ExecutePaths and Documents Command); startup Ready retains its existing encoding. Encode rejects invalid enum values; Decode requires exactly one valid byte, otherwise ProtocolException. Idle certifies no open explicit transaction; Active accepts statements; Failed requires rollback. Pool return resets open/failed transactions and reuses only certified Idle sessions.
 
 [Protocol capability](protocol-capability.md) · [Ready negotiation](protocol-ready-message.md) · [Pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset)
 

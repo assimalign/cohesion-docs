@@ -31,7 +31,9 @@ shared 16 MiB frame limit. Malformed UTF-8 is rejected by the shared and model p
 Null engine/options throw ArgumentNullException; missing listener, nonpositive session limit or
 invalid authentication/idle timer durations throw ArgumentException. Nonpositive, infinite or oversized
 ShutdownDrainTimeout/TerminalDrainLinger values throw ArgumentOutOfRangeException. Statement failures retain DatabaseException
-codes/spans in the Documents Failure payload. No wire transaction command is implemented.
+codes/spans in the Documents Failure payload. Text BEGIN/START, COMMIT and ROLLBACK execute on the connection-owned session.
+Controls without negotiated transaction-status report CD07002; negotiated Execute and Command
+responses end with Ready status, including failures.
 
 ## Example
 

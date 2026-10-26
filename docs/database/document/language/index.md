@@ -34,7 +34,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [DELETE](statements/delete.md) | Supported | Snapshot filtering, index maintenance and affected count; retains collection/index definitions |
 | [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
 | [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
-| [BEGIN/START, COMMIT, ROLLBACK](statements/transactions.md) | In process | Snapshot by default; READ COMMITTED; server refusal CD07002 |
+| [BEGIN/START, COMMIT, ROLLBACK](statements/transactions.md) | Supported | In process and over the wire; Snapshot by default, explicit READ COMMITTED; CD07002 only without negotiated status |
 | EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One to 32 ordered paths, UNIQUE and conditional DDL |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts input rows, including expanded UNNEST rows |

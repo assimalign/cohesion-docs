@@ -38,7 +38,7 @@ reach another renter. Database is cached and remains readable; IsOpen returns fa
 The core DatabaseConnection's repeated disposal joins the original return; the typed wrapper's
 repeated disposal is a no-op. AbortAsync on a live wrapper discards its session without cancellation.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 SQL uses ordinary BEGIN/COMMIT/ROLLBACK commands on the same connection. If cleanup fails, abort
 the live rental. Abort cannot establish the outcome of an unacknowledged COMMIT or undo published writes.

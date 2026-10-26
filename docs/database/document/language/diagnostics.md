@@ -209,7 +209,7 @@ CD04102 is a catalog snapshot conflict; CD04103 an expected-version mismatch; CD
 | CK04004 | Nested BEGIN/START; faults the existing transaction | — |
 | CD04104 | COMMIT/ROLLBACK without an explicit transaction | — |
 | CD04105 | OQL collection/index DDL inside an explicit transaction, including conditional no-ops | — |
-| CD07002 | Documents server refuses text transaction control over InMemory or TCP | — |
+| CD07002 | Text transaction control without the negotiated transaction-status capability | — |
 
 CD04101 also covers work and COMMIT after a statement faults the transaction. ROLLBACK recovers
 the session; a faulted COMMIT ends it without committing. See [transactions](statements/transactions.md).

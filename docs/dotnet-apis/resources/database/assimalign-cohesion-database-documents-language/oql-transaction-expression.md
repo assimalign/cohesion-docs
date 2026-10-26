@@ -23,8 +23,8 @@ Construction validates both enums and throws ArgumentOutOfRangeException for und
 Isolation applies to Begin and is ignored for Commit/Rollback. Location is an optional span with
 an exclusive end offset. Parsed nodes retain source Text, command and isolation.
 
-The owning in-process session dispatches controls before ordinary planning. Documents servers
-refuse them with CD07002 in this batch. See [transaction behavior and diagnostics](../../../../database/document/language/statements/transactions.md).
+The owning session dispatches controls before ordinary planning, in process and over the wire.
+CD07002 refuses controls only without negotiated transaction-status. See [transaction behavior and diagnostics](../../../../database/document/language/statements/transactions.md).
 
 ## Example
 

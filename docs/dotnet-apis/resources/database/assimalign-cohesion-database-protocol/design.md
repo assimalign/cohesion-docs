@@ -347,6 +347,20 @@ result objects expose the ProtocolDiagnostic values directly. Codecs use checked
 span reads and static encoding, with no reflection or runtime discovery.
 
 
+## Transaction status and family reset
+
+SQL, Graph and Documents advertise transaction-status in protocol 2.1. Startup Ready keeps its
+version/capability payload; negotiated statement Ready carries exactly one ASCII byte I, T or E.
+It follows SQL/Graph Execute completion or statement Error (also Graph ExecutePaths), and
+Documents Execute/Command Complete or Failure. Ping/Pong and terminal connection errors have no
+postamble. Invalid status is a protocol violation (CK07002).
+
+Reset uses each family's existing payload: SQL/Graph Execute 5 with ROLLBACK and zero parameter
+count, then ResultComplete 8 with one zero Int64; Documents Execute 64 with ROLLBACK and `{}`,
+then Complete 66 with two zero Int64 counts. Both require Ready I. Unnegotiated transaction-capable
+peers cannot certify reuse and are discarded on return. See
+[pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset).
+
 ## Sources
 
 - **Batching, borrowing and counters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Protocol/tests/ProtocolBatchTests.cs`.
