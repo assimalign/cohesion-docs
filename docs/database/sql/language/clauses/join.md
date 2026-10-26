@@ -1,6 +1,6 @@
 # JOIN (Cohesion SQL)
 
-Combines stored tables, registered system relations and derived queries with INNER, LEFT, CROSS, and comma joins.
+Combines stored tables, registered system relations and derived queries with INNER, LEFT, RIGHT, CROSS, and comma joins.
 
 > **Status:** Partial. The documented subset executes; restrictions are listed below.
 
@@ -11,7 +11,9 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
 
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
                  | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
-<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
+                 | ( <table_source> <join> [ <join> ...n ] )
+                   [ [ AS ] table_alias [ ( column_name [ , ...n ] ) ] ]
+<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
 ```
@@ -31,6 +33,13 @@ the extended row, while `COUNT(right.column)` ignores its NULL. SQL has no MISSI
 CROSS and comma joins produce Cartesian products; an empty input makes the product
 empty while retaining column metadata.
 
+RIGHT preserves every written right row and fills the entire written left subtree with NULL
+when no pair matches. ON/WHERE and COUNT follow the corresponding LEFT rules with sides reversed.
+SELECT * retains written left-then-right column order; qualified references keep their written
+inputs. Left-side columns become nullable in result metadata, including declared NOT NULL columns;
+right-side columns retain their input nullability. Implementation normalization does not reorder
+the visible columns. FULL JOIN remains CK00001.
+
 All inputs share the statement's multi-version concurrency control (MVCC) snapshot. Multiplicity
 is preserved. Grouping/HAVING, DISTINCT, ordering, pagination and subqueries compose with the joins.
 Row order requires ORDER BY. System relations share one captured catalog image.
@@ -39,6 +48,11 @@ JOIN binds more tightly than comma. In `FROM a, b JOIN c ON ...`, ON sees b and 
 see a or a later input. Joins associate to the left within each comma item. Explicit aliases hide
 base names and distinguish repeated tables. Unqualified names shared by inputs remain ambiguous
 unless USING merges them. These checks apply before rows are read, even on empty inputs.
+
+Parenthesized joins preserve explicit association. Unaliased groups expose their component names;
+an aliased group hides them behind its own name, like a derived SELECT *, with an optional complete
+column-alias list. Groups may start with an aliased derived SELECT and may nest. CREATE VIEW and
+reopen retain that association. RIGHT and grouped trees keep predicates at their written level.
 
 ON requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
 condition such as `ON t.age` fails before reads with CS02003 (42804); untyped NULL is
@@ -59,6 +73,11 @@ retain identity; mixed domain/base or differing domains resolve through base typ
 precision and scale survive only when both types and modifiers agree. CHAR(3)/VARCHAR(10), for
 example, clears the merged length. Qualified `left.id` and `right.id` retain their original types
 and modifiers; the right column becomes nullable under LEFT.
+
+RIGHT uses the coerced right value and its collation/nullability for each merged USING column,
+including the right spelling under case-insensitive equality. Merged keys still come first in USING
+list order, followed by remaining left and right columns. Qualified references continue to expose
+the original physical inputs; the left input becomes nullable under RIGHT.
 
 [ORDER BY](order-by.md) aliases after `*` and numeric ordinals count the visible merged columns.
 Qualified wildcards such as `t.*` remain excluded.
@@ -103,9 +122,9 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 
 | Form | Support | Boundary |
 | --- | --- | --- |
-| INNER or LEFT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
+| INNER, LEFT [OUTER] or RIGHT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
 | CROSS JOIN and comma sources | Supported (measured) | Products; CROSS accepts neither ON nor USING |
-| RIGHT, FULL, NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
+| FULL, NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
 | Qualified wildcard | Recognized, not supported (`CK00001`) | List qualified columns explicitly |
 
 ## Diagnostics
@@ -115,7 +134,8 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | `CS02003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
 | `CS01015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
 | `CS01019` | Duplicate table binding or alias |
-| `CK00001` | Unsupported join/wildcard, or INNER/LEFT without ON or USING |
+| `CK00001` | Unsupported join/wildcard, or INNER/LEFT/RIGHT without ON or USING |
+| `CS05069` | Direct RIGHT or unaliased parenthesized source in UPDATE FROM / DELETE USING; refused before reads/writes, no SQLSTATE |
 | `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
@@ -177,6 +197,34 @@ The first query returns `(1, 1)`, `(2, NULL)`, `(3, NULL)`. Moving `c.enabled = 
 to WHERE leaves only `(1, 1)`. The USING query has columns `id`, `ratio`, both Decimal,
 and returns `(1, 0.5)`, `(2, 1)`, `(3, 1.5)`. Each product count is `9`.
 
+### RIGHT, USING and groups
+
+Execute separately in a fresh database, adapted from SqlRightJoinTests:
+
+```sql
+CREATE TABLE a (left_value TEXT NOT NULL, id INT NOT NULL);
+CREATE TABLE b (id INT NOT NULL, right_value TEXT NOT NULL);
+INSERT INTO a VALUES ('left', 1);
+INSERT INTO b VALUES (1, 'one'), (2, 'two');
+SELECT * FROM a RIGHT OUTER JOIN b ON a.id = b.id ORDER BY 3;
+SELECT * FROM a RIGHT JOIN b USING (id) ORDER BY id;
+SELECT d.id, b.id FROM ((SELECT id FROM a) d RIGHT JOIN b ON d.id = b.id) ORDER BY b.id;
+```
+
+The first result's columns are left_value, id, id, right_value, with rows
+`('left',1,1,'one')`, `(NULL,NULL,2,'two')`; only the first two columns become nullable.
+USING returns columns id, left_value, right_value and rows `(1,'left','one')`, `(2,NULL,'two')`.
+The derived-first group returns `(1,1)`, `(NULL,2)`.
+
+Direct RIGHT or unaliased grouped sources in joined DML fail CS05069. A derived SELECT containing
+RIGHT executes; see [UPDATE FROM](../statements/update.md#from-sources) and
+[DELETE USING](../statements/delete.md#using-sources).
+
+EXPLAIN identifies `normalized RIGHT to LEFT` and the chosen hash, indexed or buffered path.
+JoinStep nesting follows physical association; both EXPLAIN and EXPLAIN ANALYZE emit the complete
+physical outer subtree before its correlated inner IndexSeek, including a derived outer query.
+See [EXPLAIN](../statements/explain.md#right-and-grouped-joins).
+
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
@@ -210,3 +258,5 @@ SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for con
 - **Predicate safety** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinPredicateSafetyTests.cs`
 - **N-way, LEFT, USING and output types** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`
 - **Syntax boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlJoinShapeTests.cs`
+- **RIGHT and groups** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRightJoinTests.cs`
+- **Physical plan order** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRightJoinExplainTests.cs`

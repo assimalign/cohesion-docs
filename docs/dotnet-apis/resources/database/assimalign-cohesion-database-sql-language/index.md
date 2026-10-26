@@ -6,6 +6,8 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlJoinedTableReference](sql-joined-table-reference.md)** — Unaliased grouped joins and component scopes.
+
 - **[SqlCreateSchemaExpression](sql-create-schema-expression.md)** — Namespace name and existence guard.
 - **[SqlDropSchemaExpression](sql-drop-schema-expression.md)** — RESTRICT/CASCADE namespace removal.
 - **[SqlQueryBodyExpression](sql-query-body-expression.md)** — Shared SELECT/set body and tail.

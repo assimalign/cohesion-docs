@@ -30,6 +30,7 @@ return false. These accessors introduce no validation exceptions.
 ```csharp
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.Inner)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.LeftOuter)); // True
+Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.RightOuter)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.Cross)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.FullOuter)); // False
 var statement = new SqlQueryParser().Parse("SELECT SQRT(id) FROM t;");
