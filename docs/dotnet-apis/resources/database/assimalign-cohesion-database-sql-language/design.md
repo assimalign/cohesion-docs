@@ -296,6 +296,15 @@ lock preparation: retry in a fresh transaction. SQLSTATE remains a reference map
 See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
 
 
+## Quantified comparisons and grouping
+
+Scalar [ANY/SOME/ALL comparisons](sql-quantified-comparison-expression.md) retain the comparison,
+written quantifier and complete query body in the AST. SqlClauses.QuantifiedComparison advertises
+the form. Rendering and depth accounting include the body; arrays, row values and excluded
+subquery positions retain their diagnostics. The engine matches repeated complete subquery
+grouping keys structurally, including correlations, across SELECT, HAVING and ORDER BY. IN keys
+also compare query bodies. See [GROUP BY](../../../../database/sql/language/clauses/group-by.md#repeated-subquery-keys).
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`.

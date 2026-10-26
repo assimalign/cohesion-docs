@@ -17,7 +17,7 @@ finishes mandatory refresh and reports success despite late cancellation or time
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 54-of-60 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

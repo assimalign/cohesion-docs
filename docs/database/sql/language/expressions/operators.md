@@ -63,6 +63,8 @@ Only true conditions retain rows in `WHERE`, `ON`, and `HAVING`.
 
 `NOT UNKNOWN` remains unknown. Membership and its empty-result rules are detailed in
 [Subqueries](subqueries.md); a null-containing candidate list can also produce unknown.
+[Quantified comparisons](quantified-comparisons.md) apply an ordinary comparison to ANY/SOME/ALL
+rows of a subquery, including their empty-set and NULL rules.
 AND, OR, NOT and truth-test operands require BOOLEAN under the
 [search-condition rules](../clauses/where.md#boolean-search-conditions). Known non-Boolean operands
 fail CS02003 (42804), even in a short-circuited branch. Untyped NULL remains UNKNOWN;

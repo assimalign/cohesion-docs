@@ -2,7 +2,7 @@
 
 Reference for Cohesion's declared SQL dialect and its measured execution boundaries.
 
-> **Status:** Partial. The profile measures 51 of 57 declared clauses against the live engine.
+> **Status:** Partial. The profile measures 54 of 60 declared clauses against the live engine.
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
@@ -54,7 +54,7 @@ The [Expressions](expressions/index.md) section covers the executable scalar sub
   [CASE](expressions/case.md), and [CAST](expressions/cast.md).
 - **Predicates** — [NULL-safe distinct tests, Boolean tests and LIKE ESCAPE](expressions/operators.md)
   follow PostgreSQL precedence, with eager invalid-escape diagnostics.
-- **Nested queries** — [Subqueries](expressions/subqueries.md).
+- **Nested queries** — [Subqueries](expressions/subqueries.md) and [ANY/SOME/ALL comparisons](expressions/quantified-comparisons.md).
 - **Values and names** — [Literals and identifiers](expressions/literals.md) and
   [Parameters](expressions/parameters.md).
 

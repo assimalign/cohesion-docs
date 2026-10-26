@@ -245,7 +245,17 @@ begin with a complete `CS` code followed by a colon. ExecutionFailure leaves the
 See [all execution codes and SQLSTATE mappings](../../../../database/sql/language/diagnostics.md#planning-and-execution-diagnostics).
 This changes no public client member or wire format.
 
+## Quantified comparisons
+
+Scalar ANY/SOME/ALL subqueries use the existing query exchange over InMemory and TCP.
+UNKNOWN arrives as a NULL Boolean cell. Ordinary diagnostics retain CS01015 for names,
+CS02055 (42804) for compared incompatible non-NULL values and CS05013 for subquery width;
+complete statement errors preserve connection reuse. See
+[quantified comparisons](../../../../database/sql/language/expressions/quantified-comparisons.md).
+
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlQuantifiedComparisonWireTests.cs`.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

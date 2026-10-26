@@ -69,6 +69,13 @@ Optional SQL costing falls back on committed definition changes; mutation execut
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
 
+## Quantified comparisons
+
+Quantified comparisons allocate no new code. They reuse CS05013 for a subquery with other than
+one column (no SQLSTATE), CS01015 for name binding (42703 for unknown columns), and CS02055 for
+incompatible compared non-NULL values (42804). Repeated grouping keys that do not match still
+use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expressions/quantified-comparisons.md).
+
 ## Graph format requirement
 
 Graph record and tree-registration format 5 is required. `CG06017` refuses earlier formats,
