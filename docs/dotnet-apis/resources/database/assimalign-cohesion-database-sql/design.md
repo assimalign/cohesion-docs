@@ -1265,6 +1265,7 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS06058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
+| `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
@@ -1765,13 +1766,30 @@ never executes its wrapped data statement.
 
 Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
 
-## Bound source DML
+## Joined source DML
 
-UPDATE ... FROM and DELETE ... USING parse and bind comma-separated sources and joins.
-EXPLAIN shows the source plan; bare RETURNING * expands target columns followed by visible
-source columns. Execution reports CK00001 in this batch before callbacks or writes, leaving
-an explicit SQL transaction usable. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources-parsing-and-binding-only)
-and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources-parsing-and-binding-only).
+UPDATE ... FROM and DELETE ... USING collect target/source associations through one statement
+snapshot before SET or writes. Physical target location and writer stamp identify each target,
+including equal unkeyed rows. UPDATE rejects a second association with CS05068 (21000) before
+assignment evaluation. DELETE retains one association per target; the chosen source and result
+order are unspecified. UPDATE RETURNING substitutes new target columns while keeping collected
+source values; DELETE returns old target columns. Bare star expands visible target/source columns.
+
+The target is pinned outer. Safe target-only predicates select target seeks; mandatory equalities
+select source probes or budgeted hash builds. Equality-driven steps follow written source order;
+list the source connected to the target first. General join-order search remains #1629. Costing
+shares CTE identity, so volatile definitions materialize once. StatementMemoryBudget covers hash
+builds, while DML target/association retention remains outside that accounting.
+
+Exclusive target locks precede constraint preparation; apply rechecks original locations and writer
+stamps before writes. A concurrent committed target change raises the existing first-updater-wins
+conflict. Existing final-row UPDATE checks and DELETE cascade helpers enforce constraints and
+undo targets, indexes, child actions and RETURNING preparation together. The statement lock mark
+precedes WITH/subqueries: failure releases new grants after undo, preserving earlier transaction
+grants. Intent-shared locks include tables read only by CTEs/subqueries and remain until transaction
+end after success. Cascade retries reuse associations and reacquire source intents. See
+[UPDATE](../../../../database/sql/language/statements/update.md#from-sources) and
+[DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
 
 ## Sources
 

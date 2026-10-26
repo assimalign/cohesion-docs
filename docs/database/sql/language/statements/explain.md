@@ -162,9 +162,23 @@ The returned rows describe the executed SELECT, including measured work where av
 
 ## Source DML
 
-EXPLAIN UPDATE ... FROM and EXPLAIN DELETE ... USING bind and describe the source plan,
-including the target-first, visible-source RETURNING * expansion. The actual source DML
-statements remain refused with CK00001 in this batch before callbacks or writes.
+EXPLAIN UPDATE ... FROM and EXPLAIN DELETE ... USING describe the executable association join
+without running source callbacks, SET/RETURNING expressions or writes. The target stays outer.
+Target-only predicates may show an IndexSeek on the target; mandatory target/source equality
+may show an index-probe step on the source or HashJoin; JoinStep detail includes `hash_budget=no_spill`. Hash builds
+are charged to StatementMemoryBudget during execution. EXPLAIN also shows the target-first,
+visible-source RETURNING * expansion.
+
+For stored t(id INT PRIMARY KEY,v INT) and s(id INT PRIMARY KEY,v INT):
+
+```sql
+EXPLAIN UPDATE t SET v = s.v FROM s WHERE t.id = s.id AND t.id = 1 RETURNING *;
+```
+
+The plan includes target/source IndexSeek paths and a four-column RETURNING description
+(id, v, id, v). General join-order search is deferred; equality-driven source steps follow
+written FROM/USING order. See [performance](../../performance.md#joined-mutations).
+EXPLAIN ANALYZE remains SELECT-only.
 
 ## Sources
 

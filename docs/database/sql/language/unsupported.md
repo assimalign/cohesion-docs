@@ -18,7 +18,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
-| UPDATE ... FROM / DELETE ... USING | `CK00001` at execution | Parsed and bound only in this batch; EXPLAIN shows sources; bare RETURNING * binds target columns then visible sources |
 | MySQL ON DUPLICATE KEY UPDATE; SQLite INSERT OR IGNORE/REPLACE | `CK00001` | Use [ON CONFLICT](clauses/on-conflict.md) DO NOTHING/targeted DO UPDATE |
 | ON CONFLICT expression/COLLATE/order/operator-class/partial-WHERE inference; DO SELECT | `CK00001` | Plain column-set or named unique-index arbitration executes |
 | Subqueries in ON CONFLICT DO UPDATE SET/WHERE; EXCLUDED pseudo-relation in RETURNING | `CK00001` | Target plus EXCLUDED is available in scalar conflict actions; RETURNING sees only target values |

@@ -44,7 +44,7 @@ Console.WriteLine(node.Table.TableName); // t
 With stored t containing IDs 1, 2 and 3, execution affects three rows and leaves 101, 102 and 103.
 
 Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
-binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
+without source clauses binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
 DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
 use CS05017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use CK00001.
 See [RETURNING](../../../../database/sql/language/clauses/returning.md).
@@ -62,10 +62,11 @@ Console.WriteLine(((SqlUpdateExpression)returningStatement.SqlExpression).Return
 ## Source binding
 
 From holds comma-separated sources and their join trees, or an empty list when absent.
-Source forms parse and bind but execution reports CK00001 in this batch before callbacks or
-writes. EXPLAIN describes the source plan. With sources present, bare RETURNING * binds
-target columns followed by visible source columns; the target-only execution description
-above applies to statements without sources. See [UPDATE](../../../../database/sql/language/statements/update.md).
+Sources execute as a target-outer association join. SET values, WHERE and RETURNING can read
+source columns. More than one source association for a target raises CS05068 (21000) before
+SET evaluation or writes, preserving earlier transaction work. RETURNING reads new target values
+and collected source values; bare star expands target columns then visible sources in written
+FROM order, retaining JOIN USING merges. EXPLAIN describes access paths and join algorithms. See [UPDATE](../../../../database/sql/language/statements/update.md).
 
 ## Sources
 
