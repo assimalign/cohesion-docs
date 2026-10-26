@@ -97,12 +97,18 @@ returns 1, 2, 3.
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
 
-## UPDATE source binding
+## Mutation sources
 
-UPDATE ... FROM recognizes and binds this source-list/join syntax in this batch, but execution
-reports CK00001 before callbacks or writes. EXPLAIN shows its source plan. DELETE ... USING
-has the same binding-only boundary. See [UPDATE](../statements/update.md#from-sources-parsing-and-binding-only)
-and [DELETE](../statements/delete.md#using-sources-parsing-and-binding-only).
+UPDATE ... FROM and DELETE ... USING execute with this source-list/join grammar. Their target
+remains the outer join input; target-only predicates can seek it, while mandatory equality to
+a source can drive a source index probe or budgeted hash join. Equality-driven steps follow
+written source order: list the source connected to the target first. General join-order search
+is deferred to #1629. See [UPDATE](../statements/update.md#from-sources) and
+[DELETE](../statements/delete.md#using-sources) for cardinality, snapshots and locking.
+
+SET values, WHERE and RETURNING can read source columns; SET destinations remain target-only.
+Bare RETURNING * expands target columns then visible sources in FROM/USING order, retaining
+JOIN USING merges. Source JOIN ON sees only its comma item's namespace, excluding the target.
 
 ## Sources
 

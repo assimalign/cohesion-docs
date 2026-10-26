@@ -10,6 +10,7 @@ Changes one or more column values on rows selected from a stored table.
 [ WITH common_table_expression [ , ...n ] ]
 UPDATE [ schema_name . ] table_name [ [ AS ] table_alias ]
 SET column_name = { expression | DEFAULT } [ , ...n ]
+[ FROM source [ , ...n ] ]
 [ WHERE search_condition ]
 [ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
@@ -38,7 +39,7 @@ For [BY DEFAULT identity](../clauses/identity.md), SET id = DEFAULT allocates a 
 ALWAYS rejects every assignment to its identity column, including DEFAULT (`CS03025`);
 updates to other columns still execute.
 
-Omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
+Without FROM, omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.
 
 UPDATE uses the same [index eligibility rules as SELECT](select.md#index-access): direct key
@@ -135,28 +136,88 @@ is changed once, even though its replacement key still lies in the sought range.
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 
-## FROM sources: parsing and binding only
+## FROM sources
 
-UPDATE ... SET ... FROM accepts comma-separated sources and join trees for parsing and binding.
-The target remains a stored table. Execution is deferred to the next batch and reports CK00001
-before evaluating source or RETURNING callbacks or changing rows, including when the source
-would be empty. The refusal leaves an explicit SQL transaction usable.
+UPDATE ... FROM executes over stored tables, views, system relations, CTEs and aliased derived
+queries, with the supported INNER, LEFT and CROSS joins and comma sources. The target remains
+a stored table. SET destinations are target columns; SET values, WHERE and RETURNING may read
+both target and source columns. An alias hides the original name; self-joins need distinct
+visible names. A source item's JOIN ON sees that comma item's namespace, excluding the target
+and other comma items; put target/source conditions in WHERE.
 
-Bare RETURNING * binds the target columns first, then the visible source columns in namespace
-order, following PostgreSQL. JOIN USING contributes merged visible keys rather than both
-physical keys. [EXPLAIN](explain.md) describes the source plan without executing the mutation.
+The engine collects every matching target/source association in one statement snapshot before
+SET evaluation or writes. Only TRUE predicates match; FALSE and UNKNOWN do not. LEFT sources
+can supply NULL-extended values; SQL has no MISSING value. Earlier uncommitted session writes
+are visible. A reachable CTE materializes once, even when used more than once or containing
+volatile expressions. Source values remain those collected for this statement.
 
-With tables t(id INT, v INT) and s(id INT, v INT), this statement is recognized and bound:
+Each physical target must have at most one matching source association. A second match raises
+CS05068 (21000, cardinality_violation) before any SET expression or write, even if its values
+are identical. This deliberately differs from PostgreSQL, which applies an arbitrary matching
+source row. Equal unkeyed target rows remain distinct targets. This statement failure leaves
+earlier explicit-transaction work and the connection usable.
+
+SET reads original target values and collected source values; RETURNING reads new target values
+and collected source values. Bare RETURNING * expands target columns, then each visible source
+in written FROM order. JOIN USING contributes merged keys followed by remaining left/right
+columns, omitting hidden duplicate keys. Duplicate output names are allowed; ordinal access
+separates them and client name lookup returns the first. Output order is unspecified. Subqueries
+in SET and RETURNING remain CK00001.
+
+### Planning and concurrency
+
+The association is a join with the target pinned as its outer input. Safe target-only WHERE
+predicates can seek the target; a mandatory target/source equality can select a source index
+probe or hash join. [EXPLAIN](explain.md#source-dml) shows the access paths and algorithms.
+Hash-build memory counts against StatementMemoryBudget; exhaustion raises CS05067 (53200)
+before writes, without spilling. Target and association collections are not covered by that
+hash-build budget.
+
+Equality-driven steps follow written FROM order. With t joined to b by equality and b joined
+to a, write `FROM b, a`, rather than `FROM a, b`: the latter first visits the t × a product.
+For example, `UPDATE t SET v = b.v FROM b, a WHERE t.id = b.tid AND b.aid = a.id`
+puts the source connected to the target first. Both orders give the same result; general
+join-order search is deferred to #1629. See [performance](../../performance.md#joined-mutations).
+
+Before applying writes, the engine locks targets and checks their original physical location
+and writer stamp. A concurrently committed target change raises the existing first-updater-wins
+DatabaseTransactionAbortedException instead of following a replacement row, including after a
+ReadCommitted row-lock wait. Collected source values do not refresh during that wait.
+
+Joined DML holds intent-shared table locks on read sources, including tables read only by its
+CTEs or subqueries, until the transaction ends. Failure/cancellation undoes the statement and
+releases its new grants while preserving earlier transaction grants. Ordinary constraint checks,
+final-row foreign-key validation, index maintenance and statement rollback still apply; a
+RETURNING failure also undoes the statement. ON UPDATE actions remain unsupported.
+
+### Example
+
+Execute separately in a new database:
 
 ```sql
-EXPLAIN UPDATE t SET v = s.v FROM s WHERE t.id = s.id RETURNING *;
+CREATE TABLE t (id INT PRIMARY KEY, v INT);
+CREATE TABLE s (id INT, v INT);
+INSERT INTO t VALUES (1,0), (2,0);
+INSERT INTO s VALUES (1,10), (2,20);
+UPDATE t SET v = s.v FROM s WHERE t.id = s.id RETURNING *;
 ```
 
-EXPLAIN includes the source plan and a four-column RETURNING description (id, v, id, v).
-Removing EXPLAIN reports CK00001 and changes no rows. Ordinary NULL predicate rules apply
-during binding; SQL has no MISSING value. No source-DML execution behavior is promised here.
+The update affects two rows and returns (1,10,1,10) and (2,20,2,20) in unspecified order, with
+columns id, v, id, v. After inserting a second source for id 2:
+
+```sql
+INSERT INTO s VALUES (2,20);
+UPDATE t SET v = s.v + 1 FROM s WHERE t.id = s.id;
+SELECT id, v FROM t ORDER BY id;
+```
+
+UPDATE reports CS05068. SELECT still returns (1,10) and (2,20); no target was changed.
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceExecutionTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceConcurrencyTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.
 
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 

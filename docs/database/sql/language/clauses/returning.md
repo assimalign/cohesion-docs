@@ -15,7 +15,7 @@ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] [ ; ]
 
 The final list uses SELECT projection rules: star expands in table-column order, pass-through
 columns keep their names, and computed outputs without aliases use columnN names. Expressions
-can use target columns, parameters and scalar calls. The target name or alias qualifies columns;
+can use target columns, parameters and scalar calls, plus source columns for joined UPDATE/DELETE. The target name or alias qualifies columns;
 an alias hides the original name. INSERT SELECT exposes only the destination row to RETURNING.
 
 INSERT returns stored values after coercion, generated identity allocation and per-row defaults.
@@ -90,12 +90,28 @@ INSERT reports CS02001 and SELECT returns 0: the earlier row was rolled back too
 
 [INSERT](../statements/insert.md) · [UPDATE](../statements/update.md) · [DELETE](../statements/delete.md) · [Clauses](index.md)
 
-## Source DML binding
+## Joined mutations
 
-UPDATE ... FROM and DELETE ... USING parse and bind but execution reports CK00001 in this
-batch. For these forms, bare RETURNING * expands the target's columns followed by the visible
-source columns in namespace order, following PostgreSQL. JOIN USING exposes merged keys.
-EXPLAIN includes the source plan and bound output metadata; it does not execute the mutation.
+[UPDATE ... FROM](../statements/update.md#from-sources) and
+[DELETE ... USING](../statements/delete.md#using-sources) execute with source columns in RETURNING.
+Bare RETURNING * expands target columns first, then visible sources in written FROM/USING order.
+JOIN USING contributes merged keys, then remaining left/right columns; hidden duplicates stay
+hidden. Duplicate output names are allowed; use ordinal access to distinguish them (client name
+lookup returns the first). Type modifiers, collation and LEFT nullability are preserved.
+
+UPDATE returns new target values and collected source values. More than one source match for a
+target fails CS05068 (21000) before SET evaluation or writes. DELETE deletes each physical target
+once and returns its old values with one unspecified source association. Output order is
+unspecified; cascade/child-action rows remain excluded. Constraints and projection errors roll
+back the entire statement. EXPLAIN describes the association and expanded output metadata.
+
+With t(id,v) containing (1,0) and s(id,v) containing (1,7):
+
+```sql
+UPDATE t SET v = s.v FROM s WHERE t.id = s.id RETURNING *;
+```
+
+The result is (1,7,1,7), columns id, v, id, v and affected count 1.
 
 ## Sources
 

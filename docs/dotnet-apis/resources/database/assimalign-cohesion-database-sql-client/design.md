@@ -253,7 +253,19 @@ CS02055 (42804) for compared incompatible non-NULL values and CS05013 for subque
 complete statement errors preserve connection reuse. See
 [quantified comparisons](../../../../database/sql/language/expressions/quantified-comparisons.md).
 
+## Joined DML
+
+UPDATE FROM and DELETE USING use the ordinary command/result exchange over InMemory and TCP.
+QueryAsync returns source/target projections and the direct affected count; ExecuteAsync buffers
+and discards RETURNING rows. Visible star metadata retains JOIN USING merges, duplicate names,
+type modifiers and LEFT nullability. Multiple UPDATE source matches raise SqlClientException
+with CS05068 (21000) before writes; the connection and earlier explicit work remain usable.
+Constraints and result preparation retain statement rollback. See
+[SqlConnection](sql-connection.md#joined-mutations).
+
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlQuantifiedComparisonWireTests.cs`.
 
