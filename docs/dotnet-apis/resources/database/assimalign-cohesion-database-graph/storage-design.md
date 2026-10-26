@@ -70,12 +70,12 @@ against a duplicate-key lower-bound seek starting in a later leaf after a shared
 regression creates 240 incident edges, forces splits, reopens the file set, and checks all edges.
 There is no kernel change.
 
-## Version 4 record format
+## Version 5 record format
 
 All multibyte fixed-width values below are little-endian unless a key explicitly says otherwise.
 Every slotted record starts with the shared 16-byte stamp prefix: writer sequence at offsets 0-7,
 deleter sequence at offsets 8-15. Zero deleter means live. Graph records have kind at offset 16,
-format version 4 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
+format version 5 at offset 17, a nonzero 64-bit logical identity at offsets 18-25, and an
 UInt64 revision at offsets 26-33. Revision starts at zero and increases on replacement. The
 remaining payload follows that header:
 
@@ -107,21 +107,22 @@ non-finite floating values and oversized records fail before insertion. This ver
 arrays, nested objects or overflow chains. Nodes and relationships are immutable versions.
 UpdateNodeAsync replaces labels/properties; UpdateRelationshipAsync preserves endpoints/type and
 replaces properties. Both publish even equal values; GQL filters pure no-ops. Creation accepts
-complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2 and 3 are refused before logical
+complete records with caller-reserved identities and caller-resolved label GUIDs. Formats 1, 2, 3 and 4 are refused before logical
 recovery scrub with CG06017 and the recreation remedy; there is no upgrade reader. Graph records
-and tree registrations use version 4; catalog and B-tree page formats are unchanged. The low-level
+and tree registrations use version 5; catalog and B-tree page formats are unchanged. The low-level
 StorageCorruptionException carries the code in its message; the engine retains it alongside
 CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md).
 No SQLSTATE is assigned.
 
-Format 4 adds the catalog GUID after each label and the label-postings tree. A cleanly closed
+Format 4 added the catalog GUID after each label and the label-postings tree. Format 5 requires
+a persisted relationship-type postings tree; format-4 databases must also be recreated. A cleanly closed
 older file set is refused without changing any file. Physical WAL recovery precedes this fence
 on a crashed file set; the fence runs before logical scrub or the recovery checkpoint. There is
 no backfill or format upgrade.
 
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
-version `4`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
+version `5`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID
 distinguishes it. A tree root stays fixed through splits; registrations are saved when trees are
 created and reloaded after
 physical statement rollback. They are physical infrastructure, so logical rollback leaves an unused
@@ -134,6 +135,23 @@ references. Checksum errors and real I/O failures propagate; reclaimed pages/slo
 locations are treated as stale directory entries.
 
 ## Secondary indexes
+
+The relationship-type postings B+Tree uses object ID UInt64.MaxValue - 2 and name `graph`.
+Each 24-byte key holds a big-endian catalog type GUID followed by a big-endian UInt64 relationship
+identity; the value is the packed record location. Each relationship, including a self-loop, has
+one posting. Type names stay outside the keys. Create, property replacement, explicit deletion
+and detach deletion maintain these postings in the same physical bracket as records and adjacency.
+Rollback, recovery and safe-bound pruning restore or reclaim postings with their record versions.
+
+Internal type scans seek selected name/token ranges and merge visible relationships in identity
+order. They recheck record visibility, identity, type GUID and ordinal type name, retaining historical
+GUIDs for reused names and suppressing duplicates. Open rebuilds the name/token directory from
+retained records and attaches the persistent tree. Retained relationship records without its
+mandatory registration refuse open as corruption; an empty store needs no type tree until its first
+relationship. Cursors use bounded cancellable batches and release pages/latches before record reads.
+
+These type scans are internal storage operations. The query planner does not yet use them to
+anchor type-only patterns; this batch changes no query plan or EXPLAIN operator.
 
 The MVCC label-postings B+Tree uses object ID UInt64.MaxValue - 1 and name `graph`. Each
 24-byte key holds a big-endian catalog label GUID followed by a big-endian UInt64 node identity;
@@ -235,6 +253,10 @@ uses that format refusal.
 Record reads confirm their private bytes against a page write sequence before accepting a result or reporting a decode failure. Overlapping forward writes and rollback cause a retry. Stable malformed records retain page/slot context and the decoder cause through storage corruption translation. The shared record layer compacts fragmented pages before extension and refills partly empty older pages through in-memory free-byte hints, rechecking allocation generation and capacity. These changes preserve the stored format. See [shared record-layer behavior](../assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Storage/GraphStore.RelationshipTypes.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/Storage/GraphStoreRelationshipTypeTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphRelationshipTypeConcurrencyTests.cs`.
 
 - **Header truncation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/Internal/Storage/GraphRecordCodec.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs`.
 

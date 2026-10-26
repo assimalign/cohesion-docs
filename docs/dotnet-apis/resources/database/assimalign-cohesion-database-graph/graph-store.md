@@ -56,9 +56,9 @@ null when absent. Every storage update publishes a new version, even for equal v
 engine filters pure no-op assignments before calling storage. Low-level maps retain explicit NULL;
 GQL SET removes NULL keys before publication.
 
-Format 4 persists revision-ordered MVCC chains. Old snapshots keep earlier records/index entries;
+Format 5 persists revision-ordered MVCC chains. Old snapshots keep earlier records/index entries;
 rollback removes replacements and restores stamps. Node updates maintain every label posting and property index;
-relationship updates move both direction-specific adjacency entries, including for a self-loop. Replacements validate
+relationship updates move the relationship-type posting and both direction-specific adjacency entries, including for a self-loop. Replacements validate
 encoding/index keys before mutation. Snapshot updates are first-updater-wins. With the original
 ReadCommitted transaction context, the store refreshes after acquiring the writer lock. A caller-pinned
 statement view retains its horizon and may conflict; the caller chooses whether to refresh/retry.
@@ -75,7 +75,7 @@ statement view retains its horizon and may conflict; the caller chooses whether 
 | StorageException | Storage, decoding or I/O failure |
 
 EnsureIndexFormat checks graph record and B-tree formats before logical recovery scrub.
-Records and tree registrations must be format 4. Older formats throw StorageCorruptionException
+Records and tree registrations must be format 5. Older formats throw StorageCorruptionException
 with CG06017 and the recreation remedy; no upgrade reader exists. Open also validates these
 formats. The engine retains CG06017 alongside CK06003 and CG06018 in
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md);
@@ -89,6 +89,14 @@ An unknown label returns an empty list. Old snapshots retain their earlier membe
 relabeling or deletion; rollback and recovery restore postings with records. A null snapshot
 throws ArgumentNullException. Malformed selected records/postings or a missing required tree
 throw StorageCorruptionException.
+
+## Relationship-type postings
+
+Format 5 persists one type posting per relationship, including self-loops. Creation, property
+replacement, deletion and detach deletion update it atomically with the relationship and adjacency.
+Historical snapshots, rollback, recovery and purge retain the corresponding record/posting versions.
+Internal type scans use these postings; no public type-scan method or planner anchor is added.
+See [secondary indexes](storage-design.md#secondary-indexes).
 
 ## Incident reads
 
