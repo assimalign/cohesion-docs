@@ -1743,12 +1743,21 @@ heuristic estimates. Any ON reference to a
 derived String/Json/Character column prevents hash selection, including residual-only references,
 to preserve deferred collation/Unicode errors.
 
-Plain EXPLAIN can fail with `CS04006` when cost probes race committed DDL changing a bound table
-definition. Analysis counters distinguish separate relation paths through cached view bodies;
-repeated correlated calls at the same path accumulate. Single-derived-input SELECTs count input
-candidates without adding join pairs.
+Optional cost probes that observe a committed table-definition change discard their estimates
+and retain the bound access path, for SELECT and plain EXPLAIN. This race does not report
+CS04006. Mutation execution still checks its target definition and can report CS04006
+(no SQLSTATE); roll back and retry that mutation in a fresh transaction. Plain EXPLAIN
+never executes its wrapped data statement.
 
 Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
+
+## Bound source DML
+
+UPDATE ... FROM and DELETE ... USING parse and bind comma-separated sources and joins.
+EXPLAIN shows the source plan; bare RETURNING * expands target columns followed by visible
+source columns. Execution reports CK00001 in this batch before callbacks or writes, leaving
+an explicit SQL transaction usable. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources-parsing-and-binding-only)
+and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources-parsing-and-binding-only).
 
 ## Sources
 

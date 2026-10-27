@@ -90,6 +90,13 @@ INSERT reports CS02001 and SELECT returns 0: the earlier row was rolled back too
 
 [INSERT](../statements/insert.md) · [UPDATE](../statements/update.md) · [DELETE](../statements/delete.md) · [Clauses](index.md)
 
+## Source DML binding
+
+UPDATE ... FROM and DELETE ... USING parse and bind but execution reports CK00001 in this
+batch. For these forms, bare RETURNING * expands the target's columns followed by the visible
+source columns in namespace order, following PostgreSQL. JOIN USING exposes merged keys.
+EXPLAIN includes the source plan and bound output metadata; it does not execute the mutation.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReturningExecutionTests.cs`.

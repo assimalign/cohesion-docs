@@ -66,6 +66,12 @@ Bounded snapshot-visible index probes choose among eligible accesses; equal cost
 
 EXPLAIN can read index metadata for costing but executes no document statement. IndexSeek estimates identify exact visible index-entry counts or lower bounds; IndexIntersection reports the minimum input count as an upper bound. actual_rows stays NULL. See [access design](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#bounded-access-probes-and-intersection).
 
+## Transaction controls
+
+EXPLAIN of BEGIN/START, COMMIT or ROLLBACK reports CK00001. Text transaction control itself
+executes only in process in this batch; Documents servers refuse it with CD07002.
+See [transactions](transactions.md).
+
 ## Sources
 
 - **Description and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentExplainTests.cs`.

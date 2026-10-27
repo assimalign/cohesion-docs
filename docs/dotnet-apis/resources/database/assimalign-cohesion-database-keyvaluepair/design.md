@@ -590,6 +590,29 @@ policy or replace an unresolved operational fault. Event 36 repeats once per sec
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
+## Application function API
+
+KeyValueDatabaseEngine.CreateBuilder(name).Functions.Add(function) registers functions before
+the builder's single Build/BuildAsync attempt. The builder owns
+[KeyValueFunctionCollection](key-value-function-collection.md); the engine's public
+KeyValueFunctionCatalog Functions property exposes the frozen engine-local catalog.
+Registration freezes before storage/workers, even after a failed attempt. Names compare
+ordinally ignoring case. Functions serve every database/session and are not persisted.
+
+[KeyValueFunction](key-value-function.md) documents the callback contract: trusted, stateless
+or thread-safe code, no engine reentry, no retained borrowed values/context, and cooperative
+cancellation through derived cores. Same-session reentry uses CK07003 before nested execution.
+There is no determinism/volatility metadata or purity guarantee.
+
+CALL resolution uses CV01018 (unknown), CV01019 (arity), CV01020 (exact types) and CV01021 (NULL ambiguity). CV02016 means declared-result violation; CV05003 means external callback failure. Missing CALL name uses CV00019. There are no built-in functions or aggregates; a valid non-short-circuited CALL invokes its body once.
+
+External I/O and timeout exceptions retain their cause under the callback code.
+DatabaseException, out-of-memory, insufficient stack and actual statement cancellation keep
+their identity. Completed wire failures leave the connection reusable.
+Ordinary callback failures leave explicit transactions active.
+No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
+be rolled back.
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

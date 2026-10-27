@@ -405,6 +405,14 @@ CS05067 reports exhausted statement hash-build memory (SQLSTATE 53200, out_of_me
 
 CS06059 reports malformed persisted SQL catalog metadata (XX001); CS06060 reports an unsupported catalog metadata format/version (0A000). Shared CK identities cover common session, transaction, database-presence and value-access conditions; see the [registry additions](../../error-codes.md).
 
+## Source DML capability
+
+UPDATE ... FROM and DELETE ... USING parse and bind in this batch. Their execution reports
+CK00001 before source/RETURNING callbacks or writes, leaving an explicit SQL transaction
+usable. EXPLAIN describes their source plans. Optional SELECT/plain EXPLAIN cost probes
+that observe committed definition changes retain the bound path; they do not report CS04006.
+Mutation execution retains its mandatory CS04006 guard (no SQLSTATE).
+
 ## Sources
 
 - **Execution/DDL corpus and span provenance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`, `SqlExecutionDiagnosticTests.cs` and `SqlExecutionDiagnosticInterleavingTests.cs` in the same directory.

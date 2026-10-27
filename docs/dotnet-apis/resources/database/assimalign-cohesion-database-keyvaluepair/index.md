@@ -11,6 +11,16 @@ packages are retired. Wire contracts ship separately in [KeyValuePair.Protocol](
 
 ## Reference pages
 
+- **[KeyValueFunctionContext](key-value-function-context.md)** — Database identity and statement cancellation.
+- **[KeyValueArguments](key-value-arguments.md)** — Borrowed callback values.
+
+- **[KeyValueFunctionRequest](key-value-function-request.md)** — A reusable scalar request with detached primitive arguments.
+- **[KeyValueNullBehavior](key-value-null-behavior.md)** — Whether a NULL argument skips the callback or reaches it.
+
+- **[KeyValueFunction](key-value-function.md)** — A registered scalar CALL with an exact primitive signature.
+- **[KeyValueFunctionCollection](key-value-function-collection.md)** — Register functions before the builder starts.
+
+- **[KeyValueFunctionCatalog](key-value-function-catalog.md)** — Immutable engine-wide function lookup.
 - **[KeyValueDatabaseServerOptions](key-value-database-server-options.md)** — Terminal drain deadline and peer-close linger.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -90,6 +100,13 @@ See [DESIGN.md](design.md) for the architecture and the decisions behind it.
 - **[KeyValuePair catalog](catalog.md)** — Reference and usage.
 - **[KeyValuePair storage design](storage-design.md)** — Reference and usage.
 - **[KeyValuePair storage](storage.md)** — Reference and usage.
+
+## Application CALL functions
+
+KeyValueDatabaseEngine.CreateBuilder(name).Functions registers [KeyValueFunction](key-value-function.md)
+instances before Build/BuildAsync; engine.Functions exposes the frozen catalog.
+[CALL](../../../../database/key-value-pair/commands/call.md) invokes exact primitive signatures
+in process and over the wire. Direct Create has an empty catalog. This model has no aggregates.
 
 ## Sources
 

@@ -13,6 +13,7 @@ forwarders; wire bytes, disk formats, limits and validation behavior stay the sa
 
 ## Reference pages
 
+- **[KeyValueFunctionName](key-value-function-name.md)** — Generated function identifier and validation.
 - **[Design](design.md)** — Contract ownership and dependencies.
 - **[Examples](examples/index.md)** — Codec use without an engine reference.
 - **[KeyValueProtocol](key-value-protocol.md)** — Public wire contract.

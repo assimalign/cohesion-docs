@@ -91,6 +91,14 @@ flush on write. Clients consume a queued terminal Error before the next request 
 connector. TLS terminal delivery remains a known gap (#1086). See
 [shared close contract](../../dotnet-apis/resources/database/assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
+## Registered CALL
+
+[CALL](commands/call.md) uses the existing Execute command and scalar parameter codec.
+KeyValueConnection.InvokeFunctionAsync constructs CALL name @p0 @p1 ... with invariant
+parameter names, checks the one-column/one-row result, and returns the declared primitive
+or NULL. Binary results are owned byte arrays. CV01018–CV01021, CV02016 and CV05003 are
+ExecutionFailure codes that keep a completed connection reusable; no new frame/version is added.
+
 ## Sources
 
 - **Wire contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/docs/WIRE-PROTOCOL.md`.

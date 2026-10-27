@@ -12,6 +12,7 @@ public sealed record GqlPathPattern(IReadOnlyList<GqlNodePattern> Nodes,
 {
     public IReadOnlyList<GqlPathElement>? Elements { get; init; }
     public string? Variable { get; init; }
+    public GqlPathMode? Mode { get; init; }
 }
 ```
 
@@ -25,7 +26,9 @@ Elements null. Variable optionally names the complete MATCH path, independently 
 Construction retains references without executing or validating. Planning refuses contradictory
 representations, invalid bounds, nested repetitions, quantified/parenthesized INSERT paths,
 cycles/reused path instances or direct subpath depth above 128 with CG05001 (no SQLSTATE).
-Runtime matching produces relationship-unique trails; group declarations bind ordered lists.
+Mode is null for implicit Trail; an explicit [GqlPathMode](gql-path-mode.md) applies to the
+complete outer path and every segment. Nested modes and unbounded Walk report CK00001.
+Undefined modes or insertion modes report CG05001. Group declarations bind ordered lists.
 
 ## Example
 

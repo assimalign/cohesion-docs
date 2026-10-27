@@ -14,7 +14,7 @@ reference contracts without engines. See [package/import/error migration](../mod
 
 ## Reference
 
-- **[Commands](commands/index.md)** — point reads, conditional writes, ordered scans, and discovery.
+- **[Commands](commands/index.md)** — point reads, conditional writes, ordered scans, discovery and registered CALL functions.
 - **[Operand types](operand-types.md)** — parameter binding and accepted scalar types.
 - **[Key-space discovery](key-space-discovery.md)** — the metadata returned by `KEYSPACES`.
 - **[Wire protocol](wire-protocol.md)** — execution frames, result shapes, and scalar encoding.

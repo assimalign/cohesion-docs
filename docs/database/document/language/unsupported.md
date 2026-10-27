@@ -20,7 +20,9 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | ARRAY_AGG, REGEXP_LIKE, REGEXP_REPLACE, REGEXP_POSITION | CK00001 | Deferred calls; [34 scalar functions](functions/scalar-functions.md) execute |
 | Unknown function names | CD00008 | Not in the public executable function table |
 | CREATE/DROP DATABASE, USE, ALTER | CK00001 | Database lifecycle belongs to the API |
-| BEGIN/COMMIT/ROLLBACK | CK00001 | Explicit transactions use the session API; no wire transaction command |
+| Text BEGIN/START/COMMIT/ROLLBACK over the wire | CD07002 | [In-process controls](statements/transactions.md) execute; Documents servers refuse them in this batch |
+| SAVEPOINT, ROLLBACK TO SAVEPOINT, SET TRANSACTION, EXPLAIN controls | CK00001 | No savepoint or transaction-option mutation |
+| OQL collection/index DDL in an explicit transaction | CD04105 | Faults the transaction; use automatic DDL and ROLLBACK to recover |
 | General database-qualified source | CD00002 | Sources stay in the session database |
 | Multiple statements, invalid subscripts | CD00002 | One statement; array indices are nonnegative Int32 |
 | Unsupported parameter marker ? or :name | CD00002 | Shared supported-form message |

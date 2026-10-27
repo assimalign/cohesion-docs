@@ -277,6 +277,28 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CG05020 reports accounted retained-memory exhaustion. CG05004 reports physical-work or runtime trail exhaustion. CG08021 rejects nonpositive request limits or values above engine ceilings. None has an assigned SQLSTATE. Configure [engine ceilings and lower embedded limits](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md).
 
+## Path modes
+
+Outer WALK, TRAIL, SIMPLE and ACYCLIC execute; omitted mode means TRAIL. CK00001 refuses a
+mode inside a parenthesized/quantified subpath, an unbounded WALK even with LIMIT, or a path
+selector. CG00002 covers text insertion modes; CG05001 covers undefined direct AST modes or
+insertion modes. All modes retain CG05004 for hop/work limits and CG05020 for retained-memory
+limits. No SQLSTATE is assigned to these conditions. See [path modes](patterns.md#path-modes).
+
+## Application function conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG05021 | Application callback failed, result violated its declaration, or aggregate state was null/reused/invalid | — |
+| CK07003 | Same-session callback reentry refused before nested execution | — |
+
+CG02013 retains dynamic argument-shape/adapter-cast failures before callback entry; CG03003 covers provably incompatible kinds.
+Application I/O, timeout and callback-thrown conversion/overflow failures use CG05021,
+retaining the original cause. DatabaseException, out-of-memory, insufficient stack and actual
+statement cancellation keep their identity. Unknown names retain CG00010 but ordinary engine
+requests resolve them during binding/execution (ExecutionFailure, no StatementParseFailed);
+standalone parsers retain unknown-name parse diagnostics. See [functions](functions/index.md#application-functions).
+
 ## Sources
 
 - **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.

@@ -51,6 +51,13 @@ GraphEngineTests checks that a cleanly closed refused file set stays unchanged.
 - **Design** — [Lifetime and implementation decisions](design.md).
 - **Examples** — [Source-backed usage](examples/index.md).
 
+## Registered functions
+
+CreateBuilder(name).Functions registers application scalars and aggregates before the build.
+The public GraphFunctionCatalog Functions property exposes immutable engine-local metadata
+after build; direct Create uses the native catalog. See [GraphFunction](graph-function.md)
+for registration, callback rules and failures.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/Assembly/Assimalign.Cohesion.Database.Graph/OVERVIEW.md`.

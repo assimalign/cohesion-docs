@@ -406,7 +406,10 @@ governance projects are removed and supply no current API.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
-foreign-key validation for multi-row UPDATE. OQL executes 31 of 32 declared clauses and GQL 26 of 33.
+foreign-key validation for multi-row UPDATE. OQL adds [in-process text transactions](document/language/statements/transactions.md);
+its servers refuse those controls with CD07002 in this batch. GQL supports outer
+[WALK/TRAIL/SIMPLE/ACYCLIC modes](graph/language/patterns.md#path-modes), with TRAIL as its default.
+SQL UPDATE ... FROM / DELETE ... USING parse and bind but execution remains CK00001.
 
 The Phase 29 hosting implementation supersedes older eager-builder examples in the program plan.
 It adds no ApplicationModel functionality; that work remains deferred by the hosting design.

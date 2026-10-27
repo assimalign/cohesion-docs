@@ -9,6 +9,9 @@ The shared query-language substrate for database models.
 
 ## Reference pages
 
+- **[QueryLanguageProfile](query-language-profile.md)** — Immutable clause and lexer configuration.
+- **[TokenLexerOptions](token-lexer-options.md)** — Vocabulary and opt-in left-arrow recognition.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

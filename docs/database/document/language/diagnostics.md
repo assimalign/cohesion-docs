@@ -202,6 +202,32 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CD04102 is a catalog snapshot conflict; CD04103 an expected-version mismatch; CD05016 a result byte/frame limit; CD07001 a session bound to another database; CD09001 a stale collection handle. These supplement the existing CD condition families and shared CK guards. See the [code scheme and registry](../../error-codes.md).
 
+## Text transactions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04004 | Nested BEGIN/START; faults the existing transaction | — |
+| CD04104 | COMMIT/ROLLBACK without an explicit transaction | — |
+| CD04105 | OQL collection/index DDL inside an explicit transaction, including conditional no-ops | — |
+| CD07002 | Documents server refuses text transaction control over InMemory or TCP | — |
+
+CD04101 also covers work and COMMIT after a statement faults the transaction. ROLLBACK recovers
+the session; a faulted COMMIT ends it without committing. See [transactions](statements/transactions.md).
+
+## Application function conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD05017 | Application callback failed, result violated its declaration, or aggregate state was null/reused/invalid | — |
+| CK07003 | Same-session callback reentry refused before nested execution | — |
+
+CD02008 retains fractional typed integer conversion failures; CD02007 (22003) covers conversion outside the declared CLR integer range.
+Application I/O, timeout and callback-thrown conversion/overflow failures use CD05017,
+retaining the original cause. DatabaseException, out-of-memory, insufficient stack and actual
+statement cancellation keep their identity. Unknown names retain CD00008 but ordinary engine
+requests resolve them during binding/execution (ExecutionFailure, no StatementParseFailed);
+standalone parsers retain unknown-name parse diagnostics. See [functions](functions/index.md#application-functions).
+
 ## Sources
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/StorageCorruptionTests.cs`.

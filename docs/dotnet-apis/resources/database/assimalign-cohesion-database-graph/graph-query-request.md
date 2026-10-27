@@ -63,6 +63,14 @@ public static GraphQueryRequest FromGql(string gql,
 
 Null limits throw ArgumentNullException. Limits is inherited from GraphRequest. Execution requires positive values no greater than the engine ceilings, otherwise CG08021. See [limits DTO](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md).
 
+## Application function binding
+
+FromGql admits [GqlNamedFunctionCallExpression](../assimalign-cohesion-database-graph-language/gql-named-function-call-expression.md)
+automatically. Resolution belongs to the executing engine's frozen GraphFunctionCatalog; the
+request carries no catalog or callback. Unknown names retain CG00010 during binding/execution,
+with ExecutionFailure over the wire and no StatementParseFailed event. Standalone default
+GqlQueryParser retains its unknown-name parse diagnostic.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphQueryRequest.cs`.

@@ -30,7 +30,7 @@ an incoming clause, with optional RETURN. They are not standalone leading statem
 
 ## Transaction statements
 
-[START TRANSACTION, COMMIT and ROLLBACK](transactions.md) execute as standalone controls on Execute.
+[BEGIN/START TRANSACTION, COMMIT and ROLLBACK](transactions.md) execute as standalone controls on Execute.
 
 ## Sources
 

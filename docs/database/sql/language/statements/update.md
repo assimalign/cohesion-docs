@@ -135,6 +135,27 @@ is changed once, even though its replacement key still lies in the sought range.
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 
+## FROM sources: parsing and binding only
+
+UPDATE ... SET ... FROM accepts comma-separated sources and join trees for parsing and binding.
+The target remains a stored table. Execution is deferred to the next batch and reports CK00001
+before evaluating source or RETURNING callbacks or changing rows, including when the source
+would be empty. The refusal leaves an explicit SQL transaction usable.
+
+Bare RETURNING * binds the target columns first, then the visible source columns in namespace
+order, following PostgreSQL. JOIN USING contributes merged visible keys rather than both
+physical keys. [EXPLAIN](explain.md) describes the source plan without executing the mutation.
+
+With tables t(id INT, v INT) and s(id INT, v INT), this statement is recognized and bound:
+
+```sql
+EXPLAIN UPDATE t SET v = s.v FROM s WHERE t.id = s.id RETURNING *;
+```
+
+EXPLAIN includes the source plan and a four-column RETURNING description (id, v, id, v).
+Removing EXPLAIN reports CK00001 and changes no rows. Ordinary NULL predicate rules apply
+during binding; SQL has no MISSING value. No source-DML execution behavior is promised here.
+
 ## Sources
 
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.

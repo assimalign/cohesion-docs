@@ -20,6 +20,8 @@ public sealed class KeyValueConnection : IAsyncDisposable
     public ValueTask<bool> ExistsAsync(ReadOnlyMemory<byte> key, CancellationToken cancellationToken = default);
     public ValueTask<IReadOnlyList<KeyValueClientEntry>> ScanAsync(KeyValueScanRange? range = null,
         CancellationToken cancellationToken = default);
+    public ValueTask<object?> InvokeFunctionAsync(KeyValueFunctionName name,
+        IReadOnlyList<object?> arguments, CancellationToken cancellationToken = default);
     public ValueTask DisposeAsync();
 }
 ```
@@ -87,6 +89,28 @@ ProtocolViolation; clean EOF without an Error remains Internal. Rent-time pings 
 A clean handshake EOF has its own message naming the startup handshake. See
 [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
+
+## Registered CALL functions
+
+InvokeFunctionAsync encodes CALL name @p0 @p1 ... and returns one declared primitive or NULL.
+Names use KeyValuePair.Protocol.KeyValueFunctionName; values use exact native primitives with
+no numeric widening. Binary inputs are copied before the exchange and outputs are caller-owned
+byte arrays. No functions are installed by a client; the server engine builder registers them.
+
+Null argument lists throw ArgumentNullException; default names/unsupported primitive values
+throw ArgumentException. Pre-encoding cancellation preserves the caller's token and leaves the
+rental untouched; admitted cancellation follows the connection policy. Disposed rentals throw
+ObjectDisposedException, overlap InvalidOperationException, and server/malformed scalar-result
+failures KeyValueClientException. Completed function ExecutionFailure keeps the session usable.
+
+With the tests' server-registered increment(long) callback:
+
+```csharp
+object? result = await connection.InvokeFunctionAsync("InCrEmEnT", new object?[] { 41L });
+Console.WriteLine(result); // 42
+```
+
+[CALL](../../../../database/key-value-pair/commands/call.md) lists NULL and resolution failures.
 
 ## Sources
 

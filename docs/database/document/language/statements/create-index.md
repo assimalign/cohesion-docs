@@ -92,6 +92,12 @@ encoded composite key exceeds 1,024 bytes instead fails CD02026 and publishes no
 
 [Statements](index.md) · [DROP INDEX](drop-index.md) · [Paths and arrays](../expressions/paths-and-arrays.md) · [Diagnostics](../diagnostics.md)
 
+## Explicit transactions
+
+OQL index DDL inside an explicit transaction reports CD04105 before mutation, including
+conditional no-ops, and faults the transaction. Run it in an automatic statement transaction;
+[ROLLBACK](transactions.md) recovers a faulted session.
+
 ## Sources
 
 - **Composite execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.CompositeIndexes.cs`.

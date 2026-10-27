@@ -23,13 +23,15 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Unsupported scalar/statistical calls | Recognized, not supported (`CK00001`) | `ELEMENTS()`, temporal constructors, `LOG10`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
 | HAVING | Recognized, not supported (`CK00001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`CK00001`) | `RETURN a {.name}` |
+| Nested path modes, unbounded WALK and path selectors | Recognized, not supported (`CK00001`) | Outer [WALK/TRAIL/SIMPLE/ACYCLIC](patterns.md#path-modes) execute; LIMIT cannot bound WALK |
 | Questioned paths, nested quantifiers and subpath assignments/WHERE | Recognized, not supported (`CK00001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute |
 | Stored composite property values | Recognized, not supported (`CK00001`) for syntax; `CG03003` for parameters | MATCH/INSERT/CREATE/SET stored properties stay scalar-only |
 | List/pattern comprehensions and slicing | Recognized, not supported (`CK00001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
 | Server, database, graph, or schema selection | Recognized, not supported (`CK00001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
-| Transaction extensions | Recognized, not supported (`CK00001`) | BEGIN, savepoints, isolation/options and composed controls; use standalone START TRANSACTION, COMMIT or ROLLBACK |
+| Transaction options | Rejected (`CG00002`) | WORK, TRAN, READ ONLY/WRITE, isolation and DEFERRABLE suffixes on BEGIN/START |
+| Transaction extensions | Unsupported | Savepoints and composed controls; standalone BEGIN [TRANSACTION], START TRANSACTION, COMMIT and ROLLBACK execute in process and over the wire |
 | Cypher doubled-dash arrows | Rejected (`CG00008` or `CG00002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |
 | Tilde edge forms | Recognized, not supported (`CK00001`) | Only directed stored relationships, matched in either orientation where requested |
 | Direct stored-property chain | Recognized, not supported (`CK00001`) | `a.b.c`; nested map member access executes |

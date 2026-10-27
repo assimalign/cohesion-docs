@@ -59,6 +59,12 @@ fails CD01025. Adding IF EXISTS returns Success and zero affected documents.
 
 [Statements](index.md) and [CREATE INDEX](create-index.md).
 
+## Explicit transactions
+
+OQL index DDL inside an explicit transaction reports CD04105 before mutation, including
+conditional no-ops, and faults the transaction. Run it in an automatic statement transaction;
+[ROLLBACK](transactions.md) recovers a faulted session.
+
 ## Sources
 
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Ddl.cs`.

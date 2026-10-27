@@ -65,7 +65,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 
 | Clause | Accepted subset | Execution |
 | --- | --- | --- |
-| `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches bounded relationship-unique trails |
+| `MATCH` | Comma-separated fixed/quantified edges and parenthesized segments; optional labels, type and scalar expression property maps | Planner chooses an indexed anchor when available; executor matches paths under the resolved outer mode (default TRAIL) |
 | `OPTIONAL MATCH` | Same fixed/quantified paths and clause-local WHERE; repeated matching clauses execute in source order | NULL-extends new bindings when no candidate survives |
 | `WHERE` | Boolean logic, arithmetic, concatenation, comparisons, null/truth tests, labeled predicates, IN and string predicates | Three-valued filtering; positive label conjunctions can anchor nodes; value errors CG02013 |
 | `LET`, `FILTER` | Ordered assignments; FILTER [WHERE] predicate | Adds names or keeps TRUE rows |
@@ -122,9 +122,10 @@ entities requires a binding from matching or a proven entity carried through pro
 Pattern repetition-bound sums are limited to 64 relationships. Scalar chains have no comparison-count limit;
 recursive depth follows available stack (CG00009 in parsing, CG05008 in the engine). `Match`
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
-Quantified paths are unsupported, so cycles cannot cause unbounded repetition of a path pattern. The
-executor's trail rule permits repeated nodes but forbids repeated relationship identities within one
-path.
+Quantified paths execute with an outer [GqlPathMode](gql-path-mode.md). Omitted mode means
+Trail; Walk permits repeated identities only with bounded quantifiers; Simple permits only
+first-to-last node closure; Acyclic forbids repeated nodes. Nested modes, unbounded Walk
+even with LIMIT, and selectors remain CK00001. All modes retain the 64-hop and work/memory limits.
 
 ### Dedicated catalog statement choice (C2)
 
@@ -315,7 +316,7 @@ colon labels, property assignment and literal-map replacement/merge. Touching +=
 operator token. Scalar right sides retain IS [NOT] LABELED. Leading SET/REMOVE and nested targets
 are CG00002. Whole-map expressions/parameters and literal composite properties are CK00001;
 relationship labels and computed composite properties are CG03003. No new code is introduced.
-The profile executes 26 of 33 declared clauses.
+The profile enables outer path modes in addition to the existing clause subset.
 
 Database lifecycle failures additionally use CG06018 for missing journal/backup, incomplete
 creation or unrecoverable files. It is carried in DatabaseException.Diagnostics with no assigned
@@ -341,6 +342,12 @@ Runtime storage/index and open I/O failures carry CG06006 in Diagnostics; only w
 adds its prefix. Attached-index corruption leads with CK06003 and retains CK06102 and
 CG06006. Graph records/registrations require format 4; older layouts are refused with
 CG06017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
+
+## BEGIN transaction alias
+
+BEGIN [TRANSACTION] maps to the same GqlTransactionCommand.Start as START TRANSACTION,
+in process and over the wire, with Snapshot isolation. Options such as WORK, TRAN, READ ONLY
+and ISOLATION LEVEL report CG00002. See [transactions](../../../../database/graph/language/statements/transactions.md).
 
 ## Sources
 

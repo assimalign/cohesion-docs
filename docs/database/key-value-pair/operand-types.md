@@ -17,16 +17,16 @@ the only literal operand.
 | Limit parameter | Nonnegative `int` or `long`, at most `int.MaxValue` | `Int32` or `Int64` |
 | Limit literal | Nonnegative integer fitting `int` | Part of the statement text |
 
-The text parser specifically accepts `byte[]`; a string or boxed `ReadOnlyMemory<byte>` does
+For byte operands, the text parser specifically accepts `byte[]`; a string or boxed `ReadOnlyMemory<byte>` does
 not satisfy a byte operand. The typed request constructors separately accept
 `ReadOnlyMemory<byte>`. Point-operation keys cannot be empty. A value may be an empty byte array.
-For [SCAN](commands/scan.md), an empty start, end or prefix means no bound. Null text operands
-still fail with `CV02012`. Typed scan options and client ranges treat null or zero-length
+For [SCAN](commands/scan.md), an empty start, end or prefix means no bound. Null text byte operands
+still fail with `CV02012`; CALL accepts NULL as described below. Typed scan options and client ranges treat null or zero-length
 memory as absent, including an implicitly converted null `byte[]`.
 
 ## Errors
 
-A missing binding, a non-`@` data operand, null, or a wrong operand type raises
+For CRUD byte operands, a missing binding, a non-`@` data operand, null, or a wrong operand type raises
 `DatabaseParseException`. Request-constructor argument errors are also converted to parse
 errors at the text boundary. No execution occurs for these failures.
 
@@ -40,6 +40,14 @@ the engine does not choose an encoding or apply text collation to those bytes.
 - **[Commands](commands/index.md)** — grammar and examples.
 - **[Wire protocol](wire-protocol.md)** — scalar components.
 - **[Diagnostics](diagnostics.md)** — parse and execution errors.
+
+## CALL arguments
+
+[CALL](commands/call.md) binds native primitive values or NULL through named parameters.
+Overloads use exact non-NULL types, with no Int32-to-Int64 widening. NULL can make overloads
+ambiguous (CV01021); strict callbacks still resolve before returning NULL. Binary arguments
+are detached and exposed read-only; returned bytes are caller-owned. The byte-only rules
+above describe CRUD/range operands, not CALL.
 
 ## Sources
 

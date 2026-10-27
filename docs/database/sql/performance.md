@@ -31,9 +31,11 @@ The positive byte budget accounts for concurrently live hash builds, including n
 
 Use [EXPLAIN](language/statements/explain.md) to inspect costs without executing the wrapped data statement. EXPLAIN ANALYZE accepts SELECT query bodies and runs expressions/application functions normally; actual_rows reports measured candidates before residuals, not final output cardinality. Estimates distinguish exact probes, lower bounds and heuristics.
 
-Plain EXPLAIN can fail with `CS04006` when an index cost probe races committed DDL that changes a
-bound table definition. Retry in a fresh transaction. It still never executes the wrapped data
-statement. Analysis scopes cached view bodies by relation path, so separate references report
+Optional cost probes that observe a committed table-definition change discard their estimates
+and retain the bound access path, for SELECT and plain EXPLAIN. This race does not report
+CS04006. Mutation execution still checks its target definition and can report CS04006
+(no SQLSTATE); roll back and retry that mutation in a fresh transaction. Plain EXPLAIN
+never executes its wrapped data statement. Analysis scopes cached view bodies by relation path, so separate references report
 independent counts while repeated correlated calls to the same reference accumulate.
 
 [SQL](index.md) · [Engine options](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md)

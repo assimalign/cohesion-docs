@@ -110,7 +110,7 @@ and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-
 
 ## Array queries
 
-OQL executes 31 of 32 declared clauses. [UNNEST and LEFT UNNEST](language/clauses/unnest.md)
+[UNNEST and LEFT UNNEST](language/clauses/unnest.md)
 expand arrays before filtering; [ANY/SOME/EVERY](language/expressions/quantified-predicates.md)
 and [array IN](language/expressions/operators.md#in-and-between) test elements with SQL++
 NULL/MISSING rules. SELECT * with UNNEST returns synthetic binding objects.
@@ -147,6 +147,13 @@ HasFailingWorker remains false for the observation. ForeignStorage refusals repo
 operational failures. Catalog history-maintenance failure preserves the original purge exception.
 See [purge behavior](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#version-purge-refusals)
 and [shared engine health](../overview.md#engine-health-and-version-purge).
+
+## Text transaction control
+
+In-process sessions accept [BEGIN/START, COMMIT and ROLLBACK](language/statements/transactions.md),
+with Snapshot by default or explicit READ COMMITTED. Documents servers refuse these commands
+over InMemory and TCP with CD07002 in this batch. OQL collection/index DDL inside an explicit
+transaction reports CD04105 and faults it; ROLLBACK recovers the session.
 
 ## Sources
 

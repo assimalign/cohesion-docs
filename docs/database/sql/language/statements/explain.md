@@ -20,9 +20,11 @@ and set operations. Data changes, including WITH data changes, normally report `
 before execution; the earlier system-relation read-only check can retain `CS04021`. Standalone
 ANALYZE remains unsupported. Ordinary planning errors retain their codes.
 
-Plain EXPLAIN can fail with `CS04006` when an index cost probe races committed DDL that changes
-a bound table definition. Roll back an explicit transaction and retry in a fresh transaction.
-This failure does not imply execution of the wrapped data statement.
+Optional cost probes that observe a committed table-definition change discard their estimates
+and retain the bound access path, for SELECT and plain EXPLAIN. This race does not report
+CS04006. Mutation execution still checks its target definition and can report CS04006
+(no SQLSTATE); roll back and retry that mutation in a fresh transaction. Plain EXPLAIN
+never executes its wrapped data statement.
 
 All three query languages use the [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 shape, in depth-first pre-order:
@@ -157,6 +159,12 @@ EXPLAIN ANALYZE SELECT id FROM t WHERE id >= 1;
 ```
 
 The returned rows describe the executed SELECT, including measured work where available. See [query performance](../../performance.md) and [hash joins](../clauses/join.md#hash-joins-and-memory).
+
+## Source DML
+
+EXPLAIN UPDATE ... FROM and EXPLAIN DELETE ... USING bind and describe the source plan,
+including the target-first, visible-source RETURNING * expansion. The actual source DML
+statements remain refused with CK00001 in this batch before callbacks or writes.
 
 ## Sources
 

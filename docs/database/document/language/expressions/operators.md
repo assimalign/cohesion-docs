@@ -93,6 +93,16 @@ The parenthesized form compares the whole array as one list item.
 
 [Expressions](index.md) · [MISSING](missing.md) · [CASE](case.md) · [Diagnostics](../diagnostics.md)
 
+## Less-than followed by minus
+
+In OQL, `a<-1` and `a <- 1` both mean `a < -1`, following PostgreSQL's lexical rule.
+`a<--1` starts a `--1` line comment after `<`; it leaves the comparison without a right operand
+and reports CD00002. Only GQL recognizes `<-` as a relationship arrow. NULL comparison
+behavior is unchanged.
+
+For a row with a = -2, `SELECT a FROM t WHERE a<-1` returns -2. The corresponding
+`WHERE a<--1` form reports CD00002.
+
 ## Sources
 
 - **Predicates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Evaluation/DocumentExpressionEvaluator.Predicates.cs`.

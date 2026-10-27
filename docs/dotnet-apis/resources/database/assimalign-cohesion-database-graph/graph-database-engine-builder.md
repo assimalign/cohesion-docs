@@ -11,6 +11,7 @@ public sealed class GraphDatabaseEngineBuilder
 {
     public string Name { get; }
     public GraphDatabaseEngineOptions Options { get; }
+    public GraphFunctionCollection Functions { get; }
     public GraphDatabaseEngineBuilder AddDatabase(string name);
     public GraphDatabaseEngineBuilder AddServer(Action<GraphDatabaseServerOptions> configure);
     public GraphDatabaseEngineBuilder AddServer(Func<GraphDatabaseEngine, DatabaseServer> factory);
@@ -41,6 +42,15 @@ var graph = await engine.OpenDatabaseAsync("people"); // already opened by Build
 ## Related reference
 
 [Graph API](index.md) · [GraphDatabase](graph-database.md) · [Design](design.md)
+
+## Function registration
+
+Add [GraphScalarFunction](graph-scalar-function.md) and
+[GraphAggregateFunction](graph-aggregate-function.md) through Functions before Build/BuildAsync.
+The engine exposes the frozen [GraphFunctionCatalog](graph-function-catalog.md). Add after
+construction begins throws InvalidOperationException, including after a failed build attempt.
+Functions serve every engine session and must be stateless or thread-safe; registration is
+configuration, not persisted schema. See the [complete registration example](graph-function.md).
 
 ## Sources
 
