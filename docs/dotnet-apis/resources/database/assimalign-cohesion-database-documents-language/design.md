@@ -52,7 +52,7 @@ and DELETE paging remain unsupported.
 [OqlUpsertExpression](oql-upsert-expression.md) uses INSERT's KEY/VALUE shapes with a distinct
 OqlClauses.Upsert capability. VALUES or materialized SELECT input replaces whole documents.
 Repeated keys use DocumentDuplicateKeyException/CD03012 with a statement-specific message.
-EXPLAIN includes Upsert/UpsertSelect. OPTIONS and RETURNING remain excluded with CK00001.
+EXPLAIN includes Upsert/UpsertSelect. OPTIONS remains excluded with CK00001; RETURNING executes.
 
 ## Partial updates
 
@@ -62,7 +62,16 @@ and OqlClauses.Unset enable UPDATE and UNSET. SET precedes optional UNSET; UNSET
 Every value reads the original document. Invalid targets/shapes use CD02016, normalized overlaps
 CD01017 and invalid/deep patched JSON CD02018; none has an assigned SQLSTATE. Missing arrays
 and out-of-range indices fail for removals too. SET-to-MISSING removes named members or writes null
-to existing array elements. USE KEYS, RETURNING, LIMIT, FOR and nested queries remain CK00001.
+to existing array elements. USE KEYS, LIMIT, FOR and nested queries remain CK00001.
+
+## RETURNING
+
+INSERT/UPSERT/UPDATE/DELETE retain an optional [OqlReturningExpression](oql-returning-expression.md),
+with ordered Projections and IsValue for RAW/VALUE. OqlClauses.Returning is `RETURNING`.
+The [language reference](../../../../database/document/language/clauses/returning.md) records target
+binding, image/order rules, MISSING, transactional projection and preflight limits.
+CD01026 rejects an empty direct-AST output name; CD05018 rejects retained-result budget exhaustion;
+CD05019 rejects serialized depth above 256 including a named wrapper. None has an assigned SQLSTATE.
 
 ## Names and reservations
 

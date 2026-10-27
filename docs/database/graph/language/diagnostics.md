@@ -277,6 +277,14 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 CG05020 reports accounted retained-memory exhaustion. CG05004 reports physical-work or runtime trail exhaustion. CG08021 rejects nonpositive request limits or values above engine ceilings. None has an assigned SQLSTATE. Configure [engine ceilings and lower embedded limits](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database-engine-options.md).
 
+## Typed shortest search
+
+Typed shortest searches use the same memory/work ceilings but have no 64-hop cap. Exhaustion
+fails rather than returning no-path. During reconstruction, CG05022 means a selected node or
+relationship is absent while the operation is active. Session closure retains CK07004 and an ended
+operation CK04002; these take precedence over CG05022. None has an assigned SQLSTATE. See the
+[typed API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database.md#shortest-distance-and-path).
+
 ## Path modes
 
 Outer WALK, TRAIL, SIMPLE and ACYCLIC execute; omitted mode means TRAIL. CK00001 refuses a

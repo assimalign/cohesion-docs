@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/ed01f80b1/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/f50f21b07/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -74,6 +74,7 @@ CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/trans
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS05068 | UPDATE target has more than one source association; refused before SET evaluation or writes | 21000 (`cardinality_violation`) |
+| CS05069 | Direct RIGHT or unaliased parenthesized joined-DML source; before reads/writes; derived SELECT containing RIGHT executes | — |
 
 DELETE USING deduplicates physical targets instead. A cardinality failure preserves earlier
 explicit-transaction work. See [UPDATE FROM](sql/language/statements/update.md#from-sources).
@@ -84,6 +85,30 @@ Quantified comparisons allocate no new code. They reuse CS05013 for a subquery w
 one column (no SQLSTATE), CS01015 for name binding (42703 for unknown columns), and CS02055 for
 incompatible compared non-NULL values (42804). Repeated grouping keys that do not match still
 use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expressions/quantified-comparisons.md).
+
+## SQL TRUNCATE
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03067 | TRUNCATE RESTRICT omits a required referencing table, even an empty one | 0A000 (`feature_not_supported`) |
+| CS04066 | TRUNCATE in an explicit transaction; prior work and active state remain usable | 25001 (`active_sql_transaction`) |
+| CS04064 | Concurrent TRUNCATE closure/identity change requires retry | 40001 (`serialization_failure`) |
+
+See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
+snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
+
+## Document RETURNING
+
+OQL [RETURNING](document/language/clauses/returning.md) adds CD01026 (empty direct-AST output name),
+CD05018 (retained-result budget exceeded) and CD05019 (serialized depth above 256 including a named
+wrapper). None has an assigned SQLSTATE. The existing CD05016 enforces the 16 MiB frame cap inside
+the write transaction. See [Document diagnostics](document/language/diagnostics.md#engine-codes).
+
+## Graph shortest paths
+
+Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
+while the operation remains active (no SQLSTATE). Session/transaction termination keeps its
+lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-shortest-search).
 
 ## Graph format requirement
 
@@ -114,4 +139,4 @@ See [Graph](graph/language/diagnostics.md#application-function-conditions),
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ed01f80b1`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `f50f21b07`.

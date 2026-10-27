@@ -21,6 +21,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlDropCollectionExpression](oql-drop-collection-expression.md)** — AST members and execution contract.
 - **[OqlUpsertExpression](oql-upsert-expression.md)** — Whole-document replacement from VALUES or SELECT.
 - **[OqlInsertExpression](oql-insert-expression.md)** — AST members and execution contract.
+- **[OqlReturningExpression](oql-returning-expression.md)** — Ordered affected-image projections and RAW/VALUE.
 - **[OqlUpdateExpression](oql-update-expression.md)** — Partial updates, removals and filtering.
 - **[OqlUpdateAssignment](oql-update-assignment.md)** — SET path and pre-update value.
 - **[OqlDeleteExpression](oql-delete-expression.md)** — Target, alias and optional predicate.

@@ -95,10 +95,13 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes, even for identical source values | 21000 (`cardinality_violation`) |
+| `CS05069` | Direct RIGHT or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT executes | — |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
-| `CS04064` | A bound table was replaced while DDL waited; retry the statement | 40001 (`serialization_failure`) |
+| `CS04064` | A bound table was replaced while DDL waited, or TRUNCATE's FK closure changed at reservation/publication; retry the statement | 40001 (`serialization_failure`) |
+| `CS03067` | TRUNCATE RESTRICT omits a referencing table, even an empty one | 0A000 (`feature_not_supported`) |
+| `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
 

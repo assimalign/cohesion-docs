@@ -55,6 +55,12 @@ either-direction reads. `TraverseAsync` yields deterministic breadth-first resul
 engine memory/work ceilings as queries; its default work cap is now 1,000,000 units (`CG05004`).
 GQL retains its [physical/viable counting rules](language/patterns.md#remarks).
 
+The typed [shortest distance/path APIs](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database.md#shortest-distance-and-path)
+find minimum unweighted hops in one statement snapshot. Outgoing is the default; Incoming and Both
+support reverse and undirected searches. Disconnected or invisible endpoints return null, and a
+visible node to itself has distance zero. Ties use the smallest relationship-ID sequence. Search
+has no hop cap; memory/work exhaustion fails. GQL shortest selectors remain refused with CK00001.
+
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
 for new variables; its WHERE filters candidates before that extension. Later patterns anchor on

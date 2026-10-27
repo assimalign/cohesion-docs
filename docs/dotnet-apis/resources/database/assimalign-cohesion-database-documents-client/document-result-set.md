@@ -23,7 +23,7 @@ DatabaseResult with a non-null Diagnostics collection, empty when nothing is rep
 failures throw [DocumentClientException](document-client-exception.md), whose Diagnostics snapshot
 is also never null.
 
-Materialized results own scalar and JSON values. Lone SELECT *, VALUE and RAW set IsDocumentQuery
+Materialized results own scalar and JSON values. Lone SELECT/RETURNING *, VALUE and RAW set IsDocumentQuery
 even when empty; Documents then contains bare JSON values, also exposed as the row's single JsonElement.
 VALUE/RAW names that column `value`; lone star names it `document`. Top-level VALUE MISSING becomes
 JSON null before DISTINCT and completion counts on every transport. Positional
@@ -31,10 +31,16 @@ projections leave Documents empty and use header ordinals to preserve MISSING fi
 numbers are decimal; objects/arrays are owned JsonElement values. AffectedCount is -1 for reads,
 zero for DDL, and inserted/deleted count for INSERT/DELETE and matched count for UPDATE. No disposal is needed. An out-of-range row index throws
 ArgumentOutOfRangeException. Construction is internal.
-DELETE and UPDATE have no columns, rows or Documents and report deleted/matched count in
+Without RETURNING, DELETE and UPDATE have no columns, rows or Documents and report deleted/matched count in
 AffectedCount, including zero. UPDATE counts unchanged matches too and advances their versions.
 The [partial-update reference](../../../../database/document/language/statements/update.md) gives
 path, NULL/MISSING and failure behavior.
+
+With [RETURNING](../../../../database/document/language/clauses/returning.md), Count equals the
+nonnegative AffectedCount, including zero; Columns still describes the projection on empty input.
+INSERT/UPSERT/UPDATE project post-images, DELETE pre-images. Named projections expose rows;
+lone star and VALUE/RAW expose bare Documents as well. See
+[client compatibility](design.md#returning-and-client-compatibility) before using an older client.
 
 ## Example
 

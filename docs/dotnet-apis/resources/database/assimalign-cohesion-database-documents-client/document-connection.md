@@ -106,15 +106,20 @@ long matched = await connection.ExecuteAsync("UPDATE items SET amount = amount +
 Console.WriteLine(matched); // 1; stored amount is 3
 ```
 
-UPDATE emits no result rows. Invalid path/overlap/stored-JSON results raise DocumentClientException
+Without RETURNING, UPDATE emits no result rows. Invalid path/overlap/stored-JSON results raise DocumentClientException
 with CD02016/CD01017/CD02018, respectively, and a completed Failure permits reuse. See
 [UPDATE](../../../../database/document/language/statements/update.md) for NULL/MISSING and version rules.
 
 ExecuteAsync accepts [UPSERT](../../../../database/document/language/statements/upsert.md) and returns
-the number of replaced/inserted pairs, with no rows. CD03012 rejects repeated input keys; decoded
+the number of replaced/inserted pairs; it drains optional RETURNING rows. CD03012 rejects repeated input keys; decoded
 Failure preserves the rental. Generated UTF-8 JSON bytes agree with in-process and InMemory results.
 
 ## Related reference
+
+QueryAsync returns [RETURNING](../../../../database/document/language/clauses/returning.md) rows and
+their affected count; ExecuteAsync drains rows and returns that count. There is no capability flag.
+An older client rejects the response after autocommit has committed, so retrying reapplies the write;
+an explicit session's closure rolls back uncommitted work. See [client compatibility](design.md#returning-and-client-compatibility).
 
 [Results](document-result-set.md) · [Exceptions](document-client-exception.md) · [Design](design.md)
 

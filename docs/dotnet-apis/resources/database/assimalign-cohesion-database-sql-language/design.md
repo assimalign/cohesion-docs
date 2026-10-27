@@ -11,6 +11,15 @@ basic SQL, declared precisely — and structured to be extended without churning
 
 ## Design intent
 
+[SqlTruncateExpression](sql-truncate-expression.md) stores an immutable ordered target list and
+effective RestartIdentity/Cascade flags; [SqlTruncateTable](sql-truncate-table.md) retains each
+table's ONLY modifier. TABLE is optional; CONTINUE IDENTITY and RESTRICT are defaults. Canonical
+rendering supplies TABLE and both effective policies. SqlQueryCommandType.Truncate is appended
+as value 12; Begin/Commit/Rollback keep 9/10/11. SqlClauses.Truncate is `TRUNCATE`.
+The [statement reference](../../../../database/sql/language/statements/truncate.md) describes
+CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transaction with earlier
+work retained), and retryable CS04064 (40001, concurrent closure change). CTAS retains CS00003.
+
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`) is a
@@ -163,7 +172,7 @@ and reports `CK00001`. See [constraint semantics](../../../../database/sql/langu
 
 [SqlSelectExpression.From](sql-select-expression.md) contains comma-separated [SqlFromItem](sql-from-item.md)
 join trees. Each [SqlJoinClause](sql-join-clause.md) carries ON or ordered UsingColumns; INNER,
-LEFT and CROSS execute, while RIGHT/FULL, NATURAL and qualified wildcards stay
+LEFT, RIGHT and CROSS execute, while FULL, NATURAL and qualified wildcards stay
 excluded. Table members use [SqlRelationReference](sql-relation-reference.md), with named-table and
 [derived-query](sql-derived-table-reference.md) leaves. A derived alias is required and its optional
 column list must rename the full output width. SELECT and UPDATE/DELETE WHERE accept correlated
@@ -176,6 +185,14 @@ quotes newly executable function names and BOTH/LEADING/TRAILING when used as id
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
 an upgrade reader; compiled schema version remains 8.
+
+RIGHT preserves written column slots and makes the whole left subtree nullable; USING reads the
+coerced right value and its collation. [SqlJoinedTableReference](sql-joined-table-reference.md)
+retains unaliased parenthesized groups, including derived-first groups. Aliased groups lower to
+derived SELECTs and hide component names. EXPLAIN names RIGHT-to-LEFT normalization.
+Direct RIGHT or unaliased grouped sources in joined DML fail CS05069 before reads/writes (no
+SQLSTATE); a derived SELECT containing RIGHT executes. FULL remains CK00001. See
+[JOIN](../../../../database/sql/language/clauses/join.md).
 
 [SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval
 and hexadecimal text, reused by CAST. Typed literals and literal DEFAULTs carry canonical text;
@@ -281,7 +298,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM and DELETE USING, execution measures 54 of 60 declared clauses. Existing
+UPDATE FROM and DELETE USING, execution measures 55 of 61 declared clauses. Existing
 keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite

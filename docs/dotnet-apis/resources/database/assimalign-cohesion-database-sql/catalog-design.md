@@ -202,6 +202,15 @@ DROP TABLE or dropping the identity column retires the counter atomically; recre
 
 ## Error model
 
+TRUNCATE preserves catalog definitions/ownership while publishing fresh storage owners for the
+complete table set. Retired rows/indexes and their view bindings stay available to older snapshots;
+reclamation waits for their transaction and statement pins. CONTINUE moves the exact volatile
+identity cursor/block; RESTART resumes at the declared START. See
+[TRUNCATE](../../../../database/sql/language/statements/truncate.md).
+
+Its RESTRICT closure refusal uses CS03067 (0A000); concurrent closure/identity changes use retryable
+CS04064 (40001). Explicit-transaction admission uses CS04066 (25001) and retains prior work.
+
 `SqlCatalogException : DatabaseException` for catalog violations (duplicate or missing
 tables/columns, primary-key drops, malformed persisted records).
 

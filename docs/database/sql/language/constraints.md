@@ -84,6 +84,11 @@ missing or deleted parent fails. Parent and child mutations and index maintenanc
 together on failure. Constraints are immediate, with no deferred enforcement. NULL in any
 foreign-key component exempts that row from requiring a parent; SQL has no MISSING key value.
 
+[TRUNCATE](statements/truncate.md) uses table-level incoming foreign-key closure, independently of
+ON DELETE actions. RESTRICT requires every referencing table to be listed, even when empty
+(CS03067 / 0A000); CASCADE recursively adds them. A concurrent closure change fails retryably with
+CS04064 (40001). It performs no row DELETE actions.
+
 Constraint violations throw [SqlConstraintViolationException](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-constraint-violation-exception.md)
 with exactly one Error diagnostic. Messages name the constraint and table without key values;
 domain CAST and function checks name the domain without a table. Available statement spans reach

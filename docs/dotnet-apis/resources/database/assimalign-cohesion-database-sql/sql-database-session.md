@@ -89,6 +89,45 @@ Console.WriteLine(inserted.AffectedCount); // 1: explicit transaction still usab
 await transaction.CommitAsync();
 ```
 
+## TRUNCATE and old snapshots
+
+[TRUNCATE](../../../../database/sql/language/statements/truncate.md) returns Success with
+AffectedCount 0 in automatic execution. Inside an explicit transaction, embedded ExecuteAsync
+returns an Error result carrying CS04066 (SQLSTATE 25001); prior writes and the active transaction
+remain usable. Remote execution raises SqlClientException with the same diagnostic and a reusable
+connection. RESTRICT missing a referencing table uses CS03067 (0A000); a concurrent closure change
+uses retryable CS04064 (40001). DML targeting retired tables or joining them as sources keeps
+CS04006 before writes.
+
+Adapted from `SqlTruncateTests.ExecuteAsync_PinnedSnapshot_ShouldRetainRowsViewsAndStorageUntilItEnds`:
+
+```csharp
+using Assimalign.Cohesion.Database.Sql;
+using Assimalign.Cohesion.Database.Execution;
+
+await using var engine = SqlDatabaseEngine.Create("truncate", new());
+var database = await engine.CreateDatabaseAsync("db");
+await using var writer = await database.CreateSessionAsync();
+await using var reader = await database.CreateSessionAsync();
+await writer.ExecuteAsync("CREATE TABLE t (id INT PRIMARY KEY, n INT)");
+await writer.ExecuteAsync("INSERT INTO t VALUES (1,10),(2,20)");
+await writer.ExecuteAsync("CREATE VIEW v AS SELECT id, n FROM t");
+await using var snapshot = await reader.BeginTransactionAsync();
+await writer.ExecuteAsync("TRUNCATE t");
+await writer.ExecuteAsync("INSERT INTO t VALUES (3,30)");
+await using var old = (DatabaseResultSet)await reader.ExecuteAsync("SELECT n FROM t WHERE id=1");
+await foreach (var row in old.GetRowsAsync(CancellationToken.None))
+    Console.WriteLine(row.GetInt32(0)); // 10, through the old primary-key index
+await snapshot.RollbackAsync();
+await using var current = (DatabaseResultSet)await reader.ExecuteAsync("SELECT * FROM v");
+await foreach (var row in current.GetRowsAsync(CancellationToken.None))
+    Console.WriteLine($"{row.GetInt32(0)},{row.GetInt32(1)}"); // 3,30
+```
+
+Before rollback the reader also sees the original rows through views and joins. Reclamation waits
+for all older transaction/statement pins; it frees retired row/index storage afterwards. ReadCommitted
+pins each statement snapshot and refreshes on a later statement. CREATE TABLE AS SELECT remains refused.
+
 ## Related reference
 
 [Assembly](index.md) · [Engine options](sql-database-engine-options.md) · [SQL limits](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts)

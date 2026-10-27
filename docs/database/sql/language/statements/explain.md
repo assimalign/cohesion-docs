@@ -12,6 +12,24 @@ EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | d
 
 ## Remarks
 
+### RIGHT and grouped joins
+
+RIGHT [OUTER] JOIN and parenthesized joins execute. EXPLAIN identifies `normalized RIGHT to LEFT`
+and the chosen hash, index or buffered path. JoinStep nodes nest by physical association. Both plain
+EXPLAIN and EXPLAIN ANALYZE emit the complete physical outer subtree before the correlated inner
+IndexSeek, including derived outer inputs. Visible query columns still follow written order.
+For the [RIGHT example](../clauses/join.md#right-using-and-groups), execute separately:
+
+```sql
+CREATE INDEX ix_a ON a(id);
+EXPLAIN SELECT * FROM a RIGHT JOIN b ON a.id = b.id;
+```
+
+The description includes the dbo.b outer TableScan before the dbo.a IndexSeek on ix_a, beneath
+the normalized JoinStep. Plain EXPLAIN reads no data rows and changes no table contents.
+
+### Planning and results
+
 Plain EXPLAIN performs the statement's normal parameter validation, name binding, planning and
 provisioning admission. It waits for the same reserved tables as that statement. It never calls its
 data executor, even inside a transaction that later commits. DDL, transaction control, nested

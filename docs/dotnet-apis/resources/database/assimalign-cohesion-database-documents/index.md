@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Documents.Protocol](../
 
 ## Reference pages
 
+- **[DocumentDatabaseEngineOptions](document-database-engine-options.md)** — RETURNING retention budget and estimate.
+
 - **[DocumentFunctionContext](document-function-context.md)** — Database identity and statement cancellation.
 - **[DocumentArguments](document-arguments.md)** — Borrowed callback values.
 

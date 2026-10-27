@@ -49,14 +49,14 @@ Get returns null for absence, Put returns the new version, Delete returns whethe
 removed. Expected-version checks retain engine semantics. OQL INSERT is insert-only.
 
 [UPSERT](../../../../database/document/language/statements/upsert.md) uses the same Execute exchange,
-returning written-pair count without Document frames. Existing keys are replaced; repeated input
+returning written-pair count without Document frames when RETURNING is omitted. Existing keys are replaced; repeated input
 keys fail CD03012, retaining diagnostics and a reusable connection. Generated INSERT/UPSERT,
 constructor and VALUE/RAW bytes use the engine's one RFC 8259 encoder: literal UTF-8 Unicode with
 only quotes, backslashes and control characters escaped. Wire framing is unchanged.
 
 ## Failures and connection reuse
 
-OQL DELETE reports deleted count through Complete, with no Document frames. QueryAsync returns
+Without RETURNING, OQL DELETE reports deleted count through Complete, with no Document frames. QueryAsync returns
 empty rows/Columns/Documents with AffectedCount set; ExecuteAsync returns the count. Predicate
 validation and coded failures retain the existing Failure/reuse contract, including a read-only
 system-target refusal followed by a successful zero-match DELETE on the same rental.
@@ -68,7 +68,7 @@ subsequent work reports CD04101 until ROLLBACK; pool return resets failed work b
 Shared Error, invalid order/counts/UTF-8/JSON, truncation, transport loss and unfinished cancellation
 discard it. Mutations canceled after publication can have unknown outcomes.
 
-OQL UPDATE also uses Complete without Document frames; AffectedCount is the matched count,
+Without RETURNING, OQL UPDATE also uses Complete without Document frames; AffectedCount is the matched count,
 including unchanged matches. Every match receives a new version. QueryAsync returns empty Columns,
 Documents and rows. SET/UNSET path failures (CD02016), target overlaps (CD01017) and invalid/deep
 patched storage JSON (CD02018) have no assigned SQLSTATE and use the same reusable Failure path.
@@ -88,6 +88,27 @@ such as SQRT(-1) retain CD02019 (no SQLSTATE) through Failure and leave the conn
 Dispose returns a healthy rental once. Abort discards it. Operation registration shares the
 wrapper's teardown lock, so repeated disposal cannot return a later rental of the same connection.
 Client disposal closes idle sessions and outstanding sessions when they return.
+
+## RETURNING and client compatibility
+
+QueryAsync accepts INSERT/UPSERT/UPDATE/DELETE [RETURNING](../../../../database/document/language/clauses/returning.md)
+and returns owned rows plus AffectedCount. ExecuteAsync drains the same rows and returns the count.
+Completion accepts affected count -1 for reads or a nonnegative count equal to received rows for
+RETURNING, including two zeros for no matches. Mismatched counts or values below -1 are protocol
+violations. Named projections preserve MISSING by omission; lone star and RAW/VALUE set
+IsDocumentQuery, including when empty. Star preserves image bytes; RAW/VALUE normalizes MISSING to null.
+
+There is **no RETURNING capability flag or negotiation**. Older clients that require -1 for every
+result header reject the completion with ProtocolViolation and close the connection after an
+autocommit write has committed. Retrying reapplies the write: starting at n = 1, `SET n = n + 10`
+can commit 11 despite the client error, then commit 21 on retry. In an explicit transaction the
+closed session rolls back uncommitted work. Use an updated client for RETURNING; an older client's
+protocol error does not mean the autocommit write rolled back.
+
+Projection failures instead occur inside the write transaction, before any result header, and roll
+back writes. CD05018 is retained-result budget exhaustion; CD05019 serialized depth beyond 256
+including the named wrapper; CD01026 an empty direct-AST output name. They have no SQLSTATE.
+DocumentReturningWireTests covers these contracts on InMemory and TCP.
 
 ## Text transactions and pool return
 

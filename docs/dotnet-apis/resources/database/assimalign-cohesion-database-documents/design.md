@@ -293,7 +293,7 @@ Rollback restores both documents and index visibility; older snapshots can still
 documents. A later conflict rolls back earlier deletions; failure in an explicit transaction aborts
 all its work. No WHERE deletes every document while retaining the collection and index definitions.
 Schema ownership permits content deletion, system sources use CD04004 and absent targets CD01002.
-Success reports deleted count with no Document frames. No format or protocol version changes.
+Without RETURNING, success reports deleted count with no Document frames. No format or protocol version changes.
 
 Nested objects, arrays, and scalar roots are accepted. JSON validation and exact byte-preservation
 rules are specified in the
@@ -308,7 +308,7 @@ predicate membership and projection types by the explicit mixed-shape rules abov
 SET value from the statement snapshot before writing. It reapplies the full filter after any index
 seek. SET/UNSET changes content, versions and indexes atomically; failure rolls back the statement or
 aborts the entire explicit transaction. Every match gets a higher version, including an unchanged
-match. Completion reports the matched count without Document frames. EXPLAIN adds an Update root
+match. Without RETURNING, completion reports the matched count without Document frames. EXPLAIN adds an Update root
 and scan/seek child. No storage or protocol version changes.
 
 Untouched property names and values retain their original UTF-8 bytes. Whitespace around rewritten
@@ -544,6 +544,22 @@ See [database lifecycle](../../../../database/document/index.md) and the Documen
 file-set refusal, crash recovery and transient-open cases.
 
 ## Engine failure boundaries
+
+[RETURNING](../../../../database/document/language/clauses/returning.md) retains owned projected
+post-images (DELETE pre-images) before transaction completion. Writes, index changes, projection,
+metadata normalization and frame/depth preflight succeed together or roll back. Explicit failures
+retain the whole-transaction abort-until-rollback rule. StatementMemoryBudget defaults to 64 MiB
+and estimates retained RETURNING results only; see [options](document-database-engine-options.md).
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD01026 | Empty direct-AST RETURNING output name, before mutation | — |
+| CD05018 | Retained RETURNING result exceeds StatementMemoryBudget | — |
+| CD05019 | Serialized RETURNING value exceeds 256 levels, counting a named wrapper | — |
+
+The existing CD05016 enforces 16 MiB frames inside the write transaction. Constructor-depth
+errors retain CD05015. No capability flag protects older clients from a committed autocommit
+RETURNING response they reject; see [client compatibility](../assimalign-cohesion-database-documents-client/design.md#returning-and-client-compatibility).
 
 Content chunk failures return from storage to the engine's failure handler. It orders the
 operation completion gate, transaction end gate and coordinator apply gate, so exactly one abort

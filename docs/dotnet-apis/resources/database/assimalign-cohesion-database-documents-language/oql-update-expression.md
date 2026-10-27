@@ -11,12 +11,13 @@ public sealed class OqlUpdateExpression : OqlExpression
 {
     public OqlUpdateExpression(string collection, string? alias,
         IReadOnlyList<OqlUpdateAssignment> assignments, IReadOnlyList<OqlPathExpression> unset,
-        OqlExpression? predicate, Location? location = null);
+        OqlExpression? predicate, Location? location = null, OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<OqlUpdateAssignment> Assignments { get; }
     public IReadOnlyList<OqlPathExpression> Unset { get; }
     public OqlExpression? Predicate { get; }
+    public OqlReturningExpression? Returning { get; }
 }
 ```
 
@@ -29,8 +30,11 @@ the profile names. [OqlExplainExpression](oql-explain-expression.md) can wrap th
 
 Execution freezes candidates and values from the statement snapshot, then updates content, versions
 and indexes atomically. AffectedCount counts matched documents, including unchanged matches; there
-are no result rows. Each match receives a higher version. Untouched JSON fragments retain their
+are no result rows without RETURNING. Each match receives a higher version. Untouched JSON fragments retain their
 original bytes; whitespace around rewritten container members can change.
+
+Returning optionally retains an [affected-image projection](oql-returning-expression.md).
+UPDATE projects stored post-images and new metadata; null retains count-only execution.
 
 Invalid targets or incompatible paths raise DatabaseException with CD02016, overlapping targets
 CD01017, and invalid/deep stored JSON CD02018. No SQLSTATE is assigned to these codes.

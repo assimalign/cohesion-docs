@@ -31,6 +31,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
 | CREATE/DROP COLLECTION | Supported | Conditional DDL in an automatic statement transaction |
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
+| [RETURNING](clauses/returning.md) | Supported | INSERT/UPSERT/UPDATE post-images, DELETE pre-images; named, RAW/VALUE or lone star projection with affected count |
 | [DELETE](statements/delete.md) | Supported | Snapshot filtering, index maintenance and affected count; retains collection/index definitions |
 | [UPDATE SET/UNSET](statements/update.md) | Supported | Snapshot values, nested objects and existing array positions; matched count |
 | [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |

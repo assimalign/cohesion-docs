@@ -1,6 +1,6 @@
 # SqlRelationReference
 
-The common base for a named table and an aliased derived query in FROM or JOIN.
+The common base for named tables, aliased derived queries and unaliased grouped joins in FROM or JOIN.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -26,6 +26,10 @@ and [SqlJoinClause.Table](sql-join-clause.md) now return SqlRelationReference. P
 named-table leaf before reading TableName/SchemaName, or the [derived leaf](sql-derived-table-reference.md)
 before reading Query/Columns. Alias is inherited; it is required for a derived query and optional
 for a named table. An explicit alias hides the underlying name in binding.
+
+[SqlJoinedTableReference](sql-joined-table-reference.md) adds Item for an unaliased parenthesized
+join. Its component names remain visible. An aliased group becomes a derived SELECT and hides
+those names. Groups can begin with an aliased derived query and preserve their written association.
 
 Accessors have no validation exceptions. Parser failures remain statement diagnostics; the engine
 rejects unknown/hidden columns with `CS01015` and duplicate relation bindings with `CS01019`.

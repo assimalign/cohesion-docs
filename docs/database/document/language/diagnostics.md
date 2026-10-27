@@ -42,7 +42,10 @@ rather than being rounded by the parser.
 | `CD03012` | INSERT finds an existing key, or INSERT/UPSERT repeats a key in one statement | — |
 | `CD02013` | Evaluated LIKE escape is invalid or pattern ends in its escape character | — |
 | `CD01014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
-| `CD05015` | SELECT object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
+| `CD05015` | SELECT/RETURNING object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
+| `CD01026` | Empty RETURNING output name in a directly constructed AST; before mutation | — |
+| `CD05018` | Retained RETURNING result exceeds StatementMemoryBudget; rolls back writes | — |
+| `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `CD02018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
