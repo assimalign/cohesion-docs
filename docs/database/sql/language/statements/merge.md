@@ -92,8 +92,7 @@ FULL requires a safe mandatory hash equality and a complete non-throwing ON proo
 FULL JOIN does. Otherwise CS05070 refuses planning, including EXPLAIN, before reading inputs.
 LEFT and RIGHT associations accept hashless ON predicates.
 
-EXPLAIN shows a Merge node with the association kind and `actions=written_order`; the branch
-still emits the stale detail label `execution=unsupported` even though MERGE executes.
+EXPLAIN shows a Merge node with the association kind and `actions=written_order`.
 Its children describe the full association tree and ordered MergeAction
 nodes. Action details include order, match kind, operation, condition presence, assignment count
 and INSERT column count. Condition subqueries appear beneath their owning action. RETURNING
