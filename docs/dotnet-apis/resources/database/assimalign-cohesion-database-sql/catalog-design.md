@@ -159,6 +159,15 @@ identifies the physical index enforcing primary-key metadata, allowing schema re
 distinguish it from a separately declared unique index on the same columns. Older index records have
 no marker and load as ordinary indexes.
 
+## Physical table replacement
+
+[RewriteTableAsync](sql-database.md) reserves a fresh owner, copies live rows with dense physical
+ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinals stay associated
+with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
+dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
+intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
+abandoned storage. This reuses format 26 and the TRUNCATE replacement contract.
+
 ## Single source for SQL system views (C1)
 
 The engine's `INFORMATION_SCHEMA` and `COHESION_SCHEMA` relations project this catalog's table,

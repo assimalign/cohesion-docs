@@ -98,6 +98,14 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## SQL table rewrite
+
+[RewriteTableAsync](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md)
+reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
+retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
+engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
+changed descriptions CS04064 / 40001. SQL format 26 is unchanged.
+
 ## Document comprehensions
 
 OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md) add CD01027 for

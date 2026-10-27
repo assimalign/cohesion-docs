@@ -1397,6 +1397,30 @@ share StatementMemoryBudget; every exit releases reservations. EXPLAIN describes
 unmatched=both; ANALYZE counts candidate pairs, excluding unmatched-row emission. See
 [FULL semantics and examples](../../../../database/sql/language/clauses/join.md#full-using-and-groups).
 
+## Table rewrite
+
+[SqlDatabase.RewriteTableAsync](sql-database.md) accepts decoded SqlObjectName components and
+uses the provisioning worker, including for empty and schema-owned tables. Fail-fast schema/DDL
+admission precedes source-table X, which is acquired before queueing; nonzero engine LockTimeout
+bounds that wait (CS04044 / 55P03). Metadata admission on the worker also refuses rather than
+waiting under source-table X. A blocked caller leaves the shared worker available to peer databases.
+
+The copier decodes currently live rows through the old layout, including frozen missing values,
+then writes dense ordinals into a fresh owner and rebuilds indexes. At most 64 decoded rows are
+retained per durable copy batch. Unique indexes are validated before atomic catalog publication.
+Identity allocation, constraints, defaults, collation, ownership, applied-schema hash and dependent
+views survive. Historical versions remain in the retired owner for old snapshots. Writers needing
+retired layouts abort with CS04006 and retry the whole transaction, including stale-snapshot
+foreign-key probes rather than false FK violations. Empty/NULL-key cases needing no parent probe
+keep their ordinary behavior.
+
+Preparation, publication and cleanup use the existing storage-replacement transaction and durable
+kind-14 reclamation intents. Interrupted preparation leaves the original current and is retried
+explicitly. Publication is irrevocable; cleanup proceeds without caller cancellation. Recovery
+exposes a complete old or compact layout/index set at every tested file boundary. Reclamation
+waits for old snapshots. SQL format 26 and compiled schema v8 remain unchanged. See
+[maintenance behavior and examples](sql-database.md).
+
 ## TRUNCATE
 
 [TRUNCATE](../../../../database/sql/language/statements/truncate.md) atomically replaces storage

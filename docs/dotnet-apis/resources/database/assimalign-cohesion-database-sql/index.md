@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Sql.Protocol](../assima
 
 ## Reference pages
 
+- **[SqlDatabase](sql-database.md)** — Recoverable table rewrite, ordinal compaction and snapshot/retry behavior.
+- **[SqlObjectName](sql-object-name.md)** — Validated decoded schema/object name components.
 - **[SqlDatabaseServerOptions](sql-database-server-options.md)** — Terminal drain deadline and peer-close linger.
 
 - **[SqlDatabaseEngineOptions](sql-database-engine-options.md)** — Statement and per-lock execution budgets.
@@ -47,7 +49,7 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   records the canonical document/hash only after live-catalog convergence.
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
   planned rule-based and executed through scans or eligible index seeks: `SELECT` with `WHERE`,
-  projection, N-way INNER/LEFT/CROSS/comma joins with ON/USING, grouping and aggregates,
+  projection, N-way INNER/LEFT/RIGHT/FULL/CROSS/comma joins with ON/USING, grouping and aggregates,
   `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`;
   `INSERT` (multi-row, defaults, nullability and [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md));
   `UPDATE`/`DELETE` with accurate affected counts and DML RETURNING; `CREATE/ALTER/DROP TABLE`.
@@ -68,7 +70,7 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
 
 Create/open complete only a provably empty interrupted creation with its creation claim. Missing
 sidecars and ambiguous catalogs are preserved and refused with CS03401; pre-header retries use
-CreateDatabaseAsync or declared Build. Drop removes the primary data file first. Format remains 25.
+CreateDatabaseAsync or declared Build. Drop removes the primary data file first. Format remains 26.
 See [signatures, remedies and examples](design.md#database-creation-open-and-drop).
 
 ## Usage

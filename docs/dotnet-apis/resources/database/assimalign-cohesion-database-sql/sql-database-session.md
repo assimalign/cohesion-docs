@@ -32,6 +32,11 @@ neither timer, and started commits and committed DDL cleanup finish without canc
 
 If an object-lock wait invalidates the target definition, DatabaseTransactionAbortedException carries
 CS04006 (no SQLSTATE); retry in a fresh transaction. Adjacent FK changes refresh before row reads.
+
+[Table rewrite](sql-database.md) also retires the physical layout. Older read-only snapshots
+retain it until they end, while DML needing it aborts with CS04006. A stale foreign-key parent
+probe receives that retryable abort rather than a false FK violation. RewriteTableAsync is a
+database maintenance call; session timeout overrides do not configure its lock acquisition.
 See [execution and transactions](design.md#sql-transaction-control-and-the-b7-seam).
 
 ## Example
