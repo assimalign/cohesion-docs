@@ -127,9 +127,9 @@ WHERE and RETURNING bind target and source columns. Aliases hide base names; sel
 distinct names. A source JOIN ON excludes the target and other comma items; target/source
 conditions belong in WHERE.
 
-A direct RIGHT join or unaliased parenthesized joined source is refused before reads or writes
-with CS05069 (no SQLSTATE). A derived SELECT source containing RIGHT executes with the target
-pinned; FULL JOIN remains CK00001. With the [UPDATE FROM fixture](update.md#from-sources), this
+A direct RIGHT or FULL join, or unaliased parenthesized joined source, is refused before reads or writes
+with CS05069 (no SQLSTATE). A derived SELECT source containing RIGHT or FULL executes with the target
+pinned. With the [UPDATE FROM fixture](update.md#from-sources), this
 branch test deletes only target id 2, leaving `(1,0)`:
 
 ```sql

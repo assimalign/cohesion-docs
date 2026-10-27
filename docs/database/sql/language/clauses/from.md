@@ -31,7 +31,7 @@ including nested queries, CTEs and views. A wildcard still requires a relation. 
 qualification or switch databases through SQL. System relations require the `INFORMATION_SCHEMA`
 or `COHESION_SCHEMA` qualifier.
 
-Each item can contain any number of [INNER, LEFT, RIGHT or CROSS joins](join.md). Comma-separated
+Each item can contain any number of [INNER, LEFT, RIGHT, FULL or CROSS joins](join.md). Comma-separated
 items produce a Cartesian product. JOIN binds more tightly
 than comma: in `FROM a, b JOIN c ON ...`, ON sees only b and c. It cannot see later inputs.
 An explicit alias hides the base name in SELECT,
@@ -43,6 +43,7 @@ Parenthesized join groups preserve association, including groups starting with a
 SELECT. Without an alias, component names remain visible. A group alias hides them and behaves as
 a derived SELECT *, with the same complete column-alias-list rule. RIGHT preserves its written
 right side while making the left subtree nullable; visible column order stays as written.
+FULL preserves unmatched rows from both subtrees and requires a safe mandatory hash equality.
 
 ### Derived tables
 

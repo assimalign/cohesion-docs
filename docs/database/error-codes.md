@@ -74,7 +74,8 @@ CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/trans
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS05068 | UPDATE target has more than one source association; refused before SET evaluation or writes | 21000 (`cardinality_violation`) |
-| CS05069 | Direct RIGHT or unaliased parenthesized joined-DML source; before reads/writes; derived SELECT containing RIGHT executes | — |
+| CS05069 | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; before reads/writes; derived SELECT containing RIGHT or FULL executes | — |
+| CS05070 | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing ON evaluation; before input reads | — |
 
 DELETE USING deduplicates physical targets instead. A cardinality failure preserves earlier
 explicit-transaction work. See [UPDATE FROM](sql/language/statements/update.md#from-sources).

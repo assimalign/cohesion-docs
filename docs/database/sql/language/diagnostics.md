@@ -95,7 +95,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes, even for identical source values | 21000 (`cardinality_violation`) |
-| `CS05069` | Direct RIGHT or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT executes | — |
+| `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT or FULL executes | — |
+| `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing ON evaluation; before either input is read, even when empty | — |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |

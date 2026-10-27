@@ -21,9 +21,10 @@ Instance lists the 42 executable T1 scalar names, the seven aggregates (includin
 CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a function-table name. The separate read-only vocabulary lists recognized unsupported spellings for parser
 diagnostics and identifier quoting. Unsupported calls report CK00001 before planning; an unknown
 function outside that vocabulary reports CS01016 during planning. Recognition is not an execution
-promise. SupportsJoin returns true for Inner, LeftOuter and Cross over N-way stored/system
-sources. INNER/LEFT require ON or USING; CROSS accepts neither. RightOuter and FullOuter
-return false. These accessors introduce no validation exceptions.
+promise. SupportsJoin returns true for Inner, LeftOuter, RightOuter, FullOuter and Cross.
+INNER/LEFT/RIGHT/FULL require ON or USING; CROSS accepts neither. FULL execution additionally
+requires a safe mandatory hash equality and proven non-throwing ON evaluation (CS05070).
+These accessors introduce no validation exceptions.
 
 ## Example
 
@@ -32,7 +33,7 @@ Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.Inner)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.LeftOuter)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.RightOuter)); // True
 Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.Cross)); // True
-Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.FullOuter)); // False
+Console.WriteLine(SqlLanguageProfile.SupportsJoin(SqlJoinType.FullOuter)); // True
 var statement = new SqlQueryParser().Parse("SELECT SQRT(id) FROM t;");
 Console.WriteLine(statement.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error)); // 0
 Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC")); // True

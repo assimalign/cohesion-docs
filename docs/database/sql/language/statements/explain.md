@@ -28,6 +28,13 @@ EXPLAIN SELECT * FROM a RIGHT JOIN b ON a.id = b.id;
 The description includes the dbo.b outer TableScan before the dbo.a IndexSeek on ix_a, beneath
 the normalized JoinStep. Plain EXPLAIN reads no data rows and changes no table contents.
 
+FULL retains its written children and reports `FullHashJoin; unmatched=both` in JoinStep detail.
+It always builds the written right child. EXPLAIN still performs FULL's hash-safety validation;
+an unsupported condition reports CS05070 before reading inputs. For example, on the
+[FULL fixture](../clauses/join.md#full-using-and-groups),
+`EXPLAIN SELECT * FROM a FULL JOIN b USING (id)` describes FullHashJoin without executing it.
+ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted unmatched rows.
+
 ### Planning and results
 
 Plain EXPLAIN performs the statement's normal parameter validation, name binding, planning and
