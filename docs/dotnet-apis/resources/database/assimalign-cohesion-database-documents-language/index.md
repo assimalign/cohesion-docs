@@ -28,6 +28,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlMetaExpression](oql-meta-expression.md)** — AST members and execution contract.
 - **[OqlObjectExpression](oql-object-expression.md)** — AST members and execution contract.
 - **[OqlArrayExpression](oql-array-expression.md)** — Ordered constructor and MISSING elements.
+- **[OqlComprehensionExpression](oql-comprehension-expression.md)** — Scoped ARRAY/FIRST mapping and optional WHEN.
 - **[OqlCreateIndexExpression](oql-create-index-expression.md)** — Ordered paths, UNIQUE and conditional creation.
 - **[OqlDropIndexExpression](oql-drop-index-expression.md)** — Conditional removal.
 - **[OqlSelectExpression](oql-select-expression.md)** — DISTINCT, VALUE/RAW and LIMIT/OFFSET operands.

@@ -44,6 +44,7 @@ rather than being rounded by the parser.
 | `CD01014` | SELECT DISTINCT ORDER BY key is absent from the projection after alias rewriting; reported at that key | — |
 | `CD05015` | SELECT/RETURNING object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
 | `CD01026` | Empty RETURNING output name in a directly constructed AST; before mutation | — |
+| `CD01027` | Empty variable name in a directly constructed ARRAY/FIRST comprehension; before data access | — |
 | `CD05018` | Retained RETURNING result exceeds StatementMemoryBudget; rolls back writes | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
@@ -87,6 +88,10 @@ are distinct from DocumentDuplicateKeyException/CD03012 (document identity colli
 [Array bindings](clauses/unnest.md) reserve the unaliased collection name for duplicate checks.
 CD00010 and CD01023 have no assigned SQLSTATE. META on an UNNEST/quantified variable, including
 one shadowing the source alias, uses CD05001. Quantifiers may shadow outer bindings.
+
+[Comprehensions](expressions/comprehensions.md) validate all children even on empty input.
+Aggregates inside them and META on an inner binding use CD05001; retired ARRAY()/FIRST() calls
+use CK00001. These codes and CD01027 have no assigned SQLSTATE.
 
 Index-name/key-size failures use DatabaseException with structured CD03024, CD01025 and CD02026 diagnostics
 and the original DocumentCatalogException. They abort an explicit transaction; roll back before

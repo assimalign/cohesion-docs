@@ -12,6 +12,8 @@ public static class OqlClauses
     public const string Begin = "BEGIN";
     public const string Commit = "COMMIT";
     public const string Rollback = "ROLLBACK";
+    public const string ArrayComprehension = "ARRAY ... FOR";
+    public const string FirstComprehension = "FIRST ... FOR";
     // Other query, expression and DDL clause constants are unchanged.
 }
 ```
@@ -22,6 +24,10 @@ These transaction constants are accepted by OqlLanguageProfile.Instance. START m
 there is no separate Start constant. Profile support describes grammar admission, not transport
 support. Wire controls require negotiated transaction-status (CD07002 when absent). Reading constants throws
 no exceptions.
+
+ArrayComprehension and FirstComprehension are also admitted by the profile. Both produce
+[OqlComprehensionExpression](oql-comprehension-expression.md); their retired function spellings
+remain CK00001.
 
 ## Example
 
