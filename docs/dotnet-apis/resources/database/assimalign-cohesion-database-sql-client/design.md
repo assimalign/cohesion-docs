@@ -263,8 +263,11 @@ retired storage is reclaimed afterwards.
 
 SqlClientException carries CS03067 (0A000) for incomplete RESTRICT closure, CS04066 (25001) inside
 an explicit transaction, and retryable CS04064 (40001) for concurrent closure changes. The explicit
-refusal preserves earlier work, active state and connection usability. CTAS remains refused with
-CS00003. SqlTruncateWireTests checks both transports. RIGHT and FULL joins execute, while direct RIGHT, FULL or
+refusal preserves earlier work, active state and connection usability. SqlTruncateWireTests checks
+both transports. [CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as)
+returns the copied row count, or 0 for WITH NO DATA and IF NOT EXISTS skips, on both transports.
+It uses CS04003 (25001) inside an explicit transaction; see SqlCreateTableAsWireTests.
+RIGHT and FULL joins execute, while direct RIGHT, FULL or
 unaliased grouped joined-DML sources use CS05069 (no SQLSTATE); derived SELECT sources containing
 RIGHT or FULL execute. Unsupported FULL conditions use CS05070 before input reads (no SQLSTATE).
 See [JOIN](../../../../database/sql/language/clauses/join.md).

@@ -18,7 +18,10 @@ rendering supplies TABLE and both effective policies. SqlQueryCommandType.Trunca
 as value 12; Begin/Commit/Rollback keep 9/10/11. SqlClauses.Truncate is `TRUNCATE`.
 The [statement reference](../../../../database/sql/language/statements/truncate.md) describes
 CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transaction with earlier
-work retained), and retryable CS04064 (40001, concurrent closure change). CTAS retains CS00003.
+work retained), and retryable CS04064 (40001, concurrent closure change).
+[SqlCreateTableAsExpression](sql-create-table-as-expression.md) represents inferred-table creation,
+including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
+parsing and view output inference; execution uses atomic publication in SQL format 26.
 
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md

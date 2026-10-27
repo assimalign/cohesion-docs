@@ -1433,8 +1433,12 @@ in-process next value/reservation block; RESTART resets START while retaining IN
 An explicit transaction is refused with CS04066 while retaining its active state and prior work.
 Success reports affected count 0. Older snapshots retain retired table/index/view bindings, including
 joins and joining views; old storage is reclaimed after all older transaction/statement pins end.
-DML targeting retired tables or joining them as sources retains CS04006 before writes. CTAS remains
-refused with CS00003. See the [session example](sql-database-session.md#truncate-and-old-snapshots).
+DML targeting retired tables or joining them as sources retains CS04006 before writes. See the
+[session example](sql-database-session.md#truncate-and-old-snapshots).
+
+[CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reuses durable
+prepared-owner reclamation to publish a complete inferred table, using one builder commit for row
+visibility. It retains format 26 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 

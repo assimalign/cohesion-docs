@@ -9,7 +9,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[CREATE SCHEMA](create-schema.md)** — Persist a SQL namespace independently of tables.
 - **[DROP SCHEMA](drop-schema.md)** — RESTRICT by default or atomically CASCADE dependent objects.
 
-- **[CREATE TABLE](create-table.md)** — Declare columns, defaults, collation, and constraints.
+- **[CREATE TABLE](create-table.md)** — Declare columns and constraints, or infer and copy query output with AS.
 - **[ALTER TABLE](alter-table.md)** — Add/drop columns and constraints, including literal-default backfill.
 - **[DROP TABLE](drop-table.md)** — Remove an ad-hoc stored table.
 - **[TRUNCATE](truncate.md)** — Empty a table set with FK closure, identity policies and old-snapshot visibility.

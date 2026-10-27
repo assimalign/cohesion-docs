@@ -32,7 +32,9 @@ generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can
 [TRUNCATE](language/statements/truncate.md) empties table sets with CONTINUE/RESTART IDENTITY and
 RESTRICT/recursive CASCADE. It is autocommit-only (CS04066 in an explicit transaction, preserving
 prior work) and reports affected count 0. Older snapshots keep their rows through joins, views and
-indexes until they end; retired storage is reclaimed afterwards. CREATE TABLE AS SELECT remains refused.
+indexes until they end; retired storage is reclaimed afterwards.
+[CREATE TABLE AS](language/statements/create-table.md#create-table-as) atomically creates and
+optionally populates an inferred table.
 
 [ON CONFLICT](language/clauses/on-conflict.md) executes DO NOTHING or targeted DO UPDATE SET/WHERE
 with EXCLUDED over VALUES, DEFAULT VALUES and query sources. RETURNING includes inserted/updated

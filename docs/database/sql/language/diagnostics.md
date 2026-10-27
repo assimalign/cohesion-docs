@@ -404,7 +404,17 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement hash-build memory (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure SqlDatabaseEngineOptions.StatementMemoryBudget; the engine does not spill a build to disk. See [hash joins](clauses/join.md#hash-joins-and-memory).
+CS05067 reports exhausted statement memory for hash builds or CTAS retained source/copy buffers
+(SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
+SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
+[hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
+
+## CREATE TABLE AS conditions
+
+CTAS adds CS03068 for missing, blank, duplicate or wrong-width output names (42601, syntax_error).
+It reuses CS03049 for destination collisions (42P07), CS04003 for explicit transactions (25001),
+and CS05067 for its retained source/copy memory budget (53200). A guarded name collision returns
+success with zero affected rows.
 
 ## Catalog metadata conditions
 

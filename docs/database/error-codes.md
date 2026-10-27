@@ -98,6 +98,13 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## SQL CREATE TABLE AS
+
+[CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
+duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
+collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 26 is unchanged.
+
 ## SQL table rewrite
 
 [RewriteTableAsync](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md)

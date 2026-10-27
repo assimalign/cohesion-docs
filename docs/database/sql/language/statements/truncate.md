@@ -2,7 +2,7 @@
 
 Empties a set of stored tables atomically while preserving their definitions and indexes.
 
-> **Status:** Implemented for automatic statements; explicit transactions and CTAS remain excluded.
+> **Status:** Implemented for automatic statements; explicit transactions remain excluded.
 
 ## Syntax
 
@@ -62,14 +62,17 @@ DML targeting retired tables or joining them as sources is refused before writes
 CS04006, including INSERT SELECT and joins inside DML subqueries/views/WITH bodies. End that
 transaction and retry against a fresh snapshot. Read-only statements retain the old view.
 
-CREATE TABLE ... AS SELECT remains refused with CS00003 in this batch; use
-[CREATE TABLE](create-table.md) followed by [INSERT SELECT](insert.md).
+[CREATE TABLE AS](create-table.md#create-table-as) uses the same durable prepared-owner
+reclamation machinery to publish a populated new table atomically. CTAS uses a single builder
+commit for row visibility; TRUNCATE preserves the old table storage for older snapshots. Both
+reuse SQL format 26. CTAS inside an explicit transaction uses CS04003 (25001); TRUNCATE retains
+CS04066 (25001).
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CS00003 | Missing table/policy operand, repeated or reordered policies, alias, WHERE or other trailing syntax; CTAS also remains refused | — |
+| CS00003 | Missing table/policy operand, repeated or reordered policies, alias, WHERE or other trailing syntax | — |
 | CS03067 | RESTRICT omits a required referencing table, even an empty one | 0A000 (`feature_not_supported`) |
 | CS04066 | TRUNCATE inside an explicit transaction; prior work and active state are kept | 25001 (`active_sql_transaction`) |
 | CS04064 | Concurrent closure change or replacement while waiting; retry the statement | 40001 (`serialization_failure`) |
