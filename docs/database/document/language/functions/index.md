@@ -1,10 +1,10 @@
 # Functions
 
-OQL implements 34 SQL++ scalar functions, five aggregates and META over document expressions.
+OQL implements 34 SQL++ scalar functions, eleven native aggregate names and META over document expressions.
 
 ## Function reference
 
-- **Aggregates** — [COUNT, SUM, AVG, MIN, and MAX](aggregate-functions.md).
+- **Aggregates** — [COUNT, SUM, AVG, MIN, MAX, ARRAY_AGG, Boolean and sample statistics functions](aggregate-functions.md), with ALL/DISTINCT.
 - **Scalars** — [String, numeric, date, type, array and conditional functions](scalar-functions.md).
 
 Each aggregate takes one argument, and only `COUNT` accepts `*`. Function names are
@@ -18,7 +18,11 @@ Calls use the ordinary function syntax and case-insensitive names; registrations
 configuration. See [DocumentFunction](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-function.md)
 for the .NET API and a tested example.
 
-Default scalars propagate MISSING before NULL without calling the core; aggregates skip both. CalledOnNullOrMissingInput passes both through; DocumentValue distinguishes them. Incompatible valued stored inputs yield scalar NULL or skipped typed aggregate rows.
+Default application scalars propagate MISSING before NULL without calling the core; default
+application aggregates skip both. CalledOnNullOrMissingInput passes both through; DocumentValue
+distinguishes them. Single-argument application aggregates accept ALL/DISTINCT before invoking
+their accumulator, preserving the declared unknown-input policy. Incompatible valued stored
+inputs yield scalar NULL or skipped typed aggregate rows.
 There is no determinism/volatility flag or purity guarantee. Aggregate call appearances own
 independent state and argument evaluation. EXPLAIN validates without invoking callbacks.
 For a host-registered slug(string) that lowercases its input, and an items document

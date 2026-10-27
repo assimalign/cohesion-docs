@@ -35,11 +35,17 @@ The full predicate still evaluates on each candidate, preserving same-element se
 independent quantifier witnesses. EVERY, NOT ANY and OR-only element predicates do not supply
 array seeks.
 
+[Aggregate EVERY(expression)](../functions/aggregate-functions.md) aliases BOOL_AND and skips
+NULL, MISSING and non-Booleans; it is distinct from this predicate. In SELECT, HAVING and ORDER BY,
+collections and SATISFIES predicates may use aggregates over the enclosing group. A predicate
+may also be an aggregate argument, but an aggregate nested anywhere in that argument remains
+invalid. See the [nesting examples](../functions/aggregate-functions.md#examples).
+
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
-| CD05001 | META(variable) on a quantified variable, including one shadowing the FROM alias, or an aggregate in its collection/predicate |
+| CD05001 | META(variable) on a quantified variable, including one shadowing the FROM alias; aggregate in a forbidden enclosing context or nested inside another aggregate |
 | CK00001 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS or nested SELECT |
 | CD00010 | Duplicate names within one parsed binding list |
 

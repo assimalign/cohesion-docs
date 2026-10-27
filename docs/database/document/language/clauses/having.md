@@ -12,7 +12,7 @@ HAVING predicate
 
 | Construct | Support | Meaning |
 |---|---|---|
-| Aggregate calls in predicates | Supported | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` |
+| [Aggregate calls](../functions/aggregate-functions.md) in predicates | Supported | All eleven native names and registered aggregates, including ALL/DISTINCT |
 | Group-key expressions | Supported | Subject to grouped-expression validation |
 | Subsequent `ORDER BY` | Supported | Orders retained results |
 

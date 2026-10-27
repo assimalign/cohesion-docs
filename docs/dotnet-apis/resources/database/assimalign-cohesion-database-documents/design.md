@@ -112,7 +112,7 @@ Collections created by these APIs have `DatabaseObjectOwner.Adhoc`. A collection
 ### SQL++ scalar functions
 
 The parser, profile and evaluator share [OqlFunctions](../assimalign-cohesion-database-documents-language/oql-functions.md),
-with 34 scalar functions alongside META and five aggregates. See the [scalar reference](../../../../database/document/language/functions/scalar-functions.md)
+with 34 scalar functions alongside META and eleven native aggregate names. See the [scalar reference](../../../../database/document/language/functions/scalar-functions.md)
 for signatures, examples and NULL/MISSING rules. Calls validate every argument/context before reads;
 lazy conditionals evaluate only through their selected argument. Functions are not index seek bounds.
 String indexing counts code points. Constructed strings/work buffers cap at 1,048,576 UTF-16 units.
@@ -571,13 +571,19 @@ file-set refusal, crash recovery and transient-open cases.
 post-images (DELETE pre-images) before transaction completion. Writes, index changes, projection,
 metadata normalization and frame/depth preflight succeed together or roll back. Explicit failures
 retain the whole-transaction abort-until-rollback rule. StatementMemoryBudget defaults to 64 MiB
-and estimates retained RETURNING results only; see [options](document-database-engine-options.md).
+and estimates retained SELECT source/group staging, native accumulators, DISTINCT sets, ARRAY_AGG
+inputs/results, projection/order storage and RETURNING together; see [options](document-database-engine-options.md).
+Refusal occurs before result publication. Mutation pending-write buffers and application callback-owned
+state are outside the estimate. [Aggregates](../../../../database/document/language/functions/aggregate-functions.md)
+document ALL/DISTINCT, Boolean input filtering and exact-moment sample statistics.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD01026 | Empty direct-AST RETURNING output name, before mutation | — |
 | CD01027 | Empty direct-AST comprehension variable, before data access | — |
-| CD05018 | Retained RETURNING result exceeds StatementMemoryBudget | — |
+| CD00011 | Parsed ALL/DISTINCT on a scalar call or star | — |
+| CD01029 | Invalid aggregate quantifier enum, scalar quantifier or quantified star in a directly constructed call AST | — |
+| CD05018 | Accounted retained SELECT/aggregate/RETURNING statement memory exceeds StatementMemoryBudget | — |
 | CD05019 | Serialized RETURNING value exceeds 256 levels, counting a named wrapper | — |
 
 The existing CD05016 enforces 16 MiB frames inside the write transaction. Constructor-depth

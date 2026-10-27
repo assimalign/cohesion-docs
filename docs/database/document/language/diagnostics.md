@@ -19,6 +19,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00008` | Unknown function name; span covers its name after arguments are parsed |
 | `CD00010` | Duplicate name in one FROM/UNNEST or quantifier binding list; span covers the repeated name or inferred final path step |
 | `CD00009` | Index exceeds 32 key paths; located at the 33rd path |
+| `CD00011` | ALL/DISTINCT on a scalar call or star, including COUNT(ALL *) and COUNT(DISTINCT *) |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
@@ -45,7 +46,8 @@ rather than being rounded by the parser.
 | `CD05015` | SELECT/RETURNING object/array constructor result exceeds 256 levels, including nested values and a named projection wrapper; reported at the constructor | — |
 | `CD01026` | Empty RETURNING output name in a directly constructed AST; before mutation | — |
 | `CD01027` | Empty variable name in a directly constructed ARRAY/FIRST comprehension; before data access | — |
-| `CD05018` | Retained RETURNING result exceeds StatementMemoryBudget; rolls back writes | — |
+| `CD01029` | Invalid aggregate quantifier enum, scalar quantifier or quantified star in a directly constructed call AST | — |
+| `CD05018` | Accounted retained SELECT source/group staging, aggregates, projection/order storage or RETURNING exceeds StatementMemoryBudget; no partial result, writes roll back | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
@@ -113,6 +115,14 @@ CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an ass
 See [CREATE INDEX](statements/create-index.md).
 
 ## Locations and wire behavior
+
+[Native aggregates and ALL/DISTINCT](functions/aggregate-functions.md) use CD00011 in parsed
+scalar/star calls and CD01029 for invalid direct AST quantifiers. Neither has an assigned SQLSTATE.
+Invalid arity retains CD00006 and invalid placement CD05001. Boolean/statistics aggregates skip
+wrong-kind stored values; SUM/AVG retain CD02008 for valued nonnumbers. Final statistic overflow
+uses CD02007 (22003). Aggregate CD05018 failures retain the call span and leave an autocommit
+session reusable; an explicit transaction requires rollback. Existing JSON, Boolean and Decimal
+wire values/headers carry results without a protocol change.
 
 Embedded command and query results expose a non-null DatabaseResult.Diagnostics collection,
 empty when nothing is reported. DatabaseException.Diagnostics and DocumentClientException.Diagnostics

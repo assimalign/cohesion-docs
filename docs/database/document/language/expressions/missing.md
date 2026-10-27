@@ -34,6 +34,8 @@ null while retaining their positions. Named projections and object members still
 Comparisons and arithmetic propagate MISSING before NULL. Ascending order is MISSING, NULL, FALSE,
 TRUE, number, ordinal string, array, object; descending reverses it. GROUP BY keeps MISSING and NULL
 separate. COUNT(expr), SUM, AVG, MIN and MAX skip both; COUNT(*) counts input rows, including expanded UNNEST rows.
+ARRAY_AGG skips MISSING and retains NULL. Boolean and sample statistics aggregates skip both
+unknown states and valued inputs of the wrong kind. See [aggregates](../functions/aggregate-functions.md).
 
 ## Boolean contexts
 

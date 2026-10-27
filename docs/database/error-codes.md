@@ -150,6 +150,15 @@ OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md
 an empty variable in a directly constructed AST (no SQLSTATE). Aggregate or metadata misuse
 retains CD05001; retired ARRAY()/FIRST() calls retain CK00001.
 
+## Document aggregate quantifiers and memory
+
+OQL [aggregates](document/language/functions/aggregate-functions.md) add CD00011 for parsed
+ALL/DISTINCT on a scalar call or star, and CD01029 for an invalid enum quantifier, scalar
+quantifier or quantified star in a directly constructed call AST. Neither has an assigned SQLSTATE.
+Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
+accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
+share StatementMemoryBudget; CD05018 refuses exhaustion before result publication (no SQLSTATE).
+
 ## Document RETURNING
 
 OQL [RETURNING](document/language/clauses/returning.md) adds CD01026 (empty direct-AST output name),

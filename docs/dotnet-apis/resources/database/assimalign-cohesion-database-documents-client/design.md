@@ -176,6 +176,19 @@ A clean handshake EOF has its own message naming the startup handshake. See
 [shared admission](../assimalign-cohesion-database-client/database-connection.md#queued-terminal-errors)
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
+## Aggregate results and refusals
+
+All eleven native aggregate names and ALL/DISTINCT use the existing result exchange. COUNT is
+Int64, ARRAY_AGG is Json, Boolean aggregates are Boolean and STDDEV/VARIANCE are Decimal,
+including empty-result metadata. ARRAY_AGG retains explicit NULL and skips MISSING. Read-only
+aggregate results keep AffectedCount = -1. EXPLAIN lists names and quantifiers without evaluation.
+
+CD00011 identifies parsed scalar/star quantifiers; invalid direct-AST quantifiers instead use
+engine-side CD01029. Neither has an assigned SQLSTATE. CD05018 covers retained SELECT sources,
+groups, aggregates and RETURNING together, before result publication. Located aggregate failures
+retain their call span. InMemory/TCP refusals preserve the session; explicit transaction failures
+require ROLLBACK and undo earlier work in that transaction. No API or protocol version changes.
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

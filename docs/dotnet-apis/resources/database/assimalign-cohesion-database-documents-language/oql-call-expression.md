@@ -10,9 +10,10 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 public sealed class OqlCallExpression : OqlExpression
 {
     public OqlCallExpression(string name, IReadOnlyList<OqlExpression> arguments,
-        Location? location = null);
+        Location? location = null, OqlAggregateQuantifier quantifier = OqlAggregateQuantifier.None);
     public string Name { get; }
     public IReadOnlyList<OqlExpression> Arguments { get; }
+    public OqlAggregateQuantifier Quantifier { get; }
 }
 ```
 
@@ -23,6 +24,11 @@ normalizes the name and checks [OqlFunctions](oql-functions.md). META uses OqlMe
 Unknown text calls report CD00008; invalid arity/star reports CD00006. Programmatic invalid calls,
 incompatible literal kinds, invalid aggregate placement and grouping fail planning with CD05001.
 Text/session factories reject parser errors with DatabaseParseException.
+
+[Quantifier](oql-aggregate-quantifier.md) retains None, All or Distinct. None and All have the same
+input semantics. Binding an invalid enum value, scalar quantifier or quantified star in a direct
+AST reports CD01029 (no SQLSTATE). Parsed scalar/star quantifiers use CD00011 instead. All eleven
+native aggregate names and single-argument registered aggregates accept ALL/DISTINCT.
 
 Scalar calls can wrap aggregate results or appear inside aggregate arguments, but aggregates cannot
 nest. Calls are not constants or index seek bounds and are refused in INSERT/UPSERT VALUES.
@@ -42,7 +48,7 @@ Console.WriteLine(call.Arguments.Count); // 4
 
 ## Related reference
 
-[Assembly](index.md) · [Design](design.md) · [OqlFunction](oql-function.md)
+[Assembly](index.md) · [Design](design.md) · [OqlFunction](oql-function.md) · [OqlAggregateQuantifier](oql-aggregate-quantifier.md)
 
 ## Application function calls
 

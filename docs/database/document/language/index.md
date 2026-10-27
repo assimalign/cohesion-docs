@@ -38,7 +38,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [BEGIN/START, COMMIT, ROLLBACK](statements/transactions.md) | Supported | In process and over the wire; Snapshot by default, explicit READ COMMITTED; CD07002 only without negotiated status |
 | EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
 | CREATE/DROP INDEX | Supported | One to 32 ordered scalar/array keys, scalar-only UNIQUE and conditional DDL |
-| COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts input rows, including expanded UNNEST rows |
+| [Eleven native aggregate names](functions/aggregate-functions.md) | Supported | ALL/DISTINCT; ARRAY_AGG retains NULL; Boolean/statistics aggregates skip wrong kinds; COUNT(*) counts input rows |
 | [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
 | [UNNEST/LEFT UNNEST](clauses/unnest.md) | Supported | Array rows; LEFT preserves empty/non-array inputs with MISSING |
