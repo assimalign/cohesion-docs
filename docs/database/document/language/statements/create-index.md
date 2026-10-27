@@ -85,7 +85,9 @@ For ungrouped, non-DISTINCT queries with fixed projection types, unordered pages
 solely by META().id (also through a projection alias, ASC or DESC) stop after OFFSET + LIMIT
 residual survivors. This bounds content fetches, not candidate metadata or probes. A single-field
 predicate fully covered by the key, or a matching WHEN that covers the additional element
-condition, avoids cross-element rejections. The tested half-qualifying residual shape stays within
+condition, avoids cross-element rejections. The tested fully indexed category/price pages fetch
+at most OFFSET + LIMIT documents; the matching stock WHEN also meets the fetch bound for the
+same-element price/stock shape. The tested half-qualifying residual shape stays within
 `2 * (OFFSET + LIMIT)` fetches; arbitrary residuals have no such ratio. An unmatched multi-field
 predicate remains correct but has no fetch bound: the unfiltered price index in the tests fetches
 1,001 documents to return one same-element price/stock match; the matching stock WHEN fetches one.

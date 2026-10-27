@@ -31,8 +31,8 @@ stop selecting it; older snapshots retain their defined visibility. The engine e
 ownership under the database writer lock. Schema-owned collections reject the operation, and
 reserved system collections are read-only.
 
-The statement uses an active session transaction or an automatic statement transaction. Successful
-execution returns a command `DatabaseResult` with `Success` and an affected count of zero.
+The statement runs in an automatic statement transaction. Successful execution returns a command
+`DatabaseResult` with `Success` and an affected count of zero; explicit transactions refuse DDL.
 
 ## Diagnostics
 
