@@ -135,6 +135,12 @@ DDL is self-committing and fails inside explicit transactions with `CS04003`. Se
 of schema-owned tables is refused. DROP COLUMN changes catalog metadata without rewriting rows;
 physical ordinals and dropped-column metadata keep existing row values aligned.
 
+To reclaim dropped ordinals, use the C# maintenance operation
+[SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
+It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
+read-only snapshots retain the original layout until they end; writers bound before publication
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 26.
+
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
 when catalog publication races it. SQL storage format 26 is current: format 17 introduced this

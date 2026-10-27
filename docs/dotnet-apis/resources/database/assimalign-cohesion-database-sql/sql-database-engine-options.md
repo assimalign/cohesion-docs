@@ -30,6 +30,11 @@ commits and mandatory post-self-commit cleanup complete without these timers. SQ
 control arms neither timer; schema-provisioning sessions explicitly disable both. Other options
 are described in [design](design.md#engine-owned-background-workers).
 
+LockTimeout also bounds the source-table exclusive lock for
+[SqlDatabase.RewriteTableAsync](sql-database.md), before work is queued. Zero leaves this wait
+unlimited unless canceled; the database-level maintenance call uses the engine setting, rather
+than a session override. Expiration throws SqlTimeoutException with CS04044 / 55P03.
+
 ## Example
 
 Adapted from SqlTimeoutConformanceTests; engine defaults are copied before the caller changes them:
