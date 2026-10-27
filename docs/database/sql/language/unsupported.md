@@ -64,7 +64,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CAST to an unknown name | `CS02010` | Type/domain does not resolve |
 | Invalid CAST target parameters | `CS00005` | See the conversion bounds |
 | Unsupported CAST source/target pair | `CS02011` | Known source types reject while planning, even on empty input |
-| ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `CK00001` | Table/column RENAME and column default/nullability actions execute |
+| ALTER SET SCHEMA, RENAME CONSTRAINT or comma-separated actions | `CK00001` | Table/column RENAME, default/nullability actions and [TYPE with USING](statements/alter-table.md#alter-column-type) execute |
 | Volatile ADD COLUMN DEFAULT on a populated table | `CS03027` | Requires no live rows; stable additions freeze one missing value |
 | CAST in CHECK | `CS03059` (42P17) | CAST executes in column DEFAULT expressions |
 | Columns, parameters or aggregates in DEFAULT | `CS05013` | Defaults have no column or parameter scope |

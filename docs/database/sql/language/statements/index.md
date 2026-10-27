@@ -10,7 +10,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[DROP SCHEMA](drop-schema.md)** — RESTRICT by default or atomically CASCADE dependent objects.
 
 - **[CREATE TABLE](create-table.md)** — Declare columns and constraints, or infer and copy query output with AS.
-- **[ALTER TABLE](alter-table.md)** — Add/drop columns and constraints, including literal-default backfill.
+- **[ALTER TABLE](alter-table.md)** — Change types with old-row USING, rename objects, alter facets and add/drop columns/constraints.
 - **[DROP TABLE](drop-table.md)** — Remove an ad-hoc stored table.
 - **[TRUNCATE](truncate.md)** — Empty a table set with FK closure, identity policies and old-snapshot visibility.
 - **[CREATE INDEX](create-index.md)** — Create a plain-column secondary index.

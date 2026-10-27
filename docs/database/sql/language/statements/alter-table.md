@@ -12,6 +12,8 @@ ALTER TABLE [ schema_name . ] table_name
     ADD [ COLUMN ] column_definition
   | DROP [ COLUMN ] column_name
   | ALTER [ COLUMN ] column_definition
+  | ALTER [ COLUMN ] column_name [ SET DATA ] TYPE data_type
+      [ COLLATE collation_name ] [ USING expression ]
   | ADD table_constraint
   | DROP CONSTRAINT constraint_name
   | RENAME TO new_table_name
@@ -41,8 +43,70 @@ Adding PRIMARY KEY/UNIQUE constraints or columns that build an index checks the
 with `CS05042` / SQLSTATE 54000 before the new column, constraint or index is published;
 the old schema and rows remain usable.
 
-One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT, PostgreSQL TYPE/SET DATA TYPE,
-TYPE ... USING and comma-separated action lists are outside this subset (CK00001).
+One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT and comma-separated action
+lists are outside this subset (CK00001).
+
+### ALTER COLUMN TYPE
+
+`ALTER TABLE t ALTER [COLUMN] c [SET DATA] TYPE type [COLLATE collation] [USING expression]`
+changes the type while preserving nullability, keys and constraints. The target declaration
+selects its collation; omitted COLLATE uses the database default. USING sees every column of the
+**old row**, including qualified references to t and synthesized missing fields. It cannot read
+another table or contain subqueries, aggregates or windows. Parameters and scalar expressions
+use the ordinary expression rules. Without USING, the old column supplies the value.
+
+Both the old value and a USING result require an assignment or implicit registry cast to the
+target. An explicit-only pair such as TEXT to INT requires `USING CAST(c AS INT)`; `USING c`
+alone does not authorize it, even on an empty table (CS02064, 42804). A bare string literal
+retains unknown-input coercion. Character modifiers use assignment semantics: excess trailing
+spaces can trim to a narrower VARCHAR, but other overflow refuses. A written character CAST
+inside USING can explicitly permit truncation. SQL has NULL and no MISSING value; NOT NULL still
+validates the converted value.
+
+USING does not transform the default. The original default expression must independently
+assignment-cast to the target, even on an empty table. Drop an incompatible default before TYPE,
+then SET DEFAULT afterward. Numeric/Boolean defaults keep their expression identity; an unknown
+string default keeps its resolved old type. Immutable defaults validate eagerly and persist as
+canonical literals. Stable/Volatile defaults retain their text and pinned calls and evaluate at
+INSERT time with the new assignment coercion. Repeated changes do not accumulate explicit CASTs.
+A column with no default inherits the target domain's default, which is validated too.
+
+Existing CHECK definitions are rebound against changed operand types and rechecked over converted
+rows; domain checks and NOT NULL also revalidate. A rewriting change rebuilds every index and
+checks uniqueness under the target collation. New key collisions refuse publication. Incoming,
+outgoing and self foreign keys involving c must retain identical underlying storage type identities
+(INT and BIGINT differ), compatible character collations and valid final keys. Only affected FK
+neighbors are locked and revalidated. A view depending on c blocks TYPE with CS03302, even for a
+same-type USING expression; a view reading only other columns does not block it.
+
+Integer identity columns can change within the integer family through explicit TYPE, retaining
+the cursor, START and INCREMENT. Domain/non-integer targets refuse with CS03025. START and
+allocated counter values must fit the new range; unissued reservation tails are trimmed before
+publication. Reopen retains the existing policy of skipping unused reserved values.
+
+Without USING, same-storage, same-scale, same-domain and same-collation changes that only widen
+length/precision or make them unbounded take the binary-compatible no-rewrite path. Heap and
+index trees remain. CHAR width changes can repad values and therefore rewrite. Narrowing uses
+the copier and assignment semantics.
+
+Other changes copy live rows into a dense replacement and atomically publish the definition,
+indexes and catalog generation. Execution runs **inline under the table's exclusive lock**, also
+locking affected adjacent FK tables exclusively. Populated-table handoff to the provisioning
+worker arrives in batch 7. Conversion, constraint failure or cancellation before publication
+keeps the old table and indexes current. Old read-only snapshots retain the old owner; stale
+writers retry their transaction with CS04006. Cancellation after publication cannot undo it.
+LockTimeout/cancellation retain the ordinary DDL cleanup rules; successful TYPE affects zero rows.
+
+### Full-definition ALTER COLUMN
+
+The older `ALTER COLUMN c type [NULL | NOT NULL] [DEFAULT expression]` form describes the full
+column definition rather than an old-row USING conversion. It retains the validation-only facet
+path when storage type, scale, domain and collation stay unchanged. Tightening length/precision
+and every CHAR width change validate existing values; a change needing repadding is refused on
+that path. Storage-type, scale, domain and explicit collation changes share the rewrite machinery.
+It refuses CS05013 if the resulting default differs, or if the collation changes without an
+explicit COLLATE, even when rewriting. Use SET/DROP DEFAULT for default changes. Full-definition
+identity-type changes remain refused; use explicit TYPE for integer identity conversion.
 
 ### Renames
 
@@ -151,15 +215,20 @@ canonical function-name quoting. Compiled schema version remains 8. Older SQL fo
 
 [Persisted views](create-view.md) block table rename and drop/rename of columns they read.
 ALTER COLUMN also refuses changes to those columns' type, length, precision or scale with
-CS03302. Default and nullability changes retain their usual validation.
+CS03302. Explicit TYPE refuses even a same-type USING conversion. Default and nullability
+changes retain their usual validation.
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `CS00003` | Malformed action or DROP NOT NULL on a primary-key column | — |
-| `CK00001` | Excluded action/list or subquery in DEFAULT | — |
-| `CS05013` | Rename collision, invalid default form or incompatible function result type | — |
+| `CK00001` | Excluded action/list, subquery in DEFAULT/USING, or aggregate/window in USING | — |
+| `CS05013` | Rename collision, invalid default, incompatible function result, or changed full-definition default/implicit collation | — |
+| `CS02064` | Old value, USING result or dependent default lacks an assignment/implicit cast to the target | 42804 |
+| `CS02002` | Numeric range/precision failure during conversion/default re-cast | 22003 |
+| `CS02022` | Invalid non-temporal conversion text | 22P02 |
+| `CS02047` / `CS02048` / `CS02062` | Temporal format / field range / interval overflow during conversion | 22007 / 22008 / 22015 |
 | `CS01014` / `CS01015` | Missing bound table / column | 42P01 / 42703 |
 | `CS01015` | New CHECK names another table or schema | — |
 | `CS01019` | Repeated key-list column or second PRIMARY KEY declaration, including ADD COLUMN | — |
@@ -178,16 +247,52 @@ CS03302. Default and nullability changes retain their usual validation.
 | `CS03054` | FOREIGN KEY column list or referenced unique-key requirement fails | 42830 |
 | `CS02055` / `CS02063` | FOREIGN KEY type / collation mismatch | 42804 / 42P21 |
 | `CS03056` | Constraint or index depends on the object being changed | 2BP01 |
-| `CS05057` | Change would require unsupported value rewriting | 0A000 |
+| `CS05057` | Validation-only full-definition change would rewrite values, or target index collation is unsupported | 0A000 |
+| `CS04044` | DDL lock wait exceeds LockTimeout | 55P03 |
+| `CS04006` | Writer needs a retired table layout after publication; retry the transaction | — |
 | `CS03059` | CHECK cannot be stored as a deterministic row definition | 42P17 |
 | `CS04064` | Bound table was replaced during a DDL wait; retry the statement | 40001 |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 |
 | `CS03302` | Declared script or view retains a dependent target | 2BP01 |
-| `CS04003` | DDL inside an explicit transaction; the transaction remains usable | — |
+| `CS04003` | DDL inside an explicit transaction; the transaction remains usable | 25001 |
 
 Conversion and length failures retain their [normal codes](../diagnostics.md). `CS03027` has no assigned SQLSTATE.
 
 ## Examples
+
+### Convert using the old row
+
+Adapted from SqlAlterColumnTypeTests; execute each request separately:
+
+```sql
+CREATE TABLE retype (id INT PRIMARY KEY, v TEXT NOT NULL, extra INT DEFAULT 7);
+INSERT INTO retype VALUES (1,'10',7),(2,'20',7);
+CREATE UNIQUE INDEX by_v ON retype(v);
+ALTER TABLE retype ALTER COLUMN v SET DATA TYPE BIGINT
+    USING CAST(retype.v AS BIGINT) + id + extra;
+SELECT id,v FROM retype ORDER BY id;
+```
+
+The result is `(1,18)` and `(2,29)`; by_v now indexes BIGINT values. A conversion, CHECK or
+uniqueness failure would retain the original table and values.
+
+```sql
+CREATE TABLE default_retype (v TEXT DEFAULT '7');
+ALTER TABLE default_retype ALTER v TYPE INT USING CAST(v AS INT);
+```
+
+The ALTER fails CS02064 (42804): USING converts rows, but the TEXT default lacks an assignment
+cast to INT. DROP DEFAULT, repeat TYPE, then SET DEFAULT 7 to complete that change.
+
+```sql
+CREATE DOMAIN positive_default AS INT DEFAULT 42 CHECK(VALUE>0);
+CREATE TABLE domain_retype (v INT);
+ALTER TABLE domain_retype ALTER v TYPE positive_default;
+INSERT INTO domain_retype DEFAULT VALUES;
+SELECT v FROM domain_retype;
+```
+
+This returns 42, inherited from the target domain.
 
 Starting from the [conformance fixture](select.md#a-create-the-conformance-fixture):
 
@@ -269,10 +374,11 @@ upgrade path. Compiled schema format remains version 8.
 
 [CREATE TABLE](create-table.md) · [DEFAULT](../clauses/default.md) · [Constraints](../constraints.md) · [System views](../system-views/index.md)
 
-[SqlAlterTableExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-language/sql-alter-table-expression.md) · [Statements](index.md) · [Language (SQL)](../index.md)
+[SqlAlterColumnTypeAction](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-language/sql-alter-column-type-action.md) · [SqlAlterTableExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-language/sql-alter-table-expression.md) · [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
 
+- **TYPE and review cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAlterColumnTypeTests.cs`, `SqlAlterColumnTypeReviewTests.cs` and `SqlAlterColumnTypeReviewTests.SecondPass.cs`.
 - **Bounded validation and retry** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.
 

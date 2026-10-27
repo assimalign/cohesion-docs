@@ -99,6 +99,14 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## SQL ALTER COLUMN TYPE
+
+[TYPE with USING](sql/language/statements/alter-table.md#alter-column-type) adds CS02064 for a
+missing assignment cast on an old value, USING result or dependent default (42804,
+datatype_mismatch). Full-definition default/implicit collation changes retain CS05013 (no SQLSTATE).
+Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
+see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
+
 ## SQL MERGE
 
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING

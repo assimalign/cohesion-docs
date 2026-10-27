@@ -39,6 +39,11 @@ source type is known, including over empty input or a typed NULL. Parameter type
 from runtime values. Untyped NULL converts to a typed NULL; target validation still applies.
 Application-registered casts and domains use the same conversion path.
 
+[ALTER COLUMN TYPE](../statements/alter-table.md#alter-column-type) requires assignment/implicit
+casts for old values, USING results and defaults. This is stricter than written CAST, which
+admits explicit-only pairs too. For TEXT to INT, use `USING CAST(c AS INT)`; `USING c` alone
+reports CS02064 (42804). USING does not transform a dependent default.
+
 ## Value rules
 
 - Integer targets require a whole value in range. They never truncate a fraction. NaN or infinity
