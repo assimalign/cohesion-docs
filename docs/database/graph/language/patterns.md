@@ -8,7 +8,11 @@ Graph patterns describe fixed or quantified paths of labeled nodes and typed rel
 
 ```syntaxsql
 <paths> ::= path [ , ...n ]
-<path> ::= [ variable "=" ] [ selector ] [ WALK | TRAIL | SIMPLE | ACYCLIC ] [ PATH | PATHS ] [ GROUP | GROUPS ] path_body
+<path> ::= [ variable "=" ] [ <path_prefix> ] path_body
+<path_prefix> ::= mode [ PATH | PATHS ]
+    | { ANY | ALL | ANY SHORTEST | ALL SHORTEST } [ mode ] [ PATH | PATHS ]
+    | SHORTEST k [ mode ] [ PATH | PATHS ] [ GROUP | GROUPS ]
+<mode> ::= WALK | TRAIL | SIMPLE | ACYCLIC
 <path_body> ::= path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
 <path_primary> ::= node | parenthesized
 <parenthesized> ::= "(" path_body [ WHERE condition ] ")" [ quantifier ]
@@ -53,9 +57,10 @@ square brackets that surround relationship syntax.
 
 ## Remarks
 
-MATCH inline maps are predicates on the complete bound clause, including references to later
-comma-separated pattern parts. INSERT/CREATE maps see only incoming stage bindings; references
-to variables being created in that stage use CG05001. Only literal/parameter equalities provide
+On unselected paths, MATCH inline maps are predicates on the complete bound clause, including
+references to later comma-separated pattern parts. Selected search prefilters see their own path
+and incoming bindings; peer-path-only references use CG01016. INSERT/CREATE maps see only incoming
+stage bindings; references to variables being created in that stage use CG05001. Only literal/parameter equalities provide
 index seek bounds. List/map property syntax remains CK00001; evaluated composite values use
 CG03003. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md) for row-supplied values.
 

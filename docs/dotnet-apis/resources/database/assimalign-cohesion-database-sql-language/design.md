@@ -23,6 +23,12 @@ work retained), and retryable CS04064 (40001, concurrent closure change).
 including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
 parsing and view output inference; execution uses atomic publication in SQL format 26.
 
+CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
+[SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
+retain ordered actions and clause spans for binding/EXPLAIN. A later clause after an unconditional
+clause of the same match kind uses CS05071; merge_action() outside MERGE RETURNING uses CS01053.
+Neither has an assigned SQLSTATE. Bound MERGE execution reports CK00001 in this release step.
+
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`) is a

@@ -295,7 +295,7 @@ including nested builds. Cancellation, timeout, refusal and success release all 
 EXPLAIN reports FullHashJoin and `unmatched=both` in JoinStep detail; ANALYZE counts candidate
 pairs, excluding separately emitted unmatched rows.
 
-SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. The budget does not cap result materialization or transient planning. See [performance and configuration](../../performance.md).
+SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. [CTAS](../statements/create-table.md#create-table-as) also charges retained source results and copy buffers; other result materialization and transient planning remain outside this accounting. See [performance and configuration](../../performance.md).
 
 ## Sources
 
