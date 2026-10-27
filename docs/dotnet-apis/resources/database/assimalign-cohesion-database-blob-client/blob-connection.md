@@ -31,7 +31,7 @@ returns a healthy session or closes a broken one. Later operations with valid ar
 ObjectDisposedException; repeated disposal cannot touch a later rental. Database is captured at
 rental time and remains readable after return; IsOpen returns false.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 Null streams throw ArgumentNullException; unreadable streams or invalid lengths throw
 ArgumentException. Overlap throws InvalidOperationException; cancellation throws

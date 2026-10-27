@@ -63,7 +63,8 @@ system-target refusal followed by a successful zero-match DELETE on the same ren
 
 Model Failure (72) terminates a rejected statement without Complete, including after partial rows.
 The client discards accumulated results and throws DocumentClientException, preserving the protocol
-category and DocumentClientException.Diagnostics. A fully decoded Failure certifies a reusable session.
+category and DocumentClientException.Diagnostics. A fully decoded Failure leaves the connection available for recovery. In an explicit transaction,
+subsequent work reports CD04101 until ROLLBACK; pool return resets failed work before reuse.
 Shared Error, invalid order/counts/UTF-8/JSON, truncation, transport loss and unfinished cancellation
 discard it. Mutations canceled after publication can have unknown outcomes.
 
@@ -88,11 +89,30 @@ Dispose returns a healthy rental once. Abort discards it. Operation registration
 wrapper's teardown lock, so repeated disposal cannot return a later rental of the same connection.
 Client disposal closes idle sessions and outstanding sessions when they return.
 
+## Text transactions and pool return
+
+[DocumentConnection](document-connection.md#text-transactions) uses ordinary Execute for
+BEGIN/START, COMMIT and ROLLBACK. Snapshot is the default; READ COMMITTED is explicit.
+Typed CRUD shares the same transaction. Documents negotiates transaction-status: Ready follows
+each Execute and Command terminal response, including Failure. CD07002 remains live for
+controls without that agreement.
+
+Pool return rolls back active or failed work and requires Idle before reuse. Documents reset
+uses Execute 64 with an empty JSON parameter object and Complete 66 with two zero Int64 counts.
+A legacy or unnegotiated peer cannot certify reuse and is discarded, as are invalid/missing
+status and failed reset.
+
+After Complete, bounded status cleanup ignores caller cancellation. Lost completion or Ready
+can still fail COMMIT and leave its outcome unknown to the caller; the client discards the
+connection without retrying COMMIT or claiming to undo committed work. The five-second Ready
+timeout raises OperationCanceledException independently of the caller token; a close before
+Ready raises DocumentClientException with ProtocolViolation.
+
 ## Protocol and scope
 
 Shared protocol 2.1 handles startup; the 2.0 major changed Documents projection encoding. Documents
 negotiates no core Diagnostics capability and retains its own Failure frame. OQL/CRUD/collections
-execute over InMemory and TCP. Explicit wire transactions, remote database lifecycle, replication
+execute over InMemory and TCP, including text transactions. Remote database lifecycle, replication
 and model-specific security policies remain unsupported.
 
 [Assembly](index.md) · [Examples](examples/index.md) · [DocumentProtocol](../assimalign-cohesion-database-documents-protocol/document-protocol.md)
@@ -122,7 +142,7 @@ DocumentConnection wraps a new shared lease for each rental; the pool retains on
 Database is captured before return, allowing operation diagnostics to finish after the core lease
 is disposed. Ended leases permanently reject execution and report IsOpen false; cleanup cannot
 reach another renter. See [DatabaseConnection](../assimalign-cohesion-database-client/database-connection.md)
-for disposal, shutdown and SQL/Graph transaction-status reset.
+for disposal, shutdown and SQL/Graph/Documents transaction-status reset.
 
 ## Queued terminal errors
 

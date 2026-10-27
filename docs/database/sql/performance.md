@@ -40,7 +40,24 @@ independent counts while repeated correlated calls to the same reference accumul
 
 [SQL](index.md) · [Engine options](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md)
 
+## Joined mutations
+
+[UPDATE FROM](language/statements/update.md#from-sources) and
+[DELETE USING](language/statements/delete.md#using-sources) use a join with the target pinned
+outer. Safe target-only predicates can seek it; mandatory equality to a source can use an
+index probe or hash build on that source. EXPLAIN shows the access paths, join algorithm and
+`hash_budget=no_spill` detail. Hash builds count against StatementMemoryBudget; exhaustion is
+CS05067 (53200) before writes. Target/association collections remain outside this accounting.
+
+Equality-driven steps follow written source order. If only b is connected to the target by
+equality, list b first: `FROM b, a` or `USING b, a`. In
+`UPDATE t SET v = b.v FROM a, b WHERE t.id = b.tid AND b.aid = a.id`, the engine visits the
+t × a product before b's hash. Reversing the source list lets each equality drive its step.
+Both orders are correct; general join-order search is deferred to #1629.
+
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.Costing.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlHashJoinTable.cs`.

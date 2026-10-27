@@ -27,7 +27,11 @@ public enum DocumentProtocolOperation : byte
 Family binds one Documents endpoint for the session lifetime. ResultRow (68) is reserved for retired
 projection arrays; protocol 2.0 replaced them with Document objects so MISSING can be omitted.
 Current startup negotiates shared 2.1. Documents agrees no core Diagnostics capability; Failure
-remains its structured diagnostic channel. Explicit wire transactions are unsupported.
+remains its structured diagnostic channel. Documents advertises transaction-status. When agreed,
+Ready follows Complete or Failure for Execute (64) and Command (69), with one ASCII byte:
+I (Idle), T (Active) or E (Failed). Text controls use Execute; unnegotiated controls report CD07002.
+Legacy response framing remains unchanged. Pool reset sends ROLLBACK with empty JSON parameters,
+requires Complete (66) with two zero Int64 counts, then Ready I.
 
 Execute results are ResultHeader, zero or more Document frames, then Complete. INSERT, UPSERT, UPDATE, DELETE and DDL can
 complete without rows. Commands return StoredDocument or Collection frames as appropriate, then

@@ -48,7 +48,7 @@ permanently rejects later commands with ObjectDisposedException, and repeated di
 that cannot return a later rental. Database is cached and stays readable; IsOpen returns false.
 The shared lease cancels and joins admitted work before returning a healthy session or closing it.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Example
 

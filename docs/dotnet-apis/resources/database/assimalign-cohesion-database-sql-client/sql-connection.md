@@ -38,7 +38,7 @@ reach another renter. Database is cached and remains readable; IsOpen returns fa
 The core DatabaseConnection's repeated disposal joins the original return; the typed wrapper's
 repeated disposal is a no-op. AbortAsync on a live wrapper discards its session without cancellation.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 SQL uses ordinary BEGIN/COMMIT/ROLLBACK commands on the same connection. If cleanup fails, abort
 the live rental. Abort cannot establish the outcome of an unacknowledged COMMIT or undo published writes.
@@ -95,6 +95,39 @@ The failed QueryAsync exposes no partial rows. The result refusal maps to SQLSTA
 Read-only result failures also throw and discard partial rows while allowing another command
 on the same connection. See [wire results](../assimalign-cohesion-database-sql-protocol/design.md#statement-results).
 
+## Joined mutations
+
+QueryAsync executes [UPDATE FROM](../../../../database/sql/language/statements/update.md#from-sources)
+and [DELETE USING](../../../../database/sql/language/statements/delete.md#using-sources), returning
+rows and AffectedCount. ExecuteAsync returns that count after buffering and discarding rows.
+SET/WHERE/RETURNING can read source columns, while SET destinations remain target-only.
+UPDATE RETURNING sees new target values; DELETE sees old target values. Source values come
+from pre-write collection. Bare star expands target columns then visible source columns;
+duplicate names require ordinal access to distinguish them.
+
+For a new database, adapted from SqlDmlSourceWireTests:
+
+```csharp
+await connection.ExecuteAsync("CREATE TABLE t (id INT PRIMARY KEY, v INT)");
+await connection.ExecuteAsync("CREATE TABLE s (id INT, v INT)");
+await connection.ExecuteAsync("INSERT INTO t VALUES (1,0), (2,0)");
+await connection.ExecuteAsync("INSERT INTO s VALUES (1,10), (2,20), (2,20)");
+try
+{
+    await connection.ExecuteAsync("UPDATE t SET v=s.v FROM s WHERE t.id=s.id");
+}
+catch (SqlClientException failure)
+{
+    Console.WriteLine(failure.Diagnostics[0].Code); // CS05068 (SQLSTATE mapping 21000)
+    Console.WriteLine(failure.ConnectionUsable); // True; t still contains (1,0), (2,0)
+}
+Console.WriteLine(await connection.ExecuteAsync(
+    "DELETE FROM t USING s WHERE t.id=s.id")); // 2; duplicate source matches delete each target once
+```
+
+Cardinality and constraint failures undo only the statement and preserve earlier transaction
+work. Concurrent committed target changes use the existing first-updater-wins conflict.
+
 ## Related reference
 
 [SQL client](index.md) · [Design](design.md) · [Shared lease](../assimalign-cohesion-database-client/database-connection.md)
@@ -111,6 +144,8 @@ A clean handshake EOF has its own message naming the startup handshake. See
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - **Terminal client conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalErrorTests.cs`.

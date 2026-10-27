@@ -280,8 +280,9 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 [SqlOnConflictClause](sql-on-conflict-clause.md) with target kind, inference columns or constraint
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
-shape explicit. SqlClauses.OnConflict enables the new named clause, bringing execution to 51 of
-57 declared clauses. Existing keywords/identifier quoting and format 26 are unchanged.
+shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
+UPDATE FROM and DELETE USING, execution measures 54 of 60 declared clauses. Existing
+keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
 alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated
@@ -295,6 +296,24 @@ released after undo. CS04006 has no assigned SQLSTATE and means the bound target
 lock preparation: retry in a fresh transaction. SQLSTATE remains a reference mapping on the wire.
 See [timeouts and diagnostics](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts).
 
+
+## Quantified comparisons and grouping
+
+Scalar [ANY/SOME/ALL comparisons](sql-quantified-comparison-expression.md) retain the comparison,
+written quantifier and complete query body in the AST. SqlClauses.QuantifiedComparison advertises
+the form. Rendering and depth accounting include the body; arrays, row values and excluded
+subquery positions retain their diagnostics. The engine matches repeated complete subquery
+grouping keys structurally, including correlations, across SELECT, HAVING and ORDER BY. IN keys
+also compare query bodies. See [GROUP BY](../../../../database/sql/language/clauses/group-by.md#repeated-subquery-keys).
+
+## Joined mutations
+
+SqlUpdateExpression.From and SqlDeleteExpression.Using retain ordered source trees. Both forms
+execute; SqlClauses.UpdateFrom (`UPDATE FROM`) and SqlClauses.DeleteUsing (`DELETE USING`)
+advertise them. UPDATE raises CS05068 (21000) for multiple source associations before SET or
+writes. DELETE deduplicates physical targets. Bare RETURNING * follows target-then-visible-source
+order with JOIN USING merges. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources)
+and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
 
 ## Sources
 

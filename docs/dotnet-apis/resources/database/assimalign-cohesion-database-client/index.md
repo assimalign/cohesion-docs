@@ -70,7 +70,7 @@ Disposed leases cannot reach later rentals. Metadata and execution throw ObjectD
 IsOpen returns false. Repeated disposal or abort joins the original return. Shutdown closes returned
 connectors and fails waiting renters with ObjectDisposedException.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Declarative commands
 
@@ -105,7 +105,7 @@ Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFa
 ## Exchange postamble contract
 
 [DatabaseProtocolExchange](database-protocol-exchange.md) automatically drains negotiated Ready
-transaction status after Execute/ExecutePaths, including application exchanges using its
+transaction status after Execute/ExecutePaths and Documents Command, including application exchanges using its
 one-argument constructor. The explicit transaction-status constructor remains available.
 
 ## Sources

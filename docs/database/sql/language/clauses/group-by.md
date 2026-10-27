@@ -35,6 +35,27 @@ Empty grouping sets, `GROUPING SETS`, `ROLLUP`, `CUBE`, and grouping functions a
 [Aggregate calls](../functions/aggregate-functions.md) accept DISTINCT/ALL and input ORDER BY.
 STRING_AGG and LISTAGG concatenate ordered text within each group.
 
+## Repeated subquery keys
+
+A scalar subquery, EXISTS, quantified comparison or IN expression repeated in the select list,
+HAVING or ORDER BY reuses its GROUP BY value when the complete expression matches structurally
+in the same scope, including identical correlations. This follows PostgreSQL's whole-expression
+grouping rule. Operators, quantifiers (including ANY versus SOME), negation, bound scalar operands
+and query bodies remain significant. Different or unproven expressions do not share a group slot;
+an ungrouped reference still reports CS05017 (no assigned SQLSTATE).
+
+For `candidates(id)` containing 1, 2, 3 and NULL:
+
+```sql
+SELECT c.id = ANY (SELECT 2), COUNT(*)
+FROM candidates c
+GROUP BY c.id = ANY (SELECT 2)
+HAVING c.id = ANY (SELECT 2)
+ORDER BY c.id = ANY (SELECT 2);
+```
+
+The result is `(TRUE, 1)`. See [quantified comparisons](../expressions/quantified-comparisons.md).
+
 ## Examples
 
 These examples use the [conformance fixture](../statements/select.md#a-create-the-conformance-fixture).
@@ -53,6 +74,8 @@ The rows are `(FALSE, 1, 36)` and `(TRUE, 2, 86)`; sums have shared type `Decima
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Unsupported syntax](../unsupported.md)
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSubqueryExecutionTests.Grouping.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

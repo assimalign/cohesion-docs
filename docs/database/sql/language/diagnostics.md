@@ -46,7 +46,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS02010` | Unknown type/domain or unavailable stored domain | 42704 |
 | `CS02011` | No conversion for a CAST pair; known pairs checked during planning | 42846 |
 | `CS02012` | Character assignment exceeds length with non-space overflow | 22001 |
-| `CS05013` | Invalid statement/expression/DDL/query shape; derived width/name error, rename collision or incompatible DEFAULT function result type | — |
+| `CS05013` | Invalid statement/expression/DDL/query shape; scalar/IN/ANY/SOME/ALL subquery width, derived width/name error, rename collision or incompatible DEFAULT function result type | — |
 | `CS01014` | Table does not exist for reads or DML, including a missing namespace | 42P01 |
 | `CS01015` | Unknown/ambiguous column, hidden/unknown/out-of-scope qualifier, new CHECK naming another table/schema, missing DDL column, or missing/repeated/ambiguous/incompatible-type USING column | 42703 for unknown columns |
 | `CS01016` | Unknown function absent from executable and recognized-unsupported vocabulary | 42883 |
@@ -94,6 +94,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS06058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
+| `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes, even for identical source values | 21000 (`cardinality_violation`) |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
@@ -405,13 +406,23 @@ CS05067 reports exhausted statement hash-build memory (SQLSTATE 53200, out_of_me
 
 CS06059 reports malformed persisted SQL catalog metadata (XX001); CS06060 reports an unsupported catalog metadata format/version (0A000). Shared CK identities cover common session, transaction, database-presence and value-access conditions; see the [registry additions](../../error-codes.md).
 
-## Source DML capability
+## Joined DML conditions
 
-UPDATE ... FROM and DELETE ... USING parse and bind in this batch. Their execution reports
-CK00001 before source/RETURNING callbacks or writes, leaving an explicit SQL transaction
-usable. EXPLAIN describes their source plans. Optional SELECT/plain EXPLAIN cost probes
-that observe committed definition changes retain the bound path; they do not report CS04006.
-Mutation execution retains its mandatory CS04006 guard (no SQLSTATE).
+UPDATE ... FROM and DELETE ... USING execute. CS05068 (21000, cardinality_violation) rejects
+multiple source associations for one UPDATE target before SET evaluation or any write, even
+when the source values agree. DELETE instead deduplicates physical targets. CS05068 is a
+statement failure: earlier explicit work and the client connection remain usable.
+
+Joined hash builds retain CS05067 (53200) for the statement memory budget. Constraints and
+RETURNING retain their ordinary codes and undo the whole statement. Concurrent committed target
+changes raise DatabaseTransactionAbortedException through the existing first-updater-wins
+check, preserving physical target identity. Optional SELECT/plain EXPLAIN cost probes that
+observe committed definition changes retain the bound path; mutation execution retains its
+mandatory CS04006 definition guard (no SQLSTATE).
+
+[Quantified comparisons](expressions/quantified-comparisons.md) reuse CS05013 for single-column
+shape, CS01015 for binding and CS02055 (42804) for incompatible compared non-NULL values;
+no new code is allocated.
 
 ## Sources
 

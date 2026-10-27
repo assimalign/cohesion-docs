@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 51 of 57 named clauses against the live engine. The 6 excluded names are
+The profile measures 54 of 60 named clauses against the live engine. The 6 excluded names are
 `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
@@ -18,7 +18,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
-| UPDATE ... FROM / DELETE ... USING | `CK00001` at execution | Parsed and bound only in this batch; EXPLAIN shows sources; bare RETURNING * binds target columns then visible sources |
 | MySQL ON DUPLICATE KEY UPDATE; SQLite INSERT OR IGNORE/REPLACE | `CK00001` | Use [ON CONFLICT](clauses/on-conflict.md) DO NOTHING/targeted DO UPDATE |
 | ON CONFLICT expression/COLLATE/order/operator-class/partial-WHERE inference; DO SELECT | `CK00001` | Plain column-set or named unique-index arbitration executes |
 | Subqueries in ON CONFLICT DO UPDATE SET/WHERE; EXCLUDED pseudo-relation in RETURNING | `CK00001` | Target plus EXCLUDED is available in scalar conflict actions; RETURNING sees only target values |
@@ -37,7 +36,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Qualified wildcard, such as `t.*` | `CK00001` | Use unqualified star or explicit columns |
 | Derived query without an alias | `CS00003` | FROM/JOIN derived relations require an alias |
 | Derived column list with wrong width or blank output name | `CS05013` | Rename every output by position |
-| Quantified `ANY`, `ALL`, `SOME` comparison | `CK00001` | Use supported scalar/membership/existence forms |
+| Quantified ANY/SOME/ALL with arrays or value lists | `CK00001` | [Single-column subquery forms](expressions/quantified-comparisons.md) execute; row-value syntax uses CS00003 |
 | LATERAL syntax or a derived body referencing a real sibling relation | `CK00001` | Enclosing-query correlation executes; typos retain CS01015 |
 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries/windows in RETURNING | `CK00001` | [RETURNING](clauses/returning.md) supports target-row scalar projections |
 | MATERIALIZED, RECURSIVE, TEMP/TEMPORARY views, CREATE VIEW IF NOT EXISTS, view options/CHECK OPTION | `CK00001` | [Persisted read-only views](statements/create-view.md) execute |

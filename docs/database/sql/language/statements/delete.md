@@ -9,6 +9,7 @@ Removes rows selected from a stored table.
 ```syntaxsql
 [ WITH common_table_expression [ , ...n ] ]
 DELETE FROM [ schema_name . ] table_name [ [ AS ] table_alias ]
+[ USING source [ , ...n ] ]
 [ WHERE search_condition ]
 [ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] ]
 [ ; ]
@@ -17,7 +18,7 @@ DELETE FROM [ schema_name . ] table_name [ [ AS ] table_alias ]
 ## Arguments
 
 - **`table_name`** — The stored table from which rows are removed.
-- **`search_condition`** — An optional predicate; omission targets all rows.
+- **`search_condition`** — An optional predicate; without USING, omission targets all rows.
 
 ## Remarks
 
@@ -46,7 +47,7 @@ and select no row; IS NULL can filter rows but supplies no seek bound.
 their WHERE subquery checks, materialize in one statement snapshot before any deletion. A dropped
 or replaced bound index falls back to a residual-filtered scan. RETURNING order is unspecified.
 
-Correlated and uncorrelated scalar, IN/NOT IN and EXISTS/NOT EXISTS [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
+Correlated and uncorrelated scalar, IN/NOT IN, EXISTS/NOT EXISTS and ANY/SOME/ALL [subqueries](../expressions/subqueries.md#update-and-delete-snapshots)
 execute in WHERE. Independent children materialize once; correlated children evaluate for each
 candidate row before any deletion. Both use pre-statement values, including self-reads; the session's earlier uncommitted changes are visible. Rollback restores rows and
 cascades together. [RETURNING](../clauses/returning.md) projects old values of directly targeted
@@ -115,28 +116,68 @@ and `(3,30)` in unspecified order. SELECT then returns `1`, `4`.
 
 [Statements](index.md) · [Language (SQL)](../index.md)
 
-## USING sources: parsing and binding only
+## USING sources
 
-DELETE FROM ... USING accepts comma-separated sources and join trees for parsing and binding.
-The target remains a stored table. Execution is deferred to the next batch and reports CK00001
-before evaluating source or RETURNING callbacks or changing rows, including when the source
-would be empty. The refusal leaves an explicit SQL transaction usable.
+DELETE ... USING executes with comma sources and supported join trees over stored tables,
+views, system relations, CTEs and aliased derived queries. The target remains a stored table.
+WHERE and RETURNING bind target and source columns. Aliases hide base names; self-joins need
+distinct names. A source JOIN ON excludes the target and other comma items; target/source
+conditions belong in WHERE.
 
-Bare RETURNING * binds the target columns first, then the visible source columns in namespace
-order, following PostgreSQL. JOIN USING contributes merged visible keys rather than both
-physical keys. [EXPLAIN](explain.md) describes the source plan without executing the mutation.
+The engine collects target/source matches under one statement snapshot before any deletion.
+Only TRUE selects an association; NULL comparisons yield UNKNOWN, and LEFT sources can supply
+NULL-extended columns. SQL has no MISSING value. Earlier uncommitted session changes are visible;
+reachable CTEs materialize once. Each physical target is deleted once even if several sources
+match. Equal unkeyed target rows remain distinct. Unlike UPDATE FROM, multiple matches do not
+raise CS05068.
 
-With tables t(id INT, v INT) and s(id INT, v INT), this statement is recognized and bound:
+RETURNING reads old target values and one collected source association per target. Which source
+is retained, and result order, are unspecified. Bare RETURNING * expands target columns then
+visible sources in written USING order, retaining JOIN USING's merged-column ordering. Duplicate
+output names are allowed. Cascades and child SET actions contribute no extra RETURNING rows or
+direct affected count. Subqueries in RETURNING remain CK00001.
+
+The target stays outer in the association join. Safe target-only predicates can seek it;
+mandatory target/source equalities can drive a source index probe or budgeted hash join.
+Equality-driven steps follow written USING order: list the source connected by equality to the
+target first (USING b, a when only b connects to the target). General join-order search is
+later work (#1629). [EXPLAIN](explain.md#source-dml) describes these paths without deleting rows.
+Hash builds use StatementMemoryBudget (CS05067 / 53200 on exhaustion); target/association
+collections are outside that hash-build budget.
+
+A concurrently committed change to a collected target raises the existing first-updater-wins
+DatabaseTransactionAbortedException, rather than following a replacement row, including after a
+ReadCommitted row-lock wait. Source values remain from collection. Joined DML retains intent-shared
+table locks on read sources, including tables read only by CTEs or subqueries, until transaction
+end. Cascade retries reuse collected associations and reacquire source intents. Failure releases
+new statement grants after undo and preserves earlier transaction grants.
+
+Ordinary NO ACTION/RESTRICT, CASCADE, SET NULL and SET DEFAULT actions and their constraint checks
+apply atomically. Constraint or RETURNING failures restore targets, child actions and indexes and
+leave earlier explicit-transaction work usable. See [UPDATE FROM](update.md#from-sources) for
+association planning and [constraints](../constraints.md) for child-action diagnostics.
+
+### Example
+
+Execute separately in a new database:
 
 ```sql
-EXPLAIN DELETE FROM t USING s WHERE t.id = s.id RETURNING *;
+CREATE TABLE t (id INT, v INT);
+CREATE TABLE s (id INT, v INT);
+INSERT INTO t VALUES (1,0), (1,0);
+INSERT INTO s VALUES (1,7), (1,7);
+DELETE FROM t USING s WHERE t.id = s.id RETURNING t.v, s.v;
+SELECT COUNT(*) FROM t;
 ```
 
-EXPLAIN includes the source plan and a four-column RETURNING description (id, v, id, v).
-Removing EXPLAIN reports CK00001 and changes no rows. Ordinary NULL predicate rules apply
-during binding; SQL has no MISSING value. No source-DML execution behavior is promised here.
+DELETE affects two physical targets and returns two (0,7) rows. COUNT returns 0. The four
+matching associations do not produce four deletions.
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceExecutionTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceConcurrencyTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.
 
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.
 

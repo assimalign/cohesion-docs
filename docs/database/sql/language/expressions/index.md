@@ -10,12 +10,13 @@ Reference for scalar values, operators, conditional expressions, conversions, an
 - **[CASE](case.md)** — Select a scalar branch.
 - **[CAST](cast.md)** — Convert within the exact supported pair matrix.
 - **[Subqueries](subqueries.md)** — Evaluate correlated and uncorrelated scalar, membership, and existence queries.
+- **[Quantified comparisons](quantified-comparisons.md)** — Compare a scalar with ANY/SOME/ALL rows of a subquery.
 - **[Literals and identifiers](literals.md)** — Write values and delimited identifiers.
 - **[Parameters](parameters.md)** — Bind command values by name.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 51-of-57 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 54-of-60 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

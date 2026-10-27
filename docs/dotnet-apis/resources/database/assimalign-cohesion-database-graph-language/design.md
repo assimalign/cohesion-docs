@@ -340,7 +340,7 @@ WHERE disjunctions supply no union anchor. See [MATCH](../../../../database/grap
 
 Runtime storage/index and open I/O failures carry CG06006 in Diagnostics; only wire formatting
 adds its prefix. Attached-index corruption leads with CK06003 and retains CK06102 and
-CG06006. Graph records/registrations require format 4; older layouts are refused with
+CG06006. Graph records/registrations require format 5; older layouts are refused with
 CG06017 before logical recovery scrub. See [diagnostics](../../../../database/graph/language/diagnostics.md).
 
 ## BEGIN transaction alias

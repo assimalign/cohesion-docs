@@ -51,7 +51,7 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG01014` | Caller parameter keys collide after stripping one sigil |
 | `CG01015` | Duplicate final RETURN column name under ordinal, case-sensitive comparison; planning rejects the second expression before reads/mutations, even on empty matches or under EXPLAIN; no SQLSTATE assigned |
 | `CG07016` | Possible composite wire projection without negotiated graph.composite-values; before reads, writer locks or writes, even for empty matches or skipped branches; no SQLSTATE assigned |
-| `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2 and 3; requires format 4 and recreation, with no upgrade path or assigned SQLSTATE |
+| `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2, 3 and 4; requires format 5 and recreation, with no upgrade path or assigned SQLSTATE |
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the authenticated session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
@@ -122,7 +122,7 @@ CG06017 is an open-time format refusal before logical recovery scrub. Graph.Stor
 StorageCorruptionException with the code in its message; the engine retains CG06017 and
 CG06018 alongside CK06003 in DatabaseCorruptionException.Diagnostics. Recreate a database
 whose graph record format is unsupported; there is no upgrade reader.
-The engine requires format 4. A cleanly closed older file set stays byte-identical on refusal;
+The engine requires format 5. A cleanly closed older file set stays byte-identical on refusal;
 physical WAL recovery can precede the fence for a crashed file set.
 
 A graph record shorter than its 18-byte format header is located truncation corruption,

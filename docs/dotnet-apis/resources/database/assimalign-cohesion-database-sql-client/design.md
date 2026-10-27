@@ -79,7 +79,7 @@ remains the server's responsibility.
 Disposing a typed connection returns its shared authenticated session; disposing the client closes
 its pool. Connections support one exchange at a time.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 `SqlConnection.AbortAsync` discards a rental and closes its session instead of returning it to the
 pool. `Use` it when SQL session state cannot be reset, including a failed ROLLBACK or uncertain
@@ -245,7 +245,29 @@ begin with a complete `CS` code followed by a colon. ExecutionFailure leaves the
 See [all execution codes and SQLSTATE mappings](../../../../database/sql/language/diagnostics.md#planning-and-execution-diagnostics).
 This changes no public client member or wire format.
 
+## Quantified comparisons
+
+Scalar ANY/SOME/ALL subqueries use the existing query exchange over InMemory and TCP.
+UNKNOWN arrives as a NULL Boolean cell. Ordinary diagnostics retain CS01015 for names,
+CS02055 (42804) for compared incompatible non-NULL values and CS05013 for subquery width;
+complete statement errors preserve connection reuse. See
+[quantified comparisons](../../../../database/sql/language/expressions/quantified-comparisons.md).
+
+## Joined DML
+
+UPDATE FROM and DELETE USING use the ordinary command/result exchange over InMemory and TCP.
+QueryAsync returns source/target projections and the direct affected count; ExecuteAsync buffers
+and discards RETURNING rows. Visible star metadata retains JOIN USING merges, duplicate names,
+type modifiers and LEFT nullability. Multiple UPDATE source matches raise SqlClientException
+with CS05068 (21000) before writes; the connection and earlier explicit work remain usable.
+Constraints and result preparation retain statement rollback. See
+[SqlConnection](sql-connection.md#joined-mutations).
+
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlQuantifiedComparisonWireTests.cs`.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

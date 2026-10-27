@@ -32,11 +32,11 @@ public sealed class DocumentConnection : IAsyncDisposable
 ## Behavior and exceptions
 
 QueryAsync materializes rows or whole documents; ExecuteAsync returns the affected count (-1 for
-queries, zero for DDL, written count for INSERT/UPSERT, deleted count for DELETE, matched count for UPDATE). Parameters follow case-sensitive bare-name
+queries, zero for DDL and transaction controls, written count for INSERT/UPSERT, deleted count for DELETE, matched count for UPDATE). Parameters follow case-sensitive bare-name
 binding and accept JSON scalars/JsonElement values. Requests snapshot parameter/content bytes before
 their first await. Get returns null when absent; Put replaces/upserts and returns a new version;
 Delete returns whether a document existed. Expected versions must match visible content. Collection
-operations return names; lists use ordinal name order. Explicit transactions are absent.
+operations return names; lists use ordinal name order. Text controls manage the connection's transaction.
 
 Blank statement/names or invalid parameters throw ArgumentException; invalid wire JSON can throw
 ProtocolException. Disposed rentals throw ObjectDisposedException, concurrent exchanges
@@ -48,7 +48,42 @@ rental exactly once; Abort discards it. Repeated disposal cannot return a later 
 
 The wrapper caches Database at rental time, so that name remains readable after disposal; IsOpen
 returns false. Its shared DatabaseConnection lease permanently rejects execution after return.
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+
+## Text transactions
+
+ExecuteAsync accepts [BEGIN/START, COMMIT and ROLLBACK](../../../../database/document/language/statements/transactions.md)
+and returns zero for each successful control. Use the same connection throughout. Snapshot is
+the default; `BEGIN ISOLATION LEVEL READ COMMITTED` refreshes the committed snapshot for each
+statement. QueryAsync, OQL writes and typed CRUD share the transaction and see its own writes.
+
+A server statement failure faults the transaction. DocumentClientException retains the original
+diagnostic; subsequent work reports CD04101. ROLLBACK discards pending writes and recovers the
+session. COMMIT on a failed transaction reports CD04101 and ends it without committing. OQL
+collection/index DDL inside it reports CD04105. A current client negotiates transaction-status;
+CD07002 is the server refusal for controls from a peer without that agreement.
+
+DisposeAsync joins the last operation and rolls back active or failed work before returning the
+session to the pool. Reset must complete with both counts zero and Idle status. Invalid or
+missing status, failed reset, unfinished cancellation, or an unnegotiated peer causes discard.
+
+After COMMIT's Complete acknowledgement, status cleanup ignores caller cancellation and uses a
+five-second internal bound. If it succeeds, ExecuteAsync returns success even if the caller's
+token was canceled during cleanup. If COMMIT throws because its completion or Ready is lost,
+the outcome is unknown to the caller and the connection is discarded. A missing Ready can raise
+OperationCanceledException from that internal bound independently of the caller's token; closure
+before Ready raises DocumentClientException with ProtocolViolation. Cleanup never retries COMMIT
+or promises to undo committed work.
+
+With `items` already created, the wire transaction tests exercise this sequence:
+
+```csharp
+await connection.ExecuteAsync("BEGIN");
+await connection.PutAsync("items", "pending", "{}"u8.ToArray());
+Console.WriteLine((await connection.GetAsync("items", "pending")).HasValue); // True
+await connection.ExecuteAsync("ROLLBACK");
+Console.WriteLine((await connection.GetAsync("items", "pending")).HasValue); // False
+```
 
 ## Example
 
@@ -100,3 +135,6 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/src/DocumentConnection.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentClientWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentTransactionTextWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentTransactionCancellationTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/DocumentTransactionResetTests.cs`.

@@ -157,7 +157,7 @@ ends the lease; metadata and execution then throw ObjectDisposedException, while
 false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
 later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
 
-SQL and Graph negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).
@@ -399,17 +399,19 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 51 of 57 declared clauses. Document and Graph have their own
+The current SQL contract measures 54 of 60 declared clauses. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization. The former replication and
 governance projects are removed and supply no current API.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
-foreign-key validation for multi-row UPDATE. OQL adds [in-process text transactions](document/language/statements/transactions.md);
-its servers refuse those controls with CD07002 in this batch. GQL supports outer
+foreign-key validation for multi-row UPDATE. OQL supports [text transactions](document/language/statements/transactions.md) in process and over
+the wire; CD07002 only refuses peers without negotiated transaction-status. GQL supports outer
 [WALK/TRAIL/SIMPLE/ACYCLIC modes](graph/language/patterns.md#path-modes), with TRAIL as its default.
-SQL UPDATE ... FROM / DELETE ... USING parse and bind but execution remains CK00001.
+SQL [UPDATE ... FROM](sql/language/statements/update.md#from-sources) and
+[DELETE ... USING](sql/language/statements/delete.md#using-sources) execute; UPDATE rejects
+multiple source matches per target with CS05068 before writes, while DELETE deduplicates targets.
 
 The Phase 29 hosting implementation supersedes older eager-builder examples in the program plan.
 It adds no ApplicationModel functionality; that work remains deferred by the hosting design.
