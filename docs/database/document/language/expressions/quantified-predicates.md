@@ -29,8 +29,11 @@ Boolean, never NULL merely because an element predicate is unknown.
 | NULL or non-array collection | NULL | NULL |
 
 NOT negates Boolean results and preserves collection NULL/MISSING. Quantifiers work in
-projections, filters and UPDATE/DELETE predicates or values. They do not provide an index seek
-through their inner predicate.
+projections, filters and UPDATE/DELETE predicates or values. Top-level conjunctive ANY/SOME
+predicates over document paths can use [DISTINCT array indexes](../statements/create-index.md#array-access-and-fetch-bounds).
+The full predicate still evaluates on each candidate, preserving same-element semantics and
+independent quantifier witnesses. EVERY, NOT ANY and OR-only element predicates do not supply
+array seeks.
 
 ## Diagnostics
 

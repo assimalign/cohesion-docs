@@ -51,6 +51,7 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlRelationReference and SqlTableReference](sql-relation-reference.md)** — Named and derived relation base and named-table leaf.
 - **[SqlDerivedTableReference](sql-derived-table-reference.md)** — Aliased SELECT and optional output renames.
 - **[SqlJoinClause](sql-join-clause.md)** — Join kind, ON predicate and ordered USING names.
+- **[SqlAlterColumnTypeAction](sql-alter-column-type-action.md)** — Target type/collation and old-row USING conversion.
 - **[SqlAlterTableExpression](sql-alter-table-expression.md)** — Table and one typed ALTER action.
 - **[SqlAlterRenameTableAction](sql-alter-rename-table-action.md)** — Parsed ALTER payload and execution contract.
 - **[SqlAlterRenameColumnAction](sql-alter-rename-column-action.md)** — Parsed ALTER payload and execution contract.

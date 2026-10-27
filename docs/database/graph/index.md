@@ -60,7 +60,7 @@ find minimum unweighted hops in one statement snapshot. Outgoing is the default;
 support reverse and undirected searches. Disconnected or invisible endpoints return null, and a
 visible node to itself has distance zero. Ties use the smallest relationship-ID sequence. Search
 has no hop cap; memory/work exhaustion fails. GQL [selectors](language/path-selectors.md) support
-parsing, binding and EXPLAIN; execution remains refused with CK00001 in this step.
+per-pair execution and EXPLAIN under statement budgets and the 64-hop backstop.
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL
@@ -94,8 +94,8 @@ update the current working copy and count each changed entity once.
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
 lock and replan before evaluation. Format-5 records keep prior versions visible to old snapshots;
 older graph records/registrations are refused before logical recovery scrub with
-[CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 26 of
-33 declared clauses.
+[CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 28 of
+35 declared clause names, including PATH SELECTOR.
 
 Detected storage damage uses [CK06003](language/diagnostics.md), with database/page context
 in DatabaseCorruptionException. An unsupported graph-record open also retains CG06017 and
@@ -190,6 +190,7 @@ See [storage indexes](../../dotnet-apis/resources/database/assimalign-cohesion-d
 
 ## Sources
 
+- **Executable profile** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlClauses.cs`, `GqlLanguageProfile.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/docs/OVERVIEW.md`.

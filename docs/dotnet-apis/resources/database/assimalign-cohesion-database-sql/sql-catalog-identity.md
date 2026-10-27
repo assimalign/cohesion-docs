@@ -28,8 +28,8 @@ identity per table, signed built-in integer storage, direction-dependent bounds,
 and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
-Table extension 6 stores the definition (the identity facet originated in extension 5); catalog kind 16 stores the last durable reserved
-value. Current SQL format 26 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
+Current table extension 7 stores the definition (the identity facet originated in extension 5); catalog kind 16 stores the last durable reserved
+value. Current SQL format 27 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
 
 ## Example
 
@@ -52,7 +52,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

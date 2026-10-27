@@ -56,7 +56,7 @@ rather than being rounded by the parser.
 | `CD01023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
 | `CD03022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 | `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
-| `CD03025` | Typed index has multiple array keys, is a UNIQUE array index, or includes MISSING with a leading array key | — |
+| `CD03025` | Index has multiple array keys, is a UNIQUE array index, or includes MISSING with a leading array key | — |
 | `CD03026` | Encoded index definition exceeds 8,092 bytes; before posting extraction/tree creation | — |
 | `CD01025` | DROP INDEX finds no index without IF EXISTS | — |
 | `CD02026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
@@ -104,8 +104,13 @@ continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
 The typed [array index API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md)
 uses CD03025/CD03026 as DocumentCatalogException conditions. Unsupported typed WHEN constants,
 including Single/Double, or predicates above 32 levels/128 nodes use uncoded ArgumentException.
-OQL array-index syntax remains CK00001 in this step. V3 index records are required; v1/v2 are
+OQL DISTINCT ARRAY DDL executes; ALL ARRAY remains CK00001. V3 index records are required; v1/v2 are
 refused before recovery writes with CD06105 and a recreate remedy. No SQLSTATE is assigned.
+
+OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
+(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression) and
+CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an assigned SQLSTATE.
+See [CREATE INDEX](statements/create-index.md).
 
 ## Locations and wire behavior
 

@@ -38,8 +38,10 @@ the following read-only sources from the statement's catalog snapshot:
 
 `INDEXES` has one document per visible index. `OBJECT_OWNERSHIP` has one per visible collection;
 index ownership follows the collection rather than an independent index owner. For scalar-only
-indexes, `PATHS` is the ordered path array and `PATH` its leading element. For typed array indexes,
-`PATHS` is empty and `PATH` is the empty string; array-aware .NET consumers use
+indexes, `PATHS` is the ordered path array and `PATH` its leading element. For array indexes,
+PATHS renders ordered scalar paths and normalized DISTINCT ARRAY keys; PATH
+is the leading rendered key. Array keys use canonical variable v and a quoted source root.
+The typed metadata API still exposes scalar-only Paths/Path; array-aware .NET consumers use
 [DocumentIndexMetadata.Keys](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-metadata.md).
 `IS_UNIQUE` is the actual flag.
 See [composite/UNIQUE indexes](../statements/create-index.md).

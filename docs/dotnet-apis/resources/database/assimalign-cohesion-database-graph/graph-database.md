@@ -69,7 +69,8 @@ CK04002. Lifecycle refusals take precedence over missing records. If the operati
 but a selected node or relationship is absent during reconstruction, DatabaseException carries
 structured CG05022. These conditions have no assigned SQLSTATE.
 
-GQL path selectors, including ANY SHORTEST, remain refused with CK00001; these methods are typed APIs.
+GQL [selectors](../../../../database/graph/language/path-selectors.md), including ANY SHORTEST,
+also execute. They retain the GQL 64-hop backstop and per-pair path-history/output budgets.
 
 ## Example
 

@@ -32,7 +32,10 @@ the stored value and exact bytes. Named projections retain
 
 Grouping, HAVING, aggregates, DISTINCT and ORDER BY consume expanded tuples; ORDER BY output
 aliases take precedence over variable names. A document-only WHERE conjunct can still use an
-index. Variable-headed paths and quantified predicates do not supply array-index seeks.
+index. Direct document-path sources can use a [DISTINCT array index](../statements/create-index.md#array-access-and-fetch-bounds)
+when a mandatory element comparison supplies its bound. LEFT UNNEST is eligible when that
+comparison rejects the synthetic MISSING row. Candidates deduplicate before content fetch;
+expansion retains duplicate elements. Dependent sources do not supply array seeks.
 Expansion has no row cap and can multiply memory use. [EXPLAIN](../statements/explain.md)
 adds Unnest/LeftUnnest nodes with each variable name.
 
@@ -64,11 +67,17 @@ The first query returns {"id":"a","t":"blue"} and {"id":"a","t":null}.
 The second returns {"d":{"tags":["blue",null]},"tags":"blue"},
 {"d":{"tags":["blue",null]},"tags":null}, then {"d":{}}. Its inferred variable is tags.
 
+For a document with `tags:[1,1,2]`, an index
+`CREATE INDEX by_tag ON items (DISTINCT ARRAY v FOR v IN tags END)` can supply candidates for
+`SELECT t FROM items d UNNEST d.tags t WHERE t>=1`. The result still contains 1, 1 and 2:
+distinct postings deduplicate document fetches, not expanded rows.
+
 ## See also
 
 [FROM](from.md) · [SELECT](../statements/select.md) · [Quantified predicates](../expressions/quantified-predicates.md) · [Clauses](index.md)
 
 ## Sources
 
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.ArrayIndexes.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Arrays.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlArrayParserTests.cs`.

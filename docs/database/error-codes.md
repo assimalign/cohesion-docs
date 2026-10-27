@@ -99,19 +99,29 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## SQL ALTER COLUMN TYPE
+
+[TYPE with USING](sql/language/statements/alter-table.md#alter-column-type) adds CS02064 for a
+missing assignment cast on an old value, USING result or dependent default (42804,
+datatype_mismatch). Full-definition default/implicit collation changes retain CS05013 (no SQLSTATE).
+Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
+see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
+
 ## SQL MERGE
 
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
 and CS05071 for a WHEN following an unconditional clause of the same match kind. Neither has an
 assigned SQLSTATE. FULL associations reuse CS05070 for missing safe hash equality or ON safety
-proof (no SQLSTATE). Execution is refused with CK00001 in this step; plain EXPLAIN is supported.
+proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications
+or overlapping direct UPDATE/referential writes, and CS05067 (53200) for retained joined-DML state
+exhaustion before writes. Plain EXPLAIN remains nonexecuting.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 26 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 27 is unchanged.
 
 ## SQL table rewrite
 
@@ -119,7 +129,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 26 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 26 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 27 is unchanged.
 
 ## Document array indexes
 
@@ -128,6 +138,11 @@ adds CD03025 for multiple array keys, UNIQUE array indexes or IncludeMissing wit
 key, and CD03026 for an encoded index definition above 8,092 bytes (before posting extraction or
 tree creation). Neither has an assigned SQLSTATE. Unsupported typed WHEN constants/tree sizes
 retain ArgumentException. Index v3 is required; v1/v2 open refusals retain CD06105 (no SQLSTATE).
+
+OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
+(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression) and
+CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an assigned SQLSTATE.
+See [CREATE INDEX](document/language/statements/create-index.md).
 
 ## Document comprehensions
 
@@ -145,8 +160,10 @@ the write transaction. See [Document diagnostics](document/language/diagnostics.
 ## Graph shortest paths
 
 [GQL selectors](graph/language/path-selectors.md) add CG00011 for a missing/nonpositive/nonliteral
-Int64 SHORTEST count and CG01016 for a selected prefilter referencing a peer-path-only variable
-in the same MATCH. Neither has an assigned SQLSTATE. Counted ANY retains CK00001.
+Int64 SHORTEST count and CG01016 for a search prefilter referencing a peer-path-only variable
+in the same MATCH, with or without a selector. Neither has an assigned SQLSTATE. Counted ANY
+retains CK00001. Selector execution uses CG05004 for work or unresolved 64-hop searches and
+CG05020 for retained history/state/output; no partial result escapes. Neither has a SQLSTATE.
 
 Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
 while the operation remains active (no SQLSTATE). Session/transaction termination keeps its

@@ -155,8 +155,10 @@ mandatory target/source equalities can drive a source index probe or budgeted ha
 Equality-driven steps follow written USING order: list the source connected by equality to the
 target first (USING b, a when only b connects to the target). General join-order search is
 later work (#1629). [EXPLAIN](explain.md#source-dml) describes these paths without deleting rows.
-Hash builds use StatementMemoryBudget (CS05067 / 53200 on exhaustion); target/association
-collections are outside that hash-build budget.
+StatementMemoryBudget covers hash builds and retained targets, source/intermediate buffers,
+derived copies, associations and joined cascade state. CS05067 (53200) refuses exhaustion before
+any write; reservations release on every exit, with no spill. General result materialization and
+transient expression values remain outside it.
 
 A concurrently committed change to a collected target raises the existing first-updater-wins
 DatabaseTransactionAbortedException, rather than following a replacement row, including after a

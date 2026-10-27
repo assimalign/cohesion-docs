@@ -7,7 +7,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 The profile measures 57 of 63 named clauses against the live engine. The 6 excluded names are
 `RECURSIVE`, `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
-The measure includes binding-only MERGE through plain EXPLAIN; MERGE execution reports CK00001.
+The measure includes executable MERGE with ordered actions and RETURNING.
 
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
 SELECT-only EXPLAIN ANALYZE executes to report candidate work. Standalone ANALYZE remains unsupported.
@@ -64,7 +64,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CAST to an unknown name | `CS02010` | Type/domain does not resolve |
 | Invalid CAST target parameters | `CS00005` | See the conversion bounds |
 | Unsupported CAST source/target pair | `CS02011` | Known source types reject while planning, even on empty input |
-| ALTER SET SCHEMA, RENAME CONSTRAINT, TYPE/SET DATA TYPE or comma-separated actions | `CK00001` | Table/column RENAME and column default/nullability actions execute |
+| ALTER SET SCHEMA, RENAME CONSTRAINT or comma-separated actions | `CK00001` | Table/column RENAME, default/nullability actions and [TYPE with USING](statements/alter-table.md#alter-column-type) execute |
 | Volatile ADD COLUMN DEFAULT on a populated table | `CS03027` | Requires no live rows; stable additions freeze one missing value |
 | CAST in CHECK | `CS03059` (42P17) | CAST executes in column DEFAULT expressions |
 | Columns, parameters or aggregates in DEFAULT | `CS05013` | Defaults have no column or parameter scope |
@@ -87,7 +87,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
-| MERGE execution | `CK00001` | [MERGE](statements/merge.md) parses, binds and supports plain EXPLAIN in this step |
+| MERGE concurrent-target rechecks and complete mixed-action final-state constraints | Deferred | [MERGE](statements/merge.md) executes; stale targets use existing version checks |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
 | Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |

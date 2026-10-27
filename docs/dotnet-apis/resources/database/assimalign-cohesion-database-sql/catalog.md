@@ -68,7 +68,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 26 and compiled schema version 8.
+The integration branch uses SQL row-storage format 27 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -80,7 +80,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

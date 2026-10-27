@@ -6,8 +6,7 @@ Reference for Cohesion's declared SQL dialect and its measured execution boundar
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
-results, state changes, or an intended semantic error. MERGE is the staged exception: its advertised
-clause is measured through binding and nonexecuting EXPLAIN; action execution reports CK00001.
+results, state changes, or an intended semantic error. MERGE executes ordered actions and RETURNING.
 Counts describe named clauses, not complete
 International Organization for Standardization (ISO) SQL compatibility.
 
@@ -30,12 +29,11 @@ manipulation language (DML), and transaction control.
 - **Transactions** — [BEGIN](statements/begin-transaction.md),
   [COMMIT](statements/commit-transaction.md), and [ROLLBACK](statements/rollback-transaction.md).
 
-[MERGE](statements/merge.md) supports syntax, binding and EXPLAIN; executing it reports CK00001
-in this release step. [EXPLAIN](statements/explain.md) describes SELECT/INSERT/UPDATE/DELETE/MERGE
+[MERGE](statements/merge.md) executes ordered INSERT/UPDATE/DELETE actions and RETURNING. [EXPLAIN](statements/explain.md) describes SELECT/INSERT/UPDATE/DELETE/MERGE
 without execution.
 
 - **Views** — [CREATE [OR REPLACE] VIEW](statements/create-view.md) and [DROP VIEW](statements/drop-view.md).
-- **Write results** — [INSERT/UPDATE/DELETE RETURNING](clauses/returning.md) returns rows and affected counts.
+- **Write results** — [INSERT/UPDATE/DELETE/MERGE RETURNING](clauses/returning.md) returns rows and affected counts.
 - **Conflicting inserts** — [ON CONFLICT](clauses/on-conflict.md) skips conflicts or updates the newest eligible row with EXCLUDED.
 
 ## Clauses

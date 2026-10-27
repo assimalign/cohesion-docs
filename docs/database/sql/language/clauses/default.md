@@ -61,6 +61,12 @@ remain ordinary column references. A NOT NULL failure is `CS03024` (SQLSTATE 235
 the column with the statement span when source text is available. The failed statement changes no rows and preserves
 earlier work in an explicit transaction.
 
+[ALTER COLUMN TYPE](../statements/alter-table.md#alter-column-type) independently re-casts the
+original default with assignment semantics; USING applies only to old rows. A missing assignment
+cast is CS02064 (42804), even on an empty table. Immutable defaults freeze to canonical literals;
+Stable/Volatile defaults retain per-insert evaluation with assignment coercion. A column with no
+default inherits the target domain's default.
+
 ## Examples
 
 TIME, INTERVAL and floating text defaults use the same conversion as assignment and CAST.
@@ -78,7 +84,7 @@ SELECT clock, elapsed = INTERVAL '12' AS twelve_seconds, reading FROM text_defau
 Execute separately; SELECT returns `(13:00:00, TRUE, 1000)`.
 Typed .NET TimeSpan defaults render exact signed total seconds with a `seconds` unit, including
 every tick at TimeSpan.MinValue/MaxValue. This changes compiled schema identity to v8; earlier
-artifacts and catalog formats are refused. See the [upgrade note](../../index.md#sql-format-26-and-schema-v8).
+artifacts and catalog formats are refused. See the [upgrade note](../../index.md#sql-format-27-and-schema-v8).
 
 Execute each statement separately:
 

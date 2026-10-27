@@ -8,7 +8,7 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 - **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG, with DISTINCT/ALL and ordered inputs.
 - **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.
-- **[merge_action()](merge-action.md)** — Contextual TEXT expression in MERGE RETURNING; binding/EXPLAIN only.
+- **[merge_action()](merge-action.md)** — Returns INSERT, UPDATE or DELETE in MERGE RETURNING.
 
 ## SQL-defined functions
 

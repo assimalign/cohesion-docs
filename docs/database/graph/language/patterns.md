@@ -2,7 +2,7 @@
 
 Graph patterns describe fixed or quantified paths of labeled nodes and typed relationships with scalar expression properties.
 
-> **Status:** Fixed/quantified matching executes; selectors and inline WHERE support binding/EXPLAIN only.
+> **Status:** Fixed/quantified matching, selectors and inline WHERE execute under statement budgets.
 
 ## Syntax
 
@@ -108,7 +108,7 @@ for the counting description; LIMIT does not reduce matching work.
 ## Path modes
 
 [Path selectors](path-selectors.md) document the selector prefix, count/group ordering and inline
-WHERE prefilters. Those forms bind and EXPLAIN, but execution reports CK00001 in this step.
+WHERE prefilters. Those forms execute per ordered endpoint pair under statement budgets.
 
 Write the mode after any path assignment: `MATCH p = WALK PATHS (a)->{1,3}(b) RETURN p`.
 PATH and PATHS are optional synonyms. A mode applies to the complete outer path, including all
@@ -116,7 +116,7 @@ fixed edges and parenthesized/quantified segments, regardless of the chosen inde
 
 | Mode | Identity reuse within one complete path |
 | --- | --- |
-| WALK | Nodes and relationships may repeat; every quantifier must have a finite upper bound |
+| WALK | Nodes and relationships may repeat; unselected quantifiers require a finite upper bound |
 | TRAIL | Relationship identities cannot repeat; node identities may repeat; the default when omitted |
 | SIMPLE | Node identities cannot repeat except that the final node may close onto the first |
 | ACYCLIC | Node identities cannot repeat, including the first at the end |
@@ -127,7 +127,7 @@ Each comma-separated path has its own mode and may reuse another path's identiti
 
 A mode inside a parenthesized or quantified subpath reports CK00001. Unselected unbounded WALK reports
 CK00001 even with LIMIT: this includes +, *, open ISO upper bounds and open Cypher lengths.
-Selectors permit unbounded WALK during planning; their execution remains CK00001. Mode words remain contextual
+Selectors permit unbounded WALK during execution under the same hop/work and memory budgets. Mode words remain contextual
 identifiers. INSERT/CREATE modes report CG00002; invalid direct AST mode values or insertion
 modes report CG05001. Work, retained-memory, cancellation and the 64-hop limit apply to every
 mode (CG05004 for hop/work limits, CG05020 for memory). EXPLAIN shows the resolved mode.
@@ -186,9 +186,9 @@ No new wire encoding is required.
 | CG00005 | Text repetition-bound sum above 64 |
 | CG00008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
 | CG00009 | Parser stack guard while nesting subpaths; engine translates to CG05008 (54001) |
-| CK00001 | Questioned path ?, nested quantifiers, subpath assignment, nested modes/selectors, unselected unbounded WALK, counted ANY or selector/inline WHERE execution |
+| CK00001 | Questioned path ?, nested quantifiers, subpath assignment, nested modes/selectors, unselected unbounded WALK, counted ANY |
 | CG00011 | SHORTEST count is missing or is not a positive Int64 literal |
-| CG01016 | Selected prefilter references a peer-path-only binding in the same MATCH |
+| CG01016 | Search prefilter references a peer-path-only binding in the same MATCH |
 | CG05001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
 | CG03003 | Invalid use of group variables as described above |
 | CG05004 | Runtime 64-hop path or configured physical-work limit |

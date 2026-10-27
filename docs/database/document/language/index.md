@@ -37,7 +37,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [UPSERT VALUES/SELECT](statements/upsert.md) | Supported | Whole-document replacement by explicit key; atomic index maintenance |
 | [BEGIN/START, COMMIT, ROLLBACK](statements/transactions.md) | Supported | In process and over the wire; Snapshot by default, explicit READ COMMITTED; CD07002 only without negotiated status |
 | EXPLAIN | Supported | SELECT/INSERT/UPSERT/UPDATE/DELETE plan rows without execution |
-| CREATE/DROP INDEX | Supported | One to 32 ordered paths, UNIQUE and conditional DDL |
+| CREATE/DROP INDEX | Supported | One to 32 ordered scalar/array keys, scalar-only UNIQUE and conditional DDL |
 | COUNT/SUM/AVG/MIN/MAX | Supported | NULL and MISSING skipped; COUNT(*) counts input rows, including expanded UNNEST rows |
 | [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |

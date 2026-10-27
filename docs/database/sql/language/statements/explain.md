@@ -14,9 +14,8 @@ EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | d
 
 ### MERGE plans
 
-Plain EXPLAIN supports [MERGE](merge.md#association-and-explain), whose execution remains CK00001
-in this step. It shows Merge, the complete association tree, ordered MergeAction children and
-RETURNING names. Merge detail includes `actions=written_order; execution=unsupported`; action
+Plain EXPLAIN supports executable [MERGE](merge.md#association-and-explain). It shows Merge, the complete association tree, ordered MergeAction children and
+RETURNING names. Merge detail includes the association kind and `actions=written_order`. Action
 details identify match kind, operation, optional condition and column counts. Action-condition
 subqueries appear under their action. EXPLAIN performs scope, reachability and FULL hash-safety
 checks. ANALYZE remains SELECT-only.
@@ -200,7 +199,8 @@ EXPLAIN UPDATE ... FROM and EXPLAIN DELETE ... USING describe the executable ass
 without running source callbacks, SET/RETURNING expressions or writes. The target stays outer.
 Target-only predicates may show an IndexSeek on the target; mandatory target/source equality
 may show an index-probe step on the source or HashJoin; JoinStep detail includes `hash_budget=no_spill`. Hash builds
-are charged to StatementMemoryBudget during execution. EXPLAIN also shows the target-first,
+and retained joined-DML targets, sources, associations and selected writes are charged to
+StatementMemoryBudget during execution (CS05067 / 53200 before any write). EXPLAIN also shows the target-first,
 visible-source RETURNING * expansion.
 
 For stored t(id INT PRIMARY KEY,v INT) and s(id INT PRIMARY KEY,v INT):

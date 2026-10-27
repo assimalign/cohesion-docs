@@ -21,6 +21,7 @@ There is no public constructor. Table retains the schema-qualified target; Actio
 single parsed operation. Existing ADD/DROP column/constraint and full-definition ALTER actions
 are joined by:
 
+- [SqlAlterColumnTypeAction](sql-alter-column-type-action.md) — Column and optional UsingExpression.
 - [SqlAlterRenameTableAction](sql-alter-rename-table-action.md) — NewName.
 - [SqlAlterRenameColumnAction](sql-alter-rename-column-action.md) — ColumnName and NewName.
 - [SqlAlterSetDefaultAction](sql-alter-set-default-action.md) — ColumnName and DefaultValue.

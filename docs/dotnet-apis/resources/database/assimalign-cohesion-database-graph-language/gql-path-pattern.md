@@ -36,8 +36,8 @@ Undefined modes or insertion modes report CG05001. Group declarations bind order
 Selector is null for ordinary exhaustive matching; an explicit [GqlPathSelector](gql-path-selector.md)
 retains kind/count and prefix location. Predicate is a parenthesized path's search WHERE prefilter.
 ToString renders the complete semantic path, including binding, selector, mode, labels/maps,
-predicates and repetition bounds, with canonical PATH/GROUPS tokens. Selector or inline WHERE
-execution reports CK00001 after binding; EXPLAIN succeeds. Selected prefilters cannot depend on
+predicates and repetition bounds, with canonical PATH/GROUPS tokens. Selectors and inline WHERE
+execute under statement budgets; EXPLAIN remains nonexecuting. Search prefilters cannot depend on
 peer-path-only variables in the same MATCH (CG01016).
 
 ## Example

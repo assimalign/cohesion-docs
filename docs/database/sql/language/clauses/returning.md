@@ -2,7 +2,7 @@
 
 Returns a projection for each directly inserted, updated or deleted row.
 
-> **Status:** Execution for INSERT, UPDATE and DELETE; binding/EXPLAIN only for MERGE.
+> **Status:** Execution for INSERT, UPDATE, DELETE and MERGE.
 
 ## Syntax
 
@@ -14,8 +14,10 @@ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] [ ; ]
 ## Remarks
 
 [MERGE](../statements/merge.md) RETURNING binds target/source columns and the contextual
-[merge_action()](../functions/merge-action.md) TEXT expression. Its execution is refused with
-CK00001 in this step. The execution/result-delivery rules below apply to INSERT/UPDATE/DELETE.
+[merge_action()](../functions/merge-action.md) TEXT expression, yielding INSERT, UPDATE or DELETE.
+It emits one row per direct action: new target values for INSERT/UPDATE, old values for DELETE,
+and NULL source values for BY SOURCE. DO NOTHING and cascades emit no rows. Output order is
+unspecified. The atomic execution/result-delivery rules below also apply to MERGE.
 
 The final list uses SELECT projection rules: star expands in table-column order, pass-through
 columns keep their names, and computed outputs without aliases use columnN names. Expressions

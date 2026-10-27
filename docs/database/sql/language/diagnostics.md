@@ -75,7 +75,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS05042` | Encoded row, index key or catalog definition exceeds its size limit, or catalog DDL generation is exhausted | 54000 (`program_limit_exceeded`) |
 | `CS05040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `CS03035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
-| `CS05036` | ON CONFLICT DO UPDATE would affect a row already inserted or updated by this statement | 21000 |
+| `CS05036` | ON CONFLICT repeats an inserted/updated row; MERGE selects a second modification of one physical target or overlaps direct UPDATE/referential writes | 21000 |
 | `CS03037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
 | `CS03038` | Table CHECK or domain-check violation on a write, CAST to a domain, or function domain argument/result | 23514 |
 | `CS03039` | FOREIGN KEY violation: missing parent on INSERT/UPDATE or a referenced key protected by NO ACTION/RESTRICT on DELETE/UPDATE, including final-row checks | 23503 |
@@ -404,7 +404,7 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement memory for hash builds or CTAS retained source/copy buffers
+CS05067 reports exhausted statement memory for hash builds, retained joined-DML state or CTAS source/copy buffers
 (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
 SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
 [hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
@@ -424,10 +424,25 @@ success with zero affected rows.
 | CS05071 | WHEN follows an unconditional clause of the same match kind, including DO NOTHING | — |
 | CS05070 | FULL MERGE association lacks safe hash equality or a complete ON safety proof | — |
 
-[MERGE](statements/merge.md) syntax, binding and plain EXPLAIN are supported; execution reports
-CK00001 before source/subquery materialization or action evaluation. merge_action arguments or
+[MERGE](statements/merge.md) executes ordered actions and RETURNING atomically. CS05036 (21000)
+refuses repeated physical target modifications and overlapping direct UPDATE/referential writes. merge_action arguments or
 modifiers use CS01006 (42883). Scope, assignment, parameter and identity failures retain their
 ordinary codes. No SQLSTATE is assigned to the new CS01053 or CS05071 conditions.
+
+## ALTER COLUMN TYPE conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS02064 | Old value, USING result or dependent default has no assignment/implicit cast to the target | 42804 |
+| CS05013 | Full-definition ALTER changes the resulting default, or changes collation without explicit COLLATE | — |
+
+[TYPE](statements/alter-table.md#alter-column-type) reuses CS03025 for invalid identity targets/
+ranges, CS03302 (2BP01) for dependent views, CS02055 (42804) and CS02063 (42P21) for FK type/
+collation mismatch, CS03037 (23505) for rebuilt unique-key collisions, CS03038 (23514) for CHECK/
+domain failures and CS03039 (23503) for invalid final FK keys. NOT NULL retains CS03024 (23502).
+Lock waits use CS04044 (55P03); stale writers after publication use CS04006 (no SQLSTATE).
+Conversions retain their ordinary numeric/text/temporal codes. USING subqueries/aggregates/
+windows retain CK00001. DDL remains self-committing with CS04003 (25001) in explicit transactions.
 
 ## Catalog metadata conditions
 
@@ -440,7 +455,9 @@ multiple source associations for one UPDATE target before SET evaluation or any 
 when the source values agree. DELETE instead deduplicates physical targets. CS05068 is a
 statement failure: earlier explicit work and the client connection remain usable.
 
-Joined hash builds retain CS05067 (53200) for the statement memory budget. Constraints and
+UPDATE FROM, DELETE USING and MERGE retain CS05067 (53200) for hash builds, target identities,
+source/intermediate buffers, associations, selected values, encoded replacements and joined
+cascade state. Exhaustion refuses before any write; reservations release on every exit. Constraints and
 RETURNING retain their ordinary codes and undo the whole statement. Concurrent committed target
 changes raise DatabaseTransactionAbortedException through the existing first-updater-wins
 check, preserving physical target identity. Optional SELECT/plain EXPLAIN cost probes that

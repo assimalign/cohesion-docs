@@ -27,7 +27,8 @@ var options = new SqlDatabaseEngineOptions { StatementMemoryBudget = 32L * 1024 
 await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
-The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. Other result materialization and transient planning remain outside this accounting.
+The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. [Joined mutations](#joined-mutations) also charge retained targets, sources, associations and
+selected writes. Other result materialization and transient planning remain outside this accounting.
 
 FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
 match flags charged to the same budget. There is no loop fallback: conditions without a safe
@@ -52,7 +53,11 @@ independent counts while repeated correlated calls to the same reference accumul
 outer. Safe target-only predicates can seek it; mandatory equality to a source can use an
 index probe or hash build on that source. EXPLAIN shows the access paths, join algorithm and
 `hash_budget=no_spill` detail. Hash builds count against StatementMemoryBudget; exhaustion is
-CS05067 (53200) before writes. Target/association collections remain outside this accounting.
+CS05067 (53200) before writes. UPDATE FROM, DELETE USING and MERGE also charge retained
+target identities, non-hash input buffers, derived copies, intermediate frames, associations,
+selected values, encoded replacements and joined cascade state. Exhaustion refuses before any
+write and releases reservations on every exit. Shared objects are charged once; general result
+materialization and transient expression values remain outside the grant.
 
 Equality-driven steps follow written source order. If only b is connected to the target by
 equality, list b first: `FROM b, a` or `USING b, a`. In

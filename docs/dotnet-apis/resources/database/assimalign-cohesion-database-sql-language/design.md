@@ -9,6 +9,17 @@ The SQL front-end (area architecture: resources/`Database`/DESIGN.md
 basic SQL, declared precisely — and structured to be extended without churning what exists
 (open/closed).
 
+## ALTER COLUMN TYPE
+
+[SqlAlterColumnTypeAction](sql-alter-column-type-action.md) retains a target SqlColumnDefinition
+and optional original-row UsingExpression. The renderer overload canonicalizes TYPE, COLLATE,
+USING and escaped domain names. Execution requires assignment/implicit casts for the old value,
+USING result and independent default (CS02064 / 42804). Compatible widenings avoid rewriting;
+other changes use an inline exclusive-lock rewrite with CHECK/domain, FK and index validation.
+Full-definition default/implicit collation changes retain CS05013 (no SQLSTATE). Dependent views
+retain CS03302 (2BP01), invalid identity conversion retains CS03025. See
+[ALTER TABLE](../../../../database/sql/language/statements/alter-table.md#alter-column-type).
+
 ## Design intent
 
 [SqlTruncateExpression](sql-truncate-expression.md) stores an immutable ordered target list and
@@ -21,13 +32,17 @@ CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transacti
 work retained), and retryable CS04064 (40001, concurrent closure change).
 [SqlCreateTableAsExpression](sql-create-table-as-expression.md) represents inferred-table creation,
 including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
-parsing and view output inference; execution uses atomic publication in SQL format 26.
+parsing and view output inference; execution uses atomic publication in SQL format 27.
 
 CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
 [SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
-retain ordered actions and clause spans for binding/EXPLAIN. A later clause after an unconditional
+retain ordered actions and clause spans for execution and EXPLAIN. A later clause after an unconditional
 clause of the same match kind uses CS05071; merge_action() outside MERGE RETURNING uses CS01053.
-Neither has an assigned SQLSTATE. Bound MERGE execution reports CK00001 in this release step.
+Neither has an assigned SQLSTATE. MERGE executes; CS05036 (21000) refuses a second selected
+modification or overlapping direct UPDATE/referential write, and CS05067 (53200) refuses retained
+state above the statement grant before writes. Action conditions, values and read subqueries
+are lazy; RETURNING subqueries remain CK00001. ReadCommitted rechecks and complete mixed-action
+final-state constraints remain deferred. See [MERGE](../../../../database/sql/language/statements/merge.md).
 
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
@@ -133,7 +148,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are CK00001.
-The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 26, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 27, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include CS01028, CS03029, CS03030 and CS03031 and their source SQLSTATE categories.
 
@@ -189,7 +204,7 @@ and uncorrelated subqueries; SET remains row-local. Local names shadow outer sco
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions bind in declaration order, with schema-less names and stored-table fallback for self or
 later-sibling names. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 26
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 27
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
@@ -254,7 +269,7 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 26; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
+format is 27; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
 placement, format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after
 format 21 for persisted namespaces and format 20 for referential actions. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
@@ -262,7 +277,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
@@ -282,7 +298,7 @@ names as identifiers in persisted SQL; compiled schema version stays 8. There is
 Bodies use the existing query-body grammar. The engine persists expanded bound inputs and output
 aliases remain output references. [SqlOrderByColumn](sql-order-by-column.md) independently retains
 Default/First/Last placement; the renderer emits only written modifiers. Format 24 introduced
-persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 26 also fences temporal default text.
+persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 27 also fences temporal default text.
 
 DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
 are contextual refusals; ordinary identifier quoting is unchanged. Subqueries and windows remain
@@ -301,7 +317,7 @@ operator; completed IN/NOT IN lists or subqueries may continue through another p
 Canonical rendering preserves conservative comparison/IS grouping and LIKE operand parentheses.
 DEFAULT's restricted grammar includes comparisons/distinct predicates while leaving following
 constraints unconsumed. Contextual ILIKE/SIMILAR TO and postfix ISNULL/NOTNULL are CK00001.
-These expressions add no named clause or reserved identifier spelling. Format 26 gates the
+These expressions add no named clause or reserved identifier spelling. Current format 27 admits the
 persisted grammar and changed precedence; earlier files have no upgrade reader.
 
 ## Conflict clause shape
@@ -312,8 +328,8 @@ name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
 UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 57 of 63 declared clauses,
-including binding-only MERGE through plain EXPLAIN. MERGE execution reports CK00001. Existing
-keywords/identifier quoting and format 26 are unchanged.
+including executable MERGE and nonexecuting plain EXPLAIN. Existing
+keywords/identifier quoting and format 27 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
 alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated

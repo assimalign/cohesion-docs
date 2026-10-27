@@ -22,6 +22,7 @@ DROP INDEX [ IF EXISTS ] index_name ON collection_name [ ; ]
 ## Remarks
 
 IF EXISTS makes an absent index a no-op. Snapshot conflicts are checked before no-ops.
+Scalar and DISTINCT array indexes use this same DROP syntax; no key expression is repeated.
 An existing schema-owned index still refuses removal; an absent conditional DROP is a no-op
 even in a schema-owned collection.
 
@@ -30,8 +31,8 @@ stop selecting it; older snapshots retain their defined visibility. The engine e
 ownership under the database writer lock. Schema-owned collections reject the operation, and
 reserved system collections are read-only.
 
-The statement uses an active session transaction or an automatic statement transaction. Successful
-execution returns a command `DatabaseResult` with `Success` and an affected count of zero.
+The statement runs in an automatic statement transaction. Successful execution returns a command
+`DatabaseResult` with `Success` and an affected count of zero; explicit transactions refuse DDL.
 
 ## Diagnostics
 

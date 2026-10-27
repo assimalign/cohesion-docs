@@ -159,8 +159,8 @@ index, preventing scalar-only planning from assuming complete document coverage.
 Multiple array keys, UNIQUE array indexes and IncludeMissing with a leading array key use
 CD03025 (no SQLSTATE). Typed WHEN supports element-relative scalar comparisons, IS NULL,
 IS MISSING, AND, OR and NOT; only TRUE qualifies. Unsupported constants (including Single/Double)
-and trees beyond 32 levels/128 nodes throw ArgumentException. OQL array-index DDL and access
-planning are deferred to batch 6.
+and trees beyond 32 levels/128 nodes throw ArgumentException. OQL DISTINCT ARRAY DDL and ANY/UNNEST access
+planning execute; see [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
 
 UNIQUE checks run immediately under the caller's database writer lock before publication, using
 latest committed state plus the caller's earlier writes. Keys containing NULL/MISSING never

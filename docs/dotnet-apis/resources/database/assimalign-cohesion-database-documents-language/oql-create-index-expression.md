@@ -1,6 +1,6 @@
 # OqlCreateIndexExpression
 
-An index definition over ordered document paths.
+An index definition over ordered scalar paths and an optional DISTINCT ARRAY comprehension.
 
 Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 
@@ -14,6 +14,10 @@ public sealed class OqlCreateIndexExpression : OqlExpression
     public OqlCreateIndexExpression(string indexName, string collection,
         IReadOnlyList<OqlPathExpression> paths, bool isUnique, bool ifNotExists,
         Location? location = null);
+    public OqlCreateIndexExpression(string indexName, string collection,
+        IReadOnlyList<OqlExpression> keys, bool isUnique, bool ifNotExists,
+        Location? location = null);
+    public IReadOnlyList<OqlExpression> Keys { get; }
     public string IndexName { get; }
     public string Collection { get; }
     public OqlPathExpression Path { get; }
@@ -25,11 +29,20 @@ public sealed class OqlCreateIndexExpression : OqlExpression
 
 ## Behavior and exceptions
 
-The single-path constructor supplies false for both flags. Paths is a read-only copy and Path
-returns Paths[0]. A null list throws ArgumentNullException. Construction does not validate its
+The single-path constructor supplies false for both flags. Keys is a read-only copy. Each
+OqlComprehensionExpression key denotes DISTINCT ARRAY (IsFirst must be false). Paths is a
+read-only scalar list when all keys are paths, otherwise empty; use Keys for an array index.
+Path returns Paths[0] and therefore cannot be used for an array index.
+A null list throws ArgumentNullException. Construction does not validate its
 count; Path on an empty list throws ArgumentOutOfRangeException. Planning refuses a count outside
 1..32 with DatabaseException/CD03022 and duplicate paths with CD05001. Text uses CD00009
 at the 33rd key and CD00002 for duplicates. Neither count code has an assigned SQLSTATE.
+
+Engine binding validates the restricted source/projection/WHEN grammar before catalog writes:
+CD01028 for a wrong element variable, CD02027 for an unsupported constant (including direct AST
+Single/Double), CD03027 for an excluded expression, CD03028 for a predicate above 32 levels/128
+nodes, and CD03025 for multiple/UNIQUE arrays. All are DatabaseException diagnostics with source
+locations when available and no assigned SQLSTATE.
 
 IfNotExists preserves any existing same-named definition. Build/write UNIQUE failures use
 [DocumentConstraintViolationException](../assimalign-cohesion-database-documents/document-constraint-violation-exception.md),
@@ -47,6 +60,17 @@ Console.WriteLine(create.IsUnique);    // True
 Console.WriteLine(create.IfNotExists); // True
 ```
 
+The array parser tests also cover:
+
+```csharp
+var arrayStatement = (OqlQueryStatement)new OqlQueryParser().Parse(
+    "CREATE INDEX ix ON items (category, DISTINCT ARRAY v.price FOR v IN variants END)");
+var arrayCreate = (OqlCreateIndexExpression)arrayStatement.OqlExpression;
+Console.WriteLine(arrayCreate.Keys.Count);  // 2
+Console.WriteLine(arrayCreate.Paths.Count); // 0
+Console.WriteLine(arrayCreate.Keys[1] is OqlComprehensionExpression); // True
+```
+
 ## Related reference
 
 [Assembly](index.md) · [Design](design.md) · [OqlDropIndexExpression](oql-drop-index-expression.md)
@@ -54,5 +78,5 @@ Console.WriteLine(create.IfNotExists); // True
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlCreateIndexExpression.cs`.
-- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlCompositeIndexParserTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlCompositeIndexParserTests.cs` and `OqlArrayIndexParserTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Planning/DocumentPlanner.cs`.

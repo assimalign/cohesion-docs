@@ -42,23 +42,23 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 57-of-63 measure includes binding-only MERGE through plain EXPLAIN and is not a percentage
+The 57-of-63 measure includes executable MERGE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
-[MERGE](language/statements/merge.md) supports parsing, binding and EXPLAIN only; execution
-reports CK00001 in batch 5.
+[MERGE](language/statements/merge.md) executes ordered actions with RETURNING; concurrent-target
+rechecks and complete mixed-action final-state constraint validation remain deferred.
 [CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
 [DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
 share the same behavior in process and through the supported wire codecs.
 
-[ALTER TABLE](language/statements/alter-table.md) executes table/column renames and column
-SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
+[ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
+table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 26; compiled schemas remain version 8.
+SQL storage format is 27; compiled schemas remain version 8.
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
@@ -139,7 +139,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 26.
+Drop removes sql.dat before the remaining file set. The current format is 27.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -172,7 +172,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 8.
 
@@ -184,13 +185,16 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
-## SQL format 26 and schema v8
+## SQL format 27 and schema v8
 
-SQL opens only data/catalog format **26** and compiled documents in
-**cohesion/database-schema/v8**. Format 26 prevents reinterpretation of older temporal DEFAULT
-and frozen missing-value text: an old INTERVAL `'12'` meant days, while current input means
-seconds. Typed TimeSpan defaults now render exact signed total seconds with a `seconds` unit,
-changing the canonical document and hash for the same declaration.
+SQL opens only data/catalog format **27** and compiled documents in
+**cohesion/database-schema/v8**. Format 27 persists the per-column TYPE default-assignment flag
+in table extension 7. Format-26 databases are refused at open before stored expressions bind;
+there is no upgrade path or legacy reader. Compiled schema v8 is unchanged by this batch.
+
+Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL
+`'12'` meant days, while current input means seconds. Typed TimeSpan defaults render exact signed
+total seconds with a `seconds` unit; that earlier change established schema v8.
 
 Older catalogs are refused before stored expressions bind (CS06041); earlier schema artifacts,
 applied markers and pending targets fail with SqlSchemaValidationException, InvalidDocument at

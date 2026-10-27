@@ -33,8 +33,10 @@ catalog publishes/loads the table, not fully by this constructor.
 MissingValueLiteral is the frozen canonical ADD COLUMN literal used for physically absent trailing
 fields; null means a missing field reads NULL. It is independent of the current insert DefaultLiteral
 and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows never executes the
-insert default. Later type narrowing validates the frozen literal even without live rows. Table
-extension 6 persists this split, introduced by format 17; current SQL storage format is 26.
+insert default. Validation-only full-definition narrowing checks the frozen literal even without live rows. Table
+extension 6 introduced this split in format 17. Current format 27 uses extension 7, which also
+persists the TYPE default-assignment flag. Rewriting TYPE materializes missing tails in the new
+owner; old descriptions retain their original missing literals for old snapshots.
 
 Null name/type throws ArgumentNullException. Blank name/domain name, collation on a non-string
 type, or a blank function identity throws ArgumentException. Invalid identity metadata at publication
@@ -68,7 +70,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
