@@ -133,7 +133,7 @@ adds only the catalog facts those handles do not expose, through two virtual doc
 
 | Source | `Document` properties | Cardinality |
 | --- | --- | --- |
-| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; scalar-only PATHS is the ordered array and PATH its first path; array indexes have empty PATHS and empty-string PATH; IS_UNIQUE is the actual flag |
+| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; PATHS renders ordered scalar/array keys and PATH its first key; array keys use canonical v and a quoted source root; IS_UNIQUE is the actual flag |
 | `COHESION_SCHEMA.OBJECT_OWNERSHIP` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` | One document per visible collection; `OBJECT_TYPE` is `COLLECTION` |
 
 `COLLECTION_CATALOG` is the bound database name. `OWNER` preserves SQL's `Adhoc` and `Schema`
@@ -288,7 +288,14 @@ Metadata persists Keys and IncludeMissing; Paths/Path remain scalar-only and are
 indexes. Multiple array keys, UNIQUE array indexes and IncludeMissing with a leading array key
 use CD03025. Definition records above 8,092 bytes use CD03026 before extraction/tree creation.
 Unsupported typed predicate constants (including Single/Double) and trees above 32 levels/128
-nodes retain ArgumentException. OQL array-index DDL/access planning arrive in batch 6.
+nodes retain ArgumentException. OQL DISTINCT ARRAY DDL and ANY/UNNEST access planning execute; see
+[CREATE INDEX](../../../../database/document/language/statements/create-index.md).
+
+OQL array DDL validates before catalog mutation: CD01028 for a projection/WHEN path outside
+its variable, CD02027 for an unsupported scalar constant, CD03027 for an excluded expression,
+and CD03028 for WHEN above 32 levels/128 nodes. These located diagnostics have no SQLSTATE.
+[Array access](../../../../database/document/language/statements/create-index.md#array-access-and-fetch-bounds)
+deduplicates document candidates, reapplies the complete residual and retains UNNEST multiplicity.
 
 ## Data mutation and serialization semantics
 

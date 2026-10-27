@@ -43,8 +43,8 @@ IncludeMissing on a leading scalar key does not create elements for an empty/fil
 
 Postings reference document versions, not element identities. Search deduplicates document IDs;
 UNNEST still needs the original array to preserve element multiplicity. Build, replacement and
-deletion maintain postings transactionally. OQL array-index DDL and access planning arrive in
-batch 6; this step exposes the typed catalog API only.
+deletion maintain postings transactionally. OQL [DISTINCT ARRAY DDL and ANY/UNNEST planning](../../../../database/document/language/statements/create-index.md)
+execute. A filtered index requires a proven WHEN implication; the full residual remains.
 
 ## Example
 

@@ -79,7 +79,9 @@ execution, without retaining the transaction or borrowed storage memory.
 
 Underlying index reads copy bounded B+Tree batches and pass cancellation at cursor open and
 every move, including latch waits and page/entry reads. Each batch releases its tree latch before
-document decoding. This bounds index-range buffering; SELECT still materializes its result.
+document decoding. This bounds index-range buffering. Eligible
+[array-index pages](create-index.md#array-access-and-fetch-bounds) stop content reads after
+OFFSET + LIMIT residual survivors in identity order; SELECT still owns its materialized result.
 
 With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by the source and array
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and

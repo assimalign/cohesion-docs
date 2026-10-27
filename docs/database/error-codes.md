@@ -129,6 +129,11 @@ key, and CD03026 for an encoded index definition above 8,092 bytes (before posti
 tree creation). Neither has an assigned SQLSTATE. Unsupported typed WHEN constants/tree sizes
 retain ArgumentException. Index v3 is required; v1/v2 open refusals retain CD06105 (no SQLSTATE).
 
+OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
+(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression) and
+CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an assigned SQLSTATE.
+See [CREATE INDEX](document/language/statements/create-index.md).
+
 ## Document comprehensions
 
 OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md) add CD01027 for
