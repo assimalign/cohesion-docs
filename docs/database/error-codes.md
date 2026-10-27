@@ -150,8 +150,10 @@ the write transaction. See [Document diagnostics](document/language/diagnostics.
 ## Graph shortest paths
 
 [GQL selectors](graph/language/path-selectors.md) add CG00011 for a missing/nonpositive/nonliteral
-Int64 SHORTEST count and CG01016 for a selected prefilter referencing a peer-path-only variable
-in the same MATCH. Neither has an assigned SQLSTATE. Counted ANY retains CK00001.
+Int64 SHORTEST count and CG01016 for a search prefilter referencing a peer-path-only variable
+in the same MATCH, with or without a selector. Neither has an assigned SQLSTATE. Counted ANY
+retains CK00001. Selector execution uses CG05004 for work or unresolved 64-hop searches and
+CG05020 for retained history/state/output; no partial result escapes. Neither has a SQLSTATE.
 
 Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
 while the operation remains active (no SQLSTATE). Session/transaction termination keeps its

@@ -289,7 +289,7 @@ operation CK04002; these take precedence over CG05022. None has an assigned SQLS
 
 Outer WALK, TRAIL, SIMPLE and ACYCLIC execute; omitted mode means TRAIL. CK00001 refuses a
 mode inside a parenthesized/quantified subpath or an unselected unbounded WALK even with LIMIT.
-Selectors permit unbounded WALK during planning; execution remains CK00001. CG00002 covers text
+Selectors permit unbounded WALK during execution under the same statement budgets. CG00002 covers text
 insertion modes; CG05001 covers undefined direct AST modes or
 insertion modes. All modes retain CG05004 for hop/work limits and CG05020 for retained-memory
 limits. No SQLSTATE is assigned to these conditions. See [path modes](patterns.md#path-modes).
@@ -299,11 +299,12 @@ limits. No SQLSTATE is assigned to these conditions. See [path modes](patterns.m
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CG00011 | SHORTEST count is missing or is not a positive Int64 literal | — |
-| CG01016 | Selected prefilter references a peer-path-only binding in the same MATCH, regardless of comma order | — |
-| CK00001 | Selector/inline WHERE execution in this step; counted ANY or nested selector | — |
+| CG01016 | Search prefilter references a peer-path-only binding in the same MATCH, regardless of comma order | — |
+| CK00001 | Counted ANY or nested selector/mode; unselected unbounded WALK | — |
 
-[Selectors](path-selectors.md) bind and support EXPLAIN; execution refuses before reads/writes,
-including empty input and LIMIT 0. Ordinary name/parameter binding errors can precede the refusal.
+[Selectors](path-selectors.md) execute, including inline prefilters without a selector. Work or
+unresolved 64-hop searches use CG05004; retained history/state/output uses CG05020. Neither has
+an assigned SQLSTATE. Exhaustion yields no partial selection and rolls back statement writes.
 Invalid direct AST selector kinds/counts and insertion selectors retain CG05001 (no SQLSTATE).
 
 ## Application function conditions

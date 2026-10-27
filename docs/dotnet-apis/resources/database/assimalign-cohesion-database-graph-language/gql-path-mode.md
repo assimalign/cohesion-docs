@@ -13,7 +13,7 @@ public enum GqlPathMode : byte { Trail, Walk, Simple, Acyclic }
 ## Behavior and exceptions
 
 Trail forbids repeated relationship identities and permits repeated nodes. Walk permits both
-but requires bounded quantifiers. Simple forbids repeated nodes except closure of the final node
+but requires bounded quantifiers without a selector. Simple forbids repeated nodes except closure of the final node
 onto the first; it can reuse a relationship for that closure. Acyclic forbids all repeated nodes.
 An omitted GqlPathPattern.Mode is null and resolves to Trail.
 
@@ -22,7 +22,7 @@ report CK00001 during parsing/planning. Undefined direct AST values and insertio
 CG05001. Every mode retains hop/work (CG05004) and memory (CG05020) limits.
 
 [Selectors](gql-path-selector.md) default to Trail and permit all four modes, including unbounded
-Walk, during planning. Selector execution remains CK00001 in this step; EXPLAIN succeeds.
+Walk, during execution under statement budgets and the 64-hop backstop. EXPLAIN remains nonexecuting.
 
 ## Example
 

@@ -23,9 +23,9 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Unsupported scalar/statistical calls | Recognized, not supported (`CK00001`) | `ELEMENTS()`, temporal constructors, `LOG10`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |
 | HAVING | Recognized, not supported (`CK00001`) | GROUP BY executes; post-group HAVING is excluded |
 | Map projection | Recognized, not supported (`CK00001`) | `RETURN a {.name}` |
-| Nested modes/selectors; unselected unbounded WALK | Recognized, not supported (`CK00001`) | Outer modes execute; selected unbounded WALK plans; LIMIT cannot bound an unselected WALK |
-| Selector/inline WHERE execution; counted ANY | Recognized, not supported (`CK00001`) | [Selectors](path-selectors.md) parse, bind and EXPLAIN in this step |
-| Questioned paths, nested quantifiers and subpath assignments | Recognized, not supported (`CK00001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute; inline WHERE binds and EXPLAINs |
+| Nested modes/selectors; unselected unbounded WALK | Recognized, not supported (`CK00001`) | Outer modes execute; selected unbounded WALK executes under budgets; LIMIT cannot bound an unselected WALK |
+| Counted ANY | Recognized, not supported (`CK00001`) | [ANY/ALL/SHORTEST selectors and inline WHERE](path-selectors.md) execute |
+| Questioned paths, nested quantifiers and subpath assignments | Recognized, not supported (`CK00001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute; inline WHERE executes |
 | Stored composite property values | Recognized, not supported (`CK00001`) for syntax; `CG03003` for parameters | MATCH/INSERT/CREATE/SET stored properties stay scalar-only |
 | List/pattern comprehensions and slicing | Recognized, not supported (`CK00001`) | `[x IN xs | x]`, pattern comprehensions, `xs[1..3]` |
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
@@ -46,8 +46,8 @@ inventory, not a list of implemented features. Malformed or invalid composition 
 
 ## Engine and delivery limits
 
-GQL path selectors, including ANY SHORTEST, parse, bind and EXPLAIN; execution remains CK00001.
-See [selectors](path-selectors.md). Minimum-hop searches are available
+GQL [selectors](path-selectors.md), including ANY SHORTEST, execute per ordered endpoint pair
+under statement budgets and the 64-hop backstop. Minimum-hop searches are also available
 through the typed [GraphDatabase API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-database.md#shortest-distance-and-path).
 
 GQL cannot select another graph or database. Database lifecycle uses the engine API, explicit
