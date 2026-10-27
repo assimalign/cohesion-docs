@@ -2,19 +2,19 @@
 
 Graph patterns describe fixed or quantified paths of labeled nodes and typed relationships with scalar expression properties.
 
-> **Status:** Implemented.
+> **Status:** Fixed/quantified matching executes; selectors and inline WHERE support binding/EXPLAIN only.
 
 ## Syntax
 
 ```syntaxsql
 <paths> ::= path [ , ...n ]
-<path> ::= [ variable "=" ] [ { WALK | TRAIL | SIMPLE | ACYCLIC } [ PATH | PATHS ] ] path_body
+<path> ::= [ variable "=" ] [ selector ] [ WALK | TRAIL | SIMPLE | ACYCLIC ] [ PATH | PATHS ] [ GROUP | GROUPS ] path_body
 <path_body> ::= path_primary [ { relationship [ quantifier ] path_primary | parenthesized | node } ...n ]
 <path_primary> ::= node | parenthesized
-<parenthesized> ::= "(" path_body ")" [ quantifier ]
+<parenthesized> ::= "(" path_body [ WHERE condition ] ")" [ quantifier ]
 <quantifier> ::= "{" m [ "," [ n ] ] "}" | "{," [ n ] "}" | "+" | "*"
 
-<node> ::= "(" [ variable ] [ ":" label_name ...n ] [ property_map ] ")"
+<node> ::= "(" [ variable ] [ ":" label_name ...n ] [ property_map ] [ WHERE condition ] ")"
 
 <relationship> ::=
     { "-" "[" relationship_body "]" "->"
@@ -23,7 +23,7 @@ Graph patterns describe fixed or quantified paths of labeled nodes and typed rel
     | "<-" "[" relationship_body "]" "->"
     | "->" | "<-" | "-" | "<->" }
 
-<relationship_body> ::= [ variable ] [ ":" type_name ] [ cypher_length ] [ property_map ]
+<relationship_body> ::= [ variable ] [ ":" type_name ] [ cypher_length ] [ property_map ] [ WHERE condition ]
 <cypher_length> ::= "*" [ m ] [ ".." [ n ] ]
 
 <property_map> ::= "{" [ property_name ":" scalar_expression [ , ...n ] ] "}"
@@ -102,6 +102,9 @@ for the counting description; LIMIT does not reduce matching work.
 
 ## Path modes
 
+[Path selectors](path-selectors.md) document the selector prefix, count/group ordering and inline
+WHERE prefilters. Those forms bind and EXPLAIN, but execution reports CK00001 in this step.
+
 Write the mode after any path assignment: `MATCH p = WALK PATHS (a)->{1,3}(b) RETURN p`.
 PATH and PATHS are optional synonyms. A mode applies to the complete outer path, including all
 fixed edges and parenthesized/quantified segments, regardless of the chosen index anchor.
@@ -117,9 +120,9 @@ SIMPLE permits a self-loop and an out-and-back over the same relationship; trave
 closure. It does not add TRAIL's relationship-uniqueness requirement. All modes allow zero hops.
 Each comma-separated path has its own mode and may reuse another path's identities.
 
-A mode inside a parenthesized or quantified subpath reports CK00001. Unbounded WALK reports
+A mode inside a parenthesized or quantified subpath reports CK00001. Unselected unbounded WALK reports
 CK00001 even with LIMIT: this includes +, *, open ISO upper bounds and open Cypher lengths.
-Path selectors, including shortest selectors, remain CK00001. Mode words remain contextual
+Selectors permit unbounded WALK during planning; their execution remains CK00001. Mode words remain contextual
 identifiers. INSERT/CREATE modes report CG00002; invalid direct AST mode values or insertion
 modes report CG05001. Work, retained-memory, cancellation and the 64-hop limit apply to every
 mode (CG05004 for hop/work limits, CG05020 for memory). EXPLAIN shows the resolved mode.
@@ -178,7 +181,9 @@ No new wire encoding is required.
 | CG00005 | Text repetition-bound sum above 64 |
 | CG00008 | -- directly touches a subpath closing parenthesis, quantifier or bracketed Cypher length and would hide an arrow |
 | CG00009 | Parser stack guard while nesting subpaths; engine translates to CG05008 (54001) |
-| CK00001 | Questioned path ?, nested quantifiers, subpath assignment/WHERE, nested explicit modes, unbounded WALK or path selectors |
+| CK00001 | Questioned path ?, nested quantifiers, subpath assignment, nested modes/selectors, unselected unbounded WALK, counted ANY or selector/inline WHERE execution |
+| CG00011 | SHORTEST count is missing or is not a positive Int64 literal |
+| CG01016 | Selected prefilter references a peer-path-only binding in the same MATCH |
 | CG05001 | Invalid direct AST bounds/shape, nested repetitions, cycles/reused path instances, depth above 128, or quantified/parenthesized insertion AST |
 | CG03003 | Invalid use of group variables as described above |
 | CG05004 | Runtime 64-hop path or configured physical-work limit |

@@ -63,7 +63,8 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CD07002 | Text transaction control without the negotiated transaction-status capability | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
-CK00001 also covers nested GQL path modes, unbounded WALK even with LIMIT and path selectors.
+CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,
+and selector/inline WHERE execution. Selected paths support binding and EXPLAIN in this step.
 Outer GQL modes and SQL UPDATE ... FROM / DELETE ... USING execute.
 Optional SQL costing falls back on committed definition changes; mutation execution retains
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
@@ -134,6 +135,10 @@ wrapper). None has an assigned SQLSTATE. The existing CD05016 enforces the 16 Mi
 the write transaction. See [Document diagnostics](document/language/diagnostics.md#engine-codes).
 
 ## Graph shortest paths
+
+[GQL selectors](graph/language/path-selectors.md) add CG00011 for a missing/nonpositive/nonliteral
+Int64 SHORTEST count and CG01016 for a selected prefilter referencing a peer-path-only variable
+in the same MATCH. Neither has an assigned SQLSTATE. Counted ANY retains CK00001.
 
 Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
 while the operation remains active (no SQLSTATE). Session/transaction termination keeps its

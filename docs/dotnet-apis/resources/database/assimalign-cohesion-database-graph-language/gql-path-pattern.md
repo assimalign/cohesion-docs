@@ -12,7 +12,10 @@ public sealed record GqlPathPattern(IReadOnlyList<GqlNodePattern> Nodes,
 {
     public IReadOnlyList<GqlPathElement>? Elements { get; init; }
     public string? Variable { get; init; }
+    public GqlPathSelector? Selector { get; init; }
+    public GqlExpression? Predicate { get; init; }
     public GqlPathMode? Mode { get; init; }
+    public override string ToString();
 }
 ```
 
@@ -27,8 +30,15 @@ Construction retains references without executing or validating. Planning refuse
 representations, invalid bounds, nested repetitions, quantified/parenthesized INSERT paths,
 cycles/reused path instances or direct subpath depth above 128 with CG05001 (no SQLSTATE).
 Mode is null for implicit Trail; an explicit [GqlPathMode](gql-path-mode.md) applies to the
-complete outer path and every segment. Nested modes and unbounded Walk report CK00001.
+complete outer path and every segment. Nested modes and unselected unbounded Walk report CK00001.
 Undefined modes or insertion modes report CG05001. Group declarations bind ordered lists.
+
+Selector is null for ordinary exhaustive matching; an explicit [GqlPathSelector](gql-path-selector.md)
+retains kind/count and prefix location. Predicate is a parenthesized path's search WHERE prefilter.
+ToString renders the complete semantic path, including binding, selector, mode, labels/maps,
+predicates and repetition bounds, with canonical PATH/GROUPS tokens. Selector or inline WHERE
+execution reports CK00001 after binding; EXPLAIN succeeds. Selected prefilters cannot depend on
+peer-path-only variables in the same MATCH (CG01016).
 
 ## Example
 

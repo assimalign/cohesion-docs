@@ -10,6 +10,11 @@ EXPLAIN { match_statement | return_statement | insert_statement | create_stateme
 
 ## Remarks
 
+[Path selectors](../path-selectors.md) support nonexecuting EXPLAIN in this step. Plans expose
+SelectPaths, PathSearch, ElementPrefilter, PathPrefilter and PostFilter, with endpoint partition,
+count unit, mode, ordering and configured ceilings. MATCH WHERE stays above selection; search
+prefilters remain under PathSearch. Execution of a selector or inline WHERE reports CK00001.
+
 EXPLAIN also accepts [linear composition](../clauses/next.md). Such plans have a Pipeline root
 with stage count/write flag and source-ordered Let, Filter, For/Unwind, Match/OptionalMatch,
 With, Return, Next and write-stage nodes as applicable. Each projection stage retains its own

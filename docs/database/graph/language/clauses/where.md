@@ -10,6 +10,12 @@ MATCH pattern [ WHERE expression ] RETURN projection
 
 ## Remarks
 
+For [selected paths](../path-selectors.md#prefilters-and-where), ordinary MATCH WHERE runs after
+selection and before OPTIONAL null extension. Inline node/relationship WHERE and parenthesized
+path WHERE stay inside search. These inline forms and selectors support binding/EXPLAIN only;
+execution reports CK00001 in this step. Selected prefilters cannot reference a peer-path-only
+variable introduced in the same MATCH (CG01016).
+
 [WITH WHERE](with.md) is a different stage position: it runs after projection, ordering and paging.
 [FILTER](filter.md) independently filters the current bindings after any preceding stage. Both keep
 only TRUE; neither changes OPTIONAL MATCH's own predicate-before-NULL-extension rule.

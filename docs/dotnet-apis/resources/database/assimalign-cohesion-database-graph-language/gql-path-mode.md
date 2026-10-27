@@ -17,9 +17,12 @@ but requires bounded quantifiers. Simple forbids repeated nodes except closure o
 onto the first; it can reuse a relationship for that closure. Acyclic forbids all repeated nodes.
 An omitted GqlPathPattern.Mode is null and resolves to Trail.
 
-Only an outer MATCH path may specify a mode. Nested modes or unbounded Walk (even with LIMIT)
+Only an outer MATCH path may specify a mode. Nested modes or unselected unbounded Walk (even with LIMIT)
 report CK00001 during parsing/planning. Undefined direct AST values and insertion modes use
 CG05001. Every mode retains hop/work (CG05004) and memory (CG05020) limits.
+
+[Selectors](gql-path-selector.md) default to Trail and permit all four modes, including unbounded
+Walk, during planning. Selector execution remains CK00001 in this step; EXPLAIN succeeds.
 
 ## Example
 

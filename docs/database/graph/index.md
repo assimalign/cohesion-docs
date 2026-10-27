@@ -59,7 +59,8 @@ The typed [shortest distance/path APIs](../../dotnet-apis/resources/database/ass
 find minimum unweighted hops in one statement snapshot. Outgoing is the default; Incoming and Both
 support reverse and undirected searches. Disconnected or invisible endpoints return null, and a
 visible node to itself has distance zero. Ties use the smallest relationship-ID sequence. Search
-has no hop cap; memory/work exhaustion fails. GQL shortest selectors remain refused with CK00001.
+has no hop cap; memory/work exhaustion fails. GQL [selectors](language/path-selectors.md) support
+parsing, binding and EXPLAIN; execution remains refused with CK00001 in this step.
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL

@@ -288,10 +288,23 @@ operation CK04002; these take precedence over CG05022. None has an assigned SQLS
 ## Path modes
 
 Outer WALK, TRAIL, SIMPLE and ACYCLIC execute; omitted mode means TRAIL. CK00001 refuses a
-mode inside a parenthesized/quantified subpath, an unbounded WALK even with LIMIT, or a path
-selector. CG00002 covers text insertion modes; CG05001 covers undefined direct AST modes or
+mode inside a parenthesized/quantified subpath or an unselected unbounded WALK even with LIMIT.
+Selectors permit unbounded WALK during planning; execution remains CK00001. CG00002 covers text
+insertion modes; CG05001 covers undefined direct AST modes or
 insertion modes. All modes retain CG05004 for hop/work limits and CG05020 for retained-memory
 limits. No SQLSTATE is assigned to these conditions. See [path modes](patterns.md#path-modes).
+
+## Path selector conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00011 | SHORTEST count is missing or is not a positive Int64 literal | — |
+| CG01016 | Selected prefilter references a peer-path-only binding in the same MATCH, regardless of comma order | — |
+| CK00001 | Selector/inline WHERE execution in this step; counted ANY or nested selector | — |
+
+[Selectors](path-selectors.md) bind and support EXPLAIN; execution refuses before reads/writes,
+including empty input and LIMIT 0. Ordinary name/parameter binding errors can precede the refusal.
+Invalid direct AST selector kinds/counts and insertion selectors retain CG05001 (no SQLSTATE).
 
 ## Application function conditions
 

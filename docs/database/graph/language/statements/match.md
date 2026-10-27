@@ -182,8 +182,10 @@ Unordered read LIMIT can stop upstream matching. Paging never reduces an admitte
 Each outer comma-separated path may specify WALK, TRAIL, SIMPLE or ACYCLIC after its optional
 assignment; omitted mode means TRAIL. The mode covers the complete path, including repeated
 segments, and does not change OPTIONAL MATCH NULL extension. See
-[identity rules and examples](../patterns.md#path-modes). Nested modes, unbounded WALK even
-with LIMIT, and selectors report CK00001. Every mode retains hop/work and memory limits.
+[identity rules and examples](../patterns.md#path-modes). Nested modes and unselected unbounded
+WALK even with LIMIT report CK00001. [Selectors](../path-selectors.md) and inline WHERE prefilters
+parse, bind and EXPLAIN, including selected unbounded WALK; execution reports CK00001 in this
+step. Every mode retains hop/work and memory limits.
 
 ## Sources
 
