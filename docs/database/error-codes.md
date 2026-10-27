@@ -97,6 +97,12 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## Document comprehensions
+
+OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md) add CD01027 for
+an empty variable in a directly constructed AST (no SQLSTATE). Aggregate or metadata misuse
+retains CD05001; retired ARRAY()/FIRST() calls retain CK00001.
+
 ## Document RETURNING
 
 OQL [RETURNING](document/language/clauses/returning.md) adds CD01026 (empty direct-AST output name),

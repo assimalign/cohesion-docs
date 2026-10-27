@@ -73,6 +73,15 @@ binding, image/order rules, MISSING, transactional projection and preflight limi
 CD01026 rejects an empty direct-AST output name; CD05018 rejects retained-result budget exhaustion;
 CD05019 rejects serialized depth above 256 including a named wrapper. None has an assigned SQLSTATE.
 
+## ARRAY and FIRST comprehensions
+
+[OqlComprehensionExpression](oql-comprehension-expression.md) represents ARRAY and FIRST through
+Variable, Collection, Projection, optional Predicate and IsFirst. Collection uses the outer scope;
+mapping/WHEN use the inner binding, with nesting and shadowing. These forms compose with scalar
+contexts, aggregate arguments, UNNEST and RETURNING. Aggregates inside them use CD05001; empty
+direct-AST variables use CD01027 (no SQLSTATE). Retired ARRAY()/FIRST() calls remain CK00001.
+See [comprehensions](../../../../database/document/language/expressions/comprehensions.md).
+
 ## Names and reservations
 
 Collection, property, alias and parameter names preserve case; keywords are case-insensitive.

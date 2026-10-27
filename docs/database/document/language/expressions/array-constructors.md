@@ -15,8 +15,9 @@ Quoted brackets are literal array delimiters; omit the diagram quotes. Empty arr
 Elements may be scalars, paths, parameters, aggregates or nested object/array constructors.
 MISSING elements become JSON null and keep their positions; explicit NULL also becomes null.
 Unlike [object members](object-constructors.md), elements are never omitted. Arrays compose with
-SELECT, VALUE/RAW, grouping, predicates and INSERT. Array comprehensions and IN's array operand
-form remain unsupported (`CK00001`); path access on constructor results is also outside the subset.
+SELECT, VALUE/RAW, grouping, predicates and INSERT. [ARRAY comprehensions](comprehensions.md)
+map arrays and omit MISSING mappings; bracketed constructors retain their positions as null.
+[IN](operators.md#in-and-between) accepts array operands. Path access on constructor results is outside the subset.
 
 SELECT constructor results are limited to 256 levels, including nested stored/parameter values
 and the wrapper object for named projections (`CD05015` at the constructor). INSERT retains

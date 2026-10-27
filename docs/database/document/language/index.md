@@ -43,6 +43,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
 | [UNNEST/LEFT UNNEST](clauses/unnest.md) | Supported | Array rows; LEFT preserves empty/non-array inputs with MISSING |
 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) and array IN | Supported | Scoped SQL++ predicates and structural membership |
+| [ARRAY/FIRST comprehensions](expressions/comprehensions.md) | Supported | Ordered mapping, optional WHEN and nested scopes; RETURNING included |
 
 ## See also
 
