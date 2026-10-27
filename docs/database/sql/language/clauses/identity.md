@@ -62,7 +62,10 @@ truncation set to their declared START, retaining INCREMENT. Reopen still skips 
 
 ADD COLUMN IDENTITY requires no live rows, checked under the DDL lock; deleted historical versions
 do not prevent it. Full-definition ALTER COLUMN preserves an existing identity only with the same
-type, NOT NULL and no DEFAULT. Changing generation options, type or nullability is refused.
+type, NOT NULL and no DEFAULT. Changing generation options, type or nullability through that form
+is refused. Explicit [ALTER COLUMN TYPE](../statements/alter-table.md#alter-column-type) permits
+integer-family type changes while retaining cursor/START/INCREMENT and validating their range;
+domain and non-integer identity targets fail CS03025.
 Typed compiled schemas cannot represent identity metadata: provisioning refuses a typed schema-owned
 identity table with SqlSchemaMigrationException / `CS03105` and "Nothing was changed."
 SQL script-created tables retain their SQL definitions.

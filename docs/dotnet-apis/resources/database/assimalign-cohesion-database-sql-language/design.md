@@ -9,6 +9,17 @@ The SQL front-end (area architecture: resources/`Database`/DESIGN.md
 basic SQL, declared precisely — and structured to be extended without churning what exists
 (open/closed).
 
+## ALTER COLUMN TYPE
+
+[SqlAlterColumnTypeAction](sql-alter-column-type-action.md) retains a target SqlColumnDefinition
+and optional original-row UsingExpression. The renderer overload canonicalizes TYPE, COLLATE,
+USING and escaped domain names. Execution requires assignment/implicit casts for the old value,
+USING result and independent default (CS02064 / 42804). Compatible widenings avoid rewriting;
+other changes use an inline exclusive-lock rewrite with CHECK/domain, FK and index validation.
+Full-definition default/implicit collation changes retain CS05013 (no SQLSTATE). Dependent views
+retain CS03302 (2BP01), invalid identity conversion retains CS03025. See
+[ALTER TABLE](../../../../database/sql/language/statements/alter-table.md#alter-column-type).
+
 ## Design intent
 
 [SqlTruncateExpression](sql-truncate-expression.md) stores an immutable ordered target list and

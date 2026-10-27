@@ -429,6 +429,21 @@ refuses repeated physical target modifications and overlapping direct UPDATE/ref
 modifiers use CS01006 (42883). Scope, assignment, parameter and identity failures retain their
 ordinary codes. No SQLSTATE is assigned to the new CS01053 or CS05071 conditions.
 
+## ALTER COLUMN TYPE conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS02064 | Old value, USING result or dependent default has no assignment/implicit cast to the target | 42804 |
+| CS05013 | Full-definition ALTER changes the resulting default, or changes collation without explicit COLLATE | — |
+
+[TYPE](statements/alter-table.md#alter-column-type) reuses CS03025 for invalid identity targets/
+ranges, CS03302 (2BP01) for dependent views, CS02055 (42804) and CS02063 (42P21) for FK type/
+collation mismatch, CS03037 (23505) for rebuilt unique-key collisions, CS03038 (23514) for CHECK/
+domain failures and CS03039 (23503) for invalid final FK keys. NOT NULL retains CS03024 (23502).
+Lock waits use CS04044 (55P03); stale writers after publication use CS04006 (no SQLSTATE).
+Conversions retain their ordinary numeric/text/temporal codes. USING subqueries/aggregates/
+windows retain CK00001. DDL remains self-committing with CS04003 (25001) in explicit transactions.
+
 ## Catalog metadata conditions
 
 CS06059 reports malformed persisted SQL catalog metadata (XX001); CS06060 reports an unsupported catalog metadata format/version (0A000). Shared CK identities cover common session, transaction, database-presence and value-access conditions; see the [registry additions](../../error-codes.md).

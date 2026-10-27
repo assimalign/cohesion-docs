@@ -34,6 +34,10 @@ CS03025; inspect diagnostics before consuming a recovered node.
 Parser.Parse returns diagnostics rather than throwing for malformed text; engine execution or
 SqlQueryRequest.FromSql rejects erroneous statements with DatabaseParseException.
 
+[SqlAlterColumnTypeAction.Column](sql-alter-column-type-action.md) uses this node for the target
+name/type and collation, preserving the existing column's other facets. Canonical ALTER TYPE
+rendering escapes decoded domain identifiers, including embedded quote characters.
+
 DefaultValue also retains column-free arithmetic, CAST and Stable/Volatile call nodes.
 [DEFAULT](../../../../database/sql/language/clauses/default.md) describes declaration folding,
 per-row evaluation and ADD COLUMN freezing; [SqlConstraintDefinition](sql-constraint-definition.md)

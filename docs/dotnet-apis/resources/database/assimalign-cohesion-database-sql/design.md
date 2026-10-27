@@ -1145,7 +1145,7 @@ non-null values without advancing the counter and generates for SET id = DEFAULT
 DEFAULT VALUES and whole-item DEFAULT generate per row. Explicit NULL is never generation.
 
 The planner validates type, DEFAULT conflicts, start, increment and the single-identity rule before
-catalog changes (`CS03025`). ADD requires no live rows. ALTER retains the same type and NOT NULL
+catalog changes (`CS03025`). ADD requires no live rows. Full-definition ALTER retains the same type and NOT NULL
 or fails the identity contract. Direction-dependent bounds are 1 through the type maximum ascending,
 type minimum through -1 descending; default start follows direction. No cycle, restart, overriding
 or generated key RETURNING is available. CS03025 uses SQLSTATE reference 428C9 for explicit
@@ -1260,6 +1260,7 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS03053` | Invalid table definition, including nullable primary key or dropping the last column | 42P16 (`invalid_table_definition`) |
 | `CS03054` | Invalid FOREIGN KEY column lists or referenced key is not unique | 42830 (`invalid_foreign_key`) |
 | `CS02055` | Incompatible store value, DEFAULT, FOREIGN KEY column type, CHECK function result or compared values | 42804 (`datatype_mismatch`) |
+| `CS02064` | ALTER COLUMN TYPE old value, USING result or dependent default lacks an assignment cast | 42804 (`datatype_mismatch`) |
 | `CS03056` | DDL refused because constraints or indexes depend on the object; namespace RESTRICT retains CS03030 | 2BP01 (`dependent_objects_still_exist`) |
 | `CS05057` | Unsupported execution/DDL operation, including a subquery encountered by CHECK admission | 0A000 (`feature_not_supported`) |
 | `CS06058` | Damaged or incompatible loaded persisted expression or missing-value literal | XX001 (`data_corrupted`) |
@@ -1596,6 +1597,24 @@ SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses pr
 Identity SET/DROP DEFAULT or DROP NOT NULL uses CS03025. DDL is self-committing and CS04003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
 Format 17 introduced the default/missing split with table extension 6; current format is 26.
+
+## ALTER COLUMN TYPE
+
+[TYPE with USING](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
+binds against the old row; without USING it converts the old column. Both require assignment/
+implicit registry casts, as does the independent default. CS02064 (42804) refuses a missing
+assignment pathway. Immutable defaults freeze to canonical literals; Stable/Volatile defaults
+retain per-insert assignment coercion. A default-free column inherits the target domain default.
+
+Rewriting changes run inline under the source table's exclusive lock, plus affected FK neighbors.
+They rebuild indexes, revalidate converted CHECK/domain/NOT NULL values and final FK keys, then
+publish definition/indexes/generation atomically. FK storage identities must match; dependent
+views refuse CS03302 (2BP01), even for same-type USING. Prepublication failure leaves the old
+owner current; old read-only snapshots retain it and stale writers retry with CS04006.
+Same-storage/scale/domain/collation widenings without USING retain heap/index trees, except CHAR
+width changes. Integer identity conversion preserves cursor/start/increment and validates range
+(CS03025). Full-definition changes retain CS05013 for changed defaults or implicit collation
+changes and still refuse identity-type changes. Populated-table worker handoff arrives in batch 7.
 
 ## Declared dependencies
 
