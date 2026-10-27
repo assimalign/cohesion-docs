@@ -39,7 +39,11 @@ UNIQUE keys containing any NULL or MISSING never conflict. An indexed array/obje
 UNIQUE key is refused. Constraints are immediate per row, so a multirow key swap may fail. Failure
 rolls back the statement; an explicit transaction must be rolled back before the session is reused.
 
-All indexes use Documents.Catalog v2 definition and physical-registration records. V1 indexes are
+The [.NET catalog API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md)
+supports DISTINCT array-element postings in this step. OQL ALL/DISTINCT ARRAY keys remain
+CK00001; OQL array-index DDL arrives in batch 6.
+
+All indexes use Documents.Catalog v3 definition and physical-registration records. V1/v2 indexes are
 refused at open before recovery writes, with found/supported versions and a recreate remedy.
 Recreate the database with this engine; there is no upgrade path or legacy reader.
 
@@ -48,6 +52,7 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CD03024` | Existing index name without IF NOT EXISTS | — |
+| `CD03026` | Encoded index definition exceeds 8,092 bytes; before posting extraction/tree creation | — |
 | `CD02026` | Composite encoded key exceeds 1,024 bytes during build or mutation | — |
 | `CD03020` | Duplicate valued scalar UNIQUE key during a write or build; names index and collection without key data | 23505 |
 | `CD02021` | Array/object component in a UNIQUE key; names index and path | — |

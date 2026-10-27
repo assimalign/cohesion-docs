@@ -121,6 +121,14 @@ retry the whole transaction. Its exclusive source-table lock is acquired before 
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
 changed descriptions CS04064 / 40001. SQL format 26 is unchanged.
 
+## Document array indexes
+
+The typed [array-key API](../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md)
+adds CD03025 for multiple array keys, UNIQUE array indexes or IncludeMissing with a leading array
+key, and CD03026 for an encoded index definition above 8,092 bytes (before posting extraction or
+tree creation). Neither has an assigned SQLSTATE. Unsupported typed WHEN constants/tree sizes
+retain ArgumentException. Index v3 is required; v1/v2 open refusals retain CD06105 (no SQLSTATE).
+
 ## Document comprehensions
 
 OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md) add CD01027 for

@@ -56,6 +56,8 @@ rather than being rounded by the parser.
 | `CD01023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
 | `CD03022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 | `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `CD03025` | Typed index has multiple array keys, is a UNIQUE array index, or includes MISSING with a leading array key | — |
+| `CD03026` | Encoded index definition exceeds 8,092 bytes; before posting extraction/tree creation | — |
 | `CD01025` | DROP INDEX finds no index without IF EXISTS | — |
 | `CD02026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
 
@@ -96,6 +98,14 @@ use CK00001. These codes and CD01027 have no assigned SQLSTATE.
 Index-name/key-size failures use DatabaseException with structured CD03024, CD01025 and CD02026 diagnostics
 and the original DocumentCatalogException. They abort an explicit transaction; roll back before
 continuing. In autocommit the next statement can run. No SQLSTATE is assigned.
+
+## Typed array index conditions
+
+The typed [array index API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md)
+uses CD03025/CD03026 as DocumentCatalogException conditions. Unsupported typed WHEN constants,
+including Single/Double, or predicates above 32 levels/128 nodes use uncoded ArgumentException.
+OQL array-index syntax remains CK00001 in this step. V3 index records are required; v1/v2 are
+refused before recovery writes with CD06105 and a recreate remedy. No SQLSTATE is assigned.
 
 ## Locations and wire behavior
 

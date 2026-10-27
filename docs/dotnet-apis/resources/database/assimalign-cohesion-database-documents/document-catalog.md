@@ -17,6 +17,9 @@ public sealed partial class DocumentCatalog
     public ValueTask<DocumentIndexMetadata> CreateIndexAsync(Guid collectionId, string name,
         IReadOnlyList<string> paths, bool isUnique, TransactionContext context,
         CancellationToken cancellationToken = default);
+    public ValueTask<DocumentIndexMetadata> CreateIndexAsync(Guid collectionId, string name,
+        IReadOnlyList<DocumentIndexKey> keys, bool isUnique, bool includeMissing,
+        TransactionContext context, CancellationToken cancellationToken = default);
     public ValueTask<IReadOnlyList<DocumentCatalogEntry>> SearchIndexAsync(Guid collectionId,
         string indexName, object? lower, bool includeLower, object? upper, bool includeUpper,
         TransactionSnapshot snapshot, CancellationToken cancellationToken = default);
@@ -34,6 +37,12 @@ described in [Design](catalog-design.md). Mutations join the supplied transactio
 the caller holds model locks, resolves conflicts and enforces ownership. Applications ordinarily
 use OQL index DDL through a session.
 
+The typed overload accepts [scalar/array keys](document-index-key.md) and IncludeMissing.
+It snapshots the key list and builds deduplicated per-document postings immediately. Array-aware
+callers use metadata.Keys; metadata.Paths is empty for an array index. Search returns each visible
+document ID once even if several postings match. OQL array-index syntax/access planning are not
+delivered in this step. The caller owns the active transaction and database writer lock.
+
 CreateIndexAsync builds immediately. The single-path overload is nonunique. Composite creation
 copies one to 32 paths and checks UNIQUE constraints before publishing a definition. NULL/MISSING
 keys never conflict. Search accepts a leading scalar equality prefix and optional range on the
@@ -49,6 +58,12 @@ unsupported or malformed catalog records and oversized keys use DocumentCatalogE
 Open may throw IndexFormatException for an incompatible tree. Storage I/O/corruption failures
 propagate from seeks. Cancellation throws OperationCanceledException; an ended build transaction
 throws TransactionAbortedException.
+
+Multiple array keys, UNIQUE array indexes or IncludeMissing with a leading array key use
+DocumentCatalogException/CD03025. An encoded definition above 8,092 bytes uses CD03026 before
+posting extraction or physical tree creation. Neither has an assigned SQLSTATE. Unsupported
+typed WHEN constants and oversized predicate trees retain [ArgumentException](document-index-predicate.md).
+Index definition/registration v1/v2 are refused before recovery writes with CD06105; v3 is required.
 
 ## Example
 

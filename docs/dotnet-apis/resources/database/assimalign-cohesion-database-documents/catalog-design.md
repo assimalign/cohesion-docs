@@ -103,12 +103,18 @@ The fields below appear consecutively beginning at offset 18. No trailing fields
 | --- | --- | --- |
 | 1 collection | 0 | GUID collection identity; string name; byte owner; nullable string owning schema |
 | 2 document | 0 | GUID collection identity; string document identity; UInt64 version; UInt64 head; Int64 byte length; UInt32 IEEE CRC-32 |
-| 4 index definition (v2) | 0 | GUID collection identity; string index name; Int32 path count (1..32); ordered path strings; byte unique flag (0 or 1); UInt64 physical generation identity |
-| 5 physical registration (v2) | 1 | UInt64 physical generation identity; Int64 root page; string index name; byte unique flag (0 or 1) |
+| 4 index definition (v3) | 0 | GUID collection identity; string index name; Int32 key count (1..32); ordered key descriptors; byte flags (bit 0 UNIQUE, bit 1 INCLUDE MISSING); UInt64 physical generation identity |
+| 5 physical registration (v3) | 1 | UInt64 physical generation identity; Int64 root page; string index name; byte unique flag (0 or 1) |
 
-Kinds 1 and 2 remain v1. All indexes, including single-path nonunique ones, use v2. V1 index
-records are refused before recovery writes, reporting found/supported versions and requiring
+Kinds 1 and 2 remain v1. All indexes, including single-path nonunique ones, use v3. V1/v2 index
+records are refused with CD06105 before recovery writes, reporting found/supported versions and requiring
 database recreation with this engine. There is no upgrade path or legacy reader.
+
+A key descriptor stores kind (0 scalar, 1 DISTINCT array), then its path. An array descriptor
+adds the document source path and a normalized element-relative predicate. Predicate tags encode
+absent, comparison, IS NULL, IS MISSING, AND, OR or NOT; constants are null, Boolean, Decimal or
+String. Malformed tags, flags, paths or predicate trees fail closed. Shared storage and B-tree
+page formats remain unchanged.
 
 Kind 3 content chunks use the format in
 [Documents.Storage](storage-design.md) . Collection IDs
@@ -118,7 +124,9 @@ and document lengths must be positive and fit in an Int32. Owner is the underlyi
 references, duplicate physical generations, and malformed payloads fail closed.
 
 Catalog metadata records fit one slotted-page record. Identity/name/path sizes are consequently
-bounded by `SlottedPage.MaxRecordSize`; very long metadata is rejected by the shared storage layer.
+bounded by `SlottedPage.MaxRecordSize`. An encoded index definition above 8,092 bytes reports
+CD03026 before document posting extraction or physical tree creation. Other oversized metadata
+retains the shared storage limit.
 `Document` content has its separate multi-page chunk mechanism.
 
 ## `Index` definition and key semantics
@@ -129,14 +137,30 @@ plans, and the plan executor invokes this component under the statement's `Trans
 lock acquisition and ownership enforcement. `IDocumentDatabase` therefore needs no index members,
 and the catalog and B+Tree updates retain the same transaction as the DDL statement.
 
-Each index has 1..32 ordered case-sensitive paths and an immutable UNIQUE flag. Paths use lossless
+Each index has 1..32 ordered keys and immutable UNIQUE/IncludeMissing flags. Scalar paths use lossless
 dotted and bracket-string syntax, including `items[0].price` and `['root.name']`. Wildcards,
-expansion, expression keys and sort directions are excluded. The single-path overload writes v2.
+arbitrary expression keys and sort directions are excluded. The typed API additionally admits
+one [DISTINCT array projection](document-index-key.md) at any key position. The single-path
+overload writes v3.
 
-Leading MISSING omits an entry. Trailing MISSING and explicit NULL have distinct tags. Components
+For scalar-only indexes, leading MISSING omits an entry unless IncludeMissing is true. Trailing
+MISSING and explicit NULL have distinct tags. Components
 collate MISSING < NULL < FALSE < TRUE < numbers < ordinal UTF-16 strings < arrays < objects.
 Numbers normalize to Decimal; 1 and 1.00 encode equally. Array/object tags are lossy and the
 executor reapplies the full predicate. The full encoded key must fit 1,024 bytes.
+
+For an array key, each document version emits the distinct qualifying scalar projections combined
+with its scalar document keys. NULL projections post; MISSING and complex element projections
+are omitted. Empty/filtered arrays emit nothing. A missing source gives a MISSING component,
+omitted when leading and sparse; a present non-array gives NULL. Search deduplicates document
+identities. Keys stores descriptors; Paths is empty and Path is the empty string for an array
+index, preventing scalar-only planning from assuming complete document coverage.
+
+Multiple array keys, UNIQUE array indexes and IncludeMissing with a leading array key use
+CD03025 (no SQLSTATE). Typed WHEN supports element-relative scalar comparisons, IS NULL,
+IS MISSING, AND, OR and NOT; only TRUE qualifies. Unsupported constants (including Single/Double)
+and trees beyond 32 levels/128 nodes throw ArgumentException. OQL array-index DDL and access
+planning are deferred to batch 6.
 
 UNIQUE checks run immediately under the caller's database writer lock before publication, using
 latest committed state plus the caller's earlier writes. Keys containing NULL/MISSING never
