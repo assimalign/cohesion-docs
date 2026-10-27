@@ -104,7 +104,9 @@ snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only ol
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
 and CS05071 for a WHEN following an unconditional clause of the same match kind. Neither has an
 assigned SQLSTATE. FULL associations reuse CS05070 for missing safe hash equality or ON safety
-proof (no SQLSTATE). Execution is refused with CK00001 in this step; plain EXPLAIN is supported.
+proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications
+or overlapping direct UPDATE/referential writes, and CS05067 (53200) for retained joined-DML state
+exhaustion before writes. Plain EXPLAIN remains nonexecuting.
 
 ## SQL CREATE TABLE AS
 

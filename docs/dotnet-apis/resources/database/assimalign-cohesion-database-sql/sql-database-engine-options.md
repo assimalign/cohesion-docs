@@ -56,7 +56,10 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 
 ## Hash-build memory
 
-StatementMemoryBudget defaults to 67,108,864 bytes (64 MiB) and must be positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value. It limits accounted concurrently live hash-build memory across one statement's nested queries. CTAS also charges its retained source result and encoded copy buffers. Other output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
+StatementMemoryBudget defaults to 67,108,864 bytes (64 MiB) and must be positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value. It limits accounted concurrently live hash-build memory across one statement's nested queries. UPDATE FROM, DELETE USING and MERGE also charge retained target identities, source/intermediate
+buffers, derived copies, associations, selected values, encoded replacements and joined cascade
+state. Exhaustion refuses before any write and releases reservations on every exit. CTAS also
+charges its retained source result and encoded copy buffers. Other output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
 
 ## Sources
 

@@ -1268,6 +1268,8 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; refused before reads/writes | — |
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
+| `CS05036` | Repeated ON CONFLICT/MERGE target modification or direct UPDATE/referential overlap in MERGE | 21000 |
+| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state or CTAS buffers | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
 | `CS03068` | CTAS output names are missing, blank, duplicate or have the wrong width | 42601 (`syntax_error`) |
@@ -1836,6 +1838,21 @@ never executes its wrapped data statement.
 
 Plain EXPLAIN can perform index cost probes but never executes the wrapped data statement. SELECT-only EXPLAIN ANALYZE runs and drains the query, reporting candidate counts before residuals; nested invocation accounting avoids counting child work again on the parent. See [performance](../../../../database/sql/performance.md) and [EXPLAIN](../../../../database/sql/language/statements/explain.md). SqlCostAndHashJoinTests and SqlDmlSeekCostTests cover selection, semantics, refusal and analysis.
 
+## MERGE execution
+
+[MERGE](../../../../database/sql/language/statements/merge.md) drains associations before
+selecting actions or writing. The first qualifying WHEN of each candidate's match kind wins;
+DO NOTHING stops selection without a row effect. Action conditions, values and subqueries are
+lazy. All writes, indexes, referential actions and RETURNING preparation share one rollback
+bracket. Only direct actions count/return; new INSERT/UPDATE and old DELETE target values are
+projected, with NULL sources for BY SOURCE. merge_action() yields INSERT/UPDATE/DELETE.
+
+CS05036 (21000) refuses repeated physical target modifications and conservative direct UPDATE/
+referential overlaps. CS05067 (53200) refuses retained joined-DML state above the statement grant
+before any write. Current version checks reject stale targets; ReadCommitted rechecks and
+complete mixed-action final-state constraint composition remain run-3 work. EXPLAIN still emits
+a stale `execution=unsupported` label although MERGE executes.
+
 ## Joined source DML
 
 UPDATE ... FROM and DELETE ... USING collect target/source associations through one statement
@@ -1849,7 +1866,9 @@ The target is pinned outer. Safe target-only predicates select target seeks; man
 select source probes or budgeted hash builds. Equality-driven steps follow written source order;
 list the source connected to the target first. General join-order search remains #1629. Costing
 shares CTE identity, so volatile definitions materialize once. StatementMemoryBudget covers hash
-builds, while DML target/association retention remains outside that accounting.
+builds and joined-DML retention: target identities, non-hash input buffers, derived copies,
+intermediate frames, associations, selected values, encoded replacements and joined cascade state.
+CS05067 (53200) refuses exhaustion before any write; reservations release on every exit.
 
 Exclusive target locks precede constraint preparation; apply rechecks original locations and writer
 stamps before writes. A concurrent committed target change raises the existing first-updater-wins

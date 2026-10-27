@@ -25,9 +25,13 @@ parsing and view output inference; execution uses atomic publication in SQL form
 
 CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
 [SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
-retain ordered actions and clause spans for binding/EXPLAIN. A later clause after an unconditional
+retain ordered actions and clause spans for execution and EXPLAIN. A later clause after an unconditional
 clause of the same match kind uses CS05071; merge_action() outside MERGE RETURNING uses CS01053.
-Neither has an assigned SQLSTATE. Bound MERGE execution reports CK00001 in this release step.
+Neither has an assigned SQLSTATE. MERGE executes; CS05036 (21000) refuses a second selected
+modification or overlapping direct UPDATE/referential write, and CS05067 (53200) refuses retained
+state above the statement grant before writes. Action conditions, values and read subqueries
+are lazy; RETURNING subqueries remain CK00001. ReadCommitted rechecks and complete mixed-action
+final-state constraints remain deferred. See [MERGE](../../../../database/sql/language/statements/merge.md).
 
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
@@ -312,7 +316,7 @@ name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
 UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 57 of 63 declared clauses,
-including binding-only MERGE through plain EXPLAIN. MERGE execution reports CK00001. Existing
+including executable MERGE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite

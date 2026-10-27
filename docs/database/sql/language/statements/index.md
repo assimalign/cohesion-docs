@@ -30,7 +30,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[INSERT](insert.md)** — Insert scalar rows or query results.
 - **[UPDATE](update.md)** — Assign column values to selected rows.
 - **[DELETE](delete.md)** — Remove selected rows.
-- **[MERGE](merge.md)** — Bind ordered target/source actions and inspect EXPLAIN; execution reports CK00001.
+- **[MERGE](merge.md)** — Apply ordered target/source actions atomically and return changed rows.
 
 - **[EXPLAIN](explain.md)** — Describe a chosen plan; ANALYZE executes SELECT for candidate-work counts.
 
