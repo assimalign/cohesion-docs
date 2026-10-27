@@ -22,7 +22,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 <select_item> ::= * | expression [ [ AS ] column_alias ]
 <table_source> ::= [ schema_name . ] table_name [ [ AS ] table_alias ]
                  | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
-<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN } <table_source>
+<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN | FULL [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
 <order_by_item> ::= { expression | column_alias | select_list_ordinal } [ ASC | DESC ]
@@ -41,7 +41,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | Form | Support | Boundary |
 | --- | --- | --- |
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
-| INNER/LEFT JOIN ... ON or USING | Supported (measured) | N-way stored/system joins; LEFT supplies NULL for unmatched right columns |
+| [INNER/LEFT/RIGHT/FULL JOIN](../clauses/join.md) ... ON or USING | Supported (measured) | Outer joins NULL-extend unmatched sides; FULL requires a safe mandatory hash equality |
 | CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
 | `GROUP BY`, `HAVING`, [aggregates](../functions/aggregate-functions.md) | Supported (measured) | DISTINCT/ALL and input ORDER BY; STRING_AGG and LISTAGG concatenate text |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |

@@ -29,6 +29,11 @@ await using var engine = SqlDatabaseEngine.Create("orders", options);
 
 The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. It does not limit total result materialization or transient planning.
 
+FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
+match flags charged to the same budget. There is no loop fallback: conditions without a safe
+mandatory hash equality, or whose full ON evaluation is not proven non-throwing, fail CS05070
+(no SQLSTATE) before input reads. EXPLAIN describes FullHashJoin with `unmatched=both`.
+
 Use [EXPLAIN](language/statements/explain.md) to inspect costs without executing the wrapped data statement. EXPLAIN ANALYZE accepts SELECT query bodies and runs expressions/application functions normally; actual_rows reports measured candidates before residuals, not final output cardinality. Estimates distinguish exact probes, lower bounds and heuristics.
 
 Optional cost probes that observe a committed table-definition change discard their estimates

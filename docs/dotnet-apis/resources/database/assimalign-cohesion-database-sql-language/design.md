@@ -172,7 +172,7 @@ and reports `CK00001`. See [constraint semantics](../../../../database/sql/langu
 
 [SqlSelectExpression.From](sql-select-expression.md) contains comma-separated [SqlFromItem](sql-from-item.md)
 join trees. Each [SqlJoinClause](sql-join-clause.md) carries ON or ordered UsingColumns; INNER,
-LEFT, RIGHT and CROSS execute, while FULL, NATURAL and qualified wildcards stay
+LEFT, RIGHT, FULL and CROSS execute, while NATURAL and qualified wildcards stay
 excluded. Table members use [SqlRelationReference](sql-relation-reference.md), with named-table and
 [derived-query](sql-derived-table-reference.md) leaves. A derived alias is required and its optional
 column list must rename the full output width. SELECT and UPDATE/DELETE WHERE accept correlated
@@ -190,8 +190,12 @@ RIGHT preserves written column slots and makes the whole left subtree nullable; 
 coerced right value and its collation. [SqlJoinedTableReference](sql-joined-table-reference.md)
 retains unaliased parenthesized groups, including derived-first groups. Aliased groups lower to
 derived SELECTs and hide component names. EXPLAIN names RIGHT-to-LEFT normalization.
-Direct RIGHT or unaliased grouped sources in joined DML fail CS05069 before reads/writes (no
-SQLSTATE); a derived SELECT containing RIGHT executes. FULL remains CK00001. See
+FULL uses common-typed COALESCE for merged USING keys and makes both qualified inputs nullable.
+A merged key is nonnullable only when both original inputs were nonnullable. FULL requires a safe
+mandatory hash equality and proven non-throwing complete ON evaluation; CS05070 refuses other
+conditions before reads (no SQLSTATE). EXPLAIN describes FullHashJoin and unmatched=both.
+Direct RIGHT, FULL or unaliased grouped sources in joined DML fail CS05069 before reads/writes (no
+SQLSTATE); a derived SELECT containing RIGHT or FULL executes. See
 [JOIN](../../../../database/sql/language/clauses/join.md).
 
 [SqlLiteralText](sql-literal-text.md) is the strict public grammar for temporal/day-time interval

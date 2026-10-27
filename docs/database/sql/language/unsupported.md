@@ -28,8 +28,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `WINDOW`, `OVER`, `PARTITION BY` | `CK00001` | Window clauses are excluded |
 | `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `CK00001` | Window-function calls are rejected even without OVER |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
-| `NATURAL JOIN`, FULL joins with optional `OUTER` | `CK00001` | INNER, LEFT, RIGHT and CROSS execute |
-| Direct RIGHT or unaliased grouped joined-DML source | `CS05069` | UPDATE FROM / DELETE USING refuse before reads/writes; derived SELECT sources containing RIGHT execute |
+| `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
+| FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |
+| Direct RIGHT, FULL or unaliased grouped joined-DML source | `CS05069` | UPDATE FROM / DELETE USING refuse before reads/writes; derived SELECT sources containing RIGHT or FULL execute |
 | INNER/LEFT join without ON or USING | `CK00001` | Exactly one condition required |
 | CROSS JOIN with ON or USING | `CS00003` | Products accept neither condition |
 | Malformed USING list, or both ON and USING | `CS00003` | One nonempty USING name list or one ON predicate |
