@@ -13,7 +13,7 @@ OQL accepts one SQL++ query, data mutation, collection definition or index state
 - **Delete documents** — [DELETE](delete.md), with an optional predicate and affected count.
 - **Inspect a plan** — [EXPLAIN](explain.md), without execution.
 - **Query documents** — [SELECT](select.md) projects and filters one collection.
-- **Create an index** — [CREATE INDEX](create-index.md) builds a nonunique path index.
+- **Create an index** — [CREATE INDEX](create-index.md) builds scalar/UNIQUE or DISTINCT array indexes.
 - **Remove an index** — [DROP INDEX](drop-index.md) removes a named collection index.
 
 These statements use the engine's parse, plan, and execute pipeline and the session's active

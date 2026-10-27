@@ -73,6 +73,15 @@ binding, image/order rules, MISSING, transactional projection and preflight limi
 CD01026 rejects an empty direct-AST output name; CD05018 rejects retained-result budget exhaustion;
 CD05019 rejects serialized depth above 256 including a named wrapper. None has an assigned SQLSTATE.
 
+## Array index keys
+
+[OqlCreateIndexExpression.Keys](oql-create-index-expression.md) holds scalar paths and at most
+one DISTINCT ARRAY comprehension. Paths remains scalar-only. The engine binds source/projection
+paths and restricted WHEN predicates before catalog writes, with located CD01028 (wrong variable),
+CD02027 (unsupported constant), CD03027 (excluded expression), CD03028 (32-level/128-node limit)
+and CD03025 (multiple/UNIQUE arrays). None has an assigned SQLSTATE. ALL ARRAY remains CK00001.
+See [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
+
 ## ARRAY and FIRST comprehensions
 
 [OqlComprehensionExpression](oql-comprehension-expression.md) represents ARRAY and FIRST through

@@ -44,6 +44,12 @@ detail. Composite IndexSeek detail prints every equality-prefix and next-path ra
 with each variable in Detail. Virtual-source expansion uses SystemCollectionScan. For example,
 `EXPLAIN SELECT t FROM items d LEFT UNNEST d.tags t` describes LeftUnnest without expansion.
 
+Array IndexSeek detail renders normalized DISTINCT ARRAY keys and
+`distinct_documents=True; array_residual=True`, with posting-count estimates. Candidate
+identities deduplicate before fetching, and the complete predicate remains a residual.
+Array/scalar accesses can participate in IndexIntersection. See
+[array access and fetch bounds](create-index.md#array-access-and-fetch-bounds).
+
 ## Examples
 
 For items containing one document and an index by_score on score:

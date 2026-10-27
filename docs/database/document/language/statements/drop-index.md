@@ -22,6 +22,7 @@ DROP INDEX [ IF EXISTS ] index_name ON collection_name [ ; ]
 ## Remarks
 
 IF EXISTS makes an absent index a no-op. Snapshot conflicts are checked before no-ops.
+Scalar and DISTINCT array indexes use this same DROP syntax; no key expression is repeated.
 An existing schema-owned index still refuses removal; an absent conditional DROP is a no-op
 even in a schema-owned collection.
 

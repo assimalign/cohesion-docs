@@ -32,7 +32,10 @@ the stored value and exact bytes. Named projections retain
 
 Grouping, HAVING, aggregates, DISTINCT and ORDER BY consume expanded tuples; ORDER BY output
 aliases take precedence over variable names. A document-only WHERE conjunct can still use an
-index. Variable-headed paths and quantified predicates do not supply array-index seeks.
+index. Direct document-path sources can use a [DISTINCT array index](../statements/create-index.md#array-access-and-fetch-bounds)
+when a mandatory element comparison supplies its bound. LEFT UNNEST is eligible when that
+comparison rejects the synthetic MISSING row. Candidates deduplicate before content fetch;
+expansion retains duplicate elements. Dependent sources do not supply array seeks.
 Expansion has no row cap and can multiply memory use. [EXPLAIN](../statements/explain.md)
 adds Unnest/LeftUnnest nodes with each variable name.
 

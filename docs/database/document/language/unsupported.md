@@ -15,6 +15,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | DELETE USE KEYS or LIMIT | CK00001 | One collection and optional WHERE; no key-selector or delete pagination |
 | IS KNOWN/IS UNKNOWN, UNDEFINED | CK00001 | MISSING is the absent value; NIL means NULL |
 | ARRAY()/FIRST() calls, LAST, SET constructors; UNIQUE outside CREATE UNIQUE INDEX | CK00001 | [ARRAY/FIRST comprehensions](expressions/comprehensions.md) execute with one IN binding; WITHIN, position variables, multiple bindings and OBJECT transformation remain deferred |
+| ALL ARRAY index keys | CK00001 | [DISTINCT ARRAY](statements/create-index.md#array-keys-and-when) executes with restricted WHEN; at most one array key |
 | Aggregate DISTINCT | CK00001 | `COUNT(DISTINCT x)` is outside SELECT-level deduplication |
 | Computed object member names | CD00002 | Use identifier or string keys, such as `{a: 1}` |
 | ARRAY_AGG, REGEXP_LIKE, REGEXP_REPLACE, REGEXP_POSITION | CK00001 | Deferred calls; [34 scalar functions](functions/scalar-functions.md) execute |
