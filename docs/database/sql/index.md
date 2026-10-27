@@ -171,6 +171,14 @@ Current format 26 fences temporal DEFAULT and frozen missing-value text.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 8.
 
+## Table maintenance
+
+[SqlDatabase.RewriteTableAsync](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md)
+compacts dropped-column ordinals into a fresh physical owner and rebuilds indexes with recoverable
+atomic publication. Old read-only snapshots retain the original layout; affected writers retry
+with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
+LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
+
 ## SQL format 26 and schema v8
 
 SQL opens only data/catalog format **26** and compiled documents in
