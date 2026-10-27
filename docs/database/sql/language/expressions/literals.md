@@ -106,7 +106,8 @@ split with table extension 6). Format 19 added PERCENT/TIES quoting. Format 20 a
 persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced persisted views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text. Every earlier format is refused at open
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 8.
 
