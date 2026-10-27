@@ -124,8 +124,10 @@ this grant. Reservations release on every exit. See [memory options](../../../..
 
 Suppose another transaction updates or deletes a target chosen for a modifying action and commits
 after this statement's snapshot, including while MERGE waits for its row lock. Under ReadCommitted,
-MERGE locks the latest version, keeps the original source association, and reevaluates the full
-ON predicate and ordered WHEN clauses against that target. Scalar assignments reevaluate;
+MERGE locks the latest version and keeps the original source association. For an originally
+MATCHED candidate, it reevaluates the full ON predicate before selecting ordered WHEN clauses
+against that target. An original BY SOURCE candidate reselects clauses of that match kind.
+Scalar assignments reevaluate;
 independent action subqueries keep their statement cache. Only reselected modifying actions
 enter repeated-target detection.
 

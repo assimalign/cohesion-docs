@@ -14,8 +14,8 @@ This positive byte budget estimates retained statement memory. SELECT source row
 identifiers, raw star bytes and expanded bindings), catalog/sort staging, group keys/membership,
 native accumulator state, DISTINCT sets, ARRAY_AGG inputs/results and projection/order storage
 share it with RETURNING. INSERT/UPSERT SELECT sources and RETURNING use the same operation counter.
-RETURNING covers metadata, row/value arrays
-(including normalization/result copies), scalars, strings, JSON clones and preserved whole-document
+RETURNING covers metadata, row/value arrays (including normalization/result copies), scalars,
+strings, JSON clones and preserved whole-document
 bytes. A clone costs 128 bytes plus its UTF-8 length plus 12 bytes per token, including property names
 and both container delimiters. A lone star retains one clone and one raw image; each is charged once.
 The estimate measures JSON without allocating a UTF-16 text copy. Input and owned ARRAY_AGG result
@@ -25,8 +25,8 @@ buffers and application callback-owned state are excluded; this is not a managed
 
 Engine creation rejects nonpositive values with ArgumentOutOfRangeException. Exhaustion during
 SELECT, aggregate evaluation or RETURNING raises DatabaseException with CD05018 before result
-publication and rolls back statement writes; an explicit transaction
-requires rollback after the failure. Serialization preflight also enforces 16 MiB frames (CD05016)
+publication and rolls back statement writes; an explicit transaction requires rollback after the
+failure. Serialization preflight also enforces 16 MiB frames (CD05016)
 and 256-level result depth (CD05019) inside the transaction. These codes have no assigned SQLSTATE.
 
 ## Example

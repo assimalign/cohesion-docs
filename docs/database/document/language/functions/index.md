@@ -7,7 +7,7 @@ OQL implements 34 SQL++ scalar functions, eleven native aggregate names and META
 - **Aggregates** — [COUNT, SUM, AVG, MIN, MAX, ARRAY_AGG, Boolean and sample statistics functions](aggregate-functions.md), with ALL/DISTINCT.
 - **Scalars** — [String, numeric, date, type, array and conditional functions](scalar-functions.md).
 
-Each aggregate takes one argument, and only `COUNT` accepts `*`. Function names are
+Each native aggregate takes one argument, and only native `COUNT` accepts `*`. Function names are
 case-insensitive. The Documents planner and executor validate placement, grouping, and values.
 Unknown functions produce `CD00008`; deferred calls such as REGEXP_LIKE produce `CK00001`.
 
