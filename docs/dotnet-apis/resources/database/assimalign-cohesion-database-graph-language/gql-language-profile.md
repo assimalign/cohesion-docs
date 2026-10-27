@@ -41,8 +41,8 @@ Console.WriteLine(parsed.Diagnostics.Count); // 0
 
 The RETURN executes as one Int64 value, 1.
 
-GqlClauses.Set, GqlClauses.Remove and GqlClauses.PathMode are enabled.
-They admit property/map/label updates through [GqlSetStage](gql-set-stage.md) and
+GqlClauses.Set, GqlClauses.Remove, GqlClauses.PathMode and GqlClauses.PathSelector are enabled.
+Set and Remove admit property/map/label updates through [GqlSetStage](gql-set-stage.md) and
 [GqlRemoveStage](gql-remove-stage.md); MERGE remains CK00001.
 
 ## Related reference

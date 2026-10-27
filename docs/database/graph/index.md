@@ -60,7 +60,7 @@ find minimum unweighted hops in one statement snapshot. Outgoing is the default;
 support reverse and undirected searches. Disconnected or invisible endpoints return null, and a
 visible node to itself has distance zero. Ties use the smallest relationship-ID sequence. Search
 has no hop cap; memory/work exhaustion fails. GQL [selectors](language/path-selectors.md) support
-parsing, binding and EXPLAIN; execution remains refused with CK00001 in this step.
+per-pair execution and EXPLAIN under statement budgets and the 64-hop backstop.
 
 [MATCH and OPTIONAL MATCH](language/statements/match.md) compose in source order, joining shared
 variables and multiplying unrelated patterns. An unmatched optional preserves its input with NULL

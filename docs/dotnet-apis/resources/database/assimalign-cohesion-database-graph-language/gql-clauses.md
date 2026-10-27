@@ -15,6 +15,7 @@ public static class GqlClauses
 {
     public const string QuantifiedPath = "QUANTIFIED PATH";
     public const string PathMode = "PATH MODE";
+    public const string PathSelector = "PATH SELECTOR";
     public const string GroupBy = "GROUP BY";
     public const string Let = "LET";
     public const string Filter = "FILTER";
@@ -73,8 +74,8 @@ executable clauses. `GqlClauses` names lexical capability keys, including deferr
 
 PathMode is enabled in GqlLanguageProfile.Instance and adds no accessor exceptions. It names
 the outer [WALK/TRAIL/SIMPLE/ACYCLIC](gql-path-mode.md) capability. Nested modes and unselected
-unbounded WALK even with LIMIT still use CK00001. [Selectors](gql-path-selector.md) bind and EXPLAIN
-but execution remains CK00001; they are not yet added to the executable-clause profile.
+unbounded WALK even with LIMIT still use CK00001. PathSelector is enabled and admits
+[selectors](gql-path-selector.md) and inline WHERE execution under statement budgets.
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.PathMode)); // True

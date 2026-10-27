@@ -25,8 +25,8 @@ its supplied references without constructor validation. Invalid direct bounds/in
 also use CG05001 (no SQLSTATE); text insertion quantifiers use CG00002.
 
 Predicate retains inline relationship WHERE as a search prefilter, like node Predicate and the
-parenthesized [path Predicate](gql-path-pattern.md). These forms bind and EXPLAIN; execution is
-refused with CK00001 in this step. Selected peer-path-only dependencies use CG01016.
+parenthesized [path Predicate](gql-path-pattern.md). These forms execute inside search, with or
+without a selector. Peer-path-only dependencies use CG01016.
 
 ## Example
 
