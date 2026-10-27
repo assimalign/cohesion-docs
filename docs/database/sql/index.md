@@ -49,8 +49,8 @@ boundaries inside supported clauses. [Operators and predicates](language/express
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
-[MERGE](language/statements/merge.md) supports parsing, binding and EXPLAIN only; execution
-reports CK00001 in batch 5.
+[MERGE](language/statements/merge.md) executes ordered actions with RETURNING; concurrent-target
+rechecks and complete mixed-action final-state constraint validation remain deferred.
 [CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
 [DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
 share the same behavior in process and through the supported wire codecs.

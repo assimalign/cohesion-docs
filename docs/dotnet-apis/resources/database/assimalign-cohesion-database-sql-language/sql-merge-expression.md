@@ -24,7 +24,9 @@ retain written order; Returning is null when absent. Source uses the existing re
 join shapes. Parsing does not validate catalog names or action scopes. Malformed action syntax
 produces parser diagnostics. Binding validates scopes, destination types and clause reachability;
 CS05071 marks a clause after an unconditional clause of its match kind. Plain EXPLAIN describes
-the plan; executing it is refused with CK00001 in this release step. See
+the plan without writes. Execution chooses the first qualifying action per candidate and applies
+all actions atomically, including RETURNING preparation. A second modifying action on one physical
+target uses CS05036 (21000); retained-state exhaustion uses CS05067 (53200) before writes. See
 [MERGE](../../../../database/sql/language/statements/merge.md) for scopes, diagnostics and association rules.
 
 ## Example
@@ -40,6 +42,24 @@ Console.WriteLine(merge.Actions[0].Action); // Delete
 Console.WriteLine(merge.Returning!.Count); // 1
 ```
 
+With an active SqlDatabaseSession in a fresh database (adapted from SqlMergeExecutionTests):
+
+```csharp
+await session.ExecuteAsync("CREATE TABLE t (id INT PRIMARY KEY,v INT)");
+await session.ExecuteAsync("CREATE TABLE s (id INT,v INT)");
+await session.ExecuteAsync("INSERT INTO t VALUES(1,10)");
+await session.ExecuteAsync("INSERT INTO s VALUES(1,11),(2,22)");
+await using var result = (DatabaseResultSet)await session.ExecuteAsync(
+    "MERGE INTO t USING s ON t.id=s.id WHEN MATCHED THEN UPDATE SET v=s.v " +
+    "WHEN NOT MATCHED THEN INSERT VALUES(s.id,s.v) RETURNING t.id,t.v,merge_action()");
+Console.WriteLine(result.AffectedCount); // 2
+await foreach (var row in result.GetRowsAsync(CancellationToken.None))
+    Console.WriteLine($"{row.GetValue(0)},{row.GetValue(1)},{row.GetValue(2)}");
+```
+
+The two rows, in unspecified order, are `1,11,UPDATE` and `2,22,INSERT`.
+DatabaseResultSet is in `Assimalign.Cohesion.Database.Execution`.
+
 ## Related reference
 
 [Assembly](index.md) · [SqlMergeWhenClause](sql-merge-when-clause.md) · [SqlFromItem](sql-from-item.md)
@@ -48,3 +68,4 @@ Console.WriteLine(merge.Returning!.Count); // 1
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/Expressions/SqlMergeExpression.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlMergeParserTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlMergeExecutionTests.cs`.

@@ -34,7 +34,10 @@ forms. IsDefaultValues identifies INSERT DEFAULT VALUES. IsByTargetExplicit reta
 BY TARGET spelling. Location spans WHEN through the last action token, excluding the next clause
 and trailing comments; CS05071 uses this span for unreachable actions. Getters do not execute or
 validate the action. [MERGE](../../../../database/sql/language/statements/merge.md) binding checks
-scope, action kind, destinations, widths and assignment families. Execution remains CK00001.
+scope, action kind, destinations, widths and assignment families. Execution evaluates conditions
+in written order for the candidate's match kind and stops at the first true condition. Values and
+read subqueries run only for the selected action. DO NOTHING emits no row and does not count
+as a modification for CS05036 (21000).
 
 ## Example
 
