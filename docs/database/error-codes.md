@@ -112,9 +112,13 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
 and CS05071 for a WHEN following an unconditional clause of the same match kind. Neither has an
 assigned SQLSTATE. FULL associations reuse CS05070 for missing safe hash equality or ON safety
-proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications
-or overlapping direct UPDATE/referential writes, and CS05067 (53200) for retained joined-DML state
-exhaustion before writes. Plain EXPLAIN remains nonexecuting.
+proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications,
+including after rechecks, and CS05067 (53200) for retained joined-DML state exhaustion before writes.
+Direct/referential overlaps compose without CS05036. CS04064 (40001) covers target recheck/apply-time
+modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
+host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
+precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
+remains nonexecuting; SQL storage stays at format 27.
 
 ## SQL CREATE TABLE AS
 

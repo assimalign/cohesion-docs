@@ -128,6 +128,26 @@ Console.WriteLine(await connection.ExecuteAsync(
 Cardinality and constraint failures undo only the statement and preserve earlier transaction
 work. Concurrent committed target changes use the existing first-updater-wins conflict.
 
+## MERGE results and failures
+
+[MERGE](../../../../database/sql/language/statements/merge.md) uses QueryAsync and ExecuteAsync
+with the same signatures. QueryAsync returns direct action rows and the affected count, before
+referential effects; a row subsequently cascaded away still returns and counts. A no-op returns
+no rows and count 0. Constraint or late RETURNING failures preserve earlier explicit work and
+set SqlClientException.ConnectionUsable to true. Wire BEGIN uses Snapshot; a concurrent committed
+target change uses retryable CS04064 (40001), requiring ROLLBACK and a transaction retry.
+
+Adapted from SqlMergeWireTests, with one existing row (id = 1):
+
+```csharp
+var noOp = await connection.QueryAsync(
+    "MERGE INTO t USING (SELECT 99 AS id) AS s ON t.id=s.id " +
+    "WHEN MATCHED THEN DO NOTHING WHEN NOT MATCHED THEN DO NOTHING " +
+    "RETURNING merge_action()");
+Console.WriteLine(noOp.Count); // 0
+Console.WriteLine(noOp.AffectedCount); // 0
+```
+
 ## Related reference
 
 [SQL client](index.md) · [Design](design.md) · [Shared lease](../assimalign-cohesion-database-client/database-connection.md)
@@ -146,6 +166,7 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlMergeWireTests.cs` and `SqlMergeConcurrencyWireTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlResultDeliveryWireConformanceTests.cs`.
 - **Terminal client conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlClientTerminalErrorTests.cs`.

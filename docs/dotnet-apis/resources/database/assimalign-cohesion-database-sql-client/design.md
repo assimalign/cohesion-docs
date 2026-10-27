@@ -282,9 +282,31 @@ with CS05068 (21000) before writes; the connection and earlier explicit work rem
 Constraints and result preparation retain statement rollback. See
 [SqlConnection](sql-connection.md#joined-mutations).
 
+## MERGE
+
+[MERGE](../../../../database/sql/language/statements/merge.md) uses the existing exchange on
+InMemory and TCP. QueryAsync returns direct action rows and AffectedCount; ExecuteAsync buffers
+and discards those rows. INSERT/UPDATE return new targets, DELETE old targets and BY SOURCE NULL
+source cells. Values precede referential effects: an updated row later cascaded away still returns
+and counts. All-DO-NOTHING RETURNING has no rows and affected count 0.
+
+The wire corpus covers moved children, overlapping CASCADE/SET NULL/SET DEFAULT, CHECK/unique/FK
+refusals and late RETURNING failure. Refusal returns SqlClientException with the structured code,
+ConnectionUsable = true and no partial result; earlier explicit-transaction writes remain.
+Direct-proposal uniqueness (CS03037, 23505) precedes final FK/SET-action constraint failures.
+CS05036 (21000) remains for repeated physical target modifications, including rechecks.
+
+Wire BEGIN uses Snapshot. A chosen target updated/deleted by a subsequently committed transaction
+fails retryably with CS04064 (40001); ROLLBACK recovers the session before retrying the transaction.
+ReadCommitted rechecks are selected through the engine transaction API. In MERGE's concurrency
+path CS04064 covers target recheck/apply-time modified-row version conflicts; referenced-parent,
+cascade snapshot and host-ended transaction aborts retain their uncoded contract. No client API,
+protocol or result-frame changes.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlMergeWireTests.cs` and `SqlMergeConcurrencyWireTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlQuantifiedComparisonWireTests.cs`.
 
