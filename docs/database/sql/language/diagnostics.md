@@ -416,6 +416,19 @@ It reuses CS03049 for destination collisions (42P07), CS04003 for explicit trans
 and CS05067 for its retained source/copy memory budget (53200). A guarded name collision returns
 success with zero affected rows.
 
+## MERGE conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01053 | merge_action() outside MERGE RETURNING | — |
+| CS05071 | WHEN follows an unconditional clause of the same match kind, including DO NOTHING | — |
+| CS05070 | FULL MERGE association lacks safe hash equality or a complete ON safety proof | — |
+
+[MERGE](statements/merge.md) syntax, binding and plain EXPLAIN are supported; execution reports
+CK00001 before source/subquery materialization or action evaluation. merge_action arguments or
+modifiers use CS01006 (42883). Scope, assignment, parameter and identity failures retain their
+ordinary codes. No SQLSTATE is assigned to the new CS01053 or CS05071 conditions.
+
 ## Catalog metadata conditions
 
 CS06059 reports malformed persisted SQL catalog metadata (XX001); CS06060 reports an unsupported catalog metadata format/version (0A000). Shared CK identities cover common session, transaction, database-presence and value-access conditions; see the [registry additions](../../error-codes.md).

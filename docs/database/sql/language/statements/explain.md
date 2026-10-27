@@ -7,10 +7,19 @@ Describes the chosen plan; ANALYZE executes a SELECT to collect candidate-work c
 ## Syntax
 
 ```syntaxsql
-EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | delete_statement } [ ; ]
+EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | delete_statement | merge_statement } [ ; ]
 ```
 
 ## Remarks
+
+### MERGE plans
+
+Plain EXPLAIN supports [MERGE](merge.md#association-and-explain), whose execution remains CK00001
+in this step. It shows Merge, the complete association tree, ordered MergeAction children and
+RETURNING names. Merge detail includes `actions=written_order; execution=unsupported`; action
+details identify match kind, operation, optional condition and column counts. Action-condition
+subqueries appear under their action. EXPLAIN performs scope, reachability and FULL hash-safety
+checks. ANALYZE remains SELECT-only.
 
 ### RIGHT and grouped joins
 

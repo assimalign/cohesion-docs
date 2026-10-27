@@ -98,6 +98,13 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
 
+## SQL MERGE
+
+[MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
+and CS05071 for a WHEN following an unconditional clause of the same match kind. Neither has an
+assigned SQLSTATE. FULL associations reuse CS05070 for missing safe hash equality or ON safety
+proof (no SQLSTATE). Execution is refused with CK00001 in this step; plain EXPLAIN is supported.
+
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,

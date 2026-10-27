@@ -175,7 +175,8 @@ including a row retained after waiting.
 | CK00001 | MySQL ON DUPLICATE KEY UPDATE or SQLite INSERT OR IGNORE/REPLACE; message suggests ON CONFLICT | — |
 
 Each constraint exception carries exactly one Error diagnostic, naming the constraint and table
-without key values. Ordinary expression and identity diagnostics retain their codes. MERGE remains CS00002.
+without key values. Ordinary expression and identity diagnostics retain their codes.
+[MERGE](../statements/merge.md) parses, binds and supports EXPLAIN; execution reports CK00001.
 Execution failures cross the wire as ExecutionFailure; capability refusals use ParseFailure.
 Completed failures leave the connection usable. The client does not retry transactions automatically.
 
