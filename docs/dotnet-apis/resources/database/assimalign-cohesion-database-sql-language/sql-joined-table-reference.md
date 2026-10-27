@@ -22,7 +22,8 @@ Groups may start with a derived query and nest. Canonical rendering, CREATE VIEW
 preserve the association. Getters add no validation exceptions.
 
 Direct grouped sources in UPDATE FROM / DELETE USING fail with CS05069 before reads/writes
-(no SQLSTATE). A derived SELECT containing RIGHT executes. FULL remains CK00001.
+(no SQLSTATE). A derived SELECT containing RIGHT or FULL executes. FULL groups retain their
+written children and common-typed USING COALESCE keys; unsupported FULL conditions use CS05070.
 See [JOIN](../../../../database/sql/language/clauses/join.md) for column order, USING and NULL rules.
 
 ## Example

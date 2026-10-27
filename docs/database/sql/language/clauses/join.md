@@ -1,6 +1,6 @@
 # JOIN (Cohesion SQL)
 
-Combines stored tables, registered system relations and derived queries with INNER, LEFT, RIGHT, CROSS, and comma joins.
+Combines stored tables, registered system relations and derived queries with INNER, LEFT, RIGHT, FULL, CROSS, and comma joins.
 
 > **Status:** Partial. The documented subset executes; restrictions are listed below.
 
@@ -13,7 +13,7 @@ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ]
                  | ( select_statement ) [ AS ] table_alias [ ( column_name [ , ...n ] ) ]
                  | ( <table_source> <join> [ <join> ...n ] )
                    [ [ AS ] table_alias [ ( column_name [ , ...n ] ) ] ]
-<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN } <table_source>
+<join> ::= { [ INNER ] JOIN | LEFT [ OUTER ] JOIN | RIGHT [ OUTER ] JOIN | FULL [ OUTER ] JOIN } <table_source>
            { ON search_condition | USING ( column_name [ , ...n ] ) }
          | CROSS JOIN <table_source>
 ```
@@ -38,7 +38,13 @@ when no pair matches. ON/WHERE and COUNT follow the corresponding LEFT rules wit
 SELECT * retains written left-then-right column order; qualified references keep their written
 inputs. Left-side columns become nullable in result metadata, including declared NOT NULL columns;
 right-side columns retain their input nullability. Implementation normalization does not reorder
-the visible columns. FULL JOIN remains CK00001.
+the visible columns.
+
+FULL [OUTER] JOIN returns matching pairs plus every unmatched row from both sides, filling the
+other subtree's columns with NULL. Duplicates retain their multiplicity; NULL equality keys never
+match each other. A row counts as matched only when the complete ON condition is TRUE. WHERE
+filters after both sides' NULL extension. Both qualified inputs become nullable, even for declared
+NOT NULL columns. An empty side still returns all rows from the other side.
 
 All inputs share the statement's multi-version concurrency control (MVCC) snapshot. Multiplicity
 is preserved. Grouping/HAVING, DISTINCT, ordering, pagination and subqueries compose with the joins.
@@ -52,7 +58,7 @@ unless USING merges them. These checks apply before rows are read, even on empty
 Parenthesized joins preserve explicit association. Unaliased groups expose their component names;
 an aliased group hides them behind its own name, like a derived SELECT *, with an optional complete
 column-alias list. Groups may start with an aliased derived SELECT and may nest. CREATE VIEW and
-reopen retain that association. RIGHT and grouped trees keep predicates at their written level.
+reopen retain that association. RIGHT, FULL and grouped trees keep predicates at their written level.
 
 ON requires a [Boolean search condition](where.md#boolean-search-conditions). A non-Boolean
 condition such as `ON t.age` fails before reads with CS02003 (42804); untyped NULL is
@@ -79,12 +85,20 @@ including the right spelling under case-insensitive equality. Merged keys still 
 list order, followed by remaining left and right columns. Qualified references continue to expose
 the original physical inputs; the left input becomes nullable under RIGHT.
 
+FULL merges each USING name with COALESCE of the two common-typed inputs. The left value wins
+on a match, including its spelling under case-insensitive equality; an unmatched right row supplies
+its right value. Merged text uses the equality collation. A merged column is nonnullable only when
+both original inputs were nonnullable. Both qualified physical columns become nullable. Written
+USING order, common types, identical domain identity and modifier rules remain the same. Computed
+merged keys can feed later joins, including parenthesized FULL subtrees.
+
 [ORDER BY](order-by.md) aliases after `*` and numeric ordinals count the visible merged columns.
 Qualified wildcards such as `t.*` remain excluded.
 
 ### Access paths
 
-Execution is left-deep. Only the first INNER pair may swap inputs; bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
+Ungrouped INNER/LEFT execution is left-deep; grouped and FULL joins retain their normalized tree.
+Only the first INNER pair may swap inputs; bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
 and LEFT always drives from its preserved left side.
 Mandatory equalities can probe an index's leading key prefix under the existing type/collation
 rules; the full predicate still filters candidates. Otherwise the added input buffers once.
@@ -123,8 +137,9 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | Form | Support | Boundary |
 | --- | --- | --- |
 | INNER, LEFT [OUTER] or RIGHT [OUTER] JOIN | Supported (measured) | Exactly one ON or USING per step; any number of steps |
+| FULL [OUTER] JOIN | Supported (measured) | ON/USING must provide a safe mandatory hash equality; complete ON evaluation must be proven non-throwing |
 | CROSS JOIN and comma sources | Supported (measured) | Products; CROSS accepts neither ON nor USING |
-| FULL, NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
+| NATURAL, LATERAL | Recognized, not supported (`CK00001`) | Outside this join subset |
 | Qualified wildcard | Recognized, not supported (`CK00001`) | List qualified columns explicitly |
 
 ## Diagnostics
@@ -134,8 +149,10 @@ filter that input early. A preserved-side ON predicate cannot remove its unmatch
 | `CS02003` | Non-Boolean ON condition or logical operand; SQLSTATE 42804 |
 | `CS01015` | Unknown/hidden/out-of-scope qualifier, ambiguous column, missing/repeated/ambiguous USING name, or no common USING type; rejected during planning, including empty inputs |
 | `CS01019` | Duplicate table binding or alias |
-| `CK00001` | Unsupported join/wildcard, or INNER/LEFT/RIGHT without ON or USING |
-| `CS05069` | Direct RIGHT or unaliased parenthesized source in UPDATE FROM / DELETE USING; refused before reads/writes, no SQLSTATE |
+| `CK00001` | Unsupported join/wildcard, or INNER/LEFT/RIGHT/FULL without ON or USING |
+| `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; refused before reads/writes, no SQLSTATE |
+| `CS05070` | FULL condition lacks a safe mandatory hash equality or complete ON evaluation is not proven non-throwing; before either input is read, no SQLSTATE |
+| `CS05067` | Concurrently retained hash builds exceed StatementMemoryBudget; SQLSTATE 53200 |
 | `CS00003` | Malformed join/USING list, both ON and USING, or CROSS with either condition |
 
 The source assigns no SQLSTATE to the other join diagnostics in this table.
@@ -216,14 +233,35 @@ The first result's columns are left_value, id, id, right_value, with rows
 USING returns columns id, left_value, right_value and rows `(1,'left','one')`, `(2,NULL,'two')`.
 The derived-first group returns `(1,1)`, `(NULL,2)`.
 
-Direct RIGHT or unaliased grouped sources in joined DML fail CS05069. A derived SELECT containing
-RIGHT executes; see [UPDATE FROM](../statements/update.md#from-sources) and
+Direct RIGHT, FULL or unaliased grouped sources in joined DML fail CS05069. A derived SELECT containing
+RIGHT or FULL executes; see [UPDATE FROM](../statements/update.md#from-sources) and
 [DELETE USING](../statements/delete.md#using-sources).
 
 EXPLAIN identifies `normalized RIGHT to LEFT` and the chosen hash, indexed or buffered path.
 JoinStep nesting follows physical association; both EXPLAIN and EXPLAIN ANALYZE emit the complete
 physical outer subtree before its correlated inner IndexSeek, including a derived outer query.
 See [EXPLAIN](../statements/explain.md#right-and-grouped-joins).
+
+### FULL, USING and groups
+
+Execute separately in a fresh database, adapted from SqlFullJoinTests:
+
+```sql
+CREATE TABLE a (id INT NOT NULL);
+CREATE TABLE b (id BIGINT NOT NULL);
+CREATE TABLE c (id DECIMAL NOT NULL);
+INSERT INTO a VALUES (1);
+INSERT INTO b VALUES (2);
+INSERT INTO c VALUES (2), (3);
+SELECT id, a.id AS aid, b.id AS bid, c.id AS cid
+FROM a FULL JOIN (b FULL JOIN c USING (id)) USING (id)
+ORDER BY id;
+```
+
+The rows are `(1,1,NULL,NULL)`, `(2,NULL,2,2)`, `(3,NULL,NULL,3)`. The merged id is Decimal
+and nonnullable; aid, bid and cid are nullable and keep their original physical types.
+`SELECT COUNT(*) FROM a FULL JOIN b USING (id)` returns 2. Replacing USING with `ON a.id < b.id`
+reports CS05070, even when either table is empty.
 
 ## See also
 
@@ -237,16 +275,31 @@ LEFT preserves its written outer side. Small exact indexed inputs and complete u
 retain index nested loops. When both inputs lack countable indexes, eligible equijoins select
 hash joins regardless of actual size, even when empty or tiny; both estimates use 4,096 rows.
 
-Unsupported key shapes or predicates whose movement could change error evaluation retain the
-loop/probe path. An ON condition referencing any text column (String, Json or Character) from a
+For INNER/LEFT/RIGHT, unsupported key shapes or predicates whose movement could change error
+evaluation retain the loop/probe path. An ON condition referencing any text column (String, Json or Character) from a
 derived relation prevents hash selection, including references only in residual terms. This
 preserves deferred collation/Unicode errors that skipping nonmatching key pairs could hide.
 
 The hash path retains duplicates and evaluates the complete ON/WHERE residuals. NULL keys do not match; LEFT still emits unmatched outer rows. Type and collation equality rules apply to hashes and collisions.
 
+FULL always builds a hash table from the written right child, even when an index exists. It retains
+duplicate and NULL-key build rows independently and tracks a match only after complete ON succeeds.
+After probing/null-extending left rows, it emits unmatched build rows once. Binding requires a
+mandatory equality with supported hash keys and proves the whole ON condition non-throwing.
+Inequality-only or OR-only conditions, arithmetic, unproven calls, subqueries, CHAR-only keys and
+derived text without a stored-codec Unicode guarantee fail CS05070. There is no FULL loop fallback.
+Proven identity/widening casts and merged USING COALESCE keys can qualify.
+
+FULL match flags, NULL-key rows and overlapping growth arrays share the existing hash-build budget,
+including nested builds. Cancellation, timeout, refusal and success release all reservations.
+EXPLAIN reports FullHashJoin and `unmatched=both` in JoinStep detail; ANALYZE counts candidate
+pairs, excluding separately emitted unmatched rows.
+
 SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. The budget does not cap result materialization or transient planning. See [performance and configuration](../../performance.md).
 
 ## Sources
+
+- **FULL semantics, refusal, metadata and budgets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlFullJoinTests.cs`.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.
 

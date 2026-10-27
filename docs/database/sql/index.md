@@ -16,8 +16,9 @@ expressions, functions, types, and diagnostics. Start with
 
 The measured surface includes table and index data definition language (DDL), row mutations,
 session transactions, column constraints, and queries over stored tables and virtual system
-relations with N-way [INNER, LEFT, RIGHT, CROSS and comma joins](language/clauses/join.md).
-INNER/LEFT/RIGHT accept ON or USING; USING merges each named pair into one common-typed visible column.
+relations with N-way [INNER, LEFT, RIGHT, FULL, CROSS and comma joins](language/clauses/join.md).
+INNER/LEFT/RIGHT/FULL accept ON or USING; USING merges each named pair into one common-typed visible column.
+FULL preserves unmatched rows from both sides and requires a safe mandatory hash equality.
 Queries support filtering, grouping, aggregates, aliases and ordinals in ordering, pagination,
 collation, and bounded correlated and uncorrelated [subqueries](language/expressions/subqueries.md). `INSERT ... SELECT` uses transactional destination
 validation. Literal added-column defaults resolve old-row reads without rewriting row bytes.
