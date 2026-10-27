@@ -65,7 +65,9 @@ still propagates. See [error handling](language/diagnostics.md#operation-cleanup
 
 The storage package validates JSON and persists stamped chunk chains. The catalog maintains
 versioned identities and [single/composite, optionally UNIQUE indexes](language/statements/create-index.md)
-in shared B+Trees. Index definition and registration records are v2; v1 indexes require database
+in shared B+Trees. The typed catalog also supports [DISTINCT array-element postings](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-index-key.md);
+OQL array-index syntax and planning arrive in batch 6. Index definition and registration records
+are v3; v1/v2 indexes are refused before recovery writes with CD06105 and require database
 recreation with this engine and have no upgrade path. Index creation populates
 existing documents immediately, while replacement and deletion maintain indexes in the same
 transaction as document content.

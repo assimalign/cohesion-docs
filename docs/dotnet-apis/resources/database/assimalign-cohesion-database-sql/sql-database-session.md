@@ -131,7 +131,10 @@ await foreach (var row in current.GetRowsAsync(CancellationToken.None))
 
 Before rollback the reader also sees the original rows through views and joins. Reclamation waits
 for all older transaction/statement pins; it frees retired row/index storage afterwards. ReadCommitted
-pins each statement snapshot and refreshes on a later statement. CREATE TABLE AS SELECT remains refused.
+pins each statement snapshot and refreshes on a later statement.
+[CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) publishes an
+inferred table atomically. After publication, snapshots before its builder commit see it empty;
+later snapshots see all rows. CTAS uses CS04003 (25001) inside an explicit transaction.
 
 ## Related reference
 

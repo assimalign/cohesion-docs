@@ -25,7 +25,8 @@ TABLE and both effective policies. Getters perform no validation or execution.
 Execution empties the complete table set with affected count 0. RESTRICT's missing referencing
 table uses CS03067 (0A000); explicit-transaction admission uses CS04066 (25001), keeping prior
 work and active state; concurrent closure change uses retryable CS04064 (40001). Malformed syntax
-and CTAS remain CS00003. See [TRUNCATE](../../../../database/sql/language/statements/truncate.md)
+uses CS00003. [CTAS](sql-create-table-as-expression.md) shares prepared-owner reclamation for atomic
+publication in SQL format 26. See [TRUNCATE](../../../../database/sql/language/statements/truncate.md)
 for identity policies, table-level FK closure, snapshot retention and failure semantics.
 
 ## Example

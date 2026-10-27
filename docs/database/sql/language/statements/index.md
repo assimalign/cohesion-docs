@@ -9,7 +9,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[CREATE SCHEMA](create-schema.md)** — Persist a SQL namespace independently of tables.
 - **[DROP SCHEMA](drop-schema.md)** — RESTRICT by default or atomically CASCADE dependent objects.
 
-- **[CREATE TABLE](create-table.md)** — Declare columns, defaults, collation, and constraints.
+- **[CREATE TABLE](create-table.md)** — Declare columns and constraints, or infer and copy query output with AS.
 - **[ALTER TABLE](alter-table.md)** — Add/drop columns and constraints, including literal-default backfill.
 - **[DROP TABLE](drop-table.md)** — Remove an ad-hoc stored table.
 - **[TRUNCATE](truncate.md)** — Empty a table set with FK closure, identity policies and old-snapshot visibility.
@@ -30,6 +30,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[INSERT](insert.md)** — Insert scalar rows or query results.
 - **[UPDATE](update.md)** — Assign column values to selected rows.
 - **[DELETE](delete.md)** — Remove selected rows.
+- **[MERGE](merge.md)** — Bind ordered target/source actions and inspect EXPLAIN; execution reports CK00001.
 
 - **[EXPLAIN](explain.md)** — Describe a chosen plan; ANALYZE executes SELECT for candidate-work counts.
 
@@ -41,7 +42,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 55-of-61 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 57-of-63 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

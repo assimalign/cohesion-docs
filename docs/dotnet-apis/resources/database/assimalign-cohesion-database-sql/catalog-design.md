@@ -209,6 +209,15 @@ DdlGeneration/script receipts. Reopen starts after the last reservation, leaving
 reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
 DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
 
+## CREATE TABLE AS publication
+
+[CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reserves a
+hidden table identity with a durable kind-14 abandonment intent, using the same prepared-owner
+reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
+publication removes the intent and exposes the table. Recovery retains either the whole table or
+an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 26.
+
 ## Error model
 
 TRUNCATE preserves catalog definitions/ownership while publishing fresh storage owners for the

@@ -18,7 +18,16 @@ rendering supplies TABLE and both effective policies. SqlQueryCommandType.Trunca
 as value 12; Begin/Commit/Rollback keep 9/10/11. SqlClauses.Truncate is `TRUNCATE`.
 The [statement reference](../../../../database/sql/language/statements/truncate.md) describes
 CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transaction with earlier
-work retained), and retryable CS04064 (40001, concurrent closure change). CTAS retains CS00003.
+work retained), and retryable CS04064 (40001, concurrent closure change).
+[SqlCreateTableAsExpression](sql-create-table-as-expression.md) represents inferred-table creation,
+including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
+parsing and view output inference; execution uses atomic publication in SQL format 26.
+
+CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
+[SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
+retain ordered actions and clause spans for binding/EXPLAIN. A later clause after an unconditional
+clause of the same match kind uses CS05071; merge_action() outside MERGE RETURNING uses CS01053.
+Neither has an assigned SQLSTATE. Bound MERGE execution reports CK00001 in this release step.
 
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
@@ -116,7 +125,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive/nested CTEs, window functions, `ON UPDATE`, `MERGE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive/nested CTEs, window functions, `ON UPDATE`, MERGE action execution, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -302,7 +311,8 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM and DELETE USING, execution measures 55 of 61 declared clauses. Existing
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 57 of 63 declared clauses,
+including binding-only MERGE through plain EXPLAIN. MERGE execution reports CK00001. Existing
 keywords/identifier quoting and format 26 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite

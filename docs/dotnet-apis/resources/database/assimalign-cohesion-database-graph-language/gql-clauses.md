@@ -72,8 +72,9 @@ executable clauses. `GqlClauses` names lexical capability keys, including deferr
 ## PathMode
 
 PathMode is enabled in GqlLanguageProfile.Instance and adds no accessor exceptions. It names
-the outer [WALK/TRAIL/SIMPLE/ACYCLIC](gql-path-mode.md) capability. Nested modes, unbounded
-WALK even with LIMIT, and selectors still use CK00001.
+the outer [WALK/TRAIL/SIMPLE/ACYCLIC](gql-path-mode.md) capability. Nested modes and unselected
+unbounded WALK even with LIMIT still use CK00001. [Selectors](gql-path-selector.md) bind and EXPLAIN
+but execution remains CK00001; they are not yet added to the executable-clause profile.
 
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.PathMode)); // True

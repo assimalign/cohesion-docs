@@ -107,6 +107,10 @@ returns 1, 2, 3.
 
 ## Mutation sources
 
+[MERGE USING](../statements/merge.md) binds the same supported read-source forms as UPDATE FROM,
+including views, system relations, aliased derived queries and INNER/LEFT/CROSS joins. MERGE
+execution remains CK00001; EXPLAIN describes its association.
+
 UPDATE ... FROM and DELETE ... USING execute with this source-list/join grammar. Their target
 remains the outer join input; target-only predicates can seek it, while mandatory equality to
 a source can drive a source index probe or budgeted hash join. Equality-driven steps follow

@@ -27,7 +27,7 @@ var options = new SqlDatabaseEngineOptions { StatementMemoryBudget = 32L * 1024 
 await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
-The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. It does not limit total result materialization or transient planning.
+The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. Other result materialization and transient planning remain outside this accounting.
 
 FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
 match flags charged to the same budget. There is no loop fallback: conditions without a safe

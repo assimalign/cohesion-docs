@@ -6,6 +6,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlMergeExpression](sql-merge-expression.md)** — Target/source association, ordered actions and RETURNING.
+- **[SqlMergeWhenClause](sql-merge-when-clause.md)** — Match kind, operation, values and retained clause span.
+- **[SqlCreateTableAsExpression](sql-create-table-as-expression.md)** — Destination, inferred query and data policy.
 - **[SqlTruncateExpression](sql-truncate-expression.md)** — Immutable target list and effective policies.
 - **[SqlTruncateTable](sql-truncate-table.md)** — One target and its ONLY modifier.
 

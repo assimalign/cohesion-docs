@@ -396,6 +396,8 @@ not included.
 | `CG00001`–`CG00006` | Parser syntax/literal/bound errors; see language design |
 | `CG00007` | Attempt to mutate catalog introspection results |
 | `CG00010` | Unknown function spelling; parsed arity uses CG00002 |
+| `CG00011` | SHORTEST count is missing or is not a positive Int64 literal; no SQLSTATE |
+| `CG01016` | Selected prefilter references a peer-path-only binding in the same MATCH; no SQLSTATE |
 | `CG05001` | Invalid hand-built function arity/unbound argument; invalid pattern, variable binding, traversal or grouping/aggregate placement |
 | `CG01002` | Unknown label or relationship type |
 | `CG03003` | Proven incompatible function/CAST kind; schema/data mismatch, restricted deletion, invalid graph mutation or deterministic catalog identity/name/owner/index-target error |
@@ -1024,7 +1026,9 @@ In-process GraphQueryLimits can lower MemoryBytes and/or WorkUnits; omitted memb
 
 Outer WALK, TRAIL, SIMPLE and ACYCLIC apply to the complete matched path; omitted mode is
 TRAIL. [Patterns](../../../../database/graph/language/patterns.md#path-modes) defines reuse
-and examples. Nested modes, unbounded WALK even with LIMIT, and selectors report CK00001.
+and examples. Nested modes and unselected unbounded WALK even with LIMIT report CK00001.
+[Selectors](../../../../database/graph/language/path-selectors.md) and inline WHERE prefilters
+parse, bind and EXPLAIN, including selected unbounded WALK; execution remains CK00001 in this step.
 Undefined direct AST modes and insertion modes use CG05001; text insertion modes use CG00002.
 All modes retain CG05004 for hop/work and CG05020 for memory limits, with no SQLSTATE.
 

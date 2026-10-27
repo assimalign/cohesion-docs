@@ -404,7 +404,30 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement hash-build memory (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure SqlDatabaseEngineOptions.StatementMemoryBudget; the engine does not spill a build to disk. See [hash joins](clauses/join.md#hash-joins-and-memory).
+CS05067 reports exhausted statement memory for hash builds or CTAS retained source/copy buffers
+(SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
+SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
+[hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
+
+## CREATE TABLE AS conditions
+
+CTAS adds CS03068 for missing, blank, duplicate or wrong-width output names (42601, syntax_error).
+It reuses CS03049 for destination collisions (42P07), CS04003 for explicit transactions (25001),
+and CS05067 for its retained source/copy memory budget (53200). A guarded name collision returns
+success with zero affected rows.
+
+## MERGE conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01053 | merge_action() outside MERGE RETURNING | — |
+| CS05071 | WHEN follows an unconditional clause of the same match kind, including DO NOTHING | — |
+| CS05070 | FULL MERGE association lacks safe hash equality or a complete ON safety proof | — |
+
+[MERGE](statements/merge.md) syntax, binding and plain EXPLAIN are supported; execution reports
+CK00001 before source/subquery materialization or action evaluation. merge_action arguments or
+modifiers use CS01006 (42883). Scope, assignment, parameter and identity failures retain their
+ordinary codes. No SQLSTATE is assigned to the new CS01053 or CS05071 conditions.
 
 ## Catalog metadata conditions
 

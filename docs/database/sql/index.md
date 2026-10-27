@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 55 of 61 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 57 of 63 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -32,7 +32,9 @@ generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can
 [TRUNCATE](language/statements/truncate.md) empties table sets with CONTINUE/RESTART IDENTITY and
 RESTRICT/recursive CASCADE. It is autocommit-only (CS04066 in an explicit transaction, preserving
 prior work) and reports affected count 0. Older snapshots keep their rows through joins, views and
-indexes until they end; retired storage is reclaimed afterwards. CREATE TABLE AS SELECT remains refused.
+indexes until they end; retired storage is reclaimed afterwards.
+[CREATE TABLE AS](language/statements/create-table.md#create-table-as) atomically creates and
+optionally populates an inferred table.
 
 [ON CONFLICT](language/clauses/on-conflict.md) executes DO NOTHING or targeted DO UPDATE SET/WHERE
 with EXCLUDED over VALUES, DEFAULT VALUES and query sources. RETURNING includes inserted/updated
@@ -40,12 +42,15 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 55-of-61 measure is not a percentage of complete SQL. The
+The 57-of-63 measure includes binding-only MERGE through plain EXPLAIN and is not a percentage
+of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
+[MERGE](language/statements/merge.md) supports parsing, binding and EXPLAIN only; execution
+reports CK00001 in batch 5.
 [CAST](language/expressions/cast.md), [typed literals](language/expressions/literals.md),
 [DEFAULT assignments](language/clauses/default.md) and 64-bit [pagination](language/clauses/limit-offset.md)
 share the same behavior in process and through the supported wire codecs.

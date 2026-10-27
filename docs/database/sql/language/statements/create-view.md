@@ -27,7 +27,8 @@ OR REPLACE must retain every existing column's name, position, type, length, pre
 domain and collation. It may append columns. Incompatible replacement and dependency cycles
 fail atomically. The complete encoded definition, columns and dependencies must fit 8,092 bytes.
 
-Views work in FROM, JOIN, subqueries and INSERT SELECT. Each reference materializes its body
+Views work in FROM, JOIN, subqueries, INSERT SELECT and
+[CREATE TABLE AS](create-table.md#create-table-as). Each reference materializes its body
 once under the caller's statement snapshot, using memory proportional to the body rows.
 Outer filtering, grouping, ordering and paging execute over those rows. View queries have
 ordinary SQL NULL behavior and no MISSING value. INSERT, UPDATE, DELETE, ALTER TABLE,

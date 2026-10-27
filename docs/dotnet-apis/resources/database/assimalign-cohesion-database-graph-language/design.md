@@ -124,8 +124,10 @@ recursive depth follows available stack (CG00009 in parsing, CG05008 in the engi
 execution also imposes a materialized-binding limit, documented in the Graph engine design.
 Quantified paths execute with an outer [GqlPathMode](gql-path-mode.md). Omitted mode means
 Trail; Walk permits repeated identities only with bounded quantifiers; Simple permits only
-first-to-last node closure; Acyclic forbids repeated nodes. Nested modes, unbounded Walk
-even with LIMIT, and selectors remain CK00001. All modes retain the 64-hop and work/memory limits.
+first-to-last node closure; Acyclic forbids repeated nodes. Nested modes and unselected unbounded
+Walk even with LIMIT remain CK00001. [Selectors](gql-path-selector.md) and inline WHERE prefilters
+parse, bind and EXPLAIN, including selected unbounded Walk; execution remains CK00001 in this step.
+All modes retain the 64-hop and work/memory limits.
 
 ### Dedicated catalog statement choice (C2)
 
@@ -202,7 +204,9 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments/WHERE, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments, selector/inline WHERE execution, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `CG00011` | SHORTEST count is missing or is not a positive Int64 literal; no SQLSTATE |
+| `CG01016` | Selected prefilter references a peer-path-only binding in the same MATCH; no SQLSTATE |
 | `CG00001` | Empty statement |
 | `CG00002` | Malformed supported syntax or invalid statement composition |
 | `CG00003` | Unterminated string, quoted name, or block comment |

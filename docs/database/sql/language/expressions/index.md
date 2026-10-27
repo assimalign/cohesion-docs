@@ -16,7 +16,7 @@ Reference for scalar values, operators, conditional expressions, conversions, an
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 55-of-61 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 57-of-63 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

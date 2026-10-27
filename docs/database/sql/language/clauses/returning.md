@@ -2,16 +2,20 @@
 
 Returns a projection for each directly inserted, updated or deleted row.
 
-> **Status:** Implemented. Supports INSERT, UPDATE and DELETE.
+> **Status:** Execution for INSERT, UPDATE and DELETE; binding/EXPLAIN only for MERGE.
 
 ## Syntax
 
 ```syntaxsql
-{ insert_statement | update_statement | delete_statement }
+{ insert_statement | update_statement | delete_statement | merge_statement }
 RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] [ ; ]
 ```
 
 ## Remarks
+
+[MERGE](../statements/merge.md) RETURNING binds target/source columns and the contextual
+[merge_action()](../functions/merge-action.md) TEXT expression. Its execution is refused with
+CK00001 in this step. The execution/result-delivery rules below apply to INSERT/UPDATE/DELETE.
 
 The final list uses SELECT projection rules: star expands in table-column order, pass-through
 columns keep their names, and computed outputs without aliases use columnN names. Expressions

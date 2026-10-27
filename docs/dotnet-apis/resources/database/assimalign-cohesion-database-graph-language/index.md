@@ -16,6 +16,7 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
+- **[GqlPathSelector](gql-path-selector.md)** — Selector kind/count and rendering; binding and EXPLAIN only.
 - **[GqlNamedFunctionCallExpression](gql-named-function-call-expression.md)** — Engine-resolved application function calls.
 
 - **[GraphFunctionName](graph-function-name.md)** — Generated function identifier and validation.

@@ -133,7 +133,7 @@ adds only the catalog facts those handles do not expose, through two virtual doc
 
 | Source | `Document` properties | Cardinality |
 | --- | --- | --- |
-| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; PATHS is the ordered array, PATH its first path and IS_UNIQUE the actual flag |
+| `COHESION_SCHEMA.INDEXES` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `INDEX_NAME`, `PATH`, `PATHS`, `IS_UNIQUE` | One document per visible definition; scalar-only PATHS is the ordered array and PATH its first path; array indexes have empty PATHS and empty-string PATH; IS_UNIQUE is the actual flag |
 | `COHESION_SCHEMA.OBJECT_OWNERSHIP` | `COLLECTION_CATALOG`, `COLLECTION_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` | One document per visible collection; `OBJECT_TYPE` is `COLLECTION` |
 
 `COLLECTION_CATALOG` is the bound database name. `OWNER` preserves SQL's `Adhoc` and `Schema`
@@ -267,13 +267,28 @@ values, reversed operands, and conjunctive bounds. Bounded snapshot-visible prob
 then a range on the next path, then UNIQUE, then ordinal index name. A non-leading-only bound scans. The executor reapplies the full predicate to candidates, preserving mixed-shape
 semantics. See the [catalog design](catalog-design.md) for
 composite key collation, NULL/MISSING rules, visibility filtering and restart recovery. Index
-records use v2; v1 indexes are refused before recovery writes with a recreate remedy and no upgrade.
+records use v3; v1/v2 indexes are refused with CD06105 before recovery writes, with a recreate remedy and no upgrade.
 UNIQUE keys containing NULL/MISSING do not conflict. Duplicate valued scalar keys use
 DocumentConstraintViolationException/CD03020 (23505); array/object components use CD02021.
 Direct path counts outside 1..32 use CD03022. Constraints are immediate per row; failed explicit
 transactions require RollbackAsync. Conditional CREATE keeps any same-named definition; conditional
 DROP ignores an absent index. Snapshot conflicts precede no-ops; an existing schema-owned index
 still refuses DROP. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md).
+
+## Typed array index postings
+
+[DocumentIndexKey](document-index-key.md) adds a typed DISTINCT array projection, optionally
+filtered by a bounded [DocumentIndexPredicate](document-index-predicate.md). One array key may
+appear at any compound position. Qualifying scalar values deduplicate per document version;
+NULL posts, while MISSING and complex element projections do not. Empty/filtered arrays have no
+postings. All WHEN conjuncts apply to the same element. Search deduplicates document candidates;
+the original array and full residual predicate remain necessary for query semantics.
+
+Metadata persists Keys and IncludeMissing; Paths/Path remain scalar-only and are empty for array
+indexes. Multiple array keys, UNIQUE array indexes and IncludeMissing with a leading array key
+use CD03025. Definition records above 8,092 bytes use CD03026 before extraction/tree creation.
+Unsupported typed predicate constants (including Single/Double) and trees above 32 levels/128
+nodes retain ArgumentException. OQL array-index DDL/access planning arrive in batch 6.
 
 ## Data mutation and serialization semantics
 
@@ -572,6 +587,8 @@ undone together. An explicit session refuses commands with CD04101 until the cal
 | `CD06104` | Storage operation or open I/O failure, including I/O inside catalog/index-registration wrappers; original cause retained | — |
 | `CD06105` | Catalog/index failure; additional model diagnostic for attached-index corruption | — |
 | `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
+| `CD03025` | Multiple array keys, UNIQUE array index, or IncludeMissing with a leading array key | — |
+| `CD03026` | Encoded index definition exceeds 8,092 bytes before extraction/tree creation | — |
 | `CD01025` | DROP INDEX finds no index without IF EXISTS | — |
 | `CD02026` | Encoded composite index key exceeds 1,024 bytes during build or mutation | — |
 

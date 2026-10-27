@@ -11,6 +11,9 @@ packages are retired. Wire contracts ship separately in [Documents.Protocol](../
 
 ## Reference pages
 
+- **[DocumentIndexKey](document-index-key.md)** — Typed scalar or DISTINCT array projection.
+- **[DocumentIndexPredicate](document-index-predicate.md)** — Bounded element-relative WHEN tree.
+- **[DocumentIndexMetadata](document-index-metadata.md)** — Keys, IncludeMissing and array metadata shape.
 - **[DocumentDatabaseEngineOptions](document-database-engine-options.md)** — RETURNING retention budget and estimate.
 
 - **[DocumentFunctionContext](document-function-context.md)** — Database identity and statement cancellation.
@@ -101,7 +104,6 @@ resolved values and register nested components while keeping the model package d
 - **[Documents catalog](catalog.md)** — Reference and usage.
 - **[DocumentCatalog](document-catalog.md)** — Reference and usage.
 - **[DocumentConstraintViolationException](document-constraint-violation-exception.md)** — Reference and usage.
-- **[DocumentIndexMetadata](document-index-metadata.md)** — Reference and usage.
 - **[Documents storage](storage.md)** — Reference and usage.
 
 ## Catalog diagnostics

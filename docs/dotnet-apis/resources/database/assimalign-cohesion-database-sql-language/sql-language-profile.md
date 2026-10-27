@@ -43,7 +43,9 @@ TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURREN
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 26, with no upgrade path from an earlier format. The executable
-profile now measures 55 of 61 declared clauses, including FETCH, lexical TOP and all five delete actions.
+profile now measures 57 of 63 declared clauses, including CREATE TABLE AS and binding-only MERGE
+through plain EXPLAIN. MERGE execution reports CK00001 in this step; merge_action() is contextual
+to its RETURNING clause and is not a standalone executable function-table entry.
 SqlClauses.OnConflict is the `ON CONFLICT` capability name, enabled for VALUES, DEFAULT VALUES
 and query-source inserts. SqlClauses.QuantifiedComparison is `QUANTIFIED COMPARISON`, enabling scalar ANY/SOME/ALL subqueries.
 Distinct predicates, Boolean tests and LIKE ESCAPE add no named clause.

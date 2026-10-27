@@ -11,6 +11,9 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 ( <table_element> [ , ...n ] )
 [ ; ]
 
+CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
+[ ( column_name [ , ...n ] ) ] AS query_body [ WITH [ NO ] DATA ] [ ; ]
+
 <table_element> ::= { <column_definition> | <table_constraint> }
 <column_definition> ::= column_name data_type
     [ COLLATE collation_name ]
@@ -41,9 +44,9 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 
 ## Remarks
 
-CREATE TABLE ... AS SELECT remains refused with CS00003. Declare the table, then use
-[INSERT SELECT](insert.md). [TRUNCATE](truncate.md) empties existing table sets with identity and
-foreign-key policies while preserving definitions.
+[CREATE TABLE AS](#create-table-as) infers a new table from a query.
+[TRUNCATE](truncate.md) empties existing table sets with identity and foreign-key policies
+while preserving definitions.
 
 The namespace must already exist; use [CREATE SCHEMA](create-schema.md). Unqualified names use dbo,
 and code-first provisioning remains pinned to dbo. Missing namespaces use CS01028 (3F000)
@@ -87,6 +90,53 @@ See [CHECK binding](../constraints.md#check-binding) for existing stored and dec
 Data definition language (DDL) is self-committing. It is rejected inside an explicit transaction
 with `CS04003`. See [Constraints](../constraints.md) for foreign-key and check restrictions.
 
+## CREATE TABLE AS
+
+`AS query_body` accepts the ordinary SELECT/set-operation subset, including a non-recursive WITH
+inside the body and parameters. WITH DATA is the default and copies the query's rows, including
+duplicates. WITH NO DATA binds and validates the query, then creates an empty table without
+evaluating rows, predicates, functions or row-limit expressions.
+
+Types, length/precision/scale facets, collations and domain identities follow
+[view output inference](create-view.md#remarks). An untyped NULL becomes TEXT. Every destination
+column is nullable; source NOT NULL, keys, CHECKs, column defaults, identities and indexes are not
+copied. Inferred domain constraints and domain defaults still apply.
+
+The optional name list must name **every** output column. This matches CREATE VIEW and differs
+from PostgreSQL's partial CTAS rename list. Without it, every output needs a name; blank or
+case-insensitively duplicate names are refused with CS03068 (42601). Supply aliases or a complete
+name list for unnamed expressions.
+
+IF NOT EXISTS skips binding and execution when the table already exists. It also succeeds with
+zero affected rows if another session wins the name while the query builds; the winner's table
+is kept. Without the guard, a name collision reports CS03049 (42P07). A successful WITH DATA
+reports the number of rows written; WITH NO DATA, empty input and a skip report 0.
+
+CTAS is self-committing and is refused inside an explicit transaction with CS04003 (25001).
+A failed build leaves no table, including after crash recovery. Publication exposes the complete
+table atomically. Once it is published, a snapshot taken before the builder transaction committed
+sees the new table empty; a snapshot taken after that commit sees every row. No snapshot sees a
+partial build. Source reads use one statement snapshot.
+
+The statement memory budget covers retained source results and copy buffers as well as live hash
+builds. Exhaustion reports CS05067 (53200) before publication; there is no spill. A running CTAS
+holds the same metadata lease as CREATE INDEX: other sessions' definition DDL for views, functions,
+domains and schemas fails immediately while it runs. Unrelated table DDL can proceed.
+
+CTAS reuses TRUNCATE's durable prepared-owner reclamation machinery. Abandoned build storage is
+reclaimed after statement/snapshot pins clear. SQL storage remains **format 26**.
+
+### CTAS diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03068 | Missing, blank, duplicate or wrong-width output names | 42601 (`syntax_error`) |
+| CS03049 | Destination exists, including a name lost during the build, without IF NOT EXISTS | 42P07 (`duplicate_table`) |
+| CS04003 | CTAS inside an explicit transaction | 25001 (`active_sql_transaction`) |
+| CS05067 | Retained source, copy buffers or hash builds exhaust StatementMemoryBudget | 53200 (`out_of_memory`) |
+
+Source binding, conversion and domain failures retain their ordinary codes.
+
 ## Examples
 
 ```sql
@@ -107,6 +157,23 @@ and creates nothing. After `CREATE TABLE existing (a INT);`,
 `CREATE TABLE IF NOT EXISTS existing (a INT PRIMARY KEY, b INT PRIMARY KEY);`
 succeeds without adding a primary key or column b.
 
+### Copy rows or only the definition
+
+```sql
+CREATE TABLE source_rows (id INT PRIMARY KEY, label VARCHAR(12) NOT NULL);
+INSERT INTO source_rows VALUES (1,'one'),(2,'two');
+CREATE TABLE copied (n,word) AS SELECT id,label FROM source_rows;
+SELECT * FROM copied ORDER BY n;
+CREATE TABLE empty_copy AS SELECT 1/0 AS n WITH NO DATA;
+SELECT COUNT(*) AS n FROM empty_copy;
+CREATE TABLE null_copy AS SELECT NULL AS value;
+```
+
+The first CTAS reports 2 affected rows; SELECT returns `(1,'one')`, `(2,'two')`.
+The copied columns are nullable and have no primary key. The second CTAS reports 0, does not
+evaluate `1/0`, and its COUNT returns 0. The last table has one nullable TEXT column and one NULL
+row. `CREATE TABLE bad (n) AS SELECT 1,2;` instead reports CS03068 and creates no table.
+
 ## See also
 
 [Data types](../data-types/index.md) · [Constraints](../constraints.md) · [COLLATE](../clauses/collate.md) · [ALTER TABLE](alter-table.md)
@@ -115,6 +182,7 @@ succeeds without adding a primary key or column b.
 
 ## Sources
 
+- **CTAS implementation and tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.TableAs.cs`, `src/Internal/Execution/SqlPlanExecutor.TableAs.cs` and `tests/SqlCreateTableAsTests*.cs` in the same project.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Ddl.cs`
