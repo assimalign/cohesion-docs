@@ -1872,8 +1872,7 @@ projected, with NULL sources for BY SOURCE. merge_action() yields INSERT/UPDATE/
 CS05036 (21000) refuses repeated physical target modifications and conservative direct UPDATE/
 referential overlaps. CS05067 (53200) refuses retained joined-DML state above the statement grant
 before any write. Current version checks reject stale targets; ReadCommitted rechecks and
-complete mixed-action final-state constraint composition remain run-3 work. EXPLAIN still emits
-a stale `execution=unsupported` label although MERGE executes.
+complete mixed-action final-state constraint composition remain run-3 work.
 
 ## Joined source DML
 
