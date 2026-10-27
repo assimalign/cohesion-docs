@@ -34,9 +34,10 @@ storage strategies call.
 
 ## Format boundary
 
-The engine opens SQL data/catalog format 26 only. It refuses older temporal defaults before
-rebinding them; compiled schema documents must be v8. Shared physical storage format 4 and
-B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8);
+The engine opens SQL data/catalog format 27 only, including table extension 7's TYPE default
+assignment flag. Format 26 and every earlier format are refused before expression rebinding;
+compiled schema documents remain v8. Shared physical storage format 4 and
+B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-27-and-schema-v8);
 there is no upgrade reader.
 
 ## Sources

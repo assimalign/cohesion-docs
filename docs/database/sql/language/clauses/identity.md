@@ -71,8 +71,9 @@ identity table with SqlSchemaMigrationException / `CS03105` and "Nothing was cha
 SQL script-created tables retain their SQL definitions.
 
 [INFORMATION_SCHEMA.COLUMNS](../system-views/information-schema.md) exposes the definition and
-directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 26, with catalog counter kind 16. Table extension 6 retains the identity
-facets and adds frozen missing-value literals; identity counters remain independent of insert defaults.
+directional bounds; COLUMN_DEFAULT is NULL. SQL storage format is 27, with catalog counter kind 16.
+Current table extension 7 retains identity facets, frozen missing-value literals and the TYPE
+default-assignment flag; identity counters remain independent of insert defaults.
 
 ## Diagnostics
 
@@ -115,7 +116,8 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

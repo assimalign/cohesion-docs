@@ -42,7 +42,7 @@ Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC"));
 TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
-Current storage format is 26, with no upgrade path from an earlier format. The executable
+Current storage format is 27, with no upgrade path from an earlier format. The executable
 profile now measures 57 of 63 declared clauses, including CREATE TABLE AS and executable MERGE.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.

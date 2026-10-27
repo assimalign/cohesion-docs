@@ -88,10 +88,9 @@ those same transforms for uniqueness enforcement.
   record cannot be told apart record-by-record, and version 2 vs 3 (shared page
   stream vs per-object page chains) is a page-placement property no record
   carries — so the database-grain marker is catalog metadata, read by the
-  engine at open to decide which in-place upgrade stages to run. Absent marker
-  reads as version 1 (pre-marker databases); the engine writes the current
-  version (3) after upgrading (or at creation, when the space is born on the
-  current format).
+  engine at open to enforce format 27. Earlier or newer markers, including format 26, are
+  refused without an upgrade reader. An absent marker does not authorize migration; only
+  proven interrupted creation can complete under the engine's creation rules.
 - **The applied compiled-schema state lives here** (kind-6 records). The catalog
   stores the lowercase content hash together with the complete canonical schema
   document. Documents are strict UTF-8 and chunked into bounded records; replacing
@@ -166,7 +165,7 @@ ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinal
 with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
 dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
 intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
-abandoned storage. This reuses format 26 and the TRUNCATE replacement contract.
+abandoned storage. This reuses format 27 and the TRUNCATE replacement contract.
 
 ## Single source for SQL system views (C1)
 
@@ -199,7 +198,7 @@ for the query surface and the two deliberately non-standard extension views.
 ## Identity reservations
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
-metadata in table extension 6 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
+metadata in current table extension 7 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
 and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
 values outside the START/INCREMENT progression. One table can have one signed integer identity.
 
@@ -216,7 +215,7 @@ hidden table identity with a durable kind-14 abandonment intent, using the same 
 reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
 publication removes the intent and exposes the table. Recovery retains either the whole table or
 an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
-zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 26.
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 27.
 
 ## Error model
 
@@ -261,7 +260,7 @@ incoming/self foreign keys, primary keys and index column lists, preserving IDs,
 Generated names stay unchanged. Stale definitions/collisions or incomplete CHECK metadata fail closed.
 
 [SqlCatalogColumn.MissingValueLiteral](sql-catalog-column.md) is captured by ADD COLUMN and is
-independent of DefaultLiteral for future inserts. Table extension 6 appends one optional frozen
+independent of DefaultLiteral for future inserts. Table extension 6 introduced one optional frozen
 literal per live column after identity facets. Format 17 introduced this split; format 18 separately
 changes persisted canonical function-name quoting. SET/DROP DEFAULT cannot change old missing reads.
 
@@ -274,7 +273,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 26 and compiled schema version 8.
+The integration branch uses SQL row-storage format 27 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -286,18 +285,20 @@ Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
-Current format 26 fences temporal DEFAULT and frozen missing-value text.
+Format 26 fenced temporal DEFAULT and frozen missing-value text.
+Current format 27 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
 ## Persisted views
 
-Format 26 fences temporal DEFAULT and frozen missing-value spellings. Earlier catalogs are
-refused before definitions bind, carrying CS06041; they are never silently rewritten.
-Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-26-and-schema-v8).
+Current format 27 records TYPE default assignment coercion in table extension 7. Format 26 and
+every earlier catalog are refused before definitions bind, carrying CS06041; they are never
+silently rewritten. Format 26 introduced the temporal DEFAULT/frozen missing-value fence.
+Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-27-and-schema-v8).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 26. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 27. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.
