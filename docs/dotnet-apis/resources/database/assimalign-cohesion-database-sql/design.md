@@ -1266,7 +1266,8 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
-| `CS05069` | Direct RIGHT or unaliased parenthesized joined-DML source; refused before reads/writes | — |
+| `CS05069` | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; refused before reads/writes | — |
+| `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
@@ -1382,8 +1383,43 @@ shippable steps:
 normalization while retaining written column slots and namespaces. Its entire left subtree becomes
 nullable; USING reads the coerced right value and collation. Parenthesized groups, including
 derived-first groups, retain their association and survive persisted views. EXPLAIN describes the
-normalization and chosen access path. Direct RIGHT or unaliased grouped joined-DML sources fail
-CS05069 before reads/writes; derived SELECT sources containing RIGHT execute with the target pinned.
+normalization and chosen access path. Direct RIGHT, FULL or unaliased grouped joined-DML sources fail
+CS05069 before reads/writes; derived SELECT sources containing RIGHT or FULL execute with the target pinned.
+
+FULL retains its written children and builds the right child with a bounded hash table. Duplicate
+and NULL-key build rows remain independent; match flags are set only after the full ON condition
+is TRUE. Unmatched rows from both sides are NULL-extended, with WHERE applied afterwards. USING
+merges common-typed inputs with COALESCE; both qualified sides become nullable and a merged key
+is nonnullable only when both original inputs were nonnullable. Nested/grouped joins retain these
+computed keys. A safe mandatory hash equality and proven non-throwing ON are required (CS05070).
+There is no FULL loop fallback or spill. Tracking flags, retained rows and overlapping array growth
+share StatementMemoryBudget; every exit releases reservations. EXPLAIN describes FullHashJoin with
+unmatched=both; ANALYZE counts candidate pairs, excluding unmatched-row emission. See
+[FULL semantics and examples](../../../../database/sql/language/clauses/join.md#full-using-and-groups).
+
+## Table rewrite
+
+[SqlDatabase.RewriteTableAsync](sql-database.md) accepts decoded SqlObjectName components and
+uses the provisioning worker, including for empty and schema-owned tables. Fail-fast schema/DDL
+admission precedes source-table X, which is acquired before queueing; nonzero engine LockTimeout
+bounds that wait (CS04044 / 55P03). Metadata admission on the worker also refuses rather than
+waiting under source-table X. A blocked caller leaves the shared worker available to peer databases.
+
+The copier decodes currently live rows through the old layout, including frozen missing values,
+then writes dense ordinals into a fresh owner and rebuilds indexes. At most 64 decoded rows are
+retained per durable copy batch. Unique indexes are validated before atomic catalog publication.
+Identity allocation, constraints, defaults, collation, ownership, applied-schema hash and dependent
+views survive. Historical versions remain in the retired owner for old snapshots. Writers needing
+retired layouts abort with CS04006 and retry the whole transaction, including stale-snapshot
+foreign-key probes rather than false FK violations. Empty/NULL-key cases needing no parent probe
+keep their ordinary behavior.
+
+Preparation, publication and cleanup use the existing storage-replacement transaction and durable
+kind-14 reclamation intents. Interrupted preparation leaves the original current and is retried
+explicitly. Publication is irrevocable; cleanup proceeds without caller cancellation. Recovery
+exposes a complete old or compact layout/index set at every tested file boundary. Reclamation
+waits for old snapshots. SQL format 26 and compiled schema v8 remain unchanged. See
+[maintenance behavior and examples](sql-database.md).
 
 ## TRUNCATE
 
@@ -1402,7 +1438,7 @@ refused with CS00003. See the [session example](sql-database-session.md#truncate
 
 ## Non-goals (current cut)
 
-FULL/NATURAL joins, qualified wildcards, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
+NATURAL joins, qualified wildcards, `Serializable` isolation (rejected at begin), persisted statistics and hash spill, and
 index-only result production (a seek always fetches the row). (Row-level MVCC visibility and
 secondary indexes — DDL, write-path maintenance, and planner seek adoption — were non-goals of
 earlier cuts and are now delivered; see "The MVCC integration", "Secondary indexes", and the

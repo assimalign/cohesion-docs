@@ -182,7 +182,9 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 ## Relationship-type storage
 
 Graph format 5 adds persistent relationship-type postings maintained with relationship mutations.
-Internal storage scans use them; the planner does not yet use them for type-anchored patterns.
+Fixed outer edges with a named type or pure type union can now anchor on those postings,
+competing with label scans and property seeks by estimate. Query results and format 5 are unchanged.
+See [MATCH](language/statements/match.md) and [EXPLAIN](language/statements/explain.md).
 See [storage indexes](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/storage-design.md#secondary-indexes).
 
 ## Sources

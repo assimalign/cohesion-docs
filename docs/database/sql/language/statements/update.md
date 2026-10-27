@@ -145,9 +145,9 @@ both target and source columns. An alias hides the original name; self-joins nee
 visible names. A source item's JOIN ON sees that comma item's namespace, excluding the target
 and other comma items; put target/source conditions in WHERE.
 
-A direct RIGHT join or unaliased parenthesized joined source is refused before reads or writes
-with CS05069 (no SQLSTATE). A derived SELECT source containing RIGHT executes with the target
-pinned. FULL JOIN remains CK00001. For example, with empty a, b containing id 2, and t containing
+A direct RIGHT or FULL join, or unaliased parenthesized joined source, is refused before reads or writes
+with CS05069 (no SQLSTATE). A derived SELECT source containing RIGHT or FULL executes with the target
+pinned. For example, with empty a, b containing id 2, and t containing
 `(1,0)`, `(2,0)`, this branch test changes only t's second row to `(2,2)`:
 
 ```sql

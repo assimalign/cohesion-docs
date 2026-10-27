@@ -37,7 +37,7 @@ through their inner predicate.
 | Code | Meaning and trigger |
 | --- | --- |
 | CD05001 | META(variable) on a quantified variable, including one shadowing the FROM alias, or an aggregate in its collection/predicate |
-| CK00001 | Multi-binding quantifiers, ANY AND EVERY, ARRAY/FIRST comprehensions, ODMG FOR ALL/EXISTS or nested SELECT |
+| CK00001 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS or nested SELECT |
 | CD00010 | Duplicate names within one parsed binding list |
 
 No SQLSTATE is assigned to these codes. A nested quantifier may reuse an outer name.
@@ -60,7 +60,7 @@ An absent collection path yields a MISSING projected member; a NULL collection y
 
 ## See also
 
-[Expressions](index.md) · [UNNEST](../clauses/unnest.md) · [Operators](operators.md) · [MISSING](missing.md)
+[Expressions](index.md) · [ARRAY/FIRST](comprehensions.md) · [UNNEST](../clauses/unnest.md) · [Operators](operators.md) · [MISSING](missing.md)
 
 ## Sources
 

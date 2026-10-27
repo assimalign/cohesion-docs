@@ -24,7 +24,8 @@ bytes. RAW and VALUE are synonyms for one unwrapped expression, without alias or
 
 The target alias, or collection name without an alias, binds the image. META().id and
 META(binding).version address that image's metadata. INSERT/UPSERT SELECT source bindings do
-not escape into RETURNING. Scalar functions, parameters, predicates, CASE and constructors work;
+not escape into RETURNING. Scalar functions, parameters, predicates, CASE, constructors and
+[ARRAY/FIRST comprehensions](../expressions/comprehensions.md) work;
 aggregates and subqueries are excluded. Names and types follow [SELECT](../statements/select.md).
 Named MISSING members are omitted; explicit NULL remains JSON null. RAW/VALUE converts top-level
 MISSING to JSON null. Constructors omit MISSING object members and replace MISSING array elements

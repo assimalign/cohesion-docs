@@ -74,7 +74,8 @@ CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/trans
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS05068 | UPDATE target has more than one source association; refused before SET evaluation or writes | 21000 (`cardinality_violation`) |
-| CS05069 | Direct RIGHT or unaliased parenthesized joined-DML source; before reads/writes; derived SELECT containing RIGHT executes | — |
+| CS05069 | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; before reads/writes; derived SELECT containing RIGHT or FULL executes | — |
+| CS05070 | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing ON evaluation; before input reads | — |
 
 DELETE USING deduplicates physical targets instead. A cardinality failure preserves earlier
 explicit-transaction work. See [UPDATE FROM](sql/language/statements/update.md#from-sources).
@@ -96,6 +97,20 @@ use CS05017 for ungrouped references. See [ANY/SOME/ALL](sql/language/expression
 
 See [TRUNCATE](sql/language/statements/truncate.md) for recursive CASCADE, identity policies and
 snapshot retention. Retired-source DML keeps CS04006 (no SQLSTATE); read-only old snapshots continue.
+
+## SQL table rewrite
+
+[RewriteTableAsync](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md)
+reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
+retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
+engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
+changed descriptions CS04064 / 40001. SQL format 26 is unchanged.
+
+## Document comprehensions
+
+OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md) add CD01027 for
+an empty variable in a directly constructed AST (no SQLSTATE). Aggregate or metadata misuse
+retains CD05001; retired ARRAY()/FIRST() calls retain CK00001.
 
 ## Document RETURNING
 

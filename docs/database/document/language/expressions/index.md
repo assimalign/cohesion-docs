@@ -10,6 +10,7 @@ OQL expressions combine document paths, scalar values, parameters, operators, an
 - **Conditional values** — [CASE](case.md) chooses a branch.
 - **JSON objects** — [Object constructors](object-constructors.md) builds keyed values.
 - **JSON arrays** — [Array constructors](array-constructors.md) builds ordered values with NULL for MISSING elements.
+- **Array mappings** — [ARRAY and FIRST comprehensions](comprehensions.md) map and filter scoped elements in input order.
 - **Constant values** — [Literals](literals.md) covers strings, decimal numbers, Boolean values, and null.
 - **Bound values** — [Parameters](parameters.md) explains named and numbered markers.
 

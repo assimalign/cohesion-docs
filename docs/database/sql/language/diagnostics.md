@@ -70,7 +70,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS02034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
 | `CS06041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
 | `CS05043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
-| `CS04044` | Individual contended lock wait expired, including unique-index key waits | 55P03 (`lock_not_available`) |
+| `CS04044` | Individual contended lock wait expired, including unique-index key waits and RewriteTableAsync's pre-queue exclusive table lock | 55P03 (`lock_not_available`) |
 | `CS05045` | Uncoded result encoding/preparation failure, or an encoded header/row above the wire frame limit; see [result delivery](#result-encoding-and-delivery) | 54000 for size refusals; otherwise — |
 | `CS05042` | Encoded row, index key or catalog definition exceeds its size limit, or catalog DDL generation is exhausted | 54000 (`program_limit_exceeded`) |
 | `CS05040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
@@ -95,7 +95,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03059` | Expression cannot be stored as a valid deterministic row definition | 42P17 (`invalid_object_definition`) |
 | `CS05060` | Executor/catalog invariant failure, including unavailable constraint indexes or freshly rendered CREATE VIEW text that cannot reload | XX000 (`internal_error`) |
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes, even for identical source values | 21000 (`cardinality_violation`) |
-| `CS05069` | Direct RIGHT or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT executes | — |
+| `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT or FULL executes | — |
+| `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing ON evaluation; before either input is read, even when empty | — |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
@@ -282,7 +283,7 @@ A recoverable I/O open failure publishes no database and permits retry after res
 | `CS04001` | BEGIN/START TRANSACTION while a transaction is active |
 | `CS04002` | COMMIT/END/ROLLBACK without an active transaction |
 | `CS04003` | DDL inside an explicit transaction |
-| `CS04006` | Bound target table changed, was dropped or replaced during lock preparation; retry in a fresh transaction; no SQLSTATE assigned |
+| `CS04006` | Bound target changed/dropped/replaced, or DML/foreign-key work needs a retired layout after rewrite; retry the whole transaction in a fresh snapshot; no SQLSTATE assigned |
 | `CS04005` | Transaction was aborted or ended beneath its caller; later statements/commit refused with the original coded cause |
 | `CS04065` | Hard-deadlock lock refusal; SQLSTATE `40P01` (`deadlock_detected`); caller rolls back the victim transaction |
 
