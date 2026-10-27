@@ -331,9 +331,10 @@ faults it without another error write. See [wire and cleanup behavior](../assima
 
 ## Label scans and engine failures
 
-Label scans use MVCC postings and decode only matching visible nodes. After bound entities and
-property seeks, the planner chooses the smallest retained-posting estimate at any node position,
-retaining the full pattern/WHERE residual and breaking ties by source order. Pure pattern unions
+Label scans use MVCC postings and decode only matching visible nodes. After bound entities,
+property seeks, label scans and fixed outer named-type/pure-union anchors compete by estimate.
+Ties prefer equality seeks, then source-ordered nodes, then source-ordered relationships.
+The full pattern/WHERE remains residual. Pure pattern unions
 merge selected ranges with duplicate suppression; EXPLAIN reports target A|B and combine=union.
 WHERE disjunctions supply no union anchor. See [MATCH](../../../../database/graph/language/statements/match.md),
 [WHERE](../../../../database/graph/language/clauses/where.md) and [EXPLAIN](../../../../database/graph/language/statements/explain.md).

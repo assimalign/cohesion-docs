@@ -95,8 +95,8 @@ select a server, another database, or another graph.
 
 Graph format 5 requires persistent relationship-type postings. Each relationship has one posting
 keyed by catalog type GUID and relationship identity; mutations, rollback, recovery and purge
-maintain it with records and adjacency. Internal type scans use it, but the planner does not yet
-use postings as type-pattern anchors. See [storage indexes](storage-design.md#secondary-indexes).
+maintain it with records and adjacency. Fixed outer named-type and pure-union patterns can use
+these postings as anchors. Format 5 remains current. See [storage indexes](storage-design.md#secondary-indexes).
 
 Each logical database owns `graph.dat`, `graph.log` and `graph.bak`. All records start with the
 shared 16-byte little-endian writer/deleter transaction stamp. The graph payload's byte 16 is the
@@ -212,8 +212,9 @@ still passes labels, property predicates and bindings.
 
 Pure pattern conjunctions and positive labeled predicates in the clause's top-level AND chain
 supply required node labels. Pattern labels precede WHERE labels in source order. After bound
-entities and property seeks, the smallest retained-posting estimate anchors a label scan;
-ties retain source order. Estimates include history and rolled-back versions and affect cost only. `(a)->(b:Keep)` and
+entities, the smallest estimate chooses among property seeks, label scans and type anchors.
+Ties prefer equality seeks, then source-ordered nodes, then source-ordered relationships.
+Estimates can include retained history and rolled-back publications and affect cost only. `(a)->(b:Keep)` and
 `(a)->(b) WHERE b:Keep` can therefore both anchor at b. OR/XOR/NOT, truth tests,
 IS NOT LABELED and label expressions containing `|`, `!` or `%` supply none. Relationship
 label tests supply no node anchors, and requirements never cross clause boundaries. Pure pattern
@@ -223,6 +224,23 @@ label and retain the full residual; negation, wildcard and mixed expressions kee
 unless another safe anchor narrows them. Pending statement nodes participate in selected ranges.
 [EXPLAIN](../../../../database/graph/language/statements/explain.md) reports the label and ordinal.
 Without ORDER BY, row order is unspecified even though each path keeps its element order.
+
+Fixed outer edges with named types or pure unions can start from relationship-type postings.
+The selected edge is consumed directly; the executor expands the remaining right side, then left.
+Undirected edges seed both orientations except self-loops. Every endpoint, property, binding and
+path-mode check remains. Quantified edges, wildcard/negated/mixed type expressions and WHERE-only
+type predicates supply no type anchor, though a fixed outer edge beside a quantified segment can.
+Retained type counts sum across types and double for unconstrained direction. Maintenance
+reconciles counts after rollback/purge without reopening; planning reads cached counts only.
+Equality seek counts are bounded to 512 physical entries and 32 page visits, with conservative
+label-population fallback when incomplete. RelationshipTypeScan describes types, edge ordinal,
+direction and postings tuple, with no Expand for its posting edge. Available anchor estimates
+populate EstimatedRows; ActualRows remains null.
+
+One posting head costs one physical work unit before inspection, including union priming and
+resumed reads; both undirected orientations share that unit. Each accepted hop costs one viable
+unit. LIMIT avoids the next posting; cancellation and work refusal stop before further inspection.
+Cursor batches and retained overlay state share the statement memory ledger.
 
 GQL patterns have fixed/quantified edges and parenthesized segments with repetition-bound sums
 of at most 64 relationships. Each matched path is a trail: an edge
