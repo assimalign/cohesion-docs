@@ -89,6 +89,11 @@ await using var description = DatabasePlanDescription.Create([seek]);
 
 EstimatedRows is the model's candidate-row estimate, with incomplete bounds or heuristic qualifications in Detail. ActualRows is observed candidate work for an executed description, otherwise null. SQL populates available estimates and SELECT-only EXPLAIN ANALYZE counts; these are not final output cardinalities. The initializer stores the nullable values without executing a plan. The eight result columns are unchanged.
 
+GQL also populates available anchor estimates for LabelScan, IndexSeek and RelationshipTypeScan.
+Type scans describe selected types, edge ordinal, direction and posting work in Detail; their
+posting edge has no Expand node. Plain GQL EXPLAIN keeps ActualRows null. See
+[GQL EXPLAIN](../../../../database/graph/language/statements/explain.md).
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabasePlanNode.cs`.

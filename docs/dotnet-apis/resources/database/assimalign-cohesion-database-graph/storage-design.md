@@ -150,8 +150,13 @@ retained records and attaches the persistent tree. Retained relationship records
 mandatory registration refuse open as corruption; an empty store needs no type tree until its first
 relationship. Cursors use bounded cancellable batches and release pages/latches before record reads.
 
-These type scans are internal storage operations. The query planner does not yet use them to
-anchor type-only patterns; this batch changes no query plan or EXPLAIN operator.
+The query planner uses these ranges for fixed outer named-type or pure-union anchors and reports
+RelationshipTypeScan. Cached retained-publication estimates are rebuilt on open and incremented
+on publication. Maintenance reconciles them after undo and reclamation, so purged or rolled-back
+publications stop contributing after the next successful pass. Planning performs no reconciliation
+or graph-record scan; counts affect cost only. Statement-local creations and replacements merge
+with the selected ranges. This changes neither query results nor format 5. See
+[planning](design.md#planning-execution-and-bounds).
 
 The MVCC label-postings B+Tree uses object ID UInt64.MaxValue - 1 and name `graph`. Each
 24-byte key holds a big-endian catalog label GUID followed by a big-endian UInt64 node identity;

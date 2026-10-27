@@ -65,17 +65,35 @@ The planner first anchors on a node bound by an earlier path or clause at any pa
 or on an endpoint supplied by a bound relationship. Otherwise it can use an indexed node in the
 middle or at either end of a path.
 Required labels come from pure pattern conjunctions and positive labeled predicates in that
-clause's top-level WHERE AND chain. After bound entities and property index seeks, the smallest
-retained-posting estimate supplies a label scan, including a later node such as
+clause's top-level WHERE AND chain. After bound entities, the smallest candidate estimate chooses
+among property seeks, label scans and relationship-type scans, including a later node such as
 `MATCH (a)->(b:Person)` or `MATCH (a)->(b) WHERE b:Person`. Pattern labels precede WHERE labels
-in source order, which breaks equal-cost ties. Estimates include retained history and rolled-back
-versions; they affect plan cost, not snapshot visibility. See [WHERE](../clauses/where.md).
+in source order. Equal-cost ties prefer property equality seeks, then node candidates in source
+order, then relationship candidates in source order. Estimates can include retained history and
+pending or rolled-back publications; they affect cost, not snapshot visibility. See [WHERE](../clauses/where.md).
 Label scans seek MVCC label postings and decode only matching visible nodes. A conjunction such
 as `:Common&Rare` scans its cheapest required label and checks the full residual. A pure pattern
 union such as `:A|B` merges those label ranges, suppressing duplicate node identities; its summed
 estimate competes with other node positions. Negated, wildcard and mixed label expressions
 retain a full scan unless another safe anchor narrows them. Statement-local additions and
 replacements participate in the selected label ranges.
+
+A fixed outer edge with a named type or pure union, such as `(a)-[r:T]->(b)` or
+`(a)-[r:T|U]-(b)`, can start from that type's persistent postings instead of scanning nodes.
+Duplicate type names are removed. All endpoint, property, binding and path-mode checks still
+apply. Undirected edges produce both orientations, except a self-loop produces one. The posting
+edge needs no adjacency expansion; remaining edges expand right, then left, preserving path order.
+An outer fixed edge can anchor a pattern that also has quantified segments. Quantified edges,
+wildcard, negated or mixed type expressions, and WHERE-only type predicates supply no type anchor.
+
+Type estimates sum retained publications for the selected types and double for an unconstrained
+direction. Maintenance reconciles counts after purge and rollback; planning uses cached counts
+without scanning graph records. Old snapshots and statement-local changes keep their usual
+visibility. Property seek estimates inspect at most 512 physical index entries and 32 pages;
+an incomplete count falls back conservatively to the retained label population.
+One posting head consumes one physical work unit, shared by both undirected orientations;
+each accepted hop consumes one viable unit. LIMIT stops without visiting the next posting.
+
 Queries without ORDER BY have no guaranteed row order; changing the anchor can change row order
 while preserving the element order within each matched path. [EXPLAIN](explain.md) shows the anchor.
 Each candidate still passes label, property, and variable checks. A path uses each relationship
@@ -86,6 +104,17 @@ edges. Physical and viable work follow the [pattern counting rules](../patterns.
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 
 ## Examples
+
+Execute separately in an empty database:
+
+```sql
+INSERT ({k:1})-[:Keep {w:7}]->({k:2}), ()-[:Other]->();
+MATCH (a)-[r:Keep]->(b) RETURN a.k, r.w, b.k;
+EXPLAIN MATCH (a)-[r:Keep]->(b) RETURN a.k, r.w, b.k;
+```
+
+The query returns `(1, 7, 2)`. EXPLAIN includes RelationshipTypeScan for Keep at edge 0,
+with estimated_rows 1 and actual_rows NULL; there is no Expand for that edge.
 
 Execute these statements separately in an empty database:
 
@@ -157,6 +186,8 @@ segments, and does not change OPTIONAL MATCH NULL extension. See
 with LIMIT, and selectors report CK00001. Every mode retains hop/work and memory limits.
 
 ## Sources
+
+- **Type anchors, estimates and accounting** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphRelationshipTypeAnchorTests.cs`, `GraphRelationshipTypeAnchorTests.Estimates.cs` and `GraphRelationshipTypeAnchorTests.Accounting.cs`.
 
 - **Label postings, cost selection and unions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.
 

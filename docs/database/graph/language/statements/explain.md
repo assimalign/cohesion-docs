@@ -22,25 +22,33 @@ neither nodes nor relationships, including if an explicit transaction subsequent
 Nested EXPLAIN and EXPLAIN ANALYZE report CK00001. Plans use the
 [shared eight-column shape](../../../sql/language/statements/explain.md): node_id, parent_id,
 operator, target, index, detail, estimated_rows, actual_rows. Nodes are depth-first pre-order;
-estimated and actual counts are NULL. GQL uses ordinary row-result frames, including for an
+available anchor estimates populate estimated_rows; actual_rows stays NULL. GQL uses ordinary row-result frames, including for an
 explained statement whose normal projection is a graph entity.
 
 Operators include NodeScan, LabelScan, IndexSeek and Expand for fixed or quantified segments.
 LabelScan and IndexSeek report the actual chosen label in target and the zero-based pattern node
 ordinal in detail, including anchors supplied by positive WHERE label conjunctions or later
 pattern nodes. IndexSeek also reports the chosen index and property bound. LabelScan seeks
-MVCC postings and decodes only selected visible nodes. After bound entities and property seeks,
-the smallest retained-posting estimate chooses the label anchor, with source-order ties; these
-advisory estimates do not populate estimated_rows. A pure pattern union reports target `A|B`
+MVCC postings and decodes only selected visible nodes. After bound entities, the smallest estimate
+chooses among label scans, property seeks and type anchors. Ties prefer equality seeks, then node
+candidates, then relationship candidates, each in source order. A pure pattern union reports target `A|B`
 and appends `combine=union` to detail. The full pattern and WHERE remain residual checks. Anchor selection
 can change row order in queries without ORDER BY, which have no guaranteed row order.
+
+RelationshipTypeScan reports selected type names in target, a NULL index, and detail containing
+`edge=0; direction=Outgoing; postings=(type_id,relationship); combine=union;
+physical=visited_postings; viable=accepted_hops; physical_limit=<effective-work-ceiling>`.
+The edge ordinal and direction reflect the selected edge. Its posting edge has no Expand row.
+Type estimates sum retained publications and possible orientations; label estimates count retained
+publications; property seek estimates use a bounded index count. See [anchor selection](match.md#remarks).
+
 Expand also reports
 `adjacency=(node,direction,type_id,relationship); seek_direction=Outgoing; type_filter=KNOWS;
 physical=visited_candidates; viable=accepted_hops; physical_limit=<effective-work-ceiling>` for an outgoing KNOWS
 hop expanded from its left endpoint. seek_direction reverses when expanding left of an anchor;
 type_filter is the type expression/name, or % for all types. Quantified bodies describe their hops
 with the same fields. These describe [counting rules](../patterns.md#remarks), not runtime totals:
-EXPLAIN executes no hops, and estimated_rows/actual_rows remain NULL.
+EXPLAIN executes no hops; actual_rows remains NULL.
 A test guard requires every plan record's mapping.
 Standalone RETURN uses a Return root; projected expressions have Project nodes, with a Distinct
 parent when requested. Duplicate final names still fail planning with CG01015 before execution.
@@ -87,7 +95,8 @@ EXPLAIN MATCH (n:A|B) RETURN n.k;
 ```
 
 The LabelScan row has target `A|B`, NULL index and detail
-`node=0; property=; value=NULL; combine=union`. Counts remain NULL and the query is not executed.
+`node=0; property=; value=NULL; combine=union`. With just the four inserted nodes, estimated_rows
+is 4 (the sum of both label populations), and actual_rows is NULL. The query is not executed.
 
 For a path Ada—KNOWS→Bob—KNOWS→Cy and an index by_name on Person.name:
 
@@ -97,7 +106,8 @@ EXPLAIN INSERT (:Person {name:'Dee'});
 ```
 
 The first returns IndexSeek with target Person, index by_name, detail `node=0; property=name;
-value='Ada'` and two Expand nodes. Without that index it uses LabelScan. The second describes
+value='Ada'` and two Expand nodes when its estimate wins. Without that index, labels and fixed
+types compete by estimate. The second describes
 insertion and creates no Dee node.
 
 ```sql
@@ -111,6 +121,8 @@ This returns plan rows with a Return root, one Distinct node and a Project whose
 [Statements](index.md) · [MATCH](match.md) · [DatabasePlanDescription](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-plan-description.md)
 
 ## Sources
+
+- **Type plans and anchor estimates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphRelationshipTypeAnchorTests.cs`.
 
 - **Union plan rows** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlProfileExecutionTests.cs`.
 
