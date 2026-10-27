@@ -554,6 +554,7 @@ and estimates retained RETURNING results only; see [options](document-database-e
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD01026 | Empty direct-AST RETURNING output name, before mutation | — |
+| CD01027 | Empty direct-AST comprehension variable, before data access | — |
 | CD05018 | Retained RETURNING result exceeds StatementMemoryBudget | — |
 | CD05019 | Serialized RETURNING value exceeds 256 levels, counting a named wrapper | — |
 
