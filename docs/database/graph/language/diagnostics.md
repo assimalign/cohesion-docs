@@ -42,6 +42,8 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
 | `CG04007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
+| `CG04024` | Internal concurrency seam: retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
+| `CG05023` | Internal concurrency seam: invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
 | `CG05008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
@@ -54,6 +56,10 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG06017` | Unsupported graph record or tree-registration format on open, including formats 1, 2, 3 and 4; requires format 5 and recreation, with no upgrade path or assigned SQLSTATE |
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the authenticated session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
+
+CG04024 and CG05023 are registered for the internal concurrency seam. GQL MERGE remains refused
+with CK00001 on this branch; it reports these conditions once the statement is available.
+Graph record/tree-registration format remains 5.
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity CG00002 and unknown-name CG00010;
 hand-built arity/unbound arguments use CG05001. Proven incompatible kinds use CG03003,
