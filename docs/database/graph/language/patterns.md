@@ -60,9 +60,12 @@ square brackets that surround relationship syntax.
 On unselected paths, MATCH inline maps are predicates on the complete bound clause, including
 references to later comma-separated pattern parts. Selected search prefilters see their own path
 and incoming bindings; peer-path-only references use CG01016. INSERT/CREATE maps see only incoming
-stage bindings; references to variables being created in that stage use CG05001. Only literal/parameter equalities provide
-index seek bounds. List/map property syntax remains CK00001; evaluated composite values use
-CG03003. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md) for row-supplied values.
+stage bindings; references to variables being created in that stage use CG05001. Ordinary MATCH
+uses literal/parameter equalities for index seek bounds. List/map property syntax remains CK00001; evaluated composite values use
+CG03003. [MERGE](statements/merge.md) additionally permits per-row equality index bounds, with
+CG03004 for proven/evaluated invalid equalities. Its pattern must be fixed and creation-compatible;
+bound or repeated nodes must be bare variables. See [LET](clauses/let.md) and [FOR/UNWIND](clauses/for.md)
+for row-supplied values.
 
 For example, on P nodes with k values 1 and 2,
 `LET value = 2 MATCH (n:P {k:value}) RETURN n.k;` returns `2`.

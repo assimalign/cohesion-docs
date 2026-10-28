@@ -14,13 +14,16 @@ public sealed class OqlSelectExpression : OqlExpression
         IReadOnlyList<OqlExpression> groupBy, OqlExpression? having,
         IReadOnlyList<OqlOrdering> orderBy, bool isDistinct, bool isValue,
         OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
-        IReadOnlyList<OqlUnnestExpression>? unnest = null);
+        IReadOnlyList<OqlUnnestExpression>? unnest = null,
+        IReadOnlyList<string?>? groupAliases = null, string? groupAs = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<OqlUnnestExpression> Unnest { get; }
     public IReadOnlyList<OqlProjection> Projections { get; }
     public OqlExpression? Predicate { get; }
     public IReadOnlyList<OqlExpression> GroupBy { get; }
+    public IReadOnlyList<string?> GroupAliases { get; }
+    public string? GroupAs { get; }
     public OqlExpression? Having { get; }
     public IReadOnlyList<OqlOrdering> OrderBy { get; }
     public bool IsDistinct { get; }
@@ -55,7 +58,23 @@ or empty UNNEST name raises DatabaseException/CD01023. Parser duplicates use CD0
 collision with an unaliased collection name. Star with bindings constructs synthetic objects.
 See [OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
 
+GroupAliases is empty when no aliases are supplied, or parallel to GroupBy with null entries for
+unnamed terms. GroupAs is the optional group-array name. Construction stores metadata without
+validation. Planning raises DatabaseException/CD01030 for missing grouping keys, a nonempty alias
+list of the wrong width, empty names or collisions with group/FROM/UNNEST names. CD01031 rejects
+the group array in an aggregate row input; parser CD00012 rejects GROUP AS without GROUP BY.
+None has an assigned SQLSTATE. See [GROUP BY](../../../../database/document/language/clauses/group-by.md).
+
 ## Example
+
+Adapted from OqlGroupingParserTests:
+
+```csharp
+var grouped = (OqlSelectExpression)((OqlQueryStatement)new OqlQueryParser().Parse(
+    "SELECT key, g FROM items GROUP BY k AS key GROUP AS g")).OqlExpression;
+Console.WriteLine(grouped.GroupAliases[0]); // key
+Console.WriteLine(grouped.GroupAs);         // g
+```
 
 ```csharp
 var statement = (OqlQueryStatement)new OqlQueryParser().Parse(

@@ -77,6 +77,7 @@ COALESCE/NULLIF use case-abbreviation AST nodes rather than registry functions.
 | `OFFSET`, `SKIP`, `LIMIT` | Unsigned Int64 literal or named parameter | Offset before limit; unordered read LIMIT can stop upstream work |
 | `INSERT` | Node/path insertion with row-evaluated scalar maps | Inserts nodes and relationships transactionally per input row |
 | `CREATE` | Same insertion grammar as `INSERT`; compatibility extension | Same transactional insertion path |
+| `MERGE` | One fixed path with repeated ON CREATE/ON MATCH SET clauses | Match every complete path or create every unbound part |
 | `DELETE` | Bound node/relationship variables following a match | Refuses deleting a node that still has incident relationships |
 | `DETACH DELETE` | Bound node/relationship variables following a match | Deletes incident relationships with the node in one transaction |
 | `SHOW` | `LABELS`, `RELATIONSHIP TYPES`, `PROPERTY KEYS`, `INDEXES`, or `OBJECT OWNERSHIP`; Cohesion extension | Returns typed, read-only metadata from the session database's catalog snapshot |
@@ -101,6 +102,7 @@ stage       := [OPTIONAL] MATCH paths [ WHERE predicate ]
              | FILTER [WHERE] predicate
              | FOR variable IN expression | UNWIND expression AS variable
              | (INSERT | CREATE) paths | [DETACH] DELETE variables
+             | MERGE path (ON (CREATE | MATCH) SET set-items)*
              | return | WITH projection-and-tail [WHERE predicate] | NEXT
 paths       := path (',' path)*
 path        := path-primary ((relationship [quantifier] path-primary) | parenthesized | node)*
@@ -357,6 +359,29 @@ CG06017 before logical recovery scrub. See [diagnostics](../../../../database/gr
 BEGIN [TRANSACTION] maps to the same GqlTransactionCommand.Start as START TRANSACTION,
 in process and over the wire, with Snapshot isolation. Options such as WORK, TRAN, READ ONLY
 and ISOLATION LEVEL report CG00002. See [transactions](../../../../database/graph/language/statements/transactions.md).
+
+## MERGE
+
+[GqlMergeStage](gql-merge-stage.md) stores one path and ordered OnCreate/OnMatch SET lists. Repeated
+clauses append within their branch; canonical rendering emits CREATE before MATCH. Both branches,
+creation-compatible labels and incoming equality scope validate before execution, including EXPLAIN.
+[MERGE](../../../../database/graph/language/statements/merge.md) matches every complete path or creates
+all unbound parts. Required properties can be supplied by ON CREATE, before a later stage executes.
+Eligible row-dependent equalities seek an index per row; writer-overlay changes are found by value.
+Snapshot decisions retain freshness checks; ReadCommitted re-matches. No format changes apply.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG03004 | Proven/evaluated NULL, non-finite or non-scalar MERGE equality | — |
+| CG03005 | Bound MERGE node is NULL, absent or incompatible with its node pattern | — |
+| CG03006 | Labels/properties on a repeated or already-bound node | — |
+| CG03007 | Relationship variable declared before MERGE | — |
+| CG04024 | Retryable stale Snapshot MERGE decision | — |
+| CG05023 | Invalid bound pattern-lock identity | — |
+| CK04002 | Statement/session ended while the database is live | — |
+
+Bare list/map property literals retain parser CK00001. Other proven/evaluated invalid equalities
+use CG03004; ordinary SET/schema validation retains CG03003. Every code above has no assigned SQLSTATE.
 
 ## Sources
 

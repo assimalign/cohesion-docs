@@ -75,6 +75,14 @@ CD01017 and invalid/deep patched JSON CD02018; none has an assigned SQLSTATE. Mi
 and out-of-range indices fail for removals too. SET-to-MISSING removes named members or writes null
 to existing array elements. USE KEYS, LIMIT, FOR and nested queries remain CK00001.
 
+## GROUP AS and group-term aliases
+
+[OqlSelectExpression](oql-select-expression.md) exposes GroupAliases parallel to GroupBy and optional
+GroupAs. [GROUP BY](../../../../database/document/language/clauses/group-by.md) describes binding wrappers
+and visibility. CD00012 rejects GROUP AS without keys; CD01030 rejects invalid names, collisions or
+direct-AST alias-list shape; CD01031 rejects a group array in an aggregate row input. None has an
+assigned SQLSTATE. LETTING remains CK00001.
+
 ## RETURNING
 
 INSERT/UPSERT/UPDATE/DELETE retain an optional [OqlReturningExpression](oql-returning-expression.md),

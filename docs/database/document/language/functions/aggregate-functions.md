@@ -68,12 +68,15 @@ decimal.MaxValue. Final out-of-range results use CD02007 (22003).
 defaults to 64 MiB. Retained SELECT sources, catalog identities and sort staging, group keys and
 membership, native accumulators, DISTINCT sets, ARRAY_AGG input/result storage and projected
 output share the counter. Input and owned result representations are charged separately while
-both live. INSERT/UPSERT SELECT sources and RETURNING share it too.
+both live. GROUP AS wrappers/arrays, DML pending buffers, INSERT/UPSERT SELECT sources and
+RETURNING share it too. UPDATE retains patched documents; DELETE retains identities; INSERT/UPSERT
+retain pending keys, the duplicate-key set and encoded content. These buffers are fully staged
+before mutation, so pending-buffer exhaustion refuses with CD05018 before the first write.
 
 Exhaustion reports CD05018 before any result is published; aggregate failures retain the call span.
 Reservations release with their owning staging, scratch or result lifetime and on failure or
-cancellation. Mutation pending-write buffers and application callback-owned state are outside
-the estimate. Explicit transaction failures require rollback before further work. EXPLAIN lists
+cancellation. Application callback-owned state is outside the estimate. Explicit transaction failures
+require rollback before further work. EXPLAIN lists
 aggregate names and quantifiers without reading documents or evaluating arguments.
 
 ## Diagnostics

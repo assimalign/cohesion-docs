@@ -7,6 +7,7 @@ Applies ordered INSERT, UPDATE or DELETE actions over a target/source associatio
 ## Syntax
 
 ```syntaxsql
+[ WITH common_table_expression [ , ...n ] ]
 MERGE INTO [ schema_name . ] table_name [ [ AS ] target_alias ]
 USING source [ [ AS ] source_alias ] ON condition
 <when_clause> [ ...n ]
@@ -21,6 +22,17 @@ USING source [ [ AS ] source_alias ] ON condition
   | WHEN NOT MATCHED BY SOURCE [ AND condition ] THEN
         { UPDATE SET column_name = expression [ , ...n ] | DELETE | DO NOTHING }
 ```
+
+Plain WITH can supply the USING source. For example, execute separately in a fresh database:
+
+```sql
+CREATE TABLE t (id INT);
+WITH s AS (SELECT 1 AS id)
+MERGE INTO t USING s ON t.id = s.id
+WHEN NOT MATCHED THEN INSERT VALUES (s.id) RETURNING t.id;
+```
+
+MERGE inserts one row and returns `1`. WITH RECURSIVE before the same MERGE reports CK00001.
 
 ## Arguments
 
@@ -58,8 +70,10 @@ Aliases hide original table names. Destinations in UPDATE SET and INSERT lists a
 against the target. Duplicate destinations, wrong INSERT width, unknown/ambiguous names,
 missing parameters, non-Boolean predicates, aggregates and incompatible assignment families fail
 during binding, even for empty inputs. ON and WHEN permit existing read subqueries in their
-respective scopes, and action values admit existing read subqueries. RETURNING subqueries retain CK00001. WITH-prefixed MERGE
-is outside this step's grammar.
+respective scopes, and action values admit existing read subqueries. RETURNING subqueries retain
+CK00001. Plain [WITH](../clauses/with.md) definitions bind in declaration order; reachable definitions
+materialize once before writes. WITH RECURSIVE ... MERGE is refused at RECURSIVE with CK00001,
+even for acyclic lists.
 
 Conditions run in written order only for candidates of that match kind. Values and their
 subqueries run only for the selected action after its condition holds. Scalar branches and

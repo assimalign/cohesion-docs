@@ -282,8 +282,21 @@ application exchanges; cancellation after a completed result preserves an acknow
 result. Rollback reply and status drain each have a five-second internal bound, up to ten seconds
 total on pool return.
 
+## MERGE
+
+[GraphConnection](graph-connection.md) sends executable whole-pattern MERGE through ordinary
+QueryAsync/ExecuteAsync, with scalar result rows and the affected-entity count. QueryPathsAsync
+refuses mutation with CG05001. InMemory and TCP preserve CG03004 (invalid equality), CG03005
+(NULL/absent/incompatible bound node), CG03006 (decorated repeated/bound node), CG03007
+(already-declared relationship), CG04024 (retryable Snapshot decision conflict), CG05023 (invalid
+pattern-lock identity) and CK04002 (ended statement/session while the database is live).
+None has an assigned SQLSTATE. Bare list/map property literals retain parser CK00001. Decoded
+refusals preserve the session; a faulted explicit transaction requires ROLLBACK. See
+[MERGE diagnostics](../../../../database/graph/language/statements/merge.md#diagnostics).
+
 ## Sources
 
+- **MERGE over both transports** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphMergeWireTests.cs`.
 - **Path ownership, order and allocation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphPathAllocationTests.cs` and `GraphClientFailureTests.cs` in the same directory.
 - **Path events and counters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/Internal/EventSource/GraphClientEventSource.cs`.
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

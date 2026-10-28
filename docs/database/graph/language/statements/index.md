@@ -10,6 +10,7 @@ Graph statements match data, mutate bound graphs, or inspect the session databas
 - **[RETURN](return.md)** — query composition and result projection.
 - **[Linear composition](../clauses/next.md)** — LET, FILTER, FOR/UNWIND, RETURN … NEXT and Cypher WITH.
 - **[INSERT](insert.md)** — insert nodes and relationships.
+- **[MERGE](merge.md)** — match a whole path or create every unbound part, with ON CREATE/ON MATCH SET.
 - **[CREATE](create.md)** — compatibility spelling for insertion.
 - **[DELETE](delete.md)** — restricted deletion of matched elements.
 - **[DETACH DELETE](detach-delete.md)** — deletion with incident-relationship cascading.

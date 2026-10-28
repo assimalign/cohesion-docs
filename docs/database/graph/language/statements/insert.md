@@ -19,7 +19,7 @@ INSERT insertion_path [ , ...n ]
 | `MATCH` and `WHERE` | Supported | Supply existing bound elements |
 | `RETURN` | Supported | Expressions, aliases, DISTINCT/ALL and named-binding star |
 | [SET](../clauses/set.md), [REMOVE](../clauses/remove.md) | Supported | Update inserted or existing entities; created-then-updated counts once |
-| MERGE | Recognized, not supported (CK00001) | Includes ON CREATE SET and ON MATCH SET |
+| [MERGE](merge.md) | Supported | Match the whole pattern or create every unbound part, with ON CREATE/ON MATCH SET |
 
 ## Arguments
 

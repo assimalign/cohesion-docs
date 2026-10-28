@@ -41,7 +41,7 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlOnConflictClause](sql-on-conflict-clause.md)** — Unique arbiter, action, assignments, filter and EXCLUDED.
 - **[SqlOnConflictTargetKind](sql-on-conflict-target-kind.md)** — All indexes, column-set or named-index arbitration.
 - **[SqlOnConflictAction](sql-on-conflict-action.md)** — DO NOTHING or DO UPDATE.
-- **[SqlCommonTableExpression](sql-common-table-expression.md)** — Ordered non-recursive WITH definitions.
+- **[SqlCommonTableExpression](sql-common-table-expression.md)** — WITH definitions, output columns and recursive-scope metadata.
 - **[SqlUpdateExpression](sql-update-expression.md)** — Target, assignments, predicate and WITH list.
 - **[SqlDeleteExpression](sql-delete-expression.md)** — Target, predicate and WITH list.
 - **[SqlLimitSyntaxKind](sql-limit-syntax-kind.md)** — LIMIT, FETCH and lexical TOP families.

@@ -14,6 +14,7 @@ HAVING predicate
 |---|---|---|
 | [Aggregate calls](../functions/aggregate-functions.md) in predicates | Supported | All eleven native names and registered aggregates, including ALL/DISTINCT |
 | Group-key expressions | Supported | Subject to grouped-expression validation |
+| [GROUP AS and group-term aliases](group-by.md#group-as-and-aliases) | Supported | Post-group expressions, including predicates over member wrappers |
 | Subsequent `ORDER BY` | Supported | Orders retained results |
 
 ## Arguments

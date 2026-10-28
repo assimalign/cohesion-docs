@@ -30,7 +30,7 @@ size limits do not prevent deletion. Referential SET NULL/SET DEFAULT actions st
 their final child replacements: `CS05042` / SQLSTATE 54000 leaves parents and children unchanged
 and an explicit transaction active. See [size limits](../diagnostics.md#row-and-index-key-limits).
 
-[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+[WITH](../clauses/with.md) binds query definitions; acyclic lists materialize reachable
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 Qualified references use the target name, or its alias when supplied. An explicit alias hides

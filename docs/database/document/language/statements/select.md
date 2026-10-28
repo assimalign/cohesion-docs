@@ -9,7 +9,7 @@ SELECT [ ALL | DISTINCT ] { projection [ , ...n ] | { VALUE | RAW } expression }
 FROM collection_name [ [ AS ] iteration_variable ]
 [ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
 [ WHERE predicate ]
-[ GROUP BY expression [ , ...n ] ]
+[ GROUP BY expression [ [ AS ] alias ] [ , ...n ] [ GROUP AS group_name ] ]
 [ HAVING predicate ]
 [ ORDER BY expression [ ASC | DESC ] [ , ...n ] ]
 [ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
@@ -25,6 +25,7 @@ FROM collection_name [ [ AS ] iteration_variable ]
 | `FROM` | Supported | Required; exactly one source |
 | `WHERE` | Supported | Optional document predicate |
 | `GROUP BY` | Supported | Optional grouping expressions |
+| [GROUP AS and group-term aliases](../clauses/group-by.md#group-as-and-aliases) | Supported | Named keys and post-group arrays of input binding wrappers |
 | `HAVING` | Supported | Optional group predicate |
 | `ORDER BY` | Supported | Optional ordering expressions |
 | [LIMIT/OFFSET](../clauses/limit-offset.md) | Supported | Nonnegative Int64 integer literals or parameters; either clause order |

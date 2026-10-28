@@ -6,7 +6,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Query clauses
 
-- **[WITH](with.md)** — Define ordered, non-recursive query relations for one statement.
+- **[WITH](with.md)** — Define query relations; acyclic lists execute, recursive lists bind but cannot execute yet.
 
 - **[FROM](from.md)** — Bind stored, system and derived relations in the current database.
 - **[JOIN](join.md)** — N-way INNER/LEFT/CROSS joins, USING columns, and comma products.
@@ -31,7 +31,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 57-of-63 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 58-of-63 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

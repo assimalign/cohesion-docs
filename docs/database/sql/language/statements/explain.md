@@ -12,6 +12,10 @@ EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | d
 
 ## Remarks
 
+[WITH RECURSIVE](../clauses/with.md#with-recursive) binds recursive definitions, then EXPLAIN and
+EXPLAIN ANALYZE refuse with CK00001. Recursive execution and recursive plan descriptions are
+not available yet. Acyclic WITH RECURSIVE can be planned and executed.
+
 ### MERGE plans
 
 Plain EXPLAIN supports executable [MERGE](merge.md#association-and-explain). It shows Merge, the complete association tree, ordered MergeAction children and

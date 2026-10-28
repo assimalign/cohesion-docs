@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 57 of 63 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 58 of 63 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -25,8 +25,10 @@ validation. Literal added-column defaults resolve old-row reads without rewritin
 
 [Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
 correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values.
-[WITH](language/clauses/with.md) defines non-recursive query relations before SELECT, INSERT,
-UPDATE or DELETE. Outer ordering over derived outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
+[WITH](language/clauses/with.md) defines acyclic query relations before SELECT, INSERT, UPDATE,
+DELETE or MERGE. WITH RECURSIVE binds recursive definitions, then planning, EXPLAIN and execution
+refuse with CK00001; acyclic WITH RECURSIVE executes except before MERGE. Outer ordering over derived
+outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
 [TRUNCATE](language/statements/truncate.md) empties table sets with CONTINUE/RESTART IDENTITY and
@@ -42,9 +44,9 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 57-of-63 measure includes executable MERGE and is not a percentage
+The 58-of-63 measure includes executable MERGE and binding-only RECURSIVE and is not a percentage
 of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the 6 excluded named clauses and the further
+[unsupported matrix](language/unsupported.md) lists the 5 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 

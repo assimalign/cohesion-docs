@@ -72,7 +72,7 @@ relocating it to that query is excluded. A mixed aggregate with a local dependen
 
 LATERAL syntax and subqueries in UPDATE SET, VALUES, RETURNING,
 CHECK, DEFAULT or pagination expressions remain `CK00001`. [WITH](../clauses/with.md) is supported
-before data statements; nested and recursive WITH remain excluded. A [derived body](../clauses/from.md#derived-tables)
+before data statements; nested WITH and recursive execution remain excluded. A [derived body](../clauses/from.md#derived-tables)
 may correlate to enclosing queries, but a real sibling relation reference requires unsupported
 LATERAL. A typo keeps `CS01015`. SQL has NULL, with no separate MISSING value.
 

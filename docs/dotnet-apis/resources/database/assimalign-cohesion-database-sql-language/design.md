@@ -96,12 +96,12 @@ model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
   SQL-name → `DatabaseType` mapping (with the `DECIMAL(p[,s])`
   argument-is-precision rule); catalogs and the schema compiler must not grow
   their own copies.
-- **Recognized-but-unsupported tokens stay in the lexer tables.** Recursive `WITH`
+- **Recognized-but-unsupported tokens stay in the lexer tables.** Row-locking tails
   and window functions are lexed so diagnostics can
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
-  while excluded clauses such as recursive CTEs, windows,
-  and unsupported join forms remain absent. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
+  while excluded clauses such as windows and unsupported join forms remain absent.
+  RECURSIVE is advertised for binding only; recursive execution remains CK00001. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
   statement, so analyzers observe `CK00001` with the token location and the `SQL`
@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive/nested CTEs, window functions, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive execution, nested CTEs, window functions, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -206,8 +206,9 @@ excluded. Table members use [SqlRelationReference](sql-relation-reference.md), w
 column list must rename the full output width. SELECT and UPDATE/DELETE WHERE accept correlated
 and uncorrelated subqueries; SET remains row-local. Local names shadow outer scopes. A real derived
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
-definitions bind in declaration order, with schema-less names and stored-table fallback for self or
-later-sibling names. Every definition binds; reachable definitions materialize once before writes.
+definitions without RECURSIVE bind in declaration order, with schema-less names and stored-table
+fallback for self or later-sibling names. RECURSIVE lists use dependency order; recursive execution
+is refused with CK00001 after binding. Every definition binds; reachable definitions materialize once before writes.
 The renderer and persisted definitions use this canonical shape. Current SQL storage format 27
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
@@ -331,8 +332,8 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 57 of 63 declared clauses,
-including executable MERGE and nonexecuting plain EXPLAIN. Existing
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 58 of 63 declared clauses,
+including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 27 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
@@ -365,6 +366,29 @@ advertise them. UPDATE raises CS05068 (21000) for multiple source associations b
 writes. DELETE deduplicates physical targets. Bare RETURNING * follows target-then-visible-source
 order with JOIN USING merges. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources)
 and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
+
+## WITH RECURSIVE binding
+
+[WITH RECURSIVE](../../../../database/sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
+term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
+to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
+EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
+RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01054 | Recursive definition lacks top-level anchor UNION [ALL] recursive term | 42P19 |
+| CS01055 | Self-reference in the non-recursive term | 42P19 |
+| CS01056 | Self-reference inside a scalar, IN, quantified or EXISTS subquery | 42P19 |
+| CS01057 | Self-reference on the nullable side of an outer join | 42P19 |
+| CS01058 | Self-reference under INTERSECT ALL | 42P19 |
+| CS01059 | Self-reference on either side of EXCEPT ALL or the right of EXCEPT DISTINCT | 42P19 |
+| CS01060 | Recursive term does not have exactly one self-reference | 42P19 |
+| CS01061 | Aggregate at the query level containing the self-reference | 42P19 |
+| CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
+| CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
+| CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
 ## Sources
 

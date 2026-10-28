@@ -69,6 +69,11 @@ document-ID order, with the matched count; projection failure rolls back the wri
 [EXPLAIN UPDATE](explain.md) returns an Update root and its
 CollectionScan/IndexSeek child without writing.
 
+Pending writes share [StatementMemoryBudget](../functions/aggregate-functions.md#statement-memory)
+with SELECT staging and RETURNING. The complete pending buffer is charged before mutation;
+exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
+success, failure and cancellation.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |

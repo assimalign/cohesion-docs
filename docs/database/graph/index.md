@@ -84,6 +84,12 @@ execute with implicit keys, RETURN aliases and GROUP BY (). COUNT is Int64 local
 SUM preserves exact integral/Decimal work and Decimal scale. Collection results negotiate
 graph.composite-values. Grouping and paging do not reduce input match limits.
 
+[MERGE](language/statements/merge.md) matches a complete fixed path or creates every unbound part,
+with repeated ON CREATE/ON MATCH SET branches in source order. Bind nodes first to reuse them.
+ON CREATE may supply Required properties; a later SET cannot supply them after that boundary.
+Snapshot conflicts use CG04024; ReadCommitted re-matches. Row-dependent equalities use eligible
+indexes per row and find writer-overlay changes by value. No on-disk format changes apply.
+
 ## Property and label updates
 
 [SET](language/clauses/set.md) and [REMOVE](language/clauses/remove.md) update scalar properties,
@@ -94,8 +100,8 @@ update the current working copy and count each changed entity once.
 Snapshot uses first-updater-wins. ReadCommitted mutations refresh after acquiring the writer
 lock and replan before evaluation. Format-5 records keep prior versions visible to old snapshots;
 older graph records/registrations are refused before logical recovery scrub with
-[CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 28 of
-35 declared clause names, including PATH SELECTOR.
+[CG06017](language/diagnostics.md), requiring recreation with no upgrade path. The GQL profile executes 29 of
+35 declared clause names, including PATH SELECTOR and MERGE.
 
 Detected storage damage uses [CK06003](language/diagnostics.md), with database/page context
 in DatabaseCorruptionException. An unsupported graph-record open also retains CG06017 and

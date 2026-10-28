@@ -1,25 +1,30 @@
 # WITH (Cohesion SQL)
 
-Defines named, non-recursive query relations for one SELECT, INSERT, UPDATE or DELETE statement.
+Defines named query relations for one SELECT, INSERT, UPDATE, DELETE or MERGE statement.
 
-> **Status:** Partial. Non-recursive SELECT bodies execute; recursive and modifying bodies are excluded.
+> **Status:** Partial. Acyclic definitions execute. Recursive definitions parse and bind, then refuse
+> planning, EXPLAIN and execution with CK00001. Recursive execution is not available in this batch.
 
 ## Syntax
 
 ```syntaxsql
-WITH cte_name [ ( column_name [ , ...n ] ) ] AS ( select_statement )
-     [ , cte_name [ ( column_name [ , ...n ] ) ] AS ( select_statement ) ...n ]
-{ select_statement | insert_statement | update_statement | delete_statement }
+WITH [ RECURSIVE ] cte_name [ ( column_name [ , ...n ] ) ] AS ( query_body )
+     [ , cte_name [ ( column_name [ , ...n ] ) ] AS ( query_body ) ...n ]
+{ select_statement | insert_statement | update_statement | delete_statement | merge_statement }
 
 INSERT INTO target [ ( column_name [ , ...n ] ) ]
-WITH cte_name AS ( select_statement ) [ , ...n ] select_statement
+WITH [ RECURSIVE ] cte_name AS ( query_body ) [ , ...n ] select_statement
+
+<recursive_query_body> ::= non_recursive_term UNION [ ALL | DISTINCT ] recursive_term
 ```
 
 ## Arguments
 
 - **`cte_name`** — A schema-less name, matched case-insensitively by catalog name rules.
 - **`column_name`** — Optional output renames; supply exactly the body's full output width.
-- **`select_statement`** — A supported SELECT, with optional FROM at every query level.
+- **`query_body`** — A SELECT or set operation, with optional FROM at every query level.
+- **`RECURSIVE`** — Gives all definitions visibility throughout the list; it does not require recursion.
+  This modifier is refused before MERGE, including acyclic lists.
 
 ## Remarks
 
@@ -28,8 +33,8 @@ UNION/INTERSECT/EXCEPT with ALL/DISTINCT. Every SELECT operand may omit FROM, in
 nested derived/scalar bodies; each uses one implicit row. Common types and output names
 are resolved before the definition materializes.
 
-Definitions bind in declaration order. A body can read earlier CTEs. An unqualified read resolves
-an already-visible CTE before a stored table; schema qualification bypasses CTE lookup. A
+Without RECURSIVE, definitions bind in declaration order. A body can read earlier CTEs. An
+unqualified read resolves an already-visible CTE before a stored table; schema qualification bypasses CTE lookup. A
 non-recursive self-reference or a later sibling's name reads a same-named stored table when one
 exists. A missing later relation uses CS01026. Every definition binds, including unused ones,
 so unknown columns and invalid aggregate placement fail before reads or writes.
@@ -47,9 +52,42 @@ Each reachable definition materializes once per statement, reused across joins a
 and EXISTS children. Unused definitions and dependencies that are reachable only from them never
 execute. Their counts and predicates bind without evaluating counts or seek bounds. All reads
 share the statement's MVCC and catalog snapshots, including the session's earlier uncommitted writes.
-Before DML writes, reachable definitions materialize in declaration order. Failures roll back the
+Before DML writes, reachable acyclic definitions materialize in binding order. Failures roll back the
 whole statement while preserving an explicit transaction. INSERT retains destination defaults,
 constraints and identity generation. [EXPLAIN](../statements/explain.md) describes without executing.
+
+### WITH RECURSIVE
+
+All names in a WITH RECURSIVE list are visible to every definition. Acyclic dependencies bind in
+dependency order; independent ready definitions retain declaration-order priority. Unqualified
+self-references identify recursive entries. Schema-qualified names still refer to stored relations.
+Mutual recursion is refused with CK00001. An acyclic WITH RECURSIVE executes with the same
+reachable-only, once-per-statement materialization as ordinary WITH.
+
+A recursive definition must have a top-level non-recursive term (the anchor) UNION [ALL] recursive
+term. The recursive term must contain exactly one self-reference. That reference cannot appear
+in the anchor, inside scalar/IN/EXISTS/quantified subqueries, on the nullable side of an outer join,
+under INTERSECT ALL, on either side of EXCEPT ALL, or on the right of EXCEPT DISTINCT. A derived
+FROM query, preserved outer-join side, INTERSECT DISTINCT or left side of EXCEPT DISTINCT is allowed.
+
+Aggregates at the query level containing the self-reference are refused. This includes aggregates
+in a subquery that belong to the recursive level through outer-only arguments; independent
+subquery aggregates are allowed. The top-level recursive UNION cannot have ORDER BY, LIMIT/FETCH
+or OFFSET. SELECT row-locking tails FOR UPDATE, FOR NO KEY UPDATE, FOR SHARE and FOR KEY SHARE
+are refused with CK00001 throughout the language, including CTE bodies and subqueries.
+
+The non-recursive term fixes output names, width, types, domains, type modifiers and collations
+before the recursive term binds. An optional column list must rename the full output width.
+Unknown NULL/string anchor output becomes TEXT; recursive columns are conservatively nullable.
+The combined UNION cannot change the anchor contract. CS02066 includes a cast hint: cast the
+non-recursive output to the intended common type, and keep recursive output compatible. CS02067
+includes a COLLATE hint: apply an explicit compatible COLLATE to the non-recursive output.
+
+All definitions and the consuming statement bind before the recursion capability refusal, even
+when the recursive definition is unused. A well-formed recursive query produces CK00001 during
+planning, EXPLAIN and execution, before reading rows or writing. It produces no recursive results.
+Plain WITH ... MERGE executes; WITH RECURSIVE ... MERGE is refused at RECURSIVE with CK00001.
+Nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED and SEARCH/CYCLE remain refused.
 
 ## Diagnostics
 
@@ -61,9 +99,23 @@ constraints and identity generation. [EXPLAIN](../statements/explain.md) describ
 | `CS01019` | Conflicting relation names; give the CTE or stored relation an alias |
 | `CS05017` | Invalid aggregate placement, including WHERE in an unused constant body |
 | `CS00003` | Empty output-name list, malformed definition, or unsupported command kind after the list |
-| `CK00001` | WITH RECURSIVE, nested WITH in a subquery/derived body, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
+| `CK00001` | Recursive planning/execution, mutual recursion, prohibited recursive UNION tails, SELECT locking tails, WITH RECURSIVE ... MERGE, nested WITH, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
 
 The source assigns no SQLSTATE to CS01026. Other ordinary query diagnostics still apply.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01054 | Recursive definition lacks top-level anchor UNION [ALL] recursive term | 42P19 |
+| CS01055 | Self-reference in the non-recursive term | 42P19 |
+| CS01056 | Self-reference inside a scalar, IN, quantified or EXISTS subquery | 42P19 |
+| CS01057 | Self-reference on the nullable side of an outer join | 42P19 |
+| CS01058 | Self-reference under INTERSECT ALL | 42P19 |
+| CS01059 | Self-reference in a prohibited EXCEPT operand | 42P19 |
+| CS01060 | Recursive term does not have exactly one self-reference | 42P19 |
+| CS01061 | Aggregate at the query level containing the self-reference | 42P19 |
+| CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
+| CS02066 | UNION changes the anchor type, domain or type modifiers; cast hint | 42804 |
+| CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
 ## Examples
 
@@ -106,6 +158,21 @@ SELECT id FROM a ORDER BY id;
 
 This returns `7` and `9` from stored b. Without stored b, the reference in a reports CS01026.
 
+An acyclic list can use a later definition with RECURSIVE:
+
+```sql
+WITH RECURSIVE b AS (SELECT n FROM a), a(n) AS (SELECT 1)
+SELECT n FROM b;
+```
+
+This returns one row containing `1`. The following parses and binds but reports
+CK00001 when planned, explained or executed; it returns no rows:
+
+```sql
+WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3)
+SELECT n FROM r;
+```
+
 ## See also
 
 [Clauses](index.md) · [FROM](from.md) · [Subqueries](../expressions/subqueries.md) · [Diagnostics](../diagnostics.md)
@@ -115,3 +182,4 @@ This returns `7` and `9` from stored b. Without stored b, the reference in a rep
 - **Execution and materialization** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.cs`.
 - **Binding and constant bodies** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.Binding.cs`.
 - **Syntax** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlCteParserTests.cs`.
+- **Recursive binding and execution refusal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.Recursive.cs`.

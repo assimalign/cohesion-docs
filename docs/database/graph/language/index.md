@@ -34,6 +34,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [OFFSET/SKIP and LIMIT](clauses/limit-offset.md) | Supported | Output paging after RETURN; offset precedes limit |
 | [SET](clauses/set.md), [REMOVE](clauses/remove.md) | Supported | Scalar property replacement/merge and node label changes with affected counts |
 | `INSERT` | Supported | Node/path insertion with row-evaluated scalar properties, optionally after matching or value stages |
+| [MERGE](statements/merge.md) | Supported | Whole-pattern match/create, bound-node reuse and ordered ON CREATE/ON MATCH SET |
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |
 | `DETACH DELETE` | Supported | Bound variables; incident relationships cascade |

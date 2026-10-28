@@ -42,8 +42,13 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure translated at the engine boundary, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
 | `CG04007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
-| `CG04024` | Internal concurrency seam: retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
-| `CG05023` | Internal concurrency seam: invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
+| `CG03004` | MERGE equality is NULL, non-finite or non-scalar, proven or evaluated; no assigned SQLSTATE |
+| `CG03005` | Bound MERGE node is NULL, absent or incompatible with its node pattern; no assigned SQLSTATE |
+| `CG03006` | Repeated or already-bound MERGE node has labels or properties; no assigned SQLSTATE |
+| `CG03007` | MERGE relationship variable was declared before the clause; no assigned SQLSTATE |
+| `CK04002` | MERGE statement/session ended while the database is live, including lock waits and late grants; no assigned SQLSTATE |
+| `CG04024` | Retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
+| `CG05023` | Invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
 | `CG05008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
@@ -57,9 +62,10 @@ label names, and property keys do not trigger keyword capability checks.
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the authenticated session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException carries database, optional page and original storage cause; no SQLSTATE assigned |
 
-CG04024 and CG05023 are registered for the internal concurrency seam. GQL MERGE remains refused
-with CK00001 on this branch; it reports these conditions once the statement is available.
-Graph record/tree-registration format remains 5.
+[MERGE](statements/merge.md) executes whole-pattern match/create and ordered ON CREATE/ON MATCH SET.
+Snapshot conflicts use CG04024; ReadCommitted refreshes and re-matches. CG05023 guards pattern-lock
+identities. Bare list/map property literals retain parser CK00001; other proven/evaluated invalid
+equalities use CG03004. Graph record/tree-registration format remains 5.
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity CG00002 and unknown-name CG00010;
 hand-built arity/unbound arguments use CG05001. Proven incompatible kinds use CG03003,
@@ -118,7 +124,7 @@ remains subject to CG05004 and retained memory to CG05020.
 
 SET/REMOVE add no diagnostic codes. Leading clauses, nested targets, separated + = and property
 += use CG00002; duplicate map keys CG00006. Whole-map parameters/expressions, literal composite
-properties and MERGE ON CREATE/ON MATCH SET use CK00001. Scalar/path/group targets,
+properties use CK00001; MERGE ON CREATE/ON MATCH SET executes. Scalar/path/group targets,
 relationship label changes and computed composite properties use CG03003; ExecutePaths with
 updates uses CG05001 and SHOW composition CG00007. No SQLSTATE is assigned to these update
 codes. Stale Snapshot updates surface DatabaseTransactionAbortedException; ReadCommitted

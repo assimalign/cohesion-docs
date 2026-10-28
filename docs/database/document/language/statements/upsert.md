@@ -45,6 +45,11 @@ META().version for a version check. OPTIONS remains CK00001. JSON storage depth 
 128, and numbers must fit decimal exactly. Generated JSON follows the shared
 [RFC 8259 UTF-8 encoding](select.md#json-bytes) in process, over InMemory and over TCP.
 
+Pending writes share [StatementMemoryBudget](../functions/aggregate-functions.md#statement-memory)
+with SELECT staging and RETURNING. The complete pending buffer is charged before mutation;
+exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
+success, failure and cancellation.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |

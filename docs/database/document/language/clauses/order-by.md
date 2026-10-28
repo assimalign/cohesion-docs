@@ -13,6 +13,7 @@ ORDER BY expression [ ASC | DESC ] [ , ...n ]
 | Construct | Support | Meaning |
 |---|---|---|
 | Source expression | Supported | Evaluates an ordering value |
+| [GROUP AS and group-term aliases](group-by.md#group-as-and-aliases) | Supported | Post-group ordering expressions |
 | Standalone explicit projection alias | Supported | Resolves the projected expression |
 | `ASC` or `DESC` | Supported | Ascending by default, or descending |
 | [LIMIT/OFFSET](limit-offset.md) | Supported | Final output slice after ordering; either clause order |

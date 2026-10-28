@@ -43,6 +43,10 @@ created then updated counts once. RETURN carries the same count in process and o
 even with multiple output rows. Pure no-ops count zero. Writes remain atomic with the statement;
 a mutation failure rolls back the owning logical transaction.
 
+[MERGE](../statements/merge.md) uses the same items in ON CREATE SET and ON MATCH SET. Repeated
+clauses append items in source order within each branch. ON CREATE can supply Required properties;
+validation runs before a later SET stage can execute.
+
 ## Isolation and storage
 
 Graph records use format 5 MVCC version chains; older records and tree registrations are refused
@@ -67,7 +71,7 @@ use the session API or standalone START TRANSACTION, COMMIT and ROLLBACK over Ex
 | --- | --- |
 | CG00002 | Leading SET, nested target n.x.y, separated + = or property += |
 | CG00006 | Duplicate literal map key |
-| CK00001 | Whole-map parameter/expression, literal composite property, or MERGE including ON CREATE/ON MATCH SET |
+| CK00001 | Whole-map parameter/expression or literal composite property |
 | CG03003 | Path/group/scalar target, relationship label update, or computed composite property value |
 | CG05001 | ExecutePaths contains a mutation stage; unbound target or invalid direct AST |
 | CG00007 | SET composed with read-only SHOW |

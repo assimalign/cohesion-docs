@@ -61,6 +61,9 @@ INSERT followed directly by MATCH also executes in source order and sees the ins
 see their working copies and introduced labels; carried entity references refresh through lists,
 maps and paths. One final version publishes per updated entity.
 
+[MERGE](../statements/merge.md) participates in this stage order. Later rows and stages see its
+creations and SET changes. NEXT after a write without RETURN starts one empty binding with no scope.
+
 ## See also
 
 [WITH](with.md) · [LET](let.md) · [FOR/UNWIND](for.md) · [RETURN](../statements/return.md) · [Clauses](index.md) · [GqlStage .NET API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-language/gql-stage.md)
