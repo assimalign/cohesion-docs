@@ -19,7 +19,7 @@ Stores the container and index. Lists require integral runtime indexes, with neg
 counting from the end. Maps/nodes/relationships accept string keys. Out-of-range indexes, absent
 fields and NULL containers/indexes return NULL. Constructor inputs are retained without semantic
 validation. Missing expressions fail planning with CG05001; invalid evaluated container/index
-types use CG02013. Slicing is not represented and remains CK00001 in text.
+types use CG02013. Slices use [GqlListSliceExpression](gql-list-slice-expression.md).
 
 GQL uses NULL without a MISSING state. Constructed values obey depth 64, 65,536 total values
 including root and 16 MiB encoded bytes; evaluated limit failures roll back statement writes.

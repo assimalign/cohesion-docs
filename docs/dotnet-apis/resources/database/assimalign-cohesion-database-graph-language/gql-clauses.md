@@ -26,6 +26,8 @@ public static class GqlClauses
     public const string Set = "SET";
     public const string Remove = "REMOVE";
     public const string Merge = "MERGE";
+    public const string ListComprehension = "LIST COMPREHENSION";
+    public const string ListSlice = "LIST SLICING";
 }
 ```
 

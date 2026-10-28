@@ -210,7 +210,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, comprehensions/slicing, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, pattern comprehensions, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, set operations, and server/session scope |
 | `CG00011` | SHORTEST count is missing or is not a positive Int64 literal; no SQLSTATE |
 | `CG01016` | Search prefilter references a peer-path-only binding in the same MATCH; no SQLSTATE |
 | `CG00001` | Empty statement |
@@ -380,8 +380,27 @@ Snapshot decisions retain freshness checks; ReadCommitted re-matches. No format 
 | CG05023 | Invalid bound pattern-lock identity | — |
 | CK04002 | Statement/session ended while the database is live | — |
 
-Bare list/map property literals retain parser CK00001. Other proven/evaluated invalid equalities
+Complete statically list/map-valued property expressions retain CK00001. Other proven/evaluated invalid equalities
 use CG03004; ordinary SET/schema validation retains CG03003. Every code above has no assigned SQLSTATE.
+
+## List comprehensions and slices
+
+[GqlListComprehensionExpression](gql-list-comprehension-expression.md) retains an iterator and
+optional filter/projection; [GqlListSliceExpression](gql-list-slice-expression.md) retains omitted
+bounds separately from explicit NULL. The iterator scopes only the body; sources bind outside it.
+All names and parameters validate even for empty/NULL input. Source aggregates are allowed;
+body aggregates are refused. GqlClauses.ListComprehension and ListSlice are enabled by the profile.
+Complete property expressions parse before scalar admission, including MERGE and its SET branches.
+List-valued properties, reduce and list predicates remain CK00001. See
+[comprehensions](../../../../database/graph/language/expressions/list-comprehensions.md) and
+[slices](../../../../database/graph/language/expressions/list-slices.md) for evaluation and bounds.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00012 | Slice omits both bounds; planning refusal including EXPLAIN | — |
+| CG01017 | Missing/empty iterator declaration in a direct AST | — |
+| CG02014 | Invalid list source or slice-bound kind/range | — |
+| CG05024 | Aggregate inside comprehension predicate/projection | — |
 
 ## Sources
 

@@ -264,6 +264,18 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 [Ordering eligibility](document/language/statements/explain.md#index-ordering-eligibility) reports
 plan reasons and retains sorting; it adds no diagnostic or storage format.
 
+## GQL list operations
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00012 | Both slice bounds omitted; planning refusal, including EXPLAIN | — |
+| CG01017 | Missing/empty iterator declaration in a direct comprehension AST | — |
+| CG02014 | Invalid list source or slice-bound kind/range | — |
+| CG05024 | Aggregate inside a comprehension predicate or projection | — |
+
+See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
+[slices](graph/language/expressions/list-slices.md).
+
 ## Sources
 
 - **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.

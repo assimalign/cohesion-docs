@@ -26,7 +26,7 @@ The planner validates the path, incoming equality scope and both branches, inclu
 Invalid/null mandatory operands or repeated relationship variables use DatabaseException/CG05001.
 Already-declared relationships use CG03007; labels/properties on repeated or incoming nodes use
 CG03006. Proven/evaluated invalid equalities use CG03004, and NULL/absent/incompatible bound nodes
-CG03005. Textual bare list/map equalities retain parser CK00001. Required-property failures after
+CG03005. Complete statically list/map-valued equalities retain CK00001; indexed scalar comprehension/slice results are allowed. Required-property failures after
 ON CREATE use CG03003. These codes have no assigned SQLSTATE. Session execution rejects parser
 errors with DatabaseParseException; inspect parser diagnostics before consuming a recovered tree.
 

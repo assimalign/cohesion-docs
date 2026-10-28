@@ -32,6 +32,20 @@ label names, and property keys do not trigger keyword capability checks.
 
 ## Planning and execution diagnostics
 
+[List comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md)
+add these conditions; none has an assigned SQLSTATE:
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CG00012 | Slice omits both bounds; refused during planning, including EXPLAIN |
+| CG01017 | Missing/empty iterator declaration in a hand-built AST |
+| CG02014 | Invalid list-operation source or slice-bound kind/range |
+| CG05024 | Aggregate inside a comprehension filter or projection |
+
+Known non-Boolean filters use CG02013 even for empty/NULL input. Unbound names retain CG05001.
+Scalar property results execute; list-valued properties, reduce and all/any/none/single list
+predicates retain CK00001.
+
 | Code | Meaning |
 |---|---|
 | `CG05001` | Invalid hand-built function arity or unbound argument; invalid pattern, variable binding, traversal, grouping/aggregate placement or sort specification; hidden DISTINCT sort binding or missing paging/key parameter |
@@ -64,7 +78,7 @@ label names, and property keys do not trigger keyword capability checks.
 
 [MERGE](statements/merge.md) executes whole-pattern match/create and ordered ON CREATE/ON MATCH SET.
 Snapshot conflicts use CG04024; ReadCommitted refreshes and re-matches. CG05023 guards pattern-lock
-identities. Bare list/map property literals retain parser CK00001; other proven/evaluated invalid
+identities. Complete statically list/map-valued property expressions retain CK00001; other proven/evaluated invalid
 equalities use CG03004. Graph record/tree-registration format remains 5.
 
 [Scalar calls](functions/scalar-functions.md) use parsed-arity CG00002 and unknown-name CG00010;

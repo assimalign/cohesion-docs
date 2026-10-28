@@ -476,6 +476,22 @@ Evidence: `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/
 
 ## Composite values and wire framing
 
+[List comprehensions](../../../../database/graph/language/expressions/list-comprehensions.md)
+and [slices](../../../../database/graph/language/expressions/list-slices.md) execute with lexical
+iterator scopes and propagated element shapes. NULL sources return NULL, empty sources return [];
+filters accept only TRUE. Scalar projections from entity lists cross Execute; entity-producing
+wire results retain CG05001. Complete scalar property results work in MATCH/INSERT/SET and MERGE.
+List-valued properties retain CK00001. Visited/copied elements consume statement work; temporary
+sources and nested results share its retained-memory ledger. Failure releases grants and rolls back
+writes. No disk or wire format changes apply; graph.composite-values still gates composite results.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00012 | Slice omits both bounds; planning refusal including EXPLAIN | — |
+| CG01017 | Missing/empty iterator declaration in a direct AST | — |
+| CG02014 | Invalid list source or slice-bound kind/range | — |
+| CG05024 | Aggregate inside comprehension predicate/projection | — |
+
 [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) is public in Graph and shared with its client through the
 existing reference. graph.composite-values adds no message type or protocol version. Negotiated
 Execute/ExecutePaths parameters use its components, including scalar parameters. Result column

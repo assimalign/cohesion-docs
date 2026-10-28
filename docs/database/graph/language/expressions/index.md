@@ -13,6 +13,8 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 - **[COALESCE](coalesce.md)** — first non-NULL value, evaluated left to right.
 - **[NULLIF](nullif.md)** — NULL for TRUE equality, otherwise the first value.
 - **[List values](list-values.md)** — ordered constructors, membership, comparison and value limits.
+- **[List comprehensions](list-comprehensions.md)** — scoped filtering and projection.
+- **[List slices](list-slices.md)** — inclusive/exclusive bounds and negative offsets.
 - **[Map values](map-values.md)** — ordinal named entries with nested values.
 - **[Subscripts and property access](property-access.md)** — list indexes, map fields and entity properties.
 
