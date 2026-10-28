@@ -50,12 +50,12 @@ IfNotExists preserves any existing same-named definition. Build/write UNIQUE fai
 CD03020 (23505) or CD02021. See [CREATE INDEX](../../../../database/document/language/statements/create-index.md)
 for ownership, format and NULL/MISSING rules.
 
-## Example
-
 IncludeMissing defaults to false and applies only to the leading scalar key. Text places it
 inside the key list: `(a INCLUDE MISSING, b)`. A leading array key with the flag uses CD03025;
 misplaced text uses CD00002. COHESION_SCHEMA.INDEXES renders the suffix in PATH/PATHS[0]
 and exposes INCLUDE_MISSING. These refusals have no assigned SQLSTATE.
+
+## Example
 
 ```csharp
 var included = (OqlCreateIndexExpression)((OqlQueryStatement)new OqlQueryParser().Parse(

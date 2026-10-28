@@ -48,7 +48,8 @@ rolls back the statement; an explicit transaction must be rolled back before the
 
 The suffix is allowed only on the leading scalar key, inside the parentheses:
 `CREATE INDEX ix ON items (score INCLUDE MISSING, category)`. It includes documents whose
-leading path is absent. Later keys and a suffix after the closing parenthesis use CD00002.
+leading path is absent. A suffix on an array key, a later scalar key or after the closing
+parenthesis uses CD00002.
 A leading array key with IncludeMissing in a direct AST/catalog request uses CD03025.
 INCLUDE remains contextual. A later array key still emits no posting for an empty or filtered array.
 
@@ -123,7 +124,7 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 | `CD02021` | Array/object component in a UNIQUE key; names index and path | — |
 | `CD00009` | More than 32 paths; located at the 33rd path | — |
 | `CD03022` | Direct AST/catalog request has fewer than one or more than 32 paths | — |
-| `CD00002` | Empty/duplicate paths, expressions, wildcards, ASC/DESC, partial WHERE, malformed INCLUDE MISSING, or the suffix on a later key/outside parentheses | — |
+| `CD00002` | Empty/duplicate paths, expressions, wildcards, ASC/DESC, partial WHERE, malformed INCLUDE MISSING, or the suffix on an array/later key/outside parentheses | — |
 | `CD01028` | Projection or WHEN path is not rooted in its element variable | — |
 | `CD02027` | WHEN constant is not a supported scalar literal, including a parameter or invalid Decimal | — |
 | `CD03025` | Multiple array keys or a UNIQUE array index; typed IncludeMissing with a leading array key | — |
