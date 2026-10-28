@@ -224,6 +224,29 @@ See [Graph](graph/language/diagnostics.md#application-function-conditions),
 [Documents](document/language/diagnostics.md#application-function-conditions) and
 [Key-Value](key-value-pair/diagnostics.md#registered-call-functions).
 
+## SQL WITH RECURSIVE
+
+[WITH RECURSIVE](sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
+term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
+to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
+EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
+RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01054 | Recursive definition lacks top-level anchor UNION [ALL] recursive term | 42P19 |
+| CS01055 | Self-reference in the non-recursive term | 42P19 |
+| CS01056 | Self-reference inside a scalar, IN, quantified or EXISTS subquery | 42P19 |
+| CS01057 | Self-reference on the nullable side of an outer join | 42P19 |
+| CS01058 | Self-reference under INTERSECT ALL | 42P19 |
+| CS01059 | Self-reference on either side of EXCEPT ALL or the right of EXCEPT DISTINCT | 42P19 |
+| CS01060 | Recursive term does not have exactly one self-reference | 42P19 |
+| CS01061 | Aggregate at the query level containing the self-reference | 42P19 |
+| CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
+| CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
+| CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `3a4b483d8`.

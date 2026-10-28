@@ -7,7 +7,7 @@ Retrieves rows from stored tables and system relations, including N-way joins an
 ## Syntax
 
 ```syntaxsql
-[ WITH common_table_expression [ , ...n ] ]
+[ WITH [ RECURSIVE ] common_table_expression [ , ...n ] ]
 SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 [ FROM <table_source> [ <join> ...n ] [ , <table_source> [ <join> ...n ] ...n ] ]
 [ WHERE search_condition ]
@@ -50,12 +50,13 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | `UNION`, `INTERSECT`, `EXCEPT` [ALL / DISTINCT] | Supported | [Set operations](../clauses/set-operations.md) in every query position; combined ORDER BY uses output names/ordinals |
 | SELECT ALL | Recognized, not supported (`CK00001`) | ALL as a set quantifier executes |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs accepts per-key NULLS FIRST/LAST |
-| [WITH](../clauses/with.md) | Supported (measured) | Ordered non-recursive SELECT definitions |
+| [WITH and WITH RECURSIVE](../clauses/with.md) | Acyclic definitions execute; recursion binds only | Recursive planning, EXPLAIN and execution refuse with CK00001 |
+| FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | Recognized, not supported (`CK00001`) | SELECT locking tails, including CTEs and subqueries |
 | Windows | Recognized, not supported (`CK00001`) | No window clauses |
 
 ## Remarks
 
-[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+[WITH](../clauses/with.md) binds query definitions; acyclic lists materialize reachable
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 The conformance contract measures these subsets through the live engine, including wire execution.

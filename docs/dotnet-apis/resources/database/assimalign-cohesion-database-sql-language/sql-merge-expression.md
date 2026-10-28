@@ -9,6 +9,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 ```csharp
 public sealed class SqlMergeExpression : SqlQueryExpression
 {
+    public IReadOnlyList<SqlCommonTableExpression> CommonTables { get; }
     public SqlTableReference Table { get; }
     public SqlFromItem Source { get; }
     public SqlExpression Condition { get; }
@@ -28,6 +29,10 @@ the plan without writes. Execution chooses the first qualifying action per candi
 all actions atomically, including RETURNING preparation. A second modifying action on one physical
 target uses CS05036 (21000); retained-state exhaustion uses CS05067 (53200) before writes. See
 [MERGE](../../../../database/sql/language/statements/merge.md) for scopes, diagnostics and association rules.
+
+CommonTables retains plain WITH definitions in declaration order, or an empty list when absent;
+the setter is internal. Every definition binds and reachable definitions materialize once before
+writes. WITH RECURSIVE ... MERGE is refused by parsing with CK00001, even for acyclic lists.
 
 Execution locks and rechecks the latest concurrently committed modifying target under ReadCommitted,
 reevaluating ON and ordered WHEN clauses with the original source. Snapshot target conflicts use

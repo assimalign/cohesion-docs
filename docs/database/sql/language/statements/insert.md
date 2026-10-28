@@ -32,7 +32,7 @@ width validation happens before reads/writes.
 
 ## Remarks
 
-[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+[WITH](../clauses/with.md) binds query definitions; acyclic lists materialize reachable
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 A whole-item [DEFAULT](../clauses/default.md) requests the destination default;

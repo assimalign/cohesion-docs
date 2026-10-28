@@ -24,7 +24,7 @@ SET column_name = { expression | DEFAULT } [ , ...n ]
 
 ## Remarks
 
-[WITH](../clauses/with.md) binds non-recursive query definitions and materializes reachable
+[WITH](../clauses/with.md) binds query definitions; acyclic lists materialize reachable
 definitions once under the statement snapshot, before any write. Targets remain stored tables.
 
 Qualified references use the target name, or its alias when supplied. An explicit alias hides

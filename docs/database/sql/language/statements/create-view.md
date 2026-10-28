@@ -14,8 +14,9 @@ CREATE [ OR REPLACE ] VIEW [ schema_name . ] view_name
 ## Remarks
 
 The body is a SELECT or [set operation](../clauses/set-operations.md), optionally with its own
-non-recursive WITH, joins, subqueries, grouping, ordering and paging. It follows the ordinary
-SELECT subset. Parameters are refused. An explicit column list must name every output exactly;
+WITH, joins, subqueries, grouping, ordering and paging. A recursive query body can bind and freeze
+anchor metadata at creation; querying that view, including after reopen, refuses with CK00001.
+It follows the ordinary SELECT subset. Parameters are refused. An explicit column list must name every output exactly;
 output names must be unique.
 
 The catalog stores canonical SQL with bound input qualifiers and expanded stars at every query

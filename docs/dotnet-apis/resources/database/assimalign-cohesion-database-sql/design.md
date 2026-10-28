@@ -114,7 +114,7 @@ HAVING and ORDER BY; unproven keys retain ordinary CS05017 grouping errors.
 
 ### WITH and derived relations
 
-[WITH](../../../../database/sql/language/clauses/with.md) binds all definitions in declaration order,
+[WITH](../../../../database/sql/language/clauses/with.md) without RECURSIVE binds all definitions in declaration order,
 including unused bodies. Read names prefer visible CTEs; qualified reads and DML targets use the
 catalog. Self and later-sibling names fall back to stored tables; only missing future relations use
 CS01026 (no assigned SQLSTATE). CTE names are schema-less and share ordinary alias-conflict
@@ -129,7 +129,7 @@ derived bodies evaluate per enclosing frame. Only a reference that binds to a re
 the LATERAL refusal; typos retain CS01015. Outer ordering over derived outputs stays CK00001.
 CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
-nested/recursive CTEs and explicit LATERAL remain excluded.
+nested CTEs, recursive execution and explicit LATERAL remain excluded.
 
 Current SQL data-storage format is 27. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
@@ -1918,6 +1918,29 @@ grants. Intent-shared locks include tables read only by CTEs/subqueries and rema
 end after success. Cascade retries reuse associations and reacquire source intents. See
 [UPDATE](../../../../database/sql/language/statements/update.md#from-sources) and
 [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
+
+## WITH RECURSIVE binding
+
+[WITH RECURSIVE](../../../../database/sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
+term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
+to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
+EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
+RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01054 | Recursive definition lacks top-level anchor UNION [ALL] recursive term | 42P19 |
+| CS01055 | Self-reference in the non-recursive term | 42P19 |
+| CS01056 | Self-reference inside a scalar, IN, quantified or EXISTS subquery | 42P19 |
+| CS01057 | Self-reference on the nullable side of an outer join | 42P19 |
+| CS01058 | Self-reference under INTERSECT ALL | 42P19 |
+| CS01059 | Self-reference on either side of EXCEPT ALL or the right of EXCEPT DISTINCT | 42P19 |
+| CS01060 | Recursive term does not have exactly one self-reference | 42P19 |
+| CS01061 | Aggregate at the query level containing the self-reference | 42P19 |
+| CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
+| CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
+| CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
 ## Sources
 
