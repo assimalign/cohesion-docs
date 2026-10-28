@@ -50,6 +50,10 @@ nesting remains CD05001. See [aggregate semantics and examples](../../../../data
 
 ## Result paging
 
+Each OqlOrdering retains its written [OqlNullPlacement](oql-null-placement.md). Omitted placement
+means FIRST for ASC and LAST for DESC. CD00013 rejects malformed text; CD01032 rejects an invalid
+direct enum, both without SQLSTATE. See [ORDER BY](../../../../database/document/language/clauses/order-by.md).
+
 OqlClauses.Limit (`LIMIT`) and Offset (`OFFSET`) enable final SELECT paging.
 [OqlSelectExpression](oql-select-expression.md) retains optional Limit and Offset operands, after
 IsValue in its constructor. Both survive alias rewriting. Counts are nonnegative Int64 integer
@@ -228,6 +232,8 @@ contract. SAVEPOINT and SET TRANSACTION remain CK00001. These conditions have no
 See [syntax and examples](../../../../database/document/language/statements/transactions.md).
 
 ## Sources
+
+- **Ordering syntax and tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlOrderingParserTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlPredicateParserTests.cs`.

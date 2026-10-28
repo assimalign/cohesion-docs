@@ -20,6 +20,8 @@ They may nest lists and [maps](map-values.md). NULL elements remain elements; GQ
 [Parameters](parameters.md) accept BCL IList values, including object arrays and List<long>;
 byte[] remains a binary scalar. Arrays must be one-dimensional and zero-based.
 [Subscripts](property-access.md) retrieve elements, including negative indexes from the end.
+[List comprehensions](list-comprehensions.md) filter/project elements; [slices](list-slices.md)
+copy a bounded range. Both execute on this branch.
 
 IN accepts any list-valued expression, including a parameter or parenthesized list. It evaluates
 the full list before testing membership; a later item error still fails after an earlier match.
@@ -66,7 +68,7 @@ provides the public component format. Path payloads are unchanged.
 | `CG03003` | Invalid/oversized referenced parameter or composite stored-property parameter |
 | `CG02013` | Evaluated value/access error or constructed value/row exceeds a limit |
 | `CG07016` | Possible composite wire result without negotiated capability |
-| `CK00001` | List/pattern comprehension, slicing or composite literal in a stored property map |
+| `CK00001` | Pattern comprehension or list/map-valued stored property; scalar results of complete expressions are allowed |
 | `CG00002` | Malformed list or membership syntax |
 
 ## Examples

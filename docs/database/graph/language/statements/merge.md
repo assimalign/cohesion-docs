@@ -45,6 +45,12 @@ are validated before execution, including under EXPLAIN.
 
 ### ON CREATE and ON MATCH
 
+[Comprehensions](../expressions/list-comprehensions.md) and [slices](../expressions/list-slices.md)
+can supply scalar property results, for example `MERGE (n:N {k:[x IN [1] | x*2][0]}) RETURN n.k`
+returns 2. The complete expression parses before admission. Statically list-valued properties
+retain CK00001; dynamically produced containers retain CG03004 for equalities and CG03003 for SET.
+Both ON branches accept scalar results and evaluate only the selected branch per incoming row.
+
 Only the selected branch executes. Repeated clauses of that kind append their SET items in source
 order, and items run left to right using ordinary SET behavior. NULL SET values remove properties;
 literal maps can replace or merge properties, and node labels can be added. Earlier input rows'
@@ -85,7 +91,7 @@ budgets. This batch changes no disk or wire format.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CG00002 | Multiple paths in one MERGE, malformed ON branch, or variable-length/quantified update path | — |
-| CK00001 | Bare list/map property literal or another excluded form | — |
+| CK00001 | List/map-valued property expression or another excluded form | — |
 | CG03003 | Created entity still lacks a Required property after ON CREATE, or an ordinary SET/schema failure | — |
 | CG03004 | Proven/evaluated NULL, non-finite or non-scalar equality | — |
 | CG03005 | Bound node is NULL, absent or incompatible with its node pattern | — |
@@ -97,7 +103,7 @@ budgets. This batch changes no disk or wire format.
 | CK04002 | Statement/session ended while the database is live | — |
 | CG09019 | Database disposed during admitted execution | — |
 
-Bare list/map property literals fail parsing with CK00001; other proven or evaluated non-scalar
+After parsing the complete expression, statically list/map-valued properties use CK00001; other proven or evaluated non-scalar
 equalities use CG03004. Supplied parameters retain ordinary validation: missing values use CG05001,
 unsupported/non-finite CLR values CG03003. Other [expression, budget and transaction diagnostics](../diagnostics.md)
 still apply. No SQLSTATE is assigned to the codes above.

@@ -34,7 +34,7 @@ each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference, [SqlDerivedTableReference](sql-derived-table-reference.md), or
 [SqlJoinedTableReference](sql-joined-table-reference.md) for an unaliased parenthesized join. Renderer and
-persisted expressions use this same shape. Current SQL storage format 27 includes canonical
+persisted expressions use this same shape. Current SQL storage format 28 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
 refused without an upgrade reader. Compiled schema artifacts remain version 8.
@@ -80,7 +80,7 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

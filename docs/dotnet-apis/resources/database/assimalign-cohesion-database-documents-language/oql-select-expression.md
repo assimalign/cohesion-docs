@@ -65,6 +65,11 @@ list of the wrong width, empty names or collisions with group/FROM/UNNEST names.
 the group array in an aggregate row input; parser CD00012 rejects GROUP AS without GROUP BY.
 None has an assigned SQLSTATE. See [GROUP BY](../../../../database/document/language/clauses/group-by.md).
 
+Each OrderBy entry is `OqlOrdering(OqlExpression Expression, bool Descending,
+OqlNullPlacement NullPlacement = OqlNullPlacement.Default)`. [OqlNullPlacement](oql-null-placement.md)
+retains the written suffix; invalid enum values fail planning with DatabaseException/CD01032
+(no SQLSTATE). Text malformed suffixes use CD00013. See [ORDER BY](../../../../database/document/language/clauses/order-by.md).
+
 ## Example
 
 Adapted from OqlGroupingParserTests:

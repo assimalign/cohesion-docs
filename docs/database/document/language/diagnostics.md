@@ -21,6 +21,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00009` | Index exceeds 32 key paths; located at the 33rd path |
 | `CD00011` | ALL/DISTINCT on a scalar call or star, including COUNT(ALL *) and COUNT(DISTINCT *) |
 | `CD00012` | GROUP AS without preceding GROUP BY terms; at GROUP; no assigned SQLSTATE |
+| `CD00013` | NULLS without FIRST or LAST; at the invalid option or end of input; no assigned SQLSTATE |
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
@@ -50,6 +51,7 @@ rather than being rounded by the parser.
 | `CD01029` | Invalid aggregate quantifier enum, scalar quantifier or quantified star in a directly constructed call AST | — |
 | `CD01030` | Invalid/empty/duplicate grouping alias, collision with FROM/UNNEST, or malformed direct-AST alias list | — |
 | `CD01031` | GROUP AS referenced in an aggregate's row input | — |
+| `CD01032` | Direct ordering AST has an invalid null-placement enum | — |
 | `CD05018` | Accounted SELECT/group staging, wrappers/arrays, aggregates, projection/order storage, DML pending buffers or RETURNING exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes, no partial result | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |

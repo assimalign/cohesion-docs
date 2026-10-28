@@ -57,6 +57,32 @@ to finish a table. After committing the batch, SqlTableReclamation also requires
 A crash after the data commit but before intent removal safely retries discovery. This changes
 neither the page format nor the public API.
 
+## Identity and sequence reservations
+
+SQL format 28 persists standalone sequence definitions as catalog kind 18 and reservations as
+kind 19. Identity counters remain table-owned kind 16; compiled schemas remain v8. Earlier SQL
+formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).
+
+Identity and sequences share a catalog-serialized allocator using Int128 intermediate arithmetic.
+Before returning any value from a new block, it commits the durable endpoint through the configured
+storage commit policy. Blocks contain at most 32 values and stop at the bound. CACHE is persisted
+metadata and does not change this block size or create per-session caches.
+
+Recovery skips the complete durable reservation, including values never handed out. Without
+intentional CYCLE or restart, a crash does not reissue previously returned values. Synchronous and
+Grouped policies confirm durability before delivery; None retains its process-crash-only guarantee.
+For a default sequence starting at 1, returning 1 reserves through 32; reopening returns 33.
+Allocation is independent of row transactions, so rollback leaves gaps. It does not advance the
+catalog DDL generation. Exhaustion without CYCLE uses CS02002 (22003) without reserving or
+advancing state; CYCLE wraps to the directional bound in a new durable reservation.
+
+Create/replace/drop and allocation share the catalog monitor; a retired incarnation cannot allocate
+(CS04067, 40001). The order is existing caller object grants, catalog monitor, storage transaction/
+apply gate, then page latches. Allocation acquires no engine/coordinator lock and does not wait for
+DML. Unconfirmed reservation commits fence storage until reopen. Disposal closes allocation under
+the monitor before storage closes, including cached values. Malformed sequence records retain
+CS06061 (XX001) through corruption translation.
+
 ## Index leaf utilization
 
 SQL indexes use the shared [B-tree leaf split policy](../assimalign-cohesion-database-indexing/design.md#leaf-split-policy).
@@ -88,6 +114,8 @@ adds no reflection and no serialization.
 Record reads confirm their private bytes against a page write sequence before accepting a result or reporting a decode failure. Overlapping forward writes and rollback cause a retry. Stable malformed records retain page/slot context and the decoder cause through storage corruption translation. The shared record layer compacts fragmented pages before extension and refills partly empty older pages through in-memory free-byte hints, rechecking allocation generation and capacity. These changes preserve the stored format. See [shared record-layer behavior](../assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
 ## Sources
+
+- **Shared allocator and crash recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Catalog/SqlCatalog.Allocator.cs`, `tests/SqlSequenceTests.cs` and `tests/SqlSequenceReviewTests.cs`.
 
 - **Completion check** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Engine/Storage/SqlTableReclamation.cs`.
 - **Reuse races** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageStaleTouchTests.cs`.

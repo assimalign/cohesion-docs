@@ -283,6 +283,13 @@ still refuses DROP. See [CREATE INDEX](../../../../database/document/language/st
 
 ## Typed array index postings
 
+OQL now admits [INCLUDE MISSING](../../../../database/document/language/statements/create-index.md#include-missing)
+on the leading scalar key, using the existing v3 catalog flag. Catalog PATH/PATHS[0] render the
+suffix, and INCLUDE_MISSING exposes its Boolean value. [EXPLAIN ordering eligibility](../../../../database/document/language/statements/explain.md#index-ordering-eligibility)
+reports conservative per-index proofs, direction and fallback reasons, including bounded complex-tag
+probes. This is EXPLAIN-only in batch 9: `consumed=False; sort=retained`. Execution still sorts;
+index-order consumption arrives in batch 10.
+
 [DocumentIndexKey](document-index-key.md) adds a typed DISTINCT array projection, optionally
 filtered by a bounded [DocumentIndexPredicate](document-index-predicate.md). One array key may
 appear at any compound position. Qualifying scalar values deduplicate per document version;
@@ -593,6 +600,8 @@ document ALL/DISTINCT, Boolean input filtering and exact-moment sample statistic
 | CD00012 | GROUP AS without preceding GROUP BY terms | — |
 | CD01030 | Invalid/empty/duplicate grouping alias, collision with FROM/UNNEST, or invalid direct-AST alias list | — |
 | CD01031 | GROUP AS referenced in an aggregate row input | — |
+| CD00013 | NULLS without FIRST or LAST | — |
+| CD01032 | Invalid null-placement enum in a direct ordering AST | — |
 | CD05018 | Accounted SELECT/group/aggregate/output/DML pending/RETURNING memory exceeds StatementMemoryBudget | — |
 | CD05019 | Serialized RETURNING value exceeds 256 levels, counting a named wrapper | — |
 

@@ -24,7 +24,7 @@ Map access may chain, as in `{k:{j:1}}.k.j`. Node/relationship access also works
 expression: `(a).name`, `COALESCE(b,a).name` and `a['name']` read scalar stored properties and
 pass the wire Execute shape check. The direct stored-property chain `a.b.c` remains CK00001;
 `(a.b).c` on a scalar fails at evaluation with CG02013. Invalid container/index types also use
-CG02013. Malformed syntax uses CG00002; slicing remains CK00001. Lists/maps follow the
+CG02013. Malformed syntax uses CG00002; [list slices](list-slices.md) execute with at least one bound. Lists/maps follow the
 [shared limits and wire capability](list-values.md#limits-and-wire-capability).
 
 ## Examples

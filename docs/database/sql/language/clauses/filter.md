@@ -1,0 +1,78 @@
+# FILTER (Cohesion SQL)
+
+Selects input rows for one aggregate call.
+
+## Syntax
+
+```syntaxsql
+aggregate_call FILTER ( WHERE search_condition )
+LISTAGG ( [ DISTINCT | ALL ] value [ , delimiter ] )
+    WITHIN GROUP ( ORDER BY key [ , ...n ] ) FILTER ( WHERE search_condition )
+```
+
+FILTER follows the complete call, including LISTAGG's WITHIN GROUP ordering.
+
+## Remarks
+
+Every catalog aggregate, including application aggregates, accepts FILTER. It composes with
+omitted/ALL/DISTINCT quantifiers, COUNT(*), input ORDER BY, GROUP BY, HAVING and query ORDER BY.
+Only TRUE admits an input row; FALSE and NULL skip it. SQL has no MISSING value.
+
+The filter evaluates before any argument, argument coercion, input ordering key, DISTINCT tuple
+or aggregate transition. A rejected row therefore cannot trigger division by zero or side effects
+in those expressions. This also applies to correlated and independent argument/ordering subqueries.
+Independent children inside a filtered call run on first demand and cache their result for the
+statement. Syntax, names and types still validate before input reads; FILTER does not hide invalid
+expressions from binding.
+
+The condition binds over source rows and can reference enclosing columns or contain supported
+subqueries. An aggregate local to a child query in the condition is allowed. An aggregate at the
+same query level inside the condition is refused. Existing outer-only aggregate ownership
+restrictions retain CK00001. A filtered call remains an aggregate: it is excluded from its own
+query level's WHERE, JOIN ON and GROUP BY. Windows in conditions and FILTER on window
+aggregates remain CK00001.
+
+Calls with different filters have independent states. Filtered calls with volatile arguments,
+ordering keys or conditions also retain independent states; child queries conservatively prevent
+sharing. EXPLAIN includes `filtered_aggregates=N` on a grouping node when N is nonzero.
+FILTER adds one named clause; the profile now measures 59 of 64 declared clauses.
+
+## Diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS05072 | FILTER attached to a scalar/non-aggregate call | 42809 |
+| CS05073 | Same-scope aggregate inside the filter condition | 42803 |
+| CS02003 | Non-Boolean condition; untyped NULL is allowed | 42804 |
+| CS00003 | Malformed suffix, including missing WHERE/condition or a repeated FILTER | — |
+| CK00001 | Window call/aggregate or existing unsupported aggregate query-level ownership | — |
+
+## Examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE filtered (v INT, flag BOOLEAN);
+INSERT INTO filtered VALUES (0,FALSE),(2,TRUE),(4,TRUE),(4,NULL);
+SELECT COUNT(*) FILTER (WHERE flag),
+       COUNT(DISTINCT v) FILTER (WHERE flag),
+       SUM(ALL 8/v) FILTER (WHERE flag),
+       SUM((SELECT 1/0)) FILTER (WHERE FALSE)
+FROM filtered;
+```
+
+Returns `(2, 2, 6, NULL)`; SUM returns Decimal 6. The excluded zero never divides, and the
+independent argument subquery is never demanded.
+
+`SELECT UPPER('a') FILTER (WHERE TRUE);` fails CS05072.
+`SELECT SUM(v) FILTER (WHERE COUNT(*) > 0) FROM filtered;` fails CS05073.
+`SELECT SUM(v) FILTER (WHERE 1) FROM filtered;` fails CS02003.
+
+## See also
+
+[Clauses](index.md) · [Aggregate functions](../functions/aggregate-functions.md) · [GROUP BY](group-by.md) · [HAVING](having.md) · [Diagnostics](../diagnostics.md)
+
+## Sources
+
+- **Evaluation, subqueries and placement** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAggregateExecutionTests.FilterStatistics.cs`.
+- **Grammar and AST** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlAggregateFilterParserTests.cs`.

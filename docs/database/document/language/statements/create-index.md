@@ -9,7 +9,7 @@ one DISTINCT array projection.
 CREATE [ UNIQUE ] INDEX [ IF NOT EXISTS ] index_name
 ON collection_name ( index_key [ , ...n ] ) [ ; ]
 
-index_key ::= document_path
+index_key ::= document_path [ INCLUDE MISSING ]
     | DISTINCT ARRAY variable [ . element_path ] FOR variable IN document_path
         [ WHEN condition ] END
 ```
@@ -36,13 +36,29 @@ range, then UNIQUE, then ordinal index name. Comparable complete indexed inputs 
 identities before JSON reads. The full predicate always filters seek candidates.
 
 Keys collate as Couchbase does: MISSING < NULL < FALSE < TRUE < numbers < ordinal strings <
-arrays < objects. Numbers 1 and 1.00 have the same key. Leading MISSING omits the entry; trailing
+arrays < objects. Numbers 1 and 1.00 have the same key. Without INCLUDE MISSING, leading MISSING omits the entry; trailing
 MISSING and explicit NULL have different component tags. Array/object tags in nonunique indexes
 are lossy, so a seek never replaces predicate evaluation. Encoded keys must fit 1,024 bytes.
 
 UNIQUE keys containing any NULL or MISSING never conflict. An indexed array/object component in a
 UNIQUE key is refused. Constraints are immediate per row, so a multirow key swap may fail. Failure
 rolls back the statement; an explicit transaction must be rolled back before the session is reused.
+
+### INCLUDE MISSING
+
+The suffix is allowed only on the leading scalar key, inside the parentheses:
+`CREATE INDEX ix ON items (score INCLUDE MISSING, category)`. It includes documents whose
+leading path is absent. A suffix on an array key, a later scalar key or after the closing
+parenthesis uses CD00002.
+A leading array key with IncludeMissing in a direct AST/catalog request uses CD03025.
+INCLUDE remains contextual. A later array key still emits no posting for an empty or filtered array.
+
+COHESION_SCHEMA.INDEXES exposes INCLUDE_MISSING as a Boolean. PATH and PATHS[0] append
+` INCLUDE MISSING` to the leading scalar key; other PATHS entries retain their key rendering.
+For an index on `(v INCLUDE MISSING)`, PATH is `v INCLUDE MISSING`, PATHS is
+`["v INCLUDE MISSING"]`, and INCLUDE_MISSING is true. The rendered list can be reused in DDL.
+This uses the existing v3 flag and does not change the format. See
+[EXPLAIN eligibility](explain.md#index-ordering-eligibility): execution still sorts on this branch.
 
 ### Array keys and WHEN
 
@@ -108,7 +124,7 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 | `CD02021` | Array/object component in a UNIQUE key; names index and path | — |
 | `CD00009` | More than 32 paths; located at the 33rd path | — |
 | `CD03022` | Direct AST/catalog request has fewer than one or more than 32 paths | — |
-| `CD00002` | Empty/duplicate paths, expressions, wildcards, ASC/DESC, partial WHERE or INCLUDE MISSING | — |
+| `CD00002` | Empty/duplicate paths, expressions, wildcards, ASC/DESC, partial WHERE, malformed INCLUDE MISSING, or the suffix on an array/later key/outside parentheses | — |
 | `CD01028` | Projection or WHEN path is not rooted in its element variable | — |
 | `CD02027` | WHEN constant is not a supported scalar literal, including a parameter or invalid Decimal | — |
 | `CD03025` | Multiple array keys or a UNIQUE array index; typed IncludeMissing with a leading array key | — |
@@ -188,5 +204,6 @@ conditional no-ops, and faults the transaction. Run it in an automatic statement
 - **Array DDL, residuals and fetch counts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.ArrayIndexes.cs`.
 - **Composite execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.CompositeIndexes.cs`.
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Ddl.cs`.
+- **INCLUDE MISSING and rendering** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOrderedAccessTests.cs`.
 - **Index behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Examples** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlIndexDdlParserTests.cs`.

@@ -50,6 +50,50 @@ identities deduplicate before fetching, and the complete predicate remains a res
 Array/scalar accesses can participate in IndexIntersection. See
 [array access and fetch bounds](create-index.md#array-access-and-fetch-bounds).
 
+## Index ordering eligibility
+
+For ORDER BY, EXPLAIN describes the selected access and adds one IndexOrderCandidate per
+visible index, including candidates for ORDER BY alone. Candidate detail includes include_missing,
+order_eligible and order_reason. Eligible candidates also report order_direction (forward/reverse),
+equality_keys, order_prefix_keys, `tie_break=document_identity` and `equal_key_buckets=complete`.
+Select detail renders the written direction/NULLS placement.
+
+Eligibility is EXPLAIN-only in batch 9. Every candidate reports `consumed=False; sort=retained`;
+execution still sorts. Index-order consumption arrives in batch 10.
+
+ORDER BY must match consecutive index keys after any skipped equality-fixed leading keys.
+Varying keys must share a direction. Sparse indexes require a mandatory predicate rejecting
+leading MISSING: one AND branch can prove this; both OR branches must. Direct presence tests,
+comparisons and BETWEEN can establish facts; calls and computed paths cannot. Nondefault NULLS
+placement needs proof that both NULL and MISSING are excluded.
+
+Lossy array/object tags cannot prove value order. UNIQUE scalar keys or suitable scalar predicates
+can prove the domain. Otherwise a snapshot-visible probe of at most 512 entries/32 pages checks
+complex tags on the first varying key, without fetching documents. An incomplete probe falls back.
+
+| order_reason | Meaning |
+| --- | --- |
+| eligible | Candidate satisfies the proof |
+| leading_missing_not_rejected | Sparse leading key may omit qualifying documents |
+| not_an_index_prefix | ORDER BY path does not match the required consecutive key |
+| non_index_expression | ORDER BY uses a computed expression |
+| mixed_directions | Varying keys require different scan directions |
+| null_placement_mismatch | Placement differs from index order and unknowns may qualify |
+| complex_values | Probe found lossy array/object values |
+| scalar_domain_unproven | Probe is incomplete, or a later varying key lacks a scalar proof |
+| array_index | Index contains an array projection |
+| grouping_changes_order | Grouping changes input order |
+| distinct_changes_order | DISTINCT changes input order |
+| unnest_changes_order | UNNEST changes input order |
+| intersection_erases_order | Selected identity intersection loses index order |
+| collection_scan | Selected access is a collection scan |
+
+With `CREATE INDEX ix ON items (v INCLUDE MISSING)`, scalar/nullish-only items and
+`EXPLAIN SELECT META().id FROM items ORDER BY v DESC NULLS LAST`, the candidate reports
+`order_eligible=True; order_reason=eligible; order_direction=reverse` and retained sorting.
+Changing to ASC NULLS LAST without a predicate excluding unknowns reports null_placement_mismatch.
+These reasons are plan details, not diagnostic codes.
+
 ## Examples
 
 For items containing one document and an index by_score on score:
@@ -81,4 +125,5 @@ See [transactions](transactions.md).
 ## Sources
 
 - **Description and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentExplainTests.cs`.
+- **Ordering eligibility** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOrderedAccessTests.cs`.
 - **JSON rows** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentExplainWireTests.cs`.

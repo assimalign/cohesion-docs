@@ -28,6 +28,9 @@ Explicit grouping over empty input returns no groups. An ungrouped aggregate ins
 implicit group. Grouping works over one stored table, one system relation, or the supported inner
 join. `HAVING` filters groups before ordering and pagination.
 
+[FILTER](filter.md) selects input separately for each aggregate before argument evaluation.
+Rejecting every row of an aggregate does not remove its group; its empty-input rule applies.
+
 Projection aliases are outside grouping's alias-binding scope. Standalone numeric keys
 (`GROUP BY 1`) report `CK00001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 Empty grouping sets, `GROUPING SETS`, `ROLLUP`, `CUBE`, and grouping functions are excluded.

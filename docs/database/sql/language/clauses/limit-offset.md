@@ -77,14 +77,14 @@ For early-stop examples and their CS02001 (22012) boundary, see
 
 The renderer retains the limit family, normalizing FETCH to OFFSET before FETCH FIRST and TOP
 to `TOP (count)`. PERCENT and TIES are ordinary identifiers outside paging suffixes and render
-quoted in persisted SQL (format 19); the current storage format is 27.
+quoted in persisted SQL (format 19); the current storage format is 28.
 
 Format 19 quotes PERCENT and TIES in persisted SQL. Format 20 adds persisted SET NULL,
 SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records of kind 15. Format 22 quotes STRING_AGG and LISTAGG
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

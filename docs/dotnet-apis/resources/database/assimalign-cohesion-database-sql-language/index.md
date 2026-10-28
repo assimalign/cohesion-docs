@@ -32,7 +32,7 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlLanguageProfile](sql-language-profile.md)** — Public contract and usage.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
-- **[SqlFunctionCallExpression](sql-function-call-expression.md)** — Aggregate quantifier and input ordering.
+- **[SqlFunctionCallExpression](sql-function-call-expression.md)** — Aggregate FILTER, quantifier and input ordering.
 - **[SqlSetQuantifier](sql-set-quantifier.md)** — Default, ALL and DISTINCT call inputs.
 - **[SqlLiteralText](sql-literal-text.md)** — Public contract and usage.
 - **[SqlExplainExpression](sql-explain-expression.md)** — Parsed shape and diagnostics.

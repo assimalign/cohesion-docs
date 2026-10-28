@@ -43,7 +43,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | Projections, aliases, `DISTINCT`, `WHERE` | Supported (measured) | Executable scalar expressions only |
 | [INNER/LEFT/RIGHT/FULL JOIN](../clauses/join.md) ... ON or USING | Supported (measured) | Outer joins NULL-extend unmatched sides; FULL requires a safe mandatory hash equality |
 | CROSS JOIN, comma sources | Supported (measured) | Cartesian products; JOIN binds more tightly than comma |
-| `GROUP BY`, `HAVING`, [aggregates](../functions/aggregate-functions.md) | Supported (measured) | DISTINCT/ALL and input ORDER BY; STRING_AGG and LISTAGG concatenate text |
+| `GROUP BY`, `HAVING`, [aggregates](../functions/aggregate-functions.md) | Supported (measured) | FILTER, DISTINCT/ALL and input ORDER BY; Boolean/statistical and string aggregates |
 | `ORDER BY` | Supported (measured) | Source expressions, output aliases, and output ordinals |
 | [LIMIT, OFFSET, FETCH and TOP](../clauses/limit-offset.md) | Supported (measured) | One limit family; TOP is a lexical alias; nonnegative Int64 counts |
 | Correlated and uncorrelated subqueries | Supported (measured) | Scalar, membership, and existence forms |

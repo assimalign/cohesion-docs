@@ -5,7 +5,7 @@ ORDER BY orders query results by one or more expressions with an optional direct
 ## Syntax
 
 ```syntaxsql
-ORDER BY expression [ ASC | DESC ] [ , ...n ]
+ORDER BY expression [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ]
 ```
 
 ## Supported clauses
@@ -26,14 +26,41 @@ ORDER BY expression [ ASC | DESC ] [ , ...n ]
 ## Remarks
 
 A standalone explicit alias takes precedence over a source field with the same name. Grouped
-ordering follows the same group-key restrictions as grouped projections. The executor preserves
-the established document or group order for equal ordering values, yielding deterministic results
-across scans and index seeks. Strings use case-sensitive ordinal order.
+ordering follows the same group-key restrictions as grouped projections. Later ORDER BY terms
+break ties before the final ordinal document-identity tie break, independent of direction.
+Strings use case-sensitive ordinal order.
 
-[MISSING](../expressions/missing.md) sorts before NULL ascending; descending reverses this order.
+The default direction is ASC. Placement moves the whole [MISSING](../expressions/missing.md)/NULL
+block; direction controls its internal order:
+
+| Direction | Placement | Result order |
+| --- | --- | --- |
+| ASC | Omitted (FIRST) | MISSING, NULL, ascending values |
+| ASC | NULLS FIRST | MISSING, NULL, ascending values |
+| ASC | NULLS LAST | Ascending values, MISSING, NULL |
+| DESC | Omitted (LAST) | Descending values, NULL, MISSING |
+| DESC | NULLS FIRST | NULL, MISSING, descending values |
+| DESC | NULLS LAST | Descending values, NULL, MISSING |
+
+Ascending values order FALSE, TRUE, numbers, ordinal strings, arrays, objects; DESC reverses it.
+NULLS remains contextual, so a field named nulls needs no quoting.
+
 With SELECT DISTINCT, every key must match a projected expression after explicit-alias rewriting;
 an outside key fails with `CD01014` at that key. Top-level VALUE/RAW normalizes a MISSING projected
 value to NULL before ordering by the matching expression.
+
+[Index ordering eligibility](../statements/explain.md#index-ordering-eligibility) is EXPLAIN-only
+in batch 9. Execution still sorts; index-order consumption arrives in batch 10.
+
+## Diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00013 | NULLS lacks FIRST or LAST; at the invalid option or end of input | — |
+| CD01032 | Direct ordering AST has an invalid null-placement enum | — |
+| CK00001 | Extra unsupported token after a complete suffix, such as NULLS FIRST LAST | — |
+
+Existing sort-memory failures retain CD05018.
 
 ## Examples
 
@@ -43,6 +70,16 @@ The parser conformance corpus covers independent directions:
 SELECT region, age FROM people ORDER BY region ASC, age DESC
 ```
 
+Execute separately in a fresh database:
+
+```sql
+CREATE COLLECTION items;
+INSERT INTO items (KEY, VALUE) VALUES ('m', {}), ('n', {v:NULL}), ('v', {v:1});
+SELECT META().id AS id FROM items ORDER BY v DESC NULLS FIRST;
+```
+
+Returns `{"id":"n"}`, `{"id":"m"}`, `{"id":"v"}`, in that order.
+
 ## See also
 
 [Clauses](index.md), [SELECT](../statements/select.md), and [GROUP BY](group-by.md).
@@ -51,4 +88,5 @@ SELECT region, age FROM people ORDER BY region ASC, age DESC
 
 - **Grammar and default direction** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Select.cs`.
 - **Ordering semantics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
+- **Placement and ties** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOrderingTests.cs`.
 - **Example** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlQueryParserTests.cs`.

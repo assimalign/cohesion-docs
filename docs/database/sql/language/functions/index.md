@@ -6,7 +6,7 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 ## Function groups
 
-- **[Aggregate functions](aggregate-functions.md)** — Use COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG, with DISTINCT/ALL and ordered inputs.
+- **[Aggregate functions](aggregate-functions.md)** — Count, numeric, Boolean, statistical and string aggregates, with FILTER, DISTINCT/ALL and ordered inputs.
 - **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.
 - **[merge_action()](merge-action.md)** — Returns INSERT, UPDATE or DELETE in MERGE RETURNING.
 
@@ -18,7 +18,7 @@ finishes mandatory refresh and reports success despite late cancellation or time
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 58-of-63 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 59-of-64 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

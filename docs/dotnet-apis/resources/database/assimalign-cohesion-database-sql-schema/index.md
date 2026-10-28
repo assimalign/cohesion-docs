@@ -33,9 +33,9 @@ See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 v8 changes typed TimeSpan defaults to exact signed seconds, changing document identity.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-27/v8 upgrade note](../../../../database/sql/index.md#sql-format-27-and-schema-v8).
+[format-28/v8 upgrade note](../../../../database/sql/index.md#sql-format-28-and-schema-v8).
 
-The integration branch uses SQL row-storage format 27 and compiled schema version 8.
+The integration branch uses SQL row-storage format 28 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -48,7 +48,7 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

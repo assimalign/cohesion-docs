@@ -35,8 +35,8 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS02001` | Division or remainder by zero | 22012 |
-| `CS02002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
-| `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE condition or AND/OR/NOT/truth-test operand | 42804 |
+| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion (SQL identity generation retains CS03025), non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
+| `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE/FILTER condition or AND/OR/NOT/truth-test operand | 42804 |
 | `CS05004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `CS01005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
 | `CS01006` | No function overload accepts arity/types; unknown or incompatible temporal field value; constant/direct parameter fields fail planning, row-dependent DATE_TRUNC fields fail evaluation | 42883 |
@@ -97,12 +97,20 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes, even for identical source values | 21000 (`cardinality_violation`) |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized source in UPDATE FROM / DELETE USING; before reads or writes; derived SELECT containing RIGHT or FULL executes | — |
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing ON evaluation; before either input is read, even when empty | — |
+| `CS05072` | FILTER on a scalar/non-aggregate call | 42809 |
+| `CS05073` | Same-scope aggregate inside a FILTER condition | 42803 |
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
 | `CS04064` | DDL target replacement, TRUNCATE closure change, or MERGE target recheck/apply-time modified-row version conflict (including Snapshot stale targets); retry the statement or aborted transaction | 40001 (`serialization_failure`) |
 | `CS03067` | TRUNCATE RESTRICT omits a referencing table, even an empty one | 0A000 (`feature_not_supported`) |
 | `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
+| `CS03069` | Invalid resolved sequence type/options or restart/current value | 22023 |
+| `CS03070` | Occupied sequence/table/view relation name involving a sequence; existing kind named | 42P07 |
+| `CS03071` | Sequence namespace does not exist | 3F000 |
+| `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| `CS04067` | Dropped/replaced sequence incarnation used for allocation or mutation | 40001 |
+| `CS06061` | Malformed sequence definition, directory or reservation | XX001 |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
 

@@ -20,6 +20,8 @@ semantic validation; null Items or a missing item expression fails planning with
 An empty IN list yields FALSE even for NULL. Evaluated bounds use CG02013 inside the statement
 transaction, rolling back writes. See [list values](../../../../database/graph/language/expressions/list-values.md)
 for comparison, depth/count/byte limits and the negotiated graph.composite-values capability.
+Scoped transformations use [GqlListComprehensionExpression](gql-list-comprehension-expression.md);
+ranges use [GqlListSliceExpression](gql-list-slice-expression.md).
 A possible composite wire result without negotiation uses CG07016 before reads/writes.
 
 The node stores an expression; evaluation belongs to the Graph engine. Check parser diagnostics

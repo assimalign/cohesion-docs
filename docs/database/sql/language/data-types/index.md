@@ -72,11 +72,11 @@ See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 27; compiled schema artifacts are version 8. Format 17 introduced the
+SQL row-storage is format 28; compiled schema artifacts are version 8. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
-See the [format-27/schema-v8 export and rebuild procedure](../../index.md#sql-format-27-and-schema-v8).
+See the [format-28/schema-v8 export and rebuild procedure](../../index.md#sql-format-28-and-schema-v8).
 
 ## Temporal text input
 
@@ -151,7 +151,7 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
