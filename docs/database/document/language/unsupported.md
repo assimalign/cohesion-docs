@@ -33,8 +33,7 @@ position. Quoted names and properties after dots retain field access, including 
 
 ## Engine limits
 
-GROUP AS and group aliases remain deferred. [Aggregate ALL/DISTINCT](functions/aggregate-functions.md)
-executes without group bindings.
+[GROUP AS and group-term aliases](clauses/group-by.md) execute. LETTING remains refused with CK00001.
 
 Queries materialize input and results in managed memory. Accounted retained SELECT sources,
 groups, native aggregates and output share [StatementMemoryBudget](functions/aggregate-functions.md#statement-memory);

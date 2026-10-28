@@ -229,6 +229,12 @@ and preserves the established order for ties. This baseline makes identical data
 identical sequences across access paths. Query results are materialized and own their JSON values;
 they do not retain a transaction or borrowed storage memory after execution.
 
+GROUP AS arrays contain FROM/UNNEST bindings and explicit group-term aliases, omitting MISSING
+and retaining NULL. Empty grouped input yields zero groups; array element order is unspecified.
+See [GROUP BY](../../../../database/document/language/clauses/group-by.md) for post-group scope
+and diagnostic rules, and [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
+for the public metadata.
+
 ## Result paging
 
 [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
@@ -573,8 +579,9 @@ metadata normalization and frame/depth preflight succeed together or roll back. 
 retain the whole-transaction abort-until-rollback rule. StatementMemoryBudget defaults to 64 MiB
 and estimates retained SELECT source/group staging, native accumulators, DISTINCT sets, ARRAY_AGG
 inputs/results, projection/order storage and RETURNING together; see [options](document-database-engine-options.md).
-Refusal occurs before result publication. Mutation pending-write buffers and application callback-owned
-state are outside the estimate. [Aggregates](../../../../database/document/language/functions/aggregate-functions.md)
+GROUP AS wrappers/arrays and DML pending buffers share the counter. Refusal occurs before result
+publication; pending-buffer exhaustion precedes any write. Application callback-owned state is
+outside the estimate. [Aggregates](../../../../database/document/language/functions/aggregate-functions.md)
 document ALL/DISTINCT, Boolean input filtering and exact-moment sample statistics.
 
 | Code | Meaning and trigger | SQLSTATE |
@@ -583,7 +590,10 @@ document ALL/DISTINCT, Boolean input filtering and exact-moment sample statistic
 | CD01027 | Empty direct-AST comprehension variable, before data access | — |
 | CD00011 | Parsed ALL/DISTINCT on a scalar call or star | — |
 | CD01029 | Invalid aggregate quantifier enum, scalar quantifier or quantified star in a directly constructed call AST | — |
-| CD05018 | Accounted retained SELECT/aggregate/RETURNING statement memory exceeds StatementMemoryBudget | — |
+| CD00012 | GROUP AS without preceding GROUP BY terms | — |
+| CD01030 | Invalid/empty/duplicate grouping alias, collision with FROM/UNNEST, or invalid direct-AST alias list | — |
+| CD01031 | GROUP AS referenced in an aggregate row input | — |
+| CD05018 | Accounted SELECT/group/aggregate/output/DML pending/RETURNING memory exceeds StatementMemoryBudget | — |
 | CD05019 | Serialized RETURNING value exceeds 256 levels, counting a named wrapper | — |
 
 The existing CD05016 enforces 16 MiB frames inside the write transaction. Constructor-depth

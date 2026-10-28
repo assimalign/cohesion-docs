@@ -161,7 +161,12 @@ ALL/DISTINCT on a scalar call or star, and CD01029 for an invalid enum quantifie
 quantifier or quantified star in a directly constructed call AST. Neither has an assigned SQLSTATE.
 Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
 accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
-share StatementMemoryBudget; CD05018 refuses exhaustion before result publication (no SQLSTATE).
+share StatementMemoryBudget with GROUP AS wrappers/arrays and DML pending buffers. CD05018 refuses
+exhaustion before result publication; pending-buffer exhaustion precedes any write (no SQLSTATE).
+
+OQL [GROUP AS and group aliases](document/language/clauses/group-by.md) add CD00012 for GROUP AS
+without GROUP BY, CD01030 for invalid/colliding declarations or direct-AST alias-list shape, and
+CD01031 for a group array used in an aggregate row input. None has an assigned SQLSTATE.
 
 ## Document RETURNING
 

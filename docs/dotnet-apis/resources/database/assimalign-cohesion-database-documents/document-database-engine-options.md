@@ -13,20 +13,22 @@ public long StatementMemoryBudget { get; set; } = 64L * 1024 * 1024;
 This positive byte budget estimates retained statement memory. SELECT source rows (including JSON,
 identifiers, raw star bytes and expanded bindings), catalog/sort staging, group keys/membership,
 native accumulator state, DISTINCT sets, ARRAY_AGG inputs/results and projection/order storage
-share it with RETURNING. INSERT/UPSERT SELECT sources and RETURNING use the same operation counter.
+share it with GROUP AS wrappers/arrays, DML pending buffers and RETURNING. INSERT/UPSERT SELECT
+sources and RETURNING use the same operation counter.
 RETURNING covers metadata, row/value arrays (including normalization/result copies), scalars,
 strings, JSON clones and preserved whole-document
 bytes. A clone costs 128 bytes plus its UTF-8 length plus 12 bytes per token, including property names
 and both container delimiters. A lone star retains one clone and one raw image; each is charged once.
 The estimate measures JSON without allocating a UTF-16 text copy. Input and owned ARRAY_AGG result
 representations are charged separately while both live. Reservations release with their owning
-source/group, scratch or result lifetime and on every failure/cancellation exit. Mutation pending-write
-buffers and application callback-owned state are excluded; this is not a managed-heap measurement.
+source/group, scratch, pending-buffer or result lifetime and on every failure/cancellation exit.
+Application callback-owned state is excluded; this is not a managed-heap measurement.
 
 Engine creation rejects nonpositive values with ArgumentOutOfRangeException. Exhaustion during
 SELECT, aggregate evaluation or RETURNING raises DatabaseException with CD05018 before result
 publication and rolls back statement writes; an explicit transaction requires rollback after the
-failure. Serialization preflight also enforces 16 MiB frames (CD05016)
+failure. DML pending buffers are completely staged before mutation, so pending-buffer exhaustion
+refuses before the first write. Serialization preflight also enforces 16 MiB frames (CD05016)
 and 256-level result depth (CD05019) inside the transaction. These codes have no assigned SQLSTATE.
 
 ## Example
@@ -36,13 +38,15 @@ Adapted from `DocumentReturningBudgetTests.ExecuteAsync_ExactReturningBudget_Sho
 ```csharp
 using Assimalign.Cohesion.Database.Documents;
 
-// Two 1,024-byte whole images: 208 metadata + 2 * (224 row + 1,200 clone + 1,024 raw).
-var options = new DocumentDatabaseEngineOptions { StatementMemoryBudget = 5_104 };
+// DELETE RETURNING *: two 1,024-byte images with five-character identifiers.
+// 208 metadata + 2 * (224 row + 1,200 clone + 1,024 raw + 106 pending identity).
+var options = new DocumentDatabaseEngineOptions { StatementMemoryBudget = 5_316 };
 await using var engine = DocumentDatabaseEngine.Create("budget", options);
 ```
 
-The test admits both RETURNING * rows at 5,104 bytes. At 5,103 bytes it fails with CD05018 and
-restores the original documents/versions for DELETE, or leaves no inserted documents for INSERT.
+The DELETE test admits both RETURNING * rows at 5,316 bytes. At 5,315 bytes it fails with CD05018
+and restores the original documents and versions. INSERT/UPSERT and UPDATE also charge pending
+encoded or patched bytes, so their limits differ.
 See [RETURNING](../../../../database/document/language/clauses/returning.md).
 
 ## Sources

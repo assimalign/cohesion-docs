@@ -52,9 +52,9 @@ defaults to 64 MiB and must be positive. It estimates retained RETURNING metadat
 values, JSON clones and preserved whole-image bytes. Each clone costs 128 bytes plus UTF-8 length
 plus 12 bytes per JSON token. A lone star charges one clone and one raw image, once per
 representation. SELECT source/group staging, native aggregates and projection/order storage share
-this counter, including INSERT/UPSERT SELECT sources. Mutation pending-write buffers and application
-callback-owned state remain outside the estimate. Exhaustion fails with CD05018 before result
-publication and rolls back the writes.
+this counter, including INSERT/UPSERT SELECT sources and DML pending buffers. Pending-buffer
+exhaustion fails before any write. Application callback-owned state remains outside the estimate.
+Exhaustion fails with CD05018 before result publication and rolls back the writes.
 
 ### Client compatibility
 

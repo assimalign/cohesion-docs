@@ -183,9 +183,14 @@ Int64, ARRAY_AGG is Json, Boolean aggregates are Boolean and STDDEV/VARIANCE are
 including empty-result metadata. ARRAY_AGG retains explicit NULL and skips MISSING. Read-only
 aggregate results keep AffectedCount = -1. EXPLAIN lists names and quantifiers without evaluation.
 
+[GROUP AS](../../../../database/document/language/clauses/group-by.md) returns owned JSON wrapper arrays
+over InMemory and TCP. CD00012 rejects a missing GROUP BY, CD01030 invalid grouping declarations,
+and CD01031 a group array in an aggregate row input. None has an assigned SQLSTATE.
+
 CD00011 identifies parsed scalar/star quantifiers; invalid direct-AST quantifiers instead use
 engine-side CD01029. Neither has an assigned SQLSTATE. CD05018 covers retained SELECT sources,
-groups, aggregates and RETURNING together, before result publication. Located aggregate failures
+groups (including GROUP AS wrappers/arrays), aggregates, DML pending buffers and RETURNING together,
+before result publication. Pending-buffer exhaustion precedes any write. Located aggregate failures
 retain their call span. InMemory/TCP refusals preserve the session; explicit transaction failures
 require ROLLBACK and undo earlier work in that transaction. No API or protocol version changes.
 

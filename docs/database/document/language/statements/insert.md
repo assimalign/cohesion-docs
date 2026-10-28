@@ -53,6 +53,11 @@ selected document paths.
 Generated INSERT JSON uses the same [RFC 8259 encoder](select.md#json-bytes) as UPSERT,
 constructors and VALUE/RAW rows; Unicode stays literal UTF-8.
 
+Pending writes share [StatementMemoryBudget](../functions/aggregate-functions.md#statement-memory)
+with SELECT staging and RETURNING. The complete pending buffer is charged before mutation;
+exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
+success, failure and cancellation.
+
 ## Examples
 
 Execute each statement separately:
