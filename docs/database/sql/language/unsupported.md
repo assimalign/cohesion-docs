@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 59 of 64 named clauses against the live engine. The 5 excluded names are
+The profile measures 67 of 72 named clauses against the live engine. The 5 excluded names are
 `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -54,8 +54,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Query nesting beyond 32 levels | `CK00001` | Includes expression subqueries and derived bodies beneath the top-level query |
 | FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; window calls retain CK00001 |
 | DISTINCT/ALL/ORDER BY on a scalar call, or DISTINCT key absent from arguments | `CS05032` | Catalog-aware validation before input reads |
-| `GROUP BY ()`, `GROUPING SETS`, `ROLLUP`, `CUBE` | `CK00001` | One or more ordinary scalar grouping expressions |
-| `GROUPING`, `GROUPING_ID` | `CK00001` | Grouping extensions are excluded |
+| GROUPING SETS inside ROLLUP or CUBE | `CS00010` (42601) | Reverse nesting, composites, empty sets and [grouping masks](functions/grouping.md) execute |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `CK00001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `CK00001` | Output ordinals belong only to ORDER BY |
 | Foreign-key `ON UPDATE` | `CK00001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |

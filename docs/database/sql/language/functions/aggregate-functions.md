@@ -93,8 +93,10 @@ LISTAGG cannot also contain an inner ORDER BY (CS00003). The special form accept
 LISTAGG or exactly lowercase quoted `"listagg"`. Other quoted spellings are ordinary calls:
 WITHIN GROUP is CK00001, and a call without that ordering is refused with CS00003.
 
-Empty grouping sets, GROUPING SETS, ROLLUP, CUBE, grouping functions, windows,
-non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW (ERROR or TRUNCATE) remain CK00001.
+[Empty sets, GROUPING SETS, ROLLUP and CUBE](../clauses/group-by.md#grouping-sets-rollup-and-cube)
+execute with independent aggregate states. [GROUPING masks](grouping.md) distinguish subtotals
+from real NULL keys. Windows, non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW
+(ERROR or TRUNCATE) remain CK00001.
 
 ## Boolean and statistical aggregates
 

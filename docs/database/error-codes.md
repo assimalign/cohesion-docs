@@ -300,6 +300,19 @@ sequence SQL syntax is not exposed in batch 9.
 
 ## SQL aggregate FILTER
 
+[Grouping sets and masks](sql/language/clauses/group-by.md) add:
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00010 | GROUPING SETS inside ROLLUP/CUBE | 42601 |
+| CS01062 | GROUPING argument does not match its associated level's grouping expressions | 42803 |
+| CS01063 | GROUPING requires 1–31 non-star arguments | 54023 |
+| CS05074 | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| CS05075 | More than 4096 sets before DISTINCT | 54001 |
+| CS05067 | Retained per-set aggregate/DISTINCT/order state or mask plan exhausts the statement budget | 53200 |
+
+Aggregate FILTER retains:
+
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS05072 | FILTER on a scalar/non-aggregate call | 42809 |

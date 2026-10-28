@@ -14,6 +14,7 @@ public sealed class SqlSelectExpression : SqlQueryBodyExpression
     public IReadOnlyList<SqlFromItem> From { get; }
     public SqlExpression? Where { get; }
     public IReadOnlyList<SqlExpression> GroupBy { get; }
+    public bool IsGroupByDistinct { get; }
     public SqlExpression? Having { get; }
     public IReadOnlyList<SqlOrderByColumn> OrderBy { get; }
     public SqlExpression? Limit { get; }
@@ -43,6 +44,11 @@ The node's accessors add no validation exceptions. Parser.Parse returns diagnost
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.
 Unknown/out-of-scope names and invalid USING pairs fail planning with CS01015; duplicate
 bindings use CS01019. Qualified `t.*` remains CK00001.
+
+GroupBy retains plain keys and [SqlGroupingSetExpression](sql-grouping-set-expression.md) nodes.
+IsGroupByDistinct removes duplicate expanded sets; false preserves them (omitted quantifier or ALL).
+Expansion is limited to 4096 sets before deduplication (CS05075, 54001). GROUPING SETS inside
+ROLLUP/CUBE is CS00010 (42601). These are engine planning failures, not accessor exceptions.
 
 CommonTables contains [SqlCommonTableExpression](sql-common-table-expression.md) definitions in
 declaration order, or an empty list. The setter is internal. Each reachable definition materializes

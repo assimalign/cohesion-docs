@@ -49,6 +49,11 @@ ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted u
 
 ### Planning and results
 
+[Grouping sets](../clauses/group-by.md#grouping-sets-rollup-and-cube) add the expanded set count
+and `set_keys` listing to Group detail, including duplicate sets and zero-based grouping-key
+ordinals. `CUBE(a,b)` reports `grouping_sets=4; set_keys=[(),(0),(1),(0,1)]`. Detail also identifies
+mask bit order and statement-budget/no-spill behavior. Plain GROUP BY keeps its original plan path.
+
 Plain EXPLAIN performs the statement's normal parameter validation, name binding, planning and
 provisioning admission. It waits for the same reserved tables as that statement. It never calls its
 data executor, even inside a transaction that later commits. DDL, transaction control, nested

@@ -1,5 +1,8 @@
 # Assimalign.Cohesion.Database.Sql.Language
 
+- **[SqlGroupingSetExpression](sql-grouping-set-expression.md)** — Empty/composite sets, GROUPING SETS, ROLLUP and CUBE.
+- **[SqlGroupingSetKind](sql-grouping-set-kind.md)** — Grouping expansion operation.
+
 The SQL language package parses query text, declares dialect capabilities, and resolves SQL type names.
 
 > **Status:** Partial.

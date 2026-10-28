@@ -1305,8 +1305,13 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
 | `CS05072` | FILTER attached to a scalar/non-aggregate call | 42809 |
 | `CS05073` | Same-scope aggregate inside a FILTER condition | 42803 |
+| `CS00010` | GROUPING SETS inside ROLLUP/CUBE | 42601 |
+| `CS01062` | GROUPING argument does not match its associated query level's grouping expressions | 42803 |
+| `CS01063` | GROUPING requires 1–31 non-star arguments | 54023 |
+| `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| `CS05075` | More than 4096 expanded sets before DISTINCT | 54001 |
 | `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
-| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state or CTAS buffers | 53200 |
+| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state, CTAS buffers or per-set grouping/mask state | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
 | `CS03068` | CTAS output names are missing, blank, duplicate or have the wrong width | 42601 (`syntax_error`) |
