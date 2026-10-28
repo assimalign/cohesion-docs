@@ -70,7 +70,7 @@ Disposed leases cannot reach later rentals. Metadata and execution throw ObjectD
 IsOpen returns false. Repeated disposal or abort joins the original return. Shutdown closes returned
 connectors and fails waiting renters with ObjectDisposedException.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Declarative commands
 

@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 59 of 64 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 67 of 72 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,12 +44,17 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 59-of-64 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 67-of-72 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and binding-only RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 5 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
+
+[Standalone sequences](language/statements/create-sequence.md) provide SQL DDL, session functions,
+NEXT VALUE FOR and INFORMATION_SCHEMA.SEQUENCES. [Grouping sets](language/clauses/group-by.md)
+provide ROLLUP/CUBE, empty sets and GROUPING masks. Identity integration, SERIAL and OWNED BY
+remain sequence run-3 work.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
 [MERGE](language/statements/merge.md) executes ordered actions with RETURNING, ReadCommitted

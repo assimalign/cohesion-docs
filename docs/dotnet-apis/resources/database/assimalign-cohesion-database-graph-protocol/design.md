@@ -62,7 +62,11 @@ and [server options](../assimalign-cohesion-database-graph/graph-database-server
 
 ## Execute transaction status
 
-SQL and Graph negotiate transaction-status. After completed Execute output or statement failure, a one-byte Ready postamble reports Idle, Active or Failed. Clients drain it before completing exchanges and reset open/failed transactions on pool return. See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
+Graph negotiates transaction-status. After completed Execute/ExecutePaths output or statement
+failure, a two-byte Ready reports I/T/E followed by a zero retained-state byte. Clients drain it
+before completing exchanges and roll back active/failed transactions on pool return. Graph declares
+no family reset; reuse requires Idle and zero retained state. See
+[status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
 ## Sources
 

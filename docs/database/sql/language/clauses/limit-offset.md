@@ -24,6 +24,11 @@ SELECT [ DISTINCT ] TOP { ( expression ) | integer_literal | parameter } select_
 
 ## Remarks
 
+[Sequence calls](../functions/sequences.md#evaluation-order) in count expressions evaluate once at
+execution before input rows. Qualifying OFFSET rows consume projection sequence values before
+being discarded; independent projection calls beyond OFFSET + LIMIT are skipped. NEXT VALUE FOR
+in a count expression is CS03076 (0A000).
+
 FIRST/NEXT and ROW/ROWS have identical behavior. OFFSET may appear alone. Each SELECT accepts one
 limit family and one OFFSET; LIMIT/OFFSET and FETCH/OFFSET accept either order. TOP cannot combine
 with LIMIT, OFFSET or FETCH. These rules apply inside subqueries, derived tables, CTEs and INSERT

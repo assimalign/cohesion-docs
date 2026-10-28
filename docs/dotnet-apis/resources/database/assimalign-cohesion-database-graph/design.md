@@ -491,6 +491,17 @@ writes. No disk or wire format changes apply; graph.composite-values still gates
 | CG01017 | Missing/empty iterator declaration in a direct AST | — |
 | CG02014 | Invalid list source or slice-bound kind/range | — |
 | CG05024 | Aggregate inside comprehension predicate/projection | — |
+| CG01018 | Missing/empty reduce/list-predicate declaration or identical reduce names | — |
+| CG02015 | Reduce/list-predicate source is neither list nor NULL | — |
+| CG05025 | Malformed reduce/list-predicate body/quantifier AST or body aggregate | — |
+| CG05026 | Reduce shape/type planning exceeds 65,536 node visits or closure steps | — |
+
+[Reduce](../../../../database/graph/language/expressions/reduce.md) and
+[list predicates](../../../../database/graph/language/expressions/list-predicates.md) reuse lexical
+frames and shared execution work/memory. Sources evaluate once; reduce evaluates its seed only
+for non-NULL input, then folds in order. Predicates stop only on a decisive value. Known invalid
+source/test kinds fail planning even on empty input and under EXPLAIN; all names and body aggregate
+placement validate before execution. Planning closure has its own cancellable 65,536-step cap.
 
 [GraphValueCodec](../assimalign-cohesion-database-graph-protocol/graph-value-codec.md) is public in Graph and shared with its client through the
 existing reference. graph.composite-values adds no message type or protocol version. Negotiated

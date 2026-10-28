@@ -58,8 +58,12 @@ order_eligible and order_reason. Eligible candidates also report order_direction
 equality_keys, order_prefix_keys, `tie_break=document_identity` and `equal_key_buckets=complete`.
 Select detail renders the written direction/NULLS placement.
 
-Eligibility is EXPLAIN-only in batch 9. Every candidate reports `consumed=False; sort=retained`;
-execution still sorts. Index-order consumption arrives in batch 10.
+The selected eligible access and candidate report `consumed=True; sort=elided`. The Select root
+also reports `early_paging=True` when fixed projection types permit early termination, or
+`early_paging=False; paging_reason=result_type_inference` when all matches must establish result
+types. Other candidates report `consumed=False; sort=retained`; an eligible unselected candidate
+adds `consumption_reason=not_selected` or `intersection_erases_order`. The ordinary predicate
+choice wins if eligible; otherwise the first eligible index in ordinal name order wins.
 
 ORDER BY must match consecutive index keys after any skipped equality-fixed leading keys.
 Varying keys must share a direction. Sparse indexes require a mandatory predicate rejecting
@@ -68,7 +72,7 @@ comparisons and BETWEEN can establish facts; calls and computed paths cannot. No
 placement needs proof that both NULL and MISSING are excluded.
 
 Lossy array/object tags cannot prove value order. UNIQUE scalar keys or suitable scalar predicates
-can prove the domain. Otherwise a snapshot-visible probe of at most 512 entries/32 pages checks
+can prove the domain. Otherwise a snapshot-visible existence probe of at most one entry/32 pages checks
 complex tags on the first varying key, without fetching documents. An incomplete probe falls back.
 
 | order_reason | Meaning |
@@ -81,6 +85,7 @@ complex tags on the first varying key, without fetching documents. An incomplete
 | null_placement_mismatch | Placement differs from index order and unknowns may qualify |
 | complex_values | Probe found lossy array/object values |
 | scalar_domain_unproven | Probe is incomplete, or a later varying key lacks a scalar proof |
+| value_missing_becomes_null | VALUE/RAW projects MISSING as NULL, changing ordering ties |
 | array_index | Index contains an array projection |
 | grouping_changes_order | Grouping changes input order |
 | distinct_changes_order | DISTINCT changes input order |
@@ -88,9 +93,12 @@ complex tags on the first varying key, without fetching documents. An incomplete
 | intersection_erases_order | Selected identity intersection loses index order |
 | collection_scan | Selected access is a collection scan |
 
+When no ordered access is consumed, the root reports `sort=retained; order_reason=...`, including
+`intersection_erases_order`, a candidate's eligibility reason, `no_index` or `no_ordered_access`.
+
 With `CREATE INDEX ix ON items (v INCLUDE MISSING)`, scalar/nullish-only items and
 `EXPLAIN SELECT META().id FROM items ORDER BY v DESC NULLS LAST`, the candidate reports
-`order_eligible=True; order_reason=eligible; order_direction=reverse` and retained sorting.
+`order_eligible=True; order_reason=eligible; order_direction=reverse; ...; consumed=True; sort=elided`.
 Changing to ASC NULLS LAST without a predicate excluding unknowns reports null_placement_mismatch.
 These reasons are plan details, not diagnostic codes.
 

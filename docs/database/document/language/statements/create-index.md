@@ -58,7 +58,8 @@ COHESION_SCHEMA.INDEXES exposes INCLUDE_MISSING as a Boolean. PATH and PATHS[0] 
 For an index on `(v INCLUDE MISSING)`, PATH is `v INCLUDE MISSING`, PATHS is
 `["v INCLUDE MISSING"]`, and INCLUDE_MISSING is true. The rendered list can be reused in DDL.
 This uses the existing v3 flag and does not change the format. See
-[EXPLAIN eligibility](explain.md#index-ordering-eligibility): execution still sorts on this branch.
+[ordered execution and EXPLAIN](explain.md#index-ordering-eligibility): eligible scalar indexes
+supply forward/reverse order, elide sorting and permit early paging with fixed projection types.
 
 ### Array keys and WHEN
 
@@ -107,7 +108,8 @@ same-element price/stock shape. The tested half-qualifying residual shape stays 
 `2 * (OFFSET + LIMIT)` fetches; arbitrary residuals have no such ratio. An unmatched multi-field
 predicate remains correct but has no fetch bound: the unfiltered price index in the tests fetches
 1,001 documents to return one same-element price/stock match; the matching stock WHEN fetches one.
-Other orderings and projections needing type inference retain materialization.
+Proven scalar [index order](../clauses/order-by.md#index-order-and-paging) also permits early paging.
+Projections needing type inference retain materialization.
 
 All indexes use Documents.Catalog v3 definition and physical-registration records. V1/v2 indexes are
 refused at open before recovery writes, with found/supported versions and a recreate remedy.

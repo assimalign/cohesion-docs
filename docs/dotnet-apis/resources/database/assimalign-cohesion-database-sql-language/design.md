@@ -301,7 +301,7 @@ FILTER retains its condition in depth, source extent, rendering, child walks, st
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
 (42804). Child queries bind independently; windows retain CK00001. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 59 of 64
+named clause and nine Boolean/statistical function names join the executable profile: 67 of 72
 clauses including the five exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
@@ -339,7 +339,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 59 of 64 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 67 of 72 declared clauses,
 including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 28 are unchanged.
 
@@ -396,6 +396,42 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+
+## Sequence language surface
+
+The parser retains written options through [SqlSequenceOption](sql-sequence-option.md), with
+dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequence-expression.md)
+and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
+is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
+SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 67 of 72.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in persisted expressions or sequence DDL in provisioning scripts | 0A000 |
+| CS03075 | setval value outside bounds | 22003 |
+| CS03076 | Restricted sequence context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
+| CS04068 | currval undefined for the sequence in this session | 55000 |
+| CS04069 | lastval undefined or its selected sequence dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
+
+## Grouping sets
+
+Grouping elements use [SqlGroupingSetExpression](sql-grouping-set-expression.md) and
+[SqlGroupingSetKind](sql-grouping-set-kind.md). SqlSelectExpression.IsGroupByDistinct records
+duplicate-set removal after expansion. See [GROUP BY](../../../../database/sql/language/clauses/group-by.md)
+for NULLs, independent aggregate state, expansion limits and diagnostic codes.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00010 | GROUPING SETS inside ROLLUP/CUBE | 42601 |
+| CS01062 | GROUPING argument does not match its associated level's grouping keys | 42803 |
+| CS01063 | GROUPING requires 1–31 non-star arguments | 54023 |
+| CS05074 | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| CS05075 | More than 4096 sets before DISTINCT | 54001 |
+| CS05067 | Retained per-set state or grouping-mask plan exhausts statement memory | 53200 |
 
 ## Sources
 
