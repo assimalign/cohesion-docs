@@ -5,10 +5,14 @@ Returns the chosen GQL plan as rows without executing the wrapped data statement
 ## Syntax
 
 ```syntaxsql
-EXPLAIN { match_statement | return_statement | insert_statement | create_statement | delete_statement } [ ; ]
+EXPLAIN { match_statement | return_statement | insert_statement | create_statement | merge_statement | delete_statement } [ ; ]
 ```
 
 ## Remarks
+
+[MERGE](merge.md) shows Merge with its probe and OnCreate/OnMatch children. It validates both
+branches and equality scope without probing or writing. Eligible row-dependent equalities show
+an IndexSeek with the unevaluated expression as its bound.
 
 [Path selectors](../path-selectors.md) execute and support nonexecuting EXPLAIN. Plans expose
 SelectPaths, PathSearch, ElementPrefilter, PathPrefilter and PostFilter, with endpoint partition,

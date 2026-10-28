@@ -26,6 +26,23 @@ node or relationship from read-only composition. Parameters preserve runtime sca
 case-sensitive bare names in WHERE, RETURN and maps. Missing values, collisions and invalid types reach the
 same engine diagnostics (CG05001/CG01014/CG03003) as embedded requests.
 
+[MERGE](../../../../database/graph/language/statements/merge.md) uses these same QueryAsync and
+ExecuteAsync signatures. It returns scalar rows and an affected-entity count; QueryPathsAsync
+refuses the mutation with CG05001. Decoded failures raise GraphClientException with the server's
+diagnostics and preserve the authenticated session. CG03004–CG03007 cover invalid equalities and
+bound/repeated elements; Snapshot conflicts use CG04024 and ended statements CK04002. None has
+an assigned SQLSTATE. A faulted explicit transaction requires ROLLBACK before further work.
+
+With an open connection in a fresh database, adapted from GraphMergeWireTests:
+
+```csharp
+var merged = await connection.QueryAsync(
+    "FOR x IN [1,1,1] MERGE (n:P {id:x}) ON CREATE SET n.hits=1 " +
+    "ON MATCH SET n.hits=n.hits+1 RETURN n.hits");
+Console.WriteLine(merged.AffectedCount); // 1
+foreach (var row in merged) Console.WriteLine(row[0]); // 3, 3, 3 (one per line)
+```
+
 RETURN accepts standalone and computed/aliased scalar expressions and DISTINCT/ALL. QueryAsync
 and ExecuteAsync use wire Execute, which rejects possible entity-valued results with CG05001
 and an ExecutePaths direction before reads, writer locks or writes, including empty matches.
@@ -102,6 +119,7 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 ## Sources
 
+- **MERGE results and failures** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphMergeWireTests.cs`.
 - **Terminal client conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphClientTerminalErrorTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/src/GraphConnection.cs`.

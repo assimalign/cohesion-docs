@@ -17,7 +17,8 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Standalone ordering and paging | Recognized, not supported (`CK00001`) | `MATCH (a) ORDER BY a.age RETURN a`; ordering/paging after RETURN executes |
 | FOR ordinality/offset suffixes | Recognized, not supported (`CK00001`) | `FOR x IN xs WITH ORDINALITY i`, `WITH OFFSET i`; [FOR/UNWIND](clauses/for.md) executes |
 | NEXT YIELD and FOREACH | Recognized, not supported (`CK00001`) | [RETURN … NEXT](clauses/next.md) and [WITH](clauses/with.md) execute |
-| Merge statement | Recognized, not supported (`CK00001`) | MERGE, including ON CREATE SET and ON MATCH SET; [SET](clauses/set.md)/[REMOVE](clauses/remove.md) stages execute |
+| MERGE variable-length/quantified paths | Rejected (`CG00002`) | [MERGE](statements/merge.md) executes one complete fixed path with ON CREATE/ON MATCH SET |
+| MERGE bound relationship or decorated repeated/bound node | Rejected (`CG03007` / `CG03006`) | Reuse bound nodes as bare variables; declare new relationships |
 | Whole-map parameter/expression assignment | Recognized, not supported (`CK00001`) | SET n = $p, SET n += properties(other); literal whole maps execute |
 | Set operations | Recognized, not supported (`CK00001`) | `UNION` |
 | Unsupported scalar/statistical calls | Recognized, not supported (`CK00001`) | `ELEMENTS()`, temporal constructors, `LOG10`, `STDDEV_SAMP`, `STDDEV_POP`, `PERCENTILE_CONT`, `PERCENTILE_DISC`; six [aggregates](functions/aggregate-functions.md) execute |

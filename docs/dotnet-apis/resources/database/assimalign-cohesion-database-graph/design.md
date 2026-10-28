@@ -407,8 +407,13 @@ not included.
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
 | `CG04007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
-| `CG04024` | Internal concurrency seam: retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
-| `CG05023` | Internal concurrency seam: invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
+| `CG03004` | MERGE equality is NULL, non-finite or non-scalar, proven or evaluated; no assigned SQLSTATE |
+| `CG03005` | Bound MERGE node is NULL, absent or incompatible with its node pattern; no assigned SQLSTATE |
+| `CG03006` | Repeated or already-bound MERGE node has labels or properties; no assigned SQLSTATE |
+| `CG03007` | MERGE relationship variable was declared before the clause; no assigned SQLSTATE |
+| `CK04002` | MERGE statement/session ended while the database is live, including lock waits and late grants; no assigned SQLSTATE |
+| `CG04024` | Retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
+| `CG05023` | Invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
 | `CG05008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
@@ -423,9 +428,9 @@ not included.
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
 
-CG04024 and CG05023 are registered for the internal concurrency seam. GQL MERGE remains refused
-with CK00001; the statement reports them once available. No public MERGE behavior or API is
-exposed on this branch. Graph record/tree-registration format remains 5.
+[MERGE](../../../../database/graph/language/statements/merge.md) executes whole-pattern match/create
+with ordered ON CREATE/ON MATCH SET. Snapshot conflicts use CG04024; ReadCommitted refreshes and
+re-matches. CG05023 guards pattern-lock identities. Graph record/tree-registration format remains 5.
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
 aggregate causes. A damaged read fails instead of omitting nodes/relationships; legitimate
@@ -1075,8 +1080,25 @@ Statement failures abort an explicit transaction; roll back to recover.
 No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
 be rolled back.
 
+## Whole-pattern MERGE
+
+[MERGE](../../../../database/graph/language/statements/merge.md) evaluates equalities once per input
+row and matches the complete path through the transaction's current writer overlay. A partial
+match creates every unbound part. Both branch scopes validate before execution. Required-property
+checks finish after ON CREATE; later SET stages cannot repair a missing property at that boundary.
+The writer lock precedes a transaction-owned pattern lock. Snapshot checks matched and bound
+identities and the complete decision against the latest committed view (CG04024 on conflict);
+ReadCommitted refreshes and re-matches. Ended statements/sessions report CK04002 while the database
+is live, and disposal takes precedence with CG09019. Failed explicit work requires rollback.
+
+Eligible row-dependent equalities use per-row property seeks ahead of label/type scans. The writer
+overlay indexes current values, maintained through creation, replacement, relabeling and deletion;
+a dropped persisted index falls back to scanning. Retained changes and probes use the existing
+statement memory/work budgets. EXPLAIN shows the probe and both branches without executing them.
+
 ## Sources
 
+- **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Batched path phases and failure boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseEventSourceTests.cs` and `GraphOperationOutcomeTests.cs` in the same directory.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphServerDrainTests.cs`, `GraphServerRejectionDrainTests.cs`, `GraphServerRejectionSetupTests.cs` and `GraphTerminalDrainEventTests.cs` in the same directory.

@@ -25,6 +25,7 @@ public static class GqlClauses
     public const string Next = "NEXT";
     public const string Set = "SET";
     public const string Remove = "REMOVE";
+    public const string Merge = "MERGE";
 }
 ```
 
@@ -57,6 +58,14 @@ The constant adds no exceptions; `Instance.Supports(GqlClauses.QuantifiedPath)` 
 Set and Remove are enabled in GqlLanguageProfile.Instance. They name ordered update stages
 following an incoming clause; leading SET/REMOVE remains CG00002. The constants add no exceptions.
 See [SET](../../../../database/graph/language/clauses/set.md) and [REMOVE](../../../../database/graph/language/clauses/remove.md).
+
+Merge is enabled for one whole fixed path and repeated ON CREATE/ON MATCH SET clauses. The
+constant adds no exceptions. Parsing produces [GqlMergeStage](gql-merge-stage.md); execution and
+diagnostics are described by [MERGE](../../../../database/graph/language/statements/merge.md).
+
+```csharp
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Merge)); // True
+```
 
 ## Documented behavior
 

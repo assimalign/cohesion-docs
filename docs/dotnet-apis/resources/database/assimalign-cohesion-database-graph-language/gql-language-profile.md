@@ -43,7 +43,8 @@ The RETURN executes as one Int64 value, 1.
 
 GqlClauses.Set, GqlClauses.Remove, GqlClauses.PathMode and GqlClauses.PathSelector are enabled.
 Set and Remove admit property/map/label updates through [GqlSetStage](gql-set-stage.md) and
-[GqlRemoveStage](gql-remove-stage.md); MERGE remains CK00001.
+[GqlRemoveStage](gql-remove-stage.md). GqlClauses.Merge is enabled and produces
+[GqlMergeStage](gql-merge-stage.md) for executable whole-pattern match/create decisions.
 
 ## Related reference
 

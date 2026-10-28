@@ -187,15 +187,22 @@ Typed shortest-path reconstruction adds CG05022 when a selected node or relation
 while the operation remains active (no SQLSTATE). Session/transaction termination keeps its
 lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-shortest-search).
 
-## Graph registered MERGE conditions
+## Graph MERGE conditions
 
 | Code | Registry meaning | SQLSTATE |
 | --- | --- | --- |
+| CG03004 | NULL, non-finite or non-scalar MERGE equality, proven or evaluated | — |
+| CG03005 | Bound node is NULL, absent or incompatible with its node pattern | — |
+| CG03006 | Labels/properties on a repeated or bound MERGE node | — |
+| CG03007 | Relationship variable declared before MERGE | — |
+| CK04002 | MERGE statement/session ended while the database is live | — |
 | CG04024 | Retryable stale Snapshot MERGE pattern decision | — |
 | CG05023 | Invalid bound MERGE pattern lock identity | — |
 
-These conditions belong to the internal concurrency seam. GQL MERGE remains refused with CK00001
-on this branch; it reports them once the statement is available. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
+[MERGE](graph/language/statements/merge.md) executes whole-pattern match/create and ordered SET
+branches. Snapshot reports CG04024; ReadCommitted re-matches. Bare list/map equalities retain
+parser CK00001; other proven/evaluated invalid equalities use CG03004. None of these conditions has
+an assigned SQLSTATE. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
 
 ## Graph format requirement
 
@@ -249,4 +256,4 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `3a4b483d8`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4f5d122bb`.
