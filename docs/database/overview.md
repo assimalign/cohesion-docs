@@ -157,7 +157,7 @@ ends the lease; metadata and execution then throw ObjectDisposedException, while
 false. Repeated disposal or abort joins its original return, so a stale reference cannot affect a
 later renter. Pool shutdown closes returned connectors and fails waiting renters as disposed.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 See [connection lifetime](../dotnet-apis/resources/database/assimalign-cohesion-database-client/database-connection.md)
 and [pooling](../dotnet-apis/resources/database/assimalign-cohesion-database-client/design.md#lifecycle-and-errors).

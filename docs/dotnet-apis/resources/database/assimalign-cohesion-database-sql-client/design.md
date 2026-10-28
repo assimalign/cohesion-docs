@@ -79,7 +79,7 @@ remains the server's responsibility.
 Disposing a typed connection returns its shared authenticated session; disposing the client closes
 its pool. Connections support one exchange at a time.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 `SqlConnection.AbortAsync` discards a rental and closes its session instead of returning it to the
 pool. `Use` it when SQL session state cannot be reset, including a failed ROLLBACK or uncertain
@@ -303,8 +303,17 @@ path CS04064 covers target recheck/apply-time modified-row version conflicts; re
 cascade snapshot and host-ended transaction aborts retain their uncoded contract. No client API,
 protocol or result-frame changes.
 
+## Retained session state
+
+SQL declares `SqlProtocol.Family.ResetStatement = "DISCARD ALL"`. After a needed rollback, pool
+return sends that Execute only when the latest two-byte Ready reports retained state. It clears
+sequence observations and restores the timeout values configured before the first statement.
+Clean sessions and user-issued DISCARD avoid a reset exchange; see
+[shared pooling](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset).
+
 ## Sources
 
+- **Session reset** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/tests/SqlRetainedStateResetTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlMergeWireTests.cs` and `SqlMergeConcurrencyWireTests.cs`.
 

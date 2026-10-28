@@ -75,7 +75,7 @@ fail with ObjectDisposedException without waiting for outstanding rentals. Closu
 Terminate. A lease cancels and joins admitted exchanges before returning its connector; cancellation
 callback failures cannot skip the join or release of its pool slot.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 The pool does not infer connection health from an error code. On failure, the exchange base records
 completion through protected MarkResponseComplete after the complete
@@ -257,9 +257,9 @@ the non-null client exception Diagnostics snapshot. Model payload readers reject
 
 ## Transaction status and pool reset
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
-The transaction-status capability uses the existing Ready identifier with a one-byte I/T/E
+The transaction-status capability uses the existing Ready identifier with a two-byte I/T/E and 0/1
 postamble after Execute/ExecutePaths or Documents Command completion, including statement failures. Startup Ready remains the
 negotiation payload. The connector detects written Execute (5), ExecutePaths/Documents Execute (64) and Documents Command (69) frames and
 automatically drains status, including for application exchanges using the one-argument
@@ -275,8 +275,12 @@ an original statement error survives a failed status read.
 SQL/Graph reset uses Execute 5 and ResultComplete 8 with one zero Int64 count. Documents
 uses Execute 64 with empty JSON parameters and Complete 66 with two zero Int64 counts. Both
 require Ready I. Pool return joins the last lease operation and sends ROLLBACK outside the pool lock. The rollback
-reply and Ready drain each have a five-second internal bound, up to ten seconds total. Idle
-sessions need no reset exchange. Current SQL, Graph and Documents clients discard sessions
+reply and Ready drain have bounded internal cleanup. If the latest Ready reports retained state,
+the client then executes ProtocolMessageFamily.ResetStatement: SQL declares DISCARD ALL, while
+Graph/Documents declare none and report zero. A reset must return Idle and no retained state;
+otherwise the connector is discarded. SQL resets sequence observations and restores timeout
+values configured before the session's first statement. Clean Idle sessions need no reset exchange;
+a user DISCARD avoids a redundant reset. No pool lock spans this cleanup. Current SQL, Graph and Documents clients discard sessions
 without negotiated transaction-status, so those peers are not pooled. A connection loss does
 not prove the outcome of an unacknowledged COMMIT. Other model families do not acquire text
 transaction support from this shared reset path.

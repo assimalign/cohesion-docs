@@ -118,6 +118,10 @@ Typed CRUD shares the same transaction. Documents negotiates transaction-status:
 each Execute and Command terminal response, including Failure. CD07002 remains live for
 controls without that agreement.
 
+The postamble is exactly I/T/E plus a zero retained-state byte. Documents declares no family
+reset statement, so pool return needs only a rollback when active/failed, then Idle with zero
+retained state. See [Ready codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
+
 Pool return rolls back active or failed work and requires Idle before reuse. Documents reset
 uses Execute 64 with an empty JSON parameter object and Complete 66 with two zero Int64 counts.
 A legacy or unnegotiated peer cannot certify reuse and is discarded, as are invalid/missing

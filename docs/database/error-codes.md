@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -61,6 +61,7 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CD04104 | Document COMMIT/ROLLBACK without an explicit transaction | — |
 | CD04105 | OQL collection/index DDL inside an explicit transaction | — |
 | CD07002 | Text transaction control without the negotiated transaction-status capability | — |
+| CK07002 | Malformed negotiated statement Ready: exactly I/T/E plus a retained-state 0/1 byte is required | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,

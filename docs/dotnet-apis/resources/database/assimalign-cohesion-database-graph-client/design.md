@@ -270,7 +270,13 @@ BEGIN [TRANSACTION], START TRANSACTION, COMMIT and ROLLBACK are standalone text 
 
 A statement failure aborts the explicit transaction; subsequent work is refused with CG04007 until rollback. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the existing transaction; COMMIT/ROLLBACK without an open transaction uses CG04023. Disconnect and session teardown roll back. Network loss after COMMIT still requires outcome reconciliation.
 
-SQL and Graph negotiate transaction-status. After Execute completion or a statement error, the server sends a Ready postamble containing I (Idle), T (Active) or E (Failed); startup Ready is unchanged. The client drains it before returning the exchange. Pool return rolls back open/failed sessions outside the pool lock with a bounded cleanup timeout, and reuses only Idle sessions. Missing/invalid status, failed reset and legacy transaction-capable peers are discarded. No new frame identifier or protocol version is introduced.
+Graph negotiates transaction-status. After Execute/ExecutePaths completion or a statement error,
+the server sends exactly two Ready bytes: I (Idle), T (Active) or E (Failed), followed by zero for
+retained state. Startup Ready is unchanged. The client drains it before returning the exchange.
+Pool return rolls back active/failed sessions outside the pool lock with bounded cleanup and reuses
+only Idle sessions with zero retained state. Graph declares no family reset statement. Missing/invalid
+status, failed reset and legacy transaction-capable peers are discarded. No new frame identifier or
+protocol version is introduced.
 
 See [transaction-status API](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md) and [pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset). GraphTransactionTextWireTests and GraphTransactionFailureWireTests cover InMemory and TCP behavior.
 
