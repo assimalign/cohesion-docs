@@ -33,6 +33,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlCreateIndexExpression](oql-create-index-expression.md)** — Ordered scalar/array keys, scalar-only UNIQUE and conditional creation.
 - **[OqlDropIndexExpression](oql-drop-index-expression.md)** — Conditional removal.
 - **[OqlSelectExpression](oql-select-expression.md)** — DISTINCT, VALUE/RAW and LIMIT/OFFSET operands.
+- **[OqlNullPlacement](oql-null-placement.md)** — Written/default MISSING and NULL placement.
 - **[OqlInExpression](oql-in-expression.md)** — AST members and execution contract.
 - **[OqlBetweenExpression](oql-between-expression.md)** — AST members and execution contract.
 - **[OqlLikeExpression](oql-like-expression.md)** — AST members and execution contract.

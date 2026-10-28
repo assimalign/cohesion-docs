@@ -254,6 +254,18 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
+## OQL null placement
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00013 | NULLS without FIRST or LAST | — |
+| CD01032 | Invalid null-placement enum in a direct ordering AST | — |
+
+[Ordering eligibility](document/language/statements/explain.md#index-ordering-eligibility) reports
+plan reasons and retains sorting; it adds no diagnostic or storage format.
+
 ## Sources
+
+- **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4f5d122bb`.
