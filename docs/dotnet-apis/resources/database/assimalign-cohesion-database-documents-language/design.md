@@ -12,7 +12,7 @@ public constructors retain child references and semantic validation belongs to t
 Offsets use zero-based UTF-16 with exclusive ends and one-based lines. Parsing returns diagnostics;
 DocumentQueryRequest and session execution reject all parser errors before planning. Expressions
 have a 128-level recursive parse bound. [OqlFunctions](oql-functions.md) is the immutable table of
-META, five aggregates and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
+META, eleven native aggregate names and 34 scalars, shared by parser, profile and engine. [OqlFunction](oql-function.md)
 records arity, JSON kinds and result type; [OqlCallExpression](oql-call-expression.md) retains calls.
 Unknown calls report CD00008, invalid arity/star CD00006 and deferred calls CK00001.
 
@@ -20,7 +20,8 @@ Unknown calls report CD00008, invalid arity/star CD00006 and deferred calls CK00
 
 MISSING has its own OqlMissingExpression. An absent path or navigation through NULL produces MISSING;
 reading a null member produces NULL. Result/object members omit MISSING and retain NULL. GROUP BY
-keeps the two separate and ascending order places MISSING first. Aggregates skip both unknown states.
+keeps the two separate and ascending order places MISSING first. Most native aggregates skip both
+unknown states; ARRAY_AGG retains NULL and skips MISSING.
 WHERE/HAVING/AND/OR/NOT/searched WHEN share SQL++ truth conversion: nonzero numbers and nonempty
 strings/arrays/objects are true. See the [truth tables](../../../../database/document/language/expressions/missing.md).
 
@@ -36,6 +37,16 @@ ordering by that projection and counting. [OqlArrayExpression](oql-array-express
 ordered elements, converting MISSING to JSON null. OqlClauses adds Distinct (`DISTINCT`), SelectValue
 (`SELECT VALUE`), ObjectConstructor (`OBJECT CONSTRUCTOR`) and ArrayConstructor (`ARRAY CONSTRUCTOR`)
 capability names. Constructors validate and group recursively; text parsing keeps the 128-level bound.
+
+## Aggregate quantifiers
+
+[OqlCallExpression.Quantifier](oql-call-expression.md) stores [OqlAggregateQuantifier](oql-aggregate-quantifier.md):
+None, All or Distinct. All eleven native names and single-argument registered aggregates accept
+ALL/DISTINCT; COUNT(*) remains unquantified. Parsed scalar/star quantifiers use CD00011; invalid
+direct-AST quantifier values/targets use CD01029. Neither has an assigned SQLSTATE.
+Aggregate EVERY aliases BOOL_AND. Quantified EVERY retains its own node, may be an aggregate
+argument, and may use aggregates over the enclosing group when its clause permits them; aggregate
+nesting remains CD05001. See [aggregate semantics and examples](../../../../database/document/language/functions/aggregate-functions.md).
 
 ## Result paging
 

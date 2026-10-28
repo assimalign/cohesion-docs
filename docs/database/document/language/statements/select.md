@@ -60,7 +60,8 @@ arrays compare by ordered elements, and objects by ordinal keys and their values
 member order. It retains the first representative. Named MISSING and NULL remain distinct;
 VALUE/RAW has already normalized them to NULL. Under DISTINCT every ORDER BY key must match a
 projected expression after alias rewriting, otherwise `CD01014` is reported at the ordering key.
-DISTINCT inside an aggregate, such as `COUNT(DISTINCT x)`, remains unsupported (`CK00001`).
+[Aggregate ALL/DISTINCT](../functions/aggregate-functions.md) instead controls inputs to one
+aggregate call, such as COUNT(DISTINCT x), independently of SELECT-level deduplication.
 
 Results have the same shape on every transport. A lone star without UNNEST returns the stored JSON bytes unchanged,
 including whitespace and scalar roots. Named projections form one object per row; a star mixed
@@ -76,6 +77,12 @@ reserved words. [Object](../expressions/object-constructors.md) and
 Scans and index seeks establish ordinal document-identifier order before filtering. `ORDER BY`
 preserves established order for ties. Results are materialized and own their JSON values after
 execution, without retaining the transaction or borrowed storage memory.
+
+Retained SELECT source rows, group keys/membership, accumulators, DISTINCT sets, ARRAY_AGG
+inputs/results and projection/order storage share the positive StatementMemoryBudget (64 MiB
+default). Exhaustion reports CD05018 before publishing any result. INSERT/UPSERT SELECT sources
+and RETURNING use the same counter. See [statement memory](../functions/aggregate-functions.md#statement-memory)
+for reservation lifetimes and exclusions.
 
 Underlying index reads copy bounded B+Tree batches and pass cancellation at cursor open and
 every move, including latch waits and page/entry reads. Each batch releases its tree latch before

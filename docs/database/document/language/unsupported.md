@@ -16,9 +16,8 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | IS KNOWN/IS UNKNOWN, UNDEFINED | CK00001 | MISSING is the absent value; NIL means NULL |
 | ARRAY()/FIRST() calls, LAST, SET constructors; UNIQUE outside CREATE UNIQUE INDEX | CK00001 | [ARRAY/FIRST comprehensions](expressions/comprehensions.md) execute with one IN binding; WITHIN, position variables, multiple bindings and OBJECT transformation remain deferred |
 | ALL ARRAY index keys | CK00001 | [DISTINCT ARRAY](statements/create-index.md#array-keys-and-when) executes with restricted WHEN; at most one array key |
-| Aggregate DISTINCT | CK00001 | `COUNT(DISTINCT x)` is outside SELECT-level deduplication |
 | Computed object member names | CD00002 | Use identifier or string keys, such as `{a: 1}` |
-| ARRAY_AGG, REGEXP_LIKE, REGEXP_REPLACE, REGEXP_POSITION | CK00001 | Deferred calls; [34 scalar functions](functions/scalar-functions.md) execute |
+| REGEXP_LIKE, REGEXP_REPLACE, REGEXP_POSITION | CK00001 | Deferred calls; [34 scalar functions](functions/scalar-functions.md) and [ARRAY_AGG](functions/aggregate-functions.md) execute |
 | Unknown function names | CD00008 | Not in the public executable function table |
 | CREATE/DROP DATABASE, USE, ALTER | CK00001 | Database lifecycle belongs to the API |
 | Text controls without negotiated transaction-status | CD07002 | [BEGIN/START, COMMIT and ROLLBACK](statements/transactions.md) execute in process and through a current Documents client |
@@ -34,7 +33,12 @@ position. Quoted names and properties after dots retain field access, including 
 
 ## Engine limits
 
-Queries materialize input and results in managed memory. Bounded server response buffering does
+GROUP AS and group aliases remain deferred. [Aggregate ALL/DISTINCT](functions/aggregate-functions.md)
+executes without group bindings.
+
+Queries materialize input and results in managed memory. Accounted retained SELECT sources,
+groups, native aggregates and output share [StatementMemoryBudget](functions/aggregate-functions.md#statement-memory);
+exhaustion reports CD05018 before result publication. Bounded server response buffering does
 not bound query execution memory or pooled-client result materialization. There is no external
 sort or cost-statistics model. Strings use ordinal case-sensitive comparison. Documents protocol
 server/client and hosting composition execute; replication and model-specific security remain

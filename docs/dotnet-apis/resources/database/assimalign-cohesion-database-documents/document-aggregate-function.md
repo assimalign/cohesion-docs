@@ -29,6 +29,11 @@ argument evaluation and fresh state. Default policy skips NULL and MISSING. Inco
 inputs are skipped by typed aggregates. A typed factory returns NULL without calling finish if
 no input was admitted. A derived accumulator controls its own empty-group result.
 
+Single-argument registrations accept OQL ALL/DISTINCT. DISTINCT deduplicates using grouping equality
+before Add while preserving the declared NULL/MISSING policy. Its set uses StatementMemoryBudget
+(CD05018 on exhaustion); application callback-owned state is outside the native estimate.
+See [aggregate calls](../../../../database/document/language/functions/aggregate-functions.md).
+
 Returning null/reused state, external callback failures and invalid result contracts use CD05017.
 Cancellation uses OperationCanceledException. Constructor/factory guards match the scalar family:
 null callbacks ArgumentNullException, unsupported CLR types NotSupportedException, invalid

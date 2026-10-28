@@ -39,10 +39,14 @@ CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003
 retain ordered actions and clause spans for execution and EXPLAIN. A later clause after an unconditional
 clause of the same match kind uses CS05071; merge_action() outside MERGE RETURNING uses CS01053.
 Neither has an assigned SQLSTATE. MERGE executes; CS05036 (21000) refuses a second selected
-modification or overlapping direct UPDATE/referential write, and CS05067 (53200) refuses retained
+modification, including after rechecks, and CS05067 (53200) refuses retained
 state above the statement grant before writes. Action conditions, values and read subqueries
-are lazy; RETURNING subqueries remain CK00001. ReadCommitted rechecks and complete mixed-action
-final-state constraints remain deferred. See [MERGE](../../../../database/sql/language/statements/merge.md).
+are lazy; RETURNING subqueries remain CK00001. ReadCommitted locks the latest target and reevaluates
+ON and ordered WHEN clauses after concurrent commits; Snapshot uses retryable CS04064 (40001).
+Mixed-action foreign keys see final rows and direct/referential overlaps compose without CS05036.
+Statement-level uniqueness accepts key swaps that PostgreSQL's immediate checks reject and
+reuses keys freed by MERGE deletes. Unique failures precede final FK and referential SET-action
+constraint failures. See [MERGE](../../../../database/sql/language/statements/merge.md).
 
 `Parse` the declared dialect into a stable, fully-typed AST that planners, catalogs, tooling, and the
 SDK schema compiler can rely on. "Declared" is the operative word: DIALECT.md
@@ -140,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive/nested CTEs, window functions, `ON UPDATE`, MERGE action execution, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive/nested CTEs, window functions, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 

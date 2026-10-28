@@ -1271,7 +1271,7 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; refused before reads/writes | — |
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
-| `CS05036` | Repeated ON CONFLICT/MERGE target modification or direct UPDATE/referential overlap in MERGE | 21000 |
+| `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
 | `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state or CTAS buffers | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
@@ -1279,7 +1279,7 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
-| `CS04064` | A bound table was replaced while DDL waited, or TRUNCATE closure changed; retry the statement | 40001 (`serialization_failure`) |
+| `CS04064` | DDL target replacement, TRUNCATE closure change, or MERGE target recheck/apply-time modified-row version conflict; retry the statement or aborted transaction | 40001 (`serialization_failure`) |
 | `CS03067` | TRUNCATE RESTRICT omits a required referencing table, even an empty one | 0A000 (`feature_not_supported`) |
 | `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
@@ -1869,10 +1869,28 @@ lazy. All writes, indexes, referential actions and RETURNING preparation share o
 bracket. Only direct actions count/return; new INSERT/UPDATE and old DELETE target values are
 projected, with NULL sources for BY SOURCE. merge_action() yields INSERT/UPDATE/DELETE.
 
-CS05036 (21000) refuses repeated physical target modifications and conservative direct UPDATE/
-referential overlaps. CS05067 (53200) refuses retained joined-DML state above the statement grant
-before any write. Current version checks reject stale targets; ReadCommitted rechecks and
-complete mixed-action final-state constraint composition remain run-3 work.
+CS05036 (21000) refuses repeated physical target modifications, including after rechecks.
+CS05067 (53200) refuses retained joined-DML state above the statement grant before any write.
+ReadCommitted follows committed target replacements under row locks and reevaluates ON and
+ordered WHEN clauses with the original source. A broken match produces both unmatched directions;
+a deleted MATCHED target leaves BY TARGET only, and a deleted BY SOURCE target disappears.
+Scalar assignments reevaluate; independent action subqueries keep their statement cache.
+Snapshot refuses changed targets retryably with CS04064 (40001). In this path CS04064 covers
+target recheck/apply-time modified-row version conflicts; cascade snapshot checks, referenced-parent
+checks, host-ended transactions and abandoned owners retain ordinary uncoded aborts.
+
+Foreign keys see composed final INSERT/UPDATE/DELETE and referential rows. Moved-away children
+survive; overlapping CASCADE/SET NULL/SET DEFAULT effects compose without CS05036. Old parent-key
+checks survive a cascade removing a directly updated row (CS03039, 23503 for surviving children).
+NO ACTION accepts a replacement parent key; RESTRICT refuses substitution. A moved-then-cascaded
+child retains locks on its old stored parent through transaction end.
+
+Direct CHECK/domain/unique failures cannot be hidden by a cascade. Direct uniqueness (CS03037,
+23505) precedes final FK and referential SET-action constraint failures. Retained constraint
+failures skip further parent-row locking. Statement-level unique checks admit key swaps rejected
+by PostgreSQL's immediate uniqueness and permit reuse of keys freed by MERGE deletes. RETURNING
+describes direct values before referential effects, even for rows later cascaded away. The existing
+statement memory budget includes composed constraint rows/projections; no disk or wire format changes.
 
 ## Joined source DML
 

@@ -24,8 +24,12 @@ results count as not true. Empty ANY is false and empty EVERY true. MISSING coll
 MISSING; NULL/non-array collections yield NULL. See the [truth table](../../../../database/document/language/expressions/quantified-predicates.md).
 
 Construction retains child references and adds no validation exceptions. Planning rejects
-aggregates or META(variable) on this binding with DatabaseException/CD05001, even when the
-name shadows the source alias. Nested SELECT and multi-binding text forms use CK00001.
+META(variable) on this binding with DatabaseException/CD05001, even when the name shadows the
+source alias. Collection and Predicate inherit their enclosing clause's aggregate permission and
+use its group. An aggregate argument can contain this predicate, but cannot contain another
+aggregate inside it (CD05001). Aggregate EVERY is a separate [OqlCallExpression](oql-call-expression.md)
+aliasing BOOL_AND. See the [nesting examples](../../../../database/document/language/functions/aggregate-functions.md#examples).
+Nested SELECT and multi-binding text forms use CK00001.
 
 ## Example
 

@@ -16,8 +16,10 @@ RETURNING { * | expression [ [ AS ] column_alias ] } [ , ...n ] [ ; ]
 [MERGE](../statements/merge.md) RETURNING binds target/source columns and the contextual
 [merge_action()](../functions/merge-action.md) TEXT expression, yielding INSERT, UPDATE or DELETE.
 It emits one row per direct action: new target values for INSERT/UPDATE, old values for DELETE,
-and NULL source values for BY SOURCE. DO NOTHING and cascades emit no rows. Output order is
-unspecified. The atomic execution/result-delivery rules below also apply to MERGE.
+and NULL source values for BY SOURCE. These are direct values before referential effects; an
+updated/inserted row later removed by a cascade still returns and counts. DO NOTHING and cascades
+emit no rows of their own. Output order is unspecified. The atomic execution/result-delivery
+rules below also apply to MERGE.
 
 The final list uses SELECT projection rules: star expands in table-column order, pass-through
 columns keep their names, and computed outputs without aliases use columnN names. Expressions

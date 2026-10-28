@@ -10,16 +10,23 @@ Namespace: `Assimalign.Cohesion.Database.Documents`.
 public long StatementMemoryBudget { get; set; } = 64L * 1024 * 1024;
 ```
 
-This positive byte budget estimates retained RETURNING results. It covers metadata, row/value arrays
-(including normalization/result copies), scalars, strings, JSON clones and preserved whole-document
+This positive byte budget estimates retained statement memory. SELECT source rows (including JSON,
+identifiers, raw star bytes and expanded bindings), catalog/sort staging, group keys/membership,
+native accumulator state, DISTINCT sets, ARRAY_AGG inputs/results and projection/order storage
+share it with RETURNING. INSERT/UPSERT SELECT sources and RETURNING use the same operation counter.
+RETURNING covers metadata, row/value arrays (including normalization/result copies), scalars,
+strings, JSON clones and preserved whole-document
 bytes. A clone costs 128 bytes plus its UTF-8 length plus 12 bytes per token, including property names
 and both container delimiters. A lone star retains one clone and one raw image; each is charged once.
-The estimate measures JSON without allocating a UTF-16 text copy. Existing SELECT and mutation/source
-staging allocations are outside this charge; it is not a managed-heap measurement.
+The estimate measures JSON without allocating a UTF-16 text copy. Input and owned ARRAY_AGG result
+representations are charged separately while both live. Reservations release with their owning
+source/group, scratch or result lifetime and on every failure/cancellation exit. Mutation pending-write
+buffers and application callback-owned state are excluded; this is not a managed-heap measurement.
 
 Engine creation rejects nonpositive values with ArgumentOutOfRangeException. Exhaustion during
-RETURNING raises DatabaseException with CD05018 and rolls back the writes; an explicit transaction
-requires rollback after the failure. Serialization preflight also enforces 16 MiB frames (CD05016)
+SELECT, aggregate evaluation or RETURNING raises DatabaseException with CD05018 before result
+publication and rolls back statement writes; an explicit transaction requires rollback after the
+failure. Serialization preflight also enforces 16 MiB frames (CD05016)
 and 256-level result depth (CD05019) inside the transaction. These codes have no assigned SQLSTATE.
 
 ## Example
@@ -43,3 +50,4 @@ See [RETURNING](../../../../database/document/language/clauses/returning.md).
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngineOptions.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngine.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentReturningBudgetTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentStatementMemoryTests.cs` and `DocumentQueryTests.Aggregates.cs`.

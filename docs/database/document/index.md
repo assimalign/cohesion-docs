@@ -91,8 +91,11 @@ changes, while their document contents remain mutable.
 
 [RETURNING](language/clauses/returning.md) projects INSERT/UPSERT/UPDATE post-images or DELETE
 pre-images with the affected count. Projection and 16 MiB frame/256-level serialization preflight
-run before commit. A positive StatementMemoryBudget (64 MiB default) estimates RETURNING retention;
-existing query and mutation staging allocations are outside it. No capability flag is negotiated.
+run before commit. A positive StatementMemoryBudget (64 MiB default) estimates retained SELECT
+source/group staging, native aggregates, projection/order storage and RETURNING together;
+exhaustion gives CD05018 before publishing results. Mutation pending-write buffers and application
+callback-owned state are outside the estimate. See [aggregate memory](language/functions/aggregate-functions.md#statement-memory).
+No capability flag is negotiated.
 Older clients reject RETURNING completion after an autocommit write has committed; retry reapplies
 it. Closing an explicit session rolls its uncommitted work back. See
 [client compatibility](../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-client/design.md#returning-and-client-compatibility).

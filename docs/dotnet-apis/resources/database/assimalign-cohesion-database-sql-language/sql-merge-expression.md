@@ -29,6 +29,13 @@ all actions atomically, including RETURNING preparation. A second modifying acti
 target uses CS05036 (21000); retained-state exhaustion uses CS05067 (53200) before writes. See
 [MERGE](../../../../database/sql/language/statements/merge.md) for scopes, diagnostics and association rules.
 
+Execution locks and rechecks the latest concurrently committed modifying target under ReadCommitted,
+reevaluating ON and ordered WHEN clauses with the original source. Snapshot target conflicts use
+retryable CS04064 (40001). Mixed-action foreign keys see final rows; direct/referential overlaps
+compose without CS05036. Statement-level uniqueness accepts key swaps rejected by PostgreSQL's
+immediate checks and reuses keys freed by the statement's deletes. RETURNING describes direct
+actions before referential effects.
+
 ## Example
 
 Using the syntax covered by SqlMergeParserTests; parsing needs no catalog:

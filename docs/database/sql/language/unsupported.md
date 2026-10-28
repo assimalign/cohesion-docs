@@ -87,7 +87,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
-| MERGE concurrent-target rechecks and complete mixed-action final-state constraints | Deferred | [MERGE](statements/merge.md) executes; stale targets use existing version checks |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
 | Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |

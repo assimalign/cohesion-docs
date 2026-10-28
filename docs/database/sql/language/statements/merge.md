@@ -2,8 +2,7 @@
 
 Applies ordered INSERT, UPDATE or DELETE actions over a target/source association.
 
-> **Status:** Execution, run 2 of 3. ReadCommitted target rechecks and complete mixed-action
-> final-state constraint validation remain deferred.
+> **Status:** Execution, including ReadCommitted target rechecks and mixed-action final-state constraints.
 
 ## Syntax
 
@@ -75,7 +74,9 @@ MERGE RETURNING, including inside scalar expressions. It returns `INSERT`, `UPDA
 Target columns contain new values for INSERT/UPDATE and old values for DELETE. BY SOURCE
 null-extends source values. UPDATE assignments all read the original association, so swapping
 two target columns uses their old values. Ordinary coercion, defaults and identity rules apply.
-Only direct actions count or return rows; cascades do not. Output order is unspecified.
+Only direct actions count or return rows; cascades do not. RETURNING describes direct values
+before referential effects, even if a cascade subsequently removes an updated or inserted row.
+Output order is unspecified.
 
 ### Association and EXPLAIN
 
@@ -104,14 +105,14 @@ Plain EXPLAIN succeeds without applying actions; EXPLAIN ANALYZE remains SELECT-
 
 The executor drains association cursors before selecting actions, acquiring row write locks or
 writing, preventing revisits caused by its own changes. A second selected UPDATE or DELETE on
-one physical target reports CS05036 (21000) before writes. Extra matches selecting DO NOTHING
-do not count. Competing INSERT keys use ordinary uniqueness enforcement.
+one physical target reports CS05036 (21000) before writes, including after target rechecks.
+Extra matches selecting DO NOTHING do not count. Direct and referential writes to the same row
+compose without the earlier conservative CS05036 refusal.
 
 All direct actions, index changes, referential actions and RETURNING preparation share one
 statement rollback bracket. Constraint, projection, encoding or cancellation failure undoes the
-whole statement; earlier successful statements in an explicit transaction remain. CHECK/domain,
-FK and referential actions reuse existing DML checks. Overlap between a direct UPDATE and a
-referential DELETE/UPDATE is conservatively refused with CS05036.
+whole statement; earlier successful statements in an explicit transaction remain. Retryable
+serialization refusals abort the transaction and require a full transaction retry after rollback.
 
 StatementMemoryBudget covers hash builds and retained target identities, source buffers,
 derived copies, intermediate frames, associations, selected values and encoded replacements,
@@ -119,16 +120,69 @@ including joined-statement cascade state. Exhaustion reports CS05067 (53200) bef
 there is no spill. General result materialization and transient expression values are outside
 this grant. Reservations release on every exit. See [memory options](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#hash-build-memory).
 
-ReadCommitted currently refuses stale targets through existing first-updater-wins version checks,
-including after a lock wait. PostgreSQL-style target rechecks and complete mixed INSERT/UPDATE/
-DELETE final-state constraint composition arrive in run 3. No disk or wire format changes.
+### Concurrent target changes
+
+Suppose another transaction updates or deletes a target chosen for a modifying action and commits
+after this statement's snapshot, including while MERGE waits for its row lock. Under ReadCommitted,
+MERGE locks the latest version and keeps the original source association. For an originally
+MATCHED candidate, it reevaluates the full ON predicate before selecting ordered WHEN clauses
+against that target. An original BY SOURCE candidate reselects clauses of that match kind.
+Scalar assignments reevaluate;
+independent action subqueries keep their statement cache. Only reselected modifying actions
+enter repeated-target detection.
+
+If ON is no longer true, the current target becomes NOT MATCHED BY SOURCE and the original source
+becomes NOT MATCHED BY TARGET, so both action paths can run. A deleted MATCHED target leaves only
+the BY TARGET path. An original BY SOURCE row never becomes MATCHED; if concurrently deleted,
+it contributes no action. Competing INSERTs use ordinary uniqueness checks without rescanning
+or ON CONFLICT arbitration.
+
+Under Snapshot the changed target raises retryable DatabaseTransactionAbortedException with
+CS04064 (40001). Within MERGE's row-concurrency path this code identifies target recheck or
+apply-time modified-row version conflicts. Shared cascade snapshot crosschecks, referenced-parent
+version checks, host-ended transactions and abandoned lock owners retain their ordinary uncoded
+transaction aborts. CS04064 also retains its separate DDL/TRUNCATE uses.
+
+### Final-state constraints and uniqueness
+
+Foreign keys see the statement's composed final INSERT/UPDATE/DELETE rows, including CASCADE,
+SET NULL and SET DEFAULT effects. A directly updated child moved away from a deleted parent
+survives. Overlapping SET actions modify its final replacement; CASCADE may remove it.
+NO ACTION accepts a replacement parent key supplied by the same statement; RESTRICT refuses
+that substitution. A moved-then-cascaded child retains locks on its old stored parent through
+commit or rollback.
+
+An UPDATE later removed by a cascade still checks children referencing its old stored parent key
+against the final rows. A surviving child left without that key refuses the entire statement
+with CS03039 (23503). Cascades also cannot hide invalid direct CHECK/domain or unique proposals.
+Direct-proposal uniqueness failures (CS03037, 23505) take precedence over final-state FK failures
+and NOT NULL, CHECK, domain or identity failures from referential SET actions. A retained constraint
+failure skips further parent-row locking, so a stale referenced parent does not mask that error.
+
+**Difference from PostgreSQL:** Cohesion checks unique keys at statement level, accepting key
+swaps that PostgreSQL's immediate uniqueness rejects. MERGE can also reuse keys freed by its
+own DELETE actions. Duplicate direct proposals still fail even if a later cascade would remove
+them; a competing INSERT remains subject to ordinary uniqueness enforcement.
+
+### Wire behavior
+
+InMemory and TCP carry the same action rows and affected count. Only direct actions contribute;
+an all-DO-NOTHING MERGE RETURNING has no rows and affected count 0. Constraint or late RETURNING
+failure publishes no partial rows and restores the statement's original rows, preserving earlier
+explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
+Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
+ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
+SQL storage format 27 and wire frames are unchanged.
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CK00001 | Subqueries in RETURNING or qualified wildcard | — |
-| CS05036 | Second modifying action on a physical target, or overlapping direct UPDATE/referential write | 21000 |
+| CS05036 | Second modifying action on a physical target, including after rechecks | 21000 |
+| CS04064 | Snapshot target conflict or failed target recheck/apply-time modified-row version check; retry the transaction | 40001 |
+| CS03037 | Duplicate direct unique-key proposal or final unique-key collision; precedes final FK/SET-action failures | 23505 |
+| CS03039 | Final FK failure or surviving child of an old parent key, including a cascaded UPDATE | 23503 |
 | CS05067 | Retained joined-DML state/hash builds exceed StatementMemoryBudget, before writes | 53200 |
 | CS05071 | WHEN follows an unconditional clause of the same match kind | — |
 | CS01053 | merge_action() outside MERGE RETURNING | — |
@@ -171,6 +225,39 @@ WHEN MATCHED AND s.v>0 THEN DO NOTHING;
 
 This reports CS05071 at the complete second WHEN clause.
 
+### Overlapping direct and referential actions
+
+In a fresh database, adapted from SqlMergeConstraintTests:
+
+```sql
+CREATE TABLE t(id INT PRIMARY KEY,
+  pid INT REFERENCES t(id) ON DELETE CASCADE,v INT);
+INSERT INTO t VALUES(1,NULL,10),(2,1,20),(9,NULL,90);
+MERGE INTO t USING (SELECT 1 AS id UNION ALL SELECT 2) AS s ON t.id=s.id
+WHEN MATCHED AND t.id=1 THEN DELETE
+WHEN MATCHED THEN UPDATE SET v=t.v+1
+RETURNING t.id,t.pid,t.v,merge_action();
+```
+
+Affected count is 2; RETURNING contains `(1,NULL,10,'DELETE')` and `(2,1,21,'UPDATE')` in
+unspecified order. The cascade removes row 2, so only `(9,NULL,90)` remains stored. Changing
+the UPDATE to `SET pid=9,v=t.v+1` moves the child away; rows 2 and 9 survive.
+
+### Unique-key swaps
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE t(id INT PRIMARY KEY,v INT);
+INSERT INTO t VALUES(1,10),(2,20);
+MERGE INTO t USING (SELECT 1 AS id UNION ALL SELECT 2) AS s ON t.id=s.id
+WHEN MATCHED THEN UPDATE SET id=3-t.id;
+SELECT id,v FROM t ORDER BY id;
+```
+
+MERGE affects 2 rows. SELECT returns `(1,20)` and `(2,10)`. PostgreSQL's immediate unique-key
+checks reject this swap.
+
 ## See also
 
 [Statements](index.md) · [UPDATE FROM](update.md#from-sources) · [RETURNING](../clauses/returning.md) · [EXPLAIN](explain.md)
@@ -180,4 +267,7 @@ This reports CS05071 at the complete second WHEN clause.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.Merge.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlMergeBindingTests.cs` and `SqlMergeSourceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlMergeExecutionTests.cs` and `SqlJoinedDmlMemoryTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlMergeConcurrencyTests.cs`, `SqlMergeConstraintTests.cs` and `SqlMergeReviewRegressionTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.Merge.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlMergeWireTests.cs` and `SqlMergeConcurrencyWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/src/SqlQueryParser.Merge.cs` and `docs/DIALECT.md`.

@@ -407,6 +407,8 @@ not included.
 | `CG06006` | Storage/index, malformed catalog record or open I/O failure, including wrapped causes; original InnerException retained |
 | `CK06102` | Attached-index corruption retained beside leading CK06003 and additional CG06006; no assigned SQLSTATE |
 | `CG04007` | Retryable catalog snapshot conflict, or aborted explicit transaction refusing statements/BEGIN/COMMIT until rollback; original cause retained |
+| `CG04024` | Internal concurrency seam: retryable stale Snapshot MERGE pattern decision; no assigned SQLSTATE |
+| `CG05023` | Internal concurrency seam: invalid bound MERGE pattern lock identity; no assigned SQLSTATE |
 | `CG05008` | Statement too complex for available stack (SQLSTATE 54001) |
 | `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
@@ -420,6 +422,10 @@ not included.
 | `CG06018` | Missing journal/backup, incomplete creation or unrecoverable files on create/open; no assigned SQLSTATE |
 | `CG09019` | Database/resource disposed during admitted execution, result streaming or a wire lifetime guard; ExecutionFailure preserves the session; no assigned SQLSTATE |
 | `CK06003` | Detected storage corruption; DatabaseCorruptionException names database and optional page, retains the storage cause and advises a verified backup; no SQLSTATE |
+
+CG04024 and CG05023 are registered for the internal concurrency seam. GQL MERGE remains refused
+with CK00001; the statement reports them once available. No public MERGE behavior or API is
+exposed on this branch. Graph record/tree-registration format remains 5.
 
 Reads, statements, transactions and create/open translate storage corruption, including coded and
 aggregate causes. A damaged read fails instead of omitting nodes/relationships; legitimate

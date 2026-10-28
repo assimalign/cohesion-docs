@@ -75,7 +75,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS05042` | Encoded row, index key or catalog definition exceeds its size limit, or catalog DDL generation is exhausted | 54000 (`program_limit_exceeded`) |
 | `CS05040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `CS03035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
-| `CS05036` | ON CONFLICT repeats an inserted/updated row; MERGE selects a second modification of one physical target or overlaps direct UPDATE/referential writes | 21000 |
+| `CS05036` | ON CONFLICT repeats an inserted/updated row; MERGE selects a second modification of one physical target, including after rechecks | 21000 |
 | `CS03037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
 | `CS03038` | Table CHECK or domain-check violation on a write, CAST to a domain, or function domain argument/result | 23514 |
 | `CS03039` | FOREIGN KEY violation: missing parent on INSERT/UPDATE or a referenced key protected by NO ACTION/RESTRICT on DELETE/UPDATE, including final-row checks | 23503 |
@@ -100,7 +100,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03061` | Column already exists | 42701 (`duplicate_column`) |
 | `CS02062` | INTERVAL duration overflow in assignment, DEFAULT or CAST | 22015 (`interval_field_overflow`) |
 | `CS02063` | FOREIGN KEY columns have incompatible collations | 42P21 (`collation_mismatch`) |
-| `CS04064` | A bound table was replaced while DDL waited, or TRUNCATE's FK closure changed at reservation/publication; retry the statement | 40001 (`serialization_failure`) |
+| `CS04064` | DDL target replacement, TRUNCATE closure change, or MERGE target recheck/apply-time modified-row version conflict (including Snapshot stale targets); retry the statement or aborted transaction | 40001 (`serialization_failure`) |
 | `CS03067` | TRUNCATE RESTRICT omits a referencing table, even an empty one | 0A000 (`feature_not_supported`) |
 | `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
@@ -425,9 +425,23 @@ success with zero affected rows.
 | CS05070 | FULL MERGE association lacks safe hash equality or a complete ON safety proof | — |
 
 [MERGE](statements/merge.md) executes ordered actions and RETURNING atomically. CS05036 (21000)
-refuses repeated physical target modifications and overlapping direct UPDATE/referential writes. merge_action arguments or
+refuses repeated physical target modifications, including after target rechecks. Direct/referential
+overlaps compose without that refusal. merge_action arguments or
 modifiers use CS01006 (42883). Scope, assignment, parameter and identity failures retain their
 ordinary codes. No SQLSTATE is assigned to the new CS01053 or CS05071 conditions.
+
+ReadCommitted locks and rechecks a concurrently committed modifying target against the original
+ON and ordered WHEN clauses. Snapshot refuses it with retryable CS04064 (40001). In MERGE's
+row-concurrency path, CS04064 covers target recheck and apply-time modified-row version conflicts;
+cascade snapshot crosschecks, referenced-parent version checks, host-ended transactions and
+abandoned owners retain uncoded transaction aborts. Roll back and retry the aborted transaction.
+
+Direct-proposal uniqueness (CS03037, 23505) precedes final-state FK failures (CS03039, 23503)
+and NOT NULL/CHECK/domain/identity failures from referential SET actions. An UPDATE removed by
+a cascade still checks surviving children of its old parent key. A retained constraint failure
+skips further parent-row locking, preserving that diagnostic even if a referenced parent is stale.
+Wire constraint/RETURNING failures undo only the statement and keep the connection usable;
+wire BEGIN's default Snapshot target conflict requires ROLLBACK.
 
 ## ALTER COLUMN TYPE conditions
 

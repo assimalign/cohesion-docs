@@ -17,6 +17,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlFunctions](oql-functions.md)** — Immutable executable vocabulary and case-insensitive lookup.
 - **[OqlFunction](oql-function.md)** — Arity, JSON kinds and static result metadata.
 - **[OqlCallExpression](oql-call-expression.md)** — Scalar and aggregate call arguments.
+- **[OqlAggregateQuantifier](oql-aggregate-quantifier.md)** — Omitted, ALL or DISTINCT aggregate input semantics.
 - **[OqlCreateCollectionExpression](oql-create-collection-expression.md)** — AST members and execution contract.
 - **[OqlDropCollectionExpression](oql-drop-collection-expression.md)** — AST members and execution contract.
 - **[OqlUpsertExpression](oql-upsert-expression.md)** — Whole-document replacement from VALUES or SELECT.

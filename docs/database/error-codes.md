@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/5e6f1c7a0/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/3a4b483d8/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -112,9 +112,13 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
 and CS05071 for a WHEN following an unconditional clause of the same match kind. Neither has an
 assigned SQLSTATE. FULL associations reuse CS05070 for missing safe hash equality or ON safety
-proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications
-or overlapping direct UPDATE/referential writes, and CS05067 (53200) for retained joined-DML state
-exhaustion before writes. Plain EXPLAIN remains nonexecuting.
+proof (no SQLSTATE). Execution reuses CS05036 (21000) for repeated physical target modifications,
+including after rechecks, and CS05067 (53200) for retained joined-DML state exhaustion before writes.
+Direct/referential overlaps compose without CS05036. CS04064 (40001) covers target recheck/apply-time
+modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
+host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
+precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
+remains nonexecuting; SQL storage stays at format 27.
 
 ## SQL CREATE TABLE AS
 
@@ -150,6 +154,15 @@ OQL [ARRAY/FIRST comprehensions](document/language/expressions/comprehensions.md
 an empty variable in a directly constructed AST (no SQLSTATE). Aggregate or metadata misuse
 retains CD05001; retired ARRAY()/FIRST() calls retain CK00001.
 
+## Document aggregate quantifiers and memory
+
+OQL [aggregates](document/language/functions/aggregate-functions.md) add CD00011 for parsed
+ALL/DISTINCT on a scalar call or star, and CD01029 for an invalid enum quantifier, scalar
+quantifier or quantified star in a directly constructed call AST. Neither has an assigned SQLSTATE.
+Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
+accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
+share StatementMemoryBudget; CD05018 refuses exhaustion before result publication (no SQLSTATE).
+
 ## Document RETURNING
 
 OQL [RETURNING](document/language/clauses/returning.md) adds CD01026 (empty direct-AST output name),
@@ -168,6 +181,16 @@ CG05020 for retained history/state/output; no partial result escapes. Neither ha
 Typed shortest-path reconstruction adds CG05022 when a selected node or relationship is absent
 while the operation remains active (no SQLSTATE). Session/transaction termination keeps its
 lifecycle refusal. See [Graph diagnostics](graph/language/diagnostics.md#typed-shortest-search).
+
+## Graph registered MERGE conditions
+
+| Code | Registry meaning | SQLSTATE |
+| --- | --- | --- |
+| CG04024 | Retryable stale Snapshot MERGE pattern decision | — |
+| CG05023 | Invalid bound MERGE pattern lock identity | — |
+
+These conditions belong to the internal concurrency seam. GQL MERGE remains refused with CK00001
+on this branch; it reports them once the statement is available. See [Graph diagnostics](graph/language/diagnostics.md#planning-and-execution-diagnostics).
 
 ## Graph format requirement
 
@@ -198,4 +221,4 @@ See [Graph](graph/language/diagnostics.md#application-function-conditions),
 
 ## Sources
 
-- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `5e6f1c7a0`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `3a4b483d8`.

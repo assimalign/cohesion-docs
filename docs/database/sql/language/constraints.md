@@ -144,6 +144,24 @@ inside logical expressions and mixed CASE/COALESCE alternatives in Boolean posit
 [search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
 UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
 
+## MERGE final rows
+
+[MERGE](statements/merge.md#final-state-constraints-and-uniqueness) composes INSERT, UPDATE,
+DELETE and referential actions before checking foreign keys. A child moved away from a deleted
+parent survives; overlapping CASCADE/SET NULL/SET DEFAULT writes compose onto direct actions
+without a CS05036 refusal. NO ACTION allows a parent key replaced in the statement, whereas
+RESTRICT refuses substitution. Old parent-key checks still run when a directly updated row is
+subsequently removed by a cascade; a surviving dangling child fails with CS03039 (23503).
+
+Direct CHECK/domain and unique proposals cannot be hidden by a later cascade. Direct uniqueness
+(CS03037, 23505) is reported before final FK failures and constraint failures from referential
+SET actions. Only repeated direct modifications of one physical target use CS05036 (21000).
+Counts and RETURNING describe direct actions before referential effects.
+
+**Difference from PostgreSQL:** statement-level uniqueness accepts key swaps that PostgreSQL's
+immediate uniqueness rejects. MERGE also reuses keys freed by its own deletes. See the
+[swap example](statements/merge.md#unique-key-swaps).
+
 ## Foreign-key preparation and concurrent DDL
 
 DELETE cascade/restrict checks share incoming references and adjacent-table lock preparation once
