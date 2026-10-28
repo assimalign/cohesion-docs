@@ -89,8 +89,10 @@ upgrade path. Compiled schema format remains version 8.
 
 The catalog contains internal [sequence definitions and reservations](catalog-design.md#standalone-sequences)
 in format 28. Sequences share the table/view relation namespace and the
-[identity allocator](storage-design.md#identity-and-sequence-reservations). No sequence SQL syntax
-or public sequence API exists on this branch. SQL binding arrives in batch 10.
+[identity allocator](storage-design.md#identity-and-sequence-reservations). Catalog sequence types
+remain internal; [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
+[session functions](../../../../database/sql/language/functions/sequences.md) and
+INFORMATION_SCHEMA.SEQUENCES now expose the language surface.
 
 ## Sources
 

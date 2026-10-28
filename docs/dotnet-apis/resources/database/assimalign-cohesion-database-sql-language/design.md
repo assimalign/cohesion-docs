@@ -397,6 +397,26 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
+## Sequence language surface
+
+The parser retains written options through [SqlSequenceOption](sql-sequence-option.md), with
+dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequence-expression.md)
+and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
+is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
+SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 67 of 72.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in persisted expressions or sequence DDL in provisioning scripts | 0A000 |
+| CS03075 | setval value outside bounds | 22003 |
+| CS03076 | Restricted sequence context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
+| CS04068 | currval undefined for the sequence in this session | 55000 |
+| CS04069 | lastval undefined or its selected sequence dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
+
 ## Grouping sets
 
 Grouping elements use [SqlGroupingSetExpression](sql-grouping-set-expression.md) and

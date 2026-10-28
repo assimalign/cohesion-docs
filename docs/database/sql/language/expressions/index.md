@@ -6,6 +6,7 @@ Reference for scalar values, operators, conditional expressions, conversions, an
 
 ## Expression forms
 
+- **[NEXT VALUE FOR](next-value-for.md)** — One sequence value per row, shared by repeated standard occurrences.
 - **[Operators and predicates](operators.md)** — PostgreSQL precedence, NULL-safe distinct tests, Boolean tests, LIKE ESCAPE and arithmetic.
 - **[CASE](case.md)** — Select a scalar branch.
 - **[CAST](cast.md)** — Convert within the exact supported pair matrix.

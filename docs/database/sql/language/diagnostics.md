@@ -114,7 +114,15 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03070` | Occupied sequence/table/view relation name involving a sequence; existing kind named | 42P07 |
 | `CS03071` | Sequence namespace does not exist | 3F000 |
 | `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| `CS03073` | Named sequence or object identity is absent | 42P01 |
+| `CS03074` | Sequence operation/REGCLASS in a persisted expression, or sequence DDL in a declared provisioning script | 0A000 |
+| `CS03075` | setval value is outside the sequence bounds | 22003 |
+| `CS03076` | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| `CS03077` | Malformed sequence reference or invalid runtime call argument | 22023 |
 | `CS04067` | Dropped/replaced sequence incarnation used for allocation or mutation | 40001 |
+| `CS04068` | currval is undefined for this sequence in this session | 55000 |
+| `CS04069` | lastval is undefined or its sequence was dropped | 55000 |
+| `CS04070` | DISCARD ALL inside an explicit transaction | 25001 |
 | `CS06061` | Malformed sequence definition, directory or reservation | XX001 |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
@@ -128,7 +136,8 @@ not a separate field on the diagnostic or SQL exception.
 
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and `::` casts use CK00001.
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and general `::` casts use CK00001;
+the sequence-specific `name::regclass` form executes.
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 

@@ -57,6 +57,12 @@ calls. See [FILTER](../../../../database/sql/language/clauses/filter.md) and
 [aggregate types and NULL behavior](../../../../database/sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates).
 See [scalar contracts](../../../../database/sql/language/functions/builtin-functions.md).
 
+SqlClauses.GroupingSets, Rollup and Cube enable expanded grouping. CreateSequence, AlterSequence,
+DropSequence, NextValue and DiscardAll enable the sequence/session surface. nextval, currval,
+setval and lastval are volatile BIGINT calls. GROUPING/GROUPING_ID are special forms.
+See [sequences](../../../../database/sql/language/functions/sequences.md) and
+[grouping masks](../../../../database/sql/language/functions/grouping.md).
+
 ## Related reference
 
 [Assembly](index.md) · [SQL functions](../../../../database/sql/language/functions/builtin-functions.md) · [Diagnostics](../../../../database/sql/language/diagnostics.md)

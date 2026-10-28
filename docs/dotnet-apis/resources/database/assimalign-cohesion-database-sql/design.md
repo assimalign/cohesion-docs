@@ -1169,9 +1169,10 @@ For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before
 
 ## Standalone sequence catalog and shared allocation
 
-Batch 9 implements internal sequence catalog objects and allocation. There is no sequence SQL
-syntax, function, session state, public sequence API or new wire message yet. SQL binding arrives
-in batch 10. See [catalog records and namespace](catalog-design.md#standalone-sequences) and
+Standalone sequences now expose [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
+[session functions](../../../../database/sql/language/functions/sequences.md) and
+[NEXT VALUE FOR](../../../../database/sql/language/expressions/next-value-for.md).
+See [catalog records and namespace](catalog-design.md#standalone-sequences) and
 [durable allocation](storage-design.md#identity-and-sequence-reservations).
 
 Sequences, tables and views share a case-insensitive relation namespace, rechecked at publication,
@@ -1192,11 +1193,26 @@ caches. Allocation does not change DdlGeneration and stays independent of data t
 | CS03070 | Occupied table/view/sequence relation name involving a sequence | 42P07 |
 | CS03071 | Sequence namespace does not exist | 3F000 |
 | CS03072 | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in persisted expressions or sequence DDL in provisioning scripts | 0A000 |
+| CS03075 | setval value outside bounds | 22003 |
+| CS03076 | Restricted sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed reference or invalid runtime call argument | 22023 |
 | CS04067 | Allocation/mutation uses a dropped or replaced sequence incarnation | 40001 |
+| CS04068 | currval undefined for the sequence in this session | 55000 |
+| CS04069 | lastval undefined or its selected sequence dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
 | CS06061 | Malformed sequence definition, directory or reservation | XX001 |
 
 CS02002 is the catalog allocator condition. SQL identity generation retains its existing
-CS03025 wrapper; this batch adds no sequence SQL execution path.
+CS03025 wrapper. Sequence SQL DDL self-commits and uses CS04003 (25001) inside explicit transactions.
+Shared object grants protect statement evaluation; ALTER/RESTART/DROP wait for transaction end.
+Literal/parameter names lock their objects; row-varying names lock the captured sequence directory.
+Ordered independent sequence outputs evaluate after sorting, including OFFSET rows, and stop at
+LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting follows the
+ordinary sort's uncharged accounting; grouping-set states retain their existing CS05067 grant.
+RETURNING lists containing calls evaluate before the global apply gate; durable sequence effects
+survive write rollback. Identity integration, SERIAL and OWNED BY remain run-3 work.
 
 ## Declaration validation
 

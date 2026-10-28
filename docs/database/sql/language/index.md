@@ -24,6 +24,9 @@ manipulation language (DML), and transaction control.
   [CREATE TABLE](statements/create-table.md), [ALTER TABLE](statements/alter-table.md),
   [DROP TABLE](statements/drop-table.md), [CREATE INDEX](statements/create-index.md), and
   [DROP INDEX](statements/drop-index.md).
+- **Sequences** — [CREATE](statements/create-sequence.md), [ALTER](statements/alter-sequence.md),
+  [DROP](statements/drop-sequence.md), [session functions](functions/sequences.md),
+  [NEXT VALUE FOR](expressions/next-value-for.md) and [DISCARD ALL](statements/discard-all.md).
 - **DML** — [SELECT](statements/select.md), [INSERT](statements/insert.md),
   [UPDATE](statements/update.md), and [DELETE](statements/delete.md).
 - **Table contents** — [TRUNCATE](statements/truncate.md) empties a complete table set with identity and FK policies.

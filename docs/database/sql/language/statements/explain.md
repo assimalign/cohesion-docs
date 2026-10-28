@@ -8,6 +8,7 @@ Describes the chosen plan; ANALYZE executes a SELECT to collect candidate-work c
 
 ```syntaxsql
 EXPLAIN [ ANALYZE ] { select_statement | insert_statement | update_statement | delete_statement | merge_statement } [ ; ]
+EXPLAIN { create_sequence_statement | alter_sequence_statement | drop_sequence_statement } [ ; ]
 ```
 
 ## Remarks
@@ -56,8 +57,10 @@ mask bit order and statement-budget/no-spill behavior. Plain GROUP BY keeps its 
 
 Plain EXPLAIN performs the statement's normal parameter validation, name binding, planning and
 provisioning admission. It waits for the same reserved tables as that statement. It never calls its
-data executor, even inside a transaction that later commits. DDL, transaction control, nested
-EXPLAIN report `CK00001`. EXPLAIN ANALYZE accepts SELECT query bodies, including read-only WITH
+data executor, even inside a transaction that later commits. Sequence DDL is also described without
+execution. Other DDL, transaction control and nested EXPLAIN report `CK00001`.
+[Sequence calls](../functions/sequences.md) allocate nothing under plain EXPLAIN; EXPLAIN ANALYZE
+SELECT executes their effects. EXPLAIN ANALYZE accepts SELECT query bodies, including read-only WITH
 and set operations. Data changes, including WITH data changes, normally report `CS05057` (0A000)
 before execution; the earlier system-relation read-only check can retain `CS04021`. Standalone
 ANALYZE remains unsupported. Ordinary planning errors retain their codes.

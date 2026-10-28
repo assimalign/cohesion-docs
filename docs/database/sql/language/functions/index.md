@@ -6,6 +6,7 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 ## Function groups
 
+- **[Sequence functions](sequences.md)** — nextval, currval, setval and lastval session behavior.
 - **[GROUPING and GROUPING_ID](grouping.md)** — Distinguish omitted grouping keys from real NULLs.
 - **[Aggregate functions](aggregate-functions.md)** — Count, numeric, Boolean, statistical and string aggregates, with FILTER, DISTINCT/ALL and ordered inputs.
 - **[Builtin functions](builtin-functions.md)** — Use 42 scalar names, planning-time signatures, transaction clocks and bounded string results.

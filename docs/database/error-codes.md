@@ -292,11 +292,20 @@ use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions ret
 | CS03070 | Occupied sequence/table/view relation name involving a sequence | 42P07 |
 | CS03071 | Sequence namespace absent | 3F000 |
 | CS03072 | Sequence definition exceeds the catalog record limit | 54000 |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in a persisted expression or sequence DDL in a provisioning script | 0A000 |
+| CS03075 | setval value outside sequence bounds | 22003 |
+| CS03076 | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
 | CS04067 | Dropped/replaced sequence incarnation | 40001 |
+| CS04068 | currval is undefined for this sequence in this session | 55000 |
+| CS04069 | lastval is undefined or its sequence was dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
 | CS06061 | Malformed sequence definition, directory or reservation | XX001 |
 
-These are internal [catalog/allocation conditions](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/catalog-design.md#standalone-sequences);
-sequence SQL syntax is not exposed in batch 9.
+These cover [sequence SQL](sql/language/statements/create-sequence.md),
+[session functions](sql/language/functions/sequences.md) and [DISCARD ALL](sql/language/statements/discard-all.md),
+as well as internal [catalog/allocation conditions](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/catalog-design.md#standalone-sequences).
 
 ## SQL aggregate FILTER
 
@@ -323,4 +332,5 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 
 ## Sources
 
+- **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.
 - **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.

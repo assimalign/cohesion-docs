@@ -1,5 +1,10 @@
 # Assimalign.Cohesion.Database.Sql.Language
 
+- **[SqlCreateSequenceExpression](sql-create-sequence-expression.md)** — Sequence name, guard and options.
+- **[SqlAlterSequenceExpression](sql-alter-sequence-expression.md)** — Option changes and restart.
+- **[SqlDropSequenceExpression](sql-drop-sequence-expression.md)** — Atomic name list and policy.
+- **[SqlNextValueExpression](sql-next-value-expression.md)** — Per-row standard sequence value.
+- **[SqlSequenceOption](sql-sequence-option.md)** — Written option name, integer and type spelling.
 - **[SqlGroupingSetExpression](sql-grouping-set-expression.md)** — Empty/composite sets, GROUPING SETS, ROLLUP and CUBE.
 - **[SqlGroupingSetKind](sql-grouping-set-kind.md)** — Grouping expansion operation.
 
