@@ -161,7 +161,8 @@ ALL/DISTINCT on a scalar call or star, and CD01029 for an invalid enum quantifie
 quantifier or quantified star in a directly constructed call AST. Neither has an assigned SQLSTATE.
 Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
 accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
-share StatementMemoryBudget with GROUP AS wrappers/arrays and DML pending buffers. CD05018 refuses
+share StatementMemoryBudget with ordered candidate buckets/keys/identities, GROUP AS wrappers/arrays
+and DML pending buffers. CD05018 refuses
 exhaustion before result publication; pending-buffer exhaustion precedes any write (no SQLSTATE).
 
 OQL [GROUP AS and group aliases](document/language/clauses/group-by.md) add CD00012 for GROUP AS
@@ -262,7 +263,7 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CD01032 | Invalid null-placement enum in a direct ordering AST | — |
 
 [Ordering eligibility](document/language/statements/explain.md#index-ordering-eligibility) reports
-plan reasons and retains sorting; it adds no diagnostic or storage format.
+plan reasons, consumption and sort elision/retention; it adds no diagnostic or storage format.
 
 ## GQL list operations
 
