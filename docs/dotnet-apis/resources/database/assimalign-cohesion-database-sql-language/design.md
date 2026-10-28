@@ -289,13 +289,20 @@ upgrade path. Compiled schema format remains version 8.
 
 ## Aggregate call modifiers
 
-[SqlFunctionCallExpression](sql-function-call-expression.md) carries Quantifier, OrderBy and
+[SqlFunctionCallExpression](sql-function-call-expression.md) carries Filter, Quantifier, OrderBy and
 HasWithinGroupOrdering. The catalog decides aggregate identity; scalar modifiers use CS05032,
 as do DISTINCT ordering keys absent from arguments (no assigned SQLSTATE). Rendering, depth,
 structural equality and persisted validation include order keys. LISTAGG WITHIN GROUP uses the
 same ordered input shape; explicit ALL renders but executes like Default. STRING_AGG and LISTAGG
 join the executable function profile; no named clause is added. Format 22 introduced quoting for their
 names as identifiers in persisted SQL; compiled schema version stays 8. There is no upgrade reader.
+
+FILTER retains its condition in depth, source extent, rendering, child walks, structural equality
+and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
+same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
+(42804). Child queries bind independently; windows retain CK00001. SqlClauses.Filter adds one
+named clause and nine Boolean/statistical function names join the executable profile: 59 of 64
+clauses including the five exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
 
@@ -332,7 +339,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 58 of 63 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 59 of 64 declared clauses,
 including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 28 are unchanged.
 

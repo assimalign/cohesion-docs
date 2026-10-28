@@ -1,6 +1,6 @@
 # Aggregate functions (Cohesion SQL)
 
-Summarizes rows using COUNT, SUM, AVG, MIN, MAX, STRING_AGG and LISTAGG.
+Summarizes rows using count, numeric, Boolean, statistical and string aggregates.
 
 > **Status:** Partial. The declared subset and its execution limits are documented below.
 
@@ -11,6 +11,7 @@ COUNT ( * )
 aggregate_name ( [ DISTINCT | ALL ] expression [ ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ] )
 STRING_AGG ( [ DISTINCT | ALL ] value, delimiter [ ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ] )
 LISTAGG ( [ DISTINCT | ALL ] value [ , delimiter ] ) WITHIN GROUP ( ORDER BY key [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] )
+aggregate_call FILTER ( WHERE condition )
 ```
 
 ## Arguments
@@ -32,6 +33,11 @@ its own level. Columns outside aggregates must satisfy grouping validity.
 | `SUM(expression)` | Ignores nulls; null for all-null or empty input | Nullable `Decimal` |
 | `AVG(expression)` | Ignores nulls in sum and divisor; null for all-null or empty input | Nullable `Decimal` |
 | `MIN(expression)`, `MAX(expression)` | Ignore nulls; null for all-null or empty input | Nullable argument type |
+| `BOOL_AND(expression)`, `EVERY(expression)` | Ignore nulls; TRUE if all non-NULL values are TRUE; NULL for empty/all-NULL input | Nullable Boolean |
+| `BOOL_OR(expression)` | Ignores nulls; TRUE if any non-NULL value is TRUE; NULL for empty/all-NULL input | Nullable Boolean |
+| `STDDEV(expression)`, `STDDEV_SAMP(expression)` | Sample standard deviation; NULL with fewer than two non-NULL values | Nullable Decimal or Float64 |
+| `VARIANCE(expression)`, `VAR_SAMP(expression)` | Sample variance; NULL with fewer than two non-NULL values | Nullable Decimal or Float64 |
+| `STDDEV_POP(expression)`, `VAR_POP(expression)` | Population standard deviation/variance; NULL for empty/all-NULL input, zero for one finite value | Nullable Decimal or Float64 |
 
 An ungrouped aggregate has one implicit group, so empty input returns one row unless removed by
 `HAVING` or pagination. Explicit grouping over empty input returns no rows.
@@ -51,6 +57,10 @@ Extrema use the shared value comparator and effective string collation. Grouped 
 are planning errors. Ordering can use aggregates, output aliases, or ordinals.
 
 ## Aggregate modifiers
+
+[FILTER](../clauses/filter.md) accepts only TRUE rows before arguments, coercion, input ordering,
+DISTINCT retention or transition calls. It follows the call, or WITHIN GROUP for LISTAGG. It works
+with every native/application aggregate. FALSE/NULL skips the call's input evaluation for that row.
 
 DISTINCT consumes each coerced argument tuple once under its effective collations and exact
 numeric equality. Numeric 1 and 1.0 share a class; NaNs share a class. Strict aggregates skip
@@ -83,8 +93,45 @@ LISTAGG cannot also contain an inner ORDER BY (CS00003). The special form accept
 LISTAGG or exactly lowercase quoted `"listagg"`. Other quoted spellings are ordinary calls:
 WITHIN GROUP is CK00001, and a call without that ordering is refused with CS00003.
 
-Aggregate FILTER, empty grouping sets, GROUPING SETS, ROLLUP, CUBE, grouping functions, windows,
+Empty grouping sets, GROUPING SETS, ROLLUP, CUBE, grouping functions, windows,
 non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW (ERROR or TRUNCATE) remain CK00001.
+
+## Boolean and statistical aggregates
+
+BOOL_AND and its alias EVERY accept Boolean input; BOOL_OR accepts Boolean input. NULLs are
+ignored. Empty/all-NULL input returns NULL, including EVERY; it does not produce a vacuous TRUE.
+Incompatible argument types fail binding with CS01006 (42883).
+
+STDDEV aliases STDDEV_SAMP; VARIANCE aliases VAR_SAMP. All six statistics ignore NULLs.
+Signed integer and Decimal arguments return nullable Decimal (`numeric`); REAL/DOUBLE arguments
+return nullable Float64 (`double precision`). Untyped NULL selects Float64. Other argument types
+fail CS01006 (42883). Samples divide by N-1 and require two non-NULL values; population variants
+divide by N and require one. A singleton finite population returns zero; all empty/all-NULL
+statistics return NULL.
+
+Integer/Decimal accumulation uses exact scaled sums and sums of squares, avoiding intermediate
+overflow and cancellation rounding. The final result is bounded by System.Decimal's 96-bit
+coefficient and up to 28 fractional digits, with midpoint ties rounded away from zero. A final
+result outside that domain uses CS02002 (22003). Standard deviation rounds the root of the exact
+rational variance directly, preserving representable roots even when the variance rounds to zero.
+There is no arbitrary-precision numeric result type.
+
+Within a statistical argument, each CASE/COALESCE node converts to its common numeric type before
+the enclosing expression, DISTINCT and accumulation. This includes intermediate REAL rounding
+before widening to Double, through NULLIF, casts and arithmetic. NULLIF retains its normalized
+first operand's type. Ordinary scalar alternative typing retains its existing behavior.
+Floating transitions use Youngs-Cramer accumulation; nonfinite input yields NaN when a result is
+defined, while finite-input overflow uses CS02002. A sample with one non-NULL value still returns NULL.
+
+## Diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS05072 | FILTER on a non-aggregate call | 42809 |
+| CS05073 | Same-scope aggregate inside FILTER | 42803 |
+| CS02003 | Non-Boolean FILTER condition | 42804 |
+| CS01006 | Incompatible aggregate arity or argument types | 42883 |
+| CS02002 | Final Decimal statistical result out of range or finite floating transition overflow | 22003 |
 
 ## Correlated query levels
 
@@ -148,6 +195,27 @@ SELECT STRING_AGG(name, ',' ORDER BY x NULLS LAST),
 
 The result is ('a,z', 'z,a'). NULL values of name are still skipped.
 
+### Boolean, statistical and filtered results
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE stats (v INT, b BOOLEAN);
+INSERT INTO stats VALUES (1,TRUE),(3,FALSE),(NULL,NULL);
+SELECT BOOL_AND(b), EVERY(b), BOOL_OR(b),
+       VAR_SAMP(v), VARIANCE(v), VAR_POP(v), STDDEV_POP(v) FROM stats;
+SELECT STDDEV(v), STDDEV_SAMP(v) FROM stats;
+SELECT BOOL_AND(b), VAR_SAMP(v), VAR_POP(v) FROM stats WHERE v=1;
+SELECT EVERY(b), VAR_POP(v) FROM stats WHERE FALSE;
+```
+
+Results are `(FALSE, FALSE, TRUE, 2, 2, 1, 1)`,
+`(1.4142135623730950488016887242, 1.4142135623730950488016887242)`,
+`(TRUE, NULL, 0)` and `(NULL, NULL)`. All statistical results here are Decimal.
+For Decimal inputs 9223372036854775806 and 9223372036854775807, VAR_SAMP, VAR_POP and STDDEV_POP
+return 0.5, 0.25 and 0.5 without cancellation error. See [FILTER](../clauses/filter.md#examples)
+for filtering before a division or argument subquery.
+
 ## See also
 
 [Functions](index.md) · [GROUP BY](../clauses/group-by.md) · [HAVING](../clauses/having.md)
@@ -157,4 +225,6 @@ The result is ('a,z', 'z,a'). NULL values of name are still skipped.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAggregateExecutionTests.cs`
+- **FILTER/statistics cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAggregateExecutionTests.FilterStatistics.cs`.
+- **Exact transitions and final rounding** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Functions/SqlStatisticsFunction.cs`.
 

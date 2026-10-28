@@ -27,6 +27,9 @@ HAVING requires a [Boolean search condition](where.md#boolean-search-conditions)
 aggregate such as `HAVING SUM(age)` fails with CS02003 (42804), including on empty input.
 Untyped NULL is UNKNOWN and retains no group.
 
+Aggregate calls in HAVING may use [FILTER](filter.md). FILTER selects that call's source rows
+before its arguments evaluate; HAVING still tests the completed group.
+
 Without ORDER BY or DISTINCT, LIMIT stops HAVING and group projection after OFFSET + LIMIT
 qualifying groups. Later groups raise no HAVING/projection errors and make no volatile calls.
 Aggregate input is still consumed before this stop; LIMIT does not skip errors while accumulating

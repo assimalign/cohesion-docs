@@ -13,6 +13,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[WHERE](where.md)** — Filter input rows.
 - **[GROUP BY](group-by.md)** — Group by scalar key expressions.
 - **[HAVING](having.md)** — Filter aggregate results.
+- **[FILTER](filter.md)** — Select rows for one aggregate before evaluating its arguments.
 - **[ORDER BY](order-by.md)** — Sort by source expressions, aliases, and ordinals.
 - **[LIMIT, OFFSET, FETCH and TOP](limit-offset.md)** — Limit and skip returned rows.
 - **[COLLATE](collate.md)** — Choose effective string comparison rules.
@@ -31,7 +32,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 58-of-63 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 59-of-64 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 58 of 63 named clauses against the live engine. The 5 excluded names are
+The profile measures 59 of 64 named clauses against the live engine. The 5 excluded names are
 `WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -52,7 +52,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Subquery in CHECK or DEFAULT | `CK00001` | Row-local checks and column-free scalar expression defaults |
 | Subquery as LIMIT/OFFSET/FETCH/TOP expression | `CK00001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `CK00001` | Includes expression subqueries and derived bodies beneath the top-level query |
-| Aggregate FILTER | `CK00001` | DISTINCT/ALL and input ORDER BY execute on any aggregate |
+| FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; window calls retain CK00001 |
 | DISTINCT/ALL/ORDER BY on a scalar call, or DISTINCT key absent from arguments | `CS05032` | Catalog-aware validation before input reads |
 | `GROUP BY ()`, `GROUPING SETS`, `ROLLUP`, `CUBE` | `CK00001` | One or more ordinary scalar grouping expressions |
 | `GROUPING`, `GROUPING_ID` | `CK00001` | Grouping extensions are excluded |

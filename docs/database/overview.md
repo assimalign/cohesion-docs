@@ -399,8 +399,10 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 58 of 63 declared clauses, including executable MERGE with
+The current SQL contract measures 59 of 64 declared clauses, including executable MERGE with
 ordered actions and RETURNING, and binding-only [WITH RECURSIVE](sql/language/clauses/with.md).
+Aggregate [FILTER](sql/language/clauses/filter.md) and
+[Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.
 Recursive execution remains CK00001; acyclic lists execute. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization. The former replication and

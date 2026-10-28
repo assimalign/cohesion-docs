@@ -17,7 +17,9 @@ public static class SqlLanguageProfile
 
 ## Behavior and exceptions
 
-Instance lists the 42 executable T1 scalar names, the seven aggregates (including STRING_AGG/LISTAGG) and CAST. COALESCE, NULLIF,
+Instance lists the 42 executable T1 scalar names, 16 aggregate names and CAST. Aggregates include
+BOOL_AND/BOOL_OR/EVERY, STDDEV/STDDEV_SAMP/STDDEV_POP, VARIANCE/VAR_SAMP/VAR_POP and
+STRING_AGG/LISTAGG. COALESCE, NULLIF,
 CASE, CAST and EXTRACT remain evaluator forms; CASE is a clause rather than a function-table name. The separate read-only vocabulary lists recognized unsupported spellings for parser
 diagnostics and identifier quoting. Unsupported calls report CK00001 before planning; an unknown
 function outside that vocabulary reports CS01016 during planning. Recognition is not an execution
@@ -43,13 +45,16 @@ TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURREN
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 28, with no upgrade path from an earlier format. The executable
-profile now measures 58 of 63 declared clauses, including CREATE TABLE AS, executable MERGE and
+profile now measures 59 of 64 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 binding-only RECURSIVE. Recursive planning, EXPLAIN and execution remain CK00001; acyclic lists execute.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.
 SqlClauses.OnConflict is the `ON CONFLICT` capability name, enabled for VALUES, DEFAULT VALUES
 and query-source inserts. SqlClauses.QuantifiedComparison is `QUANTIFIED COMPARISON`, enabling scalar ANY/SOME/ALL subqueries.
 Distinct predicates, Boolean tests and LIKE ESCAPE add no named clause.
+SqlClauses.Filter is the `FILTER` capability name, enabled for native and application aggregate
+calls. See [FILTER](../../../../database/sql/language/clauses/filter.md) and
+[aggregate types and NULL behavior](../../../../database/sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates).
 See [scalar contracts](../../../../database/sql/language/functions/builtin-functions.md).
 
 ## Related reference

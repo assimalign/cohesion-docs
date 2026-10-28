@@ -1303,6 +1303,8 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS05068` | UPDATE target has multiple source associations; before SET evaluation or writes | 21000 (`cardinality_violation`) |
 | `CS05069` | Direct RIGHT, FULL or unaliased parenthesized joined-DML source; refused before reads/writes | — |
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
+| `CS05072` | FILTER attached to a scalar/non-aggregate call | 42809 |
+| `CS05073` | Same-scope aggregate inside a FILTER condition | 42803 |
 | `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
 | `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state or CTAS buffers | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
@@ -1686,6 +1688,25 @@ Scalar modifiers and invalid DISTINCT order keys use CS05032 (no SQLSTATE). STRI
 LISTAGG return nullable String, skip NULL values and accept only literal/parameter delimiters.
 Their 1,048,576 UTF-16-unit output cap uses CS02002 (22003); incompatible signatures use
 CS01006 (42883). ON OVERFLOW stays CK00001. Wire metadata/framing need no changes.
+
+[FILTER](../../../../database/sql/language/clauses/filter.md) executes the source-bound condition
+before arguments, argument/ordering subqueries, coercion, DISTINCT state or transitions. Only TRUE
+admits a row; FALSE/NULL skips it. Independent subqueries inside filtered calls evaluate on first
+demand and cache per statement. Different filters and volatile inputs retain independent states;
+child queries conservatively prevent sharing. EXPLAIN adds filtered_aggregates only when nonzero.
+Non-Boolean conditions reuse CS02003 (42804); placement uses CS05072/CS05073 above.
+
+BOOL_AND/EVERY and BOOL_OR use strict Boolean transitions and nullable Boolean results. Empty
+or all-NULL input yields NULL. Statistical signatures select Decimal for signed integers/Decimal
+and Float64 for REAL/DOUBLE, with untyped NULL choosing Float64. Samples need two non-NULL
+values; populations need one, returning zero for a singleton finite value.
+Exact sums and squares retain scale-28 BigInteger state. Final division or the root of the exact
+rational variance rounds once into the 96-bit Decimal domain, up to 28 fractional digits, with
+midpoint ties away from zero. Final overflow uses CS02002 (22003). Floating transitions use
+Youngs-Cramer accumulation. CASE/COALESCE within statistical arguments convert at each common
+numeric type boundary before enclosing expressions, DISTINCT and accumulation, preserving REAL
+rounding even through later widening, NULLIF, casts and arithmetic. Ordinary scalar typing is
+unchanged. See [statistical semantics and examples](../../../../database/sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates).
 
 ## Persisted views, ordering and RETURNING
 
