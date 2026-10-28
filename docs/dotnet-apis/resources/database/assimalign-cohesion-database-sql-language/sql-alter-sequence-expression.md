@@ -20,8 +20,8 @@ public sealed class SqlAlterSequenceExpression : SqlQueryExpression
 The parser owns construction. Options retains written order; a RESTART option with null Value
 means the configured START. START alone does not restart. Accessors add no validation exceptions.
 Execution self-commits and waits for transactions using the sequence. DatabaseException codes
-include CS03069 (22023) for options, CS03073 (42P01) for an unguarded absent name, CS04067 (40001)
-for replacement during a wait, and CS04003 (25001) inside explicit transactions.
+include CS03069 (22023) for options, CS03073 (42P01) for an unguarded absent name and CS04067 (40001)
+for replacement during a wait. Explicit transactions return CS04003 (25001) diagnostics.
 See [ALTER SEQUENCE](../../../../database/sql/language/statements/alter-sequence.md).
 
 ## Example

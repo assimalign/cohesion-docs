@@ -27,9 +27,10 @@ across DROP/recreate. NULL arguments propagate NULL. SQL has no MISSING value.
 | setval(name,n) | Equivalent to setval(name,n,TRUE) |
 | setval(name,n,TRUE) | Sets the allocator and this session's currval to n; next allocation is n + increment |
 | setval(name,n,FALSE) | Makes the next allocation return n itself; leaves session currval and lastval unchanged |
-| lastval | Returns the current session value for the sequence most recently selected by nextval |
+| lastval | Returns the current session value for the sequence most recently selected by nextval or an allocating NEXT VALUE FOR |
 
-setval never selects a new lastval sequence. A TRUE setval on the already selected sequence changes
+An allocation by NEXT VALUE FOR also sets currval and selects lastval; reuse of its cached row
+value does not allocate again. setval never selects a new lastval sequence. A TRUE setval on the already selected sequence changes
 the value lastval reads. Its value must fit the sequence bounds; the runtime value is a signed
 integer and is_called is Boolean. New sessions have no currval or lastval. Allocation and setval
 are nontransactional; rollback leaves gaps and session observations survive statement failures

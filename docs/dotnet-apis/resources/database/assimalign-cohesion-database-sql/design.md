@@ -66,14 +66,16 @@ columns, including inside scalar ordering expressions. Qualified references and 
 retain their source scope. Invalid numeric ordinals fail during binding, even for an empty input;
 compound constants such as `1 + 1` remain scalar expressions.
 
-The executor evaluates each projection and its ordering keys in one pass, retaining completed
+The executor ordinarily evaluates each projection and its ordering keys in one pass, retaining completed
 outputs and fixed keys rather than source rows. Independent volatile outputs without output-key
 dependencies retain full sorting followed by projection. Grouped queries use the same binding against completed group
-outputs. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
+outputs. [Sequence outputs](../../../../database/sql/language/functions/sequences.md#evaluation-order)
+needed as sort keys evaluate before sorting; independent sequence outputs evaluate afterward,
+including OFFSET rows, and stop at LIMIT. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
 follows each projection's source for collation. It does not reconstruct language AST nodes or
 require cross-assembly internal access. Sorting is stable, with NULL first ascending and last
 descending, followed by DISTINCT and LIMIT/OFFSET. Explicit NULL placement and derived-table
-ordering remain capability errors. The exact syntax contract and execution evidence are in
+ordering execute. The exact syntax contract and execution evidence are in
 DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`).
 
@@ -1741,8 +1743,10 @@ inputs and set results. EXPLAIN describes each effective placement. Format 24 in
 modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 28
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
-[RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
-apply after index checks, including immutable calls. Rows buffer until apply/commit completes;
+[RETURNING](../../../../database/sql/language/clauses/returning.md) ordinarily evaluates per written row
+inside apply after index checks, including immutable calls. Lists containing sequence calls evaluate
+before the global apply gate; sequence effects survive a later write rollback. NEXT VALUE FOR in
+RETURNING is refused with CS03076 (0A000). Rows buffer until apply/commit completes;
 projection failure rolls back that whole statement. DatabaseResultSet.AffectedCount counts direct
 writes and remains -1 for SELECT. EXPLAIN describes projection width/names without evaluation.
 
@@ -1784,7 +1788,8 @@ projection evaluation. EXCLUDED supplies coerced/defaulted/generated proposed va
 original target. Proposed NOT NULL/domain/CHECK validation precedes arbitration; foreign keys
 validate only writes. A pending per-index/key map records earlier proposals and source-order rekeys.
 DO NOTHING and false/UNKNOWN filters produce no returned row or affected count. All row/index writes
-and RETURNING evaluations share one ApplyStatementAsync bracket.
+and ordinary RETURNING evaluations share one ApplyStatementAsync bracket. Lists containing sequence
+calls evaluate before the apply gate; their allocation/setval effects are nontransactional.
 
 Without requested side-effecting defaults, every proposal's keys from every unique index acquire
 one sorted batch. Requested identities or recursively non-immutable default calls, conservatively
@@ -1813,7 +1818,8 @@ Rows kept by successful waits remain locked until transaction end even after a c
 or DELETE removes the original conflict. Snapshot still rejects a committed changed row;
 ReadCommitted re-arbitrates against committed state. Earlier grants and upgrades remain held.
 
-No heap/index change, ledger entry or RETURNING projection precedes final apply. Restarting
+No heap/index change or ledger entry precedes final apply. Ordinary RETURNING projects there;
+lists containing sequence calls evaluate before the apply gate. Restarting
 re-enumerates proposals, so identities and non-immutable defaults run again; gaps and repeated
 default side effects are possible. Final effects and RETURNING rows occur once. Every preparation
 exception releases grants since the original statement mark, including retained waited rows,

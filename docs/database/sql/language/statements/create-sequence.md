@@ -29,7 +29,7 @@ transactions with CS04003 (25001).
 | MINVALUE / NO MINVALUE | Ascending: 1; descending: type minimum; NO restores the directional default |
 | MAXVALUE / NO MAXVALUE | Ascending: type maximum; descending: -1; NO restores the directional default |
 | START | Directional starting bound: minimum for ascending, maximum for descending |
-| CACHE | 1; positive metadata value; allocation still reserves 32 values durably through the shared allocator |
+| CACHE | 1; positive metadata value; allocation still reserves up to 32 values durably through the shared allocator |
 | CYCLE / NO CYCLE | NO CYCLE; cycling wraps at the directional bound |
 
 Bounds must be ordered and fit the selected type; START must fit the bounds. Noncycling range

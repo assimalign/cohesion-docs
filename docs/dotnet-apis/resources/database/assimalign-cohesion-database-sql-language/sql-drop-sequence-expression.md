@@ -21,8 +21,8 @@ The parser owns construction and retains names in written order. Cascade is fals
 explicit RESTRICT. With persisted sequence dependencies refused, both policies have the same
 effect. Execution validates the full list before one commit and waits for users of the sequences.
 Accessors add no exceptions. Engine DatabaseException codes include CS03073 (42P01) for an
-unguarded missing name, CS04067 (40001) for a replacement and CS04003 (25001) inside an explicit
-transaction. See [DROP SEQUENCE](../../../../database/sql/language/statements/drop-sequence.md).
+unguarded missing name and CS04067 (40001) for a replacement. Explicit transactions return
+CS04003 (25001) diagnostics. See [DROP SEQUENCE](../../../../database/sql/language/statements/drop-sequence.md).
 
 ## Example
 

@@ -60,16 +60,21 @@ table-definition binding rule described under [ALTER TABLE](../statements/alter-
 Data manipulation and table/index DDL targeting the named relations fail with
 `System view '<SCHEMA>.<VIEW>' is read-only.`, including colliding creates and
 `IF [NOT] EXISTS` forms. The wire error is `ExecutionFailure`.
-User-defined `CREATE VIEW` and `DROP VIEW` remain unsupported.
+[CREATE VIEW](../statements/create-view.md) and [DROP VIEW](../statements/drop-view.md) manage
+persisted read-only views.
 
 All five extension relations join through the same binder, including the function/type/domain
 relations. SQL-defined entries read the statement catalog image; native registrations are frozen
 at engine build.
 
 FUNCTIONS includes the executable T1 scalar overloads. Stable clocks and Volatile GEN_RANDOM_UUID
-have their declared volatility; COALESCE, NULLIF, CASE, CAST and EXTRACT appear as SPECIAL FORM
+have their declared volatility; nextval, currval, setval and lastval are Volatile BIGINT overloads.
+COALESCE, NULLIF, GROUPING, GROUPING_ID, CASE, CAST and EXTRACT appear as SPECIAL FORM
 rows with type/count/volatility/NULL-behavior fields NULL. This distinguishes evaluator forms from
 catalog functions. Renames expose the new table/column names without changing generated index names.
+
+[GROUPING/GROUPING_ID](../functions/grouping.md) have no independently invocable scalar callback.
+See [sequence functions](../functions/sequences.md) for session observations and allocation effects.
 
 ## Examples
 

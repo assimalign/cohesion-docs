@@ -51,6 +51,11 @@ of complete SQL. The
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
+[Standalone sequences](language/statements/create-sequence.md) provide SQL DDL, session functions,
+NEXT VALUE FOR and INFORMATION_SCHEMA.SEQUENCES. [Grouping sets](language/clauses/group-by.md)
+provide ROLLUP/CUBE, empty sets and GROUPING masks. Identity integration, SERIAL and OWNED BY
+remain sequence run-3 work.
+
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
 [MERGE](language/statements/merge.md) executes ordered actions with RETURNING, ReadCommitted
 target rechecks and mixed-action final-state foreign keys. Statement-level uniqueness permits

@@ -34,8 +34,9 @@ results retain the existing Execute refusal (CG05001), even with an empty source
 Each visited element consumes statement work (CG05004). The source, current accumulator and
 nested results share statement memory (CG05020); replacement releases the old accumulator.
 Failures roll back statement writes. Planning conservatively considers both seed and repeated
-body results: a union with no Boolean kind is invalid in a predicate; one with no list kind is
-invalid as a list source. Unknown kinds keep runtime validation. Shape/type planning has a
+body results: proven non-Boolean kinds with no Boolean alternative are invalid in a predicate;
+proven non-list kinds with no list alternative are invalid as a list source. NULL remains allowed.
+Unknown kinds keep runtime validation. Shape/type planning has a
 separate cancellable cap of 65,536 node visits or closure steps (CG05026).
 
 ## Diagnostics

@@ -20,7 +20,7 @@ public sealed class SqlCreateSequenceExpression : SqlQueryExpression
 The parser owns construction; accessors retain syntax without allocating values. Options preserves
 written order. Execution resolves defaults, atomically checks IF NOT EXISTS before option validation,
 and self-commits. Invalid options use DatabaseException/CS03069 (22023); an unguarded name collision
-uses CS03070 (42P07). Explicit transactions use CS04003 (25001), and declared provisioning scripts
+uses CS03070 (42P07). Explicit transactions return CS04003 (25001) diagnostics, and declared provisioning scripts
 use CS03074 (0A000). See [CREATE SEQUENCE](../../../../database/sql/language/statements/create-sequence.md).
 
 ## Example

@@ -6,7 +6,7 @@ Reference for read-only virtual relations describing the session database's cata
 
 ## Metadata families
 
-- **[INFORMATION_SCHEMA](information-schema.md)** — Inspect persisted namespaces, stored tables, columns, and constraints.
+- **[INFORMATION_SCHEMA](information-schema.md)** — Inspect persisted namespaces, tables, columns, constraints and standalone sequences.
 - **[COHESION_SCHEMA](cohesion-schema.md)** — Inspect indexes, ownership, functions and types.
 
 ## Scope
