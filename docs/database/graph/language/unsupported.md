@@ -28,8 +28,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Counted ANY | Recognized, not supported (`CK00001`) | [ANY/ALL/SHORTEST selectors and inline WHERE](path-selectors.md) execute |
 | Questioned paths, nested quantifiers and subpath assignments | Recognized, not supported (`CK00001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute; inline WHERE executes |
 | Stored composite property values | Recognized, not supported (`CK00001`) for syntax; `CG03003` for parameters | MATCH/INSERT/CREATE/SET stored properties stay scalar-only |
-| Pattern comprehensions | Recognized, not supported (`CK00001`) | List [comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md) execute |
-| reduce and list predicates | Recognized, not supported (`CK00001`) | `reduce(...)`, `all(x IN xs WHERE ...)`, any, none and single |
+| Pattern comprehensions | Recognized, not supported (`CK00001`) | Planned for run 3; list [comprehensions](expressions/list-comprehensions.md), [slices](expressions/list-slices.md), [reduce](expressions/reduce.md) and [list predicates](expressions/list-predicates.md) execute |
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
 | Server, database, graph, or schema selection | Recognized, not supported (`CK00001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |

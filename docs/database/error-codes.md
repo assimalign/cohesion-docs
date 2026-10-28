@@ -273,9 +273,15 @@ plan reasons, consumption and sort elision/retention; it adds no diagnostic or s
 | CG01017 | Missing/empty iterator declaration in a direct comprehension AST | — |
 | CG02014 | Invalid list source or slice-bound kind/range | — |
 | CG05024 | Aggregate inside a comprehension predicate or projection | — |
+| CG01018 | Missing/empty reduce/list-predicate declaration or identical reduce names | — |
+| CG02015 | Reduce/list-predicate source is neither list nor NULL; known kinds fail planning | — |
+| CG05025 | Malformed reduce/list-predicate body/quantifier AST or body aggregate | — |
+| CG05026 | Reduce shape/type planning exceeds 65,536 node visits or closure steps | — |
 
 See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
-[slices](graph/language/expressions/list-slices.md).
+[slices](graph/language/expressions/list-slices.md), [reduce](graph/language/expressions/reduce.md)
+and [list predicates](graph/language/expressions/list-predicates.md). Known non-Boolean predicates
+use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions retain CK00001.
 
 ## SQL sequence catalog conditions
 

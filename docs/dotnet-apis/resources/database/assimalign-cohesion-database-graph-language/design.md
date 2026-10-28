@@ -391,7 +391,7 @@ bounds separately from explicit NULL. The iterator scopes only the body; sources
 All names and parameters validate even for empty/NULL input. Source aggregates are allowed;
 body aggregates are refused. GqlClauses.ListComprehension and ListSlice are enabled by the profile.
 Complete property expressions parse before scalar admission, including MERGE and its SET branches.
-List-valued properties, reduce and list predicates remain CK00001. See
+List-valued properties and pattern comprehensions remain CK00001. See
 [comprehensions](../../../../database/graph/language/expressions/list-comprehensions.md) and
 [slices](../../../../database/graph/language/expressions/list-slices.md) for evaluation and bounds.
 
@@ -401,6 +401,17 @@ List-valued properties, reduce and list predicates remain CK00001. See
 | CG01017 | Missing/empty iterator declaration in a direct AST | — |
 | CG02014 | Invalid list source or slice-bound kind/range | — |
 | CG05024 | Aggregate inside comprehension predicate/projection | — |
+| CG01018 | Missing/empty reduce/list-predicate declaration or identical reduce names | — |
+| CG02015 | Reduce/list-predicate source is neither list nor NULL | — |
+| CG05025 | Malformed reduce/list-predicate body/quantifier AST or body aggregate | — |
+| CG05026 | Reduce shape/type planning exceeds 65,536 node visits or closure steps | — |
+
+[GqlReduceExpression](gql-reduce-expression.md) and
+[GqlListPredicateExpression](gql-list-predicate-expression.md) add lexical accumulator/iterator
+forms. Sources and reduce seeds bind outside the body; all names and known source/test kinds
+validate even when input is empty or NULL. Reduce visits in order; list predicates stop only on
+decisive results. Shape analysis considers both seed and repeated body kinds under the separate
+65,536-node/closure-step planning cap. GqlLanguageProfile enables GqlClauses.Reduce and ListPredicate.
 
 ## Sources
 
