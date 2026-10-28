@@ -29,7 +29,7 @@ and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
 Current table extension 7 stores the definition (the identity facet originated in extension 5); catalog kind 16 stores the last durable reserved
-value. Current SQL format 27 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
+value. Current SQL format 28 refuses older files. Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md).
 
 ## Example
 
@@ -53,7 +53,7 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

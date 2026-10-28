@@ -35,7 +35,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS02001` | Division or remainder by zero | 22012 |
-| `CS02002` | Numeric domain/range/overflow, non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
+| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion (SQL identity generation retains CS03025), non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
 | `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE condition or AND/OR/NOT/truth-test operand | 42804 |
 | `CS05004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `CS01005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
@@ -103,6 +103,12 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS04064` | DDL target replacement, TRUNCATE closure change, or MERGE target recheck/apply-time modified-row version conflict (including Snapshot stale targets); retry the statement or aborted transaction | 40001 (`serialization_failure`) |
 | `CS03067` | TRUNCATE RESTRICT omits a referencing table, even an empty one | 0A000 (`feature_not_supported`) |
 | `CS04066` | TRUNCATE inside an explicit transaction; prior work and active state kept | 25001 (`active_sql_transaction`) |
+| `CS03069` | Invalid resolved sequence type/options or restart/current value | 22023 |
+| `CS03070` | Occupied sequence/table/view relation name involving a sequence; existing kind named | 42P07 |
+| `CS03071` | Sequence namespace does not exist | 3F000 |
+| `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| `CS04067` | Dropped/replaced sequence incarnation used for allocation or mutation | 40001 |
+| `CS06061` | Malformed sequence definition, directory or reservation | XX001 |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
 

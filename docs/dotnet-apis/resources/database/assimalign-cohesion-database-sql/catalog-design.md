@@ -88,7 +88,7 @@ those same transforms for uniqueness enforcement.
   record cannot be told apart record-by-record, and version 2 vs 3 (shared page
   stream vs per-object page chains) is a page-placement property no record
   carries — so the database-grain marker is catalog metadata, read by the
-  engine at open to enforce format 27. Earlier or newer markers, including format 26, are
+  engine at open to enforce format 28. Earlier or newer markers, including format 26, are
   refused without an upgrade reader. An absent marker does not authorize migration; only
   proven interrupted creation can complete under the engine's creation rules.
 - **The applied compiled-schema state lives here** (kind-6 records). The catalog
@@ -165,7 +165,7 @@ ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinal
 with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
 dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
 intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
-abandoned storage. This reuses format 27 and the TRUNCATE replacement contract.
+abandoned storage. This reuses format 28 and the TRUNCATE replacement contract.
 
 ## Single source for SQL system views (C1)
 
@@ -208,6 +208,36 @@ DdlGeneration/script receipts. Reopen starts after the last reservation, leaving
 reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
 DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
 
+## Standalone sequences
+
+Sequence types and catalog entry points are internal in batch 9; no SQL sequence syntax or
+public API is exposed. Immutable definitions store object identity, schema/name and resolved
+SMALLINT/INTEGER/BIGINT type, START, INCREMENT, MINVALUE, MAXVALUE, CACHE and CYCLE.
+Defaults are BIGINT, increment 1, cache 1 and no cycle. Ascending defaults span 1 through the
+type maximum; descending defaults span the type minimum through -1. START defaults to the
+directional bound. Zero increment, nonpositive cache, unordered/out-of-type bounds or a
+start/restart/current value outside the bounds use CS03069 (22023).
+
+Sequences share the case-insensitive table/view relation namespace and the catalog object-id
+counter; ids are never reused. Publication rechecks collisions, including CTAS and table rename.
+Sequence creation against any occupied relation, or another relation colliding with an existing
+sequence, uses CS03070 (42P07) and names the existing kind. Table-on-table collisions retain
+CS03049 (42P07). An absent sequence namespace uses CS03071 (3F000). Schema RESTRICT counts
+sequences; CASCADE removes definitions and counters atomically in the schema transaction.
+
+Format 28 adds kind 18 definitions and kind 19 reservations. Kind 18 stores the typed tuple
+above; kind 19 stores object id, durable endpoint and a called flag. A false flag represents an
+explicit restart before first use. Definitions exceeding 8,092 bytes use CS03072 (54000) before
+identity reservation/publication. Invalid/truncated definitions, duplicate/orphaned counters,
+namespace/name/id collisions or out-of-range endpoints use CS06061 (XX001) on load.
+Existing SqlCatalogSnapshot does not expose sequences; internal captures use Catalog.Sequences.
+
+Create/alter/restart/drop atomically commit metadata and cursor changes under the catalog monitor.
+Ordinary alter validates and retains the last fetched value, discards its unused reservation,
+then continues with the new increment. Explicit restart may deliberately repeat values and
+does not change START metadata. Dropped/replaced incarnation handles use CS04067 (40001).
+See [shared reservations](storage-design.md#identity-and-sequence-reservations).
+
 ## CREATE TABLE AS publication
 
 [CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reserves a
@@ -215,7 +245,7 @@ hidden table identity with a durable kind-14 abandonment intent, using the same 
 reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
 publication removes the intent and exposes the table. Recovery retains either the whole table or
 an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
-zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 27.
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 28.
 
 ## Error model
 
@@ -240,9 +270,8 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 
 ## Non-goals
 
-- **Stored user-defined views, sequences,** — permissions (permissions are
-  the model's future authorization feature, #177). Virtual system views are engine projections
-  of this catalog and require no view records here.
+- **Sequence SQL binding/session state and permissions** — sequence catalog objects exist;
+  SQL binding is batch 10 work. Permissions remain the model's future authorization feature, #177.
 - **Multi-statement DDL atomicity (see** — self-committing DDL above). The migration
   layer compensates completed reversible statements on failure; an MVCC bracket
   spanning catalog and data DDL requires a future catalog batch-transaction seam.
@@ -273,7 +302,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 27 and compiled schema version 8.
+The integration branch uses SQL row-storage format 28 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -286,25 +315,27 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 27 records TYPE default assignment coercion in table extension 7.
+Current format 28 records TYPE default assignment coercion in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
 ## Persisted views
 
-Current format 27 records TYPE default assignment coercion in table extension 7. Format 26 and
+Current format 28 records TYPE default assignment coercion in table extension 7. Format 27 and
 every earlier catalog are refused before definitions bind, carrying CS06041; they are never
 silently rewritten. Format 26 introduced the temporal DEFAULT/frozen missing-value fence.
-Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-27-and-schema-v8).
+Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-28-and-schema-v8).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 27. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 28. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.
 Snapshots capture immutable view definitions alongside the rest of the catalog.
 
 ## Sources
+
+- **Sequence definitions, namespace and validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Catalog/SqlCatalog.Sequences.cs`, `src/Internal/Catalog/SqlSequenceOptions.cs` and `tests/Catalog/SqlCatalogTests.Sequences.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Assimalign.Cohesion.Database.Sql.csproj`.

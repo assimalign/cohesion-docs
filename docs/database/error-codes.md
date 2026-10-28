@@ -118,14 +118,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 27.
+remains nonexecuting; SQL storage stays at format 28.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 27 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 28 is unchanged.
 
 ## SQL table rewrite
 
@@ -133,7 +133,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 27 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 27 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 28 is unchanged.
 
 ## Document array indexes
 
@@ -275,6 +275,21 @@ plan reasons and retains sorting; it adds no diagnostic or storage format.
 
 See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
 [slices](graph/language/expressions/list-slices.md).
+
+## SQL sequence catalog conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS02002 | Extended to identity or noncycling standalone sequence exhaustion | 22003 |
+| CS03069 | Invalid resolved sequence options or restart/current value | 22023 |
+| CS03070 | Occupied sequence/table/view relation name involving a sequence | 42P07 |
+| CS03071 | Sequence namespace absent | 3F000 |
+| CS03072 | Sequence definition exceeds the catalog record limit | 54000 |
+| CS04067 | Dropped/replaced sequence incarnation | 40001 |
+| CS06061 | Malformed sequence definition, directory or reservation | XX001 |
+
+These are internal [catalog/allocation conditions](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/catalog-design.md#standalone-sequences);
+sequence SQL syntax is not exposed in batch 9.
 
 ## Sources
 
