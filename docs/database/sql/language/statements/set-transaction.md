@@ -22,7 +22,7 @@ READ WRITE, DEFERRABLE and NOT DEFERRABLE remain CK00001 parser refusals.
 
 Repeated early SET is allowed. The first admitted data statement closes configuration, including
 SELECT, plain EXPLAIN, failing binding/evaluation, and unsuccessful DDL attempts. Admission closes
-it before metadata interlocks or deferred execution. SET during an operation or after data uses
+it before metadata interlocks or deferred execution. A supported SET during an operation or after data uses
 CS04072, even if it requests the current level. Parse failures, refused transaction controls and
 requests cancelled before admission leave configuration open. Failed SET leaves the block usable.
 
@@ -36,6 +36,7 @@ Outside a block, SET succeeds with zero affected rows and Warning CS04071, inclu
 requested level is SERIALIZABLE. It changes no default. An aborted block retains its ordinary
 transaction refusal before isolation validation. BEGIN and automatic transactions continue to
 default to Snapshot; DISCARD ALL and pooled reuse do not retain the configured level.
+Within a usable block, SERIALIZABLE validation precedes the late-SET check.
 
 ## Diagnostics
 

@@ -29,7 +29,7 @@ domain and collation. It may append columns. Incompatible replacement and depend
 fail atomically. The complete encoded definition, columns and dependencies must fit 8,092 bytes.
 
 Views work in FROM, JOIN, subqueries, INSERT SELECT and
-[CREATE TABLE AS](create-table.md#create-table-as). Each reference materializes its body
+[CREATE TABLE AS](create-table.md#create-table-as). Each nonrecursive reference materializes its body
 once under the caller's statement snapshot, using memory proportional to the body rows.
 Recursive bodies use [shared demand-driven readers](../clauses/with.md#on-demand-evaluation-and-memory),
 so an outer LIMIT can stop an infinite producer.

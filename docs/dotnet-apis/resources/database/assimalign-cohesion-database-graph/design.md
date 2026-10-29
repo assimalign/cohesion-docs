@@ -1178,6 +1178,8 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 
 ## Sources
 
+- **Composite set queries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
+
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Batched path phases and failure boundaries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseEventSourceTests.cs` and `GraphOperationOutcomeTests.cs` in the same directory.

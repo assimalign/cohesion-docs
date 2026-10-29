@@ -289,6 +289,8 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Key join grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlKeyJoinParserTests.cs`.
+
 - **Ordering syntax and tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlOrderingParserTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DESIGN.md`.

@@ -107,6 +107,11 @@ Statements auto-commit unless attached to an explicit session transaction. Row v
 multi-version concurrency control (MVCC); DDL is self-committing and rejected inside explicit
 transactions.
 
+[BEGIN isolation options](language/statements/begin-transaction.md) and
+[SET TRANSACTION](language/statements/set-transaction.md) select ReadCommitted or Snapshot.
+SET must precede the first admitted data statement; Snapshot stays fixed at the original BEGIN.
+SERIALIZABLE is refused. Optionless BEGIN and automatic statements default to Snapshot.
+
 Commit and rollback observe caller cancellation before their end starts, leaving the transaction
 usable when canceled at that point. A started commit ignores caller cancellation and returns its
 real outcome. Automatic commit takes over after execution completes; self-committed DDL finishes

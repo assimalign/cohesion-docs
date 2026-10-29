@@ -37,8 +37,9 @@ SqlQueryRequest.FromSql rejects parser errors with DatabaseParseException; seman
 during planning as DatabaseException. Well-formed recursive entries execute on demand; retained
 state uses CS05067 (53200), and an internal reader-count invariant uses CS05090 (XX000).
 Mutual recursion and WITH RECURSIVE ... MERGE remain CK00001. Nested WITH, modifying bodies and
-materialization hints remain parser refusals. Reachable acyclic definitions materialize once before
-writes. See [WITH](../../../../database/sql/language/clauses/with.md) for snapshot and scope rules.
+materialization hints remain parser refusals. Statements without recursive execution materialize
+reachable definitions once before writes. See [WITH](../../../../database/sql/language/clauses/with.md)
+for snapshot and scope rules.
 
 ## Example
 

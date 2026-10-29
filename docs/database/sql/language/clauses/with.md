@@ -47,11 +47,11 @@ A FROM-less SELECT uses one implicit row and supports scalar or aggregate SELECT
 clauses at every query level. A wildcard still needs a relation. Column renaming retains types, bounds, nullability, domains
 and collations, including empty results. SQL has NULL and no MISSING value.
 
-Each reachable acyclic definition materializes once per statement, reused across joins and scalar, IN
+In statements without recursive execution, each reachable definition materializes once, reused across joins and scalar, IN
 and EXISTS children. Unused definitions and dependencies that are reachable only from them never
 execute. Their counts and predicates bind without evaluating counts or seek bounds. All reads
 share the statement's MVCC and catalog snapshots, including the session's earlier uncommitted writes.
-Before DML writes, reachable acyclic definitions materialize in binding order. Failures roll back the
+Before DML writes, these definitions materialize in binding order. Failures roll back the
 whole statement while preserving an explicit transaction. INSERT retains destination defaults,
 constraints and identity generation. [EXPLAIN](../statements/explain.md) describes without executing.
 

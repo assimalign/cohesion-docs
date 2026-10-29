@@ -835,6 +835,8 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Key joins and cache** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentKeyJoinTests.cs`, `DocumentKeyJoinCacheTests.cs` and `DocumentKeyJoinSnapshotTests.cs` in the same directory.
+
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentServerDrainTests.cs`, `DocumentServerRejectionDrainTests.cs`, `DocumentServerRejectionSetupTests.cs` and `DocumentTerminalDrainEventTests.cs` in the same directory.
 

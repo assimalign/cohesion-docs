@@ -44,6 +44,8 @@ CG05020 and CG05004. UNION ALL has no distinct table or per-operand result set; 
 
 ## Sources
 
+- **Composite accounting** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
+
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngineOptions.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseSession.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlExecutionBudgetTests.cs`.

@@ -413,6 +413,12 @@ declared language subsets; SQL feature support does not transfer to them. Cache 
 MVP. Security contracts do not imply complete model authorization. The former replication and
 governance projects are removed and supply no current API.
 
+SQL [isolation options and early SET TRANSACTION](sql/language/statements/set-transaction.md)
+select ReadCommitted or the original BEGIN snapshot. OQL [key JOIN and NEST](document/language/clauses/join.md)
+complete its T2 lane with explicit source aliases, per-source metadata and bounded lookup caching.
+GQL [EXCEPT/INTERSECT and OTHERWISE](graph/language/clauses/union.md) execute multiset operations
+and lazy whole-result fallback under shared work/memory budgets.
+
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row
 foreign-key validation for multi-row UPDATE. OQL supports [text transactions](document/language/statements/transactions.md) in process and over
