@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive execution, nested CTEs, explicit window frames and aggregate windows, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive execution, nested CTEs, explicit window frames and aggregate windows, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -193,8 +193,8 @@ discipline and emits `CS00003` on malformed input.
 unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUnique: true)`. This
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
 Foreign keys and checks remain constraint catalog records. ON DELETE accepts CASCADE, RESTRICT,
-NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE stays outside the profile
-and reports `CK00001`. See [constraint semantics](../../../../database/sql/language/constraints.md).
+NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE accepts the same declarations;
+changing-action execution retains CK00001 until batch 13. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
 ## T1 literal, type and request forms
 

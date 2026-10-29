@@ -27,9 +27,9 @@ The relational catalog of the SQL model: schemas, tables, columns, and constrain
 same page/WAL durability as data, plus persistence for the physical index registrations exported by
 `Database.Indexing`.
 
-[SqlCatalogConstraint](sql-catalog-constraint.md) persists five delete actions. Its constructor
-retains a Restrict default; SQL syntax defaults to NoAction. Compiled schema version 8 still
-models only Restrict/Cascade.
+[SqlCatalogConstraint](sql-catalog-constraint.md) persists five delete and update actions. Its
+constructor defaults OnDelete to Restrict and OnUpdate to NoAction; SQL defaults both to NoAction.
+Compiled schema v9 keeps Restrict/Cascade for deletes and supports all five update declarations.
 
 - **[SqlCatalogView](sql-catalog-view.md)** — Canonical view body, frozen columns and resolved dependencies.
 

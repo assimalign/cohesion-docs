@@ -103,6 +103,16 @@ declarations, canonical documents, ownership, validation, and migration planning
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
+## Foreign-key update metadata
+
+[CompiledSchemaConstraint.OnUpdate](compiled-schema-constraint.md) is constructor/with metadata,
+defaults to NoAction and always serializes in v9. All five enum actions are valid for references;
+CHECK requires NoAction. Invalid values fail validation as InvalidDocument at onUpdate. OnDelete
+keeps its Restrict/Cascade restriction. Changing OnUpdate changes identity and plans drop/add.
+The retained References builder supplies NoAction; runtime and SDK share v9 and refuse earlier
+artifacts, applied markers and pending targets before comparison. Catalog format 30 retains the
+action through provisioning, reconciliation and reopen. Action execution is deferred to batch 13.
+
 ## Current format boundary
 
 `SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v8`. Typed TimeSpan defaults

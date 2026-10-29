@@ -23,15 +23,20 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 <column_constraint> ::= [ CONSTRAINT constraint_name ]
     { PRIMARY KEY | UNIQUE | CHECK ( search_condition )
     | REFERENCES [ schema_name . ] referenced_table ( column_name [ , ...n ] )
-      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
+      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ]
+      [ ON UPDATE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
 <table_constraint> ::= [ CONSTRAINT constraint_name ]
     { PRIMARY KEY ( column_name [ , ...n ] )
     | UNIQUE ( column_name [ , ...n ] )
     | CHECK ( search_condition )
     | FOREIGN KEY ( column_name [ , ...n ] )
       REFERENCES [ schema_name . ] referenced_table ( column_name [ , ...n ] )
-      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
+      [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ]
+      [ ON UPDATE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ] }
 ```
+
+ON DELETE and ON UPDATE can appear in either order, once each; omitted actions independently
+default to NO ACTION. See [ON UPDATE declarations and interim enforcement](../constraints.md#on-update-declarations).
 
 ## Arguments
 

@@ -400,6 +400,14 @@ Scalar composite results use graph.composite-values; entity lists remain CG05001
 | CG00014 | Pattern comprehension requires a nonempty path and projection | — |
 | CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
 
+## Foreign-key update declarations
+
+ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
+SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059,
+unsupported table extensions CS06060, and earlier catalog formats CS06041. Compiled v8 artifacts
+are refused with InvalidDocument at schema.format. See [constraints](sql/language/constraints.md#on-update-declarations).
+
 ## Sources
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.

@@ -58,7 +58,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | GROUPING SETS inside ROLLUP or CUBE | `CS00010` (42601) | Reverse nesting, composites, empty sets and [grouping masks](functions/grouping.md) execute |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `CK00001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `CK00001` | Output ordinals belong only to ORDER BY |
-| Foreign-key `ON UPDATE` | `CK00001` | ON DELETE CASCADE, RESTRICT, NO ACTION, SET NULL and SET DEFAULT execute |
+| Foreign-key ON UPDATE action execution | `CK00001` | [Declarations persist](constraints.md#on-update-declarations); changing keys under CASCADE/SET NULL/SET DEFAULT is refused until batch 13. RESTRICT/NO ACTION retain statement-end checks |
 | Unknown or culture-aware collation name | `CS01052` (42704) | Identifier parses; binding resolves only the four declared names |
 | `CREATE COLLATION`, session collation override | `CK00001` | Database/column/expression rules only |
 | Collation-aware full-text index | `CK00001` or explicit execution error | Not implemented |

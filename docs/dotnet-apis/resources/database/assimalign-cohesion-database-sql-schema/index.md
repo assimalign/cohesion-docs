@@ -6,6 +6,7 @@ SQL's thin schema package provides one-step `SqlSchema.Compile`, lower-level `Sq
 
 ## Reference pages
 
+- **[CompiledSchemaConstraint](compiled-schema-constraint.md)** — OnUpdate metadata, defaults and migration identity.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 

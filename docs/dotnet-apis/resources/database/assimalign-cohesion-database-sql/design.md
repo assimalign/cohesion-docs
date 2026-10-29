@@ -353,7 +353,7 @@ is a deliberate MVP limitation relative to the standard's
 . Foreign keys store referenced columns rather than an index identity. The views resolve those
 columns to the primary key first (including the legacy fallback), then to a matching unique index
 ordered deterministically by name. Foreign keys report `MATCH_OPTION = 'NONE'`,
-`UPDATE_RULE = 'RESTRICT'`, and `DELETE_RULE` equal to `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Constraints are
+UPDATE_RULE and DELETE_RULE each equal to `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Constraints are
 enforced immediately and are not deferrable.
 
 `Constraint` names remain unique within a table, as the catalog already requires, rather than within
@@ -967,7 +967,9 @@ may move with their keys; mutually referenced keys may swap when final keys rema
 tombstones all old row/index versions before inserting replacements in the same rollback bracket,
 so uniqueness also validates the final swap. A removed key cannot authorize a dangling child. These
 rules hold under Snapshot and ReadCommitted. ON CONFLICT shares the final-reference view.
-`ON UPDATE` is unsupported and returns `CK00001`.
+ON UPDATE declarations persist all five actions. Referenced-key changes under CASCADE, SET NULL
+or SET DEFAULT refuse with CK00001 before writes; RESTRICT/NO ACTION keep statement-end checks.
+See [interim enforcement](../../../../database/sql/language/constraints.md#on-update-declarations).
 
 Checks require Boolean predicates made from supported deterministic row expressions. Parameters,
 subqueries, aggregates, unsupported functions and casts are rejected during binding. Multiple
@@ -1633,8 +1635,8 @@ frozen old-row values. Typed, domain and SDK default surfaces remain literal-onl
 and SET DEFAULT through cascade chains. The deletion closure precedes SET updates; deleted
 rows receive no SET assignment. Final child validation and row/index changes share the statement
 rollback bracket. NO ACTION is the omitted SQL action; the catalog constructor's optional
-argument still defaults to Restrict. Compiled schema version 8 continues to model only Restrict
-and Cascade and refuses reconciliation with the newer catalog actions.
+argument still defaults to Restrict. Compiled schema v9 continues to model only Restrict
+and Cascade for deletes; OnUpdate supports all five declarations.
 
 ## ALTER rename, defaults and nullability
 

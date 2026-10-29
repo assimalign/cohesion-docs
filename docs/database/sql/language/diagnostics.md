@@ -560,6 +560,14 @@ Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnatio
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
 
+## Foreign-key update declarations
+
+ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
+SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059,
+unsupported table extensions CS06060, and earlier catalog formats CS06041. Compiled v8 artifacts
+are refused with InvalidDocument at schema.format. See [constraints](constraints.md#on-update-declarations).
+
 ## Sources
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.

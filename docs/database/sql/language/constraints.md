@@ -13,6 +13,7 @@ Declares primary keys, unique keys, foreign keys, checks, and column nullability
 [ CONSTRAINT constraint_name ] FOREIGN KEY ( column_name [ , ...n ] )
     REFERENCES [ schema_name . ] table_name ( column_name [ , ...n ] )
     [ ON DELETE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ]
+    [ ON UPDATE { CASCADE | RESTRICT | NO ACTION | SET NULL | SET DEFAULT } ]
 ```
 
 These are table constraints inside `CREATE TABLE` or after `ALTER TABLE ... ADD`.
@@ -26,6 +27,8 @@ Column nullability is declared with `NULL` or `NOT NULL`.
 - **`column_name`** — A local or referenced key column; key-list order is significant.
 - **`search_condition`** — A deterministic Boolean expression over the current row.
 - **`ON DELETE`** — The action on parent deletion; omission means `NO ACTION`.
+
+- **`ON UPDATE`** — The declared action on a referenced parent-key change; omission means `NO ACTION`.
 
 ## Remarks
 
@@ -43,8 +46,9 @@ reports `CS00003`: `Conflicting NULL/NOT NULL declarations for column 'id'.` for
 An ALTER of an existing primary key to explicit NULL is likewise refused before publication.
 
 Foreign and referenced lists must have the same number of columns. String foreign keys require
-matching effective collations. Parent-key updates that would invalidate references are rejected;
-`ON UPDATE` is recognized but unsupported with `CK00001`.
+matching effective collations. ON DELETE and ON UPDATE may appear in either order, once each;
+each omitted action independently means NO ACTION. Canonical SQL renders ON DELETE first.
+Duplicate or incomplete action clauses use CS00003. Action column lists remain CK00001.
 `ON DELETE CASCADE` does not imply `DROP TABLE ... CASCADE` support.
 
 PRIMARY KEY, UNIQUE and FOREIGN KEY column lists, including referenced columns, must contain
@@ -142,6 +146,41 @@ span when available, before publishing the definition. This includes non-Boolean
 inside logical expressions and mixed CASE/COALESCE alternatives in Boolean positions; see
 [search conditions](clauses/where.md#boolean-search-conditions). Untyped NULL is accepted as
 UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
+
+## ON UPDATE declarations
+
+CREATE TABLE column REFERENCES/table constraints and ALTER TABLE ADD CONSTRAINT/ADD COLUMN
+accept all five update actions. Catalog format 30 and compiled schema v9 persist the action;
+[REFERENTIAL_CONSTRAINTS.UPDATE_RULE](system-views/information-schema.md) reports it, including
+through persisted views. The [compiled constraint API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md)
+exposes OnUpdate. Typed References declarations default it to NoAction.
+
+**Interim behavior:** CASCADE, SET NULL and SET DEFAULT are declarations only. Until batch 13
+executes these actions, changing a referenced parent key is refused with CK00001 before row
+writes, even if no child refers to it or another final parent retains the old key. UPDATE,
+UPDATE FROM, ON CONFLICT DO UPDATE and MERGE share this guard. Referential SET actions caused
+by DELETE/DELETE USING/MERGE DELETE also check it before outgoing foreign-key validation.
+Unchanged keys and unrelated-column updates execute normally.
+
+Key changes compare stored representations. Case-only or accent-only changes count under
+insensitive collations and are refused for these three actions. RESTRICT and NO ACTION both
+retain the existing statement-end, collation-aware parent-key check; another final parent can
+satisfy the reference. This release does not make ON UPDATE RESTRICT immediate.
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE p(id INT PRIMARY KEY);
+CREATE TABLE c(pid INT, CONSTRAINT fk_c_pid FOREIGN KEY(pid) REFERENCES p(id)
+    ON UPDATE CASCADE ON DELETE SET NULL);
+INSERT INTO p VALUES (1);
+SELECT UPDATE_RULE, DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_NAME = 'fk_c_pid';
+UPDATE p SET id=2 WHERE id=1;
+```
+
+The metadata actions are CASCADE and SET NULL. The UPDATE is refused with CK00001 even without
+child rows, leaving parent id 1. Use an explicit constraint name when filtering catalog metadata.
 
 ## MERGE final rows
 
@@ -283,6 +322,8 @@ UPDATE reports CS03039 (23503) because final key 1 is absent. SELECT still retur
 ## Cascade lock retries
 
 Cascade preparation can back off when a required lock is refused: it releases new grants to the retry mark, waits and rebuilds the statement's referential preparation. Earlier transaction grants remain protected. This is an internal retry; a hard-deadlock victim still rolls back and retries the transaction. Soft queue-order cycles can be repaired before selecting a victim. See [locking behavior](../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#cascade-backoff-and-queue-repair).
+
+- **ON UPDATE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOnUpdateTests.cs` and `SqlOnUpdateRegressionTests.cs`.
 
 ## Sources
 
