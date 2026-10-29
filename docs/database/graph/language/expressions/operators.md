@@ -48,6 +48,7 @@ results and invalid arithmetic types are `CG02013`. Arithmetic propagates NULL.
 Concatenation `||` and string + require two strings and propagate NULL.
 This promotion applies to arithmetic; comparisons, IN and DISTINCT use exact value comparison.
 
+[Braced EXISTS and NOT EXISTS](exists.md) execute as Boolean expressions with lexical correlation.
 ## Membership and string predicates
 
 IN accepts a list-valued expression, including brackets, parameters or parenthesized lists. Every
@@ -58,7 +59,7 @@ comparison yields unknown; otherwise FALSE. A NULL right operand yields NULL, a 
 STARTS WITH, ENDS WITH and CONTAINS use ordinal case-sensitive text and yield unknown unless both
 operands are strings. IN and these string predicates are Cohesion extensions.
 
-LIKE, BETWEEN, regular-expression match, EXISTS and quantified predicates remain
+LIKE, BETWEEN, regular-expression match and quantified comparisons remain
 `CK00001`. [CASE](case.md), [COALESCE](coalesce.md) and [NULLIF](nullif.md) execute as special
 expression forms. [Scalar calls](../functions/scalar-functions.md) and [CAST](cast.md) execute.
 [Subscripts/member access](property-access.md) compose with lists/maps and entities.

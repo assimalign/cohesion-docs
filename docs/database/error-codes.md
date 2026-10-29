@@ -340,6 +340,17 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 [Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
 and CD05015 projection-depth guard. Correlation, derived FROM and DML subqueries use CK00001.
 
+## Correlated GQL EXISTS
+
+These codes have no assigned SQLSTATE. See [EXISTS](graph/language/expressions/exists.md).
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CG00013 | EXISTS lacks a nonempty braced pattern |
+| CG01019 | Proven incompatible correlated pattern kind |
+| CG02016 | Incompatible runtime correlated entity kind |
+| CG05027 | Malformed/missing correlated subplan or missing argument |
+
 ## Sources
 
 - **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.
