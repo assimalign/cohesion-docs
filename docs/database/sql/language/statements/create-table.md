@@ -42,6 +42,9 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 - **`constraint_name`** — An optional retained name for a column or table constraint.
 - **`identity_clause`** — A supported [GENERATED or SQL Server IDENTITY declaration](../clauses/identity.md#syntax).
 
+[SERIAL/BIGSERIAL/SMALLSERIAL](../clauses/identity.md#definition-and-options), including SERIAL2/4/8,
+are BY DEFAULT identity aliases backed by owned sequences. This deliberately differs from PostgreSQL.
+
 ## Remarks
 
 [CREATE TABLE AS](#create-table-as) infers a new table from a query.

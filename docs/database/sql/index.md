@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 70 of 72 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 74 of 76 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,7 +44,7 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 70-of-72 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 74-of-76 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and binding-only RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
@@ -53,8 +53,8 @@ describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth te
 
 [Standalone sequences](language/statements/create-sequence.md) provide SQL DDL, session functions,
 NEXT VALUE FOR and INFORMATION_SCHEMA.SEQUENCES. [Grouping sets](language/clauses/group-by.md)
-provide ROLLUP/CUBE, empty sets and GROUPING masks. Identity integration, SERIAL and OWNED BY
-remain sequence run-3 work.
+provide ROLLUP/CUBE, empty sets and GROUPING masks. [Identity integration](language/clauses/identity.md), SERIAL aliases, OWNED BY, ALTER identity,
+OVERRIDING and populated-table identity backfill execute through owned sequences.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
 [MERGE](language/statements/merge.md) executes ordered actions with RETURNING, ReadCommitted

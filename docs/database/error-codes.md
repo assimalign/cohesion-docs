@@ -294,7 +294,7 @@ use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions ret
 | CS03071 | Sequence namespace absent | 3F000 |
 | CS03072 | Sequence definition exceeds the catalog record limit | 54000 |
 | CS03073 | Named sequence or object identity is absent | 42P01 |
-| CS03074 | Sequence operation/REGCLASS in a persisted expression or sequence DDL in a provisioning script | 0A000 |
+| CS03074 | Unsupported persisted sequence expression or sequence DDL in a provisioning script; constant column allocation defaults execute | 0A000 |
 | CS03075 | setval value outside sequence bounds | 22003 |
 | CS03076 | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
 | CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
@@ -367,6 +367,23 @@ See [OVER and WINDOW](sql/language/clauses/window.md) for placement, inheritance
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+
+## Identity integration
+
+[Identity columns](sql/language/clauses/identity.md) use owned sequences and early-bound column defaults.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Column has no identity for the ALTER operation | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnation or an unplanned
+live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
+Backfill memory exhaustion uses CS05067 (53200) before publication.
+
+Batch 11 diagnostics follow the registry and executable tests at ae48b04cb.
 
 ## Sources
 

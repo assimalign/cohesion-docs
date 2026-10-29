@@ -12,6 +12,7 @@ sequence_option := START [ WITH ] integer | INCREMENT [ BY ] integer
                  | MINVALUE integer | NO MINVALUE
                  | MAXVALUE integer | NO MAXVALUE
                  | CACHE integer | CYCLE | NO CYCLE
+                 | OWNED BY { [ schema_name . ] table_name . column_name | NONE }
 ```
 
 ## Remarks
@@ -38,10 +39,21 @@ may leave gaps. CACHE does not create a separate per-session value cache.
 
 [Sequence functions](../functions/sequences.md) allocate and inspect values. Options appear in
 [INFORMATION_SCHEMA.SEQUENCES](../system-views/information-schema.md#sequences).
-Sequence calls, NEXT VALUE FOR and REGCLASS cannot be persisted in DEFAULT, CHECK, domains,
-views or SQL function bodies (CS03074, 0A000), including typed defaults. Declared provisioning
-scripts refuse sequence DDL with the same code. Identity integration, SERIAL aliases and
-OWNED BY remain run-3 work; compiled schemas do not declare standalone sequences.
+Constant [column sequence defaults](../clauses/default.md#sequence-defaults) retain early-bound
+dependencies. Compound/dynamic defaults, CHECK, domain, view and SQL-function sequence expressions
+remain CS03074 (0A000). Declared provisioning scripts refuse standalone sequence DDL with the
+same code; compiled schemas do not declare standalone sequences. [Identity](../clauses/identity.md)
+uses this shared sequence allocator, including SERIAL aliases.
+
+## Ownership
+
+OWNED BY attaches a standalone sequence to an existing column in the same SQL schema; NONE
+(the default) leaves it unowned or detaches it under ALTER. Dropping the owning table/column
+removes the sequence atomically. Ownership does not install a DEFAULT or identity on the column.
+Invalid targets, cross-schema ownership and identity-sequence ownership changes use CS03081
+(55000). External defaults depending on an owned sequence must be removed before its owner is
+removed. [DROP SEQUENCE](drop-sequence.md) RESTRICT/CASCADE manages default dependencies;
+identity-owned sequences cannot be dropped directly, even with CASCADE (CS03080, 2BP01).
 
 ## Diagnostics
 
@@ -54,7 +66,7 @@ OWNED BY remain run-3 work; compiled schemas do not declare standalone sequences
 | CS03072 | Encoded definition exceeds 8,092 bytes | 54000 |
 | CS03074 | Sequence DDL in a declared provisioning script or operation in a persisted expression | 0A000 |
 | CS04003 | Self-committing DDL inside an explicit transaction | 25001 |
-| CK00001 | OWNED BY or unsupported sequence form | — |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
 
 ## Example
 
@@ -66,6 +78,19 @@ SELECT nextval('s'), nextval('s'), currval('s');
 ```
 
 Returns BIGINT values `(3,5,5)`.
+
+For a separate owned sequence, execute separately:
+
+```sql
+CREATE TABLE owner_table(k INT);
+CREATE SEQUENCE owned_s OWNED BY owner_table.k;
+ALTER SEQUENCE owned_s OWNED BY NONE;
+DROP TABLE owner_table;
+SELECT nextval('owned_s');
+```
+
+Returns 1 because NONE detached the sequence before table deletion. Without detachment,
+dropping the owning table would also remove owned_s.
 
 ## See also
 

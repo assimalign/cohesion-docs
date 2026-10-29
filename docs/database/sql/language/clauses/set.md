@@ -19,8 +19,8 @@ SET column_name = { expression | DEFAULT } [ , ...n ]
 
 `c = DEFAULT` uses the same [default](default.md) as an omitted INSERT column.
 No default means NULL where allowed, otherwise `CS03024` (SQLSTATE 23502).
-For [BY DEFAULT identity](identity.md), SET id = DEFAULT allocates a new value. ALWAYS rejects
-all assignments to its identity column, including DEFAULT, with `CS03025`.
+For either [identity mode](identity.md), SET id = DEFAULT allocates a new value. ALWAYS rejects
+other explicit identity assignments with CS03025 (428C9); BY DEFAULT accepts them.
 
 The measured `UPDATE` subset accepts multiple assignments and an optional `WHERE`.
 Each target may appear only once, using case-insensitive column identity. Repeating a target,

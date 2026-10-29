@@ -1,6 +1,6 @@
 # Sequence functions
 
-Allocates and inspects standalone sequence values with session-local observations.
+Allocates and inspects standalone or identity-owned sequence values with session-local observations.
 
 ## Syntax
 
@@ -29,7 +29,8 @@ across DROP/recreate. NULL arguments propagate NULL. SQL has no MISSING value.
 | setval(name,n,FALSE) | Makes the next allocation return n itself; leaves session currval and lastval unchanged |
 | lastval | Returns the current session value for the sequence most recently selected by nextval or an allocating NEXT VALUE FOR |
 
-An allocation by NEXT VALUE FOR also sets currval and selects lastval; reuse of its cached row
+An allocation by an identity insert or backfill also sets currval and selects lastval. Generated
+sequence names appear in INFORMATION_SCHEMA.SEQUENCES. An allocation by NEXT VALUE FOR also sets both; reuse of its cached row
 value does not allocate again. setval never selects a new lastval sequence. A TRUE setval on the already selected sequence changes
 the value lastval reads. Its value must fit the sequence bounds; the runtime value is a signed
 integer and is_called is Boolean. New sessions have no currval or lastval. Allocation and setval
@@ -62,9 +63,9 @@ durable reservation/setval commits outside that gate. Row writes still roll back
 failure; sequence effects remain. NEXT VALUE FOR in RETURNING is refused during planning.
 
 Calls take transaction-owned sequence locks; [ALTER/RESTART/DROP wait for users](../statements/alter-sequence.md#locking).
-Dynamic references lock the captured sequence directory. Persisted DEFAULT/CHECK/domain/view/SQL
-function expressions, including REGCLASS casts and typed defaults, refuse with CS03074 (0A000).
-Identity integration, SERIAL and OWNED BY remain run-3 work.
+Dynamic references lock the captured sequence directory. [Constant column sequence defaults](../clauses/default.md#sequence-defaults)
+record dependencies; compound/dynamic defaults and CHECK/domain/view/SQL-function sequence
+expressions remain CS03074 (0A000). Identity, SERIAL and OWNED BY use the same allocator.
 
 ## Diagnostics
 

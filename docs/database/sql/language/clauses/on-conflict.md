@@ -47,8 +47,9 @@ coercion, defaults and identity allocation. Qualify target references by its ali
 alias, its table name. An alias hides the table name. Unqualified columns common to both relations
 are ambiguous (`CS01015`); a target named or aliased excluded also makes that qualifier ambiguous
 in the conflict action. Every SET expression reads the original target and proposal, rather than
-earlier assignments. SET c = DEFAULT uses ordinary UPDATE defaults. ALWAYS identity assignments
-retain `CS03025`.
+earlier assignments. SET c = DEFAULT uses ordinary UPDATE defaults. ALWAYS identities
+accept SET id = DEFAULT; other explicit assignments retain CS03025 (428C9). INSERT's
+OVERRIDING SYSTEM/USER VALUE controls the proposed identity before conflict arbitration.
 
 Defaults and conflict projections run in proposal source order. Identity allocations are consumed
 even for skipped proposals. For example, a BY DEFAULT identity proposal allocating 2 followed by

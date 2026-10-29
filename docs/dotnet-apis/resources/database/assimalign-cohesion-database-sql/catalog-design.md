@@ -197,16 +197,17 @@ for the query surface and the two deliberately non-standard extension views.
 
 ## Identity reservations
 
-[SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
-metadata in current table extension 7 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
-and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
-values outside the START/INCREMENT progression. One table can have one signed integer identity.
+[SqlCatalogColumn.Identity](sql-catalog-column.md) retains immutable generation metadata in table
+extension 7. Each identity owns a shared kind-18 sequence, with owning table id, column name and
+identity flag; kind-19 reservations carry its durable endpoint and called state. Kind 16 is retired.
+[AllocateIdentity](sql-catalog.md) delegates to this allocator and reserves up to 32 values before
+returning any. Rollback/reopen can leave gaps; CYCLE or restart can deliberately repeat values.
 
-[AllocateIdentity](sql-catalog.md) self-commits up to 32 values before delivering any, under the
-catalog lock with Int128 intermediate arithmetic. It neither replaces table metadata nor changes
-DdlGeneration/script receipts. Reopen starts after the last reservation, leaving gaps while preventing
-reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
-DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
+Owned sequences publish with table creation, identity addition/removal, rename and storage
+replacement. The generated table_column_seq name receives numeric collision suffixes and stays
+unchanged on rename. Catalog load validates ownership in both directions, defaults and reservations
+without cleanup writes; reclamation removes abandoned owner records later. INFORMATION_SCHEMA lists
+identity sequences deliberately. See [identity behavior](../../../../database/sql/language/clauses/identity.md).
 
 ## Standalone sequences
 
@@ -272,8 +273,7 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 
 ## Non-goals
 
-- **Sequence identity integration and permissions** — SQL DDL/session functions execute; identity
-  integration, SERIAL and OWNED BY remain run-3 work. Permissions remain future work, #177.
+- **Sequence permissions** — Identity integration, SERIAL, OWNED BY and sequence defaults execute; permissions remain future work, #177.
 - **Multi-statement DDL atomicity (see** — self-committing DDL above). The migration
   layer compensates completed reversible statements on failure; an MVCC bracket
   spanning catalog and data DDL requires a future catalog batch-transaction seam.
@@ -334,6 +334,18 @@ collisions, live dependencies, cycles and append-only compatible replacement ato
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.
 Snapshots capture immutable view definitions alongside the rest of the catalog.
+
+## Owned sequence diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Identity required by ALTER is absent | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion uses CS02002 (22003); disappearing identity or unplanned live referential
+default sequence grants use CS04067 (40001). Retry replans before defaults or row mutation.
 
 ## Sources
 

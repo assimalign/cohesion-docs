@@ -1144,30 +1144,25 @@ All SQL parser codes, SQL execution codes and transaction meanings and SQLSTATE 
 ## Identity columns and allocation
 
 [IDENTITY](../../../../database/sql/language/clauses/identity.md) supports one built-in signed
-integer column per table. GENERATED ALWAYS and SQL Server IDENTITY refuse explicit INSERT values
-and all UPDATE assignments to the identity column, including DEFAULT; BY DEFAULT accepts explicit
-non-null values without advancing the counter and generates for SET id = DEFAULT. INSERT omission,
-DEFAULT VALUES and whole-item DEFAULT generate per row. Explicit NULL is never generation.
+integer column per table, backed by an owned sequence. SERIAL-family aliases mean BY DEFAULT
+identity. ALWAYS permits DEFAULT in INSERT and UPDATE; OVERRIDING SYSTEM VALUE permits explicit
+INSERT values and USER VALUE replaces supplied identity inputs after binding/assignment checks.
+Typed numeric casts and volatile inputs discarded in VALUES/MERGE action lists stay unevaluated;
+INSERT SELECT sources still materialize normally. Explicit values do not advance the allocator.
 
-The planner validates type, DEFAULT conflicts, start, increment and the single-identity rule before
-catalog changes (`CS03025`). ADD requires no live rows. Full-definition ALTER retains the same type and NOT NULL
-or fails the identity contract. Direction-dependent bounds are 1 through the type maximum ascending,
-type minimum through -1 descending; default start follows direction. No cycle, restart, overriding
-or generated key RETURNING is available. CS03025 uses SQLSTATE reference 428C9 for explicit
-ALWAYS assignments; definition/exhaustion failures share the local code. BY DEFAULT NULL uses
-CS03024 (23502). Conflicting explicit NULL/NOT NULL/PRIMARY KEY/IDENTITY declarations use CS00003.
+ADD GENERATED on an existing NOT NULL column retains its data. Adding a new identity column
+backfills physical owner-page/slot order using recoverable prepared-owner storage before atomic
+publication; chunk buffers charge the statement grant (CS05067, 53200). ALTER identity changes
+mode/options/restart or removes the identity. TYPE preserves last value and called state.
+Both identity inserts and backfill update the session's currval/lastval. Rollback and reopen can
+leave gaps; CYCLE/restart can deliberately repeat values. Exhaustion retains CS02002 (22003).
 
-Catalog allocation self-commits up to 32 reserved values independently of row transactions, preserving
-the table object and DDL generation. Rollback, failed writes and restarts leave gaps, without reusing
-generated allocations for that identity. Exhaustion rolls back all row writes. Current SQL format 28 stores
-immutable identity facets within table extension 7 (the identity facet originated in extension 5)
-and last reserved values in catalog kind 16.
-Typed schema reconciliation refuses identity metadata with SqlSchemaMigrationException / CS03105;
-compiled schemas have no identity representation. SQL script definitions retain it.
-
-SQL CREATE DOMAIN and native SqlType.CreateDomain refuse serial/bigserial/smallserial names;
-SQL reports CK00001, native construction throws ArgumentException with the IDENTITY suggestion.
-For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before registration.
+The table extension 7 identity facet links through catalog ownership to a kind-18 sequence;
+kind-19 reservations replace retired identity counter kind 16. Names use table_column_seq with
+numeric collision suffixes and survive renames. Ownership/default dependencies validate at load
+and publication. DROP identity/table/column removes owned sequences atomically; external defaults
+must first be removed. TRUNCATE RESTART IDENTITY restarts all owned sequences in its closure.
+Compiled typed schemas remain v8 without identity metadata; SQL scripts retain their definitions.
 
 ## Standalone sequence catalog and shared allocation
 
@@ -1206,7 +1201,7 @@ caches. Allocation does not change DdlGeneration and stays independent of data t
 | CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
 | CS06061 | Malformed sequence definition, directory or reservation | XX001 |
 
-CS02002 is the catalog allocator condition. SQL identity generation retains its existing
+CS02002 is the catalog allocator condition. SQL identity definition/assignment validation retains its existing
 CS03025 wrapper. Sequence SQL DDL self-commits and uses CS04003 (25001) inside explicit transactions.
 Shared object grants protect statement evaluation; ALTER/RESTART/DROP wait for transaction end.
 Literal/parameter names lock their objects; row-varying names lock the captured sequence directory.
@@ -1214,7 +1209,7 @@ Ordered independent sequence outputs evaluate after sorting, including OFFSET ro
 LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting follows the
 ordinary sort's uncharged accounting; grouping-set states retain their existing CS05067 grant.
 RETURNING lists containing calls evaluate before the global apply gate; durable sequence effects
-survive write rollback. Identity integration, SERIAL and OWNED BY remain run-3 work.
+survive write rollback. Identity, SERIAL and OWNED BY share the allocator; constant column sequence defaults track dependencies.
 
 ## Declaration validation
 
@@ -2021,6 +2016,36 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+
+## Owned sequence diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Identity required by ALTER is absent | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion uses CS02002 (22003); disappearing identity or unplanned live referential
+default sequence grants use CS04067 (40001). Retry replans before defaults or row mutation.
+
+## SQL window functions
+
+See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for placement, inheritance and memory rules.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00011 | Window argument count or call modifier | 42601 |
+| CS01064 | Duplicate WINDOW name | 42P20 |
+| CS01065 | Unknown/self/forward window reference | 42704 |
+| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS02068 | Non-integer offset or bucket count | 42804 |
+| CS02069 | Incompatible navigation value/default types | 42804 |
+| CS05076 | Window placement or missing OVER | 42P20 |
+| CS05077 | Nested window | 42P20 |
+| CS05078 | Nonpositive NTILE count | 22014 |
+| CS05079 | Window state exceeds statement memory grant | 54000 |
+
 
 ## Sources
 

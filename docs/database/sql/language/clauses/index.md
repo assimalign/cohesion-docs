@@ -27,13 +27,13 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[ON CONFLICT](on-conflict.md)** — Skip unique conflicts or update with target and EXCLUDED values.
 - **[SET](set.md)** — Assign update values.
 - **[DEFAULT](default.md)** — Declare or request a column default.
-- **[IDENTITY](identity.md)** — Generate integer values with durable, noncycling reservations.
+- **[IDENTITY](identity.md)** — Generate integer values with owned sequences, overrides and ALTER/backfill.
 
 - **[RETURNING](returning.md)** — Return each directly written row's scalar projection.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 70-of-72 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 74-of-76 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

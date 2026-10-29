@@ -10,6 +10,7 @@ Adds rows from scalar values or a query to a stored table.
 [ WITH common_table_expression [ , ...n ] ]
 INSERT INTO [ schema_name . ] table_name [ [ AS ] table_alias ]
 [ ( column_name [ , ...n ] ) ]
+[ OVERRIDING { SYSTEM | USER } VALUE ]
 { VALUES ( { expression | DEFAULT } [ , ...n ] ) [ , ...n ]
 | DEFAULT VALUES | select_statement }
 [ ON CONFLICT [ ( column_name [ , ...n ] ) | ON CONSTRAINT constraint_name ]
@@ -50,10 +51,12 @@ for CS03035 (42P10), CS05036 (21000), isolation and transaction retry rules.
 
 For an [identity column](../clauses/identity.md), omission or DEFAULT allocates one value per row,
 including DEFAULT VALUES and omitted INSERT SELECT destinations. ALWAYS rejects explicit values
-(`CS03025`); BY DEFAULT accepts non-null explicit values without advancing the counter.
-Explicit NULL never requests generation. Failed statements can consume values without inserting rows.
-[RETURNING](../clauses/returning.md) retrieves allocated identities and stored values.
-OVERRIDING remains unsupported (`CK00001`).
+(CS03025, 428C9) unless OVERRIDING SYSTEM VALUE permits them. BY DEFAULT accepts non-null
+explicit values without advancing the sequence. OVERRIDING USER VALUE replaces supplied identity
+values, including NULL, after binding/assignment validation. It applies to VALUES and INSERT SELECT,
+including ON CONFLICT proposals. SELECT sources still materialize normally. Failed/skipped proposals
+can consume values. [RETURNING](../clauses/returning.md) retrieves the stored identity;
+[identity assignment rules](../clauses/identity.md#assignment-and-overrides) cover ignored expressions.
 
 `INSERT ... SELECT` validates output width and declared type compatibility even on empty input.
 It materializes the entire source under the statement snapshot before writing. Reading from the

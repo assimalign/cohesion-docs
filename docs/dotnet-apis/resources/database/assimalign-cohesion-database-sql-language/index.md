@@ -16,6 +16,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 - **[SqlWindowSpecification](sql-window-specification.md)** — Written partition/order and inherited name.
 - **[SqlNamedWindow](sql-named-window.md)** — Ordered WINDOW definitions.
 
+- **[SqlAlterIdentityAction](sql-alter-identity-action.md)** — ADD/DROP, mode and sequence-option changes.
+- **[SqlIdentityOverride](sql-identity-override.md)** — INSERT and MERGE assignment policy.
+
 ## Reference pages
 
 - **[SqlMergeExpression](sql-merge-expression.md)** — Target/source association, ordered actions and RETURNING.

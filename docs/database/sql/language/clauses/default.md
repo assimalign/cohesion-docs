@@ -27,9 +27,8 @@ including arithmetic, CAST and Immutable, Stable or Volatile calls. Columns, par
 aggregates fail with `CS05013`; subqueries fail with `CK00001`. Result types must satisfy
 INSERT assignment compatibility before publication. SQL has NULL values, with no MISSING scalar.
 
-[Sequence calls](../functions/sequences.md), NEXT VALUE FOR and REGCLASS casts are refused in
-persisted defaults, including typed defaults, with CS03074 (0A000). Standalone sequence SQL
-executes, while identity/default integration remains run-3 work.
+A constant sequence allocation can be a [column default](#sequence-defaults). Compound or dynamic
+sequence defaults, and sequence operations in other persisted contexts, remain CS03074 (0A000).
 
 The top-level declaration grammar admits comparisons and IS [NOT] DISTINCT FROM, retaining
 following column constraints: `flag BOOLEAN DEFAULT 1 IS DISTINCT FROM 2 NOT NULL`.
@@ -56,8 +55,8 @@ retain their [normal codes](../diagnostics.md). DROP DEFAULT re-inherits a domai
 SET DEFAULT NULL preserves an explicit NULL override when hiding one.
 
 [Identity columns](identity.md) exclude a declared DEFAULT, but omission or a whole INSERT DEFAULT
-item allocates a value. BY DEFAULT identity also generates for UPDATE SET id = DEFAULT; ALWAYS
-rejects all assignments to the identity column in UPDATE, including DEFAULT (`CS03025`).
+item allocates a value. Both generation modes accept UPDATE SET id = DEFAULT; ALWAYS refuses
+other explicit UPDATE assignments (`CS03025`).
 
 A bare DEFAULT in SELECT, a predicate, INSERT SELECT, arithmetic, a function argument, or a
 parenthesized scalar expression is `CS00003`. Quoted or qualified columns named `default`
@@ -70,6 +69,35 @@ original default with assignment semantics; USING applies only to old rows. A mi
 cast is CS02064 (42804), even on an empty table. Immutable defaults freeze to canonical literals;
 Stable/Volatile defaults retain per-insert evaluation with assignment coercion. A column with no
 default inherits the target domain's default.
+
+## Sequence defaults
+
+A column default may be `nextval` with a constant text name, numeric sequence object id or
+constant REGCLASS cast, or `NEXT VALUE FOR` an already published named sequence. It stores an
+early-bound dependency. DROP SEQUENCE RESTRICT reports CS03080 (2BP01); CASCADE atomically
+removes dependent defaults. DROP SCHEMA CASCADE also clears cross-schema sequence defaults.
+Dropping an owner table/column requires external dependent defaults to be removed first.
+
+Dynamic references and compound defaults such as `nextval('s') + 1` remain CS03074 (0A000).
+Adding a nonidentity sequence-default column to populated storage retains the volatile-default
+refusal CS03027. A new identity column instead uses [backfill](identity.md#alter-and-backfill).
+NEXT VALUE FOR shares repeated DEFAULT/VALUES occurrences per inserted row; INSERT SELECT
+source projection and subsequent defaults use their respective row scopes.
+
+Execute separately:
+
+```sql
+CREATE SEQUENCE s START 7;
+CREATE TABLE sequence_defaults(k BIGINT DEFAULT nextval('s'::regclass));
+INSERT INTO sequence_defaults DEFAULT VALUES;
+SELECT k FROM sequence_defaults;
+DROP SEQUENCE s CASCADE;
+INSERT INTO sequence_defaults DEFAULT VALUES;
+SELECT k FROM sequence_defaults ORDER BY k NULLS FIRST;
+```
+
+The first SELECT returns 7; the second returns NULL, then 7. RESTRICT would instead refuse
+removal with CS03080 and keep the default.
 
 ## Examples
 

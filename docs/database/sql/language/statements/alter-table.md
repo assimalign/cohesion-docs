@@ -46,6 +46,13 @@ the old schema and rows remain usable.
 One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT and comma-separated action
 lists are outside this subset (CK00001).
 
+### Identity changes
+
+ALTER COLUMN supports ADD GENERATED, SET GENERATED, SET sequence options, RESTART and DROP
+IDENTITY [IF EXISTS]. ADD GENERATED needs NOT NULL and preserves existing values. Adding a
+new identity column instead backfills populated storage before atomic publication. See
+[identity syntax, diagnostics and examples](../clauses/identity.md#alter-and-backfill).
+
 ### ALTER COLUMN TYPE
 
 `ALTER TABLE t ALTER [COLUMN] c [SET DATA] TYPE type [COLLATE collation] [USING expression]`
@@ -181,8 +188,8 @@ stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update
 The emptiness check uses current committed rows. Historical versions visible only to an older
 snapshot can retain a missing `NULL` field after a default-free addition to a currently empty table.
 
-ADD [IDENTITY](../clauses/identity.md) requires no live rows, including when old deleted versions
-remain. A populated-table ADD fails `CS03025`. Full-definition ALTER preserves identity only
+ADD [IDENTITY](../clauses/identity.md#alter-and-backfill) backfills live rows through an atomic
+storage rewrite. ADD GENERATED on an existing NOT NULL column preserves its values. Full-definition ALTER preserves identity only
 with its existing type, NOT NULL and no DEFAULT; type/nullability/default or generation changes
 fail `CS03025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
 `CS00003`; ALTER also rejects making an existing primary-key column explicitly NULL.

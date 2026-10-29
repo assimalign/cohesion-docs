@@ -40,7 +40,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS01063` | GROUPING requires 1–31 non-star arguments | 54023 |
 | `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
 | `CS05075` | More than 4096 expanded grouping sets before DISTINCT | 54001 |
-| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion (SQL identity generation retains CS03025), non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
+| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion, non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
 | `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE/FILTER condition or AND/OR/NOT/truth-test operand | 42804 |
 | `CS05004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `CS01005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
@@ -63,7 +63,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS02022` | Invalid non-temporal CAST or stored-column assignment text | 22P02 |
 | `CS01023` | Parameter keys collide after stripping one sigil, including unused keys | — |
 | `CS03024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
-| `CS03025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
+| `CS03025` | Identity definition, assignment or ALTER violates its generation contract; allocator exhaustion retains CS02002 | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
 | `CS01026` | Duplicate CTE name or unresolved reference to a later sibling; binding fails before reads/writes | 42712 / 42P01 |
 | `CS03027` | ADD COLUMN has a volatile DEFAULT and live rows; a physical rewrite would be required | — |
 | `CS01028` | Missing namespace in schema/table/index DDL; DROP TABLE IF EXISTS remains a no-op | 3F000 |
@@ -543,6 +543,23 @@ See [OVER and WINDOW](clauses/window.md) for placement, inheritance and memory r
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+
+## Identity integration
+
+[Identity columns](clauses/identity.md) use owned sequences and early-bound column defaults.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Column has no identity for the ALTER operation | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnation or an unplanned
+live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
+Backfill memory exhaustion uses CS05067 (53200) before publication.
+
+Batch 11 diagnostics follow the registry and executable tests at ae48b04cb.
 
 ## Sources
 
