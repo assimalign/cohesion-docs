@@ -78,10 +78,10 @@ inputs are `Compile` and `ReferencePath`; `DefineConstants`, `LangVersion`, `Ass
 
 ## Model and migration limits
 
-SQL compiled artifacts use `cohesion/database-schema/v8`. TimeSpan defaults render exact signed
+SQL compiled artifacts use `cohesion/database-schema/v9`. TimeSpan defaults render exact signed
 seconds with a `seconds` unit; earlier documents and migration baselines are refused with
 COHDBSDK206 at `schema.format`, without changing inputs or writing a migration. Rebuild them;
-older SQL catalogs also need the [format-29 export/recreate procedure](../../../database/sql/index.md#sql-format-29-and-schema-v8).
+older SQL catalogs also need the [format-30 export/recreate procedure](../../../database/sql/index.md#sql-format-30-and-schema-v9).
 
 `Sql` and `KeyValuePair` are the only allowlisted, case-sensitive imports. The latter has a target
 but no model-owned compiled-schema contract, so compilation fails with `COHDBSDK106`. A direct

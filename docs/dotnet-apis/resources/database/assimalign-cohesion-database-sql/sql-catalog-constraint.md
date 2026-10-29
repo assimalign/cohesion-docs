@@ -18,7 +18,8 @@ public sealed class SqlCatalogConstraint
         string? referencedTable = null, IReadOnlyList<string>? referencedColumns = null,
         string? checkExpression = null,
         SqlCatalogReferentialAction onDelete = SqlCatalogReferentialAction.Restrict,
-        IReadOnlyList<string>? checkFunctionCalls = null);
+        IReadOnlyList<string>? checkFunctionCalls = null,
+        SqlCatalogReferentialAction onUpdate = SqlCatalogReferentialAction.NoAction);
     public string Name { get; }
     public SqlCatalogConstraintKind Kind { get; }
     public IReadOnlyList<string> Columns { get; }
@@ -28,6 +29,7 @@ public sealed class SqlCatalogConstraint
     public string? CheckExpression { get; }
     public IReadOnlyList<string> CheckFunctionCalls { get; }
     public SqlCatalogReferentialAction OnDelete { get; }
+    public SqlCatalogReferentialAction OnUpdate { get; }
 }
 ```
 
@@ -36,12 +38,14 @@ public sealed class SqlCatalogConstraint
 The constructor snapshots column/call lists. Its optional action remains Restrict; the SQL
 parser supplies NoAction for omitted ON DELETE. Pass the intended action explicitly when building
 catalog metadata. Format 20 persists NoAction, SetNull and SetDefault; every older database format
-is refused at open with no upgrade path. Compiled schema version 8 retains only Restrict/Cascade;
-reconciling it with a newer catalog action throws SqlSchemaMigrationException.
+is refused at open with no upgrade path. Current format 30 also persists OnUpdate, which defaults
+to NoAction independently of OnDelete. Compiled schema v9 accepts all five update actions while
+keeping Restrict/Cascade for delete actions. See [CompiledSchemaConstraint](../assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md).
 
 ArgumentNullException rejects null columns. ArgumentException rejects blank names, duplicate
 columns, unknown enum values, mismatched/empty foreign-key lists, incomplete target names,
-foreign-key CHECK text, or CHECK metadata with reference facets or a non-Restrict action. Blank
+foreign-key CHECK text, or CHECK metadata with reference facets, OnDelete other than Restrict
+or OnUpdate other than NoAction. Blank
 recorded function identities are also invalid. These are constructor validation exceptions,
 separate from SQL execution diagnostics.
 
@@ -51,8 +55,10 @@ Adapted from SqlReferentialActionTests and SqlCatalogConstraintTests:
 
 ```csharp
 var reference = new SqlCatalogConstraint("fk_c", SqlCatalogConstraintKind.Reference,
-    ["pid"], "dbo", "p", ["id"], onDelete: SqlCatalogReferentialAction.SetDefault);
+    ["pid"], "dbo", "p", ["id"], onDelete: SqlCatalogReferentialAction.SetDefault,
+    onUpdate: SqlCatalogReferentialAction.Cascade);
 Console.WriteLine(reference.OnDelete); // SetDefault
+Console.WriteLine(reference.OnUpdate); // Cascade
 ```
 
 ## Related reference

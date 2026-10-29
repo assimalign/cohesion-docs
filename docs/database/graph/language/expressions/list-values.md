@@ -68,7 +68,7 @@ provides the public component format. Path payloads are unchanged.
 | `CG03003` | Invalid/oversized referenced parameter or composite stored-property parameter |
 | `CG02013` | Evaluated value/access error or constructed value/row exceeds a limit |
 | `CG07016` | Possible composite wire result without negotiated capability |
-| `CK00001` | Pattern comprehension or list/map-valued stored property; scalar results of complete expressions are allowed |
+| `CK00001` | List/map-valued stored property; scalar results of complete expressions are allowed |
 | `CG00002` | Malformed list or membership syntax |
 
 ## Examples

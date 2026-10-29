@@ -28,7 +28,7 @@ The operation preserves logical definitions, schema ownership, applied-schema ha
 allocation, constraints, defaults, frozen missing values, collation and dependent views.
 Schema-owned tables are supported. This is a C# maintenance API; it adds no SQL statement or
 wire command. SQL [ALTER COLUMN TYPE](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
-also uses the shared copier for conversions, running inline under the table lock on this branch. SQL format 29 and compiled schema v8 remain unchanged.
+also uses the shared copier for conversions, running inline under the table lock on this branch. SQL format 30 and compiled schema v9 remain unchanged.
 
 Schema application, session DDL and maintenance share fail-fast admission. The operation acquires
 an exclusive lock on the source table **before queueing**; a blocked rewrite does not occupy the

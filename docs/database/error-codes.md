@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/4607aa81f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -119,14 +119,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 29.
+remains nonexecuting; SQL storage stays at format 30.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 29 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 30 is unchanged.
 
 ## SQL table rewrite
 
@@ -134,7 +134,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 29 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 29 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 30 is unchanged.
 
 ## Document array indexes
 
@@ -282,7 +282,7 @@ plan reasons, consumption and sort elision/retention; it adds no diagnostic or s
 See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
 [slices](graph/language/expressions/list-slices.md), [reduce](graph/language/expressions/reduce.md)
 and [list predicates](graph/language/expressions/list-predicates.md). Known non-Boolean predicates
-use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions retain CK00001.
+use CG02013, including empty/NULL inputs and EXPLAIN. [Pattern comprehensions](graph/language/expressions/pattern-comprehensions.md) execute.
 
 ## SQL sequence catalog conditions
 
@@ -336,9 +336,12 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery requires SELECT RAW or SELECT VALUE | — |
+| CD00015 | Derived FROM SELECT has no alias | — |
+| CD01033 | FROM expression has no explicit alias or implicit field name | — |
+| CD01034 | Unbound source variable without an input-row scope | — |
 
 [Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
-and CD05015 projection-depth guard. Correlation, derived FROM and DML subqueries use CK00001.
+and CD05015 projection-depth guard. Correlation and DML subqueries use CK00001; derived and expression FROM sources execute.
 
 ## Correlated GQL EXISTS
 
@@ -360,13 +363,22 @@ See [OVER and WINDOW](sql/language/clauses/window.md) for placement, inheritance
 | CS00011 | Window argument count or call modifier | 42601 |
 | CS01064 | Duplicate WINDOW name | 42P20 |
 | CS01065 | Unknown/self/forward window reference | 42704 |
-| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS01066 | Copied PARTITION BY, overridden ORDER BY or copying an explicit frame | 42P20 |
 | CS02068 | Non-integer offset or bucket count | 42804 |
 | CS02069 | Incompatible navigation value/default types | 42804 |
+| CS02070 | Noninteger ROWS frame offset | 42804 |
+| CS02071 | NULL frame offset | 22004 |
+| CS02072 | Negative frame offset | 22013 |
+| CS02073 | Noninteger NTH_VALUE index | 42804 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+| CS05080 | Invalid frame boundary categories | 42P20 |
+| CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
+| CS05082 | Nonpositive NTH_VALUE index | 22016 |
+| CS05083 | OVER on a scalar function | 42809 |
+| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
 
 ## Identity integration
 
@@ -383,7 +395,41 @@ Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnatio
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
 
+## Pattern comprehensions
+
+[Pattern comprehensions](graph/language/expressions/pattern-comprehensions.md) collect every correlated inner match in order.
+The optional path name shadows locally; other existing pattern names correlate. NULL arguments
+produce no matches, duplicates and NULL projections remain, and zero-hop relationship quantifiers
+are accepted. Inner aggregates are refused. EXPLAIN shows CollectApply. Collection shares the
+statement operation, snapshot, update overlay and work/memory budgets (CG05004/CG05020).
+Scalar composite results use graph.composite-values; entity lists remain CG05001 until #1662.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00014 | Pattern comprehension requires a nonempty path and projection | — |
+| CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
+
+## Foreign-key update declarations
+
+ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
+SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059 (XX001),
+unsupported table extensions CS06060 (0A000), and earlier catalog formats CS06041. Compiled v8 artifacts
+are refused with InvalidDocument at schema.format. See [constraints](sql/language/constraints.md#on-update-declarations).
+
+## Window frames and aggregate execution
+
+[ROWS and offset-free RANGE](sql/language/clauses/window.md) execute, including aggregate FILTER and frame value
+functions. Application aggregates and ordered string aggregates recompute changed frames;
+native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
+recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
+visits count before FILTER or input expressions, across functions, partitions and stages of one
+statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
+frame_visits; CS05079 still covers retained window state and scratch.
+
 ## Sources
+
+- **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 

@@ -20,8 +20,10 @@ Construction retains Query and throws ArgumentNullException if it is null. Locat
 complete parenthesized source span. Query includes the projection mode: named projections
 yield objects; IsValue represents RAW/VALUE. Execution returns an owned JSON array, including
 an empty array for zero rows, and shares the outer statement's snapshot and budget.
+When used as [OqlSelectExpression.Source](oql-select-expression.md), it supplies derived rows
+directly rather than an expression-subquery array.
 
-Direct IN subqueries require RAW/VALUE (CD00014). Correlation, derived FROM and DML subqueries
+Direct IN subqueries require RAW/VALUE (CD00014). Correlation and DML subqueries
 report CK00001. Shared memory exhaustion reports CD05018; over-deep projections report CD05015.
 These codes have no assigned SQLSTATE. See [evaluation rules](../../../../database/document/language/expressions/subqueries.md#evaluation).
 

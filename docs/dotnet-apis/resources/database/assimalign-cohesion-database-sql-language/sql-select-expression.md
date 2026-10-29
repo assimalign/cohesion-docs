@@ -36,10 +36,10 @@ each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference, [SqlDerivedTableReference](sql-derived-table-reference.md), or
 [SqlJoinedTableReference](sql-joined-table-reference.md) for an unaliased parenthesized join. Renderer and
-persisted expressions use this same shape. Current SQL storage format 29 includes canonical
+persisted expressions use this same shape. Current SQL storage format 30 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
-refused without an upgrade reader. Compiled schema artifacts remain version 8.
+refused without an upgrade reader. Compiled schema artifacts remain version 9.
 
 The node's accessors add no validation exceptions. Parser.Parse returns diagnostics for invalid
 text; SqlQueryRequest.FromSql and session execution reject parser errors with DatabaseParseException.
@@ -91,10 +91,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 8.
+upgrade path. Compiled schema format remains version 9.
 
 ## Related reference
 

@@ -48,6 +48,14 @@ an unsupported condition reports CS05070 before reading inputs. For example, on 
 `EXPLAIN SELECT * FROM a FULL JOIN b USING (id)` describes FullHashJoin without executing it.
 ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted unmatched rows.
 
+### Window frames
+
+WindowAgg detail retains each function's frame and sort_shared for compatible partition/order
+specifications. Different frames can share the sort. EXPLAIN ANALYZE reports frame_visits,
+counting candidate aggregate inputs before FILTER. It executes full partitions even with LIMIT
+and can reach [CS05084's recomputation cap](../clauses/window.md#recomputation-limit), including
+for native moving frames. Plain EXPLAIN does not evaluate frame offsets or aggregate inputs.
+
 ### Planning and results
 
 [Grouping sets](../clauses/group-by.md#grouping-sets-rollup-and-cube) add the expanded set count

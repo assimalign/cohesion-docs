@@ -210,7 +210,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, pattern comprehensions, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, set operations, and server/session scope |
+| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, pattern-comprehension path prefixes, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, set operations, and server/session scope |
 | `CG00011` | SHORTEST count is missing or is not a positive Int64 literal; no SQLSTATE |
 | `CG01016` | Search prefilter references a peer-path-only binding in the same MATCH; no SQLSTATE |
 | `CG00001` | Empty statement |
@@ -391,7 +391,7 @@ bounds separately from explicit NULL. The iterator scopes only the body; sources
 All names and parameters validate even for empty/NULL input. Source aggregates are allowed;
 body aggregates are refused. GqlClauses.ListComprehension and ListSlice are enabled by the profile.
 Complete property expressions parse before scalar admission, including MERGE and its SET branches.
-List-valued properties and pattern comprehensions remain CK00001. See
+List-valued properties remain CK00001. See
 [comprehensions](../../../../database/graph/language/expressions/list-comprehensions.md) and
 [slices](../../../../database/graph/language/expressions/list-slices.md) for evaluation and bounds.
 
@@ -426,6 +426,20 @@ Full-query bodies, parenthesized operands, COUNT/COLLECT blocks and bare pattern
 | CG01019 | Proven incompatible correlated kind | — |
 | CG02016 | Runtime correlated entity kind mismatch | — |
 | CG05027 | Malformed/missing subplan or missing argument | — |
+
+## Pattern comprehensions
+
+[Pattern comprehensions](../../../../database/graph/language/expressions/pattern-comprehensions.md) collect every correlated inner match in order.
+The optional path name shadows locally; other existing pattern names correlate. NULL arguments
+produce no matches, duplicates and NULL projections remain, and zero-hop relationship quantifiers
+are accepted. Inner aggregates are refused. EXPLAIN shows CollectApply. Collection shares the
+statement operation, snapshot, update overlay and work/memory budgets (CG05004/CG05020).
+Scalar composite results use graph.composite-values; entity lists remain CG05001 until #1662.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00014 | Pattern comprehension requires a nonempty path and projection | — |
+| CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
 
 ## Sources
 

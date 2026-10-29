@@ -38,7 +38,9 @@ aggregates inside its condition with CS05073 (42803), and non-Boolean conditions
 coercion, ordering and DISTINCT state. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 A call followed by OVER is wrapped in [SqlWindowExpression](sql-window-expression.md).
-Supported window functions use CS00011 (42601) for invalid arity or modifiers.
+Ranking/navigation/value functions use CS00011 (42601) for invalid arity or modifiers.
+Aggregate windows retain Filter and OrderBy, with ordinary aggregate validation; DISTINCT with
+OVER is CK00001 and OVER on a scalar function uses CS05083 (42809).
 
 ## Example
 

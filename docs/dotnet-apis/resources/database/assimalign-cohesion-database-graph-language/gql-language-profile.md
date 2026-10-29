@@ -32,7 +32,8 @@ See [GQL diagnostics](../../../../database/graph/language/diagnostics.md).
 
 GqlClauses.Reduce and ListPredicate are enabled. They admit
 [reduce](gql-reduce-expression.md) and [all/any/none/single](gql-list-predicate-expression.md)
-binding expressions; pattern comprehensions remain CK00001.
+binding expressions. GqlClauses.PatternComprehension is enabled for
+[pattern collections](../../../../database/graph/language/expressions/pattern-comprehensions.md).
 
 ## Example
 

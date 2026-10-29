@@ -210,13 +210,13 @@ To reclaim dropped ordinals, use the C# maintenance operation
 [SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
 It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
 read-only snapshots retain the original layout until they end; writers bound before publication
-abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 29.
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 30.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 29 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 30 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
-canonical function-name quoting. Compiled schema version remains 8. Older SQL formats are refused.
+canonical function-name quoting. Compiled schema version is 9. Older SQL formats are refused.
 
 ### View dependencies
 
@@ -374,10 +374,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 8.
+upgrade path. Compiled schema format remains version 9.
 
 ## See also
 

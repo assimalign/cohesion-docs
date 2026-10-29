@@ -21,7 +21,8 @@ Each query has its own grouping and binding scope. [EXISTS](exists.md) tests the
 A lone star inside a subquery retains an object root; a scalar, array or NULL root is wrapped
 as `{"document": root}`. With UNNEST, star produces the binding-wrapper object. A star beside
 other projections is a named `document` member. This differs from Couchbase's alias-keyed star
-shape. Top-level [SELECT *](../statements/select.md) still returns the stored value unchanged.
+shape. Top-level [SELECT *](../statements/select.md) over a stored collection still returns its value unchanged.
+[Derived and expression sources](../clauses/from.md) instead use alias-keyed star wrappers.
 
 Direct IN subqueries require RAW or VALUE. They use [array membership](operators.md#in-and-between):
 MISSING on the left stays MISSING, NULL stays NULL even for an empty result, a match wins over
@@ -48,7 +49,7 @@ EXPLAIN binds without executing, and describes the nested plan and caching polic
 Correlation remains deferred: references to outer FROM/UNNEST, group or comprehension bindings,
 outer ORDER BY projection aliases, qualified outer stars, or an outer alias used as an inner
 source are refused. Inner declarations shadow outer names by ordinal name. An unqualified
-field otherwise binds to the inner source. Derived FROM and subqueries anywhere in INSERT,
+field otherwise binds to the inner source. Subqueries anywhere in INSERT,
 UPSERT, UPDATE or DELETE, including RETURNING, are also deferred.
 
 ## Diagnostics
@@ -56,7 +57,7 @@ UPSERT, UPDATE or DELETE, including RETURNING, are also deferred.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery uses SELECT without RAW/VALUE | — |
-| CK00001 | Correlation, derived FROM or DML subquery | — |
+| CK00001 | Correlation or DML subquery | — |
 | CD05001 | Invalid expression/grouping context; known-array subquery passed to LENGTH, ABS or CONCAT | — |
 | CD05015 | Serialized JSON projection exceeds 256 levels; named output reserves one level for its row object | — |
 | CD05018 | Shared statement memory budget exhausted before publication | — |

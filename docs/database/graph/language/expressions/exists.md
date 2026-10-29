@@ -64,6 +64,9 @@ RETURN c.id, f.id;
 Returns `(3,2)`: person 3 is reachable through friend 2 and is not already a friend of person 1.
 The test also uses RETURN DISTINCT over all starting people to deduplicate multiple mutual friends.
 
+[Pattern comprehensions](pattern-comprehensions.md) use the same correlated scope to collect
+all matches into a list; EXISTS stops at the first match.
+
 ## See also
 
 [Expressions](index.md) · [WHERE](../clauses/where.md) · [MATCH](../statements/match.md) · [GqlExistsExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph-language/gql-exists-expression.md)

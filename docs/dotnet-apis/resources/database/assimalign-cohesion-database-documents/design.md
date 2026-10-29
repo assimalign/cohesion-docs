@@ -240,8 +240,11 @@ for the public metadata.
 [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
 carries Limit and Offset. Planning checks nonnegative Int64 counts before collection lookup,
 including EXPLAIN/direct AST calls. Invalid counts, including NULL, use CD00007; missing parameters
-retain CD01005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
-pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes only the page.
+retain CD01005. Ordinary stored-source paging runs after HAVING, DISTINCT, ORDER BY and column-type
+inference. LIMIT 0 instead validates statically then returns planned metadata without execution.
+Simple derived/expression sources page before projection and infer dynamic types over the selected
+page. Empty pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes
+only the page.
 
 ## `Index` planning and writes
 
@@ -398,7 +401,7 @@ and `tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs` in the same proj
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, correlated/derived-FROM/DML subquery or external sort. Uncorrelated
+model, join, correlated/DML subquery or external sort. Uncorrelated
 [expression subqueries](../../../../database/document/language/expressions/subqueries.md) and EXISTS execute. Document server/client and hosting composition execute;
 replication and model-specific security remain outside this surface.
 
@@ -779,16 +782,29 @@ be rolled back.
 [Expression subqueries](../../../../database/document/language/expressions/subqueries.md) return
 owned arrays on the statement's snapshot and budget. Lazy deterministic results cache per statement;
 callbacks and NOW functions disable caching. Unreached branches perform no nested execution.
-Correlation, derived FROM and DML subqueries remain CK00001. IS now binds above EXISTS and the
+Correlation and DML subqueries remain CK00001. IS now binds above EXISTS and the
 comparison/IN/BETWEEN/LIKE tier; the [full precedence table](../../../../database/document/language/expressions/operators.md#precedence)
 also includes string concatenation and IS [NOT] DISTINCT FROM.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery requires RAW/VALUE | — |
+| CD00015 | Derived FROM SELECT has no alias | — |
+| CD01033 | FROM expression has no explicit alias or implicit field name | — |
+| CD01034 | Unbound source variable without an input-row scope | — |
 
 CD05015 now guards complete SELECT projection depth, including named row wrappers. CD05018
 covers nested sources, scratch and results; materialized arrays remain charged until statement exit.
+
+## Derived and expression FROM sources
+
+[FROM](../../../../database/document/language/clauses/from.md) admits derived SELECTs with a required
+alias and uncorrelated expressions. [OqlSelectExpression.Source](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
+retains the source; Collection is empty for these queries. Stars wrap the alias and META returns
+NULL. Simple sources stream through LIMIT; sorting, grouping and DISTINCT retain required rows
+under CD05018. LIMIT 0 validates statically, then skips every source and execution stage while
+keeping planned column metadata. All levels share the operation snapshot, own writes and budget.
+Correlation, JOIN/NEST and mutation-source integration remain deferred.
 
 ## Sources
 

@@ -32,7 +32,7 @@ CS03067 (0A000, incomplete RESTRICT closure), CS04066 (25001, explicit transacti
 work retained), and retryable CS04064 (40001, concurrent closure change).
 [SqlCreateTableAsExpression](sql-create-table-as-expression.md) represents inferred-table creation,
 including a complete optional name list and WITH DATA/NO DATA policy. It shares ordinary query
-parsing and view output inference; execution uses atomic publication in SQL format 29.
+parsing and view output inference; execution uses atomic publication in SQL format 30.
 
 CTAS output-name failures use CS03068 (42601); explicit transactions use CS04003 (25001).
 [SqlMergeExpression](sql-merge-expression.md) and [SqlMergeWhenClause](sql-merge-when-clause.md)
@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive execution, nested CTEs, explicit window frames and aggregate windows, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive execution, nested CTEs, deferred window frame modes and value modifiers, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -152,7 +152,7 @@ feature lands.
 
 [SqlCreateSchemaExpression](sql-create-schema-expression.md) and [SqlDropSchemaExpression](sql-drop-schema-expression.md)
 carry namespace guards and dependency policy. AUTHORIZATION/nested elements are CK00001.
-The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 29, and keeps
+The engine seeds and protects dbo, persists namespaces as kind 15 records in current format 30, and keeps
 code-first provisioning in dbo. [Schema diagnostics](../../../../database/sql/language/diagnostics.md)
 include CS01028, CS03029, CS03030 and CS03031 and their source SQLSTATE categories.
 
@@ -193,8 +193,8 @@ discipline and emits `CS00003` on malformed input.
 unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUnique: true)`. This
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
 Foreign keys and checks remain constraint catalog records. ON DELETE accepts CASCADE, RESTRICT,
-NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE stays outside the profile
-and reports `CK00001`. See [constraint semantics](../../../../database/sql/language/constraints.md).
+NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE accepts the same declarations;
+changing-action execution retains CK00001 until batch 13. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
 ## T1 literal, type and request forms
 
@@ -209,11 +209,11 @@ sibling reference requires LATERAL; enclosing-query references execute. [WITH](s
 definitions without RECURSIVE bind in declaration order, with schema-less names and stored-table
 fallback for self or later-sibling names. RECURSIVE lists use dependency order; recursive execution
 is refused with CK00001 after binding. Every definition binds; reachable definitions materialize once before writes.
-The renderer and persisted definitions use this canonical shape. Current SQL storage format 29
+The renderer and persisted definitions use this canonical shape. Current SQL storage format 30
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
 table extension 6) and format 16 (SEARCH/MATERIALIZED quoting). Older formats are refused without
-an upgrade reader; compiled schema version remains 8.
+an upgrade reader; compiled schema version is 9.
 
 RIGHT preserves written column slots and makes the whole left subtree nullable; USING reads the
 coerced right value and its collation. [SqlJoinedTableReference](sql-joined-table-reference.md)
@@ -274,7 +274,7 @@ validation, ownership checks and atomic publication. RENAME/TO are contextual id
 Renames carry CHECK/FK/index references without changing row/index identity. Defaults use INSERT
 assignment compatibility; Stable/Volatile calls execute per row on the transaction clock. The catalog separates
 insert defaults from frozen ADD COLUMN missing values in table extension 6 (format 17); the current
-format is 29; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
+format is 30; format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE after format 24 for NULL
 placement, format 23 for views and format 22 for STRING_AGG/LISTAGG identifier quoting, after
 format 21 for persisted namespaces and format 20 for referential actions. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md).
 
@@ -283,10 +283,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 8.
+upgrade path. Compiled schema format remains version 9.
 
 ## Aggregate call modifiers
 
@@ -296,13 +296,13 @@ as do DISTINCT ordering keys absent from arguments (no assigned SQLSTATE). Rende
 structural equality and persisted validation include order keys. LISTAGG WITHIN GROUP uses the
 same ordered input shape; explicit ALL renders but executes like Default. STRING_AGG and LISTAGG
 join the executable function profile; no named clause is added. Format 22 introduced quoting for their
-names as identifiers in persisted SQL; compiled schema version stays 8. There is no upgrade reader.
+names as identifiers in persisted SQL; compiled schema version is 9. There is no upgrade reader.
 
 FILTER retains its condition in depth, source extent, rendering, child walks, structural equality
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
-(42804). Child queries bind independently; aggregate windows retain CK00001. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 74 of 76
+(42804). Child queries bind independently; aggregate windows also accept FILTER. SqlClauses.Filter adds one
+named clause and nine Boolean/statistical function names join the executable profile: 77 of 79
 clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
@@ -311,7 +311,7 @@ clauses including the two exclusions. See [FILTER](../../../../database/sql/lang
 Bodies use the existing query-body grammar. The engine persists expanded bound inputs and output
 aliases remain output references. [SqlOrderByColumn](sql-order-by-column.md) independently retains
 Default/First/Last placement; the renderer emits only written modifiers. Format 24 introduced
-persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 29 also fences temporal default text.
+persisted NULL modifiers, following format 23's view records. Format 25 introduced the predicates below; current format 30 also fences temporal default text.
 
 DML nodes retain optional Returning SELECT lists. OUTPUT, OLD/NEW, INTO and RETURNING WITH (...)
 are contextual refusals; ordinary identifier quoting is unchanged. RETURNING subqueries retain
@@ -330,7 +330,7 @@ operator; completed IN/NOT IN lists or subqueries may continue through another p
 Canonical rendering preserves conservative comparison/IS grouping and LIKE operand parentheses.
 DEFAULT's restricted grammar includes comparisons/distinct predicates while leaving following
 constraints unconsumed. Contextual ILIKE/SIMILAR TO and postfix ISNULL/NOTNULL are CK00001.
-These expressions add no named clause or reserved identifier spelling. Current format 29 admits the
+These expressions add no named clause or reserved identifier spelling. Current format 30 admits the
 persisted grammar and changed precedence; earlier files have no upgrade reader.
 
 ## Conflict clause shape
@@ -340,9 +340,9 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 74 of 76 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 77 of 79 declared clauses,
 including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
-keywords/identifier quoting and format 29 are unchanged.
+keywords/identifier quoting and format 30 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
 alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated
@@ -405,7 +405,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 74 of 76.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 77 of 79.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -457,14 +457,32 @@ See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for p
 | CS00011 | Window argument count or call modifier | 42601 |
 | CS01064 | Duplicate WINDOW name | 42P20 |
 | CS01065 | Unknown/self/forward window reference | 42704 |
-| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS01066 | Copied PARTITION BY, overridden ORDER BY or copying an explicit frame | 42P20 |
 | CS02068 | Non-integer offset or bucket count | 42804 |
 | CS02069 | Incompatible navigation value/default types | 42804 |
+| CS02070 | Noninteger ROWS frame offset | 42804 |
+| CS02071 | NULL frame offset | 22004 |
+| CS02072 | Negative frame offset | 22013 |
+| CS02073 | Noninteger NTH_VALUE index | 42804 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+| CS05080 | Invalid frame boundary categories | 42P20 |
+| CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
+| CS05082 | Nonpositive NTH_VALUE index | 22016 |
+| CS05083 | OVER on a scalar function | 42809 |
+| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
 
+## Window frames and aggregate execution
+
+[ROWS and offset-free RANGE](../../../../database/sql/language/clauses/window.md) execute, including aggregate FILTER and frame value
+functions. Application aggregates and ordered string aggregates recompute changed frames;
+native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
+recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
+visits count before FILTER or input expressions, across functions, partitions and stages of one
+statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
+frame_visits; CS05079 still covers retained window state and scratch.
 
 ## Sources
 

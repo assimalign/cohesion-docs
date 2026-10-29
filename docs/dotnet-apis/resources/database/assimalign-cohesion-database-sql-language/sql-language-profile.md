@@ -30,8 +30,9 @@ These accessors introduce no validation exceptions.
 
 ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG and LEAD are enabled
 with OVER. SqlClauses.Over, Partition and Window are admitted for
-[window specifications](../../../../database/sql/language/clauses/window.md); explicit frames,
-aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE remain CK00001.
+[window specifications](../../../../database/sql/language/clauses/window.md), ROWS and offset-free
+RANGE, aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE. SqlClauses.WindowRows and
+WindowRange are enabled; RANGE offsets, GROUPS, EXCLUDE and value modifiers retain CK00001.
 
 ## Example
 
@@ -49,8 +50,8 @@ Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC"));
 TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
-Current storage format is 29, with no upgrade path from an earlier format. The executable
-profile now measures 74 of 76 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
+Current storage format is 30, with no upgrade path from an earlier format. The executable
+profile now measures 77 of 79 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 binding-only RECURSIVE. Recursive planning, EXPLAIN and execution remain CK00001; acyclic lists execute.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.
@@ -75,6 +76,20 @@ execute. See [identity rules](../../../../database/sql/language/clauses/identity
 ## Related reference
 
 [Assembly](index.md) · [SQL functions](../../../../database/sql/language/functions/builtin-functions.md) · [Diagnostics](../../../../database/sql/language/diagnostics.md)
+
+SQL enables `SqlClauses.OnUpdate = "ON UPDATE"` for persisted
+foreign-key declarations. Changing referenced keys under CASCADE/SET NULL/SET DEFAULT retains
+CK00001 until batch 13; RESTRICT/NO ACTION keep statement-end checks.
+
+The frame clause constants are:
+
+```csharp
+public const string WindowRows = "ROWS window frame";
+public const string WindowRange = "RANGE window frame";
+```
+
+They are members of SqlClauses. Reading them throws no exceptions;
+`SqlLanguageProfile.Instance.Supports(SqlClauses.WindowRows)` returns true, as does WindowRange.
 
 ## Sources
 

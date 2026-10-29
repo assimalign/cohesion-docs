@@ -23,13 +23,13 @@ share SQL and GQL's case-sensitive bare-name contract.
 
 | Construct | Support | Scope |
 | --- | --- | --- |
-| SELECT/FROM/WHERE | Supported | One collection, ordered UNNEST bindings, projections and SQL++ truth conversion |
+| SELECT/FROM/WHERE | Supported | One collection, derived SELECT or expression, ordered UNNEST bindings and SQL++ truth conversion |
 | [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
-| [Expression subqueries](expressions/subqueries.md), [EXISTS](expressions/exists.md) | Supported subset | Uncorrelated SELECT arrays, including RAW/VALUE and direct IN; derived FROM and DML subqueries remain deferred |
+| [Expression subqueries](expressions/subqueries.md), [EXISTS](expressions/exists.md) | Supported subset | Uncorrelated SELECT arrays, including RAW/VALUE and direct IN; DML subqueries remain deferred; [derived and expression FROM](clauses/from.md) execute |
 | CREATE/DROP COLLECTION | Supported | Conditional DDL in an automatic statement transaction |
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
 | [RETURNING](clauses/returning.md) | Supported | INSERT/UPSERT/UPDATE post-images, DELETE pre-images; named, RAW/VALUE or lone star projection with affected count |

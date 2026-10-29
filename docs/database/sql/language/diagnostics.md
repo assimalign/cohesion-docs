@@ -23,9 +23,9 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `CS00010` | GROUPING SETS inside ROLLUP or CUBE, including through a composite; planning refusal, SQLSTATE 42601 |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports CS00008 before execution.
-[Ranking and navigation windows](functions/window-functions.md) execute with OVER. A missing
-OVER uses CS05076 (42P20); aggregate windows, explicit frames and deferred value functions
-retain CK00001, including over an empty table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
+[Ranking, navigation and value windows](functions/window-functions.md), aggregate windows, ROWS
+and offset-free RANGE execute with OVER. A missing OVER uses CS05076 (42P20); deferred frame
+modes and value modifiers retain CK00001, including over an empty table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
 CS01006 before reading rows.
 Only executable functions appear in the language profile's function table.
 
@@ -537,13 +537,22 @@ See [OVER and WINDOW](clauses/window.md) for placement, inheritance and memory r
 | CS00011 | Window argument count or call modifier | 42601 |
 | CS01064 | Duplicate WINDOW name | 42P20 |
 | CS01065 | Unknown/self/forward window reference | 42704 |
-| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS01066 | Copied PARTITION BY, overridden ORDER BY or copying an explicit frame | 42P20 |
 | CS02068 | Non-integer offset or bucket count | 42804 |
 | CS02069 | Incompatible navigation value/default types | 42804 |
+| CS02070 | Noninteger ROWS frame offset | 42804 |
+| CS02071 | NULL frame offset | 22004 |
+| CS02072 | Negative frame offset | 22013 |
+| CS02073 | Noninteger NTH_VALUE index | 42804 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+| CS05080 | Invalid frame boundary categories | 42P20 |
+| CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
+| CS05082 | Nonpositive NTH_VALUE index | 22016 |
+| CS05083 | OVER on a scalar function | 42809 |
+| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
 
 ## Identity integration
 
@@ -560,7 +569,27 @@ Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnatio
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
 
+## Foreign-key update declarations
+
+ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
+SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059 (XX001),
+unsupported table extensions CS06060 (0A000), and earlier catalog formats CS06041. Compiled v8 artifacts
+are refused with InvalidDocument at schema.format. See [constraints](constraints.md#on-update-declarations).
+
+## Window frames and aggregate execution
+
+[ROWS and offset-free RANGE](clauses/window.md) execute, including aggregate FILTER and frame value
+functions. Application aggregates and ordered string aggregates recompute changed frames;
+native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
+recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
+visits count before FILTER or input expressions, across functions, partitions and stages of one
+statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
+frame_visits; CS05079 still covers retained window state and scratch.
+
 ## Sources
+
+- **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 

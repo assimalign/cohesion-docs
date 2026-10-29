@@ -76,6 +76,23 @@ never a projection ordinal. With DISTINCT each key must structurally match an ar
 column binding (CS05032). DISTINCT, ALL or ORDER BY on a scalar function is also CS05032,
 with no assigned SQLSTATE. Invalid aggregate arity uses CS01006 (42883).
 
+## Aggregate windows
+
+Every catalog aggregate, including application aggregates, accepts
+[OVER](../clauses/window.md). It returns one result for each input row over that row's frame,
+with the ordinary aggregate's types, NULL rules, collation and rounding. COUNT returns zero for
+an empty frame; other native aggregates return NULL. FILTER runs before arguments and ordering
+keys; DISTINCT with OVER remains CK00001. Aggregate-local ORDER BY and LISTAGG WITHIN GROUP
+work with OVER, a departure from PostgreSQL's aggregate-local-ordering restriction.
+
+Native numeric, Boolean and statistical aggregates ignore local ordering, including its key
+expressions. Application and ordered string aggregates preserve it. Native fixed-head growing
+frames reuse state; equal consecutive frames reuse their result. Application aggregates and
+ordered strings recompute changed frames. Native aggregates over moving frames such as
+`ROWS n PRECEDING` are also recomputed once the head moves and can hit the **1,000,000-visit
+statement cap** until a later release. The next recomputed candidate input uses CS05084 (54000),
+before FILTER or arguments, even under LIMIT. See the [recomputation limit](../clauses/window.md#recomputation-limit).
+
 ## String aggregation
 
 STRING_AGG takes two arguments; LISTAGG takes one or two and requires WITHIN GROUP. Both return
@@ -95,7 +112,7 @@ WITHIN GROUP is CK00001, and a call without that ordering is refused with CS0000
 
 [Empty sets, GROUPING SETS, ROLLUP and CUBE](../clauses/group-by.md#grouping-sets-rollup-and-cube)
 execute with independent aggregate states. [GROUPING masks](grouping.md) distinguish subtotals
-from real NULL keys. Windows, non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW
+from real NULL keys. Non-LISTAGG WITHIN GROUP and LISTAGG ON OVERFLOW
 (ERROR or TRUNCATE) remain CK00001.
 
 ## Boolean and statistical aggregates
