@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 77 of 79 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 80 of 82 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -71,10 +71,10 @@ SQL storage format is 30; compiled schemas remain version 9.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
-after HAVING and before DISTINCT, final ordering and paging. ROWS, offset-free RANGE, aggregate
-windows with FILTER and FIRST_VALUE/LAST_VALUE/NTH_VALUE execute. Native moving frames are
-recomputed and can hit the [1,000,000-visit cap](language/clauses/window.md#recomputation-limit)
-until a later release.
+after HAVING and before DISTINCT, final ordering and paging. ROWS, RANGE with offsets, GROUPS,
+EXCLUDE, aggregate windows with FILTER and IGNORE/RESPECT NULLS execute. Safe native moving
+aggregates run in O(n) work; application/order-sensitive aggregates and restart-sensitive inputs
+retain the [recomputation cap](language/clauses/window.md#recomputation-limit).
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)

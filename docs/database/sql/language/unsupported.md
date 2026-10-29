@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 77 of 79 named clauses against the live engine. The 2 excluded names are
+The profile measures 80 of 82 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -30,8 +30,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Recursive execution/mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) parses and binds; acyclic lists execute |
 | WITH RECURSIVE ... MERGE | `CK00001` | Refused even for acyclic lists; plain WITH ... MERGE executes |
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
-| RANGE offsets, GROUPS and EXCLUDE | `CK00001` | [ROWS and offset-free RANGE](clauses/window.md#frame-boundaries-and-defaults) execute |
-| Aggregate-window DISTINCT; FROM FIRST/LAST and IGNORE/RESPECT NULLS | `CK00001` | [Aggregate windows and frame value functions](clauses/window.md) execute; missing OVER uses CS05076 (42P20) |
+| Aggregate-window DISTINCT; FROM FIRST/LAST | `CK00001` | [Aggregate windows and frame value functions](clauses/window.md) execute; missing OVER uses CS05076 (42P20) |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
 | `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
 | FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |
@@ -58,7 +57,6 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | GROUPING SETS inside ROLLUP or CUBE | `CS00010` (42601) | Reverse nesting, composites, empty sets and [grouping masks](functions/grouping.md) execute |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `CK00001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
 | Standalone numeric GROUP BY key | `CK00001` | Output ordinals belong only to ORDER BY |
-| Foreign-key ON UPDATE action execution | `CK00001` | [Declarations persist](constraints.md#on-update-declarations); changing keys under CASCADE/SET NULL/SET DEFAULT is refused until batch 13. RESTRICT/NO ACTION retain statement-end checks |
 | Unknown or culture-aware collation name | `CS01052` (42704) | Identifier parses; binding resolves only the four declared names |
 | `CREATE COLLATION`, session collation override | `CK00001` | Database/column/expression rules only |
 | Collation-aware full-text index | `CK00001` or explicit execution error | Not implemented |

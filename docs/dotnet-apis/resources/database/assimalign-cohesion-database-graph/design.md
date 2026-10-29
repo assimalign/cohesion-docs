@@ -1151,6 +1151,24 @@ Scalar composite results use graph.composite-values; entity lists remain CG05001
 | CG00014 | Pattern comprehension requires a nonempty path and projection | — |
 | CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
 
+## GQL composite queries
+
+[UNION and UNION ALL](../../../../database/graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
+columns, type reconciliation and one statement snapshot. UNION keeps the first structural
+occurrence; UNION ALL preserves duplicates. Paging is operand-local and NEXT binds above UNION.
+All operands validate before execution. Other memory/work exhaustion retains CG05020/CG05004.
+EXCEPT, INTERSECT and OTHERWISE remain CK00001 until GQ-Q2. No new SQLSTATE is assigned.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00015 | Missing composite query operand | — |
+| CG00016 | Mixed UNION distinct and UNION ALL modes within one tree | — |
+| CG01020 | Operand column names, order or count differ | — |
+| CG02017 | Proven or runtime result shapes are incompatible | — |
+| CG05029 | Modifying operand or stage in a composite pipeline | — |
+| CG05030 | UNION duplicate-elimination state exceeds the shared memory grant | — |
+| CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
+
 ## Sources
 
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.

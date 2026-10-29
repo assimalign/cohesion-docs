@@ -33,8 +33,9 @@ all parameters and expressions before writes, including for EXPLAIN or an empty 
 [UPSERT](../../../../database/document/language/statements/upsert.md) inserts or replaces whole
 JSON values, returning one affected count per input pair. Invalid scope/binding uses CD05001,
 invalid key/value/depth CD02008, missing parameters CD01005 and lossy decimal values CD02007
-(22003). Repeated keys throw DocumentDuplicateKeyException/CD03012. OPTIONS and
-nested SELECT in VALUES remain CK00001. Parser diagnostics become DatabaseParseException at
+(22003). Repeated keys throw DocumentDuplicateKeyException/CD03012. OPTIONS remains CK00001.
+Subqueries in VALUES and SELECT execute with statement-start reads; work exhaustion uses CD05020.
+Parser diagnostics become DatabaseParseException at
 execution. EXPLAIN describes Upsert/UpsertSelect without writes.
 
 The statement capability is `OqlClauses.Upsert` (`public const string Upsert = "UPSERT"`).

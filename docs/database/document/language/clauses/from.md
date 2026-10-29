@@ -1,6 +1,6 @@
 # FROM
 
-FROM supplies rows from a collection, a derived SELECT or an uncorrelated expression.
+FROM supplies rows from a collection, a derived SELECT or an expression, including a captured outer field.
 
 ## Syntax
 
@@ -55,7 +55,8 @@ case-insensitive, including fully quoted names, while JSON field names remain ca
 [UNNEST and LEFT UNNEST](unnest.md) can follow any source. They expand arrays
 before WHERE; a missing alias defaults to the final named path step. Bindings must be unique,
 including the reserved unaliased collection name (CD00010 in text, CD01023 in a direct AST).
-The unaliased collection name does not become an implicit path variable.
+Inside a correlated subquery, the collection name reaches an unaliased outer row. Own-row
+paths retain the [known scope inconsistency](../expressions/subqueries.md#correlation-and-scope).
 
 ## Derived and expression rows
 
@@ -86,7 +87,9 @@ transaction writes, parameters, function catalog, cancellation and memory budget
 
 ## Evaluation
 
-An expression source evaluates once when reached. Simple derived SELECTs stream rows without
+An expression source evaluates once when reached, per outer row for correlated sources.
+For example, `SELECT RAW (SELECT RAW i FROM d.items AS i) FROM [{items:[1,2]}] AS d`
+returns one bare array `[1,2]`. NULL supplies one NULL row and MISSING supplies none. Simple derived SELECTs stream rows without
 materializing an expression-subquery array. An outer LIMIT stops pulling matching inner rows
 and disposes the cursor; on this nonblocking path paging precedes projection and dynamic column
 types describe the selected page. Grouping, DISTINCT and ordering retain their required rows
@@ -98,8 +101,9 @@ It runs no source expression, predicate, projection or callback. An inner SELECT
 has the same behavior. Missing collections, parameters and invalid names still fail validation.
 EXPLAIN describes DerivedSource/ExpressionSource and nested plans without executing them.
 
-Correlation, JOIN/NEST (including comma joins), subqueries in DML, and expression sources in
-INSERT/UPSERT SELECT remain CK00001. See [expression subqueries](../expressions/subqueries.md).
+Correlated sources and derived/expression INSERT/UPSERT SELECT sources execute. JOIN/NEST
+(including comma joins) remain CK00001. See [expression subqueries](../expressions/subqueries.md)
+for captures, shared work limits and statement-start mutation reads.
 
 ## Diagnostics
 
@@ -108,9 +112,10 @@ INSERT/UPSERT SELECT remain CK00001. See [expression subqueries](../expressions/
 | CD00015 | Derived SELECT has no alias | — |
 | CD01033 | Expression source has neither an explicit alias nor an implicit field name | — |
 | CD01034 | Free variable in a source expression with no input-row scope | — |
-| CK00001 | Correlation, JOIN/NEST or deferred mutation-source form | — |
+| CK00001 | JOIN/NEST | — |
 | CD05015 | Serialized projection exceeds 256 levels, including the star wrapper | — |
 | CD05018 | Shared statement memory budget exhausted | — |
+| CD05020 | Shared reached-expression work budget exhausted | — |
 
 ## Examples
 

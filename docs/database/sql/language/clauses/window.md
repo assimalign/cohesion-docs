@@ -5,12 +5,13 @@ OVER evaluates a window function over partitions of the current query's rows. WI
 ## Syntax
 
 ```syntaxsql
-window_function(...) OVER window_name
-window_function(...) OVER (
+window_function(...) [ { IGNORE | RESPECT } NULLS ] OVER window_name
+window_function(...) [ { IGNORE | RESPECT } NULLS ] OVER (
     [ existing_window_name ]
     [ PARTITION BY expression [ , ...n ] ]
     [ ORDER BY expression [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [ , ...n ] ]
-    [ { ROWS | RANGE } frame_extent ]
+    [ { ROWS | RANGE | GROUPS } frame_extent
+      [ EXCLUDE { CURRENT ROW | GROUP | TIES | NO OTHERS } ] ]
 )
 
 -- After HAVING, before final ORDER BY and paging:
@@ -23,7 +24,8 @@ WINDOW window_name AS ( window_specification ) [ , ...n ]
 ```
 
 The short form ends at CURRENT ROW and permits only UNBOUNDED PRECEDING, offset PRECEDING or
-CURRENT ROW. RANGE accepts only offset-free bounds. See the boundary restrictions below.
+CURRENT ROW. NULL treatment applies only to LAG, LEAD, FIRST_VALUE, LAST_VALUE and NTH_VALUE.
+See the boundary restrictions below.
 
 ## Remarks
 
@@ -48,9 +50,8 @@ window arguments or keys. Windows cannot appear in WHERE, JOIN ON, GROUP BY, HAV
 inputs, LIMIT/OFFSET, or DML RETURNING, and cannot nest in another window's arguments or keys.
 A derived SELECT can compute windows for an outer filter or DML source.
 
-ROWS and offset-free RANGE frames, aggregate windows with FILTER, and
-FIRST_VALUE/LAST_VALUE/NTH_VALUE execute. RANGE offsets, GROUPS, EXCLUDE, aggregate-window
-DISTINCT, FROM FIRST/LAST and IGNORE/RESPECT NULLS remain named CK00001 refusals.
+ROWS, RANGE with offsets, GROUPS, all four exclusions and IGNORE/RESPECT NULLS execute.
+Aggregate-window DISTINCT and FROM FIRST/LAST remain named CK00001 refusals.
 NEXT VALUE FOR in window inputs remains CS03076 (0A000); nextval() keeps per-call evaluation.
 
 ## Frame boundaries and defaults
@@ -62,7 +63,7 @@ UNBOUNDED PRECEDING, offset PRECEDING, CURRENT ROW, offset FOLLOWING, UNBOUNDED 
 Invalid categories use CS05080. Two offsets in the same direction may yield an empty frame;
 their numeric values are not a planning-time ordering restriction.
 
-Offsets accept signed integer expressions and parameters through BIGINT. They evaluate once
+ROWS and GROUPS offsets accept signed integer expressions and parameters through BIGINT. They evaluate once
 per window execution and are shared across partitions; functions using a named specification
 share initialization. Empty input does not evaluate offsets. Current-query row variables,
 aggregates and windows are prohibited; correlated outer-query values are constant for each
@@ -75,6 +76,49 @@ CURRENT ROW, through the last current-row peer. Without ORDER BY, every row is a
 the default covers the whole partition. Offset-free RANGE supports CURRENT ROW peer-group
 starts/ends and unbounded bounds. It does not count physical peer rows as ROWS does.
 Explicit frames do not change ranking or LAG/LEAD navigation.
+
+## RANGE offsets and GROUPS
+
+Offset RANGE requires exactly one ORDER BY key (CS05086). Bounds use distances in that key's
+domain; PRECEDING/FOLLOWING follows ASC or DESC, with peer-inclusive zero offsets.
+
+| Ordering key | Accepted offset domain |
+| --- | --- |
+| TINYINT, SMALLINT, INTEGER, BIGINT | Signed integer |
+| DECIMAL | Integer or DECIMAL |
+| REAL, DOUBLE PRECISION | Numeric |
+| DATE, TIME, TIMESTAMP, TIMESTAMPTZ, INTERVAL | INTERVAL |
+
+Other key types use CS02074; incompatible offset types use CS02075. NULL offsets use CS02071;
+negative or NaN RANGE offsets use CS02076. Floating positive infinity is accepted. Offsets initialize
+once per execution across partitions; empty input skips initialization. Exact numeric boundaries
+do not overflow the key's storage type. Unrepresentable date/timestamp boundaries retain CS02048
+(22008); interval boundaries retain CS02062 (22015).
+
+A NULL current key uses its NULL peer boundary for an offset bound. A non-NULL current key compares
+NULL candidates by the selected NULL sort placement. TIME distances never wrap at midnight.
+INTERVAL is the engine's TimeSpan duration; calendar months and infinite temporal values are absent.
+TIMESTAMP uses wall-clock distances and TIMESTAMPTZ uses UTC distances, a departure from PostgreSQL's
+zone-aware temporal arithmetic. NaN sorts low, unlike PostgreSQL's NaN-high ordering.
+
+GROUPS counts peer groups rather than physical rows. It requires ORDER BY (CS05087), uses the
+ROWS signed-integer offset domain and clamps out-of-partition bounds. CURRENT ROW covers the
+current peer group.
+
+## Exclusion
+
+Exclusion applies after determining the frame, to aggregate and frame-value functions.
+Ranking and LAG/LEAD remain independent of the frame.
+
+| Clause | Members removed |
+| --- | --- |
+| EXCLUDE NO OTHERS (default) | None |
+| EXCLUDE CURRENT ROW | Only the current row |
+| EXCLUDE GROUP | Current row and all its ORDER BY peers |
+| EXCLUDE TIES | Other peers; keeps the current row only if it belongs to the frame |
+
+The same rules apply to ROWS. Without ORDER BY the entire partition is one peer group.
+Canonical SQL omits explicit NO OTHERS.
 
 ## Aggregate windows
 
@@ -91,31 +135,48 @@ Application aggregates and ordered string aggregates preserve it. See
 
 ## Memory
 
-Windows retain full input partitions; LIMIT cannot shorten them. Input/output rows, sort indexes,
-keys and partition scratch share the statement memory grant. An excess reports CS05079 before
-results are published. There is no spill; reservations release on success, failure and cancellation.
-Accounting is conservative for aliased values and intermediate outputs. EXPLAIN describes a
-WindowAgg stage with keys, functions and sort_shared for compatible sort groups.
-Frame boundaries appear per function; EXPLAIN ANALYZE reports frame_visits for candidate
-aggregate inputs before FILTER. Different frames can share a partition/order sort.
+Windows retain complete input partitions; LIMIT cannot shorten them. StatementMemoryBudget
+(default 64 MiB) charges rows, output cells, keys, sort indexes, peer indexes, cached arguments,
+transition state, string buffers and the ownership ledger itself. Reference-identical payloads
+are charged once, including aliased text, CHAR and binary values. Augmented rows replace consumed
+input rows; incompatible sorts release old keys. Partition scratch releases at its boundary;
+output cells remain charged until the stage ends. Buffer capacity and growth overlap are charged.
+Application accumulator internals remain application-owned; their handles and engine-owned inputs
+and sort buffers are charged. This is a conservative retained-memory estimate, not a GC heap limit.
+
+CS05079 refuses an excess before publication. Pre-existing subquery vectors and CTE/relation rows
+are admitted to the same owner; failed admission can use CS05067 (53200). There is no spill;
+success, failure and cancellation release reservations.
+
+The source's full-output fixture admits 138,961 rows for ROW_NUMBER plus RANK over the three-INT
+id/p/k source, and 162,448 rows for moving AVG(k) with ROWS 99 PRECEDING, at the default grant.
+The next row is refused. These are fixture limits, not universal row caps; widths, functions,
+partitions and other retained statement state change them.
+
+EXPLAIN describes WindowAgg keys, functions, frames and sort_shared. Different frames can share
+a partition/order sort. ANALYZE reports frame_visits, transitions, inverse_transitions and
+boundary_visits.
 
 ## Recomputation limit
 
-Native aggregates reuse state while the frame head stays fixed, including bounded PRECEDING
-heads initially clamped to the partition start. Equal consecutive frames reuse their result.
-Application aggregates and ordered STRING_AGG/LISTAGG recompute changed frames, preserving
-once-only finalization of each application accumulator.
+Native SUM, COUNT, AVG, Boolean and statistical aggregates use inverse transitions for safe
+arguments and FILTER; MIN/MAX use monotonic queues. Work is O(n) per function and partition,
+including moving frames and exclusion. FILTER evaluates once per visited input and arguments
+only for admitted inputs. Cached inputs and state release at the partition boundary. Exact
+numeric state preserves small terms through cancellation and rounds only final results.
 
-**Native aggregates over moving frames, including `n PRECEDING`, are recomputed when the head
-moves and can reach the cap until a later release.** This includes native numeric, Boolean,
-statistical and string aggregates. A fixed-head growing native frame avoids this recomputation.
+Application aggregates and order-sensitive STRING_AGG/LISTAGG recompute changed frames, with
+once-only application finalization. They share a **1,000,000 candidate-input-visit cap per
+statement** across functions, partitions and stages (CS05084 / 54000), counted before FILTER or
+arguments. Equal cached frames spend no visits; LIMIT cannot avoid this work.
 
-Recomputed frames share a fixed **1,000,000 candidate-input-visit cap per statement**, across
-functions, partitions and window stages. The next visit raises CS05084 (54000) before FILTER,
-input expressions or transitions. Even a FALSE filter spends visits; equal cached frames spend
-none. LIMIT applies after complete window evaluation and cannot avoid this refusal. Reservations
-release on failure. Ordered inputs and accumulator scratch also share the CS05079 memory grant;
-string output cost grows with total returned text. Full retained-memory refinement is deferred.
+Volatile functions or subqueries in arguments or FILTER disable inverse transitions and input
+caching. When the frame head moves, restart evaluation re-evaluates the new frame, following
+PostgreSQL. This includes nextval, setval and application scalar functions unless Stable or
+Immutable. **This restart path can also reach CS05084, even for a native aggregate.** For example,
+the branch's volatile-input regression refuses a 2,000-row shrinking SUM(observe(id)) frame.
+Safe native moving aggregates avoid that cap. Value-function NULL skipping has no O(n) promise.
+String output cost also grows with total returned text.
 
 ## Diagnostics
 
@@ -131,6 +192,9 @@ string output cost grows with total returned text. Full retained-memory refineme
 | CS02071 | NULL frame offset | 22004 |
 | CS02072 | Negative frame offset | 22013 |
 | CS02073 | Noninteger NTH_VALUE index | 42804 |
+| CS02074 | Unsupported offset RANGE ordering-key domain | 0A000 |
+| CS02075 | Incompatible RANGE offset domain | 0A000 |
+| CS02076 | Negative or NaN RANGE offset | 22013 |
 | CS05076 | Invalid placement or window function without OVER | 42P20 |
 | CS05077 | Nested window function | 42P20 |
 | CS05078 | Nonpositive NTILE count on the first ordered partition row | 22014 |
@@ -139,8 +203,11 @@ string output cost grows with total returned text. Full retained-memory refineme
 | CS05081 | Current-query row variable, aggregate or window in frame offset | 42P20 |
 | CS05082 | Nonpositive NTH_VALUE index, even for an empty frame | 22016 |
 | CS05083 | OVER on a scalar function | 42809 |
-| CS05084 | Recomputed frames exceed 1,000,000 candidate input visits per statement | 54000 |
-| CK00001 | Deferred frame modes, value modifiers or aggregate-window DISTINCT | — |
+| CS05084 | Application/order-sensitive or restart-path frame recomputation exceeds 1,000,000 candidate visits per statement | 54000 |
+| CS05086 | Offset RANGE has other than one ORDER BY key | 42P20 |
+| CS05087 | GROUPS without ORDER BY | 42P20 |
+| CS05088 | NULL treatment on a function other than LAG/LEAD/FIRST_VALUE/LAST_VALUE/NTH_VALUE | 42601 |
+| CK00001 | FROM FIRST/LAST or aggregate-window DISTINCT | — |
 
 ## Example
 
@@ -170,11 +237,25 @@ FROM framed WINDOW w AS(ORDER BY id ROWS 1 PRECEDING) ORDER BY id;
 
 Returns `(1,NULL,2,2,NULL)`, `(2,4,2,4,4)` and `(3,10,4,6,6)`.
 
+On a fresh table, these examples compare distance, peer groups and exclusion:
+
+```sql
+CREATE TABLE peers(id INT,k INT,v INT);
+INSERT INTO peers VALUES (1,1,10),(2,1,20),(3,3,30),(4,4,40);
+SELECT id, SUM(v) OVER(ORDER BY k RANGE 1 PRECEDING) AS distance,
+       SUM(v) OVER(ORDER BY k GROUPS 1 PRECEDING EXCLUDE TIES) AS grouped_total
+FROM peers ORDER BY id;
+```
+
+Returns (1,30,10), (2,30,20), (3,30,60), (4,70,70).
+
 ## See also
 
 [Clauses](index.md) · [SELECT](../statements/select.md) · [Window functions](../functions/window-functions.md)
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWindowRangeGroupsTests.cs`, `SqlWindowMovingTests.cs`, `SqlWindowRetainedMemoryTests.cs` and `SqlWindowReviewRegressionTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWindowExecutionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlWindowParserTests.cs`.

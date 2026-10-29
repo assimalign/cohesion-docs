@@ -2,7 +2,7 @@
 
 Declares primary keys, unique keys, foreign keys, checks, and column nullability.
 
-> **Status:** Partial. The listed declarations execute; deferred enforcement and ON UPDATE actions are excluded.
+> **Status:** Partial. The listed declarations execute; transaction-deferred enforcement is excluded.
 
 ## Syntax
 
@@ -65,8 +65,8 @@ one current row at a time and uses indexed parent seeks where an index is availa
 key introduced by the same statement can require a scan instead; this bounds retained memory,
 not execution time or the table's row count.
 
-Multi-row UPDATE validates outgoing and incoming NO ACTION/RESTRICT references against the
-statement's final rows. Old replaced versions are excluded and every final replacement contributes
+Multi-row UPDATE validates outgoing and incoming NO ACTION references against the
+statement's final rows. ON UPDATE RESTRICT checks existing references immediately. Old replaced versions are excluded and every final replacement contributes
 its keys. A self-reference can move with its parent key, and mutually referenced keys can swap
 when the final state is consistent. A removed key cannot authorize a dangling child; another
 replacement retaining that key can satisfy the reference. Snapshot and ReadCommitted use the
@@ -102,6 +102,8 @@ transaction remain usable.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS03037` | Duplicate PRIMARY KEY, UNIQUE constraint or unique-index key | 23505 |
+| `CS05085` | Different referential-action origins propose conflicting replacements of one column | 27000 |
+| `CS05067` | Referential closure exceeds StatementMemoryBudget before writes | 53200 |
 | `CS05042` | Final referential-action row or write/build index key exceeds its encoded size limit | 54000 |
 | `CS03038` | CHECK or domain check rejects a value, including CAST to a domain and function domain arguments/results | 23514 |
 | `CS03039` | Missing referenced parent or removal/change of a referenced key forbidden by NO ACTION/RESTRICT | 23503 |
@@ -155,17 +157,37 @@ accept all five update actions. Catalog format 30 and compiled schema v9 persist
 through persisted views. The [compiled constraint API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md)
 exposes OnUpdate. Typed References declarations default it to NoAction.
 
-**Interim behavior:** CASCADE, SET NULL and SET DEFAULT are declarations only. Until batch 13
-executes these actions, changing a referenced parent key is refused with CK00001 before row
-writes, even if no child refers to it or another final parent retains the old key. UPDATE,
-UPDATE FROM, ON CONFLICT DO UPDATE and MERGE share this guard. Referential SET actions caused
-by DELETE/DELETE USING/MERGE DELETE also check it before outgoing foreign-key validation.
-Unchanged keys and unrelated-column updates execute normally.
+UPDATE, UPDATE FROM, ON CONFLICT DO UPDATE and MERGE execute all five actions. Referential
+SET actions caused by DELETE can also change a referenced key and start update actions.
 
-Key changes compare stored representations. Case-only or accent-only changes count under
-insensitive collations and are refused for these three actions. RESTRICT and NO ACTION both
-retain the existing statement-end, collation-aware parent-key check; another final parent can
-satisfy the reference. This release does not make ON UPDATE RESTRICT immediate.
+| Update action | Behavior |
+| --- | --- |
+| CASCADE | Assigns the new parent key to matching child columns, following chains |
+| SET NULL | Assigns NULL to all referencing columns |
+| SET DEFAULT | Evaluates each column's current default per child row, or assigns NULL without one; sequence and identity defaults allocate normally |
+| RESTRICT | Immediately refuses a key change with existing references, including a directly reassigned self-reference |
+| NO ACTION | Checks the complete statement-final state; another final parent may supply the old key |
+
+Key changes compare stored representations. Case-only or accent-only changes fire actions even
+under an insensitive equality collation; unchanged stored keys do not. Matching children remains
+collation-aware. A NULL component in the old parent key matches no child (MATCH SIMPLE).
+
+Actions match old parent keys against the child's final direct assignment, before referential
+actions. A directly moved child key keeps its assigned value; one still equal to the old key
+receives the action, including an explicit self-assignment. A parent key swap does not rematch
+an already-cascaded child to the other parent's old key. Untouched child columns remain intact.
+This old-key matching follows PostgreSQL.
+
+Different parent-row/constraint origins proposing different stored replacements for one column
+fail with CS05085 (27000). Equal replacements converge; one origin may revise its composite-key
+proposal through several hops. Conflicting DELETE SET and UPDATE actions also use CS05085.
+This mixed-action conflict rule differs from PostgreSQL's trigger-order-dependent result.
+Normal coercion, domain, NOT NULL, CHECK, unique and final foreign-key checks apply to the complete
+closure. Failure rolls back direct writes, child actions and indexes together.
+
+RETURNING shows each statement's own writes before subsequent referential actions. Cascaded child
+writes do not add returned rows or affected counts. All referential closures, including plain
+ON DELETE CASCADE, share StatementMemoryBudget; see [closure memory](#referential-closure-memory).
 
 Execute separately in a fresh database:
 
@@ -174,13 +196,24 @@ CREATE TABLE p(id INT PRIMARY KEY);
 CREATE TABLE c(pid INT, CONSTRAINT fk_c_pid FOREIGN KEY(pid) REFERENCES p(id)
     ON UPDATE CASCADE ON DELETE SET NULL);
 INSERT INTO p VALUES (1);
+INSERT INTO c VALUES (1);
 SELECT UPDATE_RULE, DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_NAME = 'fk_c_pid';
-UPDATE p SET id=2 WHERE id=1;
+UPDATE p SET id=2 WHERE id=1 RETURNING id;
+SELECT pid FROM c;
 ```
 
-The metadata actions are CASCADE and SET NULL. The UPDATE is refused with CK00001 even without
-child rows, leaving parent id 1. Use an explicit constraint name when filtering catalog metadata.
+The metadata actions are CASCADE and SET NULL. UPDATE returns id 2 and affects one parent;
+the child SELECT returns pid 2. Use an explicit constraint name when filtering catalog metadata.
+
+### Referential closure memory
+
+Every referential closure charges retained rows, projections and lookup state against
+StatementMemoryBudget, including plain DELETE CASCADE. At about 840 bytes per two-column row,
+the default 64 MiB grant permits about 79,900 closure rows; other retained work lowers that limit.
+A 100,000-row chain needs about 84 MB and an explicitly larger grant. There is no cascade depth
+limit. Exhaustion reports CS05067 (53200) before physical writes; failure, cancellation and
+abandoned lock-retry attempts release reservations.
 
 ## MERGE final rows
 
@@ -325,7 +358,7 @@ Cascade preparation can back off when a required lock is refused: it releases ne
 
 ## Sources
 
-- **ON UPDATE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOnUpdateTests.cs` and `SqlOnUpdateRegressionTests.cs`.
+- **ON UPDATE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOnUpdateTests.cs`, `SqlOnUpdateClosureTests.cs`, `SqlOnUpdateFixTests.cs` and `SqlOnUpdateSecondFixTests.cs`.
 
 - **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.

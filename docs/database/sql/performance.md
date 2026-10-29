@@ -65,14 +65,19 @@ equality, list b first: `FROM b, a` or `USING b, a`. In
 t × a product before b's hash. Reversing the source list lets each equality drive its step.
 Both orders are correct; general join-order search is deferred to #1629.
 
+Every [referential closure](language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
+StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
+about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
+CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
+
 ## Window frame work
 
 [Window stages](language/clauses/window.md) retain full partitions under the statement memory
-grant (CS05079), with no spill. EXPLAIN ANALYZE reports frame_visits before FILTER. Native
-fixed-head growing frames reuse accumulator state; equal frames reuse their result. Application
-aggregates and ordered string aggregates recompute changed frames. Native moving frames such
-as ROWS n PRECEDING also recompute once the head moves and can reach the shared 1,000,000-visit
-cap (CS05084, 54000) until a later release. LIMIT cannot shorten this work.
+grant (CS05079), with no spill. Safe native moving aggregates run in O(n) work using inverse
+transitions or MIN/MAX queues, including exclusion. Application/order-sensitive aggregates
+recompute under the shared 1,000,000-visit cap (CS05084 / 54000). Volatile or subquery inputs/FILTER
+restart evaluation when the head moves; this fallback can also hit CS05084 for native aggregates.
+ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visits. LIMIT cannot shorten this work.
 
 ## Sources
 

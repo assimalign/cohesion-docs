@@ -35,8 +35,15 @@ it one array-valued item in the ordinary value-list grammar.
 Nested queries share the statement's fixed snapshot, earlier transaction writes, parameters,
 frozen function catalog, transaction clock, cancellation and retained-memory budget. They do
 not start a transaction or obtain a new snapshot. Source rows, scratch, results and arrays share
-StatementMemoryBudget (64 MiB by default). Every materialized nested array, including a result
-recomputed per evaluation, remains charged until statement exit. Returned JSON owns its values.
+StatementMemoryBudget (64 MiB by default). Cached arrays remain charged until statement exit.
+Uncached arrays belong to the consuming expression: discarded predicate/iteration scratch releases
+immediately; projections, group/order keys and expanded UNNEST rows own separately charged copies.
+Failure and cancellation release their reservations. Returned JSON owns its values.
+
+[StatementWorkBudget](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/document-database-engine-options.md#statementworkbudget)
+defaults to 10,000,000 reached expression evaluations for statements containing subqueries or
+expression sources. All depths and cache hits share the counter. Unreached expressions spend no
+work; exhaustion reports CD05020 before the next evaluation and rolls back statement writes.
 
 Only deterministic uncorrelated results cache, lazily by AST identity for the current statement.
 NOW_STR, NOW_MILLIS and any registered developer callback disable caching, including calls in
@@ -46,21 +53,49 @@ no nested query, invokes no callback and consumes no nested work or retained arr
 Static parameter, numeric, name, metadata and grouping validation still checks every branch.
 EXPLAIN binds without executing, and describes the nested plan and caching policy.
 
-Correlation remains deferred: references to outer FROM/UNNEST, group or comprehension bindings,
-outer ORDER BY projection aliases, qualified outer stars, or an outer alias used as an inner
-source are refused. Inner declarations shadow outer names by ordinal name. An unqualified
-field otherwise binds to the inner source. Subqueries anywhere in INSERT,
-UPSERT, UPDATE or DELETE, including RETURNING, are also deferred.
+## Correlation and scope
+
+An inner query may capture outer FROM/UNNEST, group-term, GROUP AS and comprehension bindings.
+Subqueries inside ORDER BY also see outer projection aliases. Inner declarations shadow outer
+names by ordinal, case-sensitive name; an unqualified field otherwise binds to the inner source.
+Stars contain only local rows; qualified stars remain refused with CK00001. Stored outer bindings
+retain META id/version; expression/derived rows and scalar bindings have NULL metadata.
+
+An outer field can supply the inner source, for example `FROM d.items AS i`; it evaluates per
+outer row and follows the [expression-source rules](../clauses/from.md#derived-and-expression-rows).
+Captured references are checked against **every** enclosing GROUP BY. An aggregate in an inner
+query does not make a hidden outer field legal; invalid grouped captures report CD05001.
+
+Inside a correlated subquery, reach an unaliased outer row by its collection name, such as
+`items.g`. There is an open inconsistency, [cohesion#1767](https://github.com/assimalign/cohesion/issues/1767):
+at top level without a subquery, `items.g` in `FROM items` reads field `items` then `g`.
+Once the statement contains a subquery, that own-row path resolves to field `g` instead.
+Use an explicit source alias for consistent qualified paths. Grouping validation still distinguishes
+own unaliased field paths from captured collection receivers.
+
+## Mutation subqueries
+
+UPDATE predicates and SET, DELETE predicates, INSERT/UPSERT VALUES and SELECT sources, and
+RETURNING accept subqueries. All pending writes are staged before mutation. Nested reads see
+statement-start content, including earlier statements in the same transaction, and never see
+this statement's writes. Derived and expression INSERT/UPSERT SELECT sources also execute.
+
+[RETURNING](../clauses/returning.md) binds the post-image and actual reserved durable version on
+INSERT/UPSERT/UPDATE, and the pre-image and old version on DELETE. Its nested collection reads
+still see statement-start data. RETURNING containing subqueries stages before writes; callbacks
+can run before a later storage/constraint failure, but results publish only after every write
+succeeds. Failed statements can leave version gaps. Unreached RETURNING branches read nothing.
 
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery uses SELECT without RAW/VALUE | — |
-| CK00001 | Correlation or DML subquery | — |
+| CK00001 | Qualified star or other unsupported form | — |
 | CD05001 | Invalid expression/grouping context; known-array subquery passed to LENGTH, ABS or CONCAT | — |
 | CD05015 | Serialized JSON projection exceeds 256 levels; named output reserves one level for its row object | — |
 | CD05018 | Shared statement memory budget exhausted before publication | — |
+| CD05020 | Shared reached-expression work budget exhausted | — |
 
 ## Example
 
@@ -75,6 +110,25 @@ SELECT (SELECT n AS x FROM items WHERE n = 1) AS objects,
 ```
 
 Returns `{"objects":[{"x":1}],"numbers":[1,2,3],"hit":true}`.
+
+These correlation examples need no stored collection:
+
+```sql
+SELECT RAW (SELECT RAW i FROM d.items AS i) FROM [{items:[1,2]}] AS d;
+SELECT RAW (SELECT RAW n FROM [{n:2}] AS s) FROM [{n:7}] AS d;
+```
+
+Returns one bare array `[1,2]`, then one bare array `[2]`: unqualified `n` uses the inner source.
+
+Using the items fixture above:
+
+```sql
+UPDATE items d SET n = d.n + 10
+RETURNING n, (SELECT RAW s.n FROM items s ORDER BY s.n) AS old;
+```
+
+Returns `{"n":11,"old":[1,2,3]}`, `{"n":12,"old":[1,2,3]}` and
+`{"n":13,"old":[1,2,3]}`. The nested reads all precede this statement's writes.
 
 For star shape, execute separately in a new collection:
 
@@ -92,6 +146,7 @@ Returns `[{"document":42},{"x":1},{"document":[1]},{"document":null}]`.
 
 ## Sources
 
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCorrelatedSubqueryTests.cs`, `DocumentDmlSubqueryTests.cs` and `DocumentSourceScopingTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSubqueryTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSubqueryBoundaryTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Execution/DocumentPlanExecutor.Nested.cs`.

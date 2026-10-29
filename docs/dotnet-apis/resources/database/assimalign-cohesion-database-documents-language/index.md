@@ -58,9 +58,9 @@ Documents engine supplies catalog binding, planning, and execution. Queries and 
 one collection in the session's database. `CREATE INDEX` and `DROP INDEX` use the same
 parse-plan-execute path as `SELECT`; INSERT, UPSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. UPSERT replaces whole documents.
 OQL follows the SQL++ MISSING contract. DEFINE/ELEMENT/FLATTEN are ordinary field names;
-their old statement/call positions report CK00001. Uncorrelated expression subqueries and EXISTS
+their old statement/call positions report CK00001. Expression subqueries and EXISTS
 execute. [Derived and expression sources](../../../../database/document/language/clauses/from.md)
-also execute through OqlSelectExpression.Source; correlation and DML subqueries remain CK00001.
+also execute through OqlSelectExpression.Source; correlation and DML subqueries execute with statement-start reads and shared work/memory limits.
 
 See [DESIGN.md](design.md) for the supported-clause matrix, statement/expression grammar,
 diagnostics, scope restrictions, and extension rules. Co-located Shouldly tests provide the parser

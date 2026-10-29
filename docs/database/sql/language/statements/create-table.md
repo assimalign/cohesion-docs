@@ -36,7 +36,7 @@ CREATE TABLE [ IF NOT EXISTS ] [ schema_name . ] table_name
 ```
 
 ON DELETE and ON UPDATE can appear in either order, once each; omitted actions independently
-default to NO ACTION. See [ON UPDATE declarations and interim enforcement](../constraints.md#on-update-declarations).
+default to NO ACTION. See [ON UPDATE declarations and execution](../constraints.md#on-update-declarations).
 
 ## Arguments
 

@@ -10,6 +10,9 @@ Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 public sealed class GqlQueryExpression : GqlExpression
 {
     public GqlQueryExpression(IReadOnlyList<GqlStage> stages, Location? location = null);
+    public GqlQueryExpression(GqlCompositeQuery composite, Location? location = null);
+    public GqlCompositeQuery? Composite { get; }
+    public override string ToString();
     public IReadOnlyList<GqlStage> Stages { get; }
     public IReadOnlyList<GqlSetItem> SetItems { get; }
     public IReadOnlyList<GqlRemoveItem> RemoveItems { get; }
@@ -40,12 +43,19 @@ public sealed class GqlQueryExpression : GqlExpression
 
 ## Behavior and exceptions
 
-Stages is the planner/executor input. The stage constructor rejects a null list with
+For linear queries, Stages is the planner/executor input. The stage constructor rejects a null list with
 ArgumentNullException, retains the supplied list, and initializes compatibility summaries:
 MatchClauses collects match stages, Creates/DeleteVariables collect writes, and return flags/tails
 come from a final GqlReturnStage. Supply per-stage tails on GqlReturnStage for explicit pipelines.
 The original constructors expose a single-segment stage facade without changing call sites.
 Segments splits at NEXT and excludes the boundaries. See [GqlStage](gql-stage.md) for all leaves.
+
+The composite constructor throws ArgumentNullException for null and retains the binary
+[GqlCompositeQuery](gql-composite-query.md). A standalone composite exposes an empty Stages list;
+Composite is null for a linear pipeline. A composite/NEXT pipeline uses
+[GqlCompositeStage](gql-composite-stage.md) among its stages. ToString preserves semantic grouping
+and NEXT precedence. Operand column, shape and read-only checks occur during planning;
+[UNION](../../../../database/graph/language/clauses/union.md) lists the diagnostics and execution rules.
 
 Planning validates each incoming scope before execution. Missing mandatory stage operands and
 invalid boundaries use CG05001; text leading/trailing NEXT or WITH immediately followed by NEXT

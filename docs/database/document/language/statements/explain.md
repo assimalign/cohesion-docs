@@ -25,6 +25,9 @@ that every plan record has a description mapping; this does not admit DDL under 
 VALUE/RAW uses ProjectValue for an ungrouped projection. DISTINCT adds a parent Distinct above
 the projection or Group stage, without changing the shared result columns.
 
+[SubqueryExpression](../expressions/subqueries.md) detail includes captured names and cache policy.
+Nested plans bind without executing queries or callbacks, including in mutation statements.
+
 EXPLAIN DELETE emits a Delete root with a CollectionScan or IndexSeek child and the chosen filter/access
 detail. With the by_score index, `EXPLAIN DELETE FROM items WHERE score >= 2` describes Delete
 with detail `filter=True; access=IndexSeek` and its by_score seek, without deleting documents.

@@ -32,6 +32,7 @@ operands use CG05001. Read stages stream in source order; mutation targets mater
 | [GqlDeleteStage](gql-delete-stage.md) | DELETE/DETACH DELETE |
 | [GqlReturnStage](gql-return-stage.md) | RETURN/WITH projection, grouping and tail |
 | [GqlNextStage](gql-next-stage.md) | Segment boundary |
+| [GqlCompositeStage](gql-composite-stage.md) | UNION/UNION ALL over incoming projected bindings |
 
 ## Example
 

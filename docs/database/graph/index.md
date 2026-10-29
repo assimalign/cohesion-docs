@@ -7,6 +7,8 @@ The Graph engine stores property-graph nodes and relationships in database-bound
 `Assimalign.Cohesion.Database.Graph` implements an embedded property-graph engine with durable
 catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph Query Language
 (GQL) profile. The language targets a subset of ISO/IEC 39075:2024; it does not claim full conformance.
+[UNION and UNION ALL](language/clauses/union.md) combine read-only results, including NEXT
+pipelines, with shared snapshot and work/memory budgets.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients

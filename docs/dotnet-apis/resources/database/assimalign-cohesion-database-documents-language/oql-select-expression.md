@@ -76,7 +76,7 @@ Source is null for a collection source. Supplying the optional source constructo
 ignores collection; Collection then returns an empty string. A derived source is an
 [OqlSubqueryExpression](oql-subquery-expression.md); other sources retain their expression node.
 Construction only stores these arguments. Planning raises DatabaseException/CD01033 for a missing
-source alias, CD01034 for an unbound source variable, and CK00001 for correlation. Text without a
+source alias, CD01034 for an unbound source variable. Correlated sources evaluate per outer row. Text without a
 derived alias reports CD00015. None has an assigned SQLSTATE. LIMIT 0 validates statically then
 returns planned metadata without executing. See [FROM](../../../../database/document/language/clauses/from.md).
 

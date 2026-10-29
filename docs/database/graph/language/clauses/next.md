@@ -26,9 +26,15 @@ unrelated later stages. A write anywhere takes the writer lock before the first 
 paging does not reduce earlier mutations. Failure rolls back the statement under session
 transaction rules.
 
-Only final columns govern wire result admission. Read-only composed queries can use ExecutePaths
+For linear pipelines, only final columns govern wire result admission. Read-only composed queries can use ExecutePaths
 for one mandatory entity/path final column; any write stage is refused by that path API. Intermediate
 collect/UNWIND is permitted. Final lists of entities remain unsupported over the wire (CG05001; #1662).
+
+[UNION](union.md) binds more tightly than NEXT. Each segment can be a composite, whose operands
+receive the preceding segment's complete projected binding table in isolated scopes. A NEXT
+inside parentheses stays in its operand. For example,
+`RETURN 1 AS x UNION ALL RETURN 2 AS x NEXT RETURN x*10 AS x` returns rows 10 and 20.
+Composite pipelines must be read-only (CG05029). Every operand is statically wire-admitted.
 
 ## Diagnostics
 
@@ -38,7 +44,7 @@ collect/UNWIND is permitted. Final lists of entities remain unsupported over the
 | CG05001 | Reference to a name omitted by a projection or invalid path/wire result shape |
 | CG03003 | Reference to a deleted variable or a value used as an entity |
 | CG01015 | Duplicate carried name |
-| CK00001 | NEXT YIELD, UNION, CALL, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
+| CK00001 | NEXT YIELD, CALL, FOREACH, standalone ordering/paging, or immediate RETURN after DELETE |
 
 These codes have no assigned SQLSTATE. See [Diagnostics](../diagnostics.md).
 
