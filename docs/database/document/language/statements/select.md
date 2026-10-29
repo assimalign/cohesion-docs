@@ -1,12 +1,13 @@
 # SELECT
 
-SELECT projects document expressions from one collection with optional filtering, grouping, and ordering.
+SELECT projects document expressions from one collection, derived query or expression source, with filtering, grouping and ordering.
 
 ## Syntax
 
 ```syntaxsql
 SELECT [ ALL | DISTINCT ] { projection [ , ...n ] | { VALUE | RAW } expression }
-FROM collection_name [ [ AS ] iteration_variable ]
+FROM { collection_name [ [ AS ] iteration_variable ]
+     | ( SELECT ... ) [ AS ] alias | expression AS alias }
 [ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
 [ WHERE predicate ]
 [ GROUP BY expression [ [ AS ] alias ] [ , ...n ] [ GROUP AS group_name ] ]
@@ -55,7 +56,7 @@ A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, a
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
 deduplication. Named projections retain their MISSING cells.
 
-Evaluation proceeds through UNNEST expansion, WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
+Unless LIMIT is zero, evaluation proceeds through UNNEST expansion, WHERE, GROUP BY/HAVING, projection, DISTINCT, ORDER BY, then [LIMIT/OFFSET](../clauses/limit-offset.md). DISTINCT
 compares complete projected rows using structural equality: numeric 2 and 2.0 compare equal,
 arrays compare by ordered elements, and objects by ordinal keys and their values independently of
 member order. It retains the first representative. Named MISSING and NULL remain distinct;
@@ -95,11 +96,19 @@ With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by th
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
 paging consume expanded rows. Ordinary star without UNNEST still preserves the stored bytes.
 
+## Derived and expression sources
+
+[FROM](../clauses/from.md) accepts an aliased SELECT or uncorrelated expression. Arrays expand in
+order, objects/scalars/NULL supply one row, and MISSING supplies none. Their lone stars produce
+alias-keyed objects; META returns NULL. Simple queries stream through paging; LIMIT 0 skips
+execution after static validation, including sorting and grouping. These sources compose with
+UNNEST and nested SELECTs. Stored collection byte-preservation rules above apply to stored sources.
+
 ## Expression subqueries
 
 Uncorrelated [(SELECT ...)](../expressions/subqueries.md) returns an array wherever a SELECT
 expression is allowed. [EXISTS](../expressions/exists.md) tests for a nonempty array. Nested
-queries share this statement's snapshot and memory budget. Correlation, derived FROM and
+queries share this statement's snapshot and memory budget. Correlation and
 subqueries in DML remain CK00001. Nested star results wrap nonobject roots under `document`;
 top-level lone-star results keep the stored-value rule above.
 

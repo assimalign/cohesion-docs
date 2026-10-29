@@ -336,9 +336,12 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery requires SELECT RAW or SELECT VALUE | — |
+| CD00015 | Derived FROM SELECT has no alias | — |
+| CD01033 | FROM expression has no explicit alias or implicit field name | — |
+| CD01034 | Unbound source variable without an input-row scope | — |
 
 [Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
-and CD05015 projection-depth guard. Correlation, derived FROM and DML subqueries use CK00001.
+and CD05015 projection-depth guard. Correlation and DML subqueries use CK00001; derived and expression FROM sources execute.
 
 ## Correlated GQL EXISTS
 

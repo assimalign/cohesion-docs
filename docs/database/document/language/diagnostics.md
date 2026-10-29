@@ -269,6 +269,17 @@ statement cancellation keep their identity. Unknown names retain CD00008 but ord
 requests resolve them during binding/execution (ExecutionFailure, no StatementParseFailed);
 standalone parsers retain unknown-name parse diagnostics. See [functions](functions/index.md#application-functions).
 
+## FROM sources
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00015 | Derived FROM SELECT has no alias | — |
+| CD01033 | FROM expression has no explicit alias or implicit field name | — |
+| CD01034 | Unbound source variable without an input-row scope | — |
+
+[Derived and expression sources](clauses/from.md) execute. Correlation and mutation-source
+integration retain CK00001; generated star wrappers count toward CD05015's projection depth.
+
 ## Sources
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
