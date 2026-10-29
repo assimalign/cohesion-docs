@@ -480,6 +480,24 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
 
+## OQL key joins and NEST
+
+[Key JOIN and NEST](document/language/clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
+stars. All SELECT sources throughout a joined statement require explicit aliases pending
+[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
+default); eviction drops complete entries and NEST arrays, while retained rows keep their own
+charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
+without lookups. No SQLSTATE is assigned to these conditions.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
+| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
+| CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
+| CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
+
 ## Sources
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

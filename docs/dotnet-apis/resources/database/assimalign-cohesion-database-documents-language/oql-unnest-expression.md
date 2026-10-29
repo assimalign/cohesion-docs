@@ -5,19 +5,20 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 ## Signature
 
 ```csharp
-public sealed class OqlUnnestExpression : OqlExpression
+public sealed class OqlUnnestExpression : OqlSourceBindingExpression
 {
     public OqlUnnestExpression(OqlExpression collection, string variable,
         bool isLeft = false, Location? location = null);
     public OqlExpression Collection { get; }
-    public string Variable { get; }
-    public bool IsLeft { get; }
+    // Expression, Variable and IsLeft are inherited.
 }
 ```
 
 ## Behavior and exceptions
 
-Collection evaluates in the preceding binding scope. IsLeft preserves empty/non-array input
+Collection aliases the inherited Expression and evaluates in the preceding binding scope.
+[OqlSelectExpression.Bindings](oql-select-expression.md) interleaves array and key bindings.
+Joined statements require explicit aliases for every SELECT source, including UNNEST (CD00016 in text). IsLeft preserves empty/non-array input
 with a MISSING variable; false emits only array elements. Actual null elements remain NULL.
 The constructor retains arguments without validation or evaluation. The engine rejects duplicate
 or empty UNNEST names with DatabaseException/CD01023; parsed duplicates use CD00010.

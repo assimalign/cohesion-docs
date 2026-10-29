@@ -6,10 +6,11 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
-| JOIN/NEST, WITH, set operations | CK00001 | [Correlated and DML subqueries](expressions/subqueries.md) execute, including derived/expression INSERT SELECT sources; qualified stars remain CK00001 |
+| General/comma joins, reversed equality, ON KEYS, derived/expression right-hand sources | CK00001 | [Key JOIN and NEST](clauses/join.md) execute with META(b).id = key; top-level qualified stars execute in ungrouped joined SELECTs |
+| WITH, set operations | CK00001 | Correlated and DML subqueries and derived/expression sources execute |
 | LIMIT m, n and FETCH FIRST | CK00001 | Use [LIMIT n OFFSET m](clauses/limit-offset.md); SELECT paging executes |
 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS | CK00001 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) with one binding and [array IN](expressions/operators.md#in-and-between) execute |
-| UNNEST in UPDATE/DELETE, NEST, WITHIN, FLATTEN calls | CK00001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |
+| UNNEST/JOIN/NEST in UPDATE/DELETE, WITHIN, FLATTEN calls | CK00001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |
 | OPTIONS | CK00001 | No statement TTL/version header; [RETURNING](clauses/returning.md) executes on INSERT, UPSERT, UPDATE and DELETE |
 | UPDATE USE KEYS, LIMIT or FOR | CK00001 | One collection, SET and/or UNSET and optional WHERE |
 | DELETE USE KEYS or LIMIT | CK00001 | One collection and optional WHERE; no key-selector or delete pagination |

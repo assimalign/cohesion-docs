@@ -6,6 +6,9 @@ This package parses the Documents engine's executable OQL surface into typed sta
 
 ## Reference pages
 
+- **[OqlSourceBindingExpression](oql-source-binding-expression.md)** — Closed ordered source-binding family.
+- **[OqlJoinExpression](oql-join-expression.md)** — Scalar key JOIN/NEST and preservation flags.
+
 - **[OqlClauses](oql-clauses.md)** — Transaction grammar and session-control metadata.
 - **[OqlTransactionIsolation](oql-transaction-isolation.md)** — Transaction grammar and session-control metadata.
 

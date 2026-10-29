@@ -401,7 +401,7 @@ and `tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs` in the same proj
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, correlated/DML subquery or external sort. Uncorrelated
+model or external sort. Key joins and correlated/DML subqueries execute. Uncorrelated
 [expression subqueries](../../../../database/document/language/expressions/subqueries.md) and EXISTS execute. Document server/client and hosting composition execute;
 replication and model-specific security remain outside this surface.
 
@@ -812,7 +812,26 @@ NULL. Simple sources stream through LIMIT; sorting, grouping and DISTINCT retain
 under CD05018. LIMIT 0 validates statically, then skips every source and execution stage while
 keeping planned column metadata. All levels share the operation snapshot, own writes and budget.
 Correlated sources evaluate per outer row; INSERT/UPSERT SELECT accepts both source forms.
-JOIN/NEST remains deferred.
+[Key JOIN and NEST](../../../../database/document/language/clauses/join.md) execute, including
+within correlated queries and INSERT/UPSERT SELECT sources.
+
+## OQL key joins and NEST
+
+[Key JOIN and NEST](../../../../database/document/language/clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
+stars. All SELECT sources throughout a joined statement require explicit aliases pending
+[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
+default); eviction drops complete entries and NEST arrays, while retained rows keep their own
+charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
+without lookups. No SQLSTATE is assigned to these conditions.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
+| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
+| CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
+| CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
 
 ## Sources
 

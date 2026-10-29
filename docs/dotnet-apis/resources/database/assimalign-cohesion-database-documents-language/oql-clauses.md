@@ -18,6 +18,10 @@ public static class OqlClauses
     public const string DerivedFrom = "DERIVED FROM";
     public const string ExpressionFrom = "EXPRESSION FROM";
     public const string Exists = "EXISTS";
+    public const string Join = "JOIN";
+    public const string LeftJoin = "LEFT JOIN";
+    public const string Nest = "NEST";
+    public const string LeftNest = "LEFT NEST";
     // Other query, expression and DDL clause constants are unchanged.
 }
 ```
@@ -38,6 +42,9 @@ and the EXISTS unary operator. Correlated and DML forms execute.
 
 DerivedFrom and ExpressionFrom are admitted by the profile and use
 [OqlSelectExpression.Source](oql-select-expression.md). See [FROM](../../../../database/document/language/clauses/from.md).
+
+Join, LeftJoin, Nest and LeftNest are admitted for [key JOIN/NEST](../../../../database/document/language/clauses/join.md).
+They produce OqlJoinExpression bindings; general predicates remain CK00001.
 
 ## Example
 
