@@ -40,9 +40,10 @@ Storage format 30 is current. Format 22 introduced STRING_AGG/LISTAGG identifier
 format 23 introduced views and format 24 introduced explicit NULL placement.
 Format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions; format 26 introduced the temporal default-text fence.
 Format 27 introduced the per-column TYPE default-assignment flag in table extension 7.
-Format 28 introduced internal sequence definitions and reservations. Format 29 adds owning
+Format 28 introduced internal sequence definitions and reservations. Format 29 added owning
 table/column metadata and identity ownership to kind 18; identity allocation uses kind 19 and
-kind 16 is retired. Format 28 and earlier databases are refused at open without an upgrade reader.
+kind 16 is retired. Format 30 adds ON UPDATE metadata in table extension 8.
+Format 29 and earlier databases are refused at open without an upgrade reader.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
@@ -1828,7 +1829,7 @@ runs, including on apply failure. Written data keeps transaction-duration locks.
 Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
 still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
 victim; callers roll back/retry the complete transaction. Consistent input order reduces this
-residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Format 29, catalog
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 30, catalog
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 

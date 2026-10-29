@@ -65,7 +65,7 @@ projected expression after alias rewriting, otherwise `CD01014` is reported at t
 [Aggregate ALL/DISTINCT](../functions/aggregate-functions.md) instead controls inputs to one
 aggregate call, such as COUNT(DISTINCT x), independently of SELECT-level deduplication.
 
-Results have the same shape on every transport. A lone star without UNNEST returns the stored JSON bytes unchanged,
+Results have the same shape on every transport. A lone star over a stored collection without UNNEST returns the stored JSON bytes unchanged,
 including whitespace and scalar roots. Named projections form one object per row; a star mixed
 with other projections is a named `document` member. VALUE/RAW emits one bare JSON value. The client
 sets IsDocumentQuery for lone star and VALUE/RAW even on an empty result. See
@@ -94,7 +94,7 @@ OFFSET + LIMIT residual survivors in identity order; SELECT still owns its mater
 
 With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by the source and array
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
-paging consume expanded rows. Ordinary star without UNNEST still preserves the stored bytes.
+paging consume expanded rows. A star over a stored collection without UNNEST still preserves the stored bytes.
 
 ## Derived and expression sources
 
@@ -110,7 +110,7 @@ Uncorrelated [(SELECT ...)](../expressions/subqueries.md) returns an array where
 expression is allowed. [EXISTS](../expressions/exists.md) tests for a nonempty array. Nested
 queries share this statement's snapshot and memory budget. Correlation and
 subqueries in DML remain CK00001. Nested star results wrap nonobject roots under `document`;
-top-level lone-star results keep the stored-value rule above.
+a top-level lone star over a stored collection keeps the stored-value rule above.
 
 ## JSON bytes
 

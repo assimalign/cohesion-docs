@@ -573,8 +573,8 @@ Backfill memory exhaustion uses CS05067 (53200) before publication.
 
 ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
 SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
-Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059,
-unsupported table extensions CS06060, and earlier catalog formats CS06041. Compiled v8 artifacts
+Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059 (XX001),
+unsupported table extensions CS06060 (0A000), and earlier catalog formats CS06041. Compiled v8 artifacts
 are refused with InvalidDocument at schema.format. See [constraints](constraints.md#on-update-declarations).
 
 ## Window frames and aggregate execution
@@ -588,6 +588,8 @@ statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN A
 frame_visits; CS05079 still covers retained window state and scratch.
 
 ## Sources
+
+- **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 

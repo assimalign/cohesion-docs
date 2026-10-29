@@ -125,6 +125,8 @@ SELECT INDEX_NAME, PATH FROM COHESION_SCHEMA.INDEXES
 WHERE COLLECTION_NAME = 'items' ORDER BY INDEX_NAME
 ```
 
+Execute each statement separately:
+
 ```sql
 SELECT RAW x FROM [{tags:[1,2]},{tags:[3]}] AS d
 UNNEST d.tags AS x ORDER BY x DESC LIMIT 2;

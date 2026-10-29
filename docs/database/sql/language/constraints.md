@@ -323,9 +323,9 @@ UPDATE reports CS03039 (23503) because final key 1 is absent. SELECT still retur
 
 Cascade preparation can back off when a required lock is refused: it releases new grants to the retry mark, waits and rebuilds the statement's referential preparation. Earlier transaction grants remain protected. This is an internal retry; a hard-deadlock victim still rolls back and retries the transaction. Soft queue-order cycles can be repaired before selecting a victim. See [locking behavior](../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#cascade-backoff-and-queue-repair).
 
-- **ON UPDATE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOnUpdateTests.cs` and `SqlOnUpdateRegressionTests.cs`.
-
 ## Sources
+
+- **ON UPDATE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOnUpdateTests.cs` and `SqlOnUpdateRegressionTests.cs`.
 
 - **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Timeout and FK conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`, `SqlTimeoutRegressionTests.cs`, `SqlCascadeCatalogTests.cs`, `SqlForeignKeyBindingTests.cs` and `SqlReferenceLockTests.cs` in the same directory.

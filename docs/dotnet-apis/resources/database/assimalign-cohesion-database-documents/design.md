@@ -240,8 +240,11 @@ for the public metadata.
 [OqlSelectExpression](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
 carries Limit and Offset. Planning checks nonnegative Int64 counts before collection lookup,
 including EXPLAIN/direct AST calls. Invalid counts, including NULL, use CD00007; missing parameters
-retain CD01005. Paging runs after HAVING, DISTINCT, ORDER BY and column-type inference. Empty
-pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes only the page.
+retain CD01005. Ordinary stored-source paging runs after HAVING, DISTINCT, ORDER BY and column-type
+inference. LIMIT 0 instead validates statically then returns planned metadata without execution.
+Simple derived/expression sources page before projection and infer dynamic types over the selected
+page. Empty pages retain metadata, query AffectedCount stays -1, and INSERT/UPSERT SELECT consumes
+only the page.
 
 ## `Index` planning and writes
 

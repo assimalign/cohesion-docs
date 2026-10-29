@@ -13,6 +13,7 @@ relationship chain; the projection is required. Fixed chains and the existing IS
 [relationship quantifiers](../patterns.md#quantified-paths) are accepted, including abbreviated
 connectors such as `->{1,2}`, `->+` and `->*`. A zero-hop quantifier still counts as a chain.
 Explicit path modes, selectors and parenthesized quantified path groups are outside this form.
+Map comprehensions and allReduce are outside the completed #1736 collection-expression work.
 
 ## Remarks
 
