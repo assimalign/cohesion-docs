@@ -39,18 +39,19 @@ public long StatementWorkBudget { get; set; } = 10_000_000;
 
 The positive count bounds reached expression evaluations in statements containing subqueries or
 expression sources. All depths and cache hits share it; unreached branches spend no work. Engine
-creation throws ArgumentException with ParamName StatementWorkBudget for a nonpositive value.
+creation throws ArgumentOutOfRangeException with ParamName StatementWorkBudget for a nonpositive value.
 The engine copies the option at construction. Exhaustion raises DatabaseException with CD05020
 (no assigned SQLSTATE), before the next evaluation, and rolls back statement writes.
 
-From `DocumentCorrelatedSubqueryTests.Create_WorkBudget_ShouldValidateAndSnapshotOptionAsync`:
+Adapted from `DocumentCorrelatedSubqueryTests.Create_WorkBudget_ShouldValidateAndSnapshotOptionAsync`:
 
 ```csharp
 var options = new DocumentDatabaseEngineOptions { StatementWorkBudget = 16 };
 await using var engine = DocumentDatabaseEngine.Create("frozen-work", options);
 options.StatementWorkBudget = 32;
-Console.WriteLine(engine.EngineOptions.StatementWorkBudget); // 16
 ```
+
+The engine continues using the copied limit of 16 evaluations.
 
 Cached arrays have statement lifetime; uncached nested scratch releases with the consuming
 expression/row. Retained projections and keys own separate charged values under
