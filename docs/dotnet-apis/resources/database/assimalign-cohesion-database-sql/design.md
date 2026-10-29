@@ -961,16 +961,19 @@ references on parent deletes or key changes. Checks reject a false result; SQL u
 Foreign keys with null components are not checked (MATCH SIMPLE). A non-null child key needs a
 parent visible through the statement snapshot or its final pending replacements. ReadCommitted
 ON CONFLICT refreshes committed visibility after arbitration. SQL `Delete` defaults to `NO ACTION`; `CASCADE` recursively
-collects child deletions into the same statement apply bracket. Parent key updates are restricted
-while referenced in the final state. Multi-row UPDATE excludes all replaced old versions and
-contributes every final replacement to outgoing/incoming NO ACTION/RESTRICT checks. Self-references
+collects child deletions into the same statement apply bracket. ON UPDATE actions execute on parent key changes. Multi-row UPDATE excludes replaced old versions
+and contributes every final replacement to outgoing/incoming NO ACTION checks; RESTRICT is immediate. Self-references
 may move with their keys; mutually referenced keys may swap when final keys remain valid. UPDATE
 tombstones all old row/index versions before inserting replacements in the same rollback bracket,
 so uniqueness also validates the final swap. A removed key cannot authorize a dangling child. These
 rules hold under Snapshot and ReadCommitted. ON CONFLICT shares the final-reference view.
-ON UPDATE declarations persist all five actions. Referenced-key changes under CASCADE, SET NULL
-or SET DEFAULT refuse with CK00001 before writes; RESTRICT/NO ACTION keep statement-end checks.
-See [interim enforcement](../../../../database/sql/language/constraints.md#on-update-declarations).
+All update paths execute CASCADE, SET NULL and SET DEFAULT by old-key match against final direct
+assignments; stored key representations determine whether the key changed. RETURNING describes
+direct writes before actions. Different action origins proposing conflicting values use CS05085
+(27000). Every closure, including plain DELETE CASCADE, charges StatementMemoryBudget: about
+840 bytes per two-column row, or about 79,900 rows at the default 64 MiB. CS05067 (53200) refuses
+before writes; abandoned attempts release their reservations.
+See [update actions](../../../../database/sql/language/constraints.md#on-update-declarations).
 
 Checks require Boolean predicates made from supported deterministic row expressions. Parameters,
 subqueries, aggregates, unsupported functions and casts are rejected during binding. Multiple

@@ -61,6 +61,11 @@ buffers, derived copies, associations, selected values, encoded replacements and
 state. Exhaustion refuses before any write and releases reservations on every exit. CTAS also
 charges its retained source result and encoded copy buffers. Other output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
 
+Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
+StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
+about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
+CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseEngineOptions.cs`.

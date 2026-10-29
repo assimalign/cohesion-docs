@@ -193,8 +193,9 @@ discipline and emits `CS00003` on malformed input.
 unique catalog index used by `CREATE UNIQUE INDEX` and `CompiledSchemaIndex(IsUnique: true)`. This
 keeps compiled schemas, SQL DDL, persistence, and concurrent uniqueness enforcement on one path.
 Foreign keys and checks remain constraint catalog records. ON DELETE accepts CASCADE, RESTRICT,
-NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE accepts the same declarations;
-changing-action execution retains CK00001 until batch 13. See [constraint semantics](../../../../database/sql/language/constraints.md).
+NO ACTION (the SQL default), SET NULL and SET DEFAULT. ON UPDATE accepts and executes the same actions.
+RESTRICT is immediate; NO ACTION checks statement-final rows. CS05085 (27000) refuses conflicting
+replacements from different action origins. See [constraint semantics](../../../../database/sql/language/constraints.md).
 
 ## T1 literal, type and request forms
 

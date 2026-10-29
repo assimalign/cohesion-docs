@@ -65,6 +65,11 @@ equality, list b first: `FROM b, a` or `USING b, a`. In
 t × a product before b's hash. Reversing the source list lets each equality drive its step.
 Both orders are correct; general join-order search is deferred to #1629.
 
+Every [referential closure](language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
+StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
+about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
+CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
+
 ## Window frame work
 
 [Window stages](language/clauses/window.md) retain full partitions under the statement memory

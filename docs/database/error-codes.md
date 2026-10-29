@@ -415,8 +415,14 @@ Scalar composite results use graph.composite-values; entity lists remain CG05001
 
 ## Foreign-key update declarations
 
-ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
-SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+ON UPDATE CASCADE, SET NULL and SET DEFAULT execute on stored-key changes. RESTRICT is immediate;
+NO ACTION checks the statement-final state.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS05085 | Different referential-action origins propose conflicting replacements for one column | 27000 |
+
+All closures, including plain DELETE CASCADE, charge StatementMemoryBudget (CS05067 / 53200).
 Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059 (XX001),
 unsupported table extensions CS06060 (0A000), and earlier catalog formats CS06041. Compiled v8 artifacts
 are refused with InvalidDocument at schema.format. See [constraints](sql/language/constraints.md#on-update-declarations).

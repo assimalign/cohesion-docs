@@ -54,8 +54,7 @@ nonnegative and ordinals start at one. All non-null catalog-name fields name the
 `IS_NULLABLE` uses `YES`/`NO`; both deferral fields are `NO`.
 `MATCH_OPTION` is `NONE`. UPDATE_RULE and DELETE_RULE each report their stored action:
 `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Each omitted SQL action reports
-`NO ACTION`. UPDATE_RULE describes [declarations](../constraints.md#on-update-declarations);
-CASCADE/SET NULL/SET DEFAULT update execution remains refused.
+`NO ACTION`. UPDATE_RULE describes the executable [ON UPDATE action](../constraints.md#on-update-declarations).
 
 `COLUMN_DEFAULT` is canonical SQL, with doubled quotes for a string default, or null if absent.
 Resolved temporal/binary defaults use typed prefixes and X hex, including defaults declared as

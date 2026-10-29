@@ -78,8 +78,8 @@ execute. See [identity rules](../../../../database/sql/language/clauses/identity
 [Assembly](index.md) · [SQL functions](../../../../database/sql/language/functions/builtin-functions.md) · [Diagnostics](../../../../database/sql/language/diagnostics.md)
 
 SQL enables `SqlClauses.OnUpdate = "ON UPDATE"` for persisted
-foreign-key declarations. Changing referenced keys under CASCADE/SET NULL/SET DEFAULT retains
-CK00001 until batch 13; RESTRICT/NO ACTION keep statement-end checks.
+foreign-key declarations and execution. CASCADE/SET NULL/SET DEFAULT execute on key changes;
+RESTRICT is immediate and NO ACTION checks statement-final rows.
 
 The frame clause constants are:
 

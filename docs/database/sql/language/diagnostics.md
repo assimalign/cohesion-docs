@@ -571,8 +571,14 @@ Backfill memory exhaustion uses CS05067 (53200) before publication.
 
 ## Foreign-key update declarations
 
-ON UPDATE metadata adds no diagnostic identity. Changing a referenced key under CASCADE,
-SET NULL or SET DEFAULT uses structured CK00001 before row writes, including case-only changes.
+ON UPDATE CASCADE, SET NULL and SET DEFAULT execute on stored-key changes. RESTRICT is immediate;
+NO ACTION checks the statement-final state.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS05085 | Different referential-action origins propose conflicting replacements for one column | 27000 |
+
+All closures, including plain DELETE CASCADE, charge StatementMemoryBudget (CS05067 / 53200).
 Duplicate/incomplete action syntax retains CS00003. Invalid catalog actions use CS06059 (XX001),
 unsupported table extensions CS06060 (0A000), and earlier catalog formats CS06041. Compiled v8 artifacts
 are refused with InvalidDocument at schema.format. See [constraints](constraints.md#on-update-declarations).
@@ -588,6 +594,8 @@ statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN A
 frame_visits; CS05079 still covers retained window state and scratch.
 
 ## Sources
+
+- **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.
 
 - **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 
