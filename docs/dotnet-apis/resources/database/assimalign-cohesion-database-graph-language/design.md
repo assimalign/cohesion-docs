@@ -210,7 +210,7 @@ No new plan record is required; EXPLAIN renders the expressions through existing
 
 | Code | Meaning |
 | --- | --- |
-| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, pattern-comprehension path prefixes, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, EXCEPT/INTERSECT/OTHERWISE, and server/session scope |
+| `CK00001` | Recognized construct outside the executable profile, including mandatory matching, procedures, unsupported calls, stored composite properties, pattern-comprehension path prefixes, questioned/nested quantifiers, subpath assignments, counted ANY, nested selectors/modes, unselected unbounded WALK, standalone ordering/paging before RETURN, and server/session scope |
 | `CG00011` | SHORTEST count is missing or is not a positive Int64 literal; no SQLSTATE |
 | `CG01016` | Search prefilter references a peer-path-only binding in the same MATCH; no SQLSTATE |
 | `CG00001` | Empty statement |
@@ -443,21 +443,28 @@ Scalar composite results use graph.composite-values; entity lists remain CG05001
 
 ## GQL composite queries
 
-[UNION and UNION ALL](../../../../database/graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
+[UNION, EXCEPT, INTERSECT and OTHERWISE](../../../../database/graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
 columns, type reconciliation and one statement snapshot. UNION keeps the first structural
 occurrence; UNION ALL preserves duplicates. Paging is operand-local and NEXT binds above UNION.
 All operands validate before execution. Other memory/work exhaustion retains CG05020/CG05004.
-EXCEPT, INTERSECT and OTHERWISE remain CK00001 until GQ-Q2. No new SQLSTATE is assigned.
+EXCEPT/INTERSECT default to DISTINCT or accept ALL multiset counts. They retain eligible left
+occurrences and share structural row equality with UNION. OTHERWISE returns the whole left result
+when nonempty, including NULLs/duplicates, or lazily evaluates the right on zero rows. Left errors
+propagate. All four operators have equal precedence and associate left; each binds above NEXT.
+EXCEPT/INTERSECT quantifiers may mix; only UNION/UNION ALL mixing is refused. Each parent hash visit
+or forwarded row consumes shared work, including duplicate visits. Retained EXCEPT/INTERSECT state
+and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. No SQLSTATE is assigned.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CG00015 | Missing composite query operand | — |
+| CG00015 | Missing composite operand, including ALL/DISTINCT after OTHERWISE | — |
 | CG00016 | Mixed UNION distinct and UNION ALL modes within one tree | — |
 | CG01020 | Operand column names, order or count differ | — |
 | CG02017 | Proven or runtime result shapes are incompatible | — |
 | CG05029 | Modifying operand or stage in a composite pipeline | — |
 | CG05030 | UNION duplicate-elimination state exceeds the shared memory grant | — |
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
+| CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
 
 ## Sources
 

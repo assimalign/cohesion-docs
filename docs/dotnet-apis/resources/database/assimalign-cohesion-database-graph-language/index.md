@@ -30,8 +30,8 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GraphFunctionName](graph-function-name.md)** — Generated function identifier and validation.
 - **[GqlPathMode](gql-path-mode.md)** — Outer path identity-reuse policies.
 
-- **[GqlCompositeQuery](gql-composite-query.md)** — Binary UNION tree and isolated operands.
-- **[GqlCompositeOperator](gql-composite-operator.md)** — UNION or UNION ALL.
+- **[GqlCompositeQuery](gql-composite-query.md)** — Binary composite tree and isolated operands.
+- **[GqlCompositeOperator](gql-composite-operator.md)** — Set/multiset operators and whole-result fallback.
 - **[GqlCompositeStage](gql-composite-stage.md)** — Composite result within a NEXT pipeline.
 - **[GqlStage](gql-stage.md)** — Source-ordered stage family and source-ordered execution.
 - **[GqlMatchStage](gql-match-stage.md)** — MATCH/OPTIONAL MATCH over incoming rows.

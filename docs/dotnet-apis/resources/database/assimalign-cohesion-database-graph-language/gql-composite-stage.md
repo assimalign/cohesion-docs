@@ -18,9 +18,9 @@ public sealed record GqlCompositeStage : GqlStage
 
 Construction retains Query and the optional source Location; a null query throws
 ArgumentNullException. Each operand receives the same incoming projected binding table in an
-isolated scope. The combined result supplies later stages. NEXT has lower precedence than UNION;
+isolated scope. The combined result supplies later stages. NEXT has lower precedence than UNION, EXCEPT, INTERSECT and OTHERWISE;
 parenthesized NEXT stays inside its operand. Proven entity/path kinds and decoded binding names
-survive the boundary. Validation and execution use the [UNION rules](../../../../database/graph/language/clauses/union.md).
+survive the boundary. Validation and execution use the [composite rules](../../../../database/graph/language/clauses/union.md).
 
 ## Example
 
