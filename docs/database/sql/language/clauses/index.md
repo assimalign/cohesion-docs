@@ -6,7 +6,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Query clauses
 
-- **[WITH](with.md)** — Define query relations; acyclic lists execute, recursive lists bind but cannot execute yet.
+- **[WITH](with.md)** — Define query relations and demand-driven recursive UNION ALL/DISTINCT fixpoints.
 
 - **[FROM](from.md)** — Bind stored, system and derived relations in the current database.
 - **[JOIN](join.md)** — N-way INNER/LEFT/CROSS joins, USING columns, and comma products.

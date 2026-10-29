@@ -28,7 +28,7 @@ await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
 The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. [Joined mutations](#joined-mutations) also charge retained targets, sources, associations and
-selected writes. Other result materialization and transient planning remain outside this accounting.
+selected writes. Recursive queries also charge their retained results and scratch; ordinary nonrecursive result materialization and transient planning remain outside this accounting.
 
 FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
 match flags charged to the same budget. There is no loop fallback: conditions without a safe
@@ -45,6 +45,15 @@ never executes its wrapped data statement. Analysis scopes cached view bodies by
 independent counts while repeated correlated calls to the same reference accumulate.
 
 [SQL](index.md) · [Engine options](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md)
+
+## Recursive query memory
+
+[WITH RECURSIVE](language/clauses/with.md#on-demand-evaluation-and-memory) reclaims single-pass consumed rows. Rescans and DISTINCT retain
+history or membership; selected results still materialize before delivery. The default 64 MiB grant
+holds roughly 500,000 single-BIGINT UNION ALL counter results by executor accounting; payloads and
+other retained state change this capacity. COUNT(*) over the tested million-row counter instead
+retains less than 32 KiB. Bounded-state infinite consumers require cancellation; retaining consumers
+exhaust the grant with CS05067 (53200). There is no fixed row/depth limit or spill.
 
 ## Joined mutations
 

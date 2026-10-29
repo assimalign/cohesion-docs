@@ -52,7 +52,7 @@ read clock values without parentheses. New T1 builtin names are reserved at all 
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 30, with no upgrade path from an earlier format. The executable
 profile now measures 80 of 82 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
-binding-only RECURSIVE. Recursive planning, EXPLAIN and execution remain CK00001; acyclic lists execute.
+executable RECURSIVE with demand-driven fixpoints and shared readers.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.
 SqlClauses.OnConflict is the `ON CONFLICT` capability name, enabled for VALUES, DEFAULT VALUES

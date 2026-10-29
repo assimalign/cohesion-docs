@@ -15,7 +15,7 @@ CREATE [ OR REPLACE ] VIEW [ schema_name . ] view_name
 
 The body is a SELECT or [set operation](../clauses/set-operations.md), optionally with its own
 WITH, joins, subqueries, grouping, ordering and paging. A recursive query body can bind and freeze
-anchor metadata at creation; querying that view, including after reopen, refuses with CK00001.
+anchor metadata at creation; querying that view executes on demand, including after reopen.
 It follows the ordinary SELECT subset. Parameters are refused. An explicit column list must name every output exactly;
 output names must be unique.
 
@@ -31,6 +31,8 @@ fail atomically. The complete encoded definition, columns and dependencies must 
 Views work in FROM, JOIN, subqueries, INSERT SELECT and
 [CREATE TABLE AS](create-table.md#create-table-as). Each reference materializes its body
 once under the caller's statement snapshot, using memory proportional to the body rows.
+Recursive bodies use [shared demand-driven readers](../clauses/with.md#on-demand-evaluation-and-memory),
+so an outer LIMIT can stop an infinite producer.
 Outer filtering, grouping, ordering and paging execute over those rows. View queries have
 ordinary SQL NULL behavior and no MISSING value. INSERT, UPDATE, DELETE, ALTER TABLE,
 CREATE INDEX and DROP TABLE targeting a view fail with CS04021 (25006).

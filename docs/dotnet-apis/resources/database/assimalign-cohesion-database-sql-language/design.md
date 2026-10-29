@@ -101,7 +101,7 @@ model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
   while excluded clauses such as NATURAL remain absent. Ranking/navigation windows execute.
-  RECURSIVE is advertised for binding only; recursive execution remains CK00001. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
+  RECURSIVE executes demand-driven fixpoints with shared readers. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
   statement, so analyzers observe `CK00001` with the token location and the `SQL`
@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive execution, nested CTEs, deferred window frame modes and value modifiers, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Nested CTEs, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -208,8 +208,8 @@ column list must rename the full output width. SELECT and UPDATE/DELETE WHERE ac
 and uncorrelated subqueries; SET remains row-local. Local names shadow outer scopes. A real derived
 sibling reference requires LATERAL; enclosing-query references execute. [WITH](sql-common-table-expression.md)
 definitions without RECURSIVE bind in declaration order, with schema-less names and stored-table
-fallback for self or later-sibling names. RECURSIVE lists use dependency order; recursive execution
-is refused with CK00001 after binding. Every definition binds; reachable definitions materialize once before writes.
+fallback for self or later-sibling names. RECURSIVE lists use dependency order and execute fixpoints on demand. Every definition binds;
+unused definitions do not execute. Required DML source reads complete before writes.
 The renderer and persisted definitions use this canonical shape. Current SQL storage format 30
 quotes newly executable function names and BOTH/LEADING/TRAILING when used as identifiers in
 persisted CHECKs, defaults and function bodies. It follows format 17 (default/missing-value split,
@@ -342,7 +342,7 @@ name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
 UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 80 of 82 declared clauses,
-including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
+including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 30 are unchanged.
 
 Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
@@ -376,12 +376,13 @@ writes. DELETE deduplicates physical targets. Bare RETURNING * follows target-th
 order with JOIN USING merges. See [UPDATE](../../../../database/sql/language/statements/update.md#from-sources)
 and [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
 
-## WITH RECURSIVE binding
+## WITH RECURSIVE binding and execution
 
 [WITH RECURSIVE](../../../../database/sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
 term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
-to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
-EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+to preserve that contract. Recursive UNION ALL/DISTINCT fixpoints execute on demand through shared
+readers. Single-pass scans reclaim consumed history; retained rows, DISTINCT state and consumer
+scratch share StatementMemoryBudget. All definitions bind, but unused definitions do not execute.
 Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
 RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
 
@@ -398,6 +399,8 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+| CS05067 | Retained recursive tables, buffers, DISTINCT state or consumer scratch exceed statement memory | 53200 |
+| CS05090 | Internal invariant: a CTE opens more readers than its plan counted | XX000 |
 
 ## Sequence language surface
 

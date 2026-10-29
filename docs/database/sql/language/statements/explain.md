@@ -13,9 +13,9 @@ EXPLAIN { create_sequence_statement | alter_sequence_statement | drop_sequence_s
 
 ## Remarks
 
-[WITH RECURSIVE](../clauses/with.md#with-recursive) binds recursive definitions, then EXPLAIN and
-EXPLAIN ANALYZE refuse with CK00001. Recursive execution and recursive plan descriptions are
-not available yet. Acyclic WITH RECURSIVE can be planned and executed.
+[WITH RECURSIVE](../clauses/with.md#with-recursive) shows RecursiveUnion and WorkTableScan. Plain
+EXPLAIN does not produce recursive rows. EXPLAIN ANALYZE executes the consumer on demand and adds
+iterations (including the terminal empty pass), accepted rows and candidates before DISTINCT.
 
 ### MERGE plans
 

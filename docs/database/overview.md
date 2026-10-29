@@ -403,12 +403,12 @@ execute in every query position. Document adds [34 SQL++ scalars](document/langu
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
 The current SQL contract measures 80 of 82 declared clauses, including executable MERGE with
-ordered actions and RETURNING, and binding-only [WITH RECURSIVE](sql/language/clauses/with.md).
+ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.
 [Grouping sets and masks](sql/language/clauses/group-by.md) and
 [standalone sequence SQL](sql/language/statements/create-sequence.md) also execute.
-Recursive execution remains CK00001; acyclic lists execute. Document and Graph have their own
+Recursive fixpoints execute on demand, sharing readers and reclaiming consumed rows. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization. The former replication and
 governance projects are removed and supply no current API.

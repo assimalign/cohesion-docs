@@ -134,7 +134,7 @@ derived bodies evaluate per enclosing frame. Only a reference that binds to a re
 the LATERAL refusal; typos retain CS01015. Outer ordering over derived outputs stays CK00001.
 CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
-nested CTEs, recursive execution and explicit LATERAL remain excluded.
+nested CTEs and explicit LATERAL remain excluded. Recursive fixpoints execute on demand.
 
 Current SQL data-storage format is 30. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
@@ -2002,12 +2002,13 @@ end after success. Cascade retries reuse associations and reacquire source inten
 [UPDATE](../../../../database/sql/language/statements/update.md#from-sources) and
 [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
 
-## WITH RECURSIVE binding
+## WITH RECURSIVE binding and execution
 
 [WITH RECURSIVE](../../../../database/sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
 term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
-to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
-EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+to preserve that contract. Recursive UNION ALL/DISTINCT fixpoints execute on demand through shared
+readers. Single-pass scans reclaim consumed history; retained rows, DISTINCT state and consumer
+scratch share StatementMemoryBudget. All definitions bind, but unused definitions do not execute.
 Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
 RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
 
@@ -2024,6 +2025,8 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+| CS05067 | Retained recursive tables, buffers, DISTINCT state or consumer scratch exceed statement memory | 53200 |
+| CS05090 | Internal invariant: a CTE opens more readers than its plan counted | XX000 |
 
 ## Owned sequence diagnostics
 

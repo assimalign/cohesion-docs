@@ -26,8 +26,8 @@ validation. Literal added-column defaults resolve old-row reads without rewritin
 [Derived tables](language/clauses/from.md#derived-tables) execute in FROM/JOIN/comma inputs;
 correlated and uncorrelated subqueries execute in UPDATE/DELETE WHERE over pre-statement values.
 [WITH](language/clauses/with.md) defines acyclic query relations before SELECT, INSERT, UPDATE,
-DELETE or MERGE. WITH RECURSIVE binds recursive definitions, then planning, EXPLAIN and execution
-refuse with CK00001; acyclic WITH RECURSIVE executes except before MERGE. Outer ordering over derived
+DELETE or MERGE. WITH RECURSIVE executes UNION ALL/DISTINCT fixpoints on demand, with shared
+readers and accounted retained state; WITH RECURSIVE before MERGE remains excluded. Outer ordering over derived
 outputs accepts per-key NULLS FIRST/LAST. [Identity columns](language/clauses/identity.md)
 generate integers with ALWAYS/BY DEFAULT rules and durable reservations that can leave gaps.
 
@@ -45,7 +45,7 @@ committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
 The 77-of-79 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
-and binding-only RECURSIVE and is not a percentage
+and executable RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
