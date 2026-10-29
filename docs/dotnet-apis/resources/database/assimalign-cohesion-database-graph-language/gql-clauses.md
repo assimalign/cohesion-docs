@@ -26,6 +26,13 @@ public static class GqlClauses
     public const string SetOperation = "UNION";
     public const string UnionDistinct = "UNION DISTINCT";
     public const string UnionAll = "UNION ALL";
+    public const string Except = "EXCEPT";
+    public const string ExceptDistinct = "EXCEPT DISTINCT";
+    public const string ExceptAll = "EXCEPT ALL";
+    public const string Intersect = "INTERSECT";
+    public const string IntersectDistinct = "INTERSECT DISTINCT";
+    public const string IntersectAll = "INTERSECT ALL";
+    public const string Otherwise = "OTHERWISE";
     public const string Set = "SET";
     public const string Remove = "REMOVE";
     public const string Merge = "MERGE";
@@ -116,7 +123,8 @@ PatternComprehension is enabled by GqlLanguageProfile.Instance and produces
 [GqlPatternComprehensionExpression](gql-pattern-comprehension-expression.md). Reading the constant
 throws no exceptions. `Instance.Supports(GqlClauses.PatternComprehension)` returns true.
 
-SetOperation, UnionDistinct and UnionAll are enabled. They admit read-only
+SetOperation, UnionDistinct, UnionAll, Except, ExceptDistinct, ExceptAll, Intersect,
+IntersectDistinct, IntersectAll and Otherwise are enabled. They admit read-only
 [composite queries](gql-composite-query.md), including NEXT pipelines, with matching columns
 and shared work/memory budgets. Reading the constants adds no exceptions.
 

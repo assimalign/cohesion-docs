@@ -30,7 +30,7 @@ For linear pipelines, only final columns govern wire result admission. Read-only
 for one mandatory entity/path final column; any write stage is refused by that path API. Intermediate
 collect/UNWIND is permitted. Final lists of entities remain unsupported over the wire (CG05001; #1662).
 
-[UNION](union.md) binds more tightly than NEXT. Each segment can be a composite, whose operands
+[UNION, EXCEPT, INTERSECT and OTHERWISE](union.md) all bind more tightly than NEXT. Each segment can be a composite, whose operands
 receive the preceding segment's complete projected binding table in isolated scopes. A NEXT
 inside parentheses stays in its operand. For example,
 `RETURN 1 AS x UNION ALL RETURN 2 AS x NEXT RETURN x*10 AS x` returns rows 10 and 20.

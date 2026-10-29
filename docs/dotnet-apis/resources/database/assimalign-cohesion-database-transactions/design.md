@@ -352,16 +352,17 @@ prune failure, then rethrows the retained failure.
 ## Transaction EventSource
 
 `Assimalign.Cohesion.Database.Transactions` reports kernel transactions across all five models.
-The current-transactions gauge includes snapshot pins; the three transaction rates exclude them.
+The current-transactions gauge and all three transaction rates exclude snapshot pins.
 Each ReadCommitted statement pin and SQL's table-reclamation fence uses
 [BeginSnapshotPinAsync](transaction-coordinator.md#begin-and-first-write). Pins also emit no
 Verbose TransactionBegun, TransactionCommitted or TransactionRolledBack event. Their registration,
-snapshot horizon and end paths remain ordinary kernel behavior, so the gauge can expose a leaked pin.
+snapshot horizon and end paths remain ordinary kernel behavior; GetOpenContexts and PruneBound
+still include them.
 Schema-provisioner lock transactions remain counted.
 
 | Counter | Kind | Transition |
 | --- | --- | --- |
-| `current-transactions` | Gauge | Tracks every open coordinator context, including pins; removes each ended context once |
+| `current-transactions` | Gauge | Tracks open non-pin contexts; removes each ended context once |
 | `transactions-per-second` | Rate | A non-pin context begins |
 | `commits-per-second` | Rate | A non-pin context ends Committed, including an unconfirmed commit |
 | `rollbacks-per-second` | Rate | A non-pin context rolls back or aborts, including failed commit or disposal |
@@ -371,6 +372,11 @@ Schema-provisioner lock transactions remain counted.
 These counters are process-wide. Real read-only/autocommit transactions and explicit rollbacks
 still count; no counter moves per row or frame. Snapshot-pin tests cover reads that hit or miss,
 early disposal and a begin/disposal race without rate increments.
+
+Effective isolation changes emit event 20, TransactionIsolationChanged, at Verbose with the
+Transactions keyword. Payload: database, transactionSequence, isolationLevel. The level is the
+effective kernel level (Snapshot or ReadCommitted). Idempotent early SET emits no change event;
+configuration changes no gauge or lifecycle rate.
 
 ## Non-goals
 
@@ -416,6 +422,8 @@ outside the lock-table monitor. Queues without a detected cycle retain normal FI
 not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
+
+- **Isolation events** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionEventSourceTests.cs`.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCommitCancellationTests.cs`.
 

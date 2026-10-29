@@ -23,17 +23,25 @@ indexes. Its declared language includes a measured subset of joins, grouping, ag
 subqueries, collation, row mutations, schema changes, and session transactions. The SQL server and
 typed client carry the same bounded surface over a model-owned wire family.
 
+[WITH RECURSIVE](sql/language/clauses/with.md) executes fixpoints on demand.
+[BEGIN isolation options](sql/language/statements/begin-transaction.md) and
+[SET TRANSACTION](sql/language/statements/set-transaction.md) select the block's effective isolation.
+
 ## Document
 
 The Document model stores versioned JSON documents in collections. Its OQL SQL++ subset
 supports MISSING-aware queries, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and transactional collection/index definitions. Collection operations
 use database-bound sessions and the shared transaction and storage components.
+[Key JOIN and NEST](document/language/clauses/join.md) add scalar-key lookups with INNER/LEFT
+preservation, per-source metadata and a bounded statement cache; the OQL T2 lane is complete.
 
 ## Graph
 
 The Graph model stores nodes, relationships, and properties with durable adjacency and property
 indexes. Its Graph Query Language (GQL) subset provides bounded traversal, projection, mutation,
 aggregation, grouping and catalog operations; it does not claim complete standard GQL coverage.
+[UNION, EXCEPT, INTERSECT and OTHERWISE](graph/language/clauses/union.md) combine read-only
+results with DISTINCT/ALL multiset rules or lazy whole-result fallback.
 
 ## Key-Value Pair
 

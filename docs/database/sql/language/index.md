@@ -2,13 +2,12 @@
 
 Reference for Cohesion's declared SQL dialect and its measured execution boundaries.
 
-> **Status:** Partial. The profile measures 80 of 82 declared clauses against the live engine.
+> **Status:** Partial. The profile measures 82 of 84 declared clauses against the live engine.
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
 results, state changes, or an intended semantic error. MERGE executes ordered actions and RETURNING.
-WITH RECURSIVE adds a binding-only clause: recursive planning, EXPLAIN and execution refuse with
-CK00001; acyclic lists execute. Counts describe named clauses, not complete
+WITH RECURSIVE executes demand-driven UNION ALL/DISTINCT fixpoints with shared readers. Counts describe named clauses, not complete
 International Organization for Standardization (ISO) SQL compatibility.
 
 Start with [Syntax conventions](syntax-conventions.md) to read the diagrams.

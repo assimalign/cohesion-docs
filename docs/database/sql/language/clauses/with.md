@@ -2,8 +2,7 @@
 
 Defines named query relations for one SELECT, INSERT, UPDATE, DELETE or MERGE statement.
 
-> **Status:** Partial. Acyclic definitions execute. Recursive definitions parse and bind, then refuse
-> planning, EXPLAIN and execution with CK00001. Recursive execution is not available in this batch.
+> **Status:** Implemented. Acyclic definitions and recursive UNION ALL/DISTINCT fixpoints execute.
 
 ## Syntax
 
@@ -48,11 +47,11 @@ A FROM-less SELECT uses one implicit row and supports scalar or aggregate SELECT
 clauses at every query level. A wildcard still needs a relation. Column renaming retains types, bounds, nullability, domains
 and collations, including empty results. SQL has NULL and no MISSING value.
 
-Each reachable definition materializes once per statement, reused across joins and scalar, IN
+In statements without recursive execution, each reachable definition materializes once, reused across joins and scalar, IN
 and EXISTS children. Unused definitions and dependencies that are reachable only from them never
 execute. Their counts and predicates bind without evaluating counts or seek bounds. All reads
 share the statement's MVCC and catalog snapshots, including the session's earlier uncommitted writes.
-Before DML writes, reachable acyclic definitions materialize in binding order. Failures roll back the
+Before DML writes, these definitions materialize in binding order. Failures roll back the
 whole statement while preserving an explicit transaction. INSERT retains destination defaults,
 constraints and identity generation. [EXPLAIN](../statements/explain.md) describes without executing.
 
@@ -83,11 +82,45 @@ The combined UNION cannot change the anchor contract. CS02066 includes a cast hi
 non-recursive output to the intended common type, and keep recursive output compatible. CS02067
 includes a COLLATE hint: apply an explicit compatible COLLATE to the non-recursive output.
 
-All definitions and the consuming statement bind before the recursion capability refusal, even
-when the recursive definition is unused. A well-formed recursive query produces CK00001 during
-planning, EXPLAIN and execution, before reading rows or writing. It produces no recursive results.
+All definitions and the consuming statement bind, including unused definitions. Execution evaluates
+the anchor once, then evaluates the recursive term against only the previous iteration's accepted
+rows. An empty iteration ends the fixpoint. UNION ALL preserves duplicates; UNION and UNION DISTINCT
+discard rows already accepted from the anchor or any iteration. Conversion to anchor types happens
+before duplicate checks. NULLs compare equal for this check; strings use the anchor's collation
+and CHAR equality rules. There is no implicit recursion-depth limit.
+
 Plain WITH ... MERGE executes; WITH RECURSIVE ... MERGE is refused at RECURSIVE with CK00001.
 Nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED and SEARCH/CYCLE remain refused.
+
+### On-demand evaluation and memory
+
+Recursive CTE scans produce rows only as their consumers request them. Readers share one producer
+and buffer, with separate positions: the furthest reader advances production. LIMIT, EXISTS and
+scalar subqueries can stop it early. Correlated IN, ANY/SOME and ALL compare rows as they arrive,
+stopping at the first decisive comparison. UNKNOWN alone cannot decide the result; an independent
+subquery may instead materialize its set.
+
+Single-pass scans reclaim consumed rows once every reader has passed them and the old working
+iteration no longer needs them. Unopened readers keep their required history. Nested-loop and
+correlated rescans retain history; UNION DISTINCT retains its membership set throughout production.
+Working/intermediate rows, shared buffers, DISTINCT state, retained results and query scratch share
+StatementMemoryBudget (default 64 MiB), including container growth. There is no spill.
+Retaining consumers refuse with CS05067 (53200) when they exceed it.
+
+Returned rows still materialize before delivery. From the executor's accounting, the default grant
+holds roughly 500,000 one-column BIGINT counter results with UNION ALL; wider rows, DISTINCT,
+rescans and other retained state reduce that capacity. This is a memory bound, not a row limit.
+In contrast, the tested million-row COUNT(*) counter retains less than 32 KiB. Native COUNT, SUM
+and AVG retain group keys and aggregate state as input arrives. Infinite inputs to bounded-state
+consumers, such as COUNT(*) or a top-K sort, can continue until cancelled. Windows, full sorts and
+INTERSECT/EXCEPT require completed input; consumers retaining unbounded input exhaust the grant
+even under an outer LIMIT. Put a finite LIMIT inside their input when appropriate.
+
+Cancellation is checked for produced/scanned rows and iterations. Completion, early stopping,
+refusal and cancellation release the grants. Recursive INSERT/UPDATE/DELETE sources complete their
+required reads before writing. Ordinary CREATE VIEW bodies can contain recursion and execute on
+demand after reopen. EXPLAIN shows RecursiveUnion and WorkTableScan; EXPLAIN ANALYZE reports
+iterations (including the terminal empty pass), accepted rows and candidates before DISTINCT.
 
 ## Diagnostics
 
@@ -99,7 +132,7 @@ Nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED and SEARCH/CYCLE remain
 | `CS01019` | Conflicting relation names; give the CTE or stored relation an alias |
 | `CS05017` | Invalid aggregate placement, including WHERE in an unused constant body |
 | `CS00003` | Empty output-name list, malformed definition, or unsupported command kind after the list |
-| `CK00001` | Recursive planning/execution, mutual recursion, prohibited recursive UNION tails, SELECT locking tails, WITH RECURSIVE ... MERGE, nested WITH, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
+| `CK00001` | Mutual recursion, prohibited recursive UNION tails, SELECT locking tails, WITH RECURSIVE ... MERGE, nested WITH, modifying CTE body, AS [NOT] MATERIALIZED, SEARCH/CYCLE |
 
 The source assigns no SQLSTATE to CS01026. Other ordinary query diagnostics still apply.
 
@@ -116,6 +149,8 @@ The source assigns no SQLSTATE to CS01026. Other ordinary query diagnostics stil
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or type modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+| CS05067 | Retained recursive tables, buffers, DISTINCT state or consumer scratch exceed statement memory | 53200 |
+| CS05090 | Internal invariant: a CTE opens more readers than its plan counted | XX000 |
 
 ## Examples
 
@@ -165,13 +200,49 @@ WITH RECURSIVE b AS (SELECT n FROM a), a(n) AS (SELECT 1)
 SELECT n FROM b;
 ```
 
-This returns one row containing `1`. The following parses and binds but reports
-CK00001 when planned, explained or executed; it returns no rows:
+This returns one row containing `1`. A finite recursive counter executes:
 
 ```sql
 WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3)
 SELECT n FROM r;
 ```
+
+Result: `1, 2, 3`. An infinite producer also completes when the consumer stops:
+
+```sql
+WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r)
+SELECT n FROM r LIMIT 10;
+```
+
+Result: `1` through `10`. Two readers can request different prefixes of the same producer:
+
+```sql
+WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r)
+(SELECT n FROM r LIMIT 2) UNION ALL (SELECT n FROM r LIMIT 3);
+```
+
+Result: `1, 2, 1, 2, 3`; the producer reaches only `3`.
+
+UNION stops a cycle by comparing all accepted rows:
+
+```sql
+WITH RECURSIVE r(n) AS (
+    SELECT 'A' COLLATE case_insensitive UNION SELECT LOWER(n) FROM r
+)
+SELECT n FROM r;
+```
+
+Result: one row, `'A'`. For a correlated early decision, execute separately:
+
+```sql
+CREATE TABLE vals (v BIGINT);
+INSERT INTO vals VALUES (1);
+WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r)
+SELECT v = ANY (SELECT n FROM r WHERE n >= a.v) FROM vals a;
+```
+
+Result: TRUE after the first recursive row. Replacing `v = ANY` with `v IN` also returns TRUE;
+`v > ALL` returns FALSE after that row.
 
 ## See also
 
@@ -182,4 +253,6 @@ SELECT n FROM r;
 - **Execution and materialization** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.cs`.
 - **Binding and constant bodies** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.Binding.cs`.
 - **Syntax** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlCteParserTests.cs`.
-- **Recursive binding and execution refusal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.Recursive.cs`.
+- **Recursive binding** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCteExecutionTests.Recursive.cs`.
+- **Fixpoints, demand and diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`, `SqlRecursiveReaderTests.cs` and `SqlRecursiveReclamationTests.cs` in the same directory.
+- **Result capacity accounting** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.RecursiveTables.cs` and `SqlWindowMemory.cs` in the same directory.

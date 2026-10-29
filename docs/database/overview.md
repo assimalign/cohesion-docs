@@ -402,16 +402,22 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 80 of 82 declared clauses, including executable MERGE with
-ordered actions and RETURNING, and binding-only [WITH RECURSIVE](sql/language/clauses/with.md).
+The current SQL contract measures 82 of 84 declared clauses, including executable MERGE with
+ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.
 [Grouping sets and masks](sql/language/clauses/group-by.md) and
 [standalone sequence SQL](sql/language/statements/create-sequence.md) also execute.
-Recursive execution remains CK00001; acyclic lists execute. Document and Graph have their own
+Recursive fixpoints execute on demand, sharing readers and reclaiming consumed rows. Document and Graph have their own
 declared language subsets; SQL feature support does not transfer to them. Cache remains outside the
 MVP. Security contracts do not imply complete model authorization. The former replication and
 governance projects are removed and supply no current API.
+
+SQL [isolation options and early SET TRANSACTION](sql/language/statements/set-transaction.md)
+select ReadCommitted or the original BEGIN snapshot. OQL [key JOIN and NEST](document/language/clauses/join.md)
+complete its T2 lane with explicit source aliases, per-source metadata and bounded lookup caching.
+GQL [EXCEPT/INTERSECT and OTHERWISE](graph/language/clauses/union.md) execute multiset operations
+and lazy whole-result fallback under shared work/memory budgets.
 
 SQL supports [ON CONFLICT](sql/language/clauses/on-conflict.md) with EXCLUDED and RETURNING,
 [distinct/Boolean tests and LIKE ESCAPE](sql/language/expressions/operators.md), and final-row

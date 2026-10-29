@@ -34,11 +34,12 @@ modifier changes CS02066 (42804, cast hint), and collation changes CS02067 (42P2
 See [WITH diagnostics](../../../../database/sql/language/clauses/with.md#diagnostics) for each trigger.
 
 SqlQueryRequest.FromSql rejects parser errors with DatabaseParseException; semantic errors arise
-during planning as DatabaseException. Well-formed recursive entries bind, then planning, EXPLAIN
-and execution refuse with CK00001, including unused recursion. Acyclic WITH RECURSIVE executes;
-mutual recursion and WITH RECURSIVE ... MERGE remain CK00001. Nested WITH, modifying bodies and
-materialization hints remain parser refusals. Reachable acyclic definitions materialize once before
-writes. See [WITH](../../../../database/sql/language/clauses/with.md) for snapshot and scope rules.
+during planning as DatabaseException. Well-formed recursive entries execute on demand; retained
+state uses CS05067 (53200), and an internal reader-count invariant uses CS05090 (XX000).
+Mutual recursion and WITH RECURSIVE ... MERGE remain CK00001. Nested WITH, modifying bodies and
+materialization hints remain parser refusals. Statements without recursive execution materialize
+reachable definitions once before writes. See [WITH](../../../../database/sql/language/clauses/with.md)
+for snapshot and scope rules.
 
 ## Example
 
@@ -63,7 +64,9 @@ Console.WriteLine(recursiveScope.CommonTables[0].IsRecursiveScope); // True
 Console.WriteLine(recursiveScope.CommonTables[1].IsRecursiveScope); // True
 ```
 
-Execution returns `1`; the list is acyclic. A self-referencing body parses but cannot execute yet.
+Execution returns `1`; the list is acyclic. Self-referencing bodies also execute UNION ALL/DISTINCT
+fixpoints. For example, `WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r)
+SELECT n FROM r LIMIT 3` returns `1, 2, 3`, as checked by SqlRecursiveFixpointTests.
 
 Body may also be [SqlSetOperationExpression](sql-set-operation-expression.md). For example,
 `WITH a AS (SELECT 1 AS n UNION ALL SELECT 2 AS n) SELECT n FROM a;` has a set body and returns

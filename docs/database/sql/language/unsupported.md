@@ -4,11 +4,11 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 80 of 82 named clauses against the live engine. The 2 excluded names are
+The profile measures 82 of 84 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
-binding. Recursive execution remains CK00001; acyclic WITH RECURSIVE executes.
+fixpoints with on-demand execution and shared readers.
 
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
 SELECT-only EXPLAIN ANALYZE executes to report candidate work. Standalone ANALYZE remains unsupported.
@@ -27,7 +27,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Missing/nonunique ON CONFLICT arbiter or untargeted DO UPDATE | `CS03035` (42P10) | Untargeted DO NOTHING uses all unique indexes |
 | CORRESPONDING [BY (...)] | `CK00001` | Contextual exclusion after a set operator; [UNION/INTERSECT/EXCEPT](clauses/set-operations.md) execute |
 | CREATE SCHEMA AUTHORIZATION or nested CREATE/GRANT elements | `CK00001` | [CREATE SCHEMA](statements/create-schema.md) accepts a namespace name and existence guard |
-| Recursive execution/mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) parses and binds; acyclic lists execute |
+| Mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) executes UNION ALL/DISTINCT fixpoints |
 | WITH RECURSIVE ... MERGE | `CK00001` | Refused even for acyclic lists; plain WITH ... MERGE executes |
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
 | Aggregate-window DISTINCT; FROM FIRST/LAST | `CK00001` | [Aggregate windows and frame value functions](clauses/window.md) execute; missing OVER uses CS05076 (42P20) |
@@ -90,7 +90,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
-| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |
+| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE` | `CS00002` | Not implemented as statements |
+| READ ONLY/WRITE, [NOT] DEFERRABLE transaction modes | `CK00001` | [Isolation options](statements/begin-transaction.md) and [SET TRANSACTION](statements/set-transaction.md) execute |
+| SERIALIZABLE transaction isolation | `CS04073` (0A000) | State-valid BEGIN/SET refuses it; SET outside a block is a CS04071 warning/no-op |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |
 | Mutation of a built-in system relation | `CS04021` (25006) | System relations are read-only |
 | Serial-family user-domain names | `CK00001` | Column SERIAL/BIGSERIAL/SMALLSERIAL and SERIAL2/4/8 are BY DEFAULT identity aliases; quoted domain names remain excluded |

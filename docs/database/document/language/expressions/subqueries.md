@@ -58,7 +58,8 @@ EXPLAIN binds without executing, and describes the nested plan and caching polic
 An inner query may capture outer FROM/UNNEST, group-term, GROUP AS and comprehension bindings.
 Subqueries inside ORDER BY also see outer projection aliases. Inner declarations shadow outer
 names by ordinal, case-sensitive name; an unqualified field otherwise binds to the inner source.
-Stars contain only local rows; qualified stars remain refused with CK00001. Stored outer bindings
+Stars contain only local rows; qualified stars execute in ungrouped
+[JOIN/NEST](../clauses/join.md) SELECTs and otherwise retain CK00001. Stored outer bindings
 retain META id/version; expression/derived rows and scalar bindings have NULL metadata.
 
 An outer field can supply the inner source, for example `FROM d.items AS i`; it evaluates per
@@ -91,7 +92,7 @@ succeeds. Failed statements can leave version gaps. Unreached RETURNING branches
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CD00014 | Direct IN subquery uses SELECT without RAW/VALUE | — |
-| CK00001 | Qualified star or other unsupported form | — |
+| CK00001 | Qualified star outside an ungrouped joined SELECT or other unsupported form | — |
 | CD05001 | Invalid expression/grouping context; known-array subquery passed to LENGTH, ABS or CONCAT | — |
 | CD05015 | Serialized JSON projection exceeds 256 levels; named output reserves one level for its row object | — |
 | CD05018 | Shared statement memory budget exhausted before publication | — |

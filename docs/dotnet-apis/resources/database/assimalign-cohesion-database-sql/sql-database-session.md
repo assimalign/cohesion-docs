@@ -136,6 +136,37 @@ pins each statement snapshot and refreshes on a later statement.
 inferred table atomically. After publication, snapshots before its builder commit see it empty;
 later snapshots see all rows. CTAS uses CS04003 (25001) inside an explicit transaction.
 
+## Text isolation controls
+
+BEGIN/START TRANSACTION accept SQL isolation modes. READ COMMITTED and READ UNCOMMITTED select
+ReadCommitted; REPEATABLE READ selects Snapshot. Optionless BEGIN and automatic statements default
+to Snapshot. Early SET changes the same CurrentTransaction object's effective IsolationLevel while
+preserving its id and BEGIN snapshot; Snapshot acquisition at BEGIN differs from PostgreSQL.
+
+Adapted from SqlIsolationSyntaxTests, with an open session:
+
+```csharp
+await session.ExecuteAsync("BEGIN ISOLATION LEVEL READ COMMITTED");
+var transaction = session.CurrentTransaction!;
+Console.WriteLine(transaction.IsolationLevel); // ReadCommitted
+await session.ExecuteAsync("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+Console.WriteLine(transaction.IsolationLevel); // Snapshot
+await session.ExecuteAsync("SELECT 1");
+var late = await session.ExecuteAsync("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+Console.WriteLine(late.Diagnostics[0].Code); // CS04072; Error result, block still usable
+await session.ExecuteAsync("ROLLBACK");
+var outside = await session.ExecuteAsync("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+Console.WriteLine(outside.Status); // Success
+Console.WriteLine(outside.Diagnostics[0].Code); // CS04071; Warning, no default changed
+```
+
+CS00012 (42601) parser errors throw DatabaseParseException. Embedded isolation-control refusals
+return Error results: CS04072 (25001) for late SET and CS04073 (0A000) for SERIALIZABLE in a
+state-valid block. Remote errors raise SqlClientException; outside-block SET warnings accompany
+success on both transports. First-data-statement admission includes failing data/DDL and plain
+EXPLAIN; parse/control failures leave configuration open. See
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md).
+
 ## Related reference
 
 [Assembly](index.md) · [Engine options](sql-database-engine-options.md) · [SQL limits](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts)
@@ -146,3 +177,4 @@ later snapshots see all rows. CTAS uses CS04003 (25001) inside an explicit trans
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutRegressionTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlReferenceLockTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIsolationSyntaxTests.cs` and `SqlIsolationReviewTests.cs` in the same directory.
