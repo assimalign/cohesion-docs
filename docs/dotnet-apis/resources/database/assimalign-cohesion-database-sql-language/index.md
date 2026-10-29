@@ -14,6 +14,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlTransactionExpression](sql-transaction-expression.md)** — Control command and ordered isolation modes.
+- **[SqlTransactionIsolationLevel](sql-transaction-isolation-level.md)** — SQL spellings and effective kernel levels.
+
 - **[SqlWindowExpression](sql-window-expression.md)** — Function and OVER syntax.
 - **[SqlWindowSpecification](sql-window-specification.md)** — Written partition/order, frame and inherited name.
 - **[SqlWindowFrame](sql-window-frame.md)** — Explicit ROWS/RANGE/GROUPS mode and boundaries.

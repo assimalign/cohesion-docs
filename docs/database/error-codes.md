@@ -465,6 +465,21 @@ EXCEPT, INTERSECT and OTHERWISE remain CK00001 until GQ-Q2. No new SQLSTATE is a
 | CG05030 | UNION duplicate-elimination state exceeds the shared memory grant | — |
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
 
+## SQL transaction isolation
+
+[SET TRANSACTION](sql/language/statements/set-transaction.md) changes the current block before its first admitted data statement,
+including plain EXPLAIN and failed data/DDL attempts. Parse/control failures leave configuration
+open. READ UNCOMMITTED maps to ReadCommitted; REPEATABLE READ maps to Snapshot, fixed at the
+original BEGIN even after early SET. This differs from PostgreSQL's first-query snapshot.
+Outside-block SET changes no default, including for SERIALIZABLE. Refusals preserve the block.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed or incomplete transaction isolation mode | 42601 |
+| CS04071 | SET outside a block: warning and successful no-op | 25000 |
+| CS04072 | SET after the first admitted data statement or during an operation | 25001 |
+| CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+
 ## Sources
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

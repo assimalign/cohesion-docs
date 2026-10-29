@@ -145,7 +145,7 @@ queries, views, derived tables and set operands. A wildcard still needs a relati
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
 Nested CTEs, RETURNING subqueries/OLD/NEW/INTO, savepoints,
-isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
+and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
 ## Namespaces and query bodies
@@ -172,10 +172,10 @@ language adds no concurrency machinery. Malformed suffixes produce `CS00003` ins
 treating `ROLLBACK TO` as a complete rollback.
 
 B7 anticipates **`SAVEPOINT <name>`**, **`ROLLBACK TO [SAVEPOINT] <name>`**, **`RELEASE [SAVEPOINT]
-<name>`**, and **`SET TRANSACTION ISOLATION LEVEL <level>`**. Those forms are not implemented by B2.
-The session owns a stack of transaction scopes with exactly one root entry today, plus a defaulted
-value of the existing transaction coordinator's `IsolationLevel`. Savepoints can add scope markers
-and isolation syntax can set that value without replacing the session representation.
+<name>`**. Savepoints remain unimplemented. BEGIN isolation options and
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) execute through
+SqlTransactionExpression.IsolationLevels. The session retains one root transaction; early SET
+preserves its identity and original BEGIN snapshot.
 
 ## `Constraint` normalization and persistence
 
@@ -303,7 +303,7 @@ FILTER retains its condition in depth, source extent, rendering, child walks, st
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
 (42804). Child queries bind independently; aggregate windows also accept FILTER. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 80 of 82
+named clause and nine Boolean/statistical function names join the executable profile: 82 of 84
 clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
@@ -341,7 +341,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 80 of 82 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 82 of 84 declared clauses,
 including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 30 are unchanged.
 
@@ -409,7 +409,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 80 of 82.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 82 of 84.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -494,6 +494,21 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
 can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+
+## SQL transaction isolation
+
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) changes the current block before its first admitted data statement,
+including plain EXPLAIN and failed data/DDL attempts. Parse/control failures leave configuration
+open. READ UNCOMMITTED maps to ReadCommitted; REPEATABLE READ maps to Snapshot, fixed at the
+original BEGIN even after early SET. This differs from PostgreSQL's first-query snapshot.
+Outside-block SET changes no default, including for SERIALIZABLE. Refusals preserve the block.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed or incomplete transaction isolation mode | 42601 |
+| CS04071 | SET outside a block: warning and successful no-op | 25000 |
+| CS04072 | SET after the first admitted data statement or during an operation | 25001 |
+| CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
 
 ## Sources
 

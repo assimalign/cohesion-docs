@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 80 of 82 named clauses against the live engine. The 2 excluded names are
+The profile measures 82 of 84 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -90,7 +90,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
-| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |
+| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE` | `CS00002` | Not implemented as statements |
+| READ ONLY/WRITE, [NOT] DEFERRABLE transaction modes | `CK00001` | [Isolation options](statements/begin-transaction.md) and [SET TRANSACTION](statements/set-transaction.md) execute |
+| SERIALIZABLE transaction isolation | `CS04073` (0A000) | State-valid BEGIN/SET refuses it; SET outside a block is a CS04071 warning/no-op |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |
 | Mutation of a built-in system relation | `CS04021` (25006) | System relations are read-only |
 | Serial-family user-domain names | `CK00001` | Column SERIAL/BIGSERIAL/SMALLSERIAL and SERIAL2/4/8 are BY DEFAULT identity aliases; quoted domain names remain excluded |

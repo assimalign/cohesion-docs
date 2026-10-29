@@ -130,8 +130,8 @@ finally
 }
 ```
 
-The gauge rises by one while the pin is tracked and returns when it ends; all three transaction
-rates stay unchanged. A canceled begin throws OperationCanceledException without tracking a pin;
+The current-transactions gauge and all three transaction rates stay unchanged for pins.
+GetOpenContexts and PruneBound still account for their retained snapshots. A canceled begin throws OperationCanceledException without tracking a pin;
 a disposed manager throws ObjectDisposedException. A canceled rollback leaves the pin active,
 so cleanup uses a non-canceled token.
 

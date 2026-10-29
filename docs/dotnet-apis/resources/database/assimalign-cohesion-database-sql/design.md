@@ -901,14 +901,10 @@ share that context and its visibility snapshot. `COMMIT` awaits the coordinator'
 explicit wire termination, or server shutdown, rolls back an open transaction before releasing the
 session. The C# transaction API and SQL control commands operate on the same scope.
 
-The session owns `Stack<SqlTransactionScope>`, with zero entries outside a transaction and exactly
-one root entry in B2. Each scope carries its transaction and the existing
-`Database.Transactions.IsolationLevel` value. The session's default isolation value is `Snapshot`;
-begin and auto-commit pass that value to the coordinator instead of embedding a level at each call
-site. B7 anticipates `SAVEPOINT name`, `ROLLBACK TO [SAVEPOINT] name`, `RELEASE [SAVEPOINT] name`
-, and `SET TRANSACTION ISOLATION LEVEL ...`: named scopes and undo markers can extend the stack,
-while isolation syntax sets the carried value. B2 implements none of that syntax or savepoint undo
-machinery. `Serializable` remains rejected by the existing C# seam until the coordinator supports
+The session exposes one root SqlDatabaseTransaction. Optionless BEGIN and automatic statements
+default to Snapshot; SQL isolation modes can select ReadCommitted or Snapshot. Early SET replaces
+the kernel context while preserving transaction identity, sequence, lifecycle and original BEGIN
+snapshot. Savepoints and named scopes remain unimplemented. `Serializable` remains rejected by the existing C# seam until the coordinator supports
 serialization detection.
 
 The session lifecycle below applies equally to SQL requests and C# transactions.
@@ -2082,6 +2078,21 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
 can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+
+## SQL transaction isolation
+
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) changes the current block before its first admitted data statement,
+including plain EXPLAIN and failed data/DDL attempts. Parse/control failures leave configuration
+open. READ UNCOMMITTED maps to ReadCommitted; REPEATABLE READ maps to Snapshot, fixed at the
+original BEGIN even after early SET. This differs from PostgreSQL's first-query snapshot.
+Outside-block SET changes no default, including for SERIALIZABLE. Refusals preserve the block.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed or incomplete transaction isolation mode | 42601 |
+| CS04071 | SET outside a block: warning and successful no-op | 25000 |
+| CS04072 | SET after the first admitted data statement or during an operation | 25001 |
+| CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
 
 ## Sources
 

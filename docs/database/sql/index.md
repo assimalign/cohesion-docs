@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 80 of 82 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 82 of 84 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,7 +44,7 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 77-of-79 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 82-of-84 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and executable RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further

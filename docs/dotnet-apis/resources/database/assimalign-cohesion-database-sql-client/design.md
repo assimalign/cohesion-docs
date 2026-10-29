@@ -195,7 +195,10 @@ ExecutionFailure responses with usable connections; MySQL/SQLite alternatives an
 inference/action forms are CK00001 ParseFailure. No protocol or client API change is required.
 
 Multi-row UPDATE final-state foreign-key behavior is the same on both transports. Tests select
-Snapshot/ReadCommitted through the server-session API; SQL BEGIN adds no isolation syntax.
+Snapshot/ReadCommitted through the server-session API or SQL isolation options.
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) configures an
+early block; outside a block it succeeds with Warning CS04071. SERIALIZABLE uses CS04073 in a
+usable block. The existing diagnostics carrier delivers warnings and errors on both transports.
 Snapshot newer-conflict aborts and detected deadlocks require callers to roll back and retry the
 complete transaction. The client does not retry it automatically. See
 [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md#isolation-locking-and-retries).
