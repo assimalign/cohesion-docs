@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 29 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 8.
+Storage format 30 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 9.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -115,15 +115,16 @@ action through provisioning, reconciliation and reopen. Action execution is defe
 
 ## Current format boundary
 
-`SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v8`. Typed TimeSpan defaults
+`SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v9`, adding always-serialized
+OnUpdate metadata. Typed TimeSpan defaults
 render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock text and changing
 the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
 Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
 InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
-[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-29-and-schema-v8).
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-30-and-schema-v9).
 
 For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
-against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v8 documents and hashes
+against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v9 documents and hashes
 are equal. TimeSpan.MinValue renders `'-922337203685.4775808 seconds'`; zero renders `'0 seconds'`.
 
 Compiled schemas have no identity representation. Reconciliation of a typed schema-owned table
@@ -133,7 +134,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
-The integration branch uses SQL row-storage format 29 and compiled schema version 8.
+The integration branch uses SQL row-storage format 30 and compiled schema version 9.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -146,10 +147,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 8.
+upgrade path. Compiled schema format remains version 9.
 
 ## Sources
 

@@ -67,7 +67,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 29; compiled schemas remain version 8.
+SQL storage format is 30; compiled schemas remain version 9.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -153,7 +153,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 29.
+Drop removes sql.dat before the remaining file set. The current format is 30.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -187,10 +187,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 8.
+upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 9.
 
 ## Table maintenance
 
@@ -200,15 +200,16 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
-## SQL format 29 and schema v8
+## SQL format 30 and schema v9
 
-SQL opens only data/catalog format **29** and compiled documents in
-**cohesion/database-schema/v8**. Format 29 extends kind-18 sequence definitions with owning
+SQL opens only data/catalog format **30** and compiled documents in
+**cohesion/database-schema/v9**. Format 30 adds ON UPDATE action bytes in table extension 8.
+Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
-kind 16 is retired and never decoded. It retains format 27's TYPE default-assignment flag in
-table extension 7 and format 28's standalone-sequence records.
-Format 28 and every earlier database format are refused at open before stored expressions bind;
-there is no upgrade path or legacy reader. Compiled schema v8 is unchanged by this batch.
+kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
+in format 27/table extension 7 and format 28's standalone-sequence records.
+Format 29 and every earlier database format are refused at open before stored expressions bind;
+there is no upgrade path or legacy reader. Compiled schema v9 adds the always-serialized onUpdate member.
 
 Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL
 `'12'` meant days, while current input means seconds. Typed TimeSpan defaults render exact signed

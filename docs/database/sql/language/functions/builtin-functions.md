@@ -215,12 +215,12 @@ The profile advertises only executable names; recognition alone does not imply s
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application
 overloads at arities unused by the standard library remain possible. Function words remain usable
 as ordinary identifiers without a call, except bare niladic names require quoting to name a column.
-The current SQL storage format is **29**, with table extension 7 for TYPE default assignment
-coercion. It retains distinct predicates, Boolean tests and LIKE ESCAPE
+The current SQL storage format is **30**, with table extension 8 for ON UPDATE metadata
+and retained TYPE default assignment coercion. It retains distinct predicates, Boolean tests and LIKE ESCAPE
 in persisted definitions. Format 24 introduced explicit NULL placement after format 23's
 view records. Format 22 introduced STRING_AGG/LISTAGG identifier quoting. Format 18 introduced quoting where newly executable names and BOTH/LEADING/TRAILING render
 quoted as identifiers in persisted CHECK/default/function-body SQL. Format 17 separately introduced
-the default/missing-value split with table extension 6. Compiled schema version remains 8; older
+the default/missing-value split with table extension 6. Compiled schema version is 9; older
 SQL formats are refused with no upgrade reader.
 
 ## See also
