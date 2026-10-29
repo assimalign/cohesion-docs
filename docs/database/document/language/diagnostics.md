@@ -23,6 +23,9 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00012` | GROUP AS without preceding GROUP BY terms; at GROUP; no assigned SQLSTATE |
 | `CD00013` | NULLS without FIRST or LAST; at the invalid option or end of input; no assigned SQLSTATE |
 
+CD00014 reports a direct IN subquery without SELECT RAW/VALUE (no assigned SQLSTATE).
+See [subqueries](expressions/subqueries.md) for evaluation, CD05015 depth and CD05018 memory limits.
+
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
 rather than being rounded by the parser.

@@ -398,7 +398,8 @@ and `tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs` in the same proj
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, subquery or external sort. Document server/client and hosting composition execute;
+model, join, correlated/derived-FROM/DML subquery or external sort. Uncorrelated
+[expression subqueries](../../../../database/document/language/expressions/subqueries.md) and EXISTS execute. Document server/client and hosting composition execute;
 replication and model-specific security remain outside this surface.
 
 Co-located tests cover nested/mixed JSON, expected-version writes, explicit commit and rollback,

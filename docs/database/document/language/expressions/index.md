@@ -12,12 +12,13 @@ OQL expressions combine document paths, scalar values, parameters, operators, an
 - **JSON arrays** — [Array constructors](array-constructors.md) builds ordered values with NULL for MISSING elements.
 - **Array mappings** — [ARRAY and FIRST comprehensions](comprehensions.md) map and filter scoped elements in input order.
 - **Constant values** — [Literals](literals.md) covers strings, decimal numbers, Boolean values, and null.
+- **Nested queries** — [Expression subqueries](subqueries.md) materialize SELECT results; [EXISTS](exists.md) tests nonempty arrays.
 - **Bound values** — [Parameters](parameters.md) explains named and numbered markers.
 
 - **Array predicates** — [ANY/SOME/EVERY](quantified-predicates.md) test scoped elements; [IN](operators.md#in-and-between) also accepts an array operand.
 
 Parentheses group expressions. Aggregate calls are documented under
-[Aggregate functions](../functions/aggregate-functions.md). Nested queries remain unsupported. Recursive expression parsing is capped at 128 levels.
+[Aggregate functions](../functions/aggregate-functions.md). [Expression subqueries](subqueries.md) return arrays; [EXISTS](exists.md) tests array presence. Correlated, derived-FROM and DML subqueries remain deferred. Recursive expression parsing is capped at 128 levels.
 
 ## See also
 

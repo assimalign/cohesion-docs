@@ -14,6 +14,8 @@ public static class OqlClauses
     public const string Rollback = "ROLLBACK";
     public const string ArrayComprehension = "ARRAY ... FOR";
     public const string FirstComprehension = "FIRST ... FOR";
+    public const string Subquery = "SUBQUERY";
+    public const string Exists = "EXISTS";
     // Other query, expression and DDL clause constants are unchanged.
 }
 ```
@@ -28,6 +30,9 @@ no exceptions.
 ArrayComprehension and FirstComprehension are also admitted by the profile. Both produce
 [OqlComprehensionExpression](oql-comprehension-expression.md); their retired function spellings
 remain CK00001.
+
+Subquery and Exists are admitted for uncorrelated [expression subqueries](oql-subquery-expression.md)
+and the EXISTS unary operator. Correlated, derived-FROM and DML forms remain CK00001.
 
 ## Example
 

@@ -30,6 +30,10 @@ These AST constructors retain child references and do not execute a query. Parse
 read-only snapshots. Always inspect statement diagnostics before planning; execution performs
 semantic validation and uses DatabaseException.Diagnostics for coded failures.
 
+A direct `IN (SELECT RAW ...)` stores [OqlSubqueryExpression](oql-subquery-expression.md)
+in Array. VALUE is a RAW synonym; a direct SELECT without RAW/VALUE reports CD00014
+(no assigned SQLSTATE).
+
 ## Example
 
 ```csharp

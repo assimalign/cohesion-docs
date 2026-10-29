@@ -331,6 +331,15 @@ Aggregate FILTER retains:
 
 See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 
+## OQL expression subqueries
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00014 | Direct IN subquery requires SELECT RAW or SELECT VALUE | — |
+
+[Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
+and CD05015 projection-depth guard. Correlation, derived FROM and DML subqueries use CK00001.
+
 ## Sources
 
 - **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.

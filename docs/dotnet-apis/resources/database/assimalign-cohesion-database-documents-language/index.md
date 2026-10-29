@@ -32,6 +32,7 @@ This package parses the Documents engine's executable OQL surface into typed sta
 - **[OqlComprehensionExpression](oql-comprehension-expression.md)** — Scoped ARRAY/FIRST mapping and optional WHEN.
 - **[OqlCreateIndexExpression](oql-create-index-expression.md)** — Ordered scalar/array keys, scalar-only UNIQUE and conditional creation.
 - **[OqlDropIndexExpression](oql-drop-index-expression.md)** — Conditional removal.
+- **[OqlSubqueryExpression](oql-subquery-expression.md)** — Array-valued nested SELECT and RAW/VALUE.
 - **[OqlSelectExpression](oql-select-expression.md)** — DISTINCT, VALUE/RAW and LIMIT/OFFSET operands.
 - **[OqlNullPlacement](oql-null-placement.md)** — Written/default MISSING and NULL placement.
 - **[OqlInExpression](oql-in-expression.md)** — AST members and execution contract.
@@ -57,7 +58,8 @@ Documents engine supplies catalog binding, planning, and execution. Queries and 
 one collection in the session's database. `CREATE INDEX` and `DROP INDEX` use the same
 parse-plan-execute path as `SELECT`; INSERT, UPSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. UPSERT replaces whole documents.
 OQL follows the SQL++ MISSING contract. DEFINE/ELEMENT/FLATTEN are ordinary field names;
-their old statement/call positions and subqueries report CK00001.
+their old statement/call positions report CK00001. Uncorrelated expression subqueries and EXISTS
+execute; correlation, derived FROM and DML subqueries remain CK00001.
 
 See [DESIGN.md](design.md) for the supported-clause matrix, statement/expression grammar,
 diagnostics, scope restrictions, and extension rules. Co-located Shouldly tests provide the parser
