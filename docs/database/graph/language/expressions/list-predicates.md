@@ -35,7 +35,7 @@ including WHERE, RETURN, comprehensions, scalar properties and MERGE actions.
 
 Visited elements share execution work (CG05004) and nested values share memory (CG05020).
 [Reduce shape/type analysis](reduce.md) shares a separate 65,536-node/closure-step planning cap;
-failure uses CG05026. Statement failures roll back writes. Pattern comprehensions remain CK00001.
+failure uses CG05026. Statement failures roll back writes. [Pattern comprehensions](pattern-comprehensions.md) collect correlated matches.
 
 ## Diagnostics
 

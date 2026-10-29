@@ -31,6 +31,7 @@ public static class GqlClauses
     public const string Reduce = "REDUCE";
     public const string ListPredicate = "LIST PREDICATE";
     public const string Exists = "EXISTS";
+    public const string PatternComprehension = "PATTERN COMPREHENSION";
 }
 ```
 
@@ -107,6 +108,10 @@ unbounded WALK even with LIMIT still use CK00001. PathSelector is enabled and ad
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.PathMode)); // True
 ```
+
+PatternComprehension is enabled by GqlLanguageProfile.Instance and produces
+[GqlPatternComprehensionExpression](gql-pattern-comprehension-expression.md). Reading the constant
+throws no exceptions. `Instance.Supports(GqlClauses.PatternComprehension)` returns true.
 
 ## Sources
 

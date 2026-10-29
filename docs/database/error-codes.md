@@ -282,7 +282,7 @@ plan reasons, consumption and sort elision/retention; it adds no diagnostic or s
 See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
 [slices](graph/language/expressions/list-slices.md), [reduce](graph/language/expressions/reduce.md)
 and [list predicates](graph/language/expressions/list-predicates.md). Known non-Boolean predicates
-use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions retain CK00001.
+use CG02013, including empty/NULL inputs and EXPLAIN. [Pattern comprehensions](graph/language/expressions/pattern-comprehensions.md) execute.
 
 ## SQL sequence catalog conditions
 
@@ -385,6 +385,20 @@ See [OVER and WINDOW](sql/language/clauses/window.md) for placement, inheritance
 Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnation or an unplanned
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
+
+## Pattern comprehensions
+
+[Pattern comprehensions](graph/language/expressions/pattern-comprehensions.md) collect every correlated inner match in order.
+The optional path name shadows locally; other existing pattern names correlate. NULL arguments
+produce no matches, duplicates and NULL projections remain, and zero-hop relationship quantifiers
+are accepted. Inner aggregates are refused. EXPLAIN shows CollectApply. Collection shares the
+statement operation, snapshot, update overlay and work/memory budgets (CG05004/CG05020).
+Scalar composite results use graph.composite-values; entity lists remain CG05001 until #1662.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00014 | Pattern comprehension requires a nonempty path and projection | — |
+| CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
 
 ## Sources
 
