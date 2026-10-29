@@ -18,8 +18,8 @@ public sealed class SqlDropSequenceExpression : SqlQueryExpression
 ## Behavior and exceptions
 
 The parser owns construction and retains names in written order. Cascade is false for omitted or
-explicit RESTRICT. With persisted sequence dependencies refused, both policies have the same
-effect. Execution validates the full list before one commit and waits for users of the sequences.
+explicit RESTRICT. RESTRICT refuses dependent column defaults with CS03080 (2BP01); CASCADE
+atomically clears them. Identity-owned sequences refuse even with CASCADE. Execution validates the full list before one commit and waits for users of the sequences.
 Accessors add no exceptions. Engine DatabaseException codes include CS03073 (42P01) for an
 unguarded missing name and CS04067 (40001) for a replacement. Explicit transactions return
 CS04003 (25001) diagnostics. See [DROP SEQUENCE](../../../../database/sql/language/statements/drop-sequence.md).

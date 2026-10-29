@@ -88,7 +88,7 @@ those same transforms for uniqueness enforcement.
   record cannot be told apart record-by-record, and version 2 vs 3 (shared page
   stream vs per-object page chains) is a page-placement property no record
   carries — so the database-grain marker is catalog metadata, read by the
-  engine at open to enforce format 28. Earlier or newer markers, including format 26, are
+  engine at open to enforce format 29. Earlier or newer markers, including format 26, are
   refused without an upgrade reader. An absent marker does not authorize migration; only
   proven interrupted creation can complete under the engine's creation rules.
 - **The applied compiled-schema state lives here** (kind-6 records). The catalog
@@ -165,7 +165,7 @@ ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinal
 with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
 dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
 intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
-abandoned storage. This reuses format 28 and the TRUNCATE replacement contract.
+abandoned storage. This reuses format 29 and the TRUNCATE replacement contract.
 
 ## Single source for SQL system views (C1)
 
@@ -197,16 +197,17 @@ for the query surface and the two deliberately non-standard extension views.
 
 ## Identity reservations
 
-[SqlCatalogColumn.Identity](sql-catalog-column.md) holds immutable [SqlCatalogIdentity](sql-catalog-identity.md)
-metadata in current table extension 7 (the identity facet originated in extension 5). Counter kind 16 stores kind Int32, table ObjectId Int64,
-and last reserved value Int64. Load rejects duplicate/orphaned counters, out-of-range values and
-values outside the START/INCREMENT progression. One table can have one signed integer identity.
+[SqlCatalogColumn.Identity](sql-catalog-column.md) retains immutable generation metadata in table
+extension 7. Each identity owns a shared kind-18 sequence, with owning table id, column name and
+identity flag; kind-19 reservations carry its durable endpoint and called state. Kind 16 is retired.
+[AllocateIdentity](sql-catalog.md) delegates to this allocator and reserves up to 32 values before
+returning any. Rollback/reopen can leave gaps; CYCLE or restart can deliberately repeat values.
 
-[AllocateIdentity](sql-catalog.md) self-commits up to 32 values before delivering any, under the
-catalog lock with Int128 intermediate arithmetic. It neither replaces table metadata nor changes
-DdlGeneration/script receipts. Reopen starts after the last reservation, leaving gaps while preventing
-reuse. Unconfirmed commits fence the catalog until recovery. Data rollback does not reclaim values.
-DROP TABLE or dropping the identity column retires the counter atomically; recreation starts at START.
+Owned sequences publish with table creation, identity addition/removal, rename and storage
+replacement. The generated table_column_seq name receives numeric collision suffixes and stays
+unchanged on rename. Catalog load validates ownership in both directions, defaults and reservations
+without cleanup writes; reclamation removes abandoned owner records later. INFORMATION_SCHEMA lists
+identity sequences deliberately. See [identity behavior](../../../../database/sql/language/clauses/identity.md).
 
 ## Standalone sequences
 
@@ -226,8 +227,9 @@ sequence, uses CS03070 (42P07) and names the existing kind. Table-on-table colli
 CS03049 (42P07). An absent sequence namespace uses CS03071 (3F000). Schema RESTRICT counts
 sequences; CASCADE removes definitions and counters atomically in the schema transaction.
 
-Format 28 adds kind 18 definitions and kind 19 reservations. Kind 18 stores the typed tuple
-above; kind 19 stores object id, durable endpoint and a called flag. A false flag represents an
+Format 28 introduced kind 18 definitions and kind 19 reservations. Current format 29 adds owning
+table id, column name and identity ownership to kind 18; kind 19 stores object id, durable endpoint
+and a called flag. Retired kind 16 is never decoded. A false flag represents an
 explicit restart before first use. Definitions exceeding 8,092 bytes use CS03072 (54000) before
 identity reservation/publication. Invalid/truncated definitions, duplicate/orphaned counters,
 namespace/name/id collisions or out-of-range endpoints use CS06061 (XX001) on load.
@@ -247,7 +249,7 @@ hidden table identity with a durable kind-14 abandonment intent, using the same 
 reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
 publication removes the intent and exposes the table. Recovery retains either the whole table or
 an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
-zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 28.
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 29.
 
 ## Error model
 
@@ -272,8 +274,7 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 
 ## Non-goals
 
-- **Sequence identity integration and permissions** — SQL DDL/session functions execute; identity
-  integration, SERIAL and OWNED BY remain run-3 work. Permissions remain future work, #177.
+- **Sequence permissions** — Identity integration, SERIAL, OWNED BY and sequence defaults execute; permissions remain future work, #177.
 - **Multi-statement DDL atomicity (see** — self-committing DDL above). The migration
   layer compensates completed reversible statements on failure; an MVCC bracket
   spanning catalog and data DDL requires a future catalog batch-transaction seam.
@@ -304,7 +305,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 28 and compiled schema version 8.
+The integration branch uses SQL row-storage format 29 and compiled schema version 8.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -317,23 +318,37 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 28 records TYPE default assignment coercion in table extension 7.
+Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
+in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 
 ## Persisted views
 
-Current format 28 records TYPE default assignment coercion in table extension 7. Format 27 and
+Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
+in table extension 7. Format 28 and
 every earlier catalog are refused before definitions bind, carrying CS06041; they are never
 silently rewritten. Format 26 introduced the temporal DEFAULT/frozen missing-value fence.
-Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-28-and-schema-v8).
+Compiled documents must be v8. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-29-and-schema-v8).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 28. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 29. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.
 Snapshots capture immutable view definitions alongside the rest of the catalog.
+
+## Owned sequence diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Identity required by ALTER is absent | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion uses CS02002 (22003); disappearing identity or unplanned live referential
+default sequence grants use CS04067 (40001). Retry replans before defaults or row mutation.
 
 ## Sources
 

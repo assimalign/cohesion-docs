@@ -12,13 +12,38 @@ expression [ NOT ] IN ( expression [ , ...n ] )
 expression [ NOT ] IN array_expression
 expression [ NOT ] BETWEEN lower AND upper
 expression [ NOT ] LIKE pattern [ ESCAPE escape_expression ]
+expression || expression
+expression IS [ NOT ] DISTINCT FROM expression
+EXISTS expression
 ```
 
 ## Precedence
 
-Lowest first: OR, AND, comparisons/presence tests/IN/BETWEEN/LIKE, addition/subtraction,
-multiplication/division/remainder, unary signs. NOT wraps comparisons: NOT age < 18 means
-NOT (age < 18). Parentheses override grouping. CASE is a primary expression.
+Tightest first, following Couchbase's IS and EXISTS boundaries:
+
+| Level | Operators | Grouping |
+| --- | --- | --- |
+| 1 | Path member `.` and array navigation `[]` | Left |
+| 2 | Unary `+` and `-` | Right |
+| 3 | `* / %` | Left |
+| 4 | `+ -` | Left |
+| 5 | String concatenation &#124;&#124; | Left |
+| 6 | IS [NOT] NULL/MISSING/VALUED; IS [NOT] DISTINCT FROM | Left |
+| 7 | EXISTS | Right |
+| 8 | `= != <> < <= > >=`; [NOT] IN; [NOT] BETWEEN; [NOT] LIKE with optional ESCAPE | Left |
+| 9 | NOT | Right |
+| 10 | AND | Left |
+| 11 | OR | Left |
+
+Parentheses override grouping. CASE, constructors, comprehensions and quantifiers delimit their
+contained expressions. ESCAPE parses its value with LIKE's operand rule.
+
+**Behavior change:** IS now binds tighter than comparisons, IN, BETWEEN and LIKE.
+`n = 1 IS NOT NULL` means `n = (1 IS NOT NULL)`. For n values 1, 2 and 3 it is FALSE
+and filters out every row; previously that WHERE admitted all three. Write
+`(n = 1) IS NOT NULL` to test the comparison's result. `EXISTS x IS NULL` means
+`EXISTS (x IS NULL)`, while `EXISTS a = TRUE` means `(EXISTS a) = TRUE`.
+NOT still wraps comparisons: `NOT age < 18` means `NOT (age < 18)`.
 
 ## Comparison, arithmetic and logic
 
@@ -32,6 +57,19 @@ A definite structural mismatch is FALSE; otherwise equal structures containing N
 NULL. WHERE, HAVING and logical operators use the [shared SQL++ truth rule](missing.md#boolean-contexts),
 so WHERE 1 retains rows. NOT preserves NULL and MISSING.
 
+## Concatenation and distinctness
+
+`||` follows CONCAT: two strings concatenate without implicit conversion. MISSING wins over
+NULL; NULL propagates. A wrong-kind stored value yields NULL. Incompatible literal numbers,
+arrays and objects are refused during planning with CD05001 (no assigned SQLSTATE).
+
+IS DISTINCT FROM and IS NOT DISTINCT FROM handle top-level unknowns explicitly. Two MISSING
+values or two NULL values are not distinct. A MISSING or NULL against another kind is distinct,
+including MISSING against NULL. Valued operands use structural equality. IS DISTINCT FROM is
+FALSE only for definite equality; IS NOT DISTINCT FROM returns that equality result, including
+NULL when array element comparison is unknown. For example, `[NULL] IS DISTINCT FROM [NULL]`
+is TRUE and `[NULL] IS NOT DISTINCT FROM [NULL]` is NULL.
+
 ## IN and BETWEEN
 
 IN accepts a nonempty parenthesized value list or an unparenthesized array operand. Parentheses
@@ -41,7 +79,10 @@ operand, a match wins; without a match a NULL list item wins over a MISSING item
 NOT IN negates only Boolean results. For array IN, MISSING on either side gives MISSING;
 a NULL/non-array right operand gives NULL. With a valued left operand, a matching element wins;
 without a match, a NULL element gives NULL, otherwise FALSE. NULL IN [] remains NULL on this
-branch, while a valued operand IN [] is FALSE. Nested SELECT remains CK00001.
+branch, while a valued operand IN [] is FALSE. Direct
+`[NOT] IN (SELECT RAW ...)` uses these array rules; VALUE is a RAW synonym.
+A direct non-RAW SELECT here reports CD00014 (no assigned SQLSTATE). See
+[expression subqueries](subqueries.md).
 
 [ANY/SOME/EVERY](quantified-predicates.md) use scoped SATISFIES predicates with different element
 truth handling: NULL/MISSING predicate results are not true.

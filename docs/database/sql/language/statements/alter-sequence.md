@@ -1,6 +1,6 @@
 # ALTER SEQUENCE (Cohesion SQL)
 
-Changes a standalone sequence's options or restarts allocation.
+Changes a sequence's options, ownership or allocation position.
 
 ## Syntax
 
@@ -9,7 +9,7 @@ ALTER SEQUENCE [ IF EXISTS ] [ schema_name . ] sequence_name
     { sequence_option | RESTART [ WITH integer ] } [ ...n ] [ ; ]
 ```
 
-sequence_option is an option from [CREATE SEQUENCE](create-sequence.md#syntax), including AS.
+sequence_option is an option from [CREATE SEQUENCE](create-sequence.md#syntax), including AS and OWNED BY. Identity-sequence ownership cannot be changed (CS03081, 55000).
 At least one option is required; each may appear once, in any order.
 
 ## Remarks

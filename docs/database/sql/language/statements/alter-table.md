@@ -46,6 +46,13 @@ the old schema and rows remain usable.
 One statement accepts one action. SET SCHEMA, RENAME CONSTRAINT and comma-separated action
 lists are outside this subset (CK00001).
 
+### Identity changes
+
+ALTER COLUMN supports ADD GENERATED, SET GENERATED, SET sequence options, RESTART and DROP
+IDENTITY [IF EXISTS]. ADD GENERATED needs NOT NULL and preserves existing values. Adding a
+new identity column instead backfills populated storage before atomic publication. See
+[identity syntax, diagnostics and examples](../clauses/identity.md#alter-and-backfill).
+
 ### ALTER COLUMN TYPE
 
 `ALTER TABLE t ALTER [COLUMN] c [SET DATA] TYPE type [COLLATE collation] [USING expression]`
@@ -181,8 +188,8 @@ stamps are unchanged. An explicitly stored `NULL` remains `NULL`. A later update
 The emptiness check uses current committed rows. Historical versions visible only to an older
 snapshot can retain a missing `NULL` field after a default-free addition to a currently empty table.
 
-ADD [IDENTITY](../clauses/identity.md) requires no live rows, including when old deleted versions
-remain. A populated-table ADD fails `CS03025`. Full-definition ALTER preserves identity only
+ADD [IDENTITY](../clauses/identity.md#alter-and-backfill) backfills live rows through an atomic
+storage rewrite. ADD GENERATED on an existing NOT NULL column preserves its values. Full-definition ALTER preserves identity only
 with its existing type, NOT NULL and no DEFAULT; type/nullability/default or generation changes
 fail `CS03025`. An explicit NULL conflicting with NOT NULL, PRIMARY KEY or IDENTITY reports
 `CS00003`; ALTER also rejects making an existing primary-key column explicitly NULL.
@@ -203,11 +210,11 @@ To reclaim dropped ordinals, use the C# maintenance operation
 [SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
 It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
 read-only snapshots retain the original layout until they end; writers bound before publication
-abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 28.
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 29.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 28 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 29 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version remains 8. Older SQL formats are refused.
 
@@ -367,7 +374,8 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 28 records TYPE default assignment coercion in table extension 7.
+Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
+in table extension 7.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 8.
 

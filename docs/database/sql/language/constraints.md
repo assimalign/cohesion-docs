@@ -116,8 +116,7 @@ transaction remain usable.
 | `CS01019` | Duplicate key-list column or multiple PRIMARY KEY declarations | — |
 | `CS01015` | New CHECK uses a qualifier other than the constrained table/schema | — |
 
-Default evaluation retains its normal diagnostic, and an ALWAYS identity SET DEFAULT assignment
-uses `CS03025`. See [Diagnostics](diagnostics.md) for location and wire behavior.
+Default evaluation retains its normal diagnostic. Both identity modes allocate for SET DEFAULT. See [Diagnostics](diagnostics.md) for location and wire behavior.
 
 Referential SET NULL/SET DEFAULT actions collect all assignments to each final child row, then
 check the [row and index-key limits](diagnostics.md#row-and-index-key-limits) before apply.

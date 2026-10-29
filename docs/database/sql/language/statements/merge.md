@@ -17,8 +17,9 @@ USING source [ [ AS ] source_alias ] ON condition
     WHEN MATCHED [ AND condition ] THEN
         { UPDATE SET column_name = expression [ , ...n ] | DELETE | DO NOTHING }
   | WHEN NOT MATCHED [ BY TARGET ] [ AND condition ] THEN
-        { INSERT [ ( column_name [ , ...n ] ) ] VALUES ( expression [ , ...n ] )
-        | INSERT DEFAULT VALUES | DO NOTHING }
+        { INSERT [ ( column_name [ , ...n ] ) ] [ OVERRIDING { SYSTEM | USER } VALUE ]
+            VALUES ( expression [ , ...n ] )
+        | INSERT [ OVERRIDING { SYSTEM | USER } VALUE ] DEFAULT VALUES | DO NOTHING }
   | WHEN NOT MATCHED BY SOURCE [ AND condition ] THEN
         { UPDATE SET column_name = expression [ , ...n ] | DELETE | DO NOTHING }
 ```
@@ -55,6 +56,11 @@ NOT MATCHED defaults to BY TARGET.
 An unconditional clause, including DO NOTHING, makes any later clause of the **same match kind**
 unreachable (CS05071). A conditional clause is not terminal merely because its expression is TRUE.
 WHEN filters select actions; they are not pushed into ON to classify matches.
+
+[Identity overrides](../clauses/identity.md#assignment-and-overrides) apply to MERGE INSERT.
+OVERRIDING SYSTEM VALUE permits explicit ALWAYS values; USER VALUE generates after validating
+ignored assignment inputs. UPDATE actions may assign DEFAULT to ALWAYS identities; other explicit
+assignments refuse. Generated values update currval/lastval and can leave gaps on failure.
 
 ### Binding scopes
 
@@ -186,7 +192,7 @@ failure publishes no partial rows and restores the statement's original rows, pr
 explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
 Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
-SQL storage format 28 and wire frames are unchanged.
+SQL storage format 29 and wire frames are unchanged.
 
 ## Diagnostics
 

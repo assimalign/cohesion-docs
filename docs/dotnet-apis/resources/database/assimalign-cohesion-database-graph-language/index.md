@@ -51,6 +51,7 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 - **[GqlRelationshipPattern](gql-relationship-pattern.md)** — Quantified path AST contract.
 - **[`GqlPathPattern`](gql-path-pattern.md)** — Documented public type.
 - **[`GqlProjection`](gql-projection.md)** — Documented public type.
+- **[GqlExistsExpression](gql-exists-expression.md)** — Correlated braced pattern existence.
 - **[GqlFunctionCallExpression](gql-function-call-expression.md)** — Scalar identity, arguments and niladic clocks.
 - **[GqlScalarFunction](gql-scalar-function.md)** — Executable scalar operations and aliases.
 - **[GqlCastExpression](gql-cast-expression.md)** — Explicit conversion operand/target.

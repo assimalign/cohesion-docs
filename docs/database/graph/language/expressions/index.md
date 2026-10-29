@@ -5,6 +5,7 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 > **Status:** Implemented.
 
 - **[Operators](operators.md)** — Boolean, arithmetic, null/truth, membership and string predicates.
+- **[EXISTS](exists.md)** — Correlated braced patterns and NOT EXISTS.
 - **[Parameters](parameters.md)** — runtime scalar, list and map bindings in maps, WHERE and RETURN.
 - **[Literals](literals.md)** — null, Boolean, integer, floating-point, and string values.
 

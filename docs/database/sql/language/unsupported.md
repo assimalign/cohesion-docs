@@ -4,8 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 67 of 72 named clauses against the live engine. The 5 excluded names are
-`WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
+The profile measures 74 of 76 named clauses against the live engine. The 2 excluded names are
+`NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
 binding. Recursive execution remains CK00001; acyclic WITH RECURSIVE executes.
@@ -30,8 +30,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Recursive execution/mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) parses and binds; acyclic lists execute |
 | WITH RECURSIVE ... MERGE | `CK00001` | Refused even for acyclic lists; plain WITH ... MERGE executes |
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
-| `WINDOW`, `OVER`, `PARTITION BY` | `CK00001` | Window clauses are excluded |
-| `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `CK00001` | Window-function calls are rejected even without OVER |
+| Explicit ROWS/RANGE/GROUPS/EXCLUDE frames | `CK00001` | [OVER and WINDOW](clauses/window.md) execute without explicit frames; frames remain batch-12 work |
+| Aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE | `CK00001` | [Ranking, distributions, NTILE and LAG/LEAD](functions/window-functions.md) execute; missing OVER uses CS05076 (42P20) |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
 | `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
 | FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |
@@ -45,14 +45,15 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Derived column list with wrong width or blank output name | `CS05013` | Rename every output by position |
 | Quantified ANY/SOME/ALL with arrays or value lists | `CK00001` | [Single-column subquery forms](expressions/quantified-comparisons.md) execute; row-value syntax uses CS00003 |
 | LATERAL syntax or a derived body referencing a real sibling relation | `CK00001` | Enclosing-query correlation executes; typos retain CS01015 |
-| OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries/windows in RETURNING | `CK00001` | [RETURNING](clauses/returning.md) supports target-row scalar projections |
+| Windows in RETURNING or other invalid placement | `CS05076` (42P20) | [Windows](clauses/window.md) execute in SELECT output and ORDER BY only |
+| OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries in RETURNING | `CK00001` | [RETURNING](clauses/returning.md) supports target-row scalar projections |
 | MATERIALIZED, RECURSIVE, TEMP/TEMPORARY views, CREATE VIEW IF NOT EXISTS, view options/CHECK OPTION | `CK00001` | [Persisted read-only views](statements/create-view.md) execute |
 | Subquery in UPDATE SET | `CK00001` | Correlated and uncorrelated UPDATE/DELETE WHERE subqueries execute |
 | Subquery inside INSERT VALUES | `CK00001` | Use INSERT ... SELECT |
 | Subquery in CHECK or DEFAULT | `CK00001` | Row-local checks and column-free scalar expression defaults |
 | Subquery as LIMIT/OFFSET/FETCH/TOP expression | `CK00001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `CK00001` | Includes expression subqueries and derived bodies beneath the top-level query |
-| FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; window calls retain CK00001 |
+| FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; supported window calls reject modifiers with CS00011 (42601) |
 | DISTINCT/ALL/ORDER BY on a scalar call, or DISTINCT key absent from arguments | `CS05032` | Catalog-aware validation before input reads |
 | GROUPING SETS inside ROLLUP or CUBE | `CS00010` (42601) | Reverse nesting, composites, empty sets and [grouping masks](functions/grouping.md) execute |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `CK00001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |
@@ -94,12 +95,12 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE`, isolation-level SET command | `CS00002` | Not implemented as statements |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |
 | Mutation of a built-in system relation | `CS04021` (25006) | System relations are read-only |
-| SERIAL/BIGSERIAL/SMALLSERIAL type or user-domain name | `CK00001` | Use GENERATED BY DEFAULT AS IDENTITY; quoted domain names cannot bypass this rule |
-| SERIAL aliases, OWNED BY and identity OVERRIDING/restart integration | `CK00001` | [Standalone sequence SQL](statements/create-sequence.md) executes; identity integration remains run-3 work |
-| Sequence operations/REGCLASS in persisted expressions; sequence DDL in provisioning scripts | `CS03074` (0A000) | DEFAULT, CHECK, domains, views and SQL function bodies cannot retain sequence dependencies |
+| Serial-family user-domain names | `CK00001` | Column SERIAL/BIGSERIAL/SMALLSERIAL and SERIAL2/4/8 are BY DEFAULT identity aliases; quoted domain names remain excluded |
+| Generated stored expressions and SCOPE_IDENTITY/pg_get_serial_sequence | `CK00001` | [Identity](clauses/identity.md), OWNED BY, SERIAL, OVERRIDING and RESTART execute |
+| Sequence operations/REGCLASS in persisted expressions; sequence DDL in provisioning scripts | `CS03074` (0A000) | Constant column sequence defaults execute; CHECK, domains, views, SQL functions and other persisted sequence expressions remain excluded |
 | NEXT VALUE FOR in restricted contexts | `CS03076` (0A000) | See the complete [context list](expressions/next-value-for.md#remarks); nextval/currval/setval/lastval execute in RETURNING |
-| Identity MINVALUE/MAXVALUE/CYCLE/CACHE, ALTER RESTART/SET GENERATED, generated stored expression | `CK00001` | Fixed directional bounds and no cycling or option mutation |
-| Populated-table ADD IDENTITY, identity type/nullability/default change | `CS03025` | ADD requires no live rows; same type and NOT NULL preserves an existing identity |
+| Dynamic/compound column sequence defaults | `CS03074` (0A000) | [Constant nextval/NEXT VALUE FOR defaults](clauses/default.md#sequence-defaults) track dependencies |
+| Full-definition identity type/nullability/default change | `CS03025` | New-column identity backfill executes; use explicit TYPE for integer-family conversion and ALTER identity for mode/options |
 | Explicit NULL with NOT NULL/PRIMARY KEY/IDENTITY | `CS00003` | Refused in either order, including table primary keys and CREATE/ADD/ALTER column definitions |
 
 The parser can recognize syntax that is later rejected by binding or execution. Conversely, a

@@ -353,7 +353,20 @@ statement cancellation keep their identity. Unknown names retain CG00010 but ord
 requests resolve them during binding/execution (ExecutionFailure, no StatementParseFailed);
 standalone parsers retain unknown-name parse diagnostics. See [functions](functions/index.md#application-functions).
 
+## Correlated GQL EXISTS
+
+These codes have no assigned SQLSTATE. See [EXISTS](expressions/exists.md).
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CG00013 | EXISTS lacks a nonempty braced pattern |
+| CG01019 | Proven incompatible correlated pattern kind |
+| CG02016 | Incompatible runtime correlated entity kind |
+| CG05027 | Malformed/missing correlated subplan or missing argument |
+
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.
 

@@ -22,6 +22,9 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00011` | ALL/DISTINCT on a scalar call or star, including COUNT(ALL *) and COUNT(DISTINCT *) |
 | `CD00012` | GROUP AS without preceding GROUP BY terms; at GROUP; no assigned SQLSTATE |
 | `CD00013` | NULLS without FIRST or LAST; at the invalid option or end of input; no assigned SQLSTATE |
+| `CD00014` | Direct IN subquery without SELECT RAW/VALUE; at SELECT; no assigned SQLSTATE |
+
+See [subqueries](expressions/subqueries.md) for evaluation, CD05015 depth and CD05018 memory limits.
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
@@ -267,6 +270,8 @@ requests resolve them during binding/execution (ExecutionFailure, no StatementPa
 standalone parsers retain unknown-name parse diagnostics. See [functions](functions/index.md#application-functions).
 
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/StorageCorruptionTests.cs`.
 

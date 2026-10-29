@@ -398,7 +398,8 @@ and `tests/Catalog/DocumentCatalogTests.MaintenanceFailures.cs` in the same proj
 The current engine materializes query inputs/results and whole JSON values in managed memory. Chunk
 persistence handles documents larger than a page but does not promise a bounded heap independent of
 document/query size. `Database`-wide writer locking is conservative; there is no query-cost statistics
-model, join, subquery or external sort. Document server/client and hosting composition execute;
+model, join, correlated/derived-FROM/DML subquery or external sort. Uncorrelated
+[expression subqueries](../../../../database/document/language/expressions/subqueries.md) and EXISTS execute. Document server/client and hosting composition execute;
 replication and model-specific security remain outside this surface.
 
 Co-located tests cover nested/mixed JSON, expected-version writes, explicit commit and rollback,
@@ -772,6 +773,22 @@ their identity. Completed wire failures leave the connection reusable.
 Statement failures abort an explicit transaction; roll back to recover.
 No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
 be rolled back.
+
+## Expression subqueries and EXISTS
+
+[Expression subqueries](../../../../database/document/language/expressions/subqueries.md) return
+owned arrays on the statement's snapshot and budget. Lazy deterministic results cache per statement;
+callbacks and NOW functions disable caching. Unreached branches perform no nested execution.
+Correlation, derived FROM and DML subqueries remain CK00001. IS now binds above EXISTS and the
+comparison/IN/BETWEEN/LIKE tier; the [full precedence table](../../../../database/document/language/expressions/operators.md#precedence)
+also includes string concatenation and IS [NOT] DISTINCT FROM.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00014 | Direct IN subquery requires RAW/VALUE | — |
+
+CD05015 now guards complete SELECT projection depth, including named row wrappers. CD05018
+covers nested sources, scratch and results; materialized arrays remain charged until statement exit.
 
 ## Sources
 

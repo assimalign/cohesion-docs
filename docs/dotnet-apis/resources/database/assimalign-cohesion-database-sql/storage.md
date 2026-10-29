@@ -34,11 +34,12 @@ storage strategies call.
 
 ## Format boundary
 
-The engine opens SQL data/catalog format 28 only, including table extension 7's TYPE default
-assignment flag and internal sequence definitions/reservations (kinds 18/19).
-Format 27 and every earlier format are refused before expression rebinding;
+The engine opens SQL data/catalog format 29 only, including table extension 7's TYPE default
+assignment flag and sequence definitions/reservations (kinds 18/19). Kind 18 includes owned-sequence
+table/column linkage and identity ownership; kind 16 is retired.
+Format 28 and every earlier format are refused before expression rebinding;
 compiled schema documents remain v8. Shared physical storage format 4 and
-B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-28-and-schema-v8);
+B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-29-and-schema-v8);
 there is no upgrade reader.
 
 Identity and standalone sequences share [durable reservations](storage-design.md#identity-and-sequence-reservations)
