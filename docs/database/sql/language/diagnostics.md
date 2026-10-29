@@ -23,8 +23,9 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `CS00010` | GROUPING SETS inside ROLLUP or CUBE, including through a composite; planning refusal, SQLSTATE 42601 |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports CS00008 before execution.
-Recognized unsupported window functions such as RANK report CK00001, including over an empty
-table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
+[Ranking and navigation windows](functions/window-functions.md) execute with OVER. A missing
+OVER uses CS05076 (42P20); aggregate windows, explicit frames and deferred value functions
+retain CK00001, including over an empty table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
 CS01006 before reading rows.
 Only executable functions appear in the language profile's function table.
 
@@ -115,7 +116,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03071` | Sequence namespace does not exist | 3F000 |
 | `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
 | `CS03073` | Named sequence or object identity is absent | 42P01 |
-| `CS03074` | Sequence operation/REGCLASS in a persisted expression, or sequence DDL in a declared provisioning script | 0A000 |
+| `CS03074` | Unsupported persisted sequence operation/REGCLASS (constant column allocation defaults execute), or sequence DDL in a declared provisioning script | 0A000 |
 | `CS03075` | setval value is outside the sequence bounds | 22003 |
 | `CS03076` | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
 | `CS03077` | Malformed sequence reference or invalid runtime call argument | 22023 |
@@ -559,9 +560,9 @@ Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnatio
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
 
-Batch 11 diagnostics follow the registry and executable tests at ae48b04cb.
-
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Execution/DDL corpus and span provenance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`, `SqlExecutionDiagnosticTests.cs` and `SqlExecutionDiagnosticInterleavingTests.cs` in the same directory.
 - **Both wire transports** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlExecutionDiagnosticWireTests.cs`.

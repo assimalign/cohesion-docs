@@ -383,9 +383,9 @@ Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnatio
 live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
 Backfill memory exhaustion uses CS05067 (53200) before publication.
 
-Batch 11 diagnostics follow the registry and executable tests at ae48b04cb.
-
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.
 - **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.

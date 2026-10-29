@@ -41,6 +41,8 @@ Value/default use common-type implicit casts, including registered casts. Unknow
 constants coerce at binding even when the default will not be used; for example,
 `LAG(1,1,'8') OVER ()` returns integer 8, but a bad integer string can fail with CS02022.
 Incompatible value/default types use CS02069 (42804). Non-integer offsets use CS02068 (42804).
+When value and default are both untyped NULL (or value is NULL with no default), result metadata
+uses TEXT; the result remains NULL.
 See [OVER diagnostics](../clauses/window.md#diagnostics) for modifiers and placement refusals.
 
 ## Example

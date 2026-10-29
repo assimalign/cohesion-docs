@@ -49,6 +49,7 @@ Concatenation `||` and string + require two strings and propagate NULL.
 This promotion applies to arithmetic; comparisons, IN and DISTINCT use exact value comparison.
 
 [Braced EXISTS and NOT EXISTS](exists.md) execute as Boolean expressions with lexical correlation.
+
 ## Membership and string predicates
 
 IN accepts a list-valued expression, including brackets, parameters or parenthesized lists. Every

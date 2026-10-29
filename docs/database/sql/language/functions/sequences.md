@@ -74,7 +74,7 @@ expressions remain CS03074 (0A000). Identity, SERIAL and OWNED BY use the same a
 | CS01006 | Invalid sequence-call arity, star or aggregate modifier | 42883 |
 | CS02002 | Noncycling sequence range exhausted | 22003 |
 | CS03073 | Named sequence or object identity is absent | 42P01 |
-| CS03074 | Sequence operation/REGCLASS in a persisted expression | 0A000 |
+| CS03074 | Unsupported persisted sequence operation/REGCLASS (constant column allocation defaults execute) | 0A000 |
 | CS03075 | setval value is outside the sequence bounds | 22003 |
 | CS03076 | Unsupported evaluation context or detached evaluation without a statement scope | 0A000 |
 | CS03077 | Malformed reference or invalid runtime sequence-call argument | 22023 |

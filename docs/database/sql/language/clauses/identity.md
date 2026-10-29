@@ -138,7 +138,7 @@ including ordinary OWNED BY sequences. Reopen still skips unused reserved values
 | CS02002 | Noncycling owned sequence exhausted | 22003 |
 | CS03078 | ADD GENERATED requires an existing NOT NULL column | 55000 |
 | CS03079 | ALTER operation requires an identity that is absent | 55000 |
-| CS03080 | Sequence required by identity or column default cannot be removed | 2BP01 |
+| CS03080 | DROP targets an identity sequence, or RESTRICT encounters a column default dependency | 2BP01 |
 | CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
 | CS04067 | Identity incarnation disappeared, or a live referential default needs an unplanned sequence grant; retry/replan | 40001 |
 | CS05067 | Backfill memory budget exhausted before publication | 53200 |

@@ -774,6 +774,22 @@ Statement failures abort an explicit transaction; roll back to recover.
 No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
 be rolled back.
 
+## Expression subqueries and EXISTS
+
+[Expression subqueries](../../../../database/document/language/expressions/subqueries.md) return
+owned arrays on the statement's snapshot and budget. Lazy deterministic results cache per statement;
+callbacks and NOW functions disable caching. Unreached branches perform no nested execution.
+Correlation, derived FROM and DML subqueries remain CK00001. IS now binds above EXISTS and the
+comparison/IN/BETWEEN/LIKE tier; the [full precedence table](../../../../database/document/language/expressions/operators.md#precedence)
+also includes string concatenation and IS [NOT] DISTINCT FROM.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00014 | Direct IN subquery requires RAW/VALUE | — |
+
+CD05015 now guards complete SELECT projection depth, including named row wrappers. CD05018
+covers nested sources, scratch and results; materialized arrays remain charged until statement exit.
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

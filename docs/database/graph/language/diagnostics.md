@@ -366,6 +366,8 @@ These codes have no assigned SQLSTATE. See [EXISTS](expressions/exists.md).
 
 ## Sources
 
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
+
 - **Storage integrity and format refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/StorageCorruptionTests.cs` and `GraphEngineTests.cs` in the same directory.
 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphDatabaseNameTests.cs`.

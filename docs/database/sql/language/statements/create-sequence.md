@@ -64,7 +64,7 @@ identity-owned sequences cannot be dropped directly, even with CASCADE (CS03080,
 | CS03070 | Occupied sequence/table/view name without the guard | 42P07 |
 | CS03071 | Namespace is absent | 3F000 |
 | CS03072 | Encoded definition exceeds 8,092 bytes | 54000 |
-| CS03074 | Sequence DDL in a declared provisioning script or operation in a persisted expression | 0A000 |
+| CS03074 | Sequence DDL in a declared provisioning script or unsupported persisted sequence expression | 0A000 |
 | CS04003 | Self-committing DDL inside an explicit transaction | 25001 |
 | CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
 

@@ -75,6 +75,16 @@ SELECT (SELECT n AS x FROM items WHERE n = 1) AS objects,
 
 Returns `{"objects":[{"x":1}],"numbers":[1,2,3],"hit":true}`.
 
+For star shape, execute separately in a new collection:
+
+```sql
+CREATE COLLECTION roots;
+INSERT INTO roots (KEY, VALUE) VALUES ('a', 42), ('b', {x:1}), ('c', [1]), ('d', NULL);
+SELECT RAW (SELECT * FROM roots) FROM roots LIMIT 1;
+```
+
+Returns `[{"document":42},{"x":1},{"document":[1]},{"document":null}]`.
+
 ## See also
 
 [Expressions](index.md) · [SELECT](../statements/select.md) · [OqlSubqueryExpression](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents-language/oql-subquery-expression.md)
@@ -82,5 +92,6 @@ Returns `{"objects":[{"x":1}],"numbers":[1,2,3],"hit":true}`.
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSubqueryTests.cs`.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSubqueryBoundaryTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Execution/DocumentPlanExecutor.Nested.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/Internal/Planning/DocumentPlanner.Nested.cs`.

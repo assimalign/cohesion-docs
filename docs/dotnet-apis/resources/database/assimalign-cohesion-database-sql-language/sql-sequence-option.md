@@ -20,7 +20,7 @@ public sealed class SqlSequenceOption
 ## Behavior and exceptions
 
 The parser owns construction. Name is normalized to AS, START, INCREMENT, MINVALUE, MAXVALUE,
-CACHE, CYCLE or RESTART. Value holds the integer; CYCLE/NO CYCLE use 1/0. Null Value denotes
+CACHE, CYCLE, RESTART or OWNED. Value holds the integer; CYCLE/NO CYCLE use 1/0. Null Value denotes
 NO MINVALUE, NO MAXVALUE or bare RESTART. TypeName holds the AS spelling when present.
 Omitted options have no entry; execution supplies defaults. Accessors add no exceptions.
 Invalid resolved options use DatabaseException/CS03069 (22023); malformed or duplicate syntax
