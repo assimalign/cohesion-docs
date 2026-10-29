@@ -100,7 +100,7 @@ model-specific diagnostic; `CS00002` remains the unknown-command diagnostic.
   and window functions are lexed so diagnostics can
   say "unsupported" precisely rather than mis-parsing them as identifiers. Gateable
   names live in `SqlClauses`; supported names are present in `SqlLanguageProfile`,
-  while excluded clauses such as windows and unsupported join forms remain absent.
+  while excluded clauses such as NATURAL remain absent. Ranking/navigation windows execute.
   RECURSIVE is advertised for binding only; recursive execution remains CK00001. Views and DML RETURNING execute. Non-recursive WITH, FETCH and
   lexical SELECT TOP execute; PERCENT, WITH TIES and DML TOP retain capability diagnostics. `ParseCore` scans a copy of its configured
   lexer before recursive descent and attaches the first rejected clause to the
@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive execution, nested CTEs, window functions, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive execution, nested CTEs, explicit window frames and aggregate windows, `ON UPDATE`, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -300,9 +300,9 @@ names as identifiers in persisted SQL; compiled schema version stays 8. There is
 FILTER retains its condition in depth, source extent, rendering, child walks, structural equality
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
-(42804). Child queries bind independently; windows retain CK00001. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 67 of 72
-clauses including the five exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
+(42804). Child queries bind independently; aggregate windows retain CK00001. SqlClauses.Filter adds one
+named clause and nine Boolean/statistical function names join the executable profile: 70 of 72
+clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
 
@@ -339,7 +339,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 67 of 72 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 70 of 72 declared clauses,
 including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 28 are unchanged.
 
@@ -404,7 +404,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 67 of 72.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 70 of 72.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |

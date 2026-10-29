@@ -4,8 +4,8 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 67 of 72 named clauses against the live engine. The 5 excluded names are
-`WINDOW`, `OVER`, `PARTITION`, `NATURAL`, and `ALL`. Further subset restrictions do not increase that denominator.
+The profile measures 70 of 72 named clauses against the live engine. The 2 excluded names are
+`NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
 binding. Recursive execution remains CK00001; acyclic WITH RECURSIVE executes.
@@ -30,8 +30,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Recursive execution/mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) parses and binds; acyclic lists execute |
 | WITH RECURSIVE ... MERGE | `CK00001` | Refused even for acyclic lists; plain WITH ... MERGE executes |
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
-| `WINDOW`, `OVER`, `PARTITION BY` | `CK00001` | Window clauses are excluded |
-| `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LEAD`, `LAG`, `FIRST_VALUE`, `LAST_VALUE`, `NTH_VALUE`, `NTILE` calls | `CK00001` | Window-function calls are rejected even without OVER |
+| Explicit ROWS/RANGE/GROUPS/EXCLUDE frames | `CK00001` | [OVER and WINDOW](clauses/window.md) execute without explicit frames; frames remain batch-12 work |
+| Aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE | `CK00001` | [Ranking, distributions, NTILE and LAG/LEAD](functions/window-functions.md) execute; missing OVER uses CS05076 (42P20) |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
 | `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
 | FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |
@@ -52,7 +52,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Subquery in CHECK or DEFAULT | `CK00001` | Row-local checks and column-free scalar expression defaults |
 | Subquery as LIMIT/OFFSET/FETCH/TOP expression | `CK00001` | Numeric pagination can surround supported subqueries |
 | Query nesting beyond 32 levels | `CK00001` | Includes expression subqueries and derived bodies beneath the top-level query |
-| FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; window calls retain CK00001 |
+| FILTER on a non-aggregate call | `CS05072` (42809) | [Aggregate FILTER](clauses/filter.md) executes before input expressions; supported window calls reject modifiers with CS00011 (42601) |
 | DISTINCT/ALL/ORDER BY on a scalar call, or DISTINCT key absent from arguments | `CS05032` | Catalog-aware validation before input reads |
 | GROUPING SETS inside ROLLUP or CUBE | `CS00010` (42601) | Reverse nesting, composites, empty sets and [grouping masks](functions/grouping.md) execute |
 | Non-LISTAGG WITHIN GROUP; LISTAGG ON OVERFLOW | `CK00001` | [LISTAGG WITHIN GROUP](functions/aggregate-functions.md) executes |

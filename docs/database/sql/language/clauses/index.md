@@ -14,6 +14,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 - **[GROUP BY](group-by.md)** — Scalar keys, empty sets, GROUPING SETS, ROLLUP and CUBE.
 - **[HAVING](having.md)** — Filter aggregate results.
 - **[FILTER](filter.md)** — Select rows for one aggregate before evaluating its arguments.
+- **[OVER and WINDOW](window.md)** — Ordered partitions, named inheritance and window placement.
 - **[ORDER BY](order-by.md)** — Sort by source expressions, aliases, and ordinals.
 - **[LIMIT, OFFSET, FETCH and TOP](limit-offset.md)** — Limit and skip returned rows.
 - **[COLLATE](collate.md)** — Choose effective string comparison rules.
@@ -32,7 +33,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 67-of-72 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 70-of-72 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

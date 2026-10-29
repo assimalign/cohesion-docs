@@ -527,6 +527,23 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
+## SQL window functions
+
+See [OVER and WINDOW](clauses/window.md) for placement, inheritance and memory rules.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00011 | Window argument count or call modifier | 42601 |
+| CS01064 | Duplicate WINDOW name | 42P20 |
+| CS01065 | Unknown/self/forward window reference | 42704 |
+| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS02068 | Non-integer offset or bucket count | 42804 |
+| CS02069 | Incompatible navigation value/default types | 42804 |
+| CS05076 | Window placement or missing OVER | 42P20 |
+| CS05077 | Nested window | 42P20 |
+| CS05078 | Nonpositive NTILE count | 22014 |
+| CS05079 | Window state exceeds statement memory grant | 54000 |
+
 ## Sources
 
 - **Execution/DDL corpus and span provenance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`, `SqlExecutionDiagnosticTests.cs` and `SqlExecutionDiagnosticInterleavingTests.cs` in the same directory.

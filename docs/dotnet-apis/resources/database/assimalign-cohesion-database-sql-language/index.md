@@ -12,6 +12,10 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 > **Status:** Partial.
 
+- **[SqlWindowExpression](sql-window-expression.md)** — Function and OVER syntax.
+- **[SqlWindowSpecification](sql-window-specification.md)** — Written partition/order and inherited name.
+- **[SqlNamedWindow](sql-named-window.md)** — Ordered WINDOW definitions.
+
 ## Reference pages
 
 - **[SqlMergeExpression](sql-merge-expression.md)** — Target/source association, ordered actions and RETURNING.

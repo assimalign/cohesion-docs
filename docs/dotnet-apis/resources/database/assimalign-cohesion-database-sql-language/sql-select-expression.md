@@ -16,6 +16,7 @@ public sealed class SqlSelectExpression : SqlQueryBodyExpression
     public IReadOnlyList<SqlExpression> GroupBy { get; }
     public bool IsGroupByDistinct { get; }
     public SqlExpression? Having { get; }
+    public IReadOnlyList<SqlNamedWindow> Windows { get; }
     public IReadOnlyList<SqlOrderByColumn> OrderBy { get; }
     public SqlExpression? Limit { get; }
     public SqlLimitSyntaxKind? LimitSyntaxKind { get; }
@@ -68,6 +69,10 @@ Console.WriteLine(paging.LimitSyntaxKind); // Fetch
 Console.WriteLine(SqlExpressionRenderer.Render(paging));
 // SELECT id FROM t OFFSET 1 FETCH FIRST 2 ROWS ONLY
 ```
+
+Windows retains [SqlNamedWindow](sql-named-window.md) definitions in declaration order.
+Columns and OrderBy may contain [SqlWindowExpression](sql-window-expression.md). An empty
+list means no WINDOW clause. See [OVER rules](../../../../database/sql/language/clauses/window.md).
 
 ## Example
 
