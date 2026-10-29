@@ -10,6 +10,10 @@ EXPLAIN { match_statement | return_statement | insert_statement | create_stateme
 
 ## Remarks
 
+[UNION and UNION ALL](../clauses/union.md) show Union/UnionAll nodes preserving binary grouping,
+every operand's complete plan and correlated subplans. NEXT pipelines show those groups beside
+Next and later stage nodes. All operands bind and validate without executing data or callbacks.
+
 [MERGE](merge.md) shows Merge with its probe and OnCreate/OnMatch children. It validates both
 branches and equality scope without probing or writing. Eligible row-dependent equalities show
 an IndexSeek with the unevaluated expression as its bound.

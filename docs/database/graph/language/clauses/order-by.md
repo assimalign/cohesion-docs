@@ -57,6 +57,10 @@ redefines one of its variables. Ungrouped references and aggregates absent from 
 CG05001. For example, `MATCH (a:Person) RETURN count(*) AS n ORDER BY n + 1` returns the
 single group with count 3 from the [Person fixture](../functions/aggregate-functions.md#examples).
 
+In a [UNION composite](union.md), this RETURN tail applies only to its operand. A tail after
+the final RETURN pages/orders only that operand; grouped composites accept no global suffix.
+Use NEXT to project the combined binding table.
+
 ## Diagnostics
 
 | Code | Meaning and trigger |

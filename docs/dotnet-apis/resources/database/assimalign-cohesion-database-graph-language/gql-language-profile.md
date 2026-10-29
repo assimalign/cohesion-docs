@@ -35,6 +35,10 @@ GqlClauses.Reduce and ListPredicate are enabled. They admit
 binding expressions. GqlClauses.PatternComprehension is enabled for
 [pattern collections](../../../../database/graph/language/expressions/pattern-comprehensions.md).
 
+GqlClauses.SetOperation, UnionDistinct and UnionAll are enabled for
+[UNION/UNION ALL](../../../../database/graph/language/clauses/union.md). Missing operands use
+CG00015 and mixed modes CG00016. EXCEPT, INTERSECT and OTHERWISE remain CK00001.
+
 ## Example
 
 ```csharp

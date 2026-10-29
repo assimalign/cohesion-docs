@@ -8,6 +8,9 @@ Model Catalog and Storage components ship inside their model assembly. Wire mess
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
 reference contracts without engines. See [package/import/error migration](model-project-migration.md).
 
+The area design records ISO/IEC 39075:2024 as the Graph standard selected on 2026-09-17.
+The executable [GQL reference](graph/language/index.md) describes its bounded subset and extensions.
+
 ## Resource and engines
 
 The Database resource is Cohesion's multi-model online transaction processing (OLTP) data platform.
@@ -18,7 +21,7 @@ servers, and provisioning. Engines can also run directly inside another applicat
 | --- | --- | --- |
 | [SQL](sql/index.md) | Relational tables; Structured Query Language (SQL) | Measured declared subset, SQL server and typed client |
 | [Document](document/index.md) | Versioned JavaScript Object Notation (JSON) documents; Object Query Language (OQL) | Bounded query/index-definition subset |
-| [Graph](graph/index.md) | Property graph; Graph Query Language (GQL) | Bounded traversal and mutation subset |
+| [Graph](graph/index.md) | Property graph; ISO/IEC 39075:2024 Graph Query Language (GQL) | Bounded traversal and mutation subset |
 | [Key-Value Pair](key-value-pair/index.md) | Ordered opaque byte keys and values; model commands | Point operations, scans, conditional writes, server and client |
 | [Cache](cache/index.md) | Deferred model package | Placeholder, outside the minimum viable product (MVP) |
 | [Blob](blob/index.md) | Named containers and streamed objects; typed stream API | Durable streaming engine, model server, and typed streaming client |
@@ -448,6 +451,8 @@ nested writers for that page on another thread are refused before exposing mutab
 [confirmed reads and reuse](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#confirmed-reads-and-record-space-reuse).
 
 ## Sources
+
+- **Graph standard** — `cohesion/docs/resources/Database/DESIGN.md` records ISO/IEC 39075:2024 in the model-root table.
 
 - **Provisional durability and storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs`, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/docs/DESIGN.md`.
 
