@@ -144,7 +144,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Recursive execution, nested CTEs, explicit window frames and aggregate windows, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Recursive execution, nested CTEs, deferred window frame modes and value modifiers, RETURNING subqueries/OLD/NEW/INTO, savepoints,
 isolation-level syntax, and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -301,8 +301,8 @@ names as identifiers in persisted SQL; compiled schema version is 9. There is no
 FILTER retains its condition in depth, source extent, rendering, child walks, structural equality
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
-(42804). Child queries bind independently; aggregate windows retain CK00001. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 74 of 76
+(42804). Child queries bind independently; aggregate windows also accept FILTER. SqlClauses.Filter adds one
+named clause and nine Boolean/statistical function names join the executable profile: 77 of 79
 clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
@@ -340,7 +340,7 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 74 of 76 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 77 of 79 declared clauses,
 including executable MERGE, binding-only RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 30 are unchanged.
 
@@ -405,7 +405,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 74 of 76.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 77 of 79.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -457,14 +457,32 @@ See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for p
 | CS00011 | Window argument count or call modifier | 42601 |
 | CS01064 | Duplicate WINDOW name | 42P20 |
 | CS01065 | Unknown/self/forward window reference | 42704 |
-| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS01066 | Copied PARTITION BY, overridden ORDER BY or copying an explicit frame | 42P20 |
 | CS02068 | Non-integer offset or bucket count | 42804 |
 | CS02069 | Incompatible navigation value/default types | 42804 |
+| CS02070 | Noninteger ROWS frame offset | 42804 |
+| CS02071 | NULL frame offset | 22004 |
+| CS02072 | Negative frame offset | 22013 |
+| CS02073 | Noninteger NTH_VALUE index | 42804 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+| CS05080 | Invalid frame boundary categories | 42P20 |
+| CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
+| CS05082 | Nonpositive NTH_VALUE index | 22016 |
+| CS05083 | OVER on a scalar function | 42809 |
+| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
 
+## Window frames and aggregate execution
+
+[ROWS and offset-free RANGE](../../../../database/sql/language/clauses/window.md) execute, including aggregate FILTER and frame value
+functions. Application aggregates and ordered string aggregates recompute changed frames;
+native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
+recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
+visits count before FILTER or input expressions, across functions, partitions and stages of one
+statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
+frame_visits; CS05079 still covers retained window state and scratch.
 
 ## Sources
 

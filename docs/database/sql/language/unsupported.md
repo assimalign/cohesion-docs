@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 74 of 76 named clauses against the live engine. The 2 excluded names are
+The profile measures 77 of 79 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -30,8 +30,8 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Recursive execution/mutual recursion, nested WITH, modifying CTE bodies, AS [NOT] MATERIALIZED, SEARCH/CYCLE | `CK00001` | [WITH RECURSIVE](clauses/with.md#with-recursive) parses and binds; acyclic lists execute |
 | WITH RECURSIVE ... MERGE | `CK00001` | Refused even for acyclic lists; plain WITH ... MERGE executes |
 | SELECT ... FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | `CK00001` | Complete locking strengths in SELECT tails, including CTEs and subqueries |
-| Explicit ROWS/RANGE/GROUPS/EXCLUDE frames | `CK00001` | [OVER and WINDOW](clauses/window.md) execute without explicit frames; frames remain batch-12 work |
-| Aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE | `CK00001` | [Ranking, distributions, NTILE and LAG/LEAD](functions/window-functions.md) execute; missing OVER uses CS05076 (42P20) |
+| RANGE offsets, GROUPS and EXCLUDE | `CK00001` | [ROWS and offset-free RANGE](clauses/window.md#frame-boundaries-and-defaults) execute |
+| Aggregate-window DISTINCT; FROM FIRST/LAST and IGNORE/RESPECT NULLS | `CK00001` | [Aggregate windows and frame value functions](clauses/window.md) execute; missing OVER uses CS05076 (42P20) |
 | TOP/FETCH PERCENT, WITH TIES, DML TOP, explicit SELECT ALL | `CK00001` | [FETCH and lexical SELECT TOP](clauses/limit-offset.md) execute |
 | `NATURAL JOIN` | `CK00001` | INNER, LEFT, RIGHT, FULL and CROSS execute |
 | FULL condition without a safe mandatory hash equality or proven non-throwing ON | `CS05070` | Refused before input reads; no loop fallback |

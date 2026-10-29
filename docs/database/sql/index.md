@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 74 of 76 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 77 of 79 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,7 +44,7 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 74-of-76 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 77-of-79 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and binding-only RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
@@ -71,8 +71,10 @@ SQL storage format is 30; compiled schemas remain version 9.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
-after HAVING and before DISTINCT, final ordering and paging; explicit frames, aggregate windows
-and FIRST_VALUE/LAST_VALUE/NTH_VALUE remain CK00001.
+after HAVING and before DISTINCT, final ordering and paging. ROWS, offset-free RANGE, aggregate
+windows with FILTER and FIRST_VALUE/LAST_VALUE/NTH_VALUE execute. Native moving frames are
+recomputed and can hit the [1,000,000-visit cap](language/clauses/window.md#recomputation-limit)
+until a later release.
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)

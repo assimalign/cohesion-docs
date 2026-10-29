@@ -1,6 +1,6 @@
 # Window functions
 
-Ranking, distribution and navigation functions compute a value for every row without collapsing its partition.
+Ranking, distribution, navigation and frame value functions compute a value for every row without collapsing its partition.
 
 ## Signatures and results
 
@@ -16,6 +16,9 @@ Every call requires [OVER](../clauses/window.md).
 | ntile(buckets) | INTEGER (Int32) | Bucket number starting at 1; larger buckets precede smaller ones |
 | lag(value [, offset [, default]]) | Common type of value/default | Value at offset rows before the current row |
 | lead(value [, offset [, default]]) | Common type of value/default | Value at offset rows after the current row |
+| first_value(value) | Argument type and collation | Value at the first frame member |
+| last_value(value) | Argument type and collation | Value at the last frame member |
+| nth_value(value, index) | First argument type and collation | Value at the one-based nth frame member |
 
 Peers have equal window ORDER BY keys, including equal NULL keys. Without ORDER BY all rows are
 peers: rank and dense_rank are 1, percent_rank is 0 and cume_dist is 1. row_number, navigation
@@ -44,6 +47,25 @@ Incompatible value/default types use CS02069 (42804). Non-integer offsets use CS
 When value and default are both untyped NULL (or value is NULL with no default), result metadata
 uses TEXT; the result remains NULL.
 See [OVER diagnostics](../clauses/window.md#diagnostics) for modifiers and placement refusals.
+
+## Frame value functions
+
+FIRST_VALUE, LAST_VALUE and NTH_VALUE read the selected [frame](../clauses/window.md#frame-boundaries-and-defaults),
+respecting NULL values. An empty frame or missing nth member yields NULL. Without an explicit
+frame, ordered windows end at the last current-row peer; LAST_VALUE therefore need not return
+the last value of the partition. Use ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+for the whole partition. Ranking and LAG/LEAD ignore explicit frame boundaries.
+
+NTH_VALUE evaluates index for each current row. NULL index returns NULL; zero or a negative index
+raises CS05082 (22016), even with an empty frame. It accepts signed integer types through BIGINT;
+other types raise CS02073 (42804). **Difference from PostgreSQL:** BIGINT indexes are accepted.
+FIRST_VALUE/LAST_VALUE take one argument and NTH_VALUE takes two. Invalid arity/modifiers use
+CS00011 (42601); every call requires OVER (CS05076, 42P20). FROM FIRST/LAST and explicit
+IGNORE/RESPECT NULLS remain CK00001, although default evaluation respects NULLs.
+
+[Aggregate windows](aggregate-functions.md#aggregate-windows) also return one value per row and
+accept FILTER. See the [recomputation limit](../clauses/window.md#recomputation-limit), including
+native aggregates over moving frames.
 
 ## Example
 

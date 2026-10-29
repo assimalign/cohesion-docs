@@ -209,7 +209,7 @@ Immutable calls. Volatile calls never supply seek bounds. See [DEFAULT](../claus
 | `CS01016` | Unknown function outside executable and recognized vocabulary | — |
 | `CS05032` | DISTINCT/ALL/ORDER BY specified on a non-aggregate call | — |
 
-These functions introduce no new code. Recognized window functions remain CK00001.
+These functions introduce no new code. [Window functions](window-functions.md), including frame value functions, execute with OVER.
 The profile advertises only executable names; recognition alone does not imply support.
 
 New T1 builtin names are reserved at every arity. Existing UPPER/LOWER/LENGTH/ABS application
