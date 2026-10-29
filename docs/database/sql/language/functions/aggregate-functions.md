@@ -86,12 +86,12 @@ keys; DISTINCT with OVER remains CK00001. Aggregate-local ORDER BY and LISTAGG W
 work with OVER, a departure from PostgreSQL's aggregate-local-ordering restriction.
 
 Native numeric, Boolean and statistical aggregates ignore local ordering, including its key
-expressions. Application and ordered string aggregates preserve it. Native fixed-head growing
-frames reuse state; equal consecutive frames reuse their result. Application aggregates and
-ordered strings recompute changed frames. Native aggregates over moving frames such as
-`ROWS n PRECEDING` are also recomputed once the head moves and can hit the **1,000,000-visit
-statement cap** until a later release. The next recomputed candidate input uses CS05084 (54000),
-before FILTER or arguments, even under LIMIT. See the [recomputation limit](../clauses/window.md#recomputation-limit).
+expressions. Application and ordered string aggregates preserve it. Safe native numeric, Boolean and statistical aggregates use
+inverse transitions; MIN/MAX use monotonic queues. Moving-frame work is O(n), including exclusion.
+Application aggregates and ordered strings recompute changed frames under the 1,000,000-visit
+statement cap (CS05084 / 54000), counted before FILTER or arguments, even under LIMIT.
+Volatile or subquery arguments/FILTER use PostgreSQL restart semantics; that fallback can also
+reach CS05084 for native functions. See the [recomputation limit](../clauses/window.md#recomputation-limit).
 
 ## String aggregation
 

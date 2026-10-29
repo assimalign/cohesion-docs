@@ -66,6 +66,13 @@ StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 Mi
 about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
 CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
 
+[Windows](../../../../database/sql/language/clauses/window.md#memory) share the grant for retained
+rows, keys, sort/peer indexes, argument caches, transition state, outputs and ownership bookkeeping.
+Aliased payloads are charged once; partition scratch releases at its boundary. Exhaustion uses
+CS05079 (54000), or CS05067 (53200) when admitting earlier CTE/subquery caches. There is no spill.
+The default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
+other retained state change these limits.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseEngineOptions.cs`.

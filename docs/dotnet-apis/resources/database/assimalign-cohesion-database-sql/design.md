@@ -2053,6 +2053,9 @@ See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for p
 | CS02071 | NULL frame offset | 22004 |
 | CS02072 | Negative frame offset | 22013 |
 | CS02073 | Noninteger NTH_VALUE index | 42804 |
+| CS02074 | Unsupported offset RANGE ordering-key domain | 0A000 |
+| CS02075 | Incompatible RANGE offset domain | 0A000 |
+| CS02076 | Negative or NaN RANGE offset | 22013 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
@@ -2061,17 +2064,21 @@ See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for p
 | CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
 | CS05082 | Nonpositive NTH_VALUE index | 22016 |
 | CS05083 | OVER on a scalar function | 42809 |
-| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
+| CS05084 | Application/order-sensitive or restart-path frame recomputation exceeds 1,000,000 candidate visits per statement | 54000 |
+| CS05086 | Offset RANGE has other than one ORDER BY key | 42P20 |
+| CS05087 | GROUPS without ORDER BY | 42P20 |
+| CS05088 | NULL treatment on a function other than LAG/LEAD/FIRST_VALUE/LAST_VALUE/NTH_VALUE | 42601 |
 
 ## Window frames and aggregate execution
 
-[ROWS and offset-free RANGE](../../../../database/sql/language/clauses/window.md) execute, including aggregate FILTER and frame value
-functions. Application aggregates and ordered string aggregates recompute changed frames;
-native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
-recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
-visits count before FILTER or input expressions, across functions, partitions and stages of one
-statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
-frame_visits; CS05079 still covers retained window state and scratch.
+[ROWS, RANGE offsets, GROUPS and EXCLUDE](../../../../database/sql/language/clauses/window.md) execute, with NULL treatment for
+navigation and frame value functions. Safe native moving aggregates run in O(n) work.
+Application/order-sensitive aggregates retain CS05084; volatile or subquery arguments/FILTER
+use restart semantics and that fallback can also reach CS05084 for native aggregates. Visits
+count before FILTER/arguments across functions, partitions and stages, including under LIMIT.
+Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
+and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
+can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
 
 ## Sources
 

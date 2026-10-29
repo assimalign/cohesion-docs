@@ -30,9 +30,9 @@ These accessors introduce no validation exceptions.
 
 ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG and LEAD are enabled
 with OVER. SqlClauses.Over, Partition and Window are admitted for
-[window specifications](../../../../database/sql/language/clauses/window.md), ROWS and offset-free
-RANGE, aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE. SqlClauses.WindowRows and
-WindowRange are enabled; RANGE offsets, GROUPS, EXCLUDE and value modifiers retain CK00001.
+[window specifications](../../../../database/sql/language/clauses/window.md), ROWS, RANGE offsets,
+GROUPS, EXCLUDE, aggregate windows and IGNORE/RESPECT NULLS. FROM FIRST/LAST and
+aggregate-window DISTINCT retain CK00001.
 
 ## Example
 
@@ -51,7 +51,7 @@ TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURREN
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 30, with no upgrade path from an earlier format. The executable
-profile now measures 77 of 79 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
+profile now measures 80 of 82 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 binding-only RECURSIVE. Recursive planning, EXPLAIN and execution remain CK00001; acyclic lists execute.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.
@@ -86,6 +86,9 @@ The frame clause constants are:
 ```csharp
 public const string WindowRows = "ROWS window frame";
 public const string WindowRange = "RANGE window frame";
+public const string WindowGroups = "GROUPS window frame";
+public const string WindowExclude = "EXCLUDE window frame";
+public const string WindowNullTreatment = "window NULL treatment";
 ```
 
 They are members of SqlClauses. Reading them throws no exceptions;
