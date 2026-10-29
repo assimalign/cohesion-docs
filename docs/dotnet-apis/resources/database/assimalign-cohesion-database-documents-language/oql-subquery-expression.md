@@ -24,7 +24,9 @@ When used as [OqlSelectExpression.Source](oql-select-expression.md), it supplies
 directly rather than an expression-subquery array.
 
 Direct IN subqueries require RAW/VALUE (CD00014). Correlation and DML subqueries
-report CK00001. Shared memory exhaustion reports CD05018; over-deep projections report CD05015.
+execute. Captures obey lexical shadowing and every enclosing GROUP BY; ORDER BY subqueries
+can capture projection aliases. Nested mutation reads use statement-start content. Shared memory
+exhaustion reports CD05018, work exhaustion CD05020 and over-deep projections CD05015.
 These codes have no assigned SQLSTATE. See [evaluation rules](../../../../database/document/language/expressions/subqueries.md#evaluation).
 
 ## Example

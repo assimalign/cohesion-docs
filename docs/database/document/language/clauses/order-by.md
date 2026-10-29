@@ -30,6 +30,9 @@ ordering follows the same group-key restrictions as grouped projections. Later O
 break ties before the final ordinal document-identity tie break, independent of direction.
 Strings use case-sensitive ordinal order.
 
+[Subqueries](../expressions/subqueries.md#correlation-and-scope) in ORDER BY can capture explicit
+outer projection aliases. Inner declarations shadow those aliases by name.
+
 The default direction is ASC. Placement moves the whole [MISSING](../expressions/missing.md)/NULL
 block; direction controls its internal order:
 

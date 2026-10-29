@@ -19,8 +19,9 @@ DELETE FROM collection_name [ [ AS ] iteration_variable ]
 
 WHERE uses [SQL++ truth conversion](../expressions/missing.md): NULL, MISSING and absent fields
 select no documents; nonzero numbers and nonempty values convert to TRUE. Scalar comparisons,
-structural equality, CASE, parameters and META execute as in SELECT filters. Aggregates and
-subqueries are excluded. All parameters and metadata contexts are validated even on an empty
+structural equality, CASE, parameters and META execute as in SELECT filters. Subqueries execute;
+aggregates in the outer predicate are excluded. All parameters and metadata contexts are validated
+even on an empty
 collection or in a branch that would not run.
 
 The planner uses the existing path equality/range index seek when applicable, otherwise a collection
@@ -49,12 +50,17 @@ with SELECT staging and RETURNING. The complete pending buffer is charged before
 exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
 success, failure and cancellation.
 
+[Subqueries](../expressions/subqueries.md#mutation-subqueries) execute in this statement,
+including RETURNING. Nested reads see statement-start data and earlier transaction statements,
+never this statement's writes.
+The shared work limit reports CD05020 (no assigned SQLSTATE) on exhaustion.
+
 ## Diagnostics
 
 | Code | Meaning and trigger |
 | --- | --- |
 | `CD00002` | Missing FROM, database-qualified target, malformed predicate or leftover syntax |
-| `CK00001` | USE KEYS, DELETE LIMIT or a nested SELECT; reported at the clause token |
+| `CK00001` | USE KEYS or DELETE LIMIT; reported at the clause token |
 | `CD05001` | Invalid META alias/context or aggregate in the predicate |
 | `CD01002` | Target collection does not exist |
 | `CD04004` | Target is a read-only system collection |

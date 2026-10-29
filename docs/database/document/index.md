@@ -25,8 +25,8 @@ constructors. A bare top-level MISSING becomes NULL before deduplication and cou
 transport; named members preserve absence. SELECT constructors allow 256 result levels, while
 stored/INSERT JSON retains its 128-level limit.
 
-Uncorrelated [expression subqueries](language/expressions/subqueries.md) return arrays on the
-statement's snapshot and budget. [EXISTS](language/expressions/exists.md) tests array presence.
+[Expression subqueries](language/expressions/subqueries.md) return arrays on the
+statement's snapshot and work/memory budgets, including correlated and DML forms. [EXISTS](language/expressions/exists.md) tests array presence.
 The [operator precedence](language/expressions/operators.md#precedence) now places IS above
 comparisons and EXISTS between them; this changes unparenthesized mixed predicates.
 

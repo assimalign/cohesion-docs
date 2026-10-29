@@ -34,6 +34,11 @@ A repeated key has its own message: `Document key 'a' appears more than once in 
 rolls back all its writes, versions and index changes. Explicit transaction failure follows the
 Documents transaction rule. Success reports the number inserted.
 
+[Subqueries](../expressions/subqueries.md#mutation-subqueries) execute in this statement,
+including RETURNING. Nested reads see statement-start data and earlier transaction statements,
+never this statement's writes. INSERT/UPSERT SELECT also accepts derived and expression sources.
+The shared work limit reports CD05020 (no assigned SQLSTATE) on exhaustion.
+
 | Code | Meaning |
 | --- | --- |
 | `CD05001` | Invalid VALUES context, output-name binding or aggregate/grouping context |
