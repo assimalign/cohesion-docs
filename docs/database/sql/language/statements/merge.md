@@ -192,7 +192,7 @@ failure publishes no partial rows and restores the statement's original rows, pr
 explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
 Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
-SQL storage format 28 and wire frames are unchanged.
+SQL storage format 29 and wire frames are unchanged.
 
 ## Diagnostics
 

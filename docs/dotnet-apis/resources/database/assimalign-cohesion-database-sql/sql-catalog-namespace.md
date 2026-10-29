@@ -25,7 +25,7 @@ Name retains spelling; directory identity is case-insensitive. Owner/OwningSchem
 ownership, independently of the SQL namespace name. The constructor rejects blank names or invalid
 ownership metadata with ArgumentException and unknown owner values with ArgumentOutOfRangeException.
 SQL engine creation seeds dbo and protects it from DROP; opening a low-level SqlCatalog does not seed it.
-Namespace records use kind 15, introduced in format 21. Current format 28 refuses earlier files
+Namespace records use kind 15, introduced in format 21. Current format 29 refuses earlier files
 without an upgrade path.
 
 ## Example

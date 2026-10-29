@@ -127,7 +127,7 @@ holds the same metadata lease as CREATE INDEX: other sessions' definition DDL fo
 domains and schemas fails immediately while it runs. Unrelated table DDL can proceed.
 
 CTAS reuses TRUNCATE's durable prepared-owner reclamation machinery. Abandoned build storage is
-reclaimed after statement/snapshot pins clear. SQL storage remains **format 28**.
+reclaimed after statement/snapshot pins clear. SQL storage remains **format 29**.
 
 ### CTAS diagnostics
 
