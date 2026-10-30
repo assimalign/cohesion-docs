@@ -32,6 +32,22 @@ label names, and property keys do not trigger keyword capability checks.
 
 ## Planning and execution diagnostics
 
+Database-wide schema names and named type/existence constraints are exposed through the typed
+[GraphSchema API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
+These conditions have no assigned SQLSTATE:
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CG01021 | Named index or constraint requested for DROP is absent |
+| CG03008 | Database-wide index/constraint name is already occupied; names are ordinal and case-sensitive |
+| CG03009 | Duplicate constraint kind or incompatible property type rules |
+| CG03010 | Existing data violates the newly created named constraint; creation rolls back |
+| CG06019 | Catalog record version is not v2; recreate the database, with no legacy reader |
+
+CG06019 refuses before logical recovery scrub. Physical journal redo may already have run;
+this is distinct from graph entity/tree format 5 and its CG06017/CG06018 checks. An empty catalog
+has no versioned records to refuse. Text schema DDL and SHOW CONSTRAINTS are not available yet.
+
 [List comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md)
 add these conditions; none has an assigned SQLSTATE:
 

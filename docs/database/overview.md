@@ -189,7 +189,7 @@ data of at most one page also receives CV06106 and a drop/recreate remedy; longe
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
 The shared storage format is **4**, independent of SQL's data/catalog format 31 and Graph's record
-format 4. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
+format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
 header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
