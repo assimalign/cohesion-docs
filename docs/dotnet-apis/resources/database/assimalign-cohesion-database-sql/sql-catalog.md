@@ -45,6 +45,30 @@ SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
 
 ## Identity member
 
+## Index predicate metadata
+
+`SqlCatalogIndex` adds optional constructor arguments `string? predicate = null`,
+`IReadOnlyList<string>? predicateColumns = null` and
+`IReadOnlyList<string>? predicateFunctionCalls = null` after `isPrimaryKey`.
+Its read-only Predicate, PredicateColumns and PredicateFunctionCalls properties expose canonical
+SQL, referenced columns and resolved function-call identities. Dependency inputs are copied.
+NULL Predicate means unconditional. A partial primary key throws SqlCatalogException/CS03082
+(42P16); blank text or dependencies without a predicate throw CS03084 (42P17).
+
+After creating a partial index through SQL, inspect it as in SqlPartialIndexTests:
+
+```csharp
+await session.ExecuteAsync("CREATE TABLE t(k INT, active BOOLEAN)");
+await session.ExecuteAsync("CREATE INDEX ix ON t(k) WHERE active");
+var index = database.Catalog.GetIndexes(database.Catalog.Tables.Single().ObjectId).Single();
+Console.WriteLine(index.Predicate); // active
+```
+
+See [CREATE INDEX](../../../../database/sql/language/statements/create-index.md#partial-indexes)
+for engine admission, maintenance and unresolved registrations.
+
+## Identity member
+
 ```csharp
 public sealed partial class SqlCatalog
 {

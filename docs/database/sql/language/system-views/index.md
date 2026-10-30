@@ -11,7 +11,7 @@ Reference for read-only virtual relations describing the session database's cata
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 82-of-84 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 83-of-85 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

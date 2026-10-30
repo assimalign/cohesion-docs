@@ -32,6 +32,11 @@ Column nullability is declared with `NULL` or `NOT NULL`.
 
 ## Remarks
 
+For uniqueness restricted to a subset, use [CREATE UNIQUE INDEX ... WHERE](statements/create-index.md#partial-indexes).
+It admits distinct NULL-containing keys and checks only TRUE predicate members. It is not a
+PRIMARY KEY/UNIQUE table constraint and cannot supply a foreign-key target. Table UNIQUE
+constraints retain the unconditional NULL-equal rule below.
+
 | Constraint | Enforcement |
 | --- | --- |
 | `PRIMARY KEY` | Identifies the primary key and its enforcing index |
@@ -152,7 +157,7 @@ UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
 ## ON UPDATE declarations
 
 CREATE TABLE column REFERENCES/table constraints and ALTER TABLE ADD CONSTRAINT/ADD COLUMN
-accept all five update actions. Catalog format 30 and compiled schema v9 persist the action;
+accept all five update actions. Catalog format 31 and compiled schema v10 persist the action;
 [REFERENTIAL_CONSTRAINTS.UPDATE_RULE](system-views/information-schema.md) reports it, including
 through persisted views. The [compiled constraint API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md)
 exposes OnUpdate. Typed References declarations default it to NoAction.

@@ -32,7 +32,7 @@ OnDelete Restrict and OnUpdate NoAction. SqlCompiledSchema validation raises
 SqlSchemaValidationException with InvalidDocument at the constraint's `onUpdate` path for an
 invalid enum or nondefault CHECK update action. Construction itself does not enforce these rules.
 
-Compiled format `cohesion/database-schema/v9` serializes onUpdate, including its default.
+Compiled format `cohesion/database-schema/v10` serializes onUpdate, including its default.
 Changing it changes the canonical document/hash and plans DropConstraint then AddConstraint.
 Serialization round-trips the action; provisioning, reconciliation, compensating statements,
 catalog rename and reopen retain it. Earlier artifacts, applied markers and pending targets

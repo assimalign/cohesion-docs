@@ -115,8 +115,8 @@ SELECT clock, elapsed = INTERVAL '12' AS twelve_seconds, reading FROM text_defau
 
 Execute separately; SELECT returns `(13:00:00, TRUE, 1000)`.
 Typed .NET TimeSpan defaults render exact signed total seconds with a `seconds` unit, including
-every tick at TimeSpan.MinValue/MaxValue. That change established compiled schema v8; current v9 also
-adds ON UPDATE metadata. Earlier artifacts and catalog formats are refused. See the [upgrade note](../../index.md#sql-format-30-and-schema-v9).
+every tick at TimeSpan.MinValue/MaxValue. That change established compiled schema v8; current v10 retains
+ON UPDATE metadata and adds partial-index predicates. Earlier artifacts and catalog formats are refused. See the [upgrade note](../../index.md#sql-format-31-and-schema-v10).
 
 Execute each statement separately:
 

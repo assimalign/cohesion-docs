@@ -38,8 +38,8 @@ public sealed class SqlCatalogConstraint
 The constructor snapshots column/call lists. Its optional action remains Restrict; the SQL
 parser supplies NoAction for omitted ON DELETE. Pass the intended action explicitly when building
 catalog metadata. Format 20 persists NoAction, SetNull and SetDefault; every older database format
-is refused at open with no upgrade path. Current format 30 also persists OnUpdate, which defaults
-to NoAction independently of OnDelete. Compiled schema v9 accepts all five update actions while
+is refused at open with no upgrade path. Current format 31 also persists OnUpdate, which defaults
+to NoAction independently of OnDelete. Compiled schema v10 accepts all five update actions while
 keeping Restrict/Cascade for delete actions. See [CompiledSchemaConstraint](../assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md).
 
 ArgumentNullException rejects null columns. ArgumentException rejects blank names, duplicate

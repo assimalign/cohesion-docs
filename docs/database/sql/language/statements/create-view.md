@@ -51,7 +51,7 @@ exhaustion reports CS05004 (54001); malformed persisted canonical text can still
 
 DDL requires auto-commit. Session-created views have Adhoc ownership; declared scripts publish
 Schema-owned definitions and V: receipts atomically. Format 23 introduced view records of kind 17;
-format 24 introduced explicit NULL placement. Current format 30 also admits distinct predicates,
+format 24 introduced explicit NULL placement. Current format 31 also admits distinct predicates,
 Boolean tests and LIKE ESCAPE in stored bodies. Older formats are refused.
 
 ## Delimited identifiers
