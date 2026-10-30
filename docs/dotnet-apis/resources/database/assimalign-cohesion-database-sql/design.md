@@ -23,7 +23,10 @@ changes add no storage or compiled-schema format beyond the partial-index bounda
 stores canonical Predicate text, PredicateColumns and PredicateFunctionCalls in index extension 2.
 Every write path maintains TRUE membership; FALSE/UNKNOWN has no entry. Partial uniqueness
 keeps NULL-containing keys distinct. Untargeted DO NOTHING uses proposed-row membership;
-targeted inference and all query access paths exclude partial indexes until SQ-P2.
+targeted inference accepts a proving target WHERE. The bound strong-implication prover authorizes
+partial seeks, ranges, correlated join probes and unbounded subset scans, with the complete
+predicate retained as a residual. Proofs use only input-local WHERE and INNER JOIN ON conjuncts;
+see the language page for exact rules and exclusions.
 
 Catalog format 31 and compiled schema v10 refuse earlier files/artifacts. A changed required
 registration can leave a predicate unresolved: open, reads and DROP INDEX work, while table

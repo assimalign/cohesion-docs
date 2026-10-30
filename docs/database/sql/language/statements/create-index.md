@@ -62,9 +62,10 @@ checks uniqueness only within its TRUE subset; any NULL key component keeps that
 An update that brings a duplicate non-NULL key into the subset fails with `CS03037` (23505).
 
 Untargeted [ON CONFLICT DO NOTHING](../clauses/on-conflict.md) considers each partial unique
-index only when the proposed row belongs to it, following PostgreSQL. Targeted inference still
-refuses partial indexes (`CS03035`, 42P10); writing a predicate in the conflict target is
-unsupported (`CK00001`). Partial unique indexes cannot supply a foreign-key target.
+index only when the proposed row belongs to it, following PostgreSQL.
+Targeted `ON CONFLICT (cols) WHERE predicate` can infer partial unique indexes when its
+predicate proves theirs; a missing or unproven inference predicate uses `CS03035` (42P10).
+ON CONSTRAINT cannot name a partial index. Partial unique indexes cannot supply a foreign-key target.
 
 Dropping a key or predicate column drops its index. Changing a predicate column's type,
 including widening, refuses with `CS03083` (0A000): drop and recreate the index around the
@@ -81,9 +82,31 @@ expose canonical predicate text. SQL catalog format 31 and compiled schema v10 p
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 
-**The planner does not use partial indexes to answer queries in this run (SQ-P1).** Even an
-identical WHERE scans or uses another eligible index. Query implication and access are deferred
-to SQ-P2, including join probes and cardinality probes.
+The planner may use a partial index when mandatory query conjuncts prove its predicate. It
+matches bound column names and aliases, parentheses, literal signs and standard literal casts:
+
+- Identical immutable row expressions prove themselves, except expressions involving OR or NOT.
+- Comparisons of the same column and constant type, with the same resolved collation, use
+  equality and ordered bounds: `x > 10` implies `x > 5`; `x = 7` implies `x >= 7`;
+  `x >= 7` does not imply `x > 7`.
+- A strict column/constant comparison with a non-NULL constant implies `column IS NOT NULL`.
+- A Boolean column and its `= TRUE` form are interchangeable.
+
+Identical-expression matching preserves constant representations, including decimal scale,
+floating sign bits and timestamp offsets. Comparison bounds compare values. Floating-point
+bound deductions, contradiction reasoning and cross-column/transitive facts supply no proof.
+Parameters supply no proof, including after folding through immutable calls, casts or signs.
+OR, NOT and volatile calls supply no proof.
+
+Proofs come only from the indexed input's own WHERE conjuncts and INNER JOIN ON conjuncts
+referencing that input alone. An ON term must reference at least one of its columns;
+constant-only ON terms, outer-join predicates, nullable outer-join inputs and other scopes
+supply no proof. The complete query predicate remains a residual filter.
+
+A proven index can provide equality seeks, ranges, correlated join probes or an unbounded
+subset scan. This includes UPDATE FROM, DELETE USING and MERGE inputs where row preservation
+permits it. Partial uniqueness never establishes unconditional DISTINCT or join uniqueness.
+[EXPLAIN](explain.md) reports `partial_predicate` and `implied_by` for selected partial indexes.
 
 ### Building over existing data
 
@@ -113,6 +136,19 @@ Because construction precedes duplicate validation, CS05042 can take precedence 
 CS03037 duplicate that occurs earlier in storage order.
 
 ## Examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE filtered_keys (id INT, x INT);
+INSERT INTO filtered_keys VALUES (1,NULL),(2,7),(3,11);
+CREATE INDEX ix_positive ON filtered_keys(x) WHERE x > 5;
+EXPLAIN SELECT id FROM filtered_keys WHERE x > 10;
+SELECT id FROM filtered_keys WHERE x > 10;
+```
+
+The query returns `3`. The eligible partial index's EXPLAIN detail includes `partial_predicate`
+and `implied_by`, identifying the predicate and the query conjunct proving it.
 
 Execute separately in a fresh database:
 
@@ -168,6 +204,8 @@ is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Implication and inference** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexImplicationTests.cs` and `SqlPartialIndexReviewFixTests.cs` in the same directory.
 
 - **Partial predicates, maintenance and arbitration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexTests.cs`, `SqlPartialIndexDurabilityTests.cs` and `SqlPartialIndexSecondPassTests.cs` in the same directory.
 - **Bounded builds, history and failure cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.

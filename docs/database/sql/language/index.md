@@ -20,7 +20,8 @@ The [Statements](statements/index.md) section groups data definition language (D
 manipulation language (DML), and transaction control.
 
 [CREATE INDEX ... WHERE](statements/create-index.md#partial-indexes) adds partial membership
-and uniqueness. Query planning does not use partial indexes in SQ-P1; that is deferred to SQ-P2.
+and uniqueness. The planner can use a partial index when the query proves its predicate through
+the documented implication rules; ON CONFLICT also supports a target inference WHERE.
 
 - **DDL** — [CREATE SCHEMA](statements/create-schema.md), [DROP SCHEMA](statements/drop-schema.md),
   [CREATE TABLE](statements/create-table.md), [ALTER TABLE](statements/alter-table.md),

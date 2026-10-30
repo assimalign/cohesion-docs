@@ -20,7 +20,7 @@ and CS03084 (42P17) for inconsistent predicate text/dependencies.
 
 The parser can represent a subquery here, but the engine refuses it. See
 [CREATE INDEX](../../../../database/sql/language/statements/create-index.md#partial-indexes)
-for row locality, diagnostics, maintenance and the deferred SQ-P2 planner.
+for row locality, diagnostics, maintenance and the conservative implication and access planner.
 
 ## ALTER COLUMN TYPE
 

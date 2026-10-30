@@ -80,6 +80,7 @@ CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/trans
 | CS03082 | Predicate on a primary key | 42P16 |
 | CS03083 | Type change of a column read by a partial-index predicate, widening included | 0A000 |
 | CS03084 | Inconsistent predicate text/dependency metadata | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 | CS05091 | Prohibited expression or unproven immutable call/conversion in a predicate | 42P17 |
 
 Unresolved predicate registrations use existing CS01009 (42883) for table writes. See

@@ -22,7 +22,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
 | MySQL ON DUPLICATE KEY UPDATE; SQLite INSERT OR IGNORE/REPLACE | `CK00001` | Use [ON CONFLICT](clauses/on-conflict.md) DO NOTHING/targeted DO UPDATE |
-| ON CONFLICT expression/COLLATE/order/operator-class/partial-WHERE inference; DO SELECT | `CK00001` | Plain column-set or named unique-index arbitration executes |
+| ON CONFLICT expression/COLLATE/order/operator-class inference; DO SELECT | `CK00001` | Column sets support inference WHERE; named targets require an unconditional unique index |
 | Subqueries in ON CONFLICT DO UPDATE SET/WHERE; EXCLUDED pseudo-relation in RETURNING | `CK00001` | Target plus EXCLUDED is available in scalar conflict actions; RETURNING sees only target values |
 | Missing/nonunique ON CONFLICT arbiter or untargeted DO UPDATE | `CS03035` (42P10) | Untargeted DO NOTHING uses all unique indexes |
 | CORRESPONDING [BY (...)] | `CK00001` | Contextual exclusion after a set operator; [UNION/INTERSECT/EXCEPT](clauses/set-operations.md) execute |

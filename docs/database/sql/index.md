@@ -244,8 +244,9 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 
 [CREATE INDEX ... WHERE](language/statements/create-index.md#partial-indexes) maintains a partial
 subset on every write and enforces partial uniqueness with distinct NULL keys. Untargeted
-ON CONFLICT DO NOTHING uses membership; targeted inference still excludes partial indexes.
-Query planning does not use partial indexes until SQ-P2.
+ON CONFLICT DO NOTHING uses membership; targeted inference accepts a WHERE proving the index
+predicate. Query planning can select partial seeks, ranges, join probes and subset scans when
+[the supported implication rules](language/statements/create-index.md#partial-indexes) prove eligibility.
 
 [Probe costing, hash memory and plan analysis](performance.md) describe access selection and its limits.
 

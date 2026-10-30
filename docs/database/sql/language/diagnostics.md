@@ -13,6 +13,7 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | CS03082 | A primary-key definition has a partial predicate | 42P16 |
 | CS03083 | ALTER COLUMN TYPE targets a predicate column, including widening; drop and recreate the index | 0A000 |
 | CS03084 | Blank or inconsistent index predicate text/dependency metadata | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 | CS05091 | Predicate contains a prohibited expression or a call/conversion not proven immutable | 42P17 |
 
 An unresolved predicate after a registration change lets the database open and serve reads and
