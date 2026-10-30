@@ -43,8 +43,6 @@ Console.WriteLine(catalog.Namespaces.Any(s => s.Name == "sales")); // False
 This follows SqlCatalogNamespaceTests with an open catalog. Low-level open does not seed dbo;
 SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
 
-## Identity member
-
 ## Index predicate metadata
 
 `SqlCatalogIndex` adds optional constructor arguments `string? predicate = null`,

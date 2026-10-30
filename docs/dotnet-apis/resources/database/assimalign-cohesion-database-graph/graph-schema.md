@@ -74,7 +74,7 @@ throws DatabaseObjectLockedException. Cancellation uses OperationCanceledExcepti
 database uses DatabaseOfflineException (CG06012), and an unconfirmed autocommit uses
 DatabaseTransactionCommitUnconfirmedException.
 
-Null arguments throw ArgumentNullException; a disposed database throws ObjectDisposedException.
+Null Open arguments throw ArgumentNullException; a disposed database throws ObjectDisposedException.
 A foreign session raises DatabaseException with CG07005. Operations follow the bound session's
 transaction; an aborted transaction refuses work with CG04007 until rollback.
 
