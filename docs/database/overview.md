@@ -402,7 +402,7 @@ dbo remains protected and code-first provisioning stays there. [Set operations](
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 84 of 86 declared clauses, including executable MERGE with
+The current SQL contract measures 87 of 89 declared clauses, including executable MERGE with
 ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.

@@ -6,6 +6,7 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 
 ## Reference pages
 
+- **[TransactionSavepoint](transaction-savepoint.md)** — Opaque owned undo token, released or rolled back through the coordinator.
 - **[TransactionLockTimeoutException](transaction-lock-timeout-exception.md)** — One queued wait expired; existing grants remain.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.

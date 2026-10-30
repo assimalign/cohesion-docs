@@ -22,6 +22,7 @@ Database instances expose a nullable immutable `Provisioning` observation for mo
 
 ## Reference pages
 
+- **[DatabaseTransaction](database-transaction.md)** — Protected kernel binding, savepoint observations and isolation replacement.
 - **[DatabaseException](database-exception.md)** — Public contract and usage.
 - **[DatabaseTransactionAbortedException](database-transaction-aborted-exception.md)** — Retryable abort kind and copied, ordered diagnostics.
 - **[DatabaseCorruptionException](database-corruption-exception.md)** — CK06003 with database, page and storage cause.

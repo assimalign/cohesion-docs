@@ -26,7 +26,9 @@ function outside that vocabulary reports CS01016 during planning. Recognition is
 promise. SupportsJoin returns true for Inner, LeftOuter, RightOuter, FullOuter and Cross.
 INNER/LEFT/RIGHT/FULL require ON or USING; CROSS accepts neither. FULL execution additionally
 requires a safe mandatory hash equality and proven non-throwing ON evaluation (CS05070).
-These accessors introduce no validation exceptions.
+These accessors introduce no validation exceptions. Savepoint, ReleaseSavepoint and
+RollbackToSavepoint add three named clauses; [SqlTransactionExpression](sql-transaction-expression.md)
+retains their normalized names. JSON arrows and IS JSON are expression forms and add no clause.
 
 ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG and LEAD are enabled
 with OVER. SqlClauses.Over, Partition and Window are admitted for
@@ -51,7 +53,7 @@ TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURREN
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
 Current storage format is 32, with no upgrade path from an earlier format. The executable
-profile now measures 84 of 86 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
+profile now measures 87 of 89 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 executable RECURSIVE with demand-driven fixpoints and shared readers.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.

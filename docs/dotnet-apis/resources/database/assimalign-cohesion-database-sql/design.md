@@ -957,7 +957,9 @@ session. The C# transaction API and SQL control commands operate on the same sco
 The session exposes one root SqlDatabaseTransaction. Optionless BEGIN and automatic statements
 default to Snapshot; SQL isolation modes can select ReadCommitted or Snapshot. Early SET replaces
 the kernel context while preserving transaction identity, sequence, lifecycle and original BEGIN
-snapshot. Savepoints and named scopes remain unimplemented. `Serializable` remains rejected by the existing C# seam until the coordinator supports
+snapshot. [Named savepoints](../../../../database/sql/language/statements/savepoint.md) use the
+root's owned undo controls; SET while a savepoint is active refuses with CS04074 (25001).
+`Serializable` remains rejected by the existing C# seam until the coordinator supports
 serialization detection.
 
 The session lifecycle below applies equally to SQL requests and C# transactions.

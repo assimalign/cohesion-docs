@@ -1,14 +1,25 @@
 # Graph transactions
 
+Starts, ends or controls a named undo scope in one explicit transaction.
+
+> **Status:** Implemented in process and over InMemory and TCP.
+
+## Syntax
+
 ```syntaxsql
 { START TRANSACTION | BEGIN [ TRANSACTION ] } [ ; ]
 COMMIT [ ; ]
 ROLLBACK [ ; ]
+SAVEPOINT name [ ; ]
+RELEASE [ SAVEPOINT ] name [ ; ]
+ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] name [ ; ]
 ```
+
+## Remarks
 
 Each statement is a separate Execute request on the same connection. START and BEGIN use Snapshot; typed embedded sessions also offer ReadCommitted. A statement failure aborts the explicit transaction; later work requires ROLLBACK. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the current transaction; COMMIT/ROLLBACK without one uses CG04023. ExecutePaths rejects controls with CG05001 before changing transaction state.
 
-Savepoints, transaction options, EXPLAIN controls, composed controls and multiple statements in one text request remain unsupported. Transaction-start datetime functions retain one instant throughout the explicit transaction.
+Transaction options, EXPLAIN controls, composed controls and multiple statements in one text request remain unsupported. Transaction-start datetime functions retain one instant throughout the explicit transaction.
 
 [Schema DDL](create-index.md#transactions-and-limits), including typed GraphSchema writes and
 conditional no-ops, is refused inside an explicit transaction with CG04025 and aborts it.
@@ -36,8 +47,55 @@ semantics as START TRANSACTION. WORK, isolation clauses and other options report
 Duplicate BEGIN uses CG04022; absent COMMIT/ROLLBACK uses CG04023. These conditions have no
 assigned SQLSTATE. The same rollback, pool reset and failed-transaction rules apply.
 
+## Named savepoints
+
+SAVEPOINT, RELEASE and ROLLBACK TO use SQL spellings as Cohesion extensions to GQL. Names
+preserve decoded identifier spelling and compare exactly, including unquoted names; quoted
+identifiers decode doubled quotes. Duplicate names are allowed; the newest wins. RELEASE
+removes its target and every newer savepoint while retaining their effects in the transaction.
+ROLLBACK TO undoes changes and scoped locks after its target, removes newer savepoints and
+keeps its target for repeated rollback. It leaves the transaction open for more work and COMMIT.
+Successful controls affect zero rows; returning a pooled connection discards every savepoint.
+
+An ordinary failed statement still aborts the transaction. ROLLBACK TO returns CG04007 and
+cannot recover it; whole ROLLBACK recovers the session. Incomplete undo instead reports
+CK04009 and admits only ROLLBACK TO the same or an outer retained savepoint, or whole ROLLBACK.
+Reads, writes, COMMIT and other named controls are fenced until recovery. The wire session stays
+open and Ready reports a failed transaction (`E`). Pre-canceled controls change nothing;
+admitted undo finishes despite later caller cancellation. ExecutePaths refuses named controls
+with CG05001 before changing state.
+
+## Savepoint diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name is unknown in the current transaction | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
+| CG04007 | Ordinary statement failure has aborted the transaction; whole rollback is required | — |
+
+## Savepoint example
+
+Execute separately in a fresh database on one connection:
+
+```gql
+BEGIN;
+INSERT (:SavedItem {n: 1});
+SAVEPOINT Keep;
+INSERT (:SavedItem {n: 2});
+ROLLBACK WORK TO SAVEPOINT Keep;
+ROLLBACK TO Keep;
+RELEASE Keep;
+COMMIT;
+MATCH (n:SavedItem) RETURN count(*);
+```
+
+The count is `1`. `Keep` remains after each rollback; `keep` would be a different name.
+
 ## Sources
 
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/NamedSavepointWireTests.cs` and `SavepointFailureWireTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseSession.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphTransactionTextWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphTransactionFailureWireTests.cs`.

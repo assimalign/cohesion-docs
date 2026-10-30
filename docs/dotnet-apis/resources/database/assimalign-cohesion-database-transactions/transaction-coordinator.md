@@ -24,6 +24,14 @@ public sealed class TransactionCoordinator : IAsyncDisposable
         CancellationToken cancellationToken = default);
     public ValueTask RollbackAsync(TransactionContext context,
         CancellationToken cancellationToken = default);
+    public ValueTask<TransactionSavepoint> CreateSavepointAsync(TransactionContext context,
+        CancellationToken cancellationToken = default);
+    public ValueTask ReleaseSavepointAsync(TransactionContext context, TransactionSavepoint savepoint,
+        CancellationToken cancellationToken = default);
+    public ValueTask RollbackToSavepointAsync(TransactionContext context, TransactionSavepoint savepoint,
+        CancellationToken cancellationToken = default);
+    public static string? GetUndoFailureCode(Exception exception);
+    public static bool IsPartialUndoPending(TransactionContext context);
     public ValueTask<T> ApplyStatementAsync<T>(TransactionContext context,
         Func<StorageTransaction, T> apply, CancellationToken cancellationToken = default);
     public ValueTask DisposeAsync();
@@ -76,6 +84,50 @@ without waiting for that record's durability. A reader simply ends and releases 
 Cancellation is observed before rollback starts and leaves the transaction active; once started,
 rollback runs to completion. A failed undo defers cleanup and retains the writer's locks and
 in-flight visibility until undo succeeds. Disposal aborts outstanding readers without journal work.
+
+## Savepoint controls
+
+CreateSavepointAsync returns a [TransactionSavepoint](transaction-savepoint.md) for the current
+active lifecycle context. ReleaseSavepointAsync removes it and all newer tokens, preserving
+their effects. RollbackToSavepointAsync undoes later effects, discards newer tokens and retains
+the target for repeated use. The transaction remains open. Serialize all operations of one
+context, including reads and lock requests. No token carries a language name or persists to disk.
+
+All three methods throw ArgumentNullException for null arguments and OperationCanceledException
+for cancellation before admission. Admitted undo completes despite later caller cancellation.
+Kernel refusals retain their structured code; use GetUndoFailureCode rather than parsing text:
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04008 | Foreign coordinator/context or stale, released, discarded or ended token/context | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
+| CK04010 | An open write stream prevents savepoint control | — |
+
+GetUndoFailureCode returns the structured CK04 identity for a kernel undo refusal, or null for
+another exception. IsPartialUndoPending returns whether incomplete undo fences reads, writes and
+commit; a null context throws ArgumentNullException. While pending, retry rollback to the same
+or an outer retained token, or roll back the whole context. Successful undo clears the fence.
+ReplaceIsolationLevel refuses live tokens with ArgumentException, even for the current level;
+release every token before an otherwise-valid replacement.
+
+Given an initialized coordinator, adapted from TransactionSavepointTokenTests:
+
+```csharp
+var context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
+var scope = await coordinator.CreateSavepointAsync(context);
+await coordinator.RollbackToSavepointAsync(context, scope);
+Console.WriteLine(TransactionCoordinator.IsPartialUndoPending(context)); // False
+await coordinator.ReleaseSavepointAsync(context, scope);
+try
+{
+    await coordinator.RollbackToSavepointAsync(context, scope);
+}
+catch (Exception error) when (TransactionCoordinator.GetUndoFailureCode(error) == "CK04008")
+{
+    Console.WriteLine("Scope was released");
+}
+await coordinator.RollbackAsync(context);
+```
 
 ## Exceptions
 
@@ -169,6 +221,7 @@ PruneBound includes active transaction snapshot minima and statement pins. Do no
 
 ## Sources
 
+- **Owned tokens and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionSavepointTokenTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCommitCancellationTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCoordinator.cs`.

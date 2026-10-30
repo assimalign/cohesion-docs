@@ -2,7 +2,7 @@
 
 Reference for Cohesion's declared SQL dialect and its measured execution boundaries.
 
-> **Status:** Partial. The profile measures 84 of 86 declared clauses against the live engine.
+> **Status:** Partial. The profile measures 87 of 89 declared clauses against the live engine.
 
 Cohesion SQL is a bounded Structured Query Language (SQL) implementation. Support is measured using
 the engine's execution-case table: every advertised clause must have a passing case covering
@@ -34,7 +34,8 @@ the documented implication rules; ON CONFLICT also supports a target inference W
   [UPDATE](statements/update.md), and [DELETE](statements/delete.md).
 - **Table contents** — [TRUNCATE](statements/truncate.md) empties a complete table set with identity and FK policies.
 - **Transactions** — [BEGIN](statements/begin-transaction.md),
-  [COMMIT](statements/commit-transaction.md), and [ROLLBACK](statements/rollback-transaction.md).
+  [COMMIT](statements/commit-transaction.md), [ROLLBACK](statements/rollback-transaction.md),
+  and [SAVEPOINT/RELEASE](statements/savepoint.md).
 
 [MERGE](statements/merge.md) executes ordered INSERT/UPDATE/DELETE actions and RETURNING. [EXPLAIN](statements/explain.md) describes SELECT/INSERT/UPDATE/DELETE/MERGE
 without execution.

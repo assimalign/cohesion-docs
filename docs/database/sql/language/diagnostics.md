@@ -663,9 +663,24 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while a named savepoint is active; before SERIALIZABLE/late checks | 25001 |
+
+## Named savepoints
+
+[SAVEPOINT, RELEASE and ROLLBACK TO](statements/savepoint.md) use the newest matching name.
+Ordinary SQL statement failures preserve earlier work. Incomplete undo leaves the wire session
+open with failed Ready status and admits only rollback to the same or an outer retained scope,
+or whole ROLLBACK. Pool return discards all names.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name does not exist in the current transaction | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
 
 ## Sources
 
+- **Batch 17 JSON and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ad0da989f`, checked against `SqlJsonAccessTests.cs`, `SqlJsonReviewFixTests.cs` and `NamedSavepointTests.cs` in the SQL tests.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

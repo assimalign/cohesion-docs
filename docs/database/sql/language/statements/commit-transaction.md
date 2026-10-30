@@ -14,7 +14,8 @@ Commits the session's active explicit transaction.
 
 `WORK` and `TRANSACTION` are optional equivalent suffixes on COMMIT.
 `END` maps to COMMIT and takes no suffix. Without a transaction its `CS04002` message names COMMIT.
-Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Transaction names, modes and `AND [NO] CHAIN` are outside this grammar. COMMIT ends all
+[savepoints](savepoint.md); RELEASE alone keeps their effects pending in the transaction.
 Malformed suffixes report `CS00003` before transaction state changes.
 
 ## Remarks

@@ -36,7 +36,10 @@ Outside a block, SET succeeds with zero affected rows and Warning CS04071, inclu
 requested level is SERIALIZABLE. It changes no default. An aborted block retains its ordinary
 transaction refusal before isolation validation. BEGIN and automatic transactions continue to
 default to Snapshot; DISCARD ALL and pooled reuse do not retain the configured level.
-Within a usable block, SERIALIZABLE validation precedes the late-SET check.
+Within a usable block, an active [savepoint](savepoint.md) refuses SET with CS04074 before
+SERIALIZABLE or late-SET validation. RELEASE of all savepoints permits otherwise-early SET;
+ROLLBACK TO keeps its target and the refusal. Without savepoints, SERIALIZABLE validation
+precedes the late-SET check.
 
 ## Diagnostics
 
@@ -46,6 +49,7 @@ Within a usable block, SERIALIZABLE validation precedes the late-SET check.
 | CS04071 | Outside a transaction block: warning and successful no-op | 25000 |
 | CS04072 | Configuration after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in an active usable block | 0A000 |
+| CS04074 | SET while any named savepoint is active | 25001 |
 | CS04005 | Transaction is aborted; roll back before continuing | — |
 | CK00001 | Unsupported READ ONLY/WRITE or [NOT] DEFERRABLE mode | — |
 

@@ -426,8 +426,22 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
 | CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
 
+## Named savepoints
+
+[Named controls](statements/transactions.md#named-savepoints) keep the target after rollback-to
+and discard descendants. Ordinary failed statements still abort the transaction with CG04007;
+only whole ROLLBACK recovers it. Incomplete undo instead admits rollback to the same or an outer
+retained savepoint, or whole ROLLBACK, with the wire session open and Ready reporting failure.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name does not exist in the current transaction | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
+
 ## Sources
 
+- **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against `GraphUnionTests.cs` and `GraphUnionExecutionTests.cs`.

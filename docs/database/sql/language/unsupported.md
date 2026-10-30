@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 84 of 86 named clauses against the live engine. The 2 excluded names are
+The profile measures 87 of 89 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -87,10 +87,10 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
 | CREATE INDEX expression keys or INCLUDE | No dedicated diagnostic promised by the dialect | Plain column keys accept ASC/DESC and NULLS FIRST/LAST; constraint lists reject options with CS00003 |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
-| `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
+| Malformed transaction suffixes | `CS00003` | [ROLLBACK TO](statements/savepoint.md) executes for named savepoints |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
-| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE` | `CS00002` | Not implemented as statements |
+| Standalone `TRANSACTION` | `CS00002` | Use BEGIN or START TRANSACTION; SAVEPOINT and RELEASE execute |
 | READ ONLY/WRITE, [NOT] DEFERRABLE transaction modes | `CK00001` | [Isolation options](statements/begin-transaction.md) and [SET TRANSACTION](statements/set-transaction.md) execute |
 | SERIALIZABLE transaction isolation | `CS04073` (0A000) | State-valid BEGIN/SET refuses it; SET outside a block is a CS04071 warning/no-op |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |

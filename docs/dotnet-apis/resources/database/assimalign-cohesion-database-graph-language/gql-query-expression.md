@@ -39,10 +39,21 @@ public sealed class GqlQueryExpression : GqlExpression
     public bool IsExplain { get; private set; }
     public GqlCatalogSurface? CatalogSurface { get; init; }
     public GqlSchemaCommand? SchemaCommand { get; init; }
+    public GqlTransactionCommand TransactionCommand { get; internal init; }
+    public string? SavepointName { get; internal init; }
 }
 ```
 
 ## Behavior and exceptions
+
+TransactionCommand identifies standalone transaction or named savepoint controls. SavepointName
+is null for ordinary queries/other controls and retains the decoded name for Savepoint,
+ReleaseSavepoint and RollbackToSavepoint. The parser owns both setters. Unquoted names preserve
+case and compare exactly; ToString quotes the decoded name. Accessors add no exceptions.
+Named controls require Execute and an explicit transaction (CK04012); unknown names use CK04013.
+Incomplete undo uses CK04009 and admits only retry to that or an outer scope, or whole rollback.
+Ordinary Graph statement failure still requires whole ROLLBACK (CG04007). None has a SQLSTATE.
+See [transaction syntax](../../../../database/graph/language/statements/transactions.md#named-savepoints).
 
 [SchemaCommand](gql-schema-command.md) is null for ordinary queries. Parsed schema DDL has no
 stages; ToString renders its semantic command, including quoted names and normalized relationship
@@ -113,6 +124,16 @@ results (CG05001; #1662), even with composite negotiation.
 The explicit grouping capability is `GqlClauses.GroupBy` (`public const string GroupBy = "GROUP BY"`).
 
 ## Example
+
+Checked against SavepointConformanceTests:
+
+```csharp
+var named = ((GqlQueryStatement)new GqlQueryParser().Parse("SAVEPOINT Keep;")).GqlExpression;
+Console.WriteLine(named.TransactionCommand); // Savepoint
+Console.WriteLine(named.SavepointName);      // Keep
+```
+
+Parsing changes no transaction state.
 
 ```csharp
 var composed = ((GqlQueryStatement)new GqlQueryParser().Parse(

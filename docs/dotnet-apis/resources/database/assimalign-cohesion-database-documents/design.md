@@ -751,7 +751,10 @@ one reports CD04104. A faulted transaction retains CD04101 until ROLLBACK; fault
 ends it without committing. OQL CREATE/DROP COLLECTION/INDEX, including conditional no-ops,
 report CD04105 before mutation in an explicit transaction and fault it. These text DDL forms
 use automatic statement transactions; typed C# collection operations retain their existing
-contract. SAVEPOINT and SET TRANSACTION remain CK00001. These conditions have no SQLSTATE.
+contract. Named SAVEPOINT, RELEASE and ROLLBACK TO execute with exact decoded names and
+newest-duplicate lookup. Ordinary statement failures still require whole rollback; incomplete
+undo uses CK04009 and admits retry to the same or an outer scope, or whole rollback. Missing
+transaction/name uses CK04012/CK04013. SET TRANSACTION remains CK00001. These conditions have no SQLSTATE.
 See [syntax and examples](../../../../database/document/language/statements/transactions.md).
 
 ## Application function API
