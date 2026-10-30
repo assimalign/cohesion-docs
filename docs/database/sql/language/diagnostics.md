@@ -171,7 +171,7 @@ not a separate field on the diagnostic or SQL exception.
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE/NOT ILIKE
 and general `expr::type` casts execute with existing LIKE/CAST diagnostics. SIMILAR TO, regex,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and exponentiation ^ use CK00001. Integer bitwise
+ISNULL, NOTNULL, IS OF/NORMALIZED, IS JSON WITH/WITHOUT UNIQUE KEYS and exponentiation ^ use CK00001. Integer bitwise
 operators execute; invalid operand types and BIGINT shift counts use CS02077 (42804).
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
@@ -636,6 +636,18 @@ count before FILTER/arguments across functions, partitions and stages, including
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
 and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
 can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+
+## JSON access
+
+[JSON access and IS JSON](expressions/json-access.md) validate signatures before rows. Malformed
+text under IS JSON returns FALSE, while access and assignment reject malformed documents.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01067 | Invalid JSON extraction or IS JSON signature, including a BIGINT selector | 42883 |
+| CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
+| CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
 
 ## SQL transaction isolation
 

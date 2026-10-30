@@ -111,7 +111,9 @@ programmatically supplied primary-key predicate uses `CS03082` (42P16).
 The planner may use a partial index when mandatory query conjuncts prove its predicate. It
 matches bound column names and aliases, parentheses, literal signs and standard literal casts:
 
-- Identical immutable row expressions prove themselves, except expressions involving OR or NOT.
+- Identical immutable row expressions prove themselves, except general expressions involving OR or NOT.
+  [JSON extraction and IS JSON](../expressions/json-access.md#partial-indexes) match exact
+  conjuncts, including the IS JSON kind and negation.
 - Comparisons of the same column and constant type, with the same resolved collation, use
   equality and ordered bounds: `x > 10` implies `x > 5`; `x = 7` implies `x >= 7`;
   `x >= 7` does not imply `x > 7`.

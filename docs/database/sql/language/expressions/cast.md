@@ -56,8 +56,8 @@ TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE PRECISION and NUMERIC.
 | TIMESTAMPTZ | DATE, TIME, TIMESTAMP, character types |
 | INTERVAL | TIME, character types |
 | UUID | Character types |
-| JSON | JSONB, character types |
-| JSONB | JSON, character types |
+| JSON | JSONB, Boolean, numeric types, character types |
+| JSONB | JSON, Boolean, numeric types, character types |
 
 A pair without a conversion is `CS02011` (SQLSTATE 42846), rejected while planning when the
 source type is known, including over empty input or a typed NULL. Parameter types are resolved
@@ -71,7 +71,7 @@ reports CS02064 (42804). USING does not transform a dependent default.
 
 ## Value rules
 
-- Integer targets require a whole value in range. They never truncate a fraction. NaN or infinity
+- Except for JSON numeric casts below, integer targets require a whole value in range. They never truncate a fraction. NaN or infinity
   to an integer is `CS02002` (22003).
 - Exact numeric text permits surrounding whitespace and `[+-]?[0-9]+(\.[0-9]+)?`; exponent text,
   grouping and a missing digit beside the decimal point are rejected. Floating targets additionally
@@ -88,8 +88,7 @@ reports CS02064 (42804). USING does not transform a dependent default.
   one day. Year-month interval text has no conversion to the stored day-time type.
 - BYTEA text accepts a leading backslash-x with even hexadecimal digits, or plain UTF-8 text without
   backslashes. JSON and JSONB validate JSON at depth 128 and retain its text rather than reformat it;
-  JSONB uses UTF-8 bytes. SQL wire scalar codecs still exclude direct JSON/JSONB components: CAST
-  those results to TEXT when returning them through that codec.
+  JSONB uses UTF-8 bytes. SQL results carry JSON as text and JSONB as bytes over the wire.
 
 Invalid non-temporal value text uses `CS02022` (22P02). Temporal bad format uses
 `CS02047` (22007), an out-of-range calendar, clock or offset field uses `CS02048` (22008),
@@ -108,6 +107,30 @@ A domain check that rejects the converted value reports `CS03038` (23514) throug
 SqlConstraintViolationException with exactly one Error diagnostic. Its message names the domain
 without key values or a table, because CAST writes no table. The session attaches the statement
 span when available; the error also reaches clients as ExecutionFailure with a usable connection.
+
+## JSON scalar casts
+
+JSON and JSONB explicitly cast to BOOLEAN and to TINYINT, SMALLINT, INTEGER, BIGINT, REAL,
+DOUBLE PRECISION and NUMERIC. BOOLEAN requires a JSON Boolean; numeric targets require a
+JSON number. JSON `null` becomes SQL NULL. Arrays, objects and the wrong scalar kind, including
+numeric-looking JSON strings, fail with CS02079 (22023). Invalid JSON input uses CS02078 (22032).
+
+Numeric casts accept exponent notation and apply destination range/precision bounds. Integer
+casts round midpoint ties away from zero; floating casts turn JSON negative zero into positive
+zero. Range failures retain CS02002 (22003); cast-input syntax failures retain CS02022 (22P02).
+PostgreSQL defines these Boolean and numeric scalar conversions for JSONB only; Cohesion also
+applies them to JSON. TINYINT is a Cohesion numeric target.
+
+TEXT/CHAR casts retain JSON serialization, including quotes around strings. Use `->>` to obtain
+unquoted text. JSONB preserves original spelling rather than normalizing it. See
+[JSON access](json-access.md) for extraction and validation limits.
+
+```sql
+SELECT CAST('12.5'::JSON AS INT), CAST('true'::JSONB AS BOOLEAN),
+       CAST('null'::JSON AS NUMERIC), CAST('"x"'::JSONB AS TEXT);
+```
+
+Returns `(13, TRUE, NULL, '"x"')`.
 
 ## Text output and concatenation
 

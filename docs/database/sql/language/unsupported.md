@@ -82,7 +82,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `CS01006` (42883) | Signatures reject incompatible inputs during planning |
 | Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `CS02003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
 | Regex operators, including infix `~` and compound regex forms; SIMILAR TO/NOT SIMILAR TO | `CK00001` | [LIKE and ILIKE](expressions/operators.md#ilike-and-not-ilike) execute with ESCAPE |
-| Postfix ISNULL/NOTNULL, IS JSON/OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
+| Postfix ISNULL/NOTNULL, IS OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
 | Exponentiation `^` | `CK00001` | [Integer bitwise operators](expressions/operators.md#integer-bitwise-operators) execute; XOR is `#` |
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
 | CREATE INDEX expression keys or INCLUDE | No dedicated diagnostic promised by the dialect | Plain column keys accept ASC/DESC and NULLS FIRST/LAST; constraint lists reject options with CS00003 |
@@ -129,6 +129,12 @@ result execution are unavailable.
 ## See also
 
 [Language (SQL)](index.md) · [Diagnostics](diagnostics.md) · [Statements](statements/index.md) · [Builtin functions](functions/builtin-functions.md)
+
+## Deferred SQL/JSON forms
+
+[JSON arrows and IS JSON](expressions/json-access.md) execute. WITH/WITHOUT UNIQUE KEYS uses
+CK00001. JSON_VALUE, JSON_QUERY, JSON_EXISTS and SQL/JSON paths remain SQ-N2; JSON_TABLE,
+question-mark operators and JSONB normalization remain deferred beyond this subset.
 
 ## Sources
 
