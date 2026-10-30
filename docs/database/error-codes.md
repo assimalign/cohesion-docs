@@ -116,6 +116,7 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | --- | --- | --- |
 | CG01021 | Named index or constraint requested for DROP is absent | — |
 | CG01022 | Schema property references a variable other than its FOR declaration | — |
+| CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
 | CG03010 | Existing data violates a newly created named constraint | — |

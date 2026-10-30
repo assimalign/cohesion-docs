@@ -218,6 +218,23 @@ escaping and framing. Malformed composite wire components use ProtocolViolation.
 
 ## Negotiated wire diagnostics
 
+### Unknown entity properties
+
+| Code | Severity | Meaning and trigger | SQLSTATE |
+| --- | --- | --- | --- |
+| CG01023 | Warning | Read-only statement names an entity property unknown throughout the statement-visible catalog | — |
+
+[Property access](expressions/property-access.md#unknown-property-warnings) warns once per
+ordinal name, at its first occurrence when a span exists. Pattern-map keys and unlocated typed
+AST nodes have no span. The statement returns its ordinary result and keeps its transaction
+usable. EXPLAIN also reports these warnings. Map fields, dynamic subscripts and writing
+statements (including their nested reads) do not warn. Names stored anywhere, DDL-created names
+and earlier writes in the transaction count as known; rolled-back discovery is forgotten,
+while removing a value retains it. Unlike Neo4j's per-occurrence warnings and tokens retained
+after rollback, Cohesion deduplicates names and rolls discovery back with the write.
+
+### Carriers and transport
+
 Embedded row, mutation and path results expose non-null DatabaseResult.Diagnostics, empty when
 nothing is reported; GraphSchemaResult<T> uses the same collection rule. Remote GraphResultSet,
 GraphPathResult and GraphClientException diagnostics are also never null. GraphPathResult's
@@ -441,6 +458,7 @@ retained savepoint, or whole ROLLBACK, with the wire session open and Ready repo
 
 ## Sources
 
+- **Unknown properties** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlUnknownPropertyWarningTests.cs`, `GqlPropertyWarningReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphWireDiagnosticTests.cs`.
 - **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 

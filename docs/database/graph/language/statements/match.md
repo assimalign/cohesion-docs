@@ -60,6 +60,9 @@ mandatory clause can be returned as a path.
 
 Unknown labels/types in an optional clause warn with `CG01010`/`CG01011` and null-extend
 that clause's input. A later unmatched mandatory clause can still empty the result.
+Read-only statements also report [CG01023](../expressions/property-access.md#unknown-property-warnings)
+for statically named entity properties unknown database-wide, including pattern-map keys.
+It is one warning per name and preserves the normal match result.
 
 The planner first anchors on a node bound by an earlier path or clause at any pattern position,
 or on an endpoint supplied by a bound relationship. Otherwise it can use an indexed node in the

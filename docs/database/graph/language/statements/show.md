@@ -61,6 +61,8 @@ Constraints and database-wide schema names are managed through [CREATE CONSTRAIN
 [CREATE INDEX](create-index.md) and the typed
 [GraphSchema API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
 Typed GetPropertyKeysAsync returns declared metadata only; SHOW PROPERTY KEYS includes named-rule effects.
+The database-wide names used to suppress [unknown-property warnings](../expressions/property-access.md#unknown-property-warnings)
+also include unlabeled entity discoveries; this SHOW table lists definition-owned metadata.
 
 SHOW CONSTRAINTS returns one row per named rule, in label-name then constraint-name order,
 followed by relationship-type-name then constraint-name order. Its eight columns use String

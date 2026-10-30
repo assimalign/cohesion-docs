@@ -71,7 +71,32 @@ request carries no catalog or callback. Unknown names retain CG00010 during bind
 with ExecutionFailure over the wire and no StatementParseFailed event. Standalone default
 GqlQueryParser retains its unknown-name parse diagnostic.
 
+## Unknown-property diagnostics
+
+Read-only requests report CG01023 with DiagnosticSeverity.Warning for a statically named entity
+property unknown throughout the statement-visible catalog. Both parsed text and direct typed
+AST requests expose it on DatabaseResult.Diagnostics. It is one warning per ordinal name, at
+the first occurrence when its AST has a span; unlocated typed nodes and pattern keys have none.
+The warning preserves rows and transaction state. See [property visibility and exclusions](../../../../database/graph/language/expressions/property-access.md#unknown-property-warnings).
+
+Adapted from GqlUnknownPropertyWarningTests, on a fresh database session:
+
+```csharp
+await session.ExecuteAsync("INSERT (:Keep {name:'k'})", cancellationToken: CancellationToken.None);
+var request = GraphQueryRequest.FromGql("MATCH (n:Keep) RETURN n.never_seen");
+await using var result = (DatabaseResultSet)await session.ExecuteAsync(request, CancellationToken.None);
+Console.WriteLine(result.Diagnostics[0].Code);     // CG01023
+Console.WriteLine(result.Diagnostics[0].Severity); // Warning
+await foreach (var row in result.GetRowsAsync(CancellationToken.None))
+    Console.WriteLine(row.GetValue(0) is null);    // True
+```
+
+DatabaseResultSet belongs to `Assimalign.Cohesion.Database.Execution`. Wire clients receive
+the same warning through negotiated diagnostics, without a new public member or message.
+
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlUnknownPropertyWarningTests.cs` and `GqlPropertyWarningReviewTests.cs` in the same directory.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphQueryRequest.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphParameterTests.cs`.

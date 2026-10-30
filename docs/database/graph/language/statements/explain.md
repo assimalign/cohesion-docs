@@ -10,6 +10,10 @@ EXPLAIN { match_statement | return_statement | insert_statement | create_stateme
 
 ## Remarks
 
+Read-only EXPLAIN performs [unknown-property warning analysis](../expressions/property-access.md#unknown-property-warnings)
+and returns CG01023 in diagnostics, once per unknown entity property name. It still returns the
+plan without executing data. Writing statements skip this warning analysis under EXPLAIN too.
+
 [Composite queries](../clauses/union.md) show Union/UnionAll, Except/ExceptAll,
 Intersect/IntersectAll and Otherwise nodes preserving binary grouping,
 every operand's complete plan and correlated subplans. NEXT pipelines show those groups beside
