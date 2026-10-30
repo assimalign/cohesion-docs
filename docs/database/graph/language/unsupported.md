@@ -33,6 +33,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
 | Server, database, graph, or schema selection | Recognized, not supported (`CK00001`) | `USE`, `CREATE DATABASE`, `CREATE GRAPH`, `DROP GRAPH`, `ALTER SCHEMA`, `SHOW DATABASES`, `SESSION SET GRAPH` |
+| Schema forms beyond the subset | Recognized, not supported (`CK00001`) | UNIQUE/KEY constraints, composite indexes/constraints, relationship-property indexes, closed graph types and unsupported constraint type forms; [schema DDL](statements/create-index.md) executes |
 | Transaction options | Rejected (`CG00002`) | WORK, TRAN, READ ONLY/WRITE, isolation and DEFERRABLE suffixes on BEGIN/START |
 | Transaction extensions | Unsupported | Savepoints and composed controls; standalone BEGIN [TRANSACTION], START TRANSACTION, COMMIT and ROLLBACK execute in process and over the wire |
 | Cypher doubled-dash arrows | Rejected (`CG00008` or `CG00002`) | ISO `->`, `<-`, `-`, `<->` execute; see [Patterns](patterns.md) |

@@ -34,10 +34,13 @@ label names, and property keys do not trigger keyword capability checks.
 
 Database-wide schema names and named type/existence constraints are exposed through the typed
 [GraphSchema API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
+Text [schema DDL](statements/create-index.md) uses the same named rules and autocommit coordination.
 These conditions have no assigned SQLSTATE:
 
 | Code | Meaning and trigger |
 | --- | --- |
+| CG01022 | Schema property references a variable other than the FOR declaration |
+| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
 | CG01021 | Named index or constraint requested for DROP is absent |
 | CG03008 | Database-wide index/constraint name is already occupied; names are ordinal and case-sensitive |
 | CG03009 | Duplicate constraint kind or incompatible property type rules |
@@ -46,7 +49,11 @@ These conditions have no assigned SQLSTATE:
 
 CG06019 refuses before logical recovery scrub. Physical journal redo may already have run;
 this is distinct from graph entity/tree format 5 and its CG06017/CG06018 checks. An empty catalog
-has no versioned records to refuse. Text schema DDL and SHOW CONSTRAINTS are not available yet.
+has no versioned records to refuse. SHOW CONSTRAINTS returns independently named rules.
+DDL validates GraphQueryLimits inside the admitted operation (CG08021). Owner scans and
+backfill consume work (CG05004); cursor buffers and retained backfill entries consume memory
+(CG05020). Exhaustion rolls back rules, reservations and new tokens. These codes have no
+assigned SQLSTATE. CG04025 is checked before limits or writer-lock acquisition.
 
 [List comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md)
 add these conditions; none has an assigned SQLSTATE:

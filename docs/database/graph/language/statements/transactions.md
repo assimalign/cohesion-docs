@@ -10,6 +10,10 @@ Each statement is a separate Execute request on the same connection. START and B
 
 Savepoints, transaction options, EXPLAIN controls, composed controls and multiple statements in one text request remain unsupported. Transaction-start datetime functions retain one instant throughout the explicit transaction.
 
+[Schema DDL](create-index.md#transactions-and-limits), including typed GraphSchema writes and
+conditional no-ops, is refused inside an explicit transaction with CG04025 and aborts it.
+ROLLBACK restores session use. Execute schema writes as separate autocommit operations.
+
 ```csharp
 await connection.ExecuteAsync("START TRANSACTION");
 await connection.ExecuteAsync("INSERT (:Person {name: 'Ada'})");

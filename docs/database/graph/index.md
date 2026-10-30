@@ -31,7 +31,8 @@ enforcement, node-property index creation and independently named type/existence
 Index and constraint names share a database-wide ordinal, case-sensitive namespace. Named
 constraints validate existing data on creation; type rules allow absent/null properties, while
 existence rules require non-NULL values. These are [typed GraphSchema operations](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md);
-text DDL is not available yet. Labels, relationship types, property names, and
+[text schema DDL](language/statements/index.md#schema-statements) also executes. Schema writes
+require autocommit; CG04025 refuses and aborts an explicit transaction, including conditional no-ops. Labels, relationship types, property names, and
 variable names use ordinal, case-sensitive identity. String predicates use ordinal comparison;
 SQL collation settings do not apply.
 

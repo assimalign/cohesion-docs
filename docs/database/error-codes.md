@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -63,7 +63,7 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CD07002 | Text transaction control without the negotiated transaction-status capability | — |
 | CK07002 | Malformed negotiated statement Ready: exactly I/T/E plus a retained-state 0/1 byte is required | — |
 | CK04008 | Undo marker is foreign, released, discarded or ended; undo control context is foreign, stale, a statement view or a snapshot pin | — |
-| CK04009 | Partial undo is running or incomplete, or statement/control/end activity prevents control admission; retry its target or an earlier marker, or roll back the transaction | — |
+| CK04009 | Partial undo or failed statement memory compensation is running or incomplete, or statement/control/end activity prevents control admission; retry its target or an earlier marker, or roll back the transaction | — |
 | CK04010 | An open write stream prevents undo marker creation, release or rollback-to | — |
 | CK04011 | A transaction has reached the supported limit of 65,535 open write streams | — |
 
@@ -93,6 +93,8 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| CG01022 | Schema property references a variable other than its FOR declaration | — |
+| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
 | CG01021 | Named index or constraint requested for DROP is absent | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
@@ -100,7 +102,8 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG06019 | Catalog record version differs from v2; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
-for the typed surface; text DDL is not available yet.
+for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.
+DDL work/memory limits use CG05004/CG05020; invalid GraphQueryLimits use CG08021, without SQLSTATE.
 
 ## SQL operator diagnostics
 

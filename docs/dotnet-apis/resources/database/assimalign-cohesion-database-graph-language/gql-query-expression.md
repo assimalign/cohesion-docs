@@ -1,6 +1,6 @@
 # GqlQueryExpression
 
-A finite graph query or read-only catalog statement in one database.
+A finite graph query, read-only catalog statement or standalone schema command in one database.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 
@@ -38,10 +38,17 @@ public sealed class GqlQueryExpression : GqlExpression
     public GqlExpression? Limit { get; init; }
     public bool IsExplain { get; private set; }
     public GqlCatalogSurface? CatalogSurface { get; init; }
+    public GqlSchemaCommand? SchemaCommand { get; init; }
 }
 ```
 
 ## Behavior and exceptions
+
+[SchemaCommand](gql-schema-command.md) is null for ordinary queries. Parsed schema DDL has no
+stages; ToString renders its semantic command, including quoted names and normalized relationship
+arrows. It cannot accompany graph stages, a composite, SHOW, transaction control or EXPLAIN.
+Malformed hand-built combinations and path requests use CG05001 at session admission.
+GqlCatalogSurface.Constraints adds SHOW CONSTRAINTS to the read-only catalog subjects.
 
 For linear queries, Stages is the planner/executor input. The stage constructor rejects a null list with
 ArgumentNullException, retains the supplied list, and initializes compatibility summaries:
