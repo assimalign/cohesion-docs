@@ -8,14 +8,15 @@ Combines scalar values and evaluates SQL search conditions.
 
 ```syntaxsql
 left_expression { + | - | * | / | % | || } right_expression
-- expression
+{ + | - } expression
 left_expression { = | <> | < | <= | > | >= } right_expression
 expression IS [ NOT ] NULL
 left_expression IS [ NOT ] DISTINCT FROM right_expression
 expression IS [ NOT ] { TRUE | FALSE | UNKNOWN }
 expression [ NOT ] BETWEEN lower_expression AND upper_expression
 expression [ NOT ] IN ( expression [ , ...n ] )
-expression [ NOT ] LIKE pattern_expression [ ESCAPE escape_expression ]
+expression [ NOT ] { LIKE | ILIKE } pattern_expression [ ESCAPE escape_expression ]
+expression :: target_type
 NOT search_condition
 left_condition { AND | OR } right_condition
 ```
@@ -30,9 +31,9 @@ left_condition { AND | OR } right_condition
 ## Remarks
 
 Precedence follows PostgreSQL, from low to high: `OR`, `AND`, logical `NOT`, `IS` tests and
-distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE`, `ESCAPE`, concatenation (`||`),
-addition/subtraction, multiplication/division/remainder, `COLLATE`, unary signs, then primary
-expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`, and
+distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE/ILIKE`, `ESCAPE`, concatenation (`||`),
+addition/subtraction, multiplication/division/remainder, `COLLATE`, unary signs, postfix `::`
+casts, then primary expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`, and
 `-a COLLATE binary` groups as `(-a) COLLATE binary`. NOT keeps its ordinary precedence before
 EXISTS: `NOT EXISTS (query) IS TRUE` means `NOT ((EXISTS (query)) IS TRUE)`.
 
@@ -42,7 +43,8 @@ group an intermediate result explicitly. A completed IN/NOT IN list or subquery 
 predicate: `1 IN (1) IN (TRUE)` and `1 IN (SELECT id FROM t WHERE id = 1) IN (TRUE)` test the
 first Boolean result. Completed postfix tests may also continue: `NULL IS NULL = TRUE` is TRUE.
 The lower BETWEEN bound accepts restricted comparison/distinct expressions.
-Prefix/infix `~`, binary `&`, `|`, `<<`, `>>`, and `::` casts report `CK00001`.
+Prefix/infix `~`, regex operators, binary `&`, `|`, `#`, `^`, `<<` and `>>` report `CK00001`.
+Bitwise operators are deferred to SQ-O2. [Postfix casts](cast.md#postfix-casts) execute.
 
 ```sql
 SELECT 1 = 1 IS TRUE, TRUE = 'abc' LIKE 'a%', 1 IN (1) IN (TRUE), 'x' || 1 + 2
@@ -124,7 +126,7 @@ SELECT NULL IS TRUE, NULL IS NOT FALSE, NULL IS UNKNOWN
 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 ```
 
-The result is `(FALSE, TRUE, TRUE)`. Postfix ISNULL/NOTNULL, ILIKE/NOT ILIKE, SIMILAR TO/NOT
+The result is `(FALSE, TRUE, TRUE)`. Postfix ISNULL/NOTNULL, SIMILAR TO/NOT
 SIMILAR TO, and IS JSON/IS OF/IS NORMALIZED report `CK00001`.
 
 ## LIKE and ESCAPE
@@ -196,6 +198,37 @@ Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized
 domain checks, SQL function bodies and views. Storage format 31 refuses earlier files without
 an upgrade reader. These expression forms add no named clause.
 
+## ILIKE and NOT ILIKE
+
+ILIKE uses LIKE's precedence, wildcards, ESCAPE and NULL rules. NOT ILIKE negates a non-NULL
+result and preserves UNKNOWN. Fixed patterns validate eagerly, including on empty input;
+invalid escapes use CS02034 (22025). Escape recognition precedes case mapping. The same
+cancellable matcher and work budget apply; invariant ILIKE and NOT ILIKE can fail with
+CS05040 (no assigned SQLSTATE), leaving the connection usable.
+
+Case matching follows the effective collation of the value, pattern and escape:
+
+| Collation | ILIKE behavior |
+| --- | --- |
+| binary | Lowercases both sides with SQL LOWER's ToLowerInvariant mapping, then compares ordinally, following PostgreSQL's deterministic-collation approach |
+| case_insensitive | Uses this collation's case-insensitive equality |
+| case_accent_insensitive | Uses this collation's case- and accent-insensitive equality |
+| invariant | Uses its linguistic equality with IgnoreCase, including canonical equivalence |
+
+PostgreSQL refuses ILIKE under nondeterministic collations. Cohesion allows it under
+case_insensitive, case_accent_insensitive and invariant with each collation's own equality.
+The binary lowercase mapping comes from .NET globalization, as SQL LOWER does.
+
+```sql
+SELECT 'A%' ILIKE 'aX%' ESCAPE 'X',
+       'É' COLLATE binary ILIKE 'e',
+       'É' COLLATE case_accent_insensitive ILIKE 'e',
+       NULL ILIKE '%', 'x' NOT ILIKE NULL;
+```
+
+Returns `(TRUE, FALSE, TRUE, NULL, NULL)`. ILIKE also persists in views, defaults and checks.
+It adds no separate work budget or format change.
+
 ## Temporal arithmetic
 
 Day-time [INTERVAL literals](literals.md) and stored/parameter durations use TimeSpan precision.
@@ -260,6 +293,8 @@ For a row with a = -2, `SELECT a FROM t WHERE a<-1` returns -2. The correspondin
 `WHERE a<--1` form reports CS00003.
 
 ## Sources
+
+- **ILIKE and postfix casts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIlikeCastTests.cs` and `SqlOperatorFixTests.cs` in the same directory.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

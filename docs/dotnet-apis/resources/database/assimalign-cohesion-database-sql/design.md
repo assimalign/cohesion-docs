@@ -4,6 +4,19 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## ILIKE and postfix casts
+
+ILIKE/NOT ILIKE share LIKE precedence, ESCAPE, NULL handling and its CS05040 work budget
+(no SQLSTATE); invalid escapes retain CS02034 (22025). Binary lowercases both sides with SQL
+LOWER's mapping. case_insensitive, case_accent_insensitive and invariant use their own
+case-insensitive equality. Cohesion allows ILIKE under these nondeterministic collations,
+where PostgreSQL refuses it. See [operator behavior and examples](../../../../database/sql/language/expressions/operators.md#ilike-and-not-ilike).
+
+Postfix casts reuse CAST binding and targets and canonicalize as CAST. Their precedence is above
+unary signs, so +1::TEXT and -1::TEXT fail with CS02003 (42804). Regex, SIMILAR TO, #, ^ and
+other bitwise operators retain CK00001; SQ-O2 supplies bitwise execution. These expression
+changes add no storage or compiled-schema format beyond the partial-index boundary.
+
 ## Partial indexes
 
 [CREATE INDEX ... WHERE](../../../../database/sql/language/statements/create-index.md#partial-indexes)

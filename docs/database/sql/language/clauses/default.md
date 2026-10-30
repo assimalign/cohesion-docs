@@ -78,6 +78,10 @@ early-bound dependency. DROP SEQUENCE RESTRICT reports CS03080 (2BP01); CASCADE 
 removes dependent defaults. DROP SCHEMA CASCADE also clears cross-schema sequence defaults.
 Dropping an owner table/column requires external dependent defaults to be removed first.
 
+`nextval('s')`, `nextval('s'::regclass)`, `nextval(CAST('s' AS REGCLASS))` and
+`NEXT VALUE FOR s` all retain this dependency through restart. The existing separated-colon
+REGCLASS spelling also works. A domain DEFAULT calling nextval is refused with CS03074 (0A000).
+
 Dynamic references and compound defaults such as `nextval('s') + 1` remain CS03074 (0A000).
 Adding a nonidentity sequence-default column to populated storage retains the volatile-default
 refusal CS03027. A new identity column instead uses [backfill](identity.md#alter-and-backfill).
@@ -169,6 +173,8 @@ DEFAULT. The final addition fails CS03027 because rows exist, leaving the schema
 [INSERT](../statements/insert.md) · [UPDATE](../statements/update.md) · [ALTER TABLE](../statements/alter-table.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Sequence defaults and restart** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNextvalReopenFixTests.cs`.
 
 - **Text defaults and reopen** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
 - **Expression defaults** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExpressionDefaultTests.cs`.
