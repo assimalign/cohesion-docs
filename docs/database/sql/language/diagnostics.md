@@ -14,10 +14,29 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | CS03083 | ALTER COLUMN TYPE targets a predicate column, including widening; drop and recreate the index | 0A000 |
 | CS03084 | Blank or inconsistent index predicate text/dependency metadata | 42P17 |
 | CS05091 | Predicate contains a prohibited expression or a call/conversion not proven immutable | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 
 An unresolved predicate after a registration change lets the database open and serve reads and
 DROP INDEX, but writes to its table refuse with CS01009 (42883), even with empty input.
 See [partial indexes](statements/create-index.md#partial-indexes) for admission and recovery.
+
+## Index key-order conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03085 | Invalid per-column key-order width/value or directed primary-key metadata | 42P17 |
+
+Constraint column lists reject ASC/DESC or NULLS options with CS00003. Malformed stored order
+vectors use CS06059; unsupported extensions use CS06060; earlier SQL record-space formats
+use CS06041. See [index key directions](statements/create-index.md#key-directions-and-null-placement).
+
+## Bitwise operands
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS02077 | Operand outside SMALLINT/INTEGER/BIGINT, or a shift count outside INTEGER after SMALLINT widening; typed NULL BIGINT counts also fail | 42804 |
+
+See [bitwise typing, NULLs and shifts](expressions/operators.md#integer-bitwise-operators).
 
 ## Language diagnostics
 
@@ -152,8 +171,8 @@ not a separate field on the diagnostic or SQL exception.
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE/NOT ILIKE
 and general `expr::type` casts execute with existing LIKE/CAST diagnostics. SIMILAR TO, regex,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and binary bitwise operators (including # and ^) use
-CK00001; bitwise execution is deferred to SQ-O2.
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and exponentiation ^ use CK00001. Integer bitwise
+operators execute; invalid operand types and BIGINT shift counts use CS02077 (42804).
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 

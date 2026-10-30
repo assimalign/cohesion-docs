@@ -14,6 +14,8 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlCreateIndexExpression](sql-create-index-expression.md)** — Per-column direction, NULL placement and partial predicates.
+
 - **[SqlTransactionExpression](sql-transaction-expression.md)** — Control command and ordered isolation modes.
 - **[SqlTransactionIsolationLevel](sql-transaction-isolation-level.md)** — SQL spellings and effective kernel levels.
 

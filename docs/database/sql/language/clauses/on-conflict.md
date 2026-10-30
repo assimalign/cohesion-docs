@@ -8,7 +8,8 @@ Inserts a proposed row, skips a unique-key conflict, or updates the conflicting 
 
 ```syntaxsql
 insert_statement
-ON CONFLICT [ ( column_name [ , ...n ] ) | ON CONSTRAINT constraint_name ]
+ON CONFLICT [ ( column_name [ , ...n ] ) [ WHERE inference_predicate ]
+            | ON CONSTRAINT constraint_name ]
 { DO NOTHING
 | DO UPDATE SET column_name = { expression | DEFAULT } [ , ...n ]
     [ WHERE search_condition ] }
@@ -35,6 +36,20 @@ WHERE requires a [Boolean search condition](where.md#boolean-search-conditions).
 condition fails planning with CS02003 (42804), before a conflicting row is needed. NULL is
 UNKNOWN and skips the update.
 
+## Example with partial inference
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE active_keys (k INT, active BOOLEAN);
+CREATE UNIQUE INDEX uq_active ON active_keys(k) WHERE active;
+INSERT INTO active_keys VALUES (7,TRUE);
+INSERT INTO active_keys VALUES (7,TRUE) ON CONFLICT (k) WHERE active = TRUE DO NOTHING;
+SELECT k FROM active_keys;
+```
+
+The second insert affects zero rows; SELECT returns one row, `7`.
+
 ## Remarks
 
 Arbiter keys use index collation and temporal normalization. For unconditional unique indexes,
@@ -46,8 +61,18 @@ an explicit target still fails ordinary unique enforcement.
 Untargeted DO NOTHING also arbitrates [partial unique indexes](../statements/create-index.md#partial-indexes).
 Each proposed row participates only where its index predicate is TRUE. FALSE/UNKNOWN membership
 and NULL-containing partial keys do not conflict or take unique-key locks, following PostgreSQL.
-Targeted column-set or named-index inference excludes partial indexes (`CS03035`, 42P10).
-Predicate syntax in a conflict target remains unsupported (`CK00001`).
+A column-set target with WHERE infers matching unique indexes whose predicates that WHERE
+proves using the [partial-index implication rules](../statements/create-index.md#partial-indexes).
+Unconditional unique indexes remain eligible with an inference WHERE. Without it, partial
+indexes are not inferred; ON CONSTRAINT never names a partial index (`CS03035`, 42P10).
+The inference WHERE is separate from DO UPDATE WHERE and does not filter proposed rows:
+arbiters always use each proposal's actual predicate membership.
+
+Subqueries, aggregates, windows and sequences in the inference predicate report `CS05092`
+(no assigned SQLSTATE). After that locality check, ordinary function validation applies:
+unknown functions use `CS01016`; scalar aggregate modifiers use `CS05032`. Parameters and
+non-immutable calls are accepted but supply no partial-predicate proof. A valid target with
+no provable matching partial arbiter uses `CS03035` (42P10).
 
 DO UPDATE SET/WHERE sees the original target row and `EXCLUDED`, the proposed stored row after
 coercion, defaults and identity allocation. Qualify target references by its alias or, without an
@@ -184,7 +209,8 @@ including a row retained after waiting.
 | CS01015 | Unknown/hidden qualifier or ambiguous target/EXCLUDED column | — |
 | CS01019 | Duplicate whole-column SET targets, rejected before writes | — |
 | CS05017 | Aggregate in conflict SET/WHERE | — |
-| CK00001 | Expression/COLLATE/order/operator-class/partial-WHERE inference, DO SELECT, subqueries in conflict SET/WHERE, or EXCLUDED pseudo-relation in RETURNING | — |
+| CS05092 | Subquery, aggregate, window or sequence in target inference WHERE | — |
+| CK00001 | Expression/COLLATE/order/operator-class inference, DO SELECT, subqueries in conflict SET/WHERE, or EXCLUDED pseudo-relation in RETURNING | — |
 | CK00001 | MySQL ON DUPLICATE KEY UPDATE or SQLite INSERT OR IGNORE/REPLACE; message suggests ON CONFLICT | — |
 
 Each constraint exception carries exactly one Error diagnostic, naming the constraint and table
@@ -249,6 +275,8 @@ The conflict statements affect 2 and 1 rows; SELECT returns `(1, 5)`, `(2, 21)`.
 [Clauses](index.md) · [INSERT](../statements/insert.md) · [RETURNING](returning.md) · [Constraints](../constraints.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Implication and inference** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexImplicationTests.cs` and `SqlPartialIndexReviewFixTests.cs` in the same directory.
 
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDiscardedProposalTests.cs`.
 

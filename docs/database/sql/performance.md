@@ -6,9 +6,10 @@ physical entries and 32 page visits; invisible entries, descent pages and stoppi
 work. Incomplete counts are lower bounds, and unknown inputs use heuristics. Probes use the tree
 read latch and validate table/index identities around the count, without transaction object locks.
 
-[Partial indexes](language/statements/create-index.md#partial-indexes) maintain their subset on
-writes but never supply query seeks, join probes or cardinality probes in SQ-P1. Even an identical
-query predicate cannot select one; planner support is deferred to SQ-P2.
+[Partial indexes](language/statements/create-index.md#partial-indexes) can supply seeks, ranges,
+join probes and unbounded subset scans when mandatory query conjuncts prove their predicate.
+Eligible paths participate in bounded cardinality probes and cost selection. The complete query
+predicate remains a residual filter; EXPLAIN records `partial_predicate` and `implied_by`.
 
 Costing is lazy. Complete unique-key equality lookups avoid probes. The primary-key/base-table
 total is probed only when the selected seek estimate exceeds 16 candidates. Join estimates reuse

@@ -102,6 +102,11 @@ INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Index access
 
+[Partial indexes](create-index.md#partial-indexes) are eligible when the input's own WHERE or
+input-local INNER JOIN ON conjuncts prove their predicate. A proof can enable seeks, ranges,
+correlated probes or a complete scan of the indexed subset. Parameters can supply ordinary
+seek values below, but cannot prove partial-index eligibility.
+
 Index ranges are read in bounded cancellable batches. Cancellation reaches cursor open, each
 move, latch waits and page/entry reads; pages and the tree latch are released before expression
 evaluation. This bounds index-range buffering; SELECT retains its result-materialization rules.

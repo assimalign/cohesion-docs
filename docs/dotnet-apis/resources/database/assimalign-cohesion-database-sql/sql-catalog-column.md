@@ -34,7 +34,7 @@ MissingValueLiteral is the frozen canonical ADD COLUMN literal used for physical
 fields; null means a missing field reads NULL. It is independent of the current insert DefaultLiteral
 and is preserved through SET/DROP DEFAULT, renames and restart. Reading old rows never executes the
 insert default. Validation-only full-definition narrowing checks the frozen literal even without live rows. Table
-extension 6 introduced this split in format 17. Current format 31 uses extension 8, which adds ON UPDATE metadata and also
+extension 6 introduced this split in format 17. Current format 32 uses extension 8, which adds ON UPDATE metadata and also
 persists the TYPE default-assignment flag. Rewriting TYPE materializes missing tails in the new
 owner; old descriptions retain their original missing literals for old snapshots.
 
@@ -72,9 +72,10 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## Related reference
 

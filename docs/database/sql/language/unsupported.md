@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 83 of 85 named clauses against the live engine. The 2 excluded names are
+The profile measures 84 of 86 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -22,7 +22,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
 | MySQL ON DUPLICATE KEY UPDATE; SQLite INSERT OR IGNORE/REPLACE | `CK00001` | Use [ON CONFLICT](clauses/on-conflict.md) DO NOTHING/targeted DO UPDATE |
-| ON CONFLICT expression/COLLATE/order/operator-class/partial-WHERE inference; DO SELECT | `CK00001` | Plain column-set or named unique-index arbitration executes |
+| ON CONFLICT expression/COLLATE/order/operator-class inference; DO SELECT | `CK00001` | Column sets support inference WHERE; named targets require an unconditional unique index |
 | Subqueries in ON CONFLICT DO UPDATE SET/WHERE; EXCLUDED pseudo-relation in RETURNING | `CK00001` | Target plus EXCLUDED is available in scalar conflict actions; RETURNING sees only target values |
 | Missing/nonunique ON CONFLICT arbiter or untargeted DO UPDATE | `CS03035` (42P10) | Untargeted DO NOTHING uses all unique indexes |
 | CORRESPONDING [BY (...)] | `CK00001` | Contextual exclusion after a set operator; [UNION/INTERSECT/EXCEPT](clauses/set-operations.md) execute |
@@ -81,11 +81,11 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Precision on CURRENT_TIME/CURRENT_TIMESTAMP/LOCALTIME/LOCALTIMESTAMP | `CK00001` | Transaction-start UTC clock at existing precision |
 | UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `CS01006` (42883) | Signatures reject incompatible inputs during planning |
 | Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `CS02003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
-| Regex operators, including prefix or infix `~`; SIMILAR TO/NOT SIMILAR TO | `CK00001` | [LIKE and ILIKE](expressions/operators.md#ilike-and-not-ilike) execute with ESCAPE |
+| Regex operators, including infix `~` and compound regex forms; SIMILAR TO/NOT SIMILAR TO | `CK00001` | [LIKE and ILIKE](expressions/operators.md#ilike-and-not-ilike) execute with ESCAPE |
 | Postfix ISNULL/NOTNULL, IS JSON/OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
-| Binary `&`, `\|`, `#`, `^`, `<<`, `>>` | `CK00001` | Bitwise operators are deferred to SQ-O2; [expr::type](expressions/cast.md#postfix-casts) executes |
+| Exponentiation `^` | `CK00001` | [Integer bitwise operators](expressions/operators.md#integer-bitwise-operators) execute; XOR is `#` |
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
-| CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
+| CREATE INDEX expression keys or INCLUDE | No dedicated diagnostic promised by the dialect | Plain column keys accept ASC/DESC and NULLS FIRST/LAST; constraint lists reject options with CS00003 |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
 | `GRANT` | `CS00002` | Unknown leading command |

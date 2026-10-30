@@ -6,6 +6,8 @@ SQL's thin schema package provides one-step `SqlSchema.Compile`, lower-level `Sq
 
 ## Reference pages
 
+- **[CompiledSchemaIndex](compiled-schema-index.md)** — Immutable key orders, predicates and v11 identity.
+
 - **[CompiledSchemaConstraint](compiled-schema-constraint.md)** — OnUpdate metadata, defaults and migration identity.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
@@ -31,14 +33,14 @@ See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 
 ## Current format boundary
 
-v10 adds optional CompiledSchemaIndex.Predicate metadata and retains v9's always-serialized
-OnUpdate metadata. The earlier v8 changed typed TimeSpan defaults to exact signed seconds;
-v10 retains that rendering.
+v11 adds CompiledSchemaIndex.KeyOrders, retaining v10's optional Predicate and v9's
+always-serialized OnUpdate metadata. The earlier v8 changed typed TimeSpan defaults to exact signed seconds;
+v11 retains that rendering.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-31/v10 upgrade note](../../../../database/sql/index.md#sql-format-31-and-schema-v10).
+[format-32/v11 upgrade note](../../../../database/sql/index.md#sql-format-32-and-schema-v11).
 
-The integration branch uses SQL row-storage format 31 and compiled schema version 10.
+The integration branch uses SQL row-storage format 32 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -52,9 +54,10 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## Sources
 

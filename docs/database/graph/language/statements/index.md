@@ -29,6 +29,16 @@ an incoming clause, with optional RETURN. They are not standalone leading statem
 
 - **[Language (GQL)](../index.md)** — reference hub.
 
+## Schema statements
+
+- **[CREATE INDEX](create-index.md)** and **[DROP INDEX](drop-index.md)** — named node-property indexes.
+- **[CREATE CONSTRAINT](create-constraint.md)** and **[DROP CONSTRAINT](drop-constraint.md)** — type/existence rules for node and relationship properties.
+- **[CREATE LABEL](create-label.md)** and **[DROP LABEL](drop-label.md)** — Cohesion label definitions.
+- **[CREATE RELATIONSHIP TYPE](create-relationship-type.md)** and **[DROP RELATIONSHIP TYPE](drop-relationship-type.md)** — Cohesion relationship-type definitions.
+
+All schema writes require autocommit. An admitted write inside an explicit transaction,
+including a conditional no-op, reports CG04025 and aborts it. SHOW remains read-only.
+
 ## Transaction statements
 
 [BEGIN/START TRANSACTION, COMMIT and ROLLBACK](transactions.md) execute as standalone controls on Execute.

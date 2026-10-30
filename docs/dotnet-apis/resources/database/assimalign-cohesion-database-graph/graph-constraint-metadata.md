@@ -30,6 +30,11 @@ CG03010 for invalid existing data and CG02009 for a record exceeding 8,092 encod
 No SQLSTATE is assigned to these codes. Ownership follows the parent; schema-owned mutation
 throws DatabaseObjectLockedException.
 
+Constraint creation and drops require autocommit. An admitted schema write in an explicit
+transaction reports CG04025 and aborts it; typed argument checks precede admission. Validation
+uses statement work and retained-memory budgets (CG05004/CG05020), rolling the operation back
+on exhaustion. These codes have no assigned SQLSTATE.
+
 ## Example
 
 Given a GraphSchema and the GUID of an existing ad-hoc label, as in GraphSchemaConstraintTests:

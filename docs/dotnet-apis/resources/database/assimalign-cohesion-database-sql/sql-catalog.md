@@ -43,6 +43,12 @@ Console.WriteLine(catalog.Namespaces.Any(s => s.Name == "sales")); // False
 This follows SqlCatalogNamespaceTests with an open catalog. Low-level open does not seed dbo;
 SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
 
+## Index key orders
+
+[SqlCatalogIndex](sql-catalog-index.md) adds an optional keyOrders constructor argument and a
+read-only effective KeyOrders vector. Null supplies ASC NULLS LAST per key; invalid vectors
+or directed primary-key metadata throw SqlCatalogException/CS03085 (42P17).
+
 ## Index predicate metadata
 
 `SqlCatalogIndex` adds optional constructor arguments `string? predicate = null`,

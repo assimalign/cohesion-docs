@@ -4,6 +4,17 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Schema DDL
+
+[GqlSchemaCommand](gql-schema-command.md) stores standalone CREATE/DROP index, constraint,
+label and relationship-type commands. The parser checks FOR/property variable identity
+(CG01022); unsupported UNIQUE, composite, relationship-index and closed graph-type forms use
+CK00001. Commands render from semantic fields with quoted names and canonical types;
+relationship arrows normalize to an undirected constraint. The query-expression SchemaCommand
+property is mutually exclusive with ordinary stages, composite queries and catalog/control
+forms; malformed direct combinations retain the existing CG05001 refusal. See
+[language syntax and limits](../../../../database/graph/language/statements/index.md#schema-statements).
+
 ## Standard decision (#193)
 
 The owner selected **ISO/IEC 39075:2024 GQL** on **2026-09-17**, following
@@ -467,6 +478,8 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 | CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
 
 ## Sources
+
+- **Schema DDL** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/src/GqlQueryParser.Schema.cs` and `tests/GqlSchemaDdlParserTests.cs` in the same project.
 
 - **Composite grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Language/tests/GqlSetQueryParserTests.cs`; execution follows `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
 

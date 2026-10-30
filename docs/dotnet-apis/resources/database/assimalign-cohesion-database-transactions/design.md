@@ -378,11 +378,35 @@ Transactions keyword. Payload: database, transactionSequence, isolationLevel. Th
 effective kernel level (Snapshot or ReadCommitted). Idempotent early SET emits no change event;
 configuration changes no gauge or lifecycle rate.
 
+## In-memory undo markers and model adapters
+
+The internal savepoint substrate records model before-images and marker-scoped lock grants.
+Rollback-to restores the affected records, indexes, catalog/entity directories and version
+links before releasing new locks and reverting upgrades, preserving earlier grants. Releasing
+a nested marker transfers its grants to the enclosing scope. Model adapters cover SQL,
+Documents, Graph, Key-Value Pair and Blob. Markers and ledger positions remain memory-only;
+the shared storage format stays 4. Named controls and language/session admission belong to
+XT-4; this substrate adds no user-facing SAVEPOINT syntax or public marker token.
+
+An open Documents or Blob write stream prevents marker creation, release and rollback-to.
+Stream completion, cancellation and failure release the registration exactly once.
+The internal TransactionUndoException carries its code separately from its message:
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04008 | Foreign, released, discarded or ended marker; foreign/stale context, statement view or snapshot pin | — |
+| CK04009 | Partial undo or failed statement memory compensation is running/incomplete, or statement/control/end activity prevents control admission | — |
+| CK04010 | An open write stream prevents marker control | — |
+| CK04011 | A transaction already has 65,535 open write streams | — |
+
+The real-adapter suites exercise write-after-undo, pinned readers and crash recovery with and
+without root commit. See the [code registry](../../../../database/error-codes.md).
+
 ## Non-goals
 
 - **No distributed transactions / two-phase commit** — single-node ACID first.
 - **No lock escalation policy in the contract** — an implementation concern.
-- **No savepoints in the MVP surface** — add to `ITransactionContext` when a model needs them.
+- **No named savepoints in the public surface** — internal undo markers and model adapters are implemented; user-facing controls remain deferred to XT-4.
 
 ## AOT posture
 
@@ -422,6 +446,8 @@ outside the lock-table monitor. Queues without a detected cycle retain normal FI
 not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
+
+- **Undo and model adapters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`, `tests/TransactionUndoLockTests.cs` and `tests/TransactionUndoMarkerFixTests.cs` beneath the same project; each model's `tests/SavepointAdapterTests.cs`.
 
 - **Isolation events** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionEventSourceTests.cs`.
 
