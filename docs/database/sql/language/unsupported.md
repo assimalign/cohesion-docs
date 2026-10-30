@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 83 of 85 named clauses against the live engine. The 2 excluded names are
+The profile measures 84 of 86 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -85,7 +85,7 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Postfix ISNULL/NOTNULL, IS JSON/OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
 | Exponentiation `^` | `CK00001` | [Integer bitwise operators](expressions/operators.md#integer-bitwise-operators) execute; XOR is `#` |
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
-| CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
+| CREATE INDEX expression keys or INCLUDE | No dedicated diagnostic promised by the dialect | Plain column keys accept ASC/DESC and NULLS FIRST/LAST; constraint lists reject options with CS00003 |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
 | `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
 | `GRANT` | `CS00002` | Unknown leading command |

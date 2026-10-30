@@ -33,7 +33,7 @@ Reference for row sources, predicates, grouping, ordering, and value clauses.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 83-of-85 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 84-of-86 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

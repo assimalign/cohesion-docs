@@ -25,7 +25,7 @@ FROM COHESION_SCHEMA.view_name
 
 | Relation | Columns in SELECT * order | Rows |
 | --- | --- | --- |
-| `INDEXES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `INDEX_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `IS_UNIQUE`, `IS_PRIMARY_KEY`, `PREDICATE` | One row per ordered index-key column |
+| `INDEXES` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `INDEX_NAME`, `COLUMN_NAME`, `ORDINAL_POSITION`, `IS_UNIQUE`, `IS_PRIMARY_KEY`, `PREDICATE`, `DIRECTION`, `NULL_PLACEMENT` | One row per ordered index-key column |
 | `OBJECT_OWNERSHIP` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `OBJECT_TYPE`, `OBJECT_NAME`, `OWNER`, `OWNING_SCHEMA` | One row per table or index |
 | `FUNCTIONS` | `FUNCTION_NAME`, `FUNCTION_KIND`, `PARAMETER_TYPES`, `PARAMETER_COUNT`, `RETURN_TYPE`, `VOLATILITY`, `NULL_BEHAVIOR`, `IS_BUILT_IN`, `IS_SQL_DEFINED` | One row per overload or special form |
 | `TYPES` | `TYPE_NAME`, `BASE_TYPE`, `IS_DOMAIN`, `IS_SQL_DEFINED` | Native types/domains and SQL-defined domains |
@@ -38,7 +38,16 @@ supply a general index relation. It exposes key-column order rather than physica
 `ORDINAL_POSITION` is one-based `Int64`; names and flag values are `String`.
 `IS_UNIQUE` and `IS_PRIMARY_KEY` contain `YES` or `NO`.
 `PREDICATE` is nullable String: canonical SQL for a [partial index](../statements/create-index.md#partial-indexes),
-NULL otherwise. INFORMATION_SCHEMA.INDEXES is a nonstandard alias with the same columns.
+NULL otherwise. DIRECTION and NULL_PLACEMENT are nullable String columns, omitting defaults:
+
+| Effective key order | DIRECTION | NULL_PLACEMENT |
+| --- | --- | --- |
+| ASC NULLS LAST | NULL | NULL |
+| ASC NULLS FIRST | NULL | FIRST |
+| DESC NULLS FIRST | DESC | NULL |
+| DESC NULLS LAST | DESC | LAST |
+
+INFORMATION_SCHEMA.INDEXES is a nonstandard alias with the same columns.
 
 `OBJECT_TYPE` is `TABLE` or `INDEX`. `OWNER` is `Adhoc` or `Schema`.
 `OWNING_SCHEMA` is the compiled schema name for schema-owned objects and null for ad-hoc objects;

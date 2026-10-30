@@ -73,11 +73,11 @@ See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 31; compiled schema artifacts are version 10. Format 17 introduced the
+SQL row-storage is format 32; compiled schema artifacts are version 11. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
-See the [format-31/schema-v10 export and rebuild procedure](../../index.md#sql-format-31-and-schema-v10).
+See the [format-32/schema-v11 export and rebuild procedure](../../index.md#sql-format-32-and-schema-v11).
 
 ## Temporal text input
 
@@ -153,9 +153,10 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## See also
 

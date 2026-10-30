@@ -255,7 +255,7 @@ The first returns `(TRUE, TRUE)`. The second fails with located `CS05040`; repla
 with NOT LIKE also fails. A subsequent query on that session still executes.
 
 Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
-domain checks, SQL function bodies and views. Storage format 31 refuses earlier files without
+domain checks, SQL function bodies and views. Storage format 32 refuses earlier files without
 an upgrade reader. These expression forms add no named clause.
 
 ## ILIKE and NOT ILIKE

@@ -8,9 +8,11 @@ Creates a table-scoped secondary index over a plain column list, optionally rest
 
 ```syntaxsql
 CREATE [ UNIQUE ] INDEX [ IF NOT EXISTS ] index_name
-ON [ schema_name . ] table_name ( column_name [ , ...n ] )
+ON [ schema_name . ] table_name ( <index_key> [ , ...n ] )
 [ WHERE predicate ]
 [ ; ]
+
+<index_key> ::= column_name [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
 ```
 
 ## Arguments
@@ -24,10 +26,13 @@ ON [ schema_name . ] table_name ( column_name [ , ...n ] )
 
 ## Remarks
 
-Only plain column lists are in this dialect. Per-column `ASC`/`DESC`, expression keys, and
-`INCLUDE` are outside the contract. Index construction and writes use the shared index kernel.
-An applicable unconditional secondary-index prefix can assist the supported inner join.
-SELECT, UPDATE and DELETE also use [eligible unconditional leading key bounds](select.md#index-access);
+Each plain column key accepts ASC/DESC and independent NULL placement, including on partial
+indexes. Defaults follow PostgreSQL: ASC NULLS LAST and DESC NULLS FIRST. Canonical DDL omits
+ASC and each direction's default NULL placement. PRIMARY KEY and UNIQUE constraint lists
+reject these options with `CS00003`; expression keys and INCLUDE remain excluded.
+Index construction and writes use the shared index kernel.
+An applicable secondary-index prefix can assist an inner join; a partial index additionally
+requires a predicate proof. SELECT, UPDATE and DELETE use [eligible leading key bounds](select.md#index-access);
 [EXPLAIN](explain.md) reports the selected seek.
 
 Unconditional unique indexes treat `NULL` as an equal key. String keys use the column's effective collation;
@@ -44,6 +49,27 @@ CS03050 (42710). CREATE INDEX under `invariant` uses CS05013 (no assigned SQLSTA
 index-backed constraint admission instead uses CS05057 (0A000).
 Schema-owned object admission can report CS03066 (42501). Execution/DDL failures retain the
 statement span and expose the code separately from Message.
+
+### Key directions and NULL placement
+
+Equality-prefix seeks and ranges honour each key's direction. Bounds come from =, <, <=, >,
+>= and BETWEEN; descending ranges reverse their physical endpoints. NULL placement is
+independent of value direction. Comparison ranges never visit the NULL block, including
+one-sided ranges; NULL equality prefixes retain the complete matching suffix range.
+LIKE remains a residual after an equality-prefix seek.
+
+Every ORDER BY still sorts, even when it matches or fully reverses the index order. Order
+matching and sort avoidance belong to SQ-K3. See [ORDER BY](../clauses/order-by.md).
+Index direction does not change uniqueness or partial-index NULL rules. Floating index keys
+canonicalize signed zeros together and place all NaNs below negative infinity; stored row
+values keep their IEEE representation. Floating seek eligibility remains conservative.
+
+[INDEXES metadata](../system-views/cohesion-schema.md) exposes nullable DIRECTION and
+NULL_PLACEMENT per key. Catalog format 32 and compiled schema v11 refuse earlier formats;
+follow the [export and rebuild procedure](../../index.md#sql-format-32-and-schema-v11).
+Invalid key-order widths/values or directed primary-key metadata use `CS03085` (42P17).
+Malformed stored vectors use CS06059; unsupported extensions use CS06060; an older SQL
+record-space format uses CS06041.
 
 ### Partial indexes
 
@@ -78,7 +104,7 @@ and DROP INDEX work, but every write to that table fails with `CS01009` (42883),
 empty input. Restoring the required immutable definition or dropping the index restores writes.
 
 Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
-expose canonical predicate text. SQL catalog format 31 and compiled schema v10 persist it and
+expose canonical predicate text. SQL catalog format 32 and compiled schema v11 persist it and
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 
@@ -136,6 +162,19 @@ Because construction precedes duplicate validation, CS05042 can take precedence 
 CS03037 duplicate that occurs earlier in storage order.
 
 ## Examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE directed_keys (id INT, k INT, active BOOLEAN);
+INSERT INTO directed_keys VALUES (1,NULL,TRUE),(2,7,TRUE),(3,11,TRUE),(4,12,FALSE);
+CREATE INDEX ix_directed ON directed_keys(k DESC NULLS LAST) WHERE active;
+SELECT id FROM directed_keys WHERE active AND k > 5 ORDER BY k DESC NULLS LAST;
+SELECT DIRECTION, NULL_PLACEMENT FROM COHESION_SCHEMA.INDEXES
+WHERE TABLE_NAME = 'directed_keys' AND INDEX_NAME = 'ix_directed';
+```
+
+The first SELECT returns `3`, `2`; it still sorts. The metadata row is `('DESC', 'LAST')`.
 
 Execute separately in a fresh database:
 
@@ -204,6 +243,8 @@ is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Directions and NULL ranges** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDirectedIndexTests.cs`, `SqlDirectedRangeNullTests.cs` and `Catalog/SqlCatalogKeyOrderCorruptionTests.cs` in the same test tree.
 
 - **Implication and inference** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexImplicationTests.cs` and `SqlPartialIndexReviewFixTests.cs` in the same directory.
 

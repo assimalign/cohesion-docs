@@ -11,6 +11,8 @@ packages are retired. Wire contracts ship separately in [Sql.Protocol](../assima
 
 ## Reference pages
 
+- **[SqlCatalogIndex](sql-catalog-index.md)** — Effective key orders and catalog metadata validation.
+
 - **[SqlDatabase](sql-database.md)** — Recoverable table rewrite, ordinal compaction and snapshot/retry behavior.
 - **[SqlObjectName](sql-object-name.md)** — Validated decoded schema/object name components.
 - **[SqlDatabaseServerOptions](sql-database-server-options.md)** — Terminal drain deadline and peer-close linger.

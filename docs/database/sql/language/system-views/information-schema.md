@@ -40,6 +40,8 @@ FROM INFORMATION_SCHEMA.view_name
 `INFORMATION_SCHEMA.INDEXES` is an explicitly nonstandard alias of
 [COHESION_SCHEMA.INDEXES](cohesion-schema.md). It has that relation's ordered columns, including
 nullable `PREDICATE`: canonical SQL text for a partial index, NULL for an unconditional index.
+The appended nullable String columns DIRECTION and NULL_PLACEMENT report DESC and only the
+direction's nondefault NULL placement; NULL cells denote defaults. See the alias target for all four cases.
 Partial unique indexes are not listed as TABLE_CONSTRAINTS.
 
 SCHEMATA reads the captured namespace list independently of tables. CATALOG_NAME and SCHEMA_NAME
