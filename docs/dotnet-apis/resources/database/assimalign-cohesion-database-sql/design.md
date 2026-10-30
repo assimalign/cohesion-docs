@@ -25,7 +25,10 @@ accepts per-column ASC/DESC and independent NULL placement. Catalog KeyOrders sn
 effective order; compiled schema v11 carries the same vector. SQL format 32 uses mandatory
 index extension 3. Runtime maintenance, builds, rewrites, conflict checks and undo share the
 direction-aware transform; comparison ranges exclude the NULL block. Direction preserves
-uniqueness. Every ORDER BY still sorts; sort avoidance belongs to SQ-K3.
+uniqueness. Matching single-table ORDER BY can use forward or backward index order without
+sorting. Leading keys after equality prefixes (including IS NULL), resolved collations and
+directions must agree; NULL placement must agree only where NULL can vary. Costing includes
+residual selectivity and base-row fetches. See [ordered access](../../../../database/sql/language/clauses/order-by.md#index-order).
 Invalid key-order width/value or directed primary-key metadata uses CS03085 (42P17).
 
 ## Partial indexes

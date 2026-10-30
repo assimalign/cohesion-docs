@@ -31,7 +31,7 @@ positive one-based ordinals only. Expressions and qualified names use CS02018; a
 output names use CS01019. Parenthesized operands can retain their own ordinary SELECT ordering.
 
 Keys compare left to right. `NULL` sorts first ascending and last descending by default. Per-key NULLS FIRST/LAST overrides
-that placement independently of direction. Equal keys retain input order; add a tie-breaker for
+that placement independently of direction. Equal keys have unspecified order; add a unique tie-breaker for
 deterministic paging across access paths. Ordering evaluates after grouping
 and `HAVING`, before pagination, and composes with `DISTINCT` and supported system relations,
 joins, aggregates, and subqueries.
@@ -55,9 +55,8 @@ remain in input scope; inner queries resolve their own names. Collation follows 
 Placement works in SELECT tails, aggregate inputs, set results, derived tables, CTEs and views,
 including aliases, ordinals and merged USING values. Malformed `ORDER BY a NULLS` or
 `ORDER BY a NULLS MIDDLE` reports CS00003. NULLS/FIRST/LAST remain contextual identifiers.
-EXPLAIN records the effective placement per key. Every ORDER BY sorts after its access path;
-indexes do not supply result order. This includes matching and fully reversed directed index
-keys; order matching and sort avoidance are deferred to SQ-K3.
+EXPLAIN records the effective placement per key. A matching index can supply the result order
+without sorting, as described below.
 Ordinals are exclusive to `ORDER BY`; numeric grouping keys do not identify outputs.
 
 With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinals count the
@@ -66,6 +65,50 @@ their visible columns. Out-of-range positions report `CS02018`, even on empty in
 
 [Aggregate input ORDER BY](../functions/aggregate-functions.md#aggregate-modifiers) binds to source
 rows. Unlike this outer clause, its integer keys are constants rather than output ordinals.
+
+## Index order
+
+A single-table SELECT can use a forward or backward ordered index scan. ORDER BY must name
+consecutive leading index keys after any equality-bound prefix; `IS NULL` also fixes a prefix
+key. Pass-through output aliases and ordinals can match. Skipping an unconstrained leading key,
+using a computed key or changing its resolved collation retains sorting.
+
+Directions and NULL placements must match every requested key, or all directions and placements
+must reverse together for a backward scan. NULL placement is ignored when NULL cannot affect
+a key's relative order:
+
+- A declared NOT NULL or primary-key column.
+- An equality-bound prefix column, whose value is fixed (including a fixed NULL).
+- A column with a mandatory NULL-rejecting WHERE conjunct, such as `k IS NOT NULL`, a strict
+  comparison, IN, BETWEEN or LIKE. Parameters can participate; OR/NOT branches supply no proof.
+- A column rejected when NULL by the proven partial-index predicate. The query must also
+  prove that index's membership predicate.
+
+ORDER BY defaults to **ASC NULLS FIRST** and **DESC NULLS LAST**. Index DDL instead defaults
+to **ASC NULLS LAST** and **DESC NULLS FIRST**. For a nullable key without a NULL-rejecting
+predicate, a default index therefore cannot serve a default ORDER BY. Either give the query
+an explicit matching placement, or declare the index with NULLS FIRST:
+
+```sql
+CREATE TABLE index_order (k INT);
+INSERT INTO index_order VALUES (NULL),(2),(1);
+CREATE INDEX ix_k ON index_order(k);
+SELECT k FROM index_order ORDER BY k NULLS LAST LIMIT 2;
+DROP INDEX ix_k ON index_order;
+CREATE INDEX ix_k ON index_order(k NULLS FIRST);
+SELECT k FROM index_order ORDER BY k LIMIT 2;
+```
+
+Execute separately. The queries return `1, 2` and `NULL, 1`, respectively. Each index is eligible
+for its query. A fully reversed scan of the second index serves `ORDER BY k DESC NULLS LAST`.
+
+Costing weighs the avoided sort and early stop against base-row fetches and filter selectivity;
+an eligible ordered index need not win. Non-DISTINCT LIMIT/OFFSET stops after enough qualifying
+rows. DISTINCT consumes all candidates before deduplication and paging. Joins, grouping, windows,
+scalar subqueries, volatile projections, recursive queries and JSON ordering retain sorting.
+EXPLAIN shows `OrderedIndexScan`, `direction=forward` or `direction=backward`, and
+`sort_removed=true`; SELECT detail adds `order_source=index`. Partial-index detail retains
+`partial_predicate` and `implied_by`. See [performance](../../performance.md).
 
 ## Evaluation order
 
@@ -83,7 +126,7 @@ Outside that volatile-output fallback, a non-DISTINCT stored-table or system-vie
 LIMIT 0 skips its scan and output/key evaluation even when ORDER BY is present. Planning still
 validates the query.
 
-For non-DISTINCT ORDER BY with a positive limit and fixed ordering collations, execution keeps
+When index order is not selected, non-DISTINCT ORDER BY with a positive limit and fixed ordering collations keeps
 only the best OFFSET + LIMIT candidates while examining all qualifying inputs. Ties preserve the
 same input order as a full sort, including collation-equivalent keys and NULLs. Deferred ordering
 collations use full sorting with the last qualifying row's resolved collations; a later row rejected
@@ -136,6 +179,7 @@ change its order relative to other non-NULL numbers.
 
 ## Sources
 
+- **Ordered scans, NULL proofs and costing** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlOrderedIndexTests.cs`, `SqlOrderedIndexReviewTests.cs` and `SqlOrderedIndexVisibilityTests.cs` in the same directory.
 - **Zero-limit execution paths** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.cs` and `SqlRowCollector.cs` in the same directory.
 - **Stable bounded ordering and volatile outputs** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs` and `SqlBoundedSelectionRegressionTests.cs` in the same directory.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
