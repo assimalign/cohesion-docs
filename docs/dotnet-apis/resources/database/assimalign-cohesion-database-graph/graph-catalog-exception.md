@@ -24,6 +24,18 @@ owner uses DatabaseException with CG03003; malformed records use CG06006. The or
 catalog exception remains the cause. These codes have no assigned SQLSTATE. Storage/index/I/O
 failure takes precedence when it accompanies a conflict or disposal.
 
+Named-rule producers retain their specific diagnostic through engine translation:
+
+| Code | Condition |
+| --- | --- |
+| CG03008 | Database-wide index/constraint name is already used |
+| CG03009 | Duplicate constraint kind or incompatible property type rule |
+| CG06019 | Unsupported catalog record version; only v2 is admitted |
+
+GraphSchema additionally reports CG01021 for an absent named drop and CG03010 when existing
+data violates a new constraint. None has an assigned SQLSTATE. See [GraphSchema](graph-schema.md)
+for its DatabaseException contracts and pre-admission argument validation.
+
 ## Related reference
 
 - **Assembly** — [`Assimalign.Cohesion.Database.Graph`](index.md).

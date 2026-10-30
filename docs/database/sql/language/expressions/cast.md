@@ -8,16 +8,36 @@ Converts a value using the engine's registered conversion, then applies the dest
 
 ```syntaxsql
 CAST ( expression AS target_type )
+expression :: target_type
 ```
 
 The target uses the same [type names and modifiers](../data-types/index.md) as DDL, including
 multi-word names and engine-resolved domains.
 
+## Postfix casts
+
+`expr::type` accepts every CAST target, including modifiers, multiword type names and quoted
+domains. It chains left to right and binds tighter than unary signs and every binary operator:
+`-x::TEXT::INT` means `-CAST(CAST(x AS TEXT) AS INT)`. Canonical text renders as CAST.
+Contiguous `::` is required except for the existing sequence-specific `: : REGCLASS` spelling.
+The same conversion, NULL, modifier and diagnostic rules below apply.
+
+Unary signs apply after the cast. Both `+1::TEXT` and `-1::TEXT` fail with CS02003 (42804)
+because the sign receives TEXT; `+1::INT` returns `1`.
+
+```sql
+SELECT - '7'::INT + 2 * '3'::INT, '7'::TEXT::INT, NULL::TEXT::INT,
+       'abc'::VARCHAR(2);
+```
+
+Returns `(-1, 7, NULL, 'ab')`.
+
 ## Conversion pairs
 
 Sequence references additionally accept `CAST(name AS REGCLASS)` and `name::regclass`, returning
 the sequence's BIGINT object identity (NULL for NULL). REGCLASS resolves only sequences and is
-not a stored column type. Persisted use is CS03074 (0A000); absent names use CS03073 (42P01),
+not a stored column type. Persisted use outside an admitted column sequence default is CS03074
+(0A000); absent names use CS03073 (42P01),
 malformed references CS03077 (22023). See [sequence functions](../functions/sequences.md).
 
 Identity conversions work for all 19 shared non-null SQL types. This table lists additional
@@ -134,6 +154,8 @@ The SELECT reports CS03038 (23514), naming `positive`; the stored row remains un
 [Expressions](index.md) · [Literals](literals.md) · [Data types](../data-types/index.md) · [Diagnostics](../diagnostics.md)
 
 ## Sources
+
+- **Postfix grammar, precedence and diagnostics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIlikeCastTests.cs` and `SqlOperatorFixTests.cs` in the same directory.
 
 - **Text assignment and CAST parity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTemporalAssignmentConformanceTests.cs`.
 - **Temporal failure categories** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`.

@@ -46,14 +46,22 @@ Each subject has fixed columns in this order:
 
 Name columns are strings, identity columns are GUIDs, and `IS_REQUIRED` and `IS_UNIQUE` are
 Booleans. `DEFINITION_TYPE` is `LABEL` or `RELATIONSHIP TYPE`. `DATA_TYPE` is a declared
-`DatabaseType` name or null for an unconstrained key. Current node-property indexes are nonunique.
+`DatabaseType` name or null for an unconstrained key. PROPERTY KEYS reports effective type and
+requiredness from declarations plus named type/existence constraints. Current node-property
+indexes are nonunique.
 
 Ownership is `Adhoc` or `Schema`, with nullable `OWNING_SCHEMA`. Property and index rows report
-their parent definition's authority. Label definitions precede relationship types, with ordinal
+their parent definition's authority. Named constraints add OBJECT_TYPE `CONSTRAINT` rows whose
+OBJECT_NAME is the constraint name, with the same inherited authority. Label definitions precede relationship types, with ordinal
 ordering for definition and child names.
 
-`GraphDatabaseServer` accepts these catalog statements. General GQL queries are not supported by
-that wire server. Mutation composition is rejected before writer locks or data mutation, with
+Constraints and database-wide schema names are managed through the typed
+[GraphSchema API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
+There is no text DDL or SHOW CONSTRAINTS in this run. Typed GetPropertyKeysAsync returns declared
+metadata only; SHOW PROPERTY KEYS includes named-rule effects.
+
+`GraphDatabaseServer` accepts these catalog statements alongside its scalar queries, mutations
+and path requests. Mutation composition with SHOW is rejected before writer locks or data mutation, with
 `CG00007`; direct abstract syntax tree requests receive the same protection.
 
 ## Examples
@@ -73,6 +81,18 @@ SHOW OBJECT OWNERSHIP
 ```
 
 Each block is a separate request.
+
+After the [GraphSchema constraint example](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md#example)
+creates p_type and p_exists, before dropping either rule:
+
+```sql
+SHOW PROPERTY KEYS
+```
+
+The N.p row reports DATA_TYPE `Int64` and IS_REQUIRED `TRUE`. SHOW OBJECT OWNERSHIP also
+includes CONSTRAINT rows named p_type and p_exists with their label's ownership. After dropping
+p_exists, N.p remains Int64 and IS_REQUIRED becomes FALSE, unless an independent declaration
+still requires it.
 
 ## See also
 

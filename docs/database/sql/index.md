@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 82 of 84 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 83 of 85 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,7 +44,7 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 82-of-84 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 83-of-85 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and executable RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
@@ -67,7 +67,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 30; compiled schemas remain version 9.
+SQL storage format is 31; compiled schemas remain version 10.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -160,7 +160,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 30.
+Drop removes sql.dat before the remaining file set. The current format is 31.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -194,10 +194,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
-in table extension 8 and retains TYPE default assignment coercion.
+Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
+Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 9.
+upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 10.
 
 ## Table maintenance
 
@@ -207,16 +207,18 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
-## SQL format 30 and schema v9
+## SQL format 31 and schema v10
 
-SQL opens only data/catalog format **30** and compiled documents in
-**cohesion/database-schema/v9**. Format 30 adds ON UPDATE action bytes in table extension 8.
+SQL opens only data/catalog format **31** and compiled documents in
+**cohesion/database-schema/v10**. Format 30 adds ON UPDATE action bytes in table extension 8.
+Format 31 adds partial-index predicate text and dependencies in index extension 2.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
-Format 29 and every earlier database format are refused at open before stored expressions bind;
-there is no upgrade path or legacy reader. Compiled schema v9 adds the always-serialized onUpdate member.
+Format 30 and every earlier database format are refused at open before stored expressions bind;
+there is no upgrade path or legacy reader. Compiled schema v10 adds optional index Predicate
+metadata and retains v9's always-serialized onUpdate member.
 
 Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL
 `'12'` meant days, while current input means seconds. Typed TimeSpan defaults render exact signed
@@ -239,6 +241,11 @@ manage persisted namespaces. dbo is seeded and protected; code-first provisionin
 [Database](../index.md) · [Overview](../overview.md) · [Database .NET APIs](../../dotnet-apis/resources/database/index.md)
 
 ## Query performance
+
+[CREATE INDEX ... WHERE](language/statements/create-index.md#partial-indexes) maintains a partial
+subset on every write and enforces partial uniqueness with distinct NULL keys. Untargeted
+ON CONFLICT DO NOTHING uses membership; targeted inference still excludes partial indexes.
+Query planning does not use partial indexes until SQ-P2.
 
 [Probe costing, hash memory and plan analysis](performance.md) describe access selection and its limits.
 

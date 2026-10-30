@@ -68,7 +68,7 @@ transaction and retry against a fresh snapshot. Read-only statements retain the 
 [CREATE TABLE AS](create-table.md#create-table-as) uses the same durable prepared-owner
 reclamation machinery to publish a populated new table atomically. CTAS uses a single builder
 commit for row visibility; TRUNCATE preserves the old table storage for older snapshots. Both
-reuse SQL format 30. CTAS inside an explicit transaction uses CS04003 (25001); TRUNCATE retains
+reuse SQL format 31. CTAS inside an explicit transaction uses CS04003 (25001); TRUNCATE retains
 CS04066 (25001).
 
 ## Diagnostics

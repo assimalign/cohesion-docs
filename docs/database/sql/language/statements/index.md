@@ -16,7 +16,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 - **[ALTER TABLE](alter-table.md)** — Change types with old-row USING, rename objects, alter facets and add/drop columns/constraints.
 - **[DROP TABLE](drop-table.md)** — Remove an ad-hoc stored table.
 - **[TRUNCATE](truncate.md)** — Empty a table set with FK closure, identity policies and old-snapshot visibility.
-- **[CREATE INDEX](create-index.md)** — Create a plain-column secondary index.
+- **[CREATE INDEX](create-index.md)** — Create a plain-column secondary index, optionally partial with WHERE.
 - **[DROP INDEX](drop-index.md)** — Drop an index using its required table qualifier.
 
 - **[CREATE VIEW](create-view.md)** — Persist a bound read-only query; optionally replace compatible outputs.
@@ -47,7 +47,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 82-of-84 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 83-of-85 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

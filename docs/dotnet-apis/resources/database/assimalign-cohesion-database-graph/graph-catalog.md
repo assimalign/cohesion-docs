@@ -18,6 +18,11 @@ public GraphLabelMetadata? FindLabel(string name, TransactionSnapshot snapshot);
 public GraphLabelMetadata? FindLabel(Guid id, TransactionSnapshot snapshot);
 public GraphRelationshipTypeMetadata? FindRelationshipType(Guid id, TransactionSnapshot snapshot);
 public IReadOnlyList<GraphLabelMetadata> GetLabels(TransactionSnapshot snapshot);
+public GraphIndexMetadata? FindIndex(string name, TransactionSnapshot snapshot);
+public IReadOnlyList<GraphIndexMetadata> GetIndexes(TransactionSnapshot snapshot);
+public GraphConstraintMetadata? FindConstraint(string name, TransactionSnapshot snapshot);
+public IReadOnlyList<GraphConstraintMetadata> GetConstraints(TransactionSnapshot snapshot);
+public IReadOnlyList<GraphConstraintMetadata> GetConstraints(Guid definitionId, TransactionSnapshot snapshot);
 public ValueTask SaveLabelAsync(GraphLabelMetadata label, TransactionContext context,
     CancellationToken cancellationToken = default);
 ```
@@ -26,6 +31,16 @@ public ValueTask SaveLabelAsync(GraphLabelMetadata label, TransactionContext con
 `GraphLabelMetadata` and `GraphRelationshipTypeMetadata` carry stable GUIDs, case-sensitive names,
 ownership, and owning schema. `GraphPropertyKeyMetadata` declares optional value type and
 requiredness. `GraphIndexMetadata` names a node-property index.
+
+[GraphConstraintMetadata](graph-constraint-metadata.md) names an independent type or existence
+rule. Index/constraint names share one database-wide ordinal, case-sensitive namespace. Find
+returns null when absent; database-wide lists use ordinal name order. Catalog property reads
+combine named and declared rules; GraphSchema.GetPropertyKeysAsync deliberately reads declared
+metadata only. Use [GraphSchema](graph-schema.md) for creation with existing-data validation and
+coordinated physical index removal.
+
+All catalog record kinds use v2. Earlier/future versions refuse with CG06019, with no legacy
+reader. See [catalog format](catalog-design.md#on-disk-format).
 
 Reads use a snapshot; writes join the supplied transaction without committing it. Changing a
 schema-owned definition throws DatabaseObjectLockedException. Null storage/coordinator arguments

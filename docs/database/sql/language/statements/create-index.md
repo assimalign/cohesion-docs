@@ -1,6 +1,6 @@
 # CREATE INDEX (Cohesion SQL)
 
-Creates a table-scoped secondary index over a plain column list.
+Creates a table-scoped secondary index over a plain column list, optionally restricted by a predicate.
 
 > **Status:** Partial. The documented subset is measured against the live SQL engine.
 
@@ -9,6 +9,7 @@ Creates a table-scoped secondary index over a plain column list.
 ```syntaxsql
 CREATE [ UNIQUE ] INDEX [ IF NOT EXISTS ] index_name
 ON [ schema_name . ] table_name ( column_name [ , ...n ] )
+[ WHERE predicate ]
 [ ; ]
 ```
 
@@ -16,18 +17,20 @@ ON [ schema_name . ] table_name ( column_name [ , ...n ] )
 
 - **`index_name`** — The index identity, scoped to its table.
 - **`column_name`** — A key column; list order defines composite-key order.
-- **`UNIQUE`** — Rejects duplicate encoded keys.
+- **`UNIQUE`** — Rejects duplicate encoded keys among indexed rows. Partial unique indexes keep NULL keys distinct.
 - **`IF NOT EXISTS`** — Allows an index with that name to exist.
+- **`predicate`** — An immutable, row-local Boolean expression. Only TRUE rows enter the index;
+  FALSE and UNKNOWN rows have no entry.
 
 ## Remarks
 
 Only plain column lists are in this dialect. Per-column `ASC`/`DESC`, expression keys, and
 `INCLUDE` are outside the contract. Index construction and writes use the shared index kernel.
-An applicable secondary-index prefix can assist the supported inner join.
-SELECT, UPDATE and DELETE also use [eligible leading key bounds](select.md#index-access);
+An applicable unconditional secondary-index prefix can assist the supported inner join.
+SELECT, UPDATE and DELETE also use [eligible unconditional leading key bounds](select.md#index-access);
 [EXPLAIN](explain.md) reports the selected seek.
 
-Unique indexes treat `NULL` as an equal key. String keys use the column's effective collation;
+Unconditional unique indexes treat `NULL` as an equal key. String keys use the column's effective collation;
 `invariant` is scan-only and cannot back an index or index-backed constraint. Predicates whose
 collation differs from the index use a scan.
 
@@ -41,6 +44,46 @@ CS03050 (42710). CREATE INDEX under `invariant` uses CS05013 (no assigned SQLSTA
 index-backed constraint admission instead uses CS05057 (0A000).
 Schema-owned object admission can report CS03066 (42501). Execution/DDL failures retain the
 statement span and expose the code separately from Message.
+
+### Partial indexes
+
+The predicate may use the table's columns, immutable scalar functions and built-in casts. It
+cannot contain subqueries, aggregates, windows, parameters, sequences, or Stable/Volatile
+functions (`CS05091`, SQLSTATE 42P17). Explicit and implicit conversions must be provably
+immutable. Reachable application casts are refused because their registrations have no
+immutability metadata; domain checks must be immutable. Every CASE/COALESCE/NULLIF alternative
+is checked, including an unreachable branch. Unknown columns retain `CS01015`; a non-Boolean
+predicate uses `CS02003` (42804).
+
+Rows enter or leave the index whenever a write changes predicate membership. This applies to
+INSERT VALUES/SELECT, UPDATE and DELETE (including joined forms), MERGE, ON CONFLICT actions,
+referential actions, table rewrites, identity backfills and TRUNCATE. A partial unique index
+checks uniqueness only within its TRUE subset; any NULL key component keeps that key distinct.
+An update that brings a duplicate non-NULL key into the subset fails with `CS03037` (23505).
+
+Untargeted [ON CONFLICT DO NOTHING](../clauses/on-conflict.md) considers each partial unique
+index only when the proposed row belongs to it, following PostgreSQL. Targeted inference still
+refuses partial indexes (`CS03035`, 42P10); writing a predicate in the conflict target is
+unsupported (`CK00001`). Partial unique indexes cannot supply a foreign-key target.
+
+Dropping a key or predicate column drops its index. Changing a predicate column's type,
+including widening, refuses with `CS03083` (0A000): drop and recreate the index around the
+change. Table and column renames carry into the stored predicate text. Predicate function and
+domain dependencies also participate in DROP restrictions.
+
+If a required function registration disappears or changes incompatibly at restart, or a cast
+or domain no longer proves immutable, the database opens with an unresolved predicate. Reads
+and DROP INDEX work, but every write to that table fails with `CS01009` (42883), even with
+empty input. Restoring the required immutable definition or dropping the index restores writes.
+
+Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
+expose canonical predicate text. SQL catalog format 31 and compiled schema v10 persist it and
+refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
+programmatically supplied primary-key predicate uses `CS03082` (42P16).
+
+**The planner does not use partial indexes to answer queries in this run (SQ-P1).** Even an
+identical WHERE scans or uses another eligible index. Query implication and access are deferred
+to SQ-P2, including join probes and cardinality probes.
 
 ### Building over existing data
 
@@ -70,6 +113,21 @@ Because construction precedes duplicate validation, CS05042 can take precedence 
 CS03037 duplicate that occurs earlier in storage order.
 
 ## Examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE subset_keys (id INT PRIMARY KEY, k INT, active BOOLEAN);
+INSERT INTO subset_keys VALUES (1,7,TRUE),(2,7,FALSE),(3,NULL,TRUE),(4,NULL,TRUE);
+CREATE UNIQUE INDEX uq_active ON subset_keys(k) WHERE active;
+INSERT INTO subset_keys VALUES (5,7,TRUE) ON CONFLICT DO NOTHING;
+UPDATE subset_keys SET active=FALSE WHERE id=1;
+UPDATE subset_keys SET active=TRUE WHERE id=2;
+SELECT id FROM subset_keys WHERE active ORDER BY id;
+```
+
+The insert skips its conflict. SELECT returns `2`, `3`, `4`; the updates move the non-NULL
+key between members, and both NULL keys coexist.
 
 Using the [conformance fixture](select.md#a-create-the-conformance-fixture):
 
@@ -111,6 +169,7 @@ is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING
 
 ## Sources
 
+- **Partial predicates, maintenance and arbitration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexTests.cs`, `SqlPartialIndexDurabilityTests.cs` and `SqlPartialIndexSecondPassTests.cs` in the same directory.
 - **Bounded builds, history and failure cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitConformanceTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.

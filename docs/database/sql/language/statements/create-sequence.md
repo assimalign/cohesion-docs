@@ -45,6 +45,11 @@ remain CS03074 (0A000). Declared provisioning scripts refuse standalone sequence
 same code; compiled schemas do not declare standalone sequences. [Identity](../clauses/identity.md)
 uses this shared sequence allocator, including SERIAL aliases.
 
+Supported column defaults are `nextval('s')`, `nextval('s'::regclass)`,
+`nextval(CAST('s' AS REGCLASS))` and `NEXT VALUE FOR s`; all survive restart with their sequence
+dependency intact. A domain default calling nextval is refused with CS03074 (0A000). See the
+[default example](../functions/sequences.md#column-defaults).
+
 ## Ownership
 
 OWNED BY attaches a standalone sequence to an existing column in the same SQL schema; NONE
