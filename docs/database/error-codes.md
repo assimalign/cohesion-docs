@@ -64,6 +64,8 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CK07002 | Malformed negotiated statement Ready: exactly I/T/E plus a retained-state 0/1 byte is required | — |
 | CK04008 | Undo marker is foreign, released, discarded or ended; undo control context is foreign, stale, a statement view or a snapshot pin | — |
 | CK04009 | Partial undo is running or incomplete, or statement/control/end activity prevents control admission; retry its target or an earlier marker, or roll back the transaction | — |
+| CK04010 | An open write stream prevents undo marker creation, release or rollback-to | — |
+| CK04011 | A transaction has reached the supported limit of 65,535 open write streams | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,
