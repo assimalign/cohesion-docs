@@ -13,8 +13,9 @@ case-insensitive equality. Cohesion allows ILIKE under these nondeterministic co
 where PostgreSQL refuses it. See [operator behavior and examples](../../../../database/sql/language/expressions/operators.md#ilike-and-not-ilike).
 
 Postfix casts reuse CAST binding and targets and canonicalize as CAST. Their precedence is above
-unary signs, so +1::TEXT and -1::TEXT fail with CS02003 (42804). Regex, SIMILAR TO, #, ^ and
-other bitwise operators retain CK00001; SQ-O2 supplies bitwise execution. These expression
+unary signs, so +1::TEXT and -1::TEXT fail with CS02003 (42804). Regex, SIMILAR TO and ^
+retain CK00001. Integer bitwise execution uses the generic precedence level with concatenation;
+CS02077 (42804) refuses noninteger operands and BIGINT shift counts. These expression
 changes add no storage or compiled-schema format beyond the partial-index boundary.
 
 ## Partial indexes

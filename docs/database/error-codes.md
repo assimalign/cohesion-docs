@@ -103,8 +103,10 @@ for the typed surface; text DDL is not available yet.
 
 ILIKE and postfix casts allocate no new code. LIKE/ILIKE ESCAPE errors reuse CS02034 (22025);
 invariant LIKE/ILIKE and their NOT forms share CS05040 (no SQLSTATE). Postfix casts retain CAST
-diagnostics; unary signs on a TEXT cast use CS02003 (42804). Regex, SIMILAR TO, #, ^ and other
-bitwise operators remain CK00001. See [SQL operators](sql/language/expressions/operators.md).
+diagnostics; unary signs on a TEXT cast use CS02003 (42804). Regex, SIMILAR TO and exponentiation
+^ retain CK00001. Bitwise operators execute; CS02077 (42804) rejects operands outside
+SMALLINT/INTEGER/BIGINT or a shift count outside INTEGER after SMALLINT widening, including
+a typed NULL BIGINT count. See [SQL operators](sql/language/expressions/operators.md).
 
 ## Joined SQL mutations
 

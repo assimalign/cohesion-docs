@@ -347,7 +347,7 @@ constraints unconsumed. Contextual ILIKE/NOT ILIKE execute through SqlLikeExpres
 IsCaseInsensitive set. SIMILAR TO, regex and postfix ISNULL/NOTNULL retain CK00001.
 Postfix expr::type uses the complete CAST target grammar, chains left to right, binds above
 unary signs and renders as CAST. Both +1::TEXT and -1::TEXT therefore fail with CS02003
-(42804). Binary #, ^ and the other bitwise operators retain CK00001 until SQ-O2.
+(42804). Integer bitwise operators execute; ^ remains refused exponentiation with CK00001.
 These expressions add no named clause or reserved identifier spelling. Current format 31 admits the
 persisted grammar and changed precedence; earlier files have no upgrade reader.
 

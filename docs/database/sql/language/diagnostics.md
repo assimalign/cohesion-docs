@@ -20,6 +20,14 @@ An unresolved predicate after a registration change lets the database open and s
 DROP INDEX, but writes to its table refuse with CS01009 (42883), even with empty input.
 See [partial indexes](statements/create-index.md#partial-indexes) for admission and recovery.
 
+## Bitwise operands
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS02077 | Operand outside SMALLINT/INTEGER/BIGINT, or a shift count outside INTEGER after SMALLINT widening; typed NULL BIGINT counts also fail | 42804 |
+
+See [bitwise typing, NULLs and shifts](expressions/operators.md#integer-bitwise-operators).
+
 ## Language diagnostics
 
 | Code | Meaning |
@@ -153,8 +161,8 @@ not a separate field on the diagnostic or SQL exception.
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE/NOT ILIKE
 and general `expr::type` casts execute with existing LIKE/CAST diagnostics. SIMILAR TO, regex,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and binary bitwise operators (including # and ^) use
-CK00001; bitwise execution is deferred to SQ-O2.
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and exponentiation ^ use CK00001. Integer bitwise
+operators execute; invalid operand types and BIGINT shift counts use CS02077 (42804).
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 
