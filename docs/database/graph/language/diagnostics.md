@@ -39,12 +39,12 @@ These conditions have no assigned SQLSTATE:
 
 | Code | Meaning and trigger |
 | --- | --- |
-| CG01022 | Schema property references a variable other than the FOR declaration |
-| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
 | CG01021 | Named index or constraint requested for DROP is absent |
+| CG01022 | Schema property references a variable other than the FOR declaration |
 | CG03008 | Database-wide index/constraint name is already occupied; names are ordinal and case-sensitive |
 | CG03009 | Duplicate constraint kind or incompatible property type rules |
 | CG03010 | Existing data violates the newly created named constraint; creation rolls back |
+| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
 | CG06019 | Catalog record version is not v2; recreate the database, with no legacy reader |
 
 CG06019 refuses before logical recovery scrub. Physical journal redo may already have run;

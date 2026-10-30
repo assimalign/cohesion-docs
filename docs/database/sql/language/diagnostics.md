@@ -12,14 +12,23 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | --- | --- | --- |
 | CS03082 | A primary-key definition has a partial predicate | 42P16 |
 | CS03083 | ALTER COLUMN TYPE targets a predicate column, including widening; drop and recreate the index | 0A000 |
-| CS03085 | Invalid per-column key-order width/value or directed primary-key metadata | 42P17 |
 | CS03084 | Blank or inconsistent index predicate text/dependency metadata | 42P17 |
-| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 | CS05091 | Predicate contains a prohibited expression or a call/conversion not proven immutable | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 
 An unresolved predicate after a registration change lets the database open and serve reads and
 DROP INDEX, but writes to its table refuse with CS01009 (42883), even with empty input.
 See [partial indexes](statements/create-index.md#partial-indexes) for admission and recovery.
+
+## Index key-order conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03085 | Invalid per-column key-order width/value or directed primary-key metadata | 42P17 |
+
+Constraint column lists reject ASC/DESC or NULLS options with CS00003. Malformed stored order
+vectors use CS06059; unsupported extensions use CS06060; earlier SQL record-space formats
+use CS06041. See [index key directions](statements/create-index.md#key-directions-and-null-placement).
 
 ## Bitwise operands
 

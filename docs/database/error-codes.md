@@ -75,16 +75,16 @@ Optional SQL costing falls back on committed definition changes; mutation execut
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
 
-## SQL partial indexes
+## SQL index conditions
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS03082 | Predicate on a primary key | 42P16 |
 | CS03083 | Type change of a column read by a partial-index predicate, widening included | 0A000 |
-| CS03085 | Invalid per-column key-order width/value or directed primary-key metadata | 42P17 |
 | CS03084 | Inconsistent predicate text/dependency metadata | 42P17 |
-| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
+| CS03085 | Invalid per-column key-order width/value or directed primary-key metadata | 42P17 |
 | CS05091 | Prohibited expression or unproven immutable call/conversion in a predicate | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate: subquery, aggregate, window or sequence | — |
 
 Unresolved predicate registrations use existing CS01009 (42883) for table writes. See
 [CREATE INDEX](sql/language/statements/create-index.md#partial-indexes).
@@ -93,12 +93,12 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CG01022 | Schema property references a variable other than its FOR declaration | — |
-| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
 | CG01021 | Named index or constraint requested for DROP is absent | — |
+| CG01022 | Schema property references a variable other than its FOR declaration | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
 | CG03010 | Existing data violates a newly created named constraint | — |
+| CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
 | CG06019 | Catalog record version differs from v2; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)

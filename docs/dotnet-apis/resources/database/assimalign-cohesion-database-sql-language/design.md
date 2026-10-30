@@ -364,14 +364,17 @@ persisted grammar and changed precedence; earlier files have no upgrade reader.
 [SqlInsertExpression.OnConflict](sql-insert-expression.md) retains an optional
 [SqlOnConflictClause](sql-on-conflict-clause.md) with target kind, inference columns or constraint
 name, action, assignments, WHERE and the parser-supplied EXCLUDED relation. The
+TargetWhere property separately retains the column-set inference predicate; it can prove a
+partial unique arbiter without filtering proposals. Non-row-local target predicates use
+CS05092 (no assigned SQLSTATE); unproven inference uses CS03035 (42P10). The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
 UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 84 of 86 declared clauses,
 including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 32 are unchanged.
 
-Malformed forms retain syntax diagnostics; unsupported inference/action subqueries and MySQL/SQLite
-alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated
+Malformed forms retain syntax diagnostics; unsupported inference modifiers, DO UPDATE action
+subqueries and MySQL/SQLite alternatives receive CK00001. Binding owns unique-index selection (CS03035, 42P10) and repeated
 effects use CS05036 (21000). See [ON CONFLICT](../../../../database/sql/language/clauses/on-conflict.md)
 for EXCLUDED scope, constraints, isolation and retries.
 

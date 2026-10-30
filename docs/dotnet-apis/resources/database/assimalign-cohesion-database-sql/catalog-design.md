@@ -30,6 +30,7 @@ Boolean expression; application conversions without immutability metadata are re
 | CS03082 | Partial primary key | 42P16 |
 | CS03083 | TYPE changes a predicate column, including widening | 0A000 |
 | CS03084 | Blank predicate or dependencies without a predicate | 42P17 |
+| CS03085 | Invalid key-order width/value or directed primary-key metadata | 42P17 |
 | CS05091 | Prohibited expression or unproven immutable call/conversion during engine admission | 42P17 |
 
 Column removal atomically removes dependent indexes; renames rewrite predicate references.

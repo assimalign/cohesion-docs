@@ -404,9 +404,11 @@ affected databases; there is no upgrade reader. Entity/tree format remains 5.
 | Code | Named-schema condition (no assigned SQLSTATE) |
 | --- | --- |
 | CG01021 | Named index/constraint requested for DROP is absent |
+| CG01022 | Schema property references a variable other than the FOR declaration |
 | CG03008 | Database-wide schema name is already used |
 | CG03009 | Duplicate constraint kind or incompatible property type rule |
 | CG03010 | Existing data violates a new constraint |
+| CG04025 | Typed/text schema write inside an explicit transaction; aborts it |
 | CG06019 | Catalog record version differs from v2 |
 
 Labels, relationship types and discovered property keys persist even when the last data object is

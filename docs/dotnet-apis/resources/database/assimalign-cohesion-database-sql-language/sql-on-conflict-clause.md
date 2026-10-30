@@ -31,8 +31,8 @@ Where is the separate DO UPDATE filter. Each is null when omitted. Excluded is t
 proposed-row relation, with alias EXCLUDED, for binding alongside the original target row.
 
 These properties add no validation exceptions. Parse returns diagnostics; request/session factories
-reject parser errors with DatabaseParseException. Unsupported inference forms, subqueries in
-SET/WHERE, DO SELECT and MySQL/SQLite alternate spellings use CK00001. Execution raises
+reject parser errors with DatabaseParseException. Unsupported inference modifiers, subqueries in
+DO UPDATE SET/WHERE, DO SELECT and MySQL/SQLite alternate spellings use CK00001. Execution raises
 DatabaseException with CS03035 (42P10) for an absent/nonunique arbiter or untargeted DO UPDATE,
 and CS05036 (21000) for affecting a row twice. Duplicate SET targets use CS01019; ambiguous
 target/EXCLUDED columns use CS01015 and aggregates use CS05017.

@@ -26,6 +26,7 @@ effective order; compiled schema v11 carries the same vector. SQL format 32 uses
 index extension 3. Runtime maintenance, builds, rewrites, conflict checks and undo share the
 direction-aware transform; comparison ranges exclude the NULL block. Direction preserves
 uniqueness. Every ORDER BY still sorts; sort avoidance belongs to SQ-K3.
+Invalid key-order width/value or directed primary-key metadata uses CS03085 (42P17).
 
 ## Partial indexes
 
@@ -49,6 +50,7 @@ and recreating the index; dropping a key/predicate column removes it, and rename
 | CS03083 | Type change of a predicate column | 0A000 |
 | CS03084 | Inconsistent predicate text/dependency metadata | 42P17 |
 | CS05091 | Prohibited expression or call/conversion not proven immutable | 42P17 |
+| CS05092 | Non-row-local ON CONFLICT inference predicate | — |
 
 Evidence: SqlPartialIndexTests, SqlPartialIndexDurabilityTests and SqlPartialIndexThirdPassTests.
 

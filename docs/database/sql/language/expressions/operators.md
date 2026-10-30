@@ -91,7 +91,9 @@ greater than exact decimal `0.1`. Compatible floating types retain their represe
 All floating-point not-a-number (NaN) values compare equal and below other non-null numerics.
 The order is NaN, negative infinity, finite values, positive infinity. Signed zeros compare equal.
 NaN is not null. Bind these values as parameters; SQL has no NaN/infinity literals. These comparison
-rules do not broaden CAST, arithmetic, aggregate accumulation, or physical index-key semantics.
+rules do not broaden CAST, arithmetic or aggregate accumulation. SQL index keys canonicalize
+signed zeros together and place NaNs consistently with these comparisons; see
+[index key directions](../statements/create-index.md#key-directions-and-null-placement).
 Floating range and signed-zero equality predicates scan or remain residual filters rather than
 supplying unsafe index bounds.
 
