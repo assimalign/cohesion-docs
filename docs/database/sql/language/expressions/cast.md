@@ -113,7 +113,8 @@ span when available; the error also reaches clients as ExecutionFailure with a u
 JSON and JSONB explicitly cast to BOOLEAN and to TINYINT, SMALLINT, INTEGER, BIGINT, REAL,
 DOUBLE PRECISION and NUMERIC. BOOLEAN requires a JSON Boolean; numeric targets require a
 JSON number. JSON `null` becomes SQL NULL. Arrays, objects and the wrong scalar kind, including
-numeric-looking JSON strings, fail with CS02079 (22023). Invalid JSON input uses CS02078 (22032).
+numeric-looking JSON strings, fail with CS02079 (22023). Malformed JSON/JSONB source values use
+CS02078 (22032); malformed text being cast into JSON/JSONB retains CS02022 (22P02).
 
 Numeric casts accept exponent notation and apply destination range/precision bounds. Integer
 casts round midpoint ties away from zero; floating casts turn JSON negative zero into positive

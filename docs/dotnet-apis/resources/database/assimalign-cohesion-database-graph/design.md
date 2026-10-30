@@ -477,6 +477,15 @@ rows; a later unmatched mandatory clause can still empty the result. Kernel abor
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
 Ownership uses the shared dedicated exception rather than an invented graph ownership code.
 
+## Named savepoint admission
+
+[SAVEPOINT, RELEASE and ROLLBACK TO](../../../../database/graph/language/statements/transactions.md#named-savepoints)
+use exact decoded names and newest-duplicate lookup. CK04012 requires an explicit bound
+transaction and CK04013 identifies an absent name. Incomplete undo reports CK04009 and permits
+only rollback to the same or an outer retained scope, or whole rollback. Ordinary Graph
+statement failure still aborts the transaction with CG04007 and needs whole rollback. None
+of these codes has a SQLSTATE. Pool return clears every savepoint.
+
 ## Unknown entity properties
 
 Read-only planning resolves statically named entity properties against a database-wide,

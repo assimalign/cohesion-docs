@@ -18,6 +18,26 @@ retain CK00001. Integer bitwise execution uses the generic precedence level with
 CS02077 (42804) refuses noninteger operands and BIGINT shift counts. These expression
 changes add no storage or compiled-schema format beyond the partial-index boundary.
 
+## JSON expressions
+
+[JSON access](../../../../database/sql/language/expressions/json-access.md) binds `->` and `->>`
+to JSON/JSONB sources and text or SMALLINT/INTEGER selectors. Arrows associate left at the generic
+operator level, below `::`. The bound selector type resolves CASE/COALESCE alternatives before
+choosing a key/index overload. Identical bound JSON conjuncts can prove partial-index membership.
+
+Extraction retains JSON identity for `->` and returns unquoted TEXT for `->>`. Missing members
+and wrong container kinds return SQL NULL; a JSON `null` member stays JSON under `->` and becomes SQL NULL
+under `->>`. IS JSON returns nullable BOOLEAN, with malformed text FALSE. Scalar casts require
+JSON Booleans/numbers; JSON `null` becomes SQL NULL. JSONB retains its original UTF-8 text
+without normalization. See the language page for depth, Unicode and deferred SQL/JSON limits.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01067 | Invalid JSON extraction or IS JSON signature | 42883 |
+| CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
+| CS02079 | Wrong JSON kind for a numeric or Boolean scalar cast | 22023 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+
 ## Directed index keys
 
 [CREATE INDEX](../../../../database/sql/language/statements/create-index.md#key-directions-and-null-placement)
@@ -2149,9 +2169,15 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while a named savepoint is active | 25001 |
+
+Named controls also use CK04012 for no explicit bound transaction and CK04013 for an absent
+name (no SQLSTATE). CK04009 fences incomplete undo until rollback to the same or an outer
+retained scope, or whole rollback. See [savepoint rules](../../../../database/sql/language/statements/savepoint.md).
 
 ## Sources
 
+- **JSON binding, extraction and casts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJsonAccessTests.cs` and `SqlJsonReviewFixTests.cs` in the same directory.
 - **Recursive execution and isolation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`, `SqlRecursiveReclamationTests.cs`, `SqlRecursiveReaderTests.cs`, `SqlIsolationSyntaxTests.cs` and `SqlIsolationReviewTests.cs` in the same directory.
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

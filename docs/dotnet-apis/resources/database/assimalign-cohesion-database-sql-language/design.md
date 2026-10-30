@@ -16,6 +16,18 @@ ASC/DESC and NULL placement. Defaults are ASC NULLS LAST and DESC NULLS FIRST. C
 omits ASC and direction-default NULL placement. Constraint lists reject options with CS00003.
 CREATE INDEX KEY ORDER adds one clause; with the three named savepoint controls, the measured profile is 87 of 89.
 
+## JSON expressions
+
+The existing binary expression operators add JsonAccess and JsonTextAccess for `->` and `->>`
+at the left-associative generic level. [SqlIsJsonExpression](sql-is-json-expression.md) retains
+its operand, negation and [SqlJsonKind](sql-json-kind.md); canonical rendering writes an explicit
+kind, including VALUE. These forms add no named clause. WITH/WITHOUT UNIQUE KEYS is CK00001.
+
+The engine uses CS01067 (42883) for invalid JSON signatures, CS02078 (22032) for malformed
+access/assignment input, invalid Unicode/UTF-8 or depth over 128, CS02079 (22023) for the wrong
+JSON kind in a scalar cast, and CS02080 (42804) for incompatible declared CASE/COALESCE
+alternatives in JSON positions. See [language behavior and examples](../../../../database/sql/language/expressions/json-access.md).
+
 ## Partial-index predicates
 
 SqlCreateIndexExpression.Predicate is the optional WHERE expression tree. Canonical statement
@@ -539,9 +551,15 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while a named savepoint is active | 25001 |
+
+Named controls use CK04012 without an explicit bound transaction and CK04013 for an absent
+savepoint name. CK04009 fences incomplete undo until rollback to the same or an outer retained
+scope, or whole rollback. These CK codes have no SQLSTATE.
 
 ## Sources
 
+- **JSON and named controls** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlJsonParserTests.cs` and `SavepointConformanceTests.cs` in the same directory.
 - **Batch 14 grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlIsolationParserTests.cs`; recursive execution follows `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`.
