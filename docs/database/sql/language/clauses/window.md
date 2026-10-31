@@ -170,6 +170,10 @@ once-only application finalization. They share a **1,000,000 candidate-input-vis
 statement** across functions, partitions and stages (CS05084 / 54000), counted before FILTER or
 arguments. Equal cached frames spend no visits; LIMIT cannot avoid this work.
 
+[SQL/JSON path execution](../functions/json-path.md#limits) shares this statement work cap.
+When JSON path work contributes to the combined limit, exhaustion reports CS05094 (54000),
+including when a later window recomputation consumes the remaining visits.
+
 Volatile functions or subqueries in arguments or FILTER disable inverse transitions and input
 caching. When the frame head moves, restart evaluation re-evaluates the new frame, following
 PostgreSQL. This includes nextval, setval and application scalar functions unless Stable or

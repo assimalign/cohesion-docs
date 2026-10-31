@@ -126,7 +126,7 @@ Format 27 introduced the per-column TYPE default-assignment flag in table extens
 Format 28 introduced internal sequence definitions and reservations. Format 29 added owning
 table/column metadata and identity ownership to kind 18; identity allocation uses kind 19 and
 kind 16 is retired. Format 30 adds ON UPDATE metadata in table extension 8.
-Format 30 and earlier databases are refused at open without an upgrade reader.
+Format 32 and earlier databases are refused before data recovery without an upgrade reader.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query

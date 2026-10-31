@@ -29,7 +29,7 @@ and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
 Table extension 8 stores this facet; its owned sequence uses kind 18 and kind-19 reservations.
-Kind 16 is retired. SQL format 33 refuses format 30 and earlier files without an upgrade reader.
+Kind 16 is retired. SQL format 33 refuses format 32 and earlier files without an upgrade reader.
 Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md). SQL identity allocations also update
 session currval/lastval; direct catalog allocation has no session observation context.
 

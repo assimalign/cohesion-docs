@@ -74,10 +74,12 @@ and Ready reports a failed transaction (`E`). Pre-canceled controls change nothi
 finishes despite later cancellation.
 
 An unknown RELEASE or ROLLBACK TO name reports CK04013 and faults the transaction. A later
-ROLLBACK TO an existing name then reports CD04101; whole ROLLBACK is required. Recoverable incomplete undo permits retry of its target, an outer retained scope,
-or whole rollback. Corruption during undo aborts instead. Root ends, disposal and pool return
+ROLLBACK TO an existing name then reports CD04101; whole ROLLBACK is required. Recoverable
+incomplete undo permits retry of its target, an outer retained scope, or whole rollback.
+Corruption during undo aborts instead. Root ends, disposal and pool return
 drain admitted undo before cleanup. Crash recovery removes the uncommitted root writer, even
-after physical undo has progressed; after root commit the retained prefix and subsequent committed writes survive.
+after physical undo has progressed; after root commit the retained prefix and subsequent committed
+writes survive.
 See the completed [conformance matrix](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
 
 Database disposal takes precedence over CK04009. Direct transaction controls, refusals and

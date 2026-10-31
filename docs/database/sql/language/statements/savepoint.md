@@ -45,8 +45,8 @@ Unknown RELEASE or ROLLBACK TO names report CK04013 and leave SQL's transaction 
 savepoints remain usable. Recoverable adapter failures, including failures after physical undo
 has made progress, admit target, outer or whole rollback recovery. Corruption aborts instead.
 Root ends, session/database disposal and pool return drain admitted undo before teardown. Crash
-recovery removes the entire uncommitted root writer; after root commit, the retained prefix and subsequent committed writes
-survive. Markers are never persisted. See the completed
+recovery removes the entire uncommitted root writer; after root commit, the retained prefix and
+subsequent committed writes survive. Markers are never persisted. See the completed
 [cross-model conformance matrix](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
 
 ## Diagnostics

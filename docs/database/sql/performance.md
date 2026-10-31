@@ -42,6 +42,10 @@ await using var engine = SqlDatabaseEngine.Create("orders", options);
 The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. [Joined mutations](#joined-mutations) also charge retained targets, sources, associations and
 selected writes. Recursive queries also charge their retained results and scratch; ordinary nonrecursive result materialization and transient planning remain outside this accounting.
 
+[SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
+and selected-result serialization to the same statement memory grant (CS05094 / 54000).
+They also share a 1,000,000-visit work cap with window-frame recomputation.
+
 FULL JOIN always hashes the written right child, including duplicate and NULL-key rows, with
 match flags charged to the same budget. There is no loop fallback: conditions without a safe
 mandatory hash equality, or whose full ON evaluation is not proven non-throwing, fail CS05070

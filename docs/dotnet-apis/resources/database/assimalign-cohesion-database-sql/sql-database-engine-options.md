@@ -73,6 +73,13 @@ CS05079 (54000), or CS05067 (53200) when admitting earlier CTE/subquery caches. 
 The default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
 other retained state change these limits.
 
+## SQL/JSON memory and work
+
+[SQL/JSON path functions](../../../../database/sql/language/functions/json-path.md#limits) also
+charge transient DOM, result references and selected-result serialization to StatementMemoryBudget.
+Exhaustion reports CS05094 (54000), outside ON ERROR handling. Their 1,000,000-visit work cap is
+shared with window-frame recomputation and is independent of the configured byte grant.
+
 ## Recursive query memory
 
 [WITH RECURSIVE](../../../../database/sql/language/clauses/with.md#on-demand-evaluation-and-memory) reclaims single-pass consumed rows. Rescans and DISTINCT retain
