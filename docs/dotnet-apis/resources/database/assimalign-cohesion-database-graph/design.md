@@ -486,6 +486,14 @@ only rollback to the same or an outer retained scope, or whole rollback. Ordinar
 statement failure still aborts the transaction with CG04007 and needs whole rollback. None
 of these codes has a SQLSTATE. Pool return clears every savepoint.
 
+Database disposal precedes the live CK04009 fence. Direct transaction controls, refusals and
+commit throw ObjectDisposedException; wire execution retains the existing CG09019 code.
+Within a savepoint, a matched MERGE with no data writes uses memory-only admission for its lock
+tracker, without durable writer enrollment, a journal record or a physical undo bracket. A
+transaction containing only that work commits without a durability wait. Root ends still drain
+admitted bookkeeping; rollback-to restores tracker state and its memory charge before releasing
+scoped grants.
+
 ## Unknown entity properties
 
 Read-only planning resolves statically named entity properties against a database-wide,
@@ -1234,6 +1242,7 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 
 ## Sources
 
+- **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **Composite set queries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
 
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.

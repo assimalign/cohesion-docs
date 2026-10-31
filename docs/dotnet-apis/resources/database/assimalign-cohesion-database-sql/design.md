@@ -2175,8 +2175,16 @@ Named controls also use CK04012 for no explicit bound transaction and CK04013 fo
 name (no SQLSTATE). CK04009 fences incomplete undo until rollback to the same or an outer
 retained scope, or whole rollback. See [savepoint rules](../../../../database/sql/language/statements/savepoint.md).
 
+Named-control parameter reads and result preparation follow the storage-failure abort policy
+(#1364): I/O uses CS06041 and aborts the explicit transaction; recoverable partial undo retains
+CK04009. Every named CK04009 retains its statement span and translated cause. A closed database
+with a live fence returns CS04005 ahead of CK04009 and preserves the InMemory/TCP session with
+Ready `E`. Direct transaction controls, refusals and commit throw ObjectDisposedException for
+disposal; disposal/offline probes run outside the root monitor.
+
 ## Sources
 
+- **Named-control failure and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **JSON binding, extraction and casts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJsonAccessTests.cs` and `SqlJsonReviewFixTests.cs` in the same directory.
 - **Recursive execution and isolation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`, `SqlRecursiveReclamationTests.cs`, `SqlRecursiveReaderTests.cs`, `SqlIsolationSyntaxTests.cs` and `SqlIsolationReviewTests.cs` in the same directory.
 

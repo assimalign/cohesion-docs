@@ -57,6 +57,10 @@ ROLLBACK TO undoes changes and scoped locks after its target, removes newer save
 keeps its target for repeated rollback. It leaves the transaction open for more work and COMMIT.
 Successful controls affect zero rows; returning a pooled connection discards every savepoint.
 
+A matched [MERGE](merge.md) that writes no data remains memory-only inside a savepoint. Its
+lock bookkeeping opens no storage bracket and appends no journal record; if the transaction
+contains no writes, COMMIT performs no durability wait, including after ROLLBACK TO.
+
 An ordinary failed statement still aborts the transaction. ROLLBACK TO returns CG04007 and
 cannot recover it; whole ROLLBACK recovers the session. Incomplete undo instead reports
 CK04009 and admits only ROLLBACK TO the same or an outer retained savepoint, or whole ROLLBACK.
@@ -64,6 +68,10 @@ Reads, writes, COMMIT and other named controls are fenced until recovery. The wi
 open and Ready reports a failed transaction (`E`). Pre-canceled controls change nothing;
 admitted undo finishes despite later caller cancellation. ExecutePaths refuses named controls
 with CG05001 before changing state.
+
+Database disposal takes precedence over CK04009. Direct transaction controls, refusals and
+commit throw ObjectDisposedException while a live undo fence remains. Over the wire, Graph
+keeps its existing disposal code CG09019.
 
 ## Savepoint diagnostics
 
@@ -73,6 +81,7 @@ with CG05001 before changing state.
 | CK04013 | Savepoint name is unknown in the current transaction | — |
 | CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
 | CG04007 | Ordinary statement failure has aborted the transaction; whole rollback is required | — |
+| CG09019 | Database disposal takes precedence over a live undo fence on the wire | — |
 
 ## Savepoint example
 
@@ -94,6 +103,8 @@ The count is `1`. `Keep` remains after each rollback; `keep` would be a differen
 
 ## Sources
 
+- **Memory-only MERGE and direct disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
+- **Disposal translation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabase.Lifetime.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/NamedSavepointWireTests.cs` and `SavepointFailureWireTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseSession.cs`.

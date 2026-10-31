@@ -390,6 +390,19 @@ owned token for coordinator controls. SQL/OQL/GQL named controls use this substr
 root session admission; the kernel itself owns no names. Incomplete undo also fences session
 reads until successful retry to the same or an outer scope, or whole rollback.
 
+The coordinator's optional rollback notification reports descendant discard once per admitted
+attempt, even if undo later fails; refused attempts do not notify. Consumers keep it nonthrowing
+and do not call back into the coordinator. Exception Data carries no scope-lifetime evidence.
+TransactionContext.Current resolves the exact latest kernel handle, including during an end's
+drain, without a monitor or an additional field on unmarked contexts.
+
+ApplyMemoryChange records an idempotent memory before-image before mutation without durable
+writer enrollment or a storage bracket. Undo restores memory hooks in reverse ledger order,
+outside physical brackets; memory entries split physical undo batches. Rollback to a marker
+with only a memory suffix requires neither the apply gate nor a physical undo bracket.
+Lifecycle admission still makes root ends drain these changes. Graph uses this seam for
+MERGE lock bookkeeping. See [the API contract](transaction-coordinator.md#memory-only-changes).
+
 An open Documents or Blob write stream prevents marker creation, release and rollback-to.
 Stream completion, cancellation and failure release the registration exactly once.
 The internal TransactionUndoException carries its code separately from its message:

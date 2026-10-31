@@ -755,6 +755,8 @@ contract. Named SAVEPOINT, RELEASE and ROLLBACK TO execute with exact decoded na
 newest-duplicate lookup. Ordinary statement failures still require whole rollback; incomplete
 undo uses CK04009 and admits retry to the same or an outer scope, or whole rollback. Missing
 transaction/name uses CK04012/CK04013. SET TRANSACTION remains CK00001. These conditions have no SQLSTATE.
+Database disposal precedes a live CK04009 fence. Direct transaction controls, refusals and
+commit throw ObjectDisposedException; disposal/offline probes run outside the root monitor.
 See [syntax and examples](../../../../database/document/language/statements/transactions.md).
 
 ## Application function API

@@ -83,6 +83,12 @@ names and select the newest. After incomplete undo, CK04009 admits only rollback
 or an outer retained scope, or whole ROLLBACK. Wire Ready reports a failed transaction and
 the session stays open. Ordinary Graph/Documents statement failures require whole rollback;
 ordinary SQL statement failures preserve earlier work. Pool return clears every savepoint.
+Database disposal takes precedence over a live CK04009 fence: direct transaction controls,
+refusals and commit throw ObjectDisposedException. SQL returns CS04005 followed by Ready `E`
+on the same open InMemory/TCP session; Graph retains CG09019. SQL named CK04009 refusals carry
+the statement span and translated cause. Named-control I/O, including parameter reads and
+result preparation, uses CS06041 (58030) and aborts the explicit transaction under #1364;
+recoverable incomplete undo retains CK04009.
 
 ## SQL JSON access
 
@@ -573,6 +579,7 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

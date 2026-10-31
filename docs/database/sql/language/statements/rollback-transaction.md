@@ -35,6 +35,9 @@ savepoints, and can be repeated. Duplicate names select the newest; unknown name
 and a missing explicit transaction uses CK04012 (neither has an assigned SQLSTATE).
 After incomplete undo, CK04009 admits only retry to that or an outer retained savepoint, or
 whole ROLLBACK. The wire session stays open with failed Ready status until recovery.
+If the database closes while the fence is live, SQL reports CS04005 ahead of CK04009 and
+retains the wire session with Ready `E`. Named-control I/O failures instead abort the explicit
+transaction under #1364; see [savepoint failure rules](savepoint.md#remarks).
 Completed DDL is self-committing and cannot be undone by a later rollback.
 
 Pool return rolls back a negotiated open or failed transaction and discards every savepoint before reuse. Failed cleanup or
@@ -66,6 +69,7 @@ The final query returns the original identifiers `1`, `2`, and `3`.
 
 ## Sources
 
+- **Named-control failures and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`

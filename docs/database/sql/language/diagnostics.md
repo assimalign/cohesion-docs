@@ -672,6 +672,11 @@ Ordinary SQL statement failures preserve earlier work. Incomplete undo leaves th
 open with failed Ready status and admits only rollback to the same or an outer retained scope,
 or whole ROLLBACK. Pool return discards all names.
 
+Named CK04009 refusals retain the complete statement span and translated cause. Closing the
+database with a live fence returns CS04005 ahead of CK04009, with Ready `E` on the same open
+InMemory/TCP session. I/O in named-control parameter reads or result preparation uses CS06041
+(58030) and aborts the explicit transaction under #1364; recoverable partial undo retains CK04009.
+
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
@@ -680,6 +685,7 @@ or whole ROLLBACK. Pool return discards all names.
 
 ## Sources
 
+- **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` at `ff5112515`.
 - **Batch 17 JSON and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ad0da989f`, checked against `SqlJsonAccessTests.cs`, `SqlJsonReviewFixTests.cs` and `NamedSavepointTests.cs` in the SQL tests.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 

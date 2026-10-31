@@ -449,6 +449,8 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 and discard descendants. Ordinary failed statements still abort the transaction with CG04007;
 only whole ROLLBACK recovers it. Incomplete undo instead admits rollback to the same or an outer
 retained savepoint, or whole ROLLBACK, with the wire session open and Ready reporting failure.
+Database disposal takes precedence over the live CK04009 fence. Direct transaction controls,
+refusals and commit throw ObjectDisposedException; the wire retains CG09019.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -458,6 +460,7 @@ retained savepoint, or whole ROLLBACK, with the wire session open and Ready repo
 
 ## Sources
 
+- **Disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabase.Lifetime.cs`.
 - **Unknown properties** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GqlUnknownPropertyWarningTests.cs`, `GqlPropertyWarningReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/GraphWireDiagnosticTests.cs`.
 - **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

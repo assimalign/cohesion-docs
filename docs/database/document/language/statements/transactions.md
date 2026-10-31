@@ -73,6 +73,10 @@ writes, COMMIT and other named controls are fenced until recovery. The wire sess
 and Ready reports a failed transaction (`E`). Pre-canceled controls change nothing; admitted undo
 finishes despite later cancellation.
 
+Database disposal takes precedence over CK04009. Direct transaction controls, refusals and
+commit throw ObjectDisposedException while a live undo fence remains; in-process session
+execution also observes disposal before that fence.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
@@ -132,6 +136,7 @@ The count is `1`; both rollbacks retain `Keep`. A reference to `keep` would be a
 
 ## Sources
 
+- **Direct disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/NamedSavepointWireTests.cs` and `SavepointFailureWireTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlTransactionParserTests.cs`.

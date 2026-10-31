@@ -38,12 +38,18 @@ false for unusable/busy transactions or active named savepoints. UpdateSavepoint
 inside that callback on its owning thread. A null configure callback throws ArgumentNullException.
 UpdateSavepointContext throws ArgumentNullException for null,
 InvalidOperationException outside admitted configuration, and ArgumentException for an inactive
-context or different transaction identity/sequence. It replaces the handle used for later undo.
+context, foreign or stale handle, statement view or snapshot pin. It requires reference identity
+with the exact current kernel handle exposed by
+[TransactionContext.Current](../assimalign-cohesion-database-transactions/transaction-coordinator.md#current-lifecycle-handle)
+and replaces the handle used for later undo.
 
 Incomplete undo exposes Faulted state while retaining a live transaction and fences work/commit
 with CK04009. Only rollback to the same or an outer retained savepoint, or whole rollback, can
 recover it. Ordinary Graph/Documents failures still require whole rollback; ordinary SQL
 statement failures leave the transaction usable. These model policies are applied by sessions.
+Disposing the database takes precedence over a live undo fence: direct transaction controls,
+refusals and CommitAsync throw ObjectDisposedException. Offline checks run outside the root
+monitor because propagation may wait on storage latches or an in-flight flush.
 
 ## Example
 

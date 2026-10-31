@@ -566,6 +566,8 @@ session rather than calling these protected methods.
 The [DatabaseTransaction kernel-bound constructor](database-transaction.md) supplies the owned
 coordinator/context. Its protected accessors and UpdateSavepointContext retain that binding
 through admitted isolation replacement; HasSavepoints blocks configuration while names are live.
+UpdateSavepointContext requires reference identity with the exact current kernel-issued handle
+exposed by TransactionContext.Current, refusing stale handles, statement views and snapshot pins.
 The [coordinator's public token controls](../assimalign-cohesion-database-transactions/transaction-coordinator.md#savepoint-controls)
 own the underlying memory-only undo scopes.
 
@@ -574,6 +576,16 @@ COMMIT with CK04009. Only rollback to the same or an outer retained scope, or wh
 recovers it. Wire Ready reports failed status while the connection stays open. Ordinary
 Graph/Documents statement failure instead aborts the whole transaction and requires whole
 rollback; ordinary SQL statement failures preserve earlier work.
+
+Rollback descendant-discard notification belongs to one admitted attempt and is consumed once;
+refused or canceled pre-admission retries cannot trim live inner names. Exception Data is not
+used. Unexpected cancellation after admission reports CK04009 with the original cancellation
+as its cause.
+
+Disposal and offline checks precede a live undo fence, including direct controls, refusals and
+commit. Direct APIs throw ObjectDisposedException for disposal; SQL wire execution returns
+CS04005 with Ready `E` and retains the session. Graph keeps CG09019. Offline propagation runs
+outside the root monitor because it may wait on storage latches or an in-flight flush.
 
 ## Sources
 
