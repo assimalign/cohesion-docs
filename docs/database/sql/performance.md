@@ -51,6 +51,19 @@ independent counts while repeated correlated calls to the same reference accumul
 
 [SQL](index.md) · [Engine options](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md)
 
+## ORDER BY in index order
+
+A selected [ordered index scan](language/clauses/order-by.md#index-order) removes sorting for
+matching single-table ORDER BY and uses the same MVCC snapshot and full WHERE filter in either
+direction. Non-DISTINCT LIMIT/OFFSET stops after enough qualifying rows; DISTINCT still reads
+all candidates. Joins, grouping and windows retain their sort.
+
+Costing credits avoided sorting and LIMIT/OFFSET work against random base-row fetches. It
+estimates filter selectivity from bounded probes and residual-predicate heuristics, so a sparse
+filter can favor a selective seek plus sorting over walking an ordering index. A broad unbounded
+ordered scan can also lose to a table scan plus sorting. These estimates are transient, with no
+persisted statistics. EXPLAIN identifies `OrderedIndexScan`, its direction and `sort_removed=true`.
+
 ## Recursive query memory
 
 [WITH RECURSIVE](language/clauses/with.md#on-demand-evaluation-and-memory) reclaims single-pass consumed rows. Rescans and DISTINCT retain

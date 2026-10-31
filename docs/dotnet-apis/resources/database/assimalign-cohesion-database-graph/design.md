@@ -450,6 +450,7 @@ not included.
 | `CG02009` | Catalog metadata or graph element exceeds the 8,092-byte record, or indexed property exceeds the 1,016-byte key bound |
 | `CG01010` | Warning: read names an unknown label; GQLSTATUS 01N50 |
 | `CG01011` | Warning: read names an unknown relationship type; GQLSTATUS 01N51 |
+| `CG01023` | Warning: read-only statement names an entity property unknown throughout the statement-visible catalog; no SQLSTATE |
 | `CG06012` | Database offline after durable storage failure |
 | `CG02013` | Evaluated value error: non-Boolean condition, invalid arithmetic/concatenation/access, zero divisor, overflow, non-finite result, function/CAST kind, conversion or domain failure, computed temporal property, SUM/AVG nonnumeric operand or constructed/collected value/row limit |
 | `CG01014` | Caller parameter keys collide after stripping one sigil |
@@ -475,6 +476,37 @@ Unknown labels/types in optional clauses warn with CG01010/CG01011 while preserv
 rows; a later unmatched mandatory clause can still empty the result. Kernel aborts cross the engine
 boundary as `DatabaseTransactionAbortedException`; deadlocks retain their specialized subtype.
 Ownership uses the shared dedicated exception rather than an invented graph ownership code.
+
+## Named savepoint admission
+
+[SAVEPOINT, RELEASE and ROLLBACK TO](../../../../database/graph/language/statements/transactions.md#named-savepoints)
+use exact decoded names and newest-duplicate lookup. CK04012 requires an explicit bound
+transaction and CK04013 identifies an absent name. Incomplete undo reports CK04009 and permits
+only rollback to the same or an outer retained scope, or whole rollback. Ordinary Graph
+statement failure still aborts the transaction with CG04007 and needs whole rollback. None
+of these codes has a SQLSTATE. Pool return clears every savepoint.
+
+Database disposal precedes the live CK04009 fence. Direct transaction controls, refusals and
+commit throw ObjectDisposedException; wire execution retains the existing CG09019 code.
+Within a savepoint, a matched MERGE with no data writes uses memory-only admission for its lock
+tracker, without durable writer enrollment, a journal record or a physical undo bracket. A
+transaction containing only that work commits without a durability wait. Root ends still drain
+admitted bookkeeping; rollback-to restores tracker state and its memory charge before releasing
+scoped grants.
+
+## Unknown entity properties
+
+Read-only planning resolves statically named entity properties against a database-wide,
+snapshot-visible directory of declared keys and stored discoveries, including unlabeled writes
+and schema-owned definitions. Earlier writes in the transaction count; rollback removes a
+discovery, while removing the value retains it across reopen. Map fields, dynamic subscripts
+and every writing statement skip CG01023 analysis, including correlated reads.
+
+One Warning diagnostic per ordinal name retains its first occurrence's span when present;
+pattern keys and unlocated typed nodes have none. Typed DatabaseResult.Diagnostics and the
+negotiated wire Diagnostics channel preserve normal results and transaction state. EXPLAIN
+also reports warnings. Neo4j warns per occurrence and retains tokens after rollback; Cohesion
+deduplicates names and undoes discovery with the write. See [application rules and example](../../../../database/graph/language/expressions/property-access.md#unknown-property-warnings).
 
 ## Lifecycle and delivery
 
@@ -1210,6 +1242,7 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 
 ## Sources
 
+- **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **Composite set queries** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
 
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.

@@ -536,7 +536,60 @@ Database debugger displays and private nested proxies filter internal coordinati
 
 Messages and format templates use generated assembly-local resources. Diagnostic identities remain separate from unprefixed structured messages; framework argument guards retain their .NET types and parameter names. See [the code scheme](../../../../database/error-codes.md).
 
+## Named savepoint controls
+
+DatabaseSession provides these protected, non-virtual controls for language implementations:
+
+```csharp
+protected ValueTask CreateSavepointAsync(string name, CancellationToken cancellationToken = default);
+protected ValueTask ReleaseSavepointAsync(string name, CancellationToken cancellationToken = default);
+protected ValueTask RollbackToSavepointAsync(string name, CancellationToken cancellationToken = default);
+```
+
+Pass the language-normalized name. Reverse lookup selects the newest duplicate. RELEASE removes
+the target and descendants, preserving effects; ROLLBACK TO undoes later effects, discards
+descendants and keeps the target. Root end, disposal and pool return clear every name. Controls
+use session admission and the root transaction's end gate so teardown drains admitted undo.
+
+Null/empty names throw ArgumentException (ArgumentNullException for null); pre-admission
+cancellation throws OperationCanceledException without changing scopes. DatabaseException carries
+CK04012 for no explicit bound transaction, CK04013 for an unknown name, or CK04009 for incomplete
+undo or conflicting admission. These codes have no SQLSTATE. Admitted undo ignores later caller
+cancellation. The model error translator retains storage/offline/corruption failures and causes.
+
+For example, the SQL session dispatches a parsed Savepoint command by calling
+`await CreateSavepointAsync(control.SavepointName!, cancellationToken);` and returns a successful
+zero-count result. NamedSavepointTests verifies that a subsequent rollback to that name keeps the
+transaction open and permits a second rollback. Application callers use text controls on the
+session rather than calling these protected methods.
+
+The [DatabaseTransaction kernel-bound constructor](database-transaction.md) supplies the owned
+coordinator/context. Its protected accessors and UpdateSavepointContext retain that binding
+through admitted isolation replacement; HasSavepoints blocks configuration while names are live.
+UpdateSavepointContext requires reference identity with the exact current kernel-issued handle
+exposed by TransactionContext.Current, refusing stale handles, statement views and snapshot pins.
+The [coordinator's public token controls](../assimalign-cohesion-database-transactions/transaction-coordinator.md#savepoint-controls)
+own the underlying memory-only undo scopes.
+
+Incomplete undo exposes Faulted state and fences reads, writes, BEGIN, SAVEPOINT, RELEASE and
+COMMIT with CK04009. Only rollback to the same or an outer retained scope, or whole rollback,
+recovers it. Wire Ready reports failed status while the connection stays open. Ordinary
+Graph/Documents statement failure instead aborts the whole transaction and requires whole
+rollback; ordinary SQL statement failures preserve earlier work.
+
+Rollback descendant-discard notification belongs to one admitted attempt and is consumed once;
+refused or canceled pre-admission retries cannot trim live inner names. Exception Data is not
+used. Unexpected cancellation after admission reports CK04009 with the original cancellation
+as its cause.
+
+Disposal and offline checks precede a live undo fence, including direct controls, refusals and
+commit. Direct APIs throw ObjectDisposedException for disposal; SQL wire execution returns
+CS04005 with Ready `E` and retains the session. Graph keeps CG09019. Offline propagation runs
+outside the root monitor because it may wait on storage latches or an in-flight flush.
+
 ## Sources
+
+- **Named admission and protected seam** — `cohesion/resources/Database/Assimalign.Cohesion.Database/src/DatabaseSession.cs`, `src/DatabaseTransaction.cs` and `tests/SavepointSeamTests.cs` beneath the same project.
 
 - **Admission, fairness, idle cost and disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Lane ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database/shared/DatabaseWorkerLanes.cs`, `DatabaseLaneWorker.cs` and `DatabaseMaintenanceWorker.cs` in the same directory.

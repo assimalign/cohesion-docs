@@ -6,6 +6,7 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 
 ## Reference pages
 
+- **[TransactionSavepoint](transaction-savepoint.md)** — Opaque owned undo token, released or rolled back through the coordinator.
 - **[TransactionLockTimeoutException](transaction-lock-timeout-exception.md)** — One queued wait expired; existing grants remain.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -21,7 +22,8 @@ binds commits to the write-ahead log.
 ## Scope
 
 - **`TransactionManager`** — begin/commit/rollback lifecycle, sequence assignment, snapshot capture
-- **`TransactionContext`** — the engine-internal state of one in-flight transaction
+- **`TransactionContext`** — the transaction handle; [Current](transaction-coordinator.md#current-lifecycle-handle)
+  resolves the exact latest lifecycle handle, or null for a snapshot pin
 - **`TransactionId` / `TransactionState`** — the transaction vocabulary the area root's `IDatabaseTransaction` contract consumes
 - **`TransactionSnapshot` / `TransactionSequence`** — MVCC visibility (implemented, tested)
 - **`LockManager` / `LockMode` / `LockResource`** — hierarchical write locking with deadlock resolution;
@@ -38,6 +40,8 @@ Read-only transactions reserve normal sequences and snapshots but append no life
 wait for no flush. The first admitted write apply enrolls a writer with one BEGIN before its physical
 bracket. Only writers append COMMIT/abort records, and only writer commits wait for durability.
 See [coordinator lifecycle](transaction-coordinator.md) for completion, cancellation and recovery rules.
+Reversible [memory changes](transaction-coordinator.md#memory-only-changes) record undo without
+enrolling a durable writer, opening a storage bracket or waiting for durability.
 
 ## Dependencies
 

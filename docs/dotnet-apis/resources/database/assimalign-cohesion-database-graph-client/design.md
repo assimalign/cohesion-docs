@@ -266,7 +266,7 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 ## Explicit transaction text
 
-BEGIN [TRANSACTION], START TRANSACTION, COMMIT and ROLLBACK are standalone text statements over Execute (GraphConnection.ExecuteAsync). START and BEGIN use Snapshot. Embedded callers also retain typed Snapshot/ReadCommitted APIs. Savepoints, isolation/options clauses, multi-statement text, composed controls and EXPLAIN of controls are unsupported. ExecutePaths rejects controls with CG05001 before taking effect.
+BEGIN [TRANSACTION], START TRANSACTION, COMMIT and ROLLBACK are standalone text statements over Execute (GraphConnection.ExecuteAsync). START and BEGIN use Snapshot. Embedded callers also retain typed Snapshot/ReadCommitted APIs. [Named savepoints](../../../../database/graph/language/statements/transactions.md#named-savepoints) use SAVEPOINT, RELEASE and ROLLBACK TO as Cohesion extensions. Isolation/options clauses, multi-statement text, composed controls and EXPLAIN of controls are unsupported. ExecutePaths rejects controls with CG05001 before taking effect. Pool return discards every savepoint; incomplete undo preserves the connection with Ready E and CK04009 until retry to the same/outer scope or whole rollback.
 
 A statement failure aborts the explicit transaction; subsequent work is refused with CG04007 until rollback. COMMIT of a failed transaction rolls it back and reports failure. Duplicate START uses CG04022 and aborts the existing transaction; COMMIT/ROLLBACK without an open transaction uses CG04023. Disconnect and session teardown roll back. Network loss after COMMIT still requires outcome reconciliation.
 

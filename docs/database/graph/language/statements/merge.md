@@ -69,6 +69,11 @@ compose with MERGE in the ordinary stage order. Wire Execute can return scalar p
 ExecutePaths refuses MERGE before mutation. EXPLAIN shows Merge, its probe and OnCreate/OnMatch
 children without executing them.
 
+A matched MERGE that writes no data remains memory-only even under a
+[savepoint](transactions.md#named-savepoints). Its lock bookkeeping appends no journal record
+and opens no storage or physical undo bracket. With no other writes, COMMIT performs no
+durability wait, even after ROLLBACK TO and with an fsync failure armed.
+
 ### Concurrency and access
 
 MERGE serializes decisions through the database writer lock and a transaction-owned pattern lock.
@@ -143,6 +148,7 @@ nodes; later rows match the relationship created by the first row.
 
 ## Sources
 
+- **Read-only savepoint bookkeeping** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`.
 - **Whole-pattern behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`.
 - **Required properties, redeclarations and repeated branches** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeFixTests.cs`.
 - **Concurrency and lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionConcurrencyTests.cs` and `GraphMergeThirdPassLifetimeTests.cs`.

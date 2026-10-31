@@ -14,13 +14,25 @@ basic SQL, declared precisely — and structured to be extended without churning
 [SqlCreateIndexExpression](sql-create-index-expression.md).KeyOrders stores effective per-column
 ASC/DESC and NULL placement. Defaults are ASC NULLS LAST and DESC NULLS FIRST. Canonical SQL
 omits ASC and direction-default NULL placement. Constraint lists reject options with CS00003.
-CREATE INDEX KEY ORDER adds one clause, bringing the measured profile to 84 of 86.
+CREATE INDEX KEY ORDER adds one clause; with the three named savepoint controls, the measured profile is 87 of 89.
+
+## JSON expressions
+
+The existing binary expression operators add JsonAccess and JsonTextAccess for `->` and `->>`
+at the left-associative generic level. [SqlIsJsonExpression](sql-is-json-expression.md) retains
+its operand, negation and [SqlJsonKind](sql-json-kind.md); canonical rendering writes an explicit
+kind, including VALUE. These forms add no named clause. WITH/WITHOUT UNIQUE KEYS is CK00001.
+
+The engine uses CS01067 (42883) for invalid JSON signatures, CS02078 (22032) for malformed
+access/assignment input, invalid Unicode/UTF-8 or depth over 128, CS02079 (22023) for the wrong
+JSON kind in a scalar cast, and CS02080 (42804) for incompatible declared CASE/COALESCE
+alternatives in JSON positions. See [language behavior and examples](../../../../database/sql/language/expressions/json-access.md).
 
 ## Partial-index predicates
 
 SqlCreateIndexExpression.Predicate is the optional WHERE expression tree. Canonical statement
 rendering emits it after the ordered column list. CREATE INDEX WHERE adds one measured clause
-beside CREATE INDEX; the current total is 84 of 86. Engine admission uses CS05091 (42P17) for
+beside CREATE INDEX; the current total is 87 of 89. Engine admission uses CS05091 (42P17) for
 prohibited expressions or calls/conversions not proven immutable. Catalog metadata uses
 CS03082 (42P16) for partial primary keys, CS03083 (0A000) for predicate-column TYPE changes
 and CS03084 (42P17) for inconsistent predicate text/dependencies.
@@ -164,7 +176,7 @@ Every SELECT may omit FROM and operate on one implicit row, including top-level 
 queries, views, derived tables and set operands. A wildcard still needs a relation (CS05013).
 The grammar and AST are unchanged; see [SELECT](../../../../database/sql/language/statements/select.md#c-select-without-from).
 
-Nested CTEs, RETURNING subqueries/OLD/NEW/INTO, savepoints,
+Nested CTEs, RETURNING subqueries/OLD/NEW/INTO,
 and cost-hint syntax. Each is an additive dialect extension when its engine
 feature lands.
 
@@ -191,8 +203,10 @@ subsequent statements to the session's active scope, and disconnect aborts that 
 language adds no concurrency machinery. Malformed suffixes produce `CS00003` instead of silently
 treating `ROLLBACK TO` as a complete rollback.
 
-B7 anticipates **`SAVEPOINT <name>`**, **`ROLLBACK TO [SAVEPOINT] <name>`**, **`RELEASE [SAVEPOINT]
-<name>`**. Savepoints remain unimplemented. BEGIN isolation options and
+[Named savepoints](../../../../database/sql/language/statements/savepoint.md) execute through
+SqlTransactionExpression.SavepointName and its Savepoint, ReleaseSavepoint and
+RollbackToSavepoint commands. Unquoted names fold to lowercase; rendering quotes normalized
+names. The three clauses bring the measured profile to 87 of 89. BEGIN isolation options and
 [SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) execute through
 SqlTransactionExpression.IsolationLevels. The session retains one root transaction; early SET
 preserves its identity and original BEGIN snapshot.
@@ -324,7 +338,7 @@ FILTER retains its condition in depth, source extent, rendering, child walks, st
 and aggregate-level correlation. The catalog rejects scalar-call FILTER with CS05072 (42809),
 same-scope condition aggregates with CS05073 (42803), and non-Boolean conditions with CS02003
 (42804). Child queries bind independently; aggregate windows also accept FILTER. SqlClauses.Filter adds one
-named clause and nine Boolean/statistical function names join the executable profile: 84 of 86
+named clause and nine Boolean/statistical function names join the executable profile: 87 of 89
 clauses including the two exclusions. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
 ## Views, NULL placement and RETURNING
@@ -369,7 +383,7 @@ partial unique arbiter without filtering proposals. Non-row-local target predica
 CS05092 (no assigned SQLSTATE); unproven inference uses CS03035 (42P10). The
 [target](sql-on-conflict-target-kind.md) and [action](sql-on-conflict-action.md) enums keep that
 shape explicit. SqlClauses.OnConflict enables the named clause. With quantified comparisons,
-UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 84 of 86 declared clauses,
+UPDATE FROM, DELETE USING and CREATE TABLE AS, the profile measures 87 of 89 declared clauses,
 including executable MERGE, executable RECURSIVE and nonexecuting plain EXPLAIN. Existing
 keywords/identifier quoting and format 32 are unchanged.
 
@@ -437,7 +451,7 @@ dedicated [CREATE](sql-create-sequence-expression.md), [ALTER](sql-alter-sequenc
 and [DROP](sql-drop-sequence-expression.md) nodes. [SqlNextValueExpression](sql-next-value-expression.md)
 is distinct from ordinary function calls. DISCARD ALL uses SqlTransactionExpression with
 SqlQueryCommandType.Discard. The profile enables CreateSequence, AlterSequence, DropSequence,
-NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 84 of 86.
+NextValue and DiscardAll; GROUPING SETS, ROLLUP and CUBE also execute. The measured total is 87 of 89.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -537,9 +551,15 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while a named savepoint is active | 25001 |
+
+Named controls use CK04012 without an explicit bound transaction and CK04013 for an absent
+savepoint name. CK04009 fences incomplete undo until rollback to the same or an outer retained
+scope, or whole rollback. These CK codes have no SQLSTATE.
 
 ## Sources
 
+- **JSON and named controls** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlJsonParserTests.cs` and `SavepointConformanceTests.cs` in the same directory.
 - **Batch 14 grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlIsolationParserTests.cs`; recursive execution follows `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DESIGN.md`.

@@ -39,6 +39,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Transaction control
 
+- **[SAVEPOINT and RELEASE SAVEPOINT](savepoint.md)** — Named scopes and repeatable ROLLBACK TO.
 - **[DISCARD ALL](discard-all.md)** — Clear sequence observations and restore initial timeout settings outside a transaction.
 - **[BEGIN TRANSACTION](begin-transaction.md)** — Begin a session transaction with optional isolation modes.
 - **[SET TRANSACTION](set-transaction.md)** — Configure isolation before the first data statement.
@@ -47,7 +48,7 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 84-of-86 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 87-of-89 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

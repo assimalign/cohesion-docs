@@ -7,13 +7,18 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 ## Signature
 
 ```csharp
-public enum OqlTransactionCommand { Begin, Commit, Rollback }
+public enum OqlTransactionCommand
+{
+    Begin, Commit, Rollback, Savepoint, ReleaseSavepoint, RollbackToSavepoint
+}
 ```
 
 ## Behavior and exceptions
 
 BEGIN and START spellings parse as Begin. COMMIT and ROLLBACK parse as their corresponding
-values. Enum access has no exceptions; OqlTransactionExpression refuses undefined values.
+values. Savepoint, ReleaseSavepoint and RollbackToSavepoint identify named controls. Enum access
+has no exceptions; OqlTransactionExpression refuses undefined values and its public constructor
+cannot supply a name for a named control. Parse named commands instead.
 Execution uses the owning session, including over the wire. CD07002 applies only without
 negotiated transaction-status.
 

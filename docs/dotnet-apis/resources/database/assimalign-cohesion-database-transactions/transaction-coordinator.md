@@ -24,6 +24,16 @@ public sealed class TransactionCoordinator : IAsyncDisposable
         CancellationToken cancellationToken = default);
     public ValueTask RollbackAsync(TransactionContext context,
         CancellationToken cancellationToken = default);
+    public ValueTask<TransactionSavepoint> CreateSavepointAsync(TransactionContext context,
+        CancellationToken cancellationToken = default);
+    public ValueTask ReleaseSavepointAsync(TransactionContext context, TransactionSavepoint savepoint,
+        CancellationToken cancellationToken = default);
+    public ValueTask RollbackToSavepointAsync(TransactionContext context, TransactionSavepoint savepoint,
+        CancellationToken cancellationToken = default, Action? scopesDiscarded = null);
+    public static string? GetUndoFailureCode(Exception exception);
+    public static bool IsPartialUndoPending(TransactionContext context);
+    public T ApplyMemoryChange<T>(TransactionContext context, RecordVersionIndex undo, Func<T> change,
+        CancellationToken cancellationToken = default);
     public ValueTask<T> ApplyStatementAsync<T>(TransactionContext context,
         Func<StorageTransaction, T> apply, CancellationToken cancellationToken = default);
     public ValueTask DisposeAsync();
@@ -50,12 +60,55 @@ begin/commit/rollback event, including on disposal. See [counters](design.md#tra
 This read-only pin path is used by all five models' ReadCommitted statements and SQL's reclamation
 fence. Schema-provisioner lock transactions use the ordinary counted path.
 
-A reader spanning a checkpoint is neither journaled nor anchored. Its first later apply enrolls
-under the checkpoint interlock before any stamp, so crash recovery can still classify its writes.
+A reader spanning a checkpoint is neither journaled nor anchored. Its first later physical
+statement apply enrolls under the checkpoint interlock before any stamp, so crash recovery can
+still classify its writes.
 Snapshots and visibility retain their existing semantics. Sequence reservation and reader ends
 bypass the checkpoint's transaction/log gates, so readers can begin, pin cached pages and
 commit or roll back during checkpoint flush I/O. Writers still wait through the checkpoint's
 statement-apply gate. See [checkpoint behavior and measurements](../assimalign-cohesion-database-storage/design.md#checkpoints).
+
+## Current lifecycle handle
+
+The contexts returned by begin and isolation replacement expose:
+
+```csharp
+public sealed class TransactionContext
+{
+    public TransactionContext? Current { get; }
+}
+```
+
+`Current` returns the exact current lifecycle handle issued for the transaction, or null for a
+snapshot pin. Earlier isolation handles and statement views resolve to the same current handle.
+Identity is independent of transaction state; reading this property acquires no monitor.
+
+## Memory-only changes
+
+`ApplyMemoryChange<T>` applies reversible transaction-owned memory without enrolling a durable
+writer and returns the change result (`T`). Callers serialize operations on the supplied
+transaction context or its statement view.
+
+| Parameter | Meaning |
+| --- | --- |
+| context | The transaction or its statement view |
+| undo | An idempotent memory before-image restored through its statement-rollback hook |
+| change | The memory change; it must not perform storage I/O or wait for lock-table grants |
+| cancellationToken | Observed before admission |
+
+The before-image is recorded before mutation and retained until scope or whole undo. No storage
+bracket, journal record or durability wait is created. A transaction containing only these
+changes remains unenrolled; its commit performs no durability wait.
+
+| Exception | Trigger |
+| --- | --- |
+| ArgumentNullException | An argument is null |
+| TransactionAbortedException | The transaction is ending or ended |
+| TransactionUndoException | Incomplete undo fences the transaction |
+| OperationCanceledException | Canceled before admission |
+
+The ownership check also throws TransactionUndoException with CK04008 for a context from
+another coordinator.
 
 ## Commit and rollback
 
@@ -71,11 +124,62 @@ For an enrolled writer it appends COMMIT and waits for durability under the conf
 the transaction remains active. Journal ordering covers earlier statement records. A successful
 commit then removes the context and releases its locks; committed tombstones remain for pruning.
 
-RollbackAsync undoes writer stamps and appends an abort record only for an enrolled writer,
-without waiting for that record's durability. A reader simply ends and releases its locks.
+RollbackAsync undoes writer stamps and memory before-images. Only an enrolled writer appends
+an abort record, without waiting for its durability. An unenrolled context also restores any
+memory before-images, then ends and releases its locks without a journal append.
 Cancellation is observed before rollback starts and leaves the transaction active; once started,
 rollback runs to completion. A failed undo defers cleanup and retains the writer's locks and
 in-flight visibility until undo succeeds. Disposal aborts outstanding readers without journal work.
+
+## Savepoint controls
+
+CreateSavepointAsync returns a [TransactionSavepoint](transaction-savepoint.md) for the current
+active lifecycle context. ReleaseSavepointAsync removes it and all newer tokens, preserving
+their effects. RollbackToSavepointAsync undoes later effects, discards newer tokens and retains
+the target for repeated use. The transaction remains open. Serialize all operations of one
+context, including reads and lock requests. No token carries a language name or persists to disk.
+
+RollbackToSavepointAsync accepts an optional `scopesDiscarded` Action after `cancellationToken`.
+This attempt-local notification runs once after descendants are discarded for an admitted
+attempt, including one whose undo later fails, and never for a refused attempt. It must not
+throw or call back into the coordinator. Rollback completion still returns a ValueTask;
+the notification reports scope lifetime rather than successful undo.
+
+All three methods throw ArgumentNullException for null arguments and OperationCanceledException
+for cancellation before admission. Admitted undo completes despite later caller cancellation.
+Kernel refusals retain their structured code; use GetUndoFailureCode rather than parsing text:
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04008 | Foreign coordinator/context or stale, released, discarded or ended token/context | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
+| CK04010 | An open write stream prevents savepoint control | — |
+
+GetUndoFailureCode returns the structured CK04 identity for a kernel undo refusal, or null for
+another exception. IsPartialUndoPending returns whether incomplete undo fences reads, writes and
+commit; a null context throws ArgumentNullException. While pending, retry rollback to the same
+or an outer retained token, or roll back the whole context. Successful undo clears the fence.
+ReplaceIsolationLevel refuses live tokens with ArgumentException, even for the current level;
+release every token before an otherwise-valid replacement.
+
+Given an initialized coordinator, adapted from TransactionSavepointTokenTests:
+
+```csharp
+var context = await coordinator.BeginAsync(IsolationLevel.Snapshot);
+var scope = await coordinator.CreateSavepointAsync(context);
+await coordinator.RollbackToSavepointAsync(context, scope);
+Console.WriteLine(TransactionCoordinator.IsPartialUndoPending(context)); // False
+await coordinator.ReleaseSavepointAsync(context, scope);
+try
+{
+    await coordinator.RollbackToSavepointAsync(context, scope);
+}
+catch (Exception error) when (TransactionCoordinator.GetUndoFailureCode(error) == "CK04008")
+{
+    Console.WriteLine("Scope was released");
+}
+await coordinator.RollbackAsync(context);
+```
 
 ## Exceptions
 
@@ -169,6 +273,8 @@ PruneBound includes active transaction snapshot minima and statement pins. Do no
 
 ## Sources
 
+- **Owned tokens and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionSavepointTokenTests.cs`.
+- **Current handle and memory admission** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionContext.cs`, `tests/TransactionUndoMarkerFixTests.cs` in the same project, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionCommitCancellationTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCoordinator.cs`.
