@@ -108,8 +108,9 @@ identifiers in persisted SQL. Format 23 introduced persisted views and format 24
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
-direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion. Every earlier format is refused at open
+Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
+direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
+Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 11.
 

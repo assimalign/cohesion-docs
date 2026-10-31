@@ -2,7 +2,7 @@
 
 Extracts JSON members and array elements, or tests whether a value is JSON of a given kind.
 
-> **Status:** Partial. Extraction, kind tests and scalar casts execute. SQL/JSON paths remain deferred.
+> **Status:** Partial. Extraction, kind tests and scalar casts execute. [SQL/JSON path functions](../functions/json-path.md) also execute.
 
 ## Syntax
 
@@ -107,8 +107,8 @@ SELECT returns `1`; the repeated conjunct permits the partial index.
 | CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand or selector | 42804 |
 | CK00001 | WITH/WITHOUT UNIQUE KEYS is unsupported | — |
 
-JSON_VALUE, JSON_QUERY, JSON_EXISTS and SQL/JSON paths are planned for SQ-N2. JSON_TABLE,
-question-mark operators and JSONB normalization remain deferred beyond this subset.
+[JSON_VALUE, JSON_QUERY and JSON_EXISTS](../functions/json-path.md) execute bounded SQL/JSON paths.
+JSON_TABLE, question-mark operators and JSONB normalization remain deferred.
 
 ## See also
 

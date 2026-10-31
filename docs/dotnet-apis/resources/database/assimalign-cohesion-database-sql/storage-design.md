@@ -59,7 +59,7 @@ neither the page format nor the public API.
 
 ## Identity and sequence reservations
 
-SQL format 32 persists standalone and identity-owned definitions as catalog kind 18 and
+SQL format 33 persists standalone and identity-owned definitions as catalog kind 18 and
 reservations as kind 19. Kind 18 includes owning table id, column name and identity ownership;
 kind 16 is retired and never decoded. Compiled schemas use v11. Format 31 and earlier SQL
 formats are refused with no upgrade reader. See [catalog sequence objects](catalog-design.md#standalone-sequences).

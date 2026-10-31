@@ -6,6 +6,8 @@ Reference for the measured aggregate functions and executable scalar builtin fun
 
 ## Function groups
 
+- **[SQL/JSON path functions](json-path.md)** — JSON_VALUE, JSON_QUERY and JSON_EXISTS with bounded paths and behavior clauses.
+
 - **[Window functions](window-functions.md)** — Ranking, distributions, navigation and frame value functions.
 - **[Sequence functions](sequences.md)** — nextval, currval, setval and lastval session behavior.
 - **[GROUPING and GROUPING_ID](grouping.md)** — Distinguish omitted grouping keys from real NULLs.
@@ -21,7 +23,7 @@ finishes mandatory refresh and reports success despite late cancellation or time
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 87-of-89 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 91-of-93 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

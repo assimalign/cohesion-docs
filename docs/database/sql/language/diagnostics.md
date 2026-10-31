@@ -6,6 +6,21 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 
 > **Status:** Implemented.
 
+## SQL/JSON path functions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01068 | Path is not a string constant or parameter | 42804 |
+| CS01069 | Invalid SQL/JSON context, path, DEFAULT or RETURNING signature | 42804 |
+| CS02081 | Invalid/unsupported path or PASSING, refused before rows | 42601/0A000 |
+| CS02082 | Strict accessor structural error | 2203A |
+| CS02083 | Empty sequence with ERROR ON EMPTY | 2203F |
+| CS02084 | Context number exceeds jsonb exponent, precision or scale bounds | 22003 |
+| CS05093 | Result cardinality or scalar-kind violation | 22034/2203B |
+| CS05094 | Path size, statement work or transient result memory limit exceeded | 54000 |
+
+See [SQL/JSON path functions](functions/json-path.md).
+
 ## Partial-index conditions
 
 | Code | Meaning and trigger | SQLSTATE |

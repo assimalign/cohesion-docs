@@ -38,9 +38,9 @@ always-serialized OnUpdate metadata. The earlier v8 changed typed TimeSpan defau
 v11 retains that rendering.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-32/v11 upgrade note](../../../../database/sql/index.md#sql-format-32-and-schema-v11).
+[format-33/v11 upgrade note](../../../../database/sql/index.md#sql-format-33-and-schema-v11).
 
-The integration branch uses SQL row-storage format 32 and compiled schema version 11.
+The integration branch uses SQL row-storage format 33 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -54,8 +54,9 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
-direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
+direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
+Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 
