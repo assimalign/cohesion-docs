@@ -2069,7 +2069,7 @@ source values; DELETE returns old target columns. Bare star expands visible targ
 
 The target is pinned outer. Safe target-only predicates select target seeks; mandatory equalities
 select source probes or budgeted hash builds. Equality-driven steps follow written source order;
-list the source connected to the target first. General join-order search remains #1629. Costing
+list the source connected to the target first. Independent source graphs use exact search; target-referencing UPDATE/DELETE WHERE terms retain bound order. Costing
 shares CTE identity, so volatile definitions materialize once. StatementMemoryBudget covers hash
 builds and joined-DML retention: target identities, non-hash input buffers, derived copies,
 intermediate frames, associations, selected values, encoded replacements and joined cascade state.
@@ -2192,6 +2192,17 @@ CK04009. Every named CK04009 retains its statement span and translated cause. A 
 with a live fence returns CS04005 ahead of CK04009 and preserves the InMemory/TCP session with
 Ready `E`. Direct transaction controls, refusals and commit throw ObjectDisposedException for
 disposal; disposal/offline probes run outside the root monitor.
+
+## Exact join-order search
+
+Three through eight eligible SELECT stored-table inputs use exact subset DP over bushy and
+left-deep orders. Two-input SELECTs retain existing costing. DML searches two through eight
+source relations with the target boundary fixed. Outer joins, derived/view/system inputs,
+subquery predicates, unsafe conditions and larger joins retain bound association. A separate
+retention certificate can decline a cheaper plan. No public API or diagnostic code is added.
+See [eligibility and DML rules](../../../../database/sql/language/clauses/join.md#join-order-search)
+and [EXPLAIN fields](../../../../database/sql/language/statements/explain.md#join-order-search).
+Larger-join bounded search is the next run, SQ-Z2.
 
 ## Sources
 

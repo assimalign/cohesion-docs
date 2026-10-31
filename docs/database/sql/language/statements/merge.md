@@ -113,6 +113,9 @@ FULL requires a safe mandatory hash equality and a complete non-throwing ON proo
 FULL JOIN does. Otherwise CS05070 refuses planning, including EXPLAIN, before reading inputs.
 LEFT and RIGHT associations accept hashless ON predicates.
 
+Eligible two-through-eight source relations use [exact join-order search](../clauses/join.md#join-order-search).
+The target remains fixed outside that search; outer/derived sources and unsafe predicates retain bound order.
+
 EXPLAIN shows a Merge node with the association kind and `actions=written_order`.
 Its children describe the full association tree and ordered MergeAction
 nodes. Action details include order, match kind, operation, condition presence, assignment count

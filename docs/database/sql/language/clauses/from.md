@@ -114,8 +114,8 @@ executes ordered actions; EXPLAIN describes its association without writes.
 UPDATE ... FROM and DELETE ... USING execute with this source-list/join grammar. Their target
 remains the outer join input; target-only predicates can seek it, while mandatory equality to
 a source can drive a source index probe or budgeted hash join. Equality-driven steps follow
-written source order: list the source connected to the target first. General join-order search
-is deferred to #1629. See [UPDATE](../statements/update.md#from-sources) and
+written source order: list the source connected to the target first. Independent source graphs use
+[exact join-order search](join.md#join-order-search); target-referencing WHERE terms retain bound order. See [UPDATE](../statements/update.md#from-sources) and
 [DELETE](../statements/delete.md#using-sources) for cardinality, snapshots and locking.
 
 SET values, WHERE and RETURNING can read source columns; SET destinations remain target-only.

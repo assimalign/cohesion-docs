@@ -95,10 +95,31 @@ merged keys can feed later joins, including parenthesized FULL subtrees.
 [ORDER BY](order-by.md) aliases after `*` and numeric ordinals count the visible merged columns.
 Qualified wildcards such as `t.*` remain excluded.
 
+### Join-order search
+
+For three through eight eligible stored-table relations, the planner searches all binary join
+orders by cost, including bushy and left-deep trees. Two-input SELECTs retain the existing
+pair-costing path. Search preserves results, output columns and their written order. Row order
+still requires ORDER BY. A separate memory-retention check can keep the previous costed plan
+even when enumeration finds a cheaper candidate.
+
+Any outer join in a SELECT keeps its bound association. Derived tables, views, system relations,
+subquery predicates and predicates lacking the [non-throwing proof](#predicate-safety) prevent
+search. More than eight relations retain bound order; bounded search for larger joins belongs
+to the next run, SQ-Z2. LATERAL remains refused with CK00001. Search adds no diagnostic codes.
+
+UPDATE ... FROM, DELETE ... USING and MERGE search only two through eight eligible source
+relations. The target stays outside the search at its original boundary. Target-referencing
+cross-conjuncts in UPDATE/DELETE WHERE retain bound order because their source probes depend
+on the target row. One source retains existing planning; outer/derived sources and unsafe
+predicates retain bound order. Independent FROM/USING graphs and MERGE's source subtree can
+be searched. [EXPLAIN](../statements/explain.md#join-order-search) reports the selected order.
+
 ### Access paths
 
-Ungrouped INNER/LEFT execution is left-deep; grouped and FULL joins retain their normalized tree.
-Only the first INNER pair may swap inputs; bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
+Outside eligible search, ungrouped INNER/LEFT execution retains its existing left-deep path;
+grouped and FULL joins retain their normalized tree. The first INNER pair may swap inputs;
+bounded probe costs can choose its driver while complete unique-key seeks retain their cheap path. Later steps may seek into the added input,
 and LEFT always drives from its preserved left side.
 Mandatory equalities can probe an index's leading key prefix under the existing type/collation
 rules; the full predicate still filters candidates. Otherwise the added input buffers once.
@@ -270,7 +291,7 @@ reports CS05070, even when either table is empty.
 ## Hash joins and memory
 
 Eligible mandatory equijoins can choose `HashJoin` by comparing bounded build/probe costs with
-nested-loop work. Only the first INNER pair may reverse to build the smaller estimated input;
+nested-loop work. Outside [eligible search](#join-order-search), only the first INNER pair may reverse to build the smaller estimated input;
 LEFT preserves its written outer side. Small exact indexed inputs and complete unique probes
 retain index nested loops. When both inputs lack countable indexes, eligible equijoins select
 hash joins regardless of actual size, even when empty or tiny; both estimates use 4,096 rows.

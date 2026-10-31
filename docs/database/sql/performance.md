@@ -11,6 +11,13 @@ join probes and unbounded subset scans when mandatory query conjuncts prove thei
 Eligible paths participate in bounded cardinality probes and cost selection. The complete query
 predicate remains a residual filter; EXPLAIN records `partial_predicate` and `implied_by`.
 
+[Join-order search](language/clauses/join.md#join-order-search) enumerates bushy and left-deep
+orders for three through eight eligible SELECT relations and two through eight DML sources.
+Two-input SELECTs retain their existing cost path. Outer joins, derived/view/system inputs,
+subquery predicates and unproven predicates retain bound association; larger joins await SQ-Z2.
+A conservative retention check can decline a cheaper candidate. Output columns and results remain
+unchanged; [EXPLAIN](language/statements/explain.md#join-order-search) exposes the choice.
+
 Costing is lazy. Complete unique-key equality lookups avoid probes. The primary-key/base-table
 total is probed only when the selected seek estimate exceeds 16 candidates. Join estimates reuse
 input access counts and run only for hash choices or competing indexed directions; a complete
@@ -90,7 +97,8 @@ Equality-driven steps follow written source order. If only b is connected to the
 equality, list b first: `FROM b, a` or `USING b, a`. In
 `UPDATE t SET v = b.v FROM a, b WHERE t.id = b.tid AND b.aid = a.id`, the engine visits the
 t × a product before b's hash. Reversing the source list lets each equality drive its step.
-Both orders are correct; general join-order search is deferred to #1629.
+Both orders are correct. Independent source graphs can use exact search; target-referencing
+UPDATE/DELETE WHERE terms retain bound order.
 
 Every [referential closure](language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
 StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to

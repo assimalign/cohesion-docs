@@ -48,6 +48,32 @@ an unsupported condition reports CS05070 before reading inputs. For example, on 
 `EXPLAIN SELECT * FROM a FULL JOIN b USING (id)` describes FullHashJoin without executing it.
 ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted unmatched rows.
 
+### Join-order search
+
+Join detail uses these exact field forms (angle-bracket values are placeholders):
+
+```text
+join_search=exact_dp; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_states=<count>; search_partitions=<count>; search_scope=select
+join_search=exact_dp; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_states=<count>; search_partitions=<count>; search_scope=source_only; target_boundary=fixed
+join_search=bound; chosen_order=<names>; reordered=<true|false>
+```
+
+Searched orders are parenthesized binary trees such as `((a,c),(b,d))`; bound orders are
+comma-separated leaf names. Names use aliases when present. reordered records association as
+well as leaf-order changes. Two-input SELECTs use the existing path and report bound detail.
+See [search eligibility](../clauses/join.md#join-order-search).
+
+The wire test creates a(id INT PRIMARY KEY,k INT), b with the same definition, and c with the
+same definition; a and b contain (id,id) for 1 through 24, while c contains (1,1). It executes:
+
+```sql
+EXPLAIN SELECT a.id,b.id,c.id FROM a CROSS JOIN b JOIN c
+ON a.k=c.k AND b.k=c.k ORDER BY a.id;
+```
+
+Detail contains `join_search=exact_dp; collapse_limit=8` and `reordered=true`. The SELECT
+returns (1,1,1), with the written a,b,c output order. The test does not pin a specific chosen tree.
+
 ### Window frames
 
 WindowAgg detail retains each function's frame and sort_shared for compatible partition/order
@@ -243,12 +269,14 @@ EXPLAIN UPDATE t SET v = s.v FROM s WHERE t.id = s.id AND t.id = 1 RETURNING *;
 ```
 
 The plan includes target/source IndexSeek paths and a four-column RETURNING description
-(id, v, id, v). General join-order search is deferred; equality-driven source steps follow
-written FROM/USING order. See [performance](../../performance.md#joined-mutations).
+(id, v, id, v). Eligible source-only graphs use [exact search](../clauses/join.md#join-order-search);
+target-referencing UPDATE/DELETE WHERE conditions retain bound source order.
+See [performance](../../performance.md#joined-mutations).
 EXPLAIN ANALYZE remains SELECT-only.
 
 ## Sources
 
+- **Join search and wire example** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.Describe.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlJoinOrderSearchWireTests.cs`.
 - **Plans and no execution** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExplainTests.cs`.
 - **Shape** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Execution/src/DatabasePlanDescription.cs`.
 - **Join steps** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNWayJoinTests.cs`.
