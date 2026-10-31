@@ -613,6 +613,17 @@ Ordinary callback failures leave explicit transactions active.
 No SQLSTATE is assigned to the function-specific codes. External callback effects cannot
 be rolled back.
 
+## Savepoint execution conformance
+
+The completed [cross-model matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers failed-control policy, target/outer/root recovery after incomplete undo, live crash images,
+reader/lock progress, and disposal/pool return while undo is admitted. Recoverable undo failures
+fence reads, writes and commit with CK04009 until recovery; corruption aborts instead. Ends and
+teardown drain admitted undo. Uncommitted roots are scrubbed after crash; committed roots recover
+the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
+Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
+Cross-model conformance (#1726, XT-5) section.
+
 ## Sources
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.KeyValuePair/tests/KeyValueWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.

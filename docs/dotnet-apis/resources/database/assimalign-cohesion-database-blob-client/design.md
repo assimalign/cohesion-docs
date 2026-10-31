@@ -14,6 +14,18 @@ COHDBCLIENT001 rejects engine project references, resolved engine assemblies and
 non-null, read-only Diagnostics. Catch this client exception for remote failures; catching
 `DatabaseException` no longer handles them. See the [migration guide](../../../../database/model-project-migration.md#remote-failures).
 
+## Borrowed wire transaction scopes
+
+Uploads/downloads now join an open host server transaction. Successful borrowed uploads complete
+the operation and await host commit for publication; only automatic envelopes are committed or
+disposed by the server. Admission refuses an ended captured host with CK04005 instead of silently
+starting autocommit. Failed uploads abort the destination operation before buffered disposal,
+including protocol failures while the connection is live. Downloads select metadata and content
+from one version under Snapshot or READ COMMITTED and release the read hold before completion.
+Acknowledgment failures abort the borrowed read operation before disposal. No transaction-control
+message or client API is added. See [transfer semantics](../../../../database/blob/operations.md#host-transactions)
+and the [savepoint matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
+
 ## Ownership and family
 
 The typed client binds `Database.Client` to the exact `BlobProtocol.Family` instance.
@@ -243,6 +255,8 @@ A clean handshake EOF has its own message naming the startup handshake. See
 and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes).
 
 ## Sources
+
+- **Borrowed transfers and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BorrowedTransferWireTests.cs`, `SavepointAdapterWireTests.cs` and `BlobTransactionFailureWireTests.cs` in the same directory.
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.
 - **Build guard** — `cohesion/resources/Database/Directory.Build.targets`.

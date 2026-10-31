@@ -317,6 +317,15 @@ offline diagnostic reaches the caller. Reopen scrubs the uncommitted writer. A f
 has been buffered instead has a committed-unconfirmed outcome. The model transaction-failure tests
 cover this boundary for all five engines.
 
+## Savepoints and transfer transactions
+
+Named [SQL](sql/language/statements/savepoint.md), [OQL](document/language/statements/transactions.md#named-savepoints)
+and [GQL](graph/language/statements/transactions.md) controls retain their model failure rules.
+The completed [conformance matrix](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers all five engines, incomplete-undo recovery, crash recovery and teardown during admitted
+undo. [Blob wire transfers](blob/operations.md#host-transactions) can borrow an open host transaction;
+completed uploads then await host commit and downloads pin one metadata/content version.
+
 ## Checkpoint triggering
 
 Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker

@@ -38,7 +38,16 @@ transaction (`E`). Returning a pooled connection rolls back and discards every s
 Closing the database takes precedence over the fence: SQL reports CS04005 and keeps the wire
 session open with Ready `E`, including repeated error/Ready exchanges on InMemory and TCP.
 Pre-canceled controls change nothing; admitted undo finishes despite later caller cancellation.
-Successful controls affect zero rows.
+A control canceled before wire dispatch takes no kernel admission; the canceled exchange breaks
+its connector and lease cleanup removes its scopes. Successful controls affect zero rows.
+
+Unknown RELEASE or ROLLBACK TO names report CK04013 and leave SQL's transaction active; existing
+savepoints remain usable. Recoverable adapter failures, including failures after physical undo
+has made progress, admit target, outer or whole rollback recovery. Corruption aborts instead.
+Root ends, session/database disposal and pool return drain admitted undo before teardown. Crash
+recovery removes the entire uncommitted root writer; after root commit, the retained prefix and subsequent committed writes
+survive. Markers are never persisted. See the completed
+[cross-model conformance matrix](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
 
 ## Diagnostics
 
@@ -85,6 +94,7 @@ RELEASE exposes the older `keep`, whose rollback also removes row 2.
 
 ## Sources
 
+- **Execution conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointMatrixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SavepointConformanceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/NamedSavepointWireTests.cs` and `SavepointFailureWireTests.cs` in the same directory.

@@ -1240,6 +1240,17 @@ and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. N
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
 | CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
 
+## Savepoint execution conformance
+
+The completed [cross-model matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers failed-control policy, target/outer/root recovery after incomplete undo, live crash images,
+reader/lock progress, and disposal/pool return while undo is admitted. Recoverable undo failures
+fence reads, writes and commit with CK04009 until recovery; corruption aborts instead. Ends and
+teardown drain admitted undo. Uncommitted roots are scrubbed after crash; committed roots recover
+the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
+Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
+Cross-model conformance (#1726, XT-5) section.
+
 ## Sources
 
 - **Memory-only MERGE and lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs`, `src/Internal/Execution/GraphMergeLocks.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.

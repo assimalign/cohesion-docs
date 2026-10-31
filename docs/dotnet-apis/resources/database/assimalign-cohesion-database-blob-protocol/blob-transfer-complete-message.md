@@ -4,7 +4,7 @@ The `BlobTransferCompleteMessage` type is part of the documented `Assimalign.Coh
 
 > **Status:** Partial.
 
-Ends a transfer with the actual byte count, or acknowledges a published upload.
+Ends a transfer with the actual byte count, or acknowledges a completed upload operation.
 
 Namespace: `Assimalign.Cohesion.Database.Blob.Protocol`.
 
@@ -12,7 +12,9 @@ Assembly: `Assimalign.Cohesion.Database.Blob.Protocol.dll`. NuGet package: `Assi
 
 ## Documented behavior
 
-Actual content count at transfer completion or upload publication
+Actual content count at transfer completion. For automatic uploads, the final server message
+follows commit; for borrowed host transactions it confirms operation completion, with publication
+waiting for host commit. See [host transactions](../../../../database/blob/operations.md#host-transactions).
 
 ## Related reference
 

@@ -69,9 +69,20 @@ open and Ready reports a failed transaction (`E`). Pre-canceled controls change 
 admitted undo finishes despite later caller cancellation. ExecutePaths refuses named controls
 with CG05001 before changing state.
 
+An unknown RELEASE or ROLLBACK TO name reports CK04013 and faults the transaction. A later
+ROLLBACK TO an existing name reports CG04007; whole rollback is required. Recoverable incomplete
+undo instead permits target, outer or whole rollback recovery, including after physical undo
+has progressed. Corruption aborts instead. Root ends, disposal and pool return drain admitted
+undo before teardown. Crash recovery removes the uncommitted root writer; after root commit,
+the retained prefix and subsequent committed writes survive. See the completed
+[conformance matrix](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
+
 Database disposal takes precedence over CK04009. Direct transaction controls, refusals and
 commit throw ObjectDisposedException while a live undo fence remains. Over the wire, Graph
 keeps its existing disposal code CG09019.
+Graph disposal/offline refusals retain their coded Error and Ready E exchange. A control
+canceled before dispatch takes no kernel admission; its canceled wire exchange breaks the
+connector, and lease cleanup removes its scopes.
 
 ## Savepoint diagnostics
 
@@ -103,6 +114,7 @@ The count is `1`. `Keep` remains after each rollback; `keep` would be a differen
 
 ## Sources
 
+- **Execution conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMatrixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`.
 - **Memory-only MERGE and direct disposal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/SavepointMergeLockTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **Disposal translation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabase.Lifetime.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.

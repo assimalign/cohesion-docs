@@ -82,6 +82,9 @@ for payload layouts.
 
 [Parent: Database](../index.md)
 
+Uploads/downloads can join an open host server transaction; completed uploads then await host
+commit for publication. See [host transfer semantics](../../../../database/blob/operations.md#host-transactions).
+
 ## Sources
 
 - **Current project boundaries** — `cohesion/resources/Database/README.md`.

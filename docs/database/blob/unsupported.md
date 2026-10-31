@@ -12,7 +12,7 @@ Blob supports streamed object operations with explicit limits on language, provi
 | Stream upload and download | Supported | Sequential content with bounded chunk transfer |
 | Delete, properties, prefix listing | Supported | Engine and typed wire client |
 | Atomic upload publication | Supported | Successful completion and transaction commit publish the object |
-| Snapshot and read-committed transactions | Supported | Engine sessions; unsupported isolation is rejected |
+| Snapshot and read-committed transactions | Supported | Engine sessions and borrowed host transactions during wire transfer; unsupported isolation is rejected |
 | Large object client round trip | Supported (measured) | Client fixture transfers 256 MiB plus 123 bytes under a 64 MiB managed heap limit |
 
 The measured round trip uses mebibytes (MiB) and is test evidence, not a general maximum size or a
@@ -23,6 +23,7 @@ throughput guarantee. Content exceeding available memory requires file-backed st
 | Feature | Current behavior |
 |---|---|
 | Statement or query language | No Blob language; `ExecuteAsync` rejects commands |
+| Transaction/savepoint control over Blob wire | No control messages; hosts can open transactions and coordinator scopes used by wire operations |
 | Database switching and server administration commands | Rejected by Blob command execution; startup fixes wire database scope |
 | Database or container provisioning over the Blob wire family | No provisioning messages; use host-side engine APIs |
 | Compiled-schema provisioning | Not implemented; catalog ownership markers and engine ownership enforcement exist |

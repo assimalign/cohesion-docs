@@ -2217,6 +2217,17 @@ Destinations must honor cancellation. CS01070/CS01071 identify option/column ref
 (25001) explicit transactions, CS05095 a non-COPY consumer request, CS05096 a missing consumer
 or capability, and CK07005 protocol violations.
 
+## Savepoint execution conformance
+
+The completed [cross-model matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers failed-control policy, target/outer/root recovery after incomplete undo, live crash images,
+reader/lock progress, and disposal/pool return while undo is admitted. Recoverable undo failures
+fence reads, writes and commit with CK04009 until recovery; corruption aborts instead. Ends and
+teardown drain admitted undo. Uncommitted roots are scrubbed after crash; committed roots recover
+the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
+Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
+Cross-model conformance (#1726, XT-5) section.
+
 ## Sources
 
 - **Named-control failure and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.

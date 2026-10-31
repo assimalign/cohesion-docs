@@ -73,9 +73,19 @@ writes, COMMIT and other named controls are fenced until recovery. The wire sess
 and Ready reports a failed transaction (`E`). Pre-canceled controls change nothing; admitted undo
 finishes despite later cancellation.
 
+An unknown RELEASE or ROLLBACK TO name reports CK04013 and faults the transaction. A later
+ROLLBACK TO an existing name then reports CD04101; whole ROLLBACK is required. Recoverable incomplete undo permits retry of its target, an outer retained scope,
+or whole rollback. Corruption during undo aborts instead. Root ends, disposal and pool return
+drain admitted undo before cleanup. Crash recovery removes the uncommitted root writer, even
+after physical undo has progressed; after root commit the retained prefix and subsequent committed writes survive.
+See the completed [conformance matrix](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
+
 Database disposal takes precedence over CK04009. Direct transaction controls, refusals and
 commit throw ObjectDisposedException while a live undo fence remains; in-process session
 execution also observes disposal before that fence.
+On the wire, OQL's disposed preflight is terminal; offline storage instead returns its error
+with Ready E. A control canceled before dispatch takes no kernel admission, but the canceled
+wire exchange breaks its connector and lease cleanup removes its scopes.
 
 ## Diagnostics
 
@@ -136,6 +146,7 @@ The count is `1`; both rollbacks retain `Keep`. A reference to `keep` would be a
 
 ## Sources
 
+- **Execution conformance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/SavepointMatrixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`.
 - **Direct disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/NamedSavepointTests.cs` and `SavepointFixTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/NamedSavepointWireTests.cs` and `SavepointFailureWireTests.cs` in the same directory.

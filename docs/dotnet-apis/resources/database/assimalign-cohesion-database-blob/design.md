@@ -310,10 +310,11 @@ excess chunk and checks completion against both the actual count and the declare
 unknown length, the completion count still must equal actual received bytes. Empty objects send
 start and completion with no chunks. Chunk acknowledgement means the destination accepted the bytes;
 it never means the object was published or durably committed. On upload, after receiving and
-verifying `TransferComplete`, the server publishes through its storage transaction, then sends its
-own `TransferComplete` with the verified length as the success acknowledgement.
+verifying `TransferComplete`, the server finishes the destination. It commits only an automatically
+created transaction, then sends its own `TransferComplete` with the verified length. A borrowed
+host transaction remains open; host commit publishes its completed uploads.
 
-This exchange shows the upload request, the bounded content flow, and publication acknowledgement:
+This exchange shows the upload request, bounded content flow and completion acknowledgment:
 
 ```mermaid
 sequenceDiagram
@@ -331,8 +332,12 @@ sequenceDiagram
         S-->>C: ChunkAcknowledgement(cumulative length)
     end
     C->>S: TransferComplete(actual length)
-    S->>D: Publish upload
-    D-->>S: Commit completed
+    S->>D: Finish destination
+    D-->>S: Destination completed
+    opt Automatically created transaction
+        S->>S: Commit transaction
+    end
+    Note over S: Borrowed host transaction remains open
     S-->>C: TransferComplete(actual length)
 ```
 
@@ -398,18 +403,20 @@ peer-close linger must be positive and finite. An unexpected accept-loop failure
 is rethrown by Stop only after accepted sessions and rejection work have drained or been aborted and
 the listener has been released.
 
-Every upload runs inside an explicit existing engine transaction. After validating TransferStart,
-the server opens the session-bound destination using its content type and overwrite flag. It
-consumes the existing one-chunk-window transfer helper. Only a verified TransferComplete permits
-successful destination disposal and transaction commit. Failures roll back before destination
-disposal, so stream finalization cannot accidentally publish a partial object. `New` failed objects
-remain absent; failed replacements leave the previous committed object readable. The terminal upload
-acknowledgement is sent only after commit succeeds. Loss of that acknowledgement can leave the
+Uploads borrow an open host transaction or create an automatic envelope. After validating
+TransferStart, the server opens the session-bound destination using its content type and overwrite
+flag. Only verified completion permits successful destination disposal. The server commits only
+an envelope it created; a borrowed host remains open. Failures abort the destination operation
+before buffered disposal, so no partial object can commit. Failed new objects remain absent and
+failed replacements preserve the previous committed object. The terminal upload acknowledgment
+follows operation completion and, for an automatic envelope, commit. Loss of that acknowledgement can leave the
 client uncertain even though the complete object committed; there is no exactly-once retry or
 transfer-resumption guarantee.
 
-Downloads read properties and content in one Snapshot transaction so a concurrent replacement cannot
-mix old metadata with new bytes. Disposal releases the read snapshot. EOF before a valid
+Downloads select properties and content from one immutable catalog version and pinned operation
+snapshot, including borrowed READ COMMITTED transactions. EOF releases the read hold before
+TransferComplete is written, allowing immediate host commit. Failed acknowledgments abort the
+borrowed operation before disposal. EOF before a valid
 TransferComplete is always failure. Engine/storage errors during an exchange send the shared
 ExecutionFailure error and close the session; protocol violations send ProtocolViolation and close
 it. A broken transport may prevent delivery of the error itself, in which case the client still
@@ -421,6 +428,14 @@ The Blob server tests cover all five operations against another database and ano
 matching names, authenticator evidence, session limits, idle/authentication timeouts, terminal
 lifecycle, engine-state rejection, both drain phases, and a blocked over-limit rejection. The client
 suite supplies in-memory end-to-end failure cases and the constrained-heap wire round trip.
+
+## Borrowed transfer admission
+
+Wire uploads/downloads no longer refuse an open host transaction with CK04004. Upload admission
+checks the captured transaction identity; an ended host refuses with CK04005 instead of starting
+autocommit. Protocol failures before operation admission abort the host before terminal I/O;
+failed uploads abort their own operation before buffered stream disposal. On success, only
+automatic envelopes are committed/disposed by the server. See [host transactions](../../../../database/blob/operations.md#host-transactions).
 
 ## Phase 29: deferred hosting composition
 
@@ -697,7 +712,20 @@ policy or replace an unresolved operational fault. Event 36 repeats once per sec
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
+## Savepoint execution conformance
+
+The completed [cross-model matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers failed-control policy, target/outer/root recovery after incomplete undo, live crash images,
+reader/lock progress, and disposal/pool return while undo is admitted. Recoverable undo failures
+fence reads, writes and commit with CK04009 until recovery; corruption aborts instead. Ends and
+teardown drain admitted undo. Uncommitted roots are scrubbed after crash; committed roots recover
+the retained prefix and subsequent committed writes. No persistent marker or new diagnostic code is introduced.
+Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
+Cross-model conformance (#1726, XT-5) section.
+
 ## Sources
+
+- **Borrowed transfers and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BorrowedTransferWireTests.cs`, `SavepointAdapterWireTests.cs` and `BlobTransactionFailureWireTests.cs` in the same directory.
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Terminal delivery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobServerDrainTests.cs`, `BlobServerRejectionDrainTests.cs`, `BlobServerRejectionSetupTests.cs` and `BlobTerminalDrainEventTests.cs` in the same directory.
