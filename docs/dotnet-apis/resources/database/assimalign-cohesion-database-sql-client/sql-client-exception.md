@@ -28,7 +28,11 @@ three-argument constructor has an empty list. Each copied snapshot is read-only 
 by source offset, with unlocated entries last. The carrier preserves code, severity and span while
 Kind/Code retain client and wire categories. ConnectionUsable is true for ParseFailure,
 ExecutionFailure, TransactionAborted, NotAuthorized and InvalidCast; protocol/connection failures
-are unusable. Constructors add no new validation exception.
+are unusable. An incomplete COPY exchange overrides this category rule: once CopyStart was
+received, a SqlClientException has ConnectionUsable=false even for ParseFailure/ExecutionFailure.
+A complete statement refusal before streaming, including CS04075 (25001), or local missing
+capability CS05096 keeps the connection usable. See [CopyToAsync](sql-connection.md#copytoasync).
+Constructors add no new validation exception.
 
 SQL constraint failures use Kind SqlClientErrorKind.ExecutionFailure and Code
 ProtocolErrorCode.ExecutionFailure. With protocol 2.1 and `diagnostics` negotiated, Diagnostics

@@ -16,6 +16,8 @@ restrictions on their reference pages.
 
 ## Statements
 
+[COPY TO STDOUT](statements/copy-to.md) exports tables as text or CSV through an embedded or remote stream consumer.
+
 The [Statements](statements/index.md) section groups data definition language (DDL), data
 manipulation language (DML), and transaction control.
 

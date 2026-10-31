@@ -6,6 +6,20 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 
 > **Status:** Implemented.
 
+## SQL COPY TO STDOUT
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01070 | Invalid, duplicate or incompatible COPY option | — |
+| CS01071 | Duplicate output/FORCE_QUOTE column or FORCE_QUOTE column outside export | — |
+| CS04075 | COPY inside an explicit transaction | 25001 |
+| CS05095 | CopyToAsync received a non-COPY statement | — |
+| CS05096 | COPY lacks outbound-stream capability or consumer API | — |
+
+Legacy options use CS00003; missing output columns use CS01015 (42703). COPY FROM, files, PROGRAM,
+binary, query export and views use CK00001. Malformed protocol exchanges retain CK07005.
+See [COPY TO STDOUT](statements/copy-to.md).
+
 ## SQL/JSON path functions
 
 | Code | Meaning and trigger | SQLSTATE |

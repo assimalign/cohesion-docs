@@ -13,6 +13,10 @@ fixpoints with on-demand execution and shared readers.
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
 SELECT-only EXPLAIN ANALYZE executes to report candidate work. Standalone ANALYZE remains unsupported.
 
+[COPY TO STDOUT](statements/copy-to.md) exports physical tables through CopyToAsync. COPY FROM,
+server files, PROGRAM, binary, query-form export and views remain CK00001; legacy unparenthesized
+options use CS00003. Ordinary Execute/Query refuses COPY with CS05096.
+
 ## Exclusion matrix
 
 The classification **Recognized, not supported (`CK00001`)** applies to the capability-gated

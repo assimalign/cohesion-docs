@@ -12,10 +12,11 @@ public static class SqlClauses
     public const string JsonValue = "JSON_VALUE";
     public const string JsonQuery = "JSON_QUERY";
     public const string JsonExists = "JSON_EXISTS";
+    public const string CopyTo = "COPY TO STDOUT";
 }
 ```
 
-This excerpt lists the SQL/JSON constants. Each is a measured contextual clause; the words add
+This excerpt lists the SQL/JSON and COPY constants. Each is a measured contextual clause; the words add
 no lexical reservation. Reading constants and checking Supports throw no exceptions.
 
 ## Example
@@ -26,7 +27,11 @@ Checked against SqlLanguageProfileTests:
 Console.WriteLine(SqlLanguageProfile.Instance.Supports(SqlClauses.JsonValue));  // True
 Console.WriteLine(SqlLanguageProfile.Instance.Supports(SqlClauses.JsonQuery));  // True
 Console.WriteLine(SqlLanguageProfile.Instance.Supports(SqlClauses.JsonExists)); // True
+Console.WriteLine(SqlLanguageProfile.Instance.Supports(SqlClauses.CopyTo));     // True
 ```
+
+CopyTo names the [table export clause](../../../../database/sql/language/statements/copy-to.md),
+which requires the dedicated stream consumer API.
 
 ## Related reference
 

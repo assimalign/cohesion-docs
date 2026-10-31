@@ -14,6 +14,10 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlCopyToExpression](sql-copy-to-expression.md)** and **[SqlCopyOptions](sql-copy-options.md)** — Table export and resolved options.
+- **[SqlExpressionRenderer](sql-expression-renderer.md)** — Canonical COPY overload.
+- **[SqlQueryCommandType](sql-query-command-type.md)** — Includes CopyTo.
+
 - **[SqlJsonFunctionExpression](sql-json-function-expression.md)** — SQL/JSON operands and clauses.
 - **[SqlJsonFunctionKind](sql-json-function-kind.md)**, **[SqlJsonWrapper](sql-json-wrapper.md)** and **[SqlJsonBehavior](sql-json-behavior.md)** — Operation and result policies.
 - **[SqlClauses](sql-clauses.md)** — SQL/JSON capability constants.

@@ -16,6 +16,15 @@ ASC/DESC and NULL placement. Defaults are ASC NULLS LAST and DESC NULLS FIRST. C
 omits ASC and direction-default NULL placement. Constraint lists reject options with CS00003.
 CREATE INDEX KEY ORDER adds one clause. With SQL/JSON and COPY, the current profile measures 91 of 93.
 
+## SQL/JSON and COPY nodes
+
+[SqlJsonFunctionExpression](sql-json-function-expression.md) retains context, constant/parameter
+path, RETURNING, wrapper, quote and empty/error policies. Quoted ordinary calls retain their
+function-call identity. [SqlCopyToExpression](sql-copy-to-expression.md) retains table, ordered
+columns and validated [SqlCopyOptions](sql-copy-options.md); its canonical renderer spells out
+resolved defaults. [SqlClauses](sql-clauses.md) exposes JsonValue, JsonQuery, JsonExists and CopyTo;
+the current profile measures 91 of 93 clauses.
+
 ## JSON expressions
 
 The existing binary expression operators add JsonAccess and JsonTextAccess for `->` and `->>`

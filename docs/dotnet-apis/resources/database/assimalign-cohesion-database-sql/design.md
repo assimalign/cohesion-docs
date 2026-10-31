@@ -2204,6 +2204,19 @@ See [eligibility and DML rules](../../../../database/sql/language/clauses/join.m
 and [EXPLAIN fields](../../../../database/sql/language/statements/explain.md#join-order-search).
 Larger-join bounded search is the next run, SQ-Z2.
 
+## COPY TO STDOUT
+
+[COPY TO STDOUT](../../../../database/sql/language/statements/copy-to.md) streams physical-table
+text/CSV from one statement snapshot with no writer, row or object locks. The dedicated embedded
+and remote CopyToAsync APIs return data-row counts. Remote delivery requires separately
+negotiated sql.outbound-stream (frames 80–84), sends at most one 16 KiB data frame before its
+acknowledgment, and verifies terminal row/byte counts before Ready. Existing Execute bytes remain
+unchanged for older peers. Early statement errors preserve the connection and transaction;
+started/incomplete transfers discard the rental and may leave partial destination output.
+Destinations must honor cancellation. CS01070/CS01071 identify option/column refusals, CS04075
+(25001) explicit transactions, CS05095 a non-COPY consumer request, CS05096 a missing consumer
+or capability, and CK07005 protocol violations.
+
 ## Sources
 
 - **Named-control failure and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.

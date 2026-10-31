@@ -29,6 +29,8 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Data manipulation language
 
+- **[COPY TO STDOUT](copy-to.md)** — Export a table as UTF-8 text or CSV through a stream consumer.
+
 - **[SELECT](select.md)** — Read and compose the measured relational query subset.
 - **[INSERT](insert.md)** — Insert scalar rows or query results.
 - **[UPDATE](update.md)** — Assign column values to selected rows.

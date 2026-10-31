@@ -6,12 +6,16 @@ Shared Sql wire messages, codecs and transferred values for engines and remote c
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Protocol`. Assembly: `Assimalign.Cohesion.Database.Sql.Protocol.dll`. NuGet package: `Assimalign.Cohesion.Database.Sql.Protocol`.
 
-This package owns 5 public types formerly shipped in `Assimalign.Cohesion.Database.Sql`.
+This package owns the SQL contracts formerly shipped in `Assimalign.Cohesion.Database.Sql`.
 Both engine and client consume these same contracts and the single model family instance. Update
 imports and package references and recompile. Namespaces and assembly identities change without
-forwarders; wire bytes, disk formats, limits and validation behavior stay the same.
+forwarders. Existing Execute bytes and disk formats stay the same. The independently negotiated
+[sql.outbound-stream](sql-protocol.md#outboundstream) capability adds COPY frames 80–84.
 
 ## Reference pages
+
+- **[ProtocolCopyToMessage](protocol-copy-to-message.md)** — Zero-parameter table export request.
+- **[ProtocolCopyCompleteMessage](protocol-copy-complete-message.md)** — Verified row/byte counters.
 
 - **[Design](design.md)** — Contract ownership and dependencies.
 - **[Examples](examples/index.md)** — Codec use without an engine reference.

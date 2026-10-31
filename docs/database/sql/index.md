@@ -209,6 +209,9 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
+[SQL/JSON path functions](language/functions/json-path.md) and [COPY TO STDOUT](language/statements/copy-to.md)
+execute with bounded path work and negotiated outbound streaming respectively.
+
 ## SQL format 33 and schema v11
 
 SQL opens only data/catalog format **33** and compiled documents in
