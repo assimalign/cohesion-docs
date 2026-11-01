@@ -55,12 +55,25 @@ Join detail uses these exact field forms (angle-bracket values are placeholders)
 ```text
 join_search=exact_dp; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_states=<count>; search_partitions=<count>; search_scope=select
 join_search=exact_dp; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_states=<count>; search_partitions=<count>; search_scope=source_only; target_boundary=fixed
+join_search=greedy_connected; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_method=greedy_connected; search_states=<count>; search_pairs=<count>; search_cost_evaluations=<count>; search_scope=select
+join_search=greedy_connected; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_method=greedy_connected; search_states=<count>; search_pairs=<count>; search_cost_evaluations=<count>; search_scope=source_only; target_boundary=fixed
+join_search=bound; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_method=greedy_connected; search_states=<count>; search_pairs=<count>; search_cost_evaluations=<count>; search_scope=select
+join_search=bound; collapse_limit=8; chosen_order=<tree>; reordered=<true|false>; search_method=greedy_connected; search_states=<count>; search_pairs=<count>; search_cost_evaluations=<count>; search_scope=source_only; target_boundary=fixed
 join_search=bound; chosen_order=<names>; reordered=<true|false>
 ```
 
-Searched orders are parenthesized binary trees such as `((a,c),(b,d))`; bound orders are
-comma-separated leaf names. Names use aliases when present. reordered records association as
-well as leaf-order changes. Two-input SELECTs use the existing path and report bound detail.
+Exact search covers three through eight eligible SELECT inputs and two through eight DML
+sources. Nine through 64 use the bounded path; `collapse_limit=8` remains the exact-search
+threshold. `join_search=greedy_connected` means a candidate was admitted, including safe filter
+pushdown that keeps the written order and reports `reordered=false`. A kept large-join plan
+reports `join_search=bound` with `search_method=greedy_connected` and the work counters.
+Flat joined DML and existing hash builds consider only pushdown in the current order, so
+`search_pairs=0`; normalized trees retain bound plans with all three search counters zero.
+
+Search records use parenthesized binary trees such as `((a,c),(b,d))`, including kept heuristic
+plans. Ordinary bound records use comma-separated leaf names and omit collapse_limit and search
+counters. These include ineligible graphs, two-input SELECTs and graphs above 64 relations.
+Names use aliases when present. reordered records association as well as leaf-order changes.
 See [search eligibility](../clauses/join.md#join-order-search).
 
 The wire test creates a(id INT PRIMARY KEY,k INT), b with the same definition, and c with the
@@ -73,6 +86,31 @@ ON a.k=c.k AND b.k=c.k ORDER BY a.id;
 
 Detail contains `join_search=exact_dp; collapse_limit=8` and `reordered=true`. The SELECT
 returns (1,1,1), with the written a,b,c output order. The test does not pin a specific chosen tree.
+
+For the larger-join wire fixture, execute separately in a fresh database:
+
+```sql
+CREATE TABLE a (id INT PRIMARY KEY, k INT);
+CREATE TABLE b (id INT PRIMARY KEY, k INT);
+INSERT INTO a VALUES (1,1), (2,2), (3,3);
+INSERT INTO b VALUES (1,1);
+EXPLAIN SELECT r0.id, r1.id, r11.id
+FROM a r0, a r1, b r2, b r3, b r4, b r5,
+     b r6, b r7, b r8, b r9, b r10, b r11
+WHERE r0.k=r1.k AND r1.k=r2.k AND r2.k=r3.k AND r3.k=r4.k
+  AND r4.k=r5.k AND r5.k=r6.k AND r6.k=r7.k AND r7.k=r8.k
+  AND r8.k=r9.k AND r9.k=r10.k AND r10.k=r11.k;
+```
+
+Join detail includes:
+
+```text
+join_search=greedy_connected; collapse_limit=8; chosen_order=(((((((((((r0,r1),r2),r3),r4),r5),r6),r7),r8),r9),r10),r11); reordered=false; search_method=greedy_connected; search_states=23; search_pairs=187; search_cost_evaluations=209; search_scope=select
+```
+
+The SELECT without EXPLAIN returns `(1,1,1)`. Safe equality filters run earlier while the
+relation order, access paths and retained buffers stay the same. This is an admitted heuristic
+candidate even though `reordered=false`.
 
 ### Window frames
 
@@ -269,8 +307,9 @@ EXPLAIN UPDATE t SET v = s.v FROM s WHERE t.id = s.id AND t.id = 1 RETURNING *;
 ```
 
 The plan includes target/source IndexSeek paths and a four-column RETURNING description
-(id, v, id, v). Eligible source-only graphs use [exact search](../clauses/join.md#join-order-search);
-target-referencing UPDATE/DELETE WHERE conditions retain bound source order.
+(id, v, id, v). Eligible source-only graphs use [join-order search](../clauses/join.md#join-order-search),
+with exact search through eight sources and bounded planning through 64; target-referencing
+UPDATE/DELETE WHERE conditions retain bound source order.
 See [performance](../../performance.md#joined-mutations).
 EXPLAIN ANALYZE remains SELECT-only.
 

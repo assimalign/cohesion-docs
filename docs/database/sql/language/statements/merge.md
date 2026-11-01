@@ -115,6 +115,10 @@ LEFT and RIGHT associations accept hashless ON predicates.
 
 Eligible two-through-eight source relations use [exact join-order search](../clauses/join.md#join-order-search).
 The target remains fixed outside that search; outer/derived sources and unsafe predicates retain bound order.
+Above eight, normalized MERGE associations retain their existing plan. Through 64 eligible
+sources, EXPLAIN reports `join_search=bound; collapse_limit=8` with
+`search_method=greedy_connected` and zero search counters; above 64 it reports ordinary bound
+detail without heuristic counters. These limits do not refuse the statement.
 
 EXPLAIN shows a Merge node with the association kind and `actions=written_order`.
 Its children describe the full association tree and ordered MergeAction
