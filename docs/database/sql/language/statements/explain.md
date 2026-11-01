@@ -65,10 +65,11 @@ join_search=bound; chosen_order=<names>; reordered=<true|false>
 Exact search covers three through eight eligible SELECT inputs and two through eight DML
 sources. Nine through 64 use the bounded path; `collapse_limit=8` remains the exact-search
 threshold. `join_search=greedy_connected` means a candidate was admitted, including safe filter
-pushdown that keeps the written order and reports `reordered=false`. A kept large-join plan
-reports `join_search=bound` with `search_method=greedy_connected` and the work counters.
-Flat joined DML and existing hash builds consider only pushdown in the current order, so
-`search_pairs=0`; normalized trees retain bound plans with all three search counters zero.
+pushdown that keeps the written order and reports `reordered=false`. When the bounded path
+keeps its previous plan, it reports `join_search=bound` with `search_method=greedy_connected`
+and the work counters. On that path, flat joined DML and existing hash builds consider only
+pushdown in the current order, so `search_pairs=0`; normalized trees retain bound plans with
+all three search counters zero.
 
 Search records use parenthesized binary trees such as `((a,c),(b,d))`, including kept heuristic
 plans. Ordinary bound records use comma-separated leaf names and omit collapse_limit and search

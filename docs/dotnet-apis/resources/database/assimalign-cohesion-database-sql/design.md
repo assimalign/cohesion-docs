@@ -2069,10 +2069,12 @@ source values; DELETE returns old target columns. Bare star expands visible targ
 
 The target is pinned outer. Safe target-only predicates select target seeks; mandatory equalities
 select source probes or budgeted hash builds. Equality-driven steps follow written source order;
-list the source connected to the target first. Independent source graphs use exact search; target-referencing UPDATE/DELETE WHERE terms retain bound order. Costing
-shares CTE identity, so volatile definitions materialize once. StatementMemoryBudget covers hash
-builds and joined-DML retention: target identities, non-hash input buffers, derived copies,
-intermediate frames, associations, selected values, encoded replacements and joined cascade state.
+list the source connected to the target first. Independent source graphs use exact search through
+eight sources, then safe filter pushdown in the existing order through 64; target-referencing
+UPDATE/DELETE WHERE terms retain bound order. Costing shares CTE identity, so volatile definitions
+materialize once. StatementMemoryBudget covers hash builds and joined-DML retention: target
+identities, non-hash input buffers, derived copies, intermediate frames, associations, selected
+values, encoded replacements and joined cascade state.
 CS05067 (53200) refuses exhaustion before any write; reservations release on every exit.
 
 Exclusive target locks precede constraint preparation; apply rechecks original locations and writer
@@ -2198,11 +2200,46 @@ disposal; disposal/offline probes run outside the root monitor.
 Three through eight eligible SELECT stored-table inputs use exact subset DP over bushy and
 left-deep orders. Two-input SELECTs retain existing costing. DML searches two through eight
 source relations with the target boundary fixed. Outer joins, derived/view/system inputs,
-subquery predicates, unsafe conditions and larger joins retain bound association. A separate
-retention certificate can decline a cheaper plan. No public API or diagnostic code is added.
+subquery predicates and unsafe conditions retain bound association. A separate retention
+certificate can decline a cheaper plan. It counts nested-loop buffers as well as hash builds,
+including decoded rows and array growth. An unknown/incomplete count cannot justify moving
+a streamed input into a retained buffer. No public API or diagnostic code is added.
 See [eligibility and DML rules](../../../../database/sql/language/clauses/join.md#join-order-search)
 and [EXPLAIN fields](../../../../database/sql/language/statements/explain.md#join-order-search).
-Larger-join bounded search is the next run, SQ-Z2.
+
+## Bounded large-join search
+
+From nine through 64 eligible relations, connected greedy search compares every ordered seed
+pair, chooses one pair, then extends it by one relation at a time. Connected candidates precede
+cross products. It considers left-deep orders without bushy alternatives or random restarts.
+Existing index/hash paths are reused only when their outer keys are available; no new hash
+build or index join path is proposed. The same query and data select the same plan on every
+platform. Costs within relative tolerance 1e-12 prefer less retained memory, then ascending
+binding ordinals. Memory admission permits zero additional bytes, without a tolerance.
+
+A candidate must have no greater estimated work or retained memory than the pre-search costed
+plan and pass the physical retention certificate that preserves its access paths and hash-build
+activation prefixes. Otherwise that plan runs. A second candidate pushes safe predicates to
+the earliest eligible step while retaining the existing order, paths and buffers; it is admissible
+on equal work. Flat joined DML and plans with existing hash builds consider only this identity
+pushdown. Normalized trees, including MERGE associations, keep bound plans with zero search
+counters. The target/source boundary and physical output ordinals remain fixed.
+
+For a full greedy search over n relations, component-pair comparisons are
+`(n-1)*(3*n-2)/2`, cost evaluations add `2*(n-1)` for bound costing and identity pushdown,
+and state count is `2*n-1`. Flat DML/hash plans have zero component-pair comparisons.
+With R predicate references, graph search takes `O(n*n*(n+R))` work after the common safety
+proof and input costing. Working/result storage is `O(n+P+R+C+L)`, for P conjuncts, C physical
+columns and L characters in the emitted order. Planning is polynomial and bounded by the
+64-relation limit. Larger graphs keep ordinary bound costing/execution without search;
+this limit does not refuse a statement.
+
+EXPLAIN uses `join_search=greedy_connected` for an admitted candidate, including identity
+pushdown with `reordered=false`. Kept heuristic plans use `join_search=bound`; both forms
+include `collapse_limit=8`, chosen_order, reordered, search_method=greedy_connected and the
+state/pair/cost-evaluation counters. Ordinary bound plans, including graphs above 64, omit
+collapse_limit and heuristic counters. The linked language reference gives the exact fields
+and a 12-relation example. No public API, wire/storage format or diagnostic code changes.
 
 ## COPY TO STDOUT
 
@@ -2230,6 +2267,8 @@ Cross-model conformance (#1726, XT-5) section.
 
 ## Sources
 
+- **Large-join search and work bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlGreedyJoinSearch.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlGreedyJoinSearchTests.cs`.
+- **Retention and deterministic cost ties** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlJoinSearch.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.
 - **Named-control failure and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs`.
 - **JSON binding, extraction and casts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJsonAccessTests.cs` and `SqlJsonReviewFixTests.cs` in the same directory.
 - **Recursive execution and isolation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`, `SqlRecursiveReclamationTests.cs`, `SqlRecursiveReaderTests.cs`, `SqlIsolationSyntaxTests.cs` and `SqlIsolationReviewTests.cs` in the same directory.

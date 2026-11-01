@@ -13,10 +13,22 @@ predicate remains a residual filter; EXPLAIN records `partial_predicate` and `im
 
 [Join-order search](language/clauses/join.md#join-order-search) enumerates bushy and left-deep
 orders for three through eight eligible SELECT relations and two through eight DML sources.
+From nine through 64 eligible relations, deterministic connected greedy search chooses an
+ordered seed pair, then adds one relation at a time, considering connected joins before cross
+products. Planning work grows polynomially and stops at the 64-relation search limit; larger
+graphs keep the written association under ordinary costing and remain executable.
 Two-input SELECTs retain their existing cost path. Outer joins, derived/view/system inputs,
-subquery predicates and unproven predicates retain bound association; larger joins await SQ-Z2.
-A conservative retention check can decline a cheaper candidate. Output columns and results remain
-unchanged; [EXPLAIN](language/statements/explain.md#join-order-search) exposes the choice.
+subquery predicates and unproven predicates retain bound association.
+
+Above eight, a candidate must be estimated no more expensive, use no more retained memory
+and preserve the written plan's access paths. The retention check counts every hash build and
+nested-loop buffer, including decoded rows and array growth; an unknown or incomplete count
+cannot justify moving a streamed input into a buffer. Safe filter pushdown can also improve
+the written order and is eligible at equal work. Flat joined DML and existing hash builds keep
+their order and consider only that pushdown; normalized trees keep their existing plan.
+The same query and data produce the same plan across platforms. Output columns and results
+remain unchanged; [EXPLAIN](language/statements/explain.md#join-order-search) exposes the choice
+and search work. Search introduces no diagnostic codes.
 
 Costing is lazy. Complete unique-key equality lookups avoid probes. The primary-key/base-table
 total is probed only when the selected seek estimate exceeds 16 candidates. Join estimates reuse
@@ -101,7 +113,8 @@ Equality-driven steps follow written source order. If only b is connected to the
 equality, list b first: `FROM b, a` or `USING b, a`. In
 `UPDATE t SET v = b.v FROM a, b WHERE t.id = b.tid AND b.aid = a.id`, the engine visits the
 t × a product before b's hash. Reversing the source list lets each equality drive its step.
-Both orders are correct. Independent source graphs can use exact search; target-referencing
+Both orders are correct. Independent source graphs can use exact search through eight sources
+and safe filter pushdown in their existing order from nine through 64; target-referencing
 UPDATE/DELETE WHERE terms retain bound order.
 
 Every [referential closure](language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
@@ -120,6 +133,8 @@ ANALYZE reports frame_visits, transitions, inverse_transitions and boundary_visi
 
 ## Sources
 
+- **Large-join planning and memory admission** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs`, `SqlPlanExecutor.JoinSearch.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.
+- **Planning work bounds and fallback** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlGreedyJoinSearchTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.Costing.cs`.
