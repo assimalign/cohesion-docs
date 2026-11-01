@@ -293,10 +293,10 @@ the provisioner requires `EngineModel.Sql`, the same logical database name, and 
 SQL DDL surface can represent. It then reconstructs or reads the last canonical catalog state, uses
 `SqlSchemaMigrationPlanner` from `Database.Sql.Schema` for deterministic ordering/destructive
 gating, and `SqlMigrationScriptGenerator` for parser-validated engine requests. Supported steps are
-table, column, and secondary-index add/drop; alter/rebuild operations and advanced objects (custom
-types, functions, triggers, principals/grants, extensions) fail before execution rather than
-recording a false applied hash. Foreign keys and checks now render into provisioning DDL and persist
-in the table catalog; unique declarations use unique indexes.
+table, column, secondary-index and constraint add/drop, column alterations and declared domains.
+Unsupported objects and changes fail before execution rather than recording a false applied hash.
+Foreign keys and checks render into provisioning DDL and persist in the table catalog;
+unique declarations use unique indexes.
 
 Retained table, column, index and constraint names share the parser's delimited identifier contract.
 The renderer preserves bare ordinary names and double-quotes reserved words or names containing
@@ -305,13 +305,59 @@ double quotes and null characters fail before deployment because the current lex
 those identifier forms. The mapper uses the same retained names, so its quoted DML binds the objects
 deployed by this renderer without another naming convention.
 
-Each DDL request remains self-committing under the catalog's established rule. On a later failure,
-completed reversible steps run their compensating requests in reverse order and the applied-schema
-marker remains unchanged. The marker is written only after all steps succeed, and a repeated apply
-is a no-op only when the stored canonical document/hash and live catalog all agree. Full atomicity
-for a destructive multi-statement migration is deliberately not claimed: the current catalog has no
-transaction spanning DDL statements, and irreversible data loss cannot be compensated. That kernel
-seam is recorded as the remaining gap rather than hidden behind the content hash.
+Migrations without a TYPE rewrite retain the per-step executor. Populated-table validation and
+index work can be deferred to the provisioning worker; `RunMigrationsInline`, any declared script,
+and explicit `ApplySchemaAsync` run inline. Each DDL request self-commits. Inline failure compensates
+completed reversible steps; irreversible data loss cannot be compensated. Deferred step failure
+retains the pending intent and takes that database offline with `CS03104` for recovery on reopen.
+A default change without a TYPE rewrite remains a `CS03105` refusal before intent save or changes.
+
+### Joint TYPE migrations
+
+A compiled-schema apply containing any TYPE rewrite uses one joint executor for its entire target.
+Storage-type, scale or domain identity changes, every VARCHAR narrowing and every CHAR width change
+require TYPE. This includes unbounded-to-bounded VARCHAR and narrowing whose existing values fit.
+Precision-only and other length-facet changes keep the existing validation path unless another
+operation requires TYPE. Same-name domain changes compare their effective storage facets.
+
+Build binds metadata and checks whether touched owners have stored pages, without decoding rows.
+Populated work is queued; empty-table work runs synchronously. `RunMigrationsInline`, any declared
+script, and explicit `ApplySchemaAsync` use this same joint executor inline. Before queueing, one
+transaction reserves owned sequences and every touched old table in identity order. Nonzero engine
+LockTimeout bounds reservation. Reads and writes on those tables wait through the lock manager;
+the closure includes both sides of old and final foreign keys, even a removed or repointed parent.
+Untouched tables stay readable and writable, subject to checkpoint stalls during copying.
+
+A metadata lease excludes definition DDL database-wide from Build through queue time and worker
+completion, including time queued behind another database. Pending new table names are reserved
+case-insensitively across the table/view/sequence namespace. CREATE TABLE, CTAS, CREATE VIEW,
+CREATE SEQUENCE and table rename refuse a reserved name with `CS03404`; implicit identity-sequence
+names skip it. Existing namespace collisions refuse planning with `CS03105` before intent save;
+publication checks the namespace again under the catalog lock.
+
+The final shapes, new tables and indexes remain unpublished during preparation. Changed defaults
+and CHECKs bind against those final shapes before copying. The bounded 64-row copier uses assignment
+conversions and validates domains, NOT NULL, CHECKs and uniqueness; final incoming, outgoing and
+self foreign keys validate against the complete prepared state. Ad-hoc indexes survive unless
+their dependencies would be invalidated, which refuses before preparation. Dependent-view refusals
+remain. One catalog commit publishes all table/index/constraint definitions, registrations, dependent
+view identities, retirement records and the applied-schema marker, and removes the pending intent.
+Old snapshots retain old owners/layouts; stale writers retry with `CS04006`.
+
+Before-publication failure discards the pending joint intent, releases reservations and leaves
+prepared owners for reclamation. No old object or committed row is removed, and the old applied
+marker remains trusted. Provisioning and DeferredStepFailed report `CS03402`; health remains
+Degraded with the old schema online unless an independent storage latch fires. There is no automatic
+retry. A rolled-back application's Build opens normally; an explicit apply or later Build declaring
+the new target can try again. After a crash, only a Build declaring the same pending target replans
+preparation. Plain open or an old/different/no-target Build discards the attempt and opens the old
+schema. A successful apply or Build, including an already-applied skip, clears an earlier failure.
+
+An unconfirmed publication reports `CS03403` in both Provisioning and the thrown diagnostic. Its
+old/new outcome is unknown: new trees and directory records stay in place for recovery to decide.
+Late cancellation cannot undo confirmed publication. After successful publication an older
+declaration plans a reverse migration, with the same [lossless whitelist and destructive opt-in](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback).
+See [space admission and offline exceptions](storage-design.md#joint-migration-space-admission).
 
 ### `Object` ownership and the schema package
 
@@ -329,7 +375,7 @@ internal session may execute `DROP TABLE`, `ALTER TABLE ADD COLUMN`, `ALTER TABL
 or `DROP INDEX` against its schema's objects. Normal sessions receive
 `DatabaseObjectLockedException` with the object, compiled schema exposed as `OwningSchema`, and
 refused operation; row DML remains available. Compensation uses the same private session and
-preserves the existing reversible-step policy.
+preserves the existing reversible-step policy on non-TYPE migrations.
 
 DDL re-reads catalog ownership after acquiring the exclusive object lock. If a table was dropped and
 its name reused while the statement waited, the acquired lock covers the old object id: the
@@ -1372,7 +1418,9 @@ proposals do not fail. Old-value locks and tombstones are unchecked, so existing
 deletable or updatable to fitting replacements. Referential SET actions encode final rows after
 collecting all assignments. Index builds, including schema-provisioned indexes, use the same
 checked key builder and do not publish a failed tree. Deferred provisioning retains its pending
-intent and CS03104 failure, with CS05042 in the underlying cause.
+intent and CS03104 failure on non-TYPE migrations, with CS05042 in the underlying cause.
+Joint TYPE preparation instead discards its intent and reports CS03402 online, subject to
+independent storage latches.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -1380,6 +1428,10 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | CS05043 | Cooperative statement execution deadline expired; statement rolled back | 57014 |
 | CS04044 | Individual contended lock wait expired | 55P03 |
 | CS05045 | Uncoded result encoding/preparation failure or encoded header/row above 16 MiB | 54000 for size refusals |
+| CS03105 | Typed migration policy/planning refusal before steps or intent save, including unproven conversions without destructive opt-in and default changes without TYPE | — |
+| CS03402 | Joint preparation, reservation or space admission failed; old schema retained unless an independent storage latch fires | — |
+| CS03403 | Joint publication commit unconfirmed; recovery determines old/new schema | — |
+| CS03404 | Session relation creation or table rename claims a name reserved by a pending joint migration | — |
 | CS04006 | Target definition changed during lock preparation; retry in a fresh transaction | — |
 | CS05042 | Encoded row, index key or catalog definition exceeds its size limit, or DDL generation is exhausted | 54000 |
 | CK06003 | Storage or attached-index corruption | XX001 |
@@ -1756,7 +1808,8 @@ owner current; old read-only snapshots retain it and stale writers retry with CS
 Same-storage/scale/domain/collation widenings without USING retain heap/index trees, except CHAR
 width changes. Integer identity conversion preserves cursor/start/increment and validates range
 (CS03025). Full-definition changes retain CS05013 for changed defaults or implicit collation
-changes and still refuse identity-type changes. Populated-table worker handoff arrives in batch 7.
+changes and still refuse identity-type changes. Typed declarations use
+[joint preparation and publication](#joint-type-migrations), deferred on populated tables.
 
 ## Declared dependencies
 
@@ -2290,6 +2343,7 @@ Cross-model conformance (#1726, XT-5) section.
 
 - **Creation recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCreateRecoveryTests.cs`.
 - **Format refusal preservation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDataStorageFormatTests.cs`.
+- **Joint TYPE migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlSchemaProvisioner.JointMigration.cs`, `SqlSchemaProvisioner.JointSpace.cs` and `tests/SqlJointTypeMigrationTests.cs` with its partials at `0b00f181e`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Assimalign.Cohesion.Database.Sql.csproj`.
 

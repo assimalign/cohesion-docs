@@ -103,11 +103,84 @@ the copier and assignment semantics.
 
 Other changes copy live rows into a dense replacement and atomically publish the definition,
 indexes and catalog generation. Execution runs **inline under the table's exclusive lock**, also
-locking affected adjacent FK tables exclusively. Populated-table handoff to the provisioning
-worker arrives in batch 7. Conversion, constraint failure or cancellation before publication
+locking affected adjacent FK tables exclusively. Code-first migrations use the joint path
+described below. Conversion, constraint failure or cancellation before publication
 keeps the old table and indexes current. Old read-only snapshots retain the old owner; stale
 writers retry their transaction with CS04006. Cancellation after publication cannot undo it.
 LockTimeout/cancellation retain the ordinary DDL cleanup rules; successful TYPE affects zero rows.
+
+### Code-first type changes
+
+Typed schema declarations can change an existing column's type. A storage-type, scale or domain
+identity change requires a TYPE rewrite. Every CHAR width change and every VARCHAR narrowing
+also rewrites, including changing an unbounded string to bounded VARCHAR and narrowing when all
+stored values already fit. Precision-only and other length-facet changes keep the existing
+validation path unless another operation in the migration requires TYPE.
+
+A migration containing any TYPE rewrite prepares its **entire target unpublished**, including
+other table, column, index, constraint and default changes. One catalog commit publishes the
+complete target and applied-schema marker. Build queues populated-table work on the provisioning
+worker; empty-table work runs synchronously. `RunMigrationsInline`, any declared script, and an
+explicit `ApplySchemaAsync` also run the joint migration synchronously.
+
+Every touched table is unavailable while the migration is queued or running: reads and writes
+wait through the lock manager. This includes affected old and final foreign-key neighbors.
+Untouched tables remain readable and writable, subject to ordinary checkpoint stalls.
+Definition DDL is refused database-wide from Build through queue time and worker completion.
+CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE and table rename cannot claim a reserved new
+table name (`CS03404`).
+
+Migrations without a TYPE rewrite retain their existing per-step/deferred behavior. A changed
+default without any TYPE rewrite is still refused with `CS03105` before changes or intent save.
+A joint migration includes all declared final defaults, even on columns whose type is unchanged.
+
+#### Conversion safety and application rollback
+
+The planner proves safety from declarations, without inspecting stored values. With otherwise
+unchanged default and nullability metadata, its lossless whitelist is:
+
+| Source | Lossless targets |
+| --- | --- |
+| TINYINT | SMALLINT, INT, BIGINT, REAL, DOUBLE |
+| SMALLINT | INT, BIGINT, REAL, DOUBLE |
+| INT | BIGINT, DOUBLE |
+| REAL | DOUBLE |
+| Same built-in type other than NUMERIC/DECIMAL | Length stays unbounded, widens, or becomes unbounded; scale stays equal |
+| NUMERIC/DECIMAL | Target is unconstrained, or a constrained source keeps at least its fractional digits and integer digits (`precision - scale`) |
+
+Every other conversion needs `schema.AllowDestructiveChanges()`, including narrowing, rounding
+and every domain conversion. Application-defined casts are outside the planner's proof, even
+for schema-declared domains. Without opt-in, Build/apply refuses with `CS03105` before anything
+runs. Opt-in permits an attempt; assignment conversion and constraints must still succeed.
+Metadata-only changes retain their existing destructive-change policy.
+
+For example, changing an existing `Code` column from VARCHAR(8) to VARCHAR(4) requires opt-in:
+
+```csharp
+using Assimalign.Cohesion.Database.Sql.Schema;
+
+var target = SqlSchema.Create("typed", schema =>
+{
+    schema.AllowDestructiveChanges();
+    schema.Table<Item>("items", table => table.Column(row => row.Code, "VARCHAR(4)"));
+});
+
+sealed record Item(string Code);
+```
+
+Assignment can remove excess trailing spaces; non-space overflow fails preparation. The old
+schema remains online after a failure before publication, unless an independent storage failure
+takes it offline. Nothing retries automatically. A rolled-back application declaring the old
+schema can Build normally; a later Build declaring the new target can try again. After a crash,
+only a Build declaring the same pending target resumes it. Plain open or an old/different/no-target
+Build discards that pending attempt and opens the old schema.
+
+After a **successful** publication, rolling the application back plans a reverse migration.
+For example, INT to BIGINT is lossless, but returning to INT requires destructive opt-in even
+when current values fit. Data lost by an opted-in conversion is not restored by a later rollback.
+An unconfirmed publication (`CS03403`) has an unknown old/new outcome; reopen/recovery decides
+the schema. See [migration health and recovery](../../index.md#typed-migration-health-and-recovery)
+and [migration diagnostics](../diagnostics.md#typed-schema-migrations).
 
 ### Full-definition ALTER COLUMN
 
@@ -394,6 +467,8 @@ upgrade path. Compiled schema format remains version 11.
 
 ## Sources
 
+- **Joint TYPE migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJointTypeMigrationTests.cs` and its `.Rollback.cs`, `.EdgeFixes.cs` and `.DefaultFix.cs` partials at `0b00f181e`.
+- **Conversion whitelist** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/src/SqlSchemaMigrationPlanner.cs` and `tests/SqlTypeMigrationSafetyTests.cs`.
 - **TYPE and review cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAlterColumnTypeTests.cs`, `SqlAlterColumnTypeReviewTests.cs` and `SqlAlterColumnTypeReviewTests.SecondPass.cs`.
 - **Bounded validation and retry** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlProgramLimitReviewTests.cs`.

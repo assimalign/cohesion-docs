@@ -117,6 +117,13 @@ Health observes distinct engines, states and workers from the frozen runtime reg
 For all five models, a maintenance lane delayed by capacity or stuck I/O can set engine Faulted
 while HasFailingWorker(database) remains false and requests continue. Root events 35 and 36
 identify delayed work and disposal waits. See [maintenance health and operations](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
+Joint SQL TYPE migrations also report through model-neutral Provisioning: queued/running work
+is Degraded, and a failed preparation (`CS03402`) stays Degraded while the database serves its
+old schema. A successful explicit apply or later Build, including an already-applied skip,
+clears that failure. There is no automatic migration retry. An unconfirmed publication reports
+`CS03403` and follows storage's offline/recovery policy. See
+[typed migration health and recovery](../../../../database/sql/index.md#typed-migration-health-and-recovery).
+
 Existing
 enabled-resource admin endpoints, telemetry order and health aggregation remain compatible; this
 phase does not extend those systems.

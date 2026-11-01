@@ -152,6 +152,36 @@ HasFailingWorker remains false for the observation. ForeignStorage refusals repo
 operational failures. See [purge retries and reclamation recovery](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#version-purge-refusals)
 and [shared engine health](../overview.md#engine-health-and-version-purge).
 
+### Typed migration health and recovery
+
+A [typed migration containing a TYPE rewrite](language/statements/alter-table.md#code-first-type-changes)
+prepares the whole target unpublished and publishes it in one catalog commit. Hosting health is
+Degraded while it is queued/running. Every touched table, including affected foreign-key neighbors,
+is unavailable to reads and writes until completion; untouched tables stay usable, subject to
+ordinary checkpoint stalls. Definition DDL is refused database-wide throughout queueing and work.
+
+Preparation/space failure reports `CS03402` through Provisioning, health and DeferredStepFailed,
+releases reservations, discards the pending intent and leaves the database **online at the old
+schema**, unless an independent storage latch fires. Nothing retries on its own. Resolve the
+reported condition, then explicitly apply or Build the target again. A rolled-back application's
+Build declaring the old schema opens normally. A successful apply or Build clears the earlier
+failure, including an already-applied schema skip; health then returns to Healthy if no other
+condition prevents it. Non-TYPE deferred step failure keeps its `CS03104` offline/reopen behavior.
+
+After a crash before publication, only a Build declaring the same pending target resumes the
+migration by replanning preparation. Plain open or an old/different/no-target Build discards that
+attempt and opens the old schema; abandoned owners are reclaimed. After publication, reopen sees
+the new schema. Rolling an application back then plans a reverse migration, whose potentially
+lossy conversions require destructive opt-in (`CS03105` before steps otherwise).
+
+`CS03403` means publication is **unconfirmed**, with an unknown old/new outcome. It reports through
+Provisioning and the thrown diagnostic, keeps the new trees and directory records for recovery,
+and follows the storage offline policy. Reopen/recovery decides the schema; do not treat this as
+"schema unchanged." `CS03404` protects reserved new names from session relation creation/table rename.
+
+See [space admission, cleanup and storage offline exceptions](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/storage-design.md#joint-migration-space-admission)
+and [migration diagnostics](language/diagnostics.md#typed-schema-migrations).
+
 ## Database lifecycle
 
 Engine APIs create, open and drop databases. SQL can finish an interrupted create only when its

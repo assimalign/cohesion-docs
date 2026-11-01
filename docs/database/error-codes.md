@@ -208,6 +208,20 @@ datatype_mismatch). Full-definition default/implicit collation changes retain CS
 Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
 see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 
+## SQL typed schema migrations
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
+| CS03402 | Joint preparation, reservation or space admission failed; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
+| CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
+| CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
+
+See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
+[conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
+and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
+does not retry automatically; non-TYPE deferred failures keep their CS03104 offline contract.
+
 ## SQL MERGE
 
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
@@ -608,6 +622,7 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 

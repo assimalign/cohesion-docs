@@ -55,13 +55,36 @@ models, duplicate declarations, missing references, and unsupported value types.
 declaration's destructive-change opt-in for data-losing steps. Unsupported metadata changes fail
 explicitly. The model-independent apply contract and `SchemaMigrationResult` stay in the root.
 
+## Type migration safety
+
+Typed declarations can change column storage type, scale and domain identity. Same-name domain
+changes compare effective storage facets on every referring column. Every VARCHAR narrowing
+and CHAR width change requires a TYPE rewrite; precision-only and other length changes keep
+the validation path unless another operation requires TYPE. A plan containing any TYPE rewrite
+uses the engine's [joint migration executor](../assimalign-cohesion-database-sql/design.md#joint-type-migrations).
+
+The planner's exact whitelist allows integer widening, TINYINT/SMALLINT to REAL/DOUBLE, INT to
+DOUBLE, REAL to DOUBLE, and same-type facets preserving the full source range. Decimal targets
+must be unconstrained or retain both fractional digits and integer digits; other same-type
+targets must not narrow length or change scale. Default/nullability changes retain their
+existing destructive policy. See the [complete conversion table](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback).
+
+Every other conversion, including every domain conversion, requires `AllowDestructiveChanges()`.
+Even a schema-declared domain can use application casts the planner cannot inspect. The engine
+reports a planner refusal as `CS03105` before any step runs. A successful migration followed by
+an older application declaration is an ordinary reverse migration with the same gate; INT to
+BIGINT does not authorize a later BIGINT to INT. This changes no serialized shape: compiled
+schema v11 remains current.
+
+## Constraints and provisioning
+
 Foreign keys and checks are executable schema metadata. The planner first creates all tables and
 their indexes, then emits `AddConstraint` operations rendered as `ALTER TABLE ... ADD CONSTRAINT`.
 This permits references to tables that sort later, self-references, and cycles without temporarily
 disabling enforcement. `Constraint` replacement emits `DropConstraint` before removing dependent
 columns or indexes, then adds the replacement after structural changes. Both constraint operations
-have compensating statements, and the SQL provisioner includes their definitions when comparing or
-reconstructing the live catalog after a failed apply.
+have compensating statements on the non-TYPE path. The SQL provisioner includes their definitions
+when comparing or reconstructing the live catalog after a failed apply.
 
 The engine validates new CHECK table/schema qualifiers against the constrained table with
 CS01015. Already stored checks and already-applied declared/imperative schema hashes keep
@@ -184,5 +207,6 @@ upgrade path. Compiled schema format remains version 11.
 
 ## Sources
 
+- **TYPE safety** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/src/SqlSchemaMigrationPlanner.cs`, `tests/SqlTypeMigrationSafetyTests.cs` and `tests/SqlDomainMigrationTests.cs` at `0b00f181e`.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Schema/src/Assimalign.Cohesion.Database.Sql.Schema.csproj`.

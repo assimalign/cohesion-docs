@@ -57,6 +57,101 @@ to finish a table. After committing the batch, SqlTableReclamation also requires
 A crash after the data commit but before intent removal safely retries discovery. This changes
 neither the page format nor the public API.
 
+Before **each** reclamation bracket, including between owners in one pass, cleanup yields to a
+due or pending checkpoint. Only an already-running bracket can add WAL beyond the configured
+checkpoint threshold. Once that bracket commits, it wakes the checkpointer if a checkpoint is
+due; yielding polls do not send repeated wakes. The size trigger counts appended bytes since the
+last completed checkpoint, excluding the checkpoint's own record, so even a one-byte threshold
+can progress. Verbose SQL event 27, TableReclamationYielded, reports a yielding drain poll.
+
+This applies to cleanup after every DROP, TRUNCATE and rewrite, including abandoned prepared
+owners and retired owners after successful joint publication. Snapshot/reader fences and page
+reuse rules still apply. Write-back, truncation and allocation policies are unchanged.
+
+## Joint migration space admission
+
+Build checks only a small, declaration-sized space floor before saving a joint TYPE intent.
+It takes no owner-directory snapshot, visits no data/index page and decodes zero rows. The floor
+is `F = 1 MiB + (ceil(I / 3072) + 4) * (5B + 168)`, where I is the serialized intent's UTF-8 byte
+length and B is 8,192 bytes. A floor refusal reports `CS03402` online and preserves a kept crash
+intent without writing it.
+
+Before any prepared write, the worker measures actual heap slots, encoded record/component bytes
+and index pages. It projects conversion growth, rather than charging declared VARCHAR/TEXT maxima.
+For example, INT to TEXT/VARCHAR allows 11 rendered ASCII characters plus four encoding bytes per
+non-NULL value; NULL remains one byte. CHAR adds possible padding. Application casts without a
+known growth bound start at measured size, then remain subject to the copy watchdog. Unchanged
+tables do not increase the estimated need. Resumed intents repeat worker admission.
+
+Admission requires `N = R + J + ceil((R + J) / 4) + V + E`: replacement allocation R after reusable
+free pages, bounded copy WAL J, a 25% estimate margin, metadata-derived publication allowance V
+and engine reserve E. Copy-owned WAL forces a checkpoint at 16 MiB plus the next bracket's bound;
+busy brackets retry the checkpoint with cancellation. These checkpoints briefly stall all database
+writers under the apply gate, including writers on untouched tables.
+
+The volume watchdog checks each index-root/copy bracket and checks again immediately before
+catalog publication, after validation. It requires enough free space for the next bracket plus
+E, or V plus E at publication. Bounds include measured index heights, possible splits, row bytes
+and reusable free pages. Sparse growth also charges copy-owned unflushed allocations, capped at
+the data pool capacity and reset by a successful forced checkpoint. A refusal stops with `CS03402`
+and needed/available bytes, discards preparation and leaves the old schema online, subject to the
+storage exceptions below. It retains headroom for cleanup after either failure or publication.
+
+### Engine reserve and a worked calculation
+
+The reserve is `E0 = F + W + K`, `E = E0 + max(1 MiB, ceil(E0 / 4))`. W covers reclamation WAL:
+with B = 8,192, one 32-page bracket has bound `U = 32 * 2 * (B + 46) + 152 = 527384` bytes.
+For checkpoint threshold C, `W = min(P * (B + 46) + 152 * (ceil(P / 32) + O), C + U)`;
+if C is zero, use the whole first term. P is the larger old/prepared page bound, updated during
+copying, and O is the larger retiring/prepared owner count.
+
+K is `BufferPoolCapacity + 1 MiB` when data-file growth can be sparse, otherwise zero. Unix file
+growth is conservatively sparse. Windows checks the actual file and containing directory:
+compressed, sparse or integrity-stream attributes, UNC/network paths, and unknown/inaccessible
+allocation modes count as sparse. Ordinary local Windows files use eager allocation. Memory
+strategies have no volume limit. The margin covers cleared-page deltas, headers and metadata.
+
+For a 3,072-byte serialized intent, DESIGN's floor formula gives
+`F = 1048576 + (1 + 4) * (40960 + 168) = 1254216` bytes. This is only the Build floor.
+As an illustrative worker calculation, if R = 8 MiB, J = 16 MiB, V = 2 MiB and E = 10 MiB,
+admission needs `8 + 16 + 6 + 2 + 10 = 42 MiB`. E must be derived from the actual engine and
+owners above; these sample terms are not a fixed migration allowance.
+
+### Residual risk
+
+Admission is an estimate, not a reservation. The final residual risk is other writers' WAL and
+data allocations exceeding E's margin, `max(1 MiB,ceil(E0/4))`, during copying and during the
+whole reclamation drain after a stop or publication. Other writers' WAL can accrue from C until
+truncation while an in-flight, possibly stalled, reclamation bracket delays the checkpoint;
+W bounds reclamation's own WAL, and E's margin absorbs the other writers' growth.
+Cheap file/volume probes cannot establish every backing allocation policy: undetected
+copy-on-write, deduplication, thin provisioning, remote-server backing policies, reparse-target
+allocation modes and changes after probing remain risks, along with the engine-wide disk-full
+behaviour that applies to every workload.
+
+### Storage failures that still take the database offline
+
+The joint path does not clear or weaken storage latches. Reads, conversion/constraint failures,
+cancellation and prepared data-page write failures stay online when no independent latch fires.
+The explicit offline exceptions remain:
+
+| Failure | StorageOfflineCause |
+| --- | --- |
+| Unsafe journal append/frame/drain/flush, including ENOSPC, zero-byte failure and any possibly partial write; unconfirmed commit/durability wait | JournalFlush |
+| Failed durable data-file flush | DataFlush |
+| Failure after issuing a checkpoint header-slot write | HeaderWrite |
+| Repeated page write-back, checkpoint, write-ahead-flush or version-purge failures reaching the engine failure window | PageWriteBackFailures, CheckpointFailures, WriteAheadFlushFailures, VersionPurgeFailures |
+| Second consecutive failed checkpoint at the journal size cap | JournalSizeLimit |
+| Non-TYPE deferred provisioning step failure | ProvisioningFailure |
+| Interrupted open-time recovery | RecoveryInterrupted |
+
+The joint path never requests ProvisioningFailure. Unknown WAL/commit outcomes cannot safely
+retry online. An unconfirmed joint publication uses `CS03403`, retains new trees/directory records
+and lets reopen/recovery decide old versus new; it does not claim the old schema is unchanged.
+Other corruption/recovery fences keep their existing policies. See
+[joint publication and recovery](design.md#joint-type-migrations) and
+[operator health](../../../../database/sql/index.md#typed-migration-health-and-recovery).
+
 ## Identity and sequence reservations
 
 SQL format 33 persists standalone and identity-owned definitions as catalog kind 18 and
@@ -116,6 +211,8 @@ Record reads confirm their private bytes against a page write sequence before ac
 
 ## Sources
 
+- **Admission and reserve** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlSchemaProvisioner.JointSpace.cs`, `tests/SqlJointTypeMigrationTests.FourthPass.cs`, `.FifthPass.cs` and `.SixthPass.cs` at `0b00f181e`.
+- **Offline causes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/StorageOfflineCause.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJointTypeMigrationTests.EdgeFixes.cs`.
 - **Shared allocator and crash recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Catalog/SqlCatalog.Allocator.cs`, `tests/SqlSequenceTests.cs` and `tests/SqlSequenceReviewTests.cs`.
 
 - **Completion check** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Engine/Storage/SqlTableReclamation.cs`.
