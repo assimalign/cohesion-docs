@@ -25,7 +25,7 @@ runtime libraries and hides its BCL HTTP implementation behind `ISecretStoreClie
 - `ISecretStoreClient` reads secret bytes and PEM certificates.
 - `SecretStoreClient.Create(Uri, ClientCredential)` creates the internal protocol implementation
   without performing network I/O.
-- `ClientCredential` carries the opaque bootstrap token and redacts it when formatted.
+- `ClientCredential` carries the opaque bearer token and redacts it when formatted.
 - `SecretStoreCertificateReference` validates certificate retrieval references before HTTP.
 
 ## Usage
@@ -34,7 +34,7 @@ runtime libraries and hides its BCL HTTP implementation behind `ISecretStoreClie
 using Assimalign.Cohesion.SecretStore.Client;
 
 var endpoint = new Uri("https://secretstore.internal:8443/api");
-var credential = new ClientCredential(bootstrapToken);
+var credential = new ClientCredential(token);
 ISecretStoreClient client = SecretStoreClient.Create(endpoint, credential);
 
 ReadOnlyMemory<byte> value = await client.GetSecretAsync("apps/api/password", cancellationToken);

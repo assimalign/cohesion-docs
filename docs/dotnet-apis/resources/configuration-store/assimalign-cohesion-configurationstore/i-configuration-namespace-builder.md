@@ -18,7 +18,7 @@ See the [source-backed usage examples](examples/index.md).
 `Set` accepts a nonblank key without `/` and a string or null value, replaces an earlier declaration
 for the same key in the callback, and returns the builder for chaining. The wire protocol reserves
 `/` to separate a namespace from its entry key. Declarations seed only missing durable namespaces;
-they are not reapplied over values changed through the command endpoint.
+they are never reapplied over values already on disk.
 
 ## Links
 

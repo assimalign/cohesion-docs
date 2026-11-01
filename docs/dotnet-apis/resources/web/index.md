@@ -75,7 +75,8 @@ reference to it. The exact runtime may reference any Web library except `Web.Tes
 projects (COHRES002, relaxed by owner decision 2026-10-09). It references only what it needs:
 `Web.Routing` for the pipeline terminal and `Web.Server` for the public engine and its per-exchange
 features, because every reference it takes ships in each framework that carries it: `App.Web` and,
-privately, all 17 other area frameworks. See the [resource dependency rules](../index.md#dependency-rules).
+privately, the five other area frameworks whose hosting modules serve HTTP (ConfigurationStore,
+Database, IdentityHub, LogSpace, SecretStore). See the [resource dependency rules](../index.md#dependency-rules).
 
 Two projects reference `Web.Hosting`: `Web.Hosting.ApplicationModel`, which `COHRES001` sanctions by
 its exact name, and `Web.Testing`, whose `CohesionHostingIsolationExemptions` names only

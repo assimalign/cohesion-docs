@@ -17,7 +17,7 @@ declares area composition and `Build()` returning `ISecretStoreApplication`.
   its first-start bytes. It never replaces an existing durable version.
 - **`AddCertificateAuthority(Action<CertificateAuthorityOptions>? configure = null)`** — declares one
   authority. Existing durable state wins; first-start selection is explicit PEM material, then
-  Platform intermediate enrollment, then the enabled standalone self-seed.
+  the enabled self-seed.
 - **`Build()`** — creates a configured SecretStore application.
 
 Secret and certificate byte inputs are snapshotted during registration. Duplicate secret paths and

@@ -1,6 +1,6 @@
 # LogSpace
 
-LogSpace provides authenticated log ingestion, durable segments, and bounded log queries.
+LogSpace provides OTLP log ingestion, durable segments, and bounded log queries.
 
 > **Status:** Partial. Package-level pages distinguish implemented behavior from deferred surfaces.
 

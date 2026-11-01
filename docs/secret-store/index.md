@@ -2,7 +2,7 @@
 
 SecretStore persists protected secrets and private certificate authority state.
 
-> **Status:** Partial. Protected storage and private certificates work for a loopback standalone host; authenticated remote access, automatic Platform enrollment, and public certificate issuance remain deferred.
+> **Status:** Partial. Protected storage and private certificates work for a loopback standalone host; authenticated remote access and public certificate issuance remain deferred.
 
 ## What it is
 
@@ -54,22 +54,19 @@ through `Assimalign.Cohesion.App.SecretStore`. The `.Client` package is NuGet-on
 
 ## Protected secrets
 
-Builder declarations seed missing durable values. Secrets, CA keys, pending enrollment keys, and
-leaf bundles are protected at rest. `ISecretStoreClient.GetSecretAsync` reads secret bytes and
+Builder declarations seed missing durable values. Secrets, CA keys, and leaf
+bundles are protected at rest. `ISecretStoreClient.GetSecretAsync` reads secret bytes and
 `GetCertificateAsync` reads PEM bundles.
 
 ## Private certificate authority
 
-`AddCertificateAuthority` controls standalone root identity, initial key material, pending
-Platform enrollment, root pinning, and self-seeding. Durable authority state wins on restart.
-Explicit request/sign/complete enrollment routes exist, but an operator must drive them. A
-configured Platform enrollment endpoint needs the ambient application and resource names, which a
-plain host does not have, so the host fails to start with it.
+`AddCertificateAuthority` controls root identity, initial key material, and self-seeding.
+Durable authority state wins on restart. The store issues no intermediate authorities and enrolls
+with no parent authority.
 
 Resolution renews named leaves; the returned PEM bundle includes the leaf, private key, and issuer
 chain. The transport leaf is checked at listener startup, so a continuously running host must
-restart before its expiry. Public-CA issuance through `certs/public`, automatic Platform
-enrollment, external key management/wrapping, and protected-record rewrap migration remain
+restart before its expiry. Public-CA issuance through `certs/public`, external key management/wrapping, and protected-record rewrap migration remain
 unimplemented.
 
 ## Getting started

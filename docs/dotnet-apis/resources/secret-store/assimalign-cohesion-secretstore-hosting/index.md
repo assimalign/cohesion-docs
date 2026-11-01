@@ -23,9 +23,8 @@ resource's `api` endpoint.
 - Always appends an HTTP/1 endpoint service after caller-registered host services, so the endpoint
   starts last and drains first.
 - Interoperates with `SecretStore.Client` for secret reads and durable leaf-certificate reads.
-- Protects secrets, CA keys, pending enrollment keys, and leaf bundles at rest.
-- Supports durable standalone CA self-seeding and explicit sign/complete intermediate-CA enrollment
-  with optional Platform-root pinning.
+- Protects secrets, CA keys, and leaf bundles at rest.
+- Supports a durable CA, seeded from supplied PEM material or self-signed on first start.
 - Renews named leaves on resolution and checks the HTTPS transport leaf at listener startup; a
   continuously running host must restart before transport expiry until the shared TLS listener
   supports asynchronous certificate selection per handshake.
@@ -41,17 +40,14 @@ check. Bare `/healthz`, `/readyz`, and `/livez` remain open for probes. This tig
 request authorization from 10.0.0-preview.1.
 
 Builder-declared secrets seed missing durable entries. `AddCertificateAuthority` controls the
-standalone root common name, initial certificate/key material, pending Platform enrollment, Platform
-root pin, and standalone self-seeding. Durable authority state takes precedence on restart.
+root common name, initial certificate/key material, and self-seeding. Durable authority state takes precedence on restart.
 
 The persistent volume's file-system ACL protects the colocated DataProtection key ring; an external
 KMS/wrapping-key integration and protected-record rewrap migration remain future work.
 
 ## Known gap
 
-A configured Platform enrollment endpoint needs the ambient application and resource names, which a
-plain host does not have, so the host fails to start with it. `certs/public`/ACME issuance is also
-not implemented by this host. See [DESIGN.md](design.md) for the exact routes.
+`certs/public`/ACME issuance is not implemented by this host. See [DESIGN.md](design.md) for the exact routes.
 
 ## Public types
 
@@ -91,7 +87,7 @@ the application disposes every factory-created service. See
 [DESIGN.md](design.md#dependency-injection-composition).
 
 `AddSecret` accepts the root's generated `SecretStoreSeedPath` (ordinary strings convert
-implicitly). It refuses blank paths, exact `trusted-issuers.json`, and `default` during
+implicitly). It refuses blank paths and `default` during
 registration. Seeds may still use `certs/`. Certificate reads share the client package's validation
 predicate through internal shared source, so malformed values cannot bypass validation by supplying
 raw query strings.

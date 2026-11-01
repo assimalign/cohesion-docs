@@ -14,26 +14,28 @@ obtains its first certificate authority; it does not perform certificate or netw
 
 ## Properties
 
-- **`CommonName`** — sets a standalone root-certificate subject common name. It defaults to
-  `Cohesion SecretStore Certificate Authority`; an intermediate CSR instead uses the ambient
-  application/resource identity.
-- **`SelfSeedWhenNoPlatform`** — defaults to `true`. It allows a self-signed development root only when
-  neither initial material nor a Platform enrollment endpoint is configured.
-- **`PlatformEnrollmentEndpoint`** — optionally identifies the absolute HTTPS Platform SecretStore
-  endpoint and selects pending gateway-mediated enrollment.
-- **`PlatformCertificate`** — optionally supplies the PEM-encoded Platform trust anchor/certificate pin.
+- **`CommonName`** — sets the self-signed root certificate's subject common name. It defaults to
+  `Cohesion SecretStore Certificate Authority` and must not be empty or whitespace.
+- **`SelfSeed`** — defaults to `true`. It allows a self-signed development root when no initial
+  material is supplied.
 - **`InitialCertificate`** — and `InitialPrivateKey` supply paired PEM certificate and PKCS#8 private-key
   material, such as material resolved from deployment parameters.
 
 ## Selection and validation
 
 Existing durable authority state takes precedence. On first start, paired initial material wins,
-then pending Platform enrollment, then standalone self-seeding. Initial certificate and key values
-must be supplied together; any configured material must be non-empty; the endpoint must be absolute;
-and a configuration that disables self-seeding without selecting another source is invalid.
+then self-seeding. Initial certificate and key values must be supplied together, any supplied
+material must be non-empty, and a configuration that disables self-seeding without supplying
+initial material is invalid.
 
-A failed configured enrollment does not fall back to self-seeding, because that would silently
-create a second trust hierarchy.
+The store issues no intermediate authorities and enrolls with no parent authority.
+
+## Compatibility
+
+Compared with `10.0.0-preview.1`, this type is a source and binary break:
+`PlatformEnrollmentEndpoint` and `PlatformCertificate` are removed with the gateway-mediated
+Platform enrollment they configured, and `SelfSeedWhenNoPlatform` is renamed `SelfSeed`. The
+default and the self-seeding behavior are unchanged.
 
 ## Usage
 
@@ -43,4 +45,5 @@ See the [source-backed usage examples](examples/index.md).
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore/docs/Assembly/Assimalign.Cohesion.SecretStore/CertificateAuthorityOptions/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore/src/CertificateAuthorityOptions.cs`.
+- **Design** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore/docs/DESIGN.md`.
