@@ -288,11 +288,11 @@ To reclaim dropped ordinals, use the C# maintenance operation
 [SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
 It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
 read-only snapshots retain the original layout until they end; writers bound before publication
-abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 33.
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 34.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 33 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 34 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
 canonical function-name quoting. Compiled schema version is 11. Older SQL formats are refused.
 
@@ -455,7 +455,8 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
+migration intent semantics; format 33 and earlier are refused before data recovery.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

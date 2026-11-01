@@ -28,7 +28,8 @@ The operation preserves logical definitions, schema ownership, applied-schema ha
 allocation, constraints, defaults, frozen missing values, collation and dependent views.
 Schema-owned tables are supported. This is a C# maintenance API; it adds no SQL statement or
 wire command. SQL [ALTER COLUMN TYPE](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
-also uses the shared copier for conversions, running inline under the table lock on this branch. SQL format 33 and compiled schema v11 remain unchanged.
+also uses the shared copier for conversions, running inline under the table lock. SQL now uses
+format 34 for joint typed migration intents; compiled schema v11 remains current.
 
 Schema application, session DDL and maintenance share fail-fast admission. The operation acquires
 an exclusive lock on the source table **before queueing**; a blocked rewrite does not occupy the
@@ -99,6 +100,20 @@ await using var rows = await session.ExecuteAsync("SELECT id FROM \"a.b\" WHERE 
 The API treats `A.B` as one decoded table name; SQL needs delimiters for that same name.
 The lifecycle, snapshot, scheduling and crash-image tests cover publication, rollback/retry,
 old indexed reads and reclamation without changing query results.
+
+## Schema application
+
+Explicit `ApplySchemaAsync` runs synchronously. If any column change requires a TYPE rewrite,
+the whole typed migration prepares unpublished and publishes in one catalog commit. Build instead
+defers populated-table work unless `RunMigrationsInline` or any declared script forces it inline.
+Every VARCHAR narrowing and CHAR width change takes this path. Non-TYPE migrations keep their
+existing per-step behavior; a default change without TYPE still refuses with `CS03105`.
+
+Preparation failure (`CS03402`) leaves the old schema online unless an independent storage latch
+fires. Retry explicitly; a rolled-back application's Build opens normally. Unconfirmed publication
+uses `CS03403` and recovery decides the schema. See [joint migration behavior](design.md#joint-type-migrations),
+[conversion safety](../../../../database/sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
+and [space/cleanup admission](storage-design.md#joint-migration-space-admission).
 
 ## Related reference
 

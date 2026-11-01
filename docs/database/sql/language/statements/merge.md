@@ -199,7 +199,7 @@ failure publishes no partial rows and restores the statement's original rows, pr
 explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
 Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
-SQL storage format 33 and wire frames are unchanged.
+SQL storage format 34 and wire frames are unchanged.
 
 [ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
 SET DEFAULT for referenced-key changes. RESTRICT is immediate; NO ACTION checks the final state.

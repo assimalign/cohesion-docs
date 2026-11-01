@@ -731,6 +731,7 @@ InMemory/TCP session. I/O in named-control parameter reads or result preparation
 
 ## Sources
 
+- **Joint typed migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` and `tests/SqlJointTypeMigrationTests.cs` with its partials at `0b00f181e`.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` at `ff5112515`.
 - **Batch 17 JSON and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ad0da989f`, checked against `SqlJsonAccessTests.cs`, `SqlJsonReviewFixTests.cs` and `NamedSavepointTests.cs` in the SQL tests.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
