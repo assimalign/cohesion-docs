@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.SecretStore.Client
 
-This package is the gateway-side protocol boundary for reading secret bytes and PEM certificates from a realized SecretStore resource.
+The Core-only SecretStore protocol client, delivered as a standalone NuGet package.
 
 > **Status:** Partial.
 
@@ -10,47 +10,52 @@ This package is the gateway-side protocol boundary for reading secret bytes and 
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 - **[`ClientCredential`](client-credential.md)** — Documented public type.
 - **[`ISecretStoreClient`](i-secret-store-client.md)** — Documented public type.
-- **[`ResourceCommand`](resource-command.md)** — Documented public type.
-- **[`ResourceCommandObservation`](resource-command-observation.md)** — Documented public type.
 - **[`SecretStoreClient`](secret-store-client.md)** — Documented public type.
 
 ## Summary
 
-This package is the gateway-side protocol boundary for reading secret bytes and PEM certificates
-from a realized SecretStore resource. It keeps mount-source resolution out of runtime libraries and
-hides its BCL HTTP implementation behind `ISecretStoreClient`.
+This package is the protocol boundary for reading secret bytes and PEM certificates from a realized
+SecretStore resource. A program that reads the store references it directly; a gateway does not,
+because it reaches a managed instance through the resource integration,
+`Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`. It keeps mount-source resolution out of
+runtime libraries and hides its BCL HTTP implementation behind `ISecretStoreClient`.
 
 ## Public surface
 
-- **`ISecretStoreClient`** — reads secret bytes, reads PEM certificates, and sends a generic command.
-- **`SecretStoreClient.Create(Uri, ClientCredential)`** — creates the internal protocol
-  implementation without performing network I/O.
-- **`ClientCredential`** — carries the opaque bootstrap token and redacts it when formatted.
-- **`ResourceCommand`** — is the generic command envelope; item 31c adds typed SecretStore commands.
+- `ISecretStoreClient` reads secret bytes and PEM certificates.
+- `SecretStoreClient.Create(Uri, ClientCredential)` creates the internal protocol implementation
+  without performing network I/O.
+- `ClientCredential` carries the opaque bootstrap token and redacts it when formatted.
+- `SecretStoreCertificateReference` validates certificate retrieval references before HTTP.
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using Assimalign.Cohesion.SecretStore.Client;
+
+var endpoint = new Uri("https://secretstore.internal:8443/api");
+var credential = new ClientCredential(bootstrapToken);
+ISecretStoreClient client = SecretStoreClient.Create(endpoint, credential);
+
+ReadOnlyMemory<byte> value = await client.GetSecretAsync("apps/api/password", cancellationToken);
+string certificate = await client.GetCertificateAsync("certs/appa-api", cancellationToken);
+```
+
+`GetCertificateAsync` accepts `SecretStoreCertificateReference`; string arguments convert
+implicitly. Supported references are exact `ca/root`, or `certs/` plus a nonblank leaf name with
+neither slash nor backslash and unequal to `.` or `..`. References preserve case and compare
+ordinally. Use `SecretStoreCertificateReference.TryCreate` for untrusted input without exceptions.
+Invalid references and `default` are refused before sending a request. The typed parameter replaces
+the preview.1 string signature, so implementations and precompiled consumers must be updated.
 
 The certificate response is a PEM bundle containing the persistent first-issued leaf, its PKCS#8
 private key, and the issuer chain. A `parameter:` source bypasses this client and is mounted by the
-gateway unchanged. `certs/public` /`Certificate="public"` is reserved for a later public-CA item.
+gateway unchanged. `certs/public`/`Certificate="public"` is reserved for a later public-CA item.
 
 The factory accepts only HTTP or HTTPS Cohesion endpoint URIs: absolute, host-bearing values with a
 valid port and no user information, query, or fragment. Each request presents the credential as a
 bearer token; the package treats the token as opaque and does not acquire, parse, refresh, or
 persist it.
-
-## Observed command delivery
-
-`CreateForControlPlane` accepts the full control-plane prefix. `ObserveCommandAsync` and
-`DeleteCommandAsync` return `ResourceCommandObservation`; `SendCommandAsync` retains its original
-Task-returning behavior. The new secret/certificate commands return 200 application/octet-stream on
-success and JSON {status,detail} on refusal. Legacy cohesion.trust.add keeps empty 204/409/403
-responses. The observation client treats an empty 2xx body as Applied, or Deleted for DELETE, and
-supplies a named HTTP detail when a legacy refusal has no body. DELETE is for the new kinds; trust
-grants remain POST-only. The package still has exactly one Core reference and no Hosting or Gateway
-dependencies. Identity verification and grant policy belong to the endpoint.
 
 ## Project references
 

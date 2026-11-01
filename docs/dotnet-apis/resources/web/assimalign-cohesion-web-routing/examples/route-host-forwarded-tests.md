@@ -26,13 +26,16 @@ Use it in the source project’s test context, with its test dependencies and su
 ```csharp
 using System.Net;
 using System.Threading.Tasks;
-using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.ForwardedHeaders;
 using Assimalign.Cohesion.Web.Routing.Metadata;
 using Assimalign.Cohesion.Web.Routing.Tests.TestObjects;
+
+using Shouldly;
+using Xunit;
+
+using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 
 namespace Assimalign.Cohesion.Web.Routing.Tests;
 
@@ -232,11 +235,10 @@ public class RouteHostForwardedTests
 
         if (useForwardedHeaders)
         {
-            app.UseForwardedHeaders(options =>
-            {
-                options.Headers = ForwardedHeaderNames.XForwarded;
-                options.KnownProxies.Add(_trustedProxy.Address);
-            });
+            ForwardedHeadersBuilder forwarded = new();
+            forwarded.Options.Headers = ForwardedHeaderNames.XForwarded;
+            forwarded.Options.KnownProxies.Add(_trustedProxy.Address);
+            app.Use(forwarded.Build());
         }
 
         return app;

@@ -1,6 +1,8 @@
 # ApplicationModel
 
-Application graphs, portable realization plans, and gateway orchestration.
+The shared identity and protocol, the logical model a gateway runs, the instance runtime, and the gateway that deploys and manages resources.
+
+> **Status:** Partial. The in-process platform runs end to end; the Kubernetes and Docker pairs live in `cohesion-platforms`.
 
 [Libraries](../index.md)
 
@@ -8,70 +10,47 @@ Application graphs, portable realization plans, and gateway orchestration.
 
 | Package | Responsibility | Reference |
 |---|---|---|
-| `Assimalign.Cohesion.ApplicationModel` | Defines application graphs, resource manifests, portable plans, and desired resource commands. | [Overview](assimalign-cohesion-applicationmodel/index.md) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway` | Realizes application graphs in dependency order and tracks resource and command observations. | [Overview](assimalign-cohesion-applicationmodel-gateway/index.md) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane` | Exposes authenticated application discovery and resource command delivery over HTTP. | [Overview](assimalign-cohesion-applicationmodel-gateway-controlplane/index.md) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway.InProcess` | Realizes composable resources as separately owned hosts inside a gateway process. | [Overview](assimalign-cohesion-applicationmodel-gateway-inprocess/index.md) |
+| `Assimalign.Cohesion.ApplicationModel` | The shared identity: `IApplicationResource`, provider and resource names with their ids, and `PlatformName`. | [Overview](assimalign-cohesion-applicationmodel/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Protocol` | What a gateway and an instance exchange: the instance manifest, publication, action invocation, snapshots, and the JSON content serializer. | [Overview](assimalign-cohesion-applicationmodel-protocol/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Definition` | The logical model one gateway runs: resources, dependencies, settings, outputs, platform extensions, and the parent it joins. | [Overview](assimalign-cohesion-applicationmodel-definition/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Hosting` | The instance runtime: instance, actions and state, control plane, the resource service, and `ApplicationInstanceOptions`. | [Overview](assimalign-cohesion-applicationmodel-hosting/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess` | The in-process platform's instance half: `UseInProcess()` on a resource's options. | [Overview](assimalign-cohesion-applicationmodel-hosting-inprocess/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Gateway` | The gateway: `ApplicationGateway.CreateBuilder(name)`, deployment in dependency order, publications, joins, and operator actions. | [Overview](assimalign-cohesion-applicationmodel-gateway/index.md) |
+| `Assimalign.Cohesion.ApplicationModel.Gateway.InProcess` | The in-process platform's gateway half: `InProcessInfrastructure` runs each resource's program on a thread of the gateway's process. | [Overview](assimalign-cohesion-applicationmodel-gateway-inprocess/index.md) |
 
-## Dependencies and delivery
+## How the pieces fit
 
-The repository places this area in delivery wave 4. The wave is a dependency-ordering guide, not a
-release or completeness guarantee.
+A **gateway** runs one application model and deploys its resources through a **platform**. A
+**resource instance** is an ordinary area application (`Program.cs`) that calls
+`builder.Services.AddResource(name, resource => resource.UseInProcess())`: it publishes a manifest to
+its gateway, restores the state the gateway kept, and runs the gateway's actions on its control
+plane. The two sides share only the identity and the protocol; the logical side (Definition) and the
+physical side (Hosting) never reference each other.
 
-Although stored under `libraries/`, this area belongs to Layer 2 application runtime and
-composition. The base model remains Core-only; gateway packages add realization and control-plane
-dependencies. The area architecture record places runtime ownership in the consuming Composite and
-keeps resource declarative packages independent of gateway assemblies.
+A platform is a pair of packages that owns every transport between the sides. Its instance half is
+the client a resource publishes through; its gateway half is the infrastructure provider that
+deploys workloads, receives publications, and calls instances. The in-process pair ships here; the
+Kubernetes and Docker pairs are described under [Platforms](../../../platforms/index.md).
 
 | Assembly | Declared dependencies |
 |---|---|
-| `Assimalign.Cohesion.ApplicationModel` | `Assimalign.Cohesion.Core` (CohesionProjectReference) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway` | `Assimalign.Cohesion.ApplicationModel` (CohesionProjectReference), `Assimalign.Cohesion.ConfigurationStore.Client` (CohesionProjectReference), `Assimalign.Cohesion.Database.Client` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Resources` (CohesionProjectReference), `Assimalign.Cohesion.IdentityHub.Client` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` (CohesionProjectReference), `Assimalign.Cohesion.Rezolvr.Client` (CohesionProjectReference), `Assimalign.Cohesion.SecretStore.Client` (CohesionProjectReference), `Assimalign.Cohesion.Security.DataProtection` (CohesionProjectReference), `System.Security.Cryptography.ProtectedData` (CohesionPackageReference) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane` | `Assimalign.Cohesion.ApplicationModel` (CohesionProjectReference), `Assimalign.Cohesion.ApplicationModel.Gateway` (CohesionProjectReference), `Assimalign.Cohesion.Connections.Tcp` (CohesionProjectReference), `Assimalign.Cohesion.Core` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Resources` (CohesionProjectReference), `Assimalign.Cohesion.Http` (CohesionProjectReference), `Assimalign.Cohesion.Http.Connections` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel` (CohesionProjectReference), `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` (CohesionProjectReference), `Assimalign.Cohesion.Web.Routing` (CohesionProjectReference) |
-| `Assimalign.Cohesion.ApplicationModel.Gateway.InProcess` | `Assimalign.Cohesion.ApplicationModel` (CohesionProjectReference), `Assimalign.Cohesion.ApplicationModel.Gateway` (CohesionProjectReference), `Assimalign.Cohesion.Hosting` (CohesionProjectReference), `Assimalign.Cohesion.Hosting.Resources` (CohesionProjectReference) |
+| `Assimalign.Cohesion.ApplicationModel` | `Assimalign.Cohesion.Core` |
+| `Assimalign.Cohesion.ApplicationModel.Protocol` | `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.ApplicationModel` |
+| `Assimalign.Cohesion.ApplicationModel.Definition` | `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.ApplicationModel` |
+| `Assimalign.Cohesion.ApplicationModel.Hosting` | `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.Hosting`, `Assimalign.Cohesion.ApplicationModel.Protocol` |
+| `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess` | `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.ApplicationModel.Protocol`, `Assimalign.Cohesion.ApplicationModel.Hosting` |
+| `Assimalign.Cohesion.ApplicationModel.Gateway` | `Assimalign.Cohesion.ApplicationModel.Definition`, `Assimalign.Cohesion.ApplicationModel.Protocol` |
+| `Assimalign.Cohesion.ApplicationModel.Gateway.InProcess` | `Assimalign.Cohesion.ApplicationModel.Gateway`, `Assimalign.Cohesion.ApplicationModel.Hosting`, `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess` |
+
+All references are `CohesionProjectReference` items. No shipped resource-area project may resolve an
+`Assimalign.Cohesion.ApplicationModel.Gateway*` assembly (`COHRES003`), and libraries never
+reference resources (`COHLIB001`): each area implements the instance seams in its own
+`<Area>.Hosting.ApplicationModel` package. `ApplicationModel.Hosting` ships in the `App` hosting
+kernel, so every `Sdk.<Area>` application can call `AddResource` without a package reference.
 
 ## Sources
 
-- **Source** — `cohesion/libraries/README.md`.
-
-- **Source** — `cohesion/README.md`.
-
-- **Source** — `cohesion/docs/programs/DELIVERY_ROADMAP.md`.
-
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-
-- **Source** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Assimalign.Cohesion.ApplicationModel.csproj`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Assimalign.Cohesion.ApplicationModel.Gateway.csproj`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane/src/Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane.csproj`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.ControlPlane/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess.csproj`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/README.md`.
+- **Area design** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`.
+- **Boundaries** — `cohesion/.claude/rules/resource-areas.md`.
+- **Kernel membership** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.

@@ -17,45 +17,36 @@ See the [Scheduler API reference](../dotnet-apis/resources/scheduler/index.md).
 | Assembly | Responsibility |
 |---|---|
 | [`Assimalign.Cohesion.Scheduler`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler/index.md) | Application, job, schedule, provider, and context contracts. |
-| [`Assimalign.Cohesion.Scheduler.ApplicationModel`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-applicationmodel/index.md) | Opt-in typed resource and singleton stateless planner. |
 | [`Assimalign.Cohesion.Scheduler.Cron`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-cron/index.md) | Five-field cron parsing and occurrence evaluation. |
-| [`Assimalign.Cohesion.Scheduler.Hosting`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-hosting/index.md) | Schedule execution, host lifecycle, and resource control plane. |
+| [`Assimalign.Cohesion.Scheduler.Hosting`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-hosting/index.md) | Schedule execution and host lifecycle. |
+| [`Assimalign.Cohesion.Scheduler.Hosting.ApplicationModel`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-hosting-applicationmodel/index.md) | `builder.Services.AddResource(name, ...)`: the scheduler as a managed resource instance. |
 | [`Assimalign.Cohesion.Scheduler.Timer`](../dotnet-apis/resources/scheduler/assimalign-cohesion-scheduler-timer/index.md) | Fixed-delay timer occurrences. |
 
 ## Hosting model
 
 `SchedulerApplication.CreateBuilder(args)` returns the concrete builder. `Build()` validates
-provider bindings against the exact job instances in the declaration registry. It materializes
-explicit host services, adds the enabled control-plane listener, and adds the schedule executor.
+provider bindings against the exact job instances in the declaration registry, materializes
+explicit host services, and adds the schedule executor last.
 
-Enabled resources inherit environment, content root, `http` endpoint, bootstrap credential, and
-shutdown grace through `ResourceRuntime`. Public `/healthz`, `/readyz`, and `/livez` probes accompany
-authenticated management routes. Readiness waits for the outer host to reach `Started`.
-The HTTPS listener reads its endpoint's Secret certificate mount, defaulting to `tls`.
-
-The planner allows non-persistent Configuration and Secret mounts but rejects persistent Volumes.
 Stopping cancels trigger waits and prevents new occurrences, then joins active work within the
 shared host shutdown budget. It does not cancel an already executing occurrence merely because
 the next trigger was cancelled.
 
-## Application model
+## Managed resource
 
-`AddScheduler` creates a manifest-backed `SchedulerResource`. The planner accepts only a
-singleton stateless `Deployment`, requires an HTTP-over-TCP control-plane endpoint named `http`,
-and rejects storage overrides and persistent Volumes. The SDK and planner require one replica
-and a maximum of one; horizontal scaling awaits distributed occurrence coordination.
-
-`SchedulerResourceControlPlane.Create()` creates the default plane. The area package provides its
-own typed verb, while the Gateway SDK's current generated typed-kind map does not include
-Scheduler and uses its generic resource path for that manifest kind.
+A scheduler becomes a managed resource instance with one registration in its `Program.cs`:
+`builder.Services.AddResource("jobs", resource => resource.UseInProcess())`. When the environment
+names a platform the resource opted into, it publishes its manifest, restores the state its gateway
+kept, and runs the gateway's actions. Scheduler exposes no actions of its own yet; the application
+can add its own with `AddAction`. A gateway declares the resource generically:
+`builder.AddResource("Scheduler", "jobs")`. Horizontal scaling still awaits distributed occurrence
+coordination, so run one instance. See [ApplicationModel](../dotnet-apis/libraries/application-model/index.md).
 
 ## SDK and framework
 
-`Assimalign.Cohesion.Sdk.Scheduler` delivers the runtime family through
-`Assimalign.Cohesion.App.Scheduler`. The area's `.ApplicationModel` package is NuGet-only
-and added to enabled resource executables; it remains outside the runtime shared framework.
-
-See the [Scheduler SDK reference](../dotnet-apis/sdks/sdk-scheduler/index.md).
+`Assimalign.Cohesion.Sdk.Scheduler` delivers the runtime family and the resource integration
+through `Assimalign.Cohesion.App.Scheduler`. See the
+[Scheduler SDK reference](../dotnet-apis/sdks/sdk-scheduler/index.md).
 
 ## Jobs and providers
 
@@ -109,7 +100,7 @@ Return to [Cohesion Documentation](../index.md).
 
 - **Area** — `cohesion/resources/Scheduler/README.md`.
 - **Hosting** — `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.Hosting/docs/DESIGN.md`.
-- **Application model** — `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.ApplicationModel/docs/OVERVIEW.md` and `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.ApplicationModel/docs/DESIGN.md`.
+- **Resource integration** — `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler.Hosting.ApplicationModel/docs/OVERVIEW.md`.
 - **Runtime contract** — `cohesion/docs/RUNTIME_CONTRACT.md`.
 - **Package boundaries** — `cohesion/.claude/rules/resource-areas.md`.
 - **Supporting source** — `cohesion/resources/Scheduler/Assimalign.Cohesion.Scheduler/docs/OVERVIEW.md`.

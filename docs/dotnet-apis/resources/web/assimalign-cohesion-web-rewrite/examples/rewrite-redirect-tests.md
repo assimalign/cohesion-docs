@@ -30,8 +30,11 @@ the source project’s test context, with its test dependencies and supporting t
 ```csharp
 using System;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 
@@ -55,7 +58,7 @@ public class RewriteRedirectTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/old/(\\d+)$", "/new/$1", status));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/old/(\\d+)$", "/new/$1", status)));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -73,7 +76,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/old$", "/new"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/old$", "/new")));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -110,7 +113,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/old$", "/new", HttpStatusCode.MovedPermanently));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/old$", "/new", HttpStatusCode.MovedPermanently)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -127,7 +130,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/old$", replacement, HttpStatusCode.MovedPermanently));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/old$", replacement, HttpStatusCode.MovedPermanently)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -142,7 +145,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/old/(.+)$", "/new/$1?ref=$1", HttpStatusCode.PermanentRedirect));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/old/(.+)$", "/new/$1?ref=$1", HttpStatusCode.PermanentRedirect)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -157,7 +160,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/s/(.+)$", "https://search.example/find/$1?q=$1#top", HttpStatusCode.Found));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/s/(.+)$", "https://search.example/find/$1?q=$1#top", HttpStatusCode.Found)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -172,7 +175,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/docs/(.*)$", "https://docs.example/$1", HttpStatusCode.MovedPermanently));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/docs/(.*)$", "https://docs.example/$1", HttpStatusCode.MovedPermanently)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -187,7 +190,7 @@ public class RewriteRedirectTests
     {
         // Arrange — "/go//evil.example" captures "/evil.example"; "//evil.example" would leave the origin.
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/go/(.*)$", "/$1", HttpStatusCode.Found));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/go/(.*)$", "/$1", HttpStatusCode.Found)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -202,7 +205,7 @@ public class RewriteRedirectTests
     {
         // Arrange — browsers read "/\host" as "//host".
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/go(.*)$", "$1", HttpStatusCode.Found));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/go(.*)$", "$1", HttpStatusCode.Found)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -217,7 +220,7 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect("^/faq/(\\d+)$", "/help#question-$1", HttpStatusCode.MovedPermanently));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect("^/faq/(\\d+)$", "/help#question-$1", HttpStatusCode.MovedPermanently)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act
@@ -232,11 +235,11 @@ public class RewriteRedirectTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRedirect(
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRedirect(
             "^/article\\.aspx\\?id=(\\d+)$",
             "/articles/$1?",
             HttpStatusCode.MovedPermanently,
-            RewriteMatchTarget.PathAndQuery));
+            RewriteMatchTarget.PathAndQuery)));
         builder.Run(_ => Task.CompletedTask);
 
         // Act

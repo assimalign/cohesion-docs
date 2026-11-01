@@ -64,7 +64,8 @@ once per build against the same context retained by the application; the hosted-
 installed after factory evaluation. Services start in registration order and stop in reverse. No
 area-owned service abstraction is introduced.
 
-Enabled resources retain their ambient context and registered control-plane behavior; plain
+A managed resource is a registration the application makes, `builder.Services.AddResource(name, ...)`
+from the area's `Hosting.ApplicationModel` package; the root contracts do not change for it. Plain
 application defaults are described by the Hosting design.
 
 ## AOT posture
@@ -77,10 +78,7 @@ implementation while the public root remains trimming- and NativeAOT-safe.
 ## Non-goals
 
 This project does not persist or encrypt secrets, generate or enroll certificates, contact the
-Platform service, verify bootstrap credentials, or expose a protocol endpoint. Those are runtime
-responsibilities. Cross-resource command verbs (`AddSecret`, `IssueCertificate`, and `Enroll` on a
-SecretStore resource descriptor) are a separate ApplicationModel surface and are not builder-time
-seed declarations.
+Platform service, or expose a protocol endpoint. Those are runtime responsibilities.
 
 ## Hosting-free application contract (O34)
 

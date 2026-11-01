@@ -14,8 +14,7 @@ builder, and context live in `Assimalign.Cohesion.IdentityHub.Hosting`.
 Client registration is intentionally code-first. A non-empty `ClientSecret` enables
 `client_credentials`; `AllowDeviceAuthorization` enables the device grant. Clients explicitly list
 the audiences they may request, and build fails if a client names an undeclared audience or enables
-no grant. Corresponding declarative gateway commands now ship in IdentityHub.ApplicationModel;
-Hosting combines their durable registry with these builder registrations.
+no grant. These builder registrations are the only client registry.
 
 ## Security boundary
 
@@ -27,7 +26,7 @@ instead of defining competing token, claim, subject, credential, or session prim
 ## Hosting isolation and AOT
 
 The root references Core and IdentityModel contracts, with no Hosting library reference. HTTP
-serving, persistence, cryptography, and ResourceRuntime integration belong to the Hosting module.
+serving, persistence, and cryptography belong to the Hosting module.
 The surface requires no runtime scanning, dynamic code generation, or container activation and
 remains trimming- and NativeAOT-safe.
 

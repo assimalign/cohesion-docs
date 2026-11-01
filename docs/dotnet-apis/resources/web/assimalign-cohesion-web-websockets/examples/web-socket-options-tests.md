@@ -13,7 +13,7 @@ Use it in the source project’s test context, with its test dependencies and su
 
 - **Case 1** — Options: The defaults refuse cross-site handshakes, keep alive every 30 seconds and leave compression off.
 - **Case 2** — Options: A negative keep-alive interval or timeout is rejected.
-- **Case 3** — UseWebSockets: An allowed origin that is not a serialized origin fails when the middleware is added.
+- **Case 3** — AddWebSockets: An allowed origin that is not a serialized origin fails when the middleware is registered.
 - **Case 4** — UseWebSockets: A null builder throws.
 
 ## Source example
@@ -22,9 +22,12 @@ Use it in the source project’s test context, with its test dependencies and su
 using System;
 using System.Net.WebSockets;
 using System.Threading;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Web.WebSockets.Tests.TestObjects;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.WebSockets.Tests;
 
@@ -59,18 +62,20 @@ public class WebSocketOptionsTests
         options.KeepAliveTimeout.ShouldBe(TimeSpan.FromSeconds(10));
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.WebSockets] - UseWebSockets: An allowed origin that is not a serialized origin fails when the middleware is added")]
+    [Theory(DisplayName = "Cohesion Test [Web.WebSockets] - AddWebSockets: An allowed origin that is not a serialized origin fails when the middleware is registered")]
     [InlineData("*")]
     [InlineData("null")]
     [InlineData("https://app.example/")]
     [InlineData("app.example")]
-    public void UseWebSockets_InvalidAllowedOrigin_ThrowsArgumentException(string origin)
+    public void AddWebSockets_InvalidAllowedOrigin_ThrowsArgumentException(string origin)
     {
         // Arrange
         TestPipelineBuilder builder = new();
 
-        // Act / Assert
-        Should.Throw<ArgumentException>(() => builder.UseWebSockets(options => options.AllowedOrigins.Add(origin)));
+        // Act / Assert — the build that registration runs throws, so nothing is registered.
+        Should.Throw<ArgumentException>(() => builder.Registered.Add(
+            TestPipelineBuilder.BuildWebSockets(options => options.AllowedOrigins.Add(origin))));
+        builder.Registered.ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.WebSockets] - UseWebSockets: A null builder throws")]

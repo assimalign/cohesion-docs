@@ -2,7 +2,7 @@
 
 This build-time assembly project packages the MessageHub SDK imports and targets.
 
-The project’s `PackageId` is `Assimalign.Cohesion.Sdk.MessageHub`. Its output directory is
+The project's `PackageId` is `Assimalign.Cohesion.Sdk.MessageHub`. Its output directory is
 `$(CohesionOutputPathForSdk)\$(NETCoreSdkVersion)\sdks\$(PackageId)\Tasks`. Shared packaging places
 the SDK entry files in `Sdk/`, area build files in `Targets/`, and built task-project output in
 `Tasks/`.
@@ -16,7 +16,6 @@ they do not establish an area task API.
 
 ## Sources
 
-- **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.MessageHub/Tasks/src/Assimalign.Cohesion.Sdk.MessageHub.Tasks.csproj`
-- **Source** — `cohesion/sdks/Directory.Build.props`
-- **Source** — `cohesion/sdks/Directory.Build.targets`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.MessageHub/Tasks/src/Assimalign.Cohesion.Sdk.MessageHub.Tasks.csproj`.
+- **Source** — `cohesion/sdks/Directory.Build.props`.
+- **Source** — `cohesion/sdks/Directory.Build.targets`.

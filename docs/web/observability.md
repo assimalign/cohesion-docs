@@ -18,10 +18,9 @@ exists. Each owner reports its own events rather than forwarding another package
 | How much dispatched work is active, and how long does it take? | `Meter` named `Assimalign.Cohesion.Web.Server` | Web.Server | `http.server.active_requests` and `http.server.request.duration`, including Web middleware's rejection statuses. |
 | Did HTTP reject a request or fail a protocol operation? | `Meter` and `EventSource` named `Assimalign.Cohesion.Http.Connections` (#1300) | HTTP transport | Pre-dispatch rejection statuses, HTTP/2 and HTTP/3 protocol errors, request-rate enforcement and slow-reader response aborts. These are not Web application faults. |
 | Did a listener bind, drain or stop, and did server machinery fail? | `EventSource` named `Assimalign.Cohesion.Web.Server` | Web.Server | Lifecycle, bind/accept/connection failures, completion-callback failures, refused response heads, capacity waits and drain timeouts, correlated by process-unique `serverId`. Peer-ended connections are Verbose and do not increment `connection-faults`. |
-| Did the host disable the control plane or reject management work? | `EventSource` named `Assimalign.Cohesion.Web.Hosting` | Web.Hosting | Control-plane configuration, credential rejection, malformed commands and accepted stop; the `rejected-credentials` counter remains exact. |
 | Which application fault reached the exception boundary? | `EventSource` named `Assimalign.Cohesion.Web.ErrorHandling` | Web exception boundary | Pipeline and handler failures, expected faults and abandoned responses; request-cancellation exceptions and latched client faults do not become application-fault counts. An original application fault remains reported if the boundary later aborts its response. |
 | Which middleware rejected or degraded an exchange, and why? | The owning Web assembly's `EventSource` | Web feature package | Bounded rejection reasons and exact attribution counters for authentication, authorization, antiforgery, edge policies, timeouts, rate limits, compression, forms and content handling. There are no duplicate request start/stop events or general request counters. |
-| Did health or control-plane work fail? | `Web.Health`, `Web.Hosting` and `Hosting.Resources` event sources | Web health/HTTP control surface, or shared control-plane producer | Health transitions and failed checks; HTTP authentication/command-input failures; producer-owned contributor failures and command outcomes. |
+| Did a health check fail, or did a gateway deploy and manage resources? | `Web.Health` and `Assimalign.Cohesion.ApplicationModel.Gateway` event sources | Web health, or the gateway program | Health transitions and failed checks; a gateway run's steps, readiness, missed windows, and operator actions. |
 | Did the underlying connection or TLS handshake fail? | Connections driver event sources; runtime `System.Net.Security` | Connection transport and TLS runtime | Listener, connection and stream lifecycle, driver counters and TLS handshake diagnostics. These sources are outside default Web forwarding. |
 | What should the application's HTTP access log contain? | `ILogger` entries, default category `Assimalign.Cohesion.Web.Diagnostics.HttpLogging` | Web.Diagnostics middleware | Explicitly composed access logging at Information with its own redaction options. The `Web.Diagnostics` EventSource reports failures of logging itself, rather than duplicating access entries. |
 
@@ -47,9 +46,8 @@ response. The server's own lifecycle and failures are reported through its same-
 
 Any `ActivityListener` or `MeterListener` subscribes by name: an exporter, a test, or the
 application itself. An OpenTelemetry SDK subscribes the same way when it is given the two names.
-Cohesion's own OTLP export (`Hosting.Telemetry` over `Assimalign.Cohesion.OpenTelemetry`) sends
-logs only and subscribes to neither yet, so exporting traces or metrics takes a listener of the
-application's own for now.
+`Assimalign.Cohesion.OpenTelemetry` exports logs only and subscribes to neither yet, so exporting
+traces or metrics takes a listener of the application's own for now.
 
 This complete program prints each request's span and every measurement the server records:
 
@@ -356,12 +354,12 @@ builder.EnableEventSourceForwarding = false;
 Register `builder.Logging.AddEventSourceForwarding(options)` before Build to choose other sources;
 any application forwarder registration takes precedence. Calling `AddEventSourceForwarding()`
 without options selects every `Assimalign.Cohesion.*` source, a wider selection than the Web default.
-The Connections drivers, runtime `System.Net.Security`, `Http.Sessions` and `Hosting.Resources`
-are outside that default selection. Explicit/options-based builders for nested hosts register no
-automatic forwarder. Non-Web resource control planes need a tool or their own forwarding setup.
+The Connections drivers, runtime `System.Net.Security`, and `Http.Sessions` are outside that
+default selection. Explicit/options-based builders for nested hosts register no automatic
+forwarder.
 
 Listeners observe the whole process. Concurrent entry-point applications can forward the same
-event; use `serverId`, `resourceName` and request identifiers for attribution and opt out in secondary hosts that
+event; use `serverId` and request identifiers for attribution and opt out in secondary hosts that
 share sinks. The application owns its logger factory, providers and forwarders; forwarding ends
 at final application disposal, after shutdown diagnostics. A factory resolved from its service
 provider cannot outlive the application. Forwarding carries events, not EventSource counters or
@@ -374,16 +372,15 @@ exception stacks and per-host logger attribution are no longer present. Bind fai
 Critical, accept-loop failures are Error, and peer-ended connections are Verbose and excluded
 from `connection-faults`. See the [server event schema](server.md#diagnostics).
 
-The hosting module's `WebHostingEventSource` retains `Assimalign.Cohesion.Web.Hosting` for host
-and control-plane events. Its former resource-integration provider is folded into that source;
-the default Web prefix forwards both the server and hosting providers. A directly constructed
+`Web.Hosting` has no event source of its own; the default Web prefix forwards the server's
+provider. A directly constructed
 `WebApplicationServer` leaves diagnostic subscriptions and forwarding to its caller.
 
 ### Observe with tools
 
 ```bash
-dotnet-trace collect --process-id <pid> --providers Assimalign.Cohesion.Web.Server::5,Assimalign.Cohesion.Web.Hosting::5,Assimalign.Cohesion.Http.Connections::5
-dotnet-counters monitor --process-id <pid> --counters Assimalign.Cohesion.Web.Server,Assimalign.Cohesion.Web.Hosting,Assimalign.Cohesion.Http.Connections
+dotnet-trace collect --process-id <pid> --providers Assimalign.Cohesion.Web.Server::5,Assimalign.Cohesion.Http.Connections::5
+dotnet-counters monitor --process-id <pid> --counters Assimalign.Cohesion.Web.Server,Assimalign.Cohesion.Http.Connections
 ```
 
 `dotnet-monitor` and PerfView take the same source names. An in-process `EventListener` can select
@@ -414,7 +411,7 @@ The enabled native guard verifies lifecycle payload names, matching server ids a
 
 ### Web event-source catalog
 
-The 22 instrumented Web assemblies and their related transport/control-plane sources are listed
+The 21 instrumented Web assemblies and their related transport sources are listed
 below. Each design link documents event identifiers, levels, bounded payloads and counter semantics.
 Payload policy is source-specific: CORS reports bounded origins and rejected header names, and
 HostFiltering reports the effective host component. Authentication events omit tokens, claims
@@ -422,7 +419,6 @@ and certificate identifiers; application exception messages follow each package'
 
 | Event source (= assembly) | Events | Counters | Reference |
 | --- | --- | --- | --- |
-| `Assimalign.Cohesion.Hosting.Resources` | Shared control-plane contributor failures and command outcomes: applied, unknown kind (501), conflict (409), handler failure. Only registered kinds are written; refusals/failures are throttled. HTTP surface events belong to Web.Hosting | `contributor-failures`, `commands-applied`, `unknown-command-kinds`, `command-conflicts`, `command-handler-failures` | [Hosting.Resources DESIGN.md](../dotnet-apis/libraries/hosting/assimalign-cohesion-hosting-resources/design.md#diagnostics) |
 | `Assimalign.Cohesion.Http.Connections` | Transport rejections, HTTP/2 and HTTP/3 connection errors and stream resets, slow-reader aborts and client-caused response aborts (Warning, throttled per event with `suppressedCount`) | `rejected-requests`, `connection-errors`, `stream-resets`, `response-rate-aborts`, `response-aborts` | [Http.Connections DESIGN.md](../dotnet-apis/libraries/http/assimalign-cohesion-http-connections/design.md#diagnostics) |
 | `Assimalign.Cohesion.Http.Sessions` | Store load/commit failures (type only, throttled) | `store-load-failures`, `store-commit-failures` | [Design](../dotnet-apis/libraries/http/assimalign-cohesion-http-sessions/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.Antiforgery` | RequestRejected and sanitized TokenUnprotectFailed (Verbose); RejectionAborted (Warning, at most once a second with suppressedCount); FormMalformed has no exception text | `rejected-requests` | [Antiforgery DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-antiforgery/design.md#diagnostics) |
@@ -437,9 +433,8 @@ and certificate identifiers; application exception messages follow each package'
 | `Assimalign.Cohesion.Web.ErrorHandling` | Application pipeline fault (Error), expected fault (Verbose), error-handler failure (Error), diagnostic-callback failure (Warning), peer-abandoned response (Verbose); request-cancellation exceptions and latched client faults excluded; later cancellation preserves the original application-fault report | `total-faults`, `faults-per-second`, `aborted-responses` | [ErrorHandling DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-errorhandling/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.Forms` | Form limit or malformed input (Verbose); rejection after response commit (Warning, throttled); configured limit names and exception types only | `form-limit-rejections`, `malformed-forms` | [Forms DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-forms/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.ForwardedHeaders` | Forwarding stop reason, family and applied depth (Verbose); transport peer IP only for an untrusted peer at depth zero | `untrusted-forwarding`, `malformed-forwarding` | [ForwardedHeaders DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-forwardedheaders/design.md#diagnostics) |
-| `Assimalign.Cohesion.Web.Health` | Health worsened (Warning), improved (Informational), thrown or timed-out check (Verbose); includes adapted Hosting.Health contributors | `failed-checks` | [Health DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-health/design.md#diagnostics) |
+| `Assimalign.Cohesion.Web.Health` | Health worsened (Warning), improved (Informational), thrown or timed-out check (Verbose) | `failed-checks` | [Health DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-health/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.HostFiltering` | Rejected effective host with bounded host component, reason and request id (Verbose) | `rejected-requests` | [HostFiltering DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-hostfiltering/design.md#diagnostics) |
-| `Assimalign.Cohesion.Web.Hosting` | Control plane disabled; shared HTTP control-plane credential/loopback refusals and malformed commands (throttled), stop accepted, identified by resourceName; non-Web processes need a tool or their own forwarder | `rejected-credentials` | [Hosting DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.Server` | Server lifecycle and failures, peer-ended connections (Verbose), refused response heads and telemetry listener failures (throttled), completion callback and isolation failures; process-unique serverId | `connection-faults`, `connection-cap-waits`, `refused-response-heads` | [Server DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-server/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.RateLimiting` | Rejected global or endpoint policy (Verbose); rejection after response commit (Warning, throttled); partition keys are never written | `rejected-requests` | [RateLimiting DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-ratelimiting/design.md#diagnostics) |
 | `Assimalign.Cohesion.Web.RequestTimeouts` | Timeout enforced (Warning, throttled) or ignored by downstream work (Verbose); armed interval and request correlation | `timed-out-requests`, `ignored-timeouts` | [RequestTimeouts DESIGN.md](../dotnet-apis/resources/web/assimalign-cohesion-web-requesttimeouts/design.md#diagnostics) |
@@ -457,7 +452,8 @@ statuses, thrown failures or contract-only role do not need an additional diagno
 | --- | --- |
 | `Assimalign.Cohesion.Web` | Contracts and pure pipeline helpers have no runtime state, loop or swallowed failure; the root must not claim every Web package's signals. |
 | `Assimalign.Cohesion.Web.Testing` | A shipped test harness, like Connections.InMemory, rather than a runtime component; it receives no access to internal sources. |
-| `Assimalign.Cohesion.Web.ApplicationModel` | Invalid declarative plans throw; runtime control-plane outcomes belong to Hosting.Resources. |
+| `Assimalign.Cohesion.Web.Hosting` | A composition root with no runtime loop of its own; server, connection, and request signals belong to Web.Server. |
+| `Assimalign.Cohesion.Web.Hosting.ApplicationModel` | The integration carries no transport: an action's outcome reaches the gateway through the platform's client. |
 | `Assimalign.Cohesion.Web.Routing` | Failures throw at startup or reach the exception boundary; 404/405 are statuses and the matched template is already the span's `http.route`. |
 | `Assimalign.Cohesion.Web.Api` | Binding failures are visible client-driven 400s in access logs and request metrics; the signal does not justify a new public rejection API. |
 | `Assimalign.Cohesion.Web.OpenApi` | Build failures reach the boundary and are not cached; first-route-wins is documented and the package is development-facing. |
@@ -518,7 +514,7 @@ Return to [Web](index.md).
 - **Instruments and attributes** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/WebServerTelemetry.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/WebExchangeTelemetry.cs`.
 - **Query values declared safe** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`.
 - **Subscription** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/GuardSmoke.cs` and `cohesion/docs/EVENT_SOURCES.md`.
-- **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Abstractions/IWebEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
+- **Request id and route template** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebRequestIdFeature.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/src/Abstractions/IRouterEndpointFeature.cs`, and `cohesion/resources/Web/Assimalign.Cohesion.Web.Routing/docs/DESIGN.md`.
 - **Client faults** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebClientFaultFeature.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebResponseClientFaultFeature.cs`.
 - **HTTP logging and request views** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Diagnostics/docs/DESIGN.md`.
 - **Event-source scope and test recorder** — `cohesion/docs/EVENT_SOURCES.md`, `cohesion/.claude/rules/event-source.md`, `cohesion/.claude/rules/testing.md`, and `cohesion/build/TestSupport/EventSourceRecorder.cs`.

@@ -1,66 +1,52 @@
 # IdentityHub
 
-IdentityHub provides a minimal OpenID Connect issuer and its resource control plane.
+IdentityHub provides a minimal OpenID Connect issuer.
 
 > **Status:** Partial. Package-level pages distinguish implemented behavior from deferred surfaces.
 
-IdentityHub is the L3 identity service platform intended to manage tenants, directories,
-applications, principals, credentials, sessions, token services, federation, and provisioning.
+IdentityHub is the L3 identity service platform intended to manage tenants, directories, applications, principals, credentials, sessions, token services, federation, and provisioning.
 
-The application builder configures a minimal code-first OpenID Connect issuer with persisted ES256
-keys, client credentials, a loopback Local device-authorization flow, and a Cohesion resource
-control plane. Production HTTPS consumes a gateway-materialized `tls` Secret mount; the self-signed
-fallback is Local-only.
-
-Without a gateway identity, the `/cohesion/v1` control plane accepts only transport peers at
-`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other callers receive `403 Forbidden`. Forwarded
-headers do not change this decision. Bare health probes remain open. This tightens standalone
-behavior from 10.0.0-preview.1.
+The application builder configures a minimal code-first OpenID Connect issuer with persisted ES256 keys, client credentials, and a loopback Local device-authorization flow. An IdentityHub application becomes a managed resource instance with `Assimalign.Cohesion.IdentityHub.Hosting.ApplicationModel`: `builder.Services.AddResource("identity", resource => resource.UseInProcess())` joins the gateway that runs it through the platform it opted into. The self-signed fallback is Local-only.
 
 ## Packages
 
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.IdentityHub`](assimalign-cohesion-identityhub/index.md) | `Root` | Public reference and runtime |
-| [`Assimalign.Cohesion.IdentityHub.ApplicationModel`](assimalign-cohesion-identityhub-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
-| [`Assimalign.Cohesion.IdentityHub.Client`](assimalign-cohesion-identityhub-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.IdentityHub.Hosting`](assimalign-cohesion-identityhub-hosting/index.md) | Hosting | Public reference and runtime |
+| [`Assimalign.Cohesion.IdentityHub.Hosting.ApplicationModel`](assimalign-cohesion-identityhub-hosting-applicationmodel/index.md) | Resource integration | Public reference and runtime |
 | [`Assimalign.Cohesion.IdentityHub.Models`](assimalign-cohesion-identityhub-models/index.md) | Feature library | Public reference and runtime |
 
 ## Dependency boundary
 
-The single runtime module is `Assimalign.Cohesion.IdentityHub.Hosting`. Roots and feature libraries
-do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
+The single runtime module is `Assimalign.Cohesion.IdentityHub.Hosting`. Roots and feature libraries do
+not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
 Feature registration composes against the root contracts. The exact runtime may reference any
-same-area library except the area's `Testing`, `ApplicationModel`, and
-`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
-closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
-integrations may not reference the exact runtime. The declarative application model remains separate
-from the runtime. See the
-[resource dependency rules](../index.md#dependency-rules) .
-
-The hosting family in this area contains `Assimalign.Cohesion.IdentityHub.Hosting`.
+same-area library except the area's `Testing` and `Hosting.ApplicationModel` packages, the
+framework producers, and harnesses (owner decision 2026-10-09).
+`Assimalign.Cohesion.IdentityHub.Hosting.ApplicationModel` references the runtime module, the one reference
+`COHRES001` sanctions by name, and makes the application a managed resource instance with
+`builder.Services.AddResource(name, ...)`. See the [resource dependency rules](../index.md#dependency-rules).
 
 ## Framework and SDK
 
-`Assimalign.Cohesion.Sdk.IdentityHub` delivers the `Assimalign.Cohesion.App.IdentityHub` family. Its
-producers, `Assimalign.Cohesion.IdentityHub.Refs` and `Assimalign.Cohesion.IdentityHub.Runtime`,
-declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
-and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
-which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
-runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.Sdk.IdentityHub` delivers the `Assimalign.Cohesion.App.IdentityHub` family. Its producers,
+`Assimalign.Cohesion.IdentityHub.Refs` and `Assimalign.Cohesion.IdentityHub.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The assembly
+inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs
+producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
+`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
-The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
-reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
-`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
-`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
-inventory below.
+The SDK also references the [App hosting kernel](../../libraries/app/index.md), which supplies
+`Assimalign.Cohesion.Hosting`, `Assimalign.Cohesion.ApplicationModel.Hosting`, the connection
+capability packages, and the configuration and logging providers alongside the area inventory below.
 
 | Public reference-pack assembly |
 |---|
 | `Assimalign.Cohesion.App.IdentityHub` |
 | `Assimalign.Cohesion.IdentityHub` |
 | `Assimalign.Cohesion.IdentityHub.Hosting` |
+| `Assimalign.Cohesion.IdentityHub.Hosting.ApplicationModel` |
 | `Assimalign.Cohesion.IdentityHub.Models` |
 | `Assimalign.Cohesion.IdentityModel` |
 
@@ -86,10 +72,8 @@ inventory below.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
-
+Platform packages a resource opts into, such as `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`,
+are NuGet packages the application references, never framework members.
 ## Related documentation
 
 - **Product** — [IdentityHub](../../../identity-hub/index.md).

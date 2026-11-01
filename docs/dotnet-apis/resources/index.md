@@ -36,31 +36,24 @@ implement that domain. These folder layers do not rename the L1/L2/L3 architectu
 
 Every area has one exact runtime module, `Assimalign.Cohesion.<Area>.Hosting`. It composes
 dependency injection, configuration, logging, and transports. The area root owns the application and
-builder contracts. Features extend those contracts without importing the runtime. The hosting
-module integrates `Hosting.Health` and `Hosting.Resources` itself. A separate
-`<Area>.Hosting.<Suffix>` package is reserved for an integration that must not land in every
-framework that carries the module.
+builder contracts. Features extend those contracts without importing the runtime. Each area's one
+application-model integration, `<Area>.Hosting.ApplicationModel`, references the runtime module and
+makes the area's application a managed resource instance. Any other `<Area>.Hosting.<Suffix>`
+package is reserved for an integration that must not land in every framework that carries the
+module.
 
 | `Diagnostic` | Enforced boundary |
 |---|---|
-| `COHRES001` | Area libraries cannot reference the exact hosting module without a named exemption. Roots and features also cannot reference hosting-family integrations. Integrations can reference each other, but cannot reference the exact runtime. |
-| `COHRES002` | The exact hosting module may reference any same-area library except `<Area>.Testing`, `<Area>.ApplicationModel`, `<Area>.ApplicationModel.Orchestration`, the framework producers, and harnesses; its resolved closure may carry neither ApplicationModel package (owner decision 2026-10-09). |
+| `COHRES001` | Area libraries cannot reference the exact hosting module, except the area's `<Area>.Hosting.ApplicationModel` (sanctioned by its exact name) and a named exemption holder. Roots and features also cannot reference hosting-family integrations. Integrations can reference each other, but cannot reference the exact runtime. |
+| `COHRES002` | The exact hosting module may reference any same-area library except `<Area>.Testing`, `<Area>.Hosting.ApplicationModel`, the framework producers, and harnesses (owner decision 2026-10-09). |
 | `COHRES003` | Shipped resource assemblies cannot resolve `Assimalign.Cohesion.ApplicationModel.Gateway*` assemblies; there is no exemption. |
-| `COHRES004` | Roots and features cannot directly or transitively reference `Assimalign.Cohesion.Hosting` or `Assimalign.Cohesion.Hosting.*`. The hosting family, exact area testing package, and application-model assemblies are the permitted categories. |
-| `COHAM001` | An application-model assembly opting into `CohesionApplicationModelGuard` is restricted to the fixed dependency closure below. All 18 resource application-model assemblies enable the guard. |
+| `COHRES004` | Roots and features cannot directly or transitively reference `Assimalign.Cohesion.Hosting` or `Assimalign.Cohesion.Hosting.*`. Only the hosting family, which includes `<Area>.Hosting.ApplicationModel`, and the exact area testing package may. |
+| `COHLIB001` | No non-harness project under `libraries/` or `sdks/` may reference a resource project; the same-area SDK is the one exception. |
 
-The `COHAM001` closure permits `Assimalign.Cohesion.Core`, `Assimalign.Cohesion.ApplicationModel`,
-`Assimalign.Cohesion.Hosting`, `Assimalign.Cohesion.Hosting.Health`,
-`Assimalign.Cohesion.Hosting.Resources`, the base class library (BCL) supplied by
-`Microsoft.NETCore.App`, and the `System.Security.Cryptography.ProtectedData` facade used by the
-Windows mount carrier. The guard is an opt-in migration gate, not permission to extend that
-allowlist.
-
-`COHRES001`, `COHRES003`, `COHRES004`, and `COHAM001` check both the project-reference graph and
-resolved assemblies, including package-delivered references. `COHRES002` checks the module's direct
-references against every excluded category, and its resolved assemblies for the two
-`ApplicationModel` packages only: child roots may arrive transitively through the area root. Tests,
-examples, samples, and fixtures are excluded by their source paths.
+`COHRES001`, `COHRES003`, and `COHRES004` check both the project-reference graph and resolved
+assemblies, including package-delivered references. `COHRES002` checks the module's direct
+references against every excluded category. Tests, examples, samples, and fixtures are excluded by
+their source paths.
 
 ## Composition and packaging
 
@@ -72,21 +65,22 @@ examples, samples, and fixtures are excluded by their source paths.
   generator projects onto the hosting builder's `Services`, as Web's are
   (`builder.Services.AddAuthentication(...)`). Sibling feature references are permitted.
 - **Runtime composition** — `<Area>Application.CreateBuilder(string[] args)` returns
-  a concrete builder. Background-service registration belongs on that concrete builder.
-- **Orchestration** — `<Area>.ApplicationModel` owns manifest-backed resources,
-  planners, graph verbs, and the default control-plane contract. It never references its
-  exact runtime. Generated code in an enabled executable joins the two through
-  `Assimalign.Cohesion.Hosting.Resources.ResourceRuntime`.
-- **Executable ownership** — Consumers own their `Program.cs`. With
-  `CohesionApplicationModel=enabled`, build output includes `resource.json`,
-  typed resource accessors, and control-plane registration. The default disabled setting
-  produces a plain application without those orchestration outputs.
+  a concrete builder whose `Services` container is the only composition registry.
+  Background-service registration belongs on that concrete builder.
+- **Managed resources** — A resource instance is the consumer's ordinary `Sdk.<Area>`
+  executable. Being managed is one registration in its `Program.cs`:
+  `builder.Services.AddResource(name, resource => resource.UseInProcess())`, from the area's
+  `<Area>.Hosting.ApplicationModel`. Without a `COHESION_GATEWAY` platform in the environment it
+  registers nothing; managed, it registers one `ApplicationInstanceService` that publishes the
+  manifest, restores the gateway's state, and opens the control plane. Nothing is generated at
+  build time. See [ApplicationModel](../libraries/application-model/index.md).
 - **Testing exemption** — Where present, `<Area>.Testing` is the area’s sole
-  explicit `CohesionHostingIsolationExemptions` holder and invokes the real entry
-  point in a test-scoped resource context.
-- **Framework delivery** — `libraries/App/Assimalign.Cohesion.App.props` distinguishes
-  public reference-pack assemblies from private runtime assemblies. `Application`-model and
-  client packages remain NuGet-only.
+  explicit `CohesionHostingIsolationExemptions` holder.
+- **Framework delivery** — Each area's member list lives in
+  `resources/<Area>/Assimalign.Cohesion.<Area>.Runtime/Directory.Build.props`. It distinguishes
+  public reference-pack assemblies from private runtime assemblies, and
+  `<Area>.Hosting.ApplicationModel` is a public member. Platform packages a resource opts into and
+  clients an area does not consume at run time remain NuGet-only.
 
 [.NET APIs](../index.md)
 
@@ -96,3 +90,4 @@ examples, samples, and fixtures are excluded by their source paths.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
 - **Source** — `cohesion/build/Targets/Build.Rules.targets`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`.

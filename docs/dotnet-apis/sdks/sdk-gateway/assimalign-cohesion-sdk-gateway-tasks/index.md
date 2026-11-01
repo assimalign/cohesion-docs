@@ -1,22 +1,17 @@
 # Assimalign.Cohesion.Sdk.Gateway.Tasks
 
-This task assembly converts resource and provider metadata into gateway source and application image indexes.
+This packaging project packs the Gateway SDK's props and targets; it builds no task assembly.
 
-The package places the assembly at `Tasks/Assimalign.Cohesion.Sdk.Gateway.Tasks.dll`. It implements
-`CohesionCreateResourceVerbs` and `CohesionGatherImageIndexes`. Both run in the build host;
-generated source supplies the application-specific composition surface.
+The project's `PackageId` is `Assimalign.Cohesion.Sdk.Gateway`. It sets `CohesionSdkPackTasks=false`,
+so the package carries `Sdk/` and `Targets/` (with the frozen `Build.Version.props`) and no
+`Tasks/` folder. It takes no MSBuild package reference.
 
-The project links `CohesionIdentifier`, `ImageIndexFile`, and `ResourceFileWriter` from the base
-task source and excludes Microsoft Build runtime assets to avoid loading a second host assembly
-identity.
-
-- **Design** — [Manifest boundaries and dependency restoration](design.md).
-- **Tasks** — [Complete task contracts and source tests](../msbuild/tasks.md).
+- **Design** — [Packaging boundary](design.md).
+- **Tasks** — [Task ownership and tests](../msbuild/tasks.md).
 - **SDK** — [Gateway SDK](../index.md).
 
 ## Sources
 
-- **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/src/Assimalign.Cohesion.Sdk.Gateway.Tasks.csproj`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/DESIGN.md`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/src/Assimalign.Cohesion.Sdk.Gateway.Tasks.csproj`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/DESIGN.md`.

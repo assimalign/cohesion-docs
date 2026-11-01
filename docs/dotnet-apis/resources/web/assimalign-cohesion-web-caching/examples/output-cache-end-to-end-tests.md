@@ -20,6 +20,8 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 7** — E2E: Tag eviction forces a re-fetch.
 - **Case 8** — E2E: Per-endpoint metadata caches only the opted-in endpoint.
 - **Case 9** — E2E: Registered before UseRouting, a response from an endpoint with metadata is never stored.
+- **Case 10** — E2E: UseOutputCache places the last AddOutputCache registration.
+- **Case 11** — E2E: The service-provider AddOutputCache overload can take its store from the container.
 
 ## Source example
 
@@ -30,6 +32,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Routing.Metadata;
@@ -52,7 +55,9 @@ namespace Assimalign.Cohesion.Web.Caching.Tests;
 /// from receiving a variant it did not request, an authenticated request bypasses, tag eviction forces a
 /// re-fetch, per-endpoint opt-in through the endpoint <c>UseRouting</c> published caches only the marked
 /// endpoint, and a middleware registered ahead of <c>UseRouting</c> never stores a response from an
-/// endpoint whose metadata it could not apply. Requests are sequential on one client, matching the
+/// endpoint whose metadata it could not apply. Each application registers its cache through the generated
+/// <c>builder.Services.AddOutputCache</c> verb and places it with <c>UseOutputCache()</c>; the opt-in case
+/// registers none and runs on the defaults. Requests are sequential on one client, matching the
 /// in-memory transport's sequential dispatch.
 /// </summary>
 public class OutputCacheEndToEndTests
@@ -70,7 +75,8 @@ public class OutputCacheEndToEndTests
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             int n = Interlocked.Increment(ref invocations);
@@ -98,7 +104,8 @@ public class OutputCacheEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             context.Response.StatusCode = CohesionHttpStatusCode.Ok;
@@ -125,7 +132,8 @@ public class OutputCacheEndToEndTests
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             int n = Interlocked.Increment(ref invocations);
@@ -158,7 +166,7 @@ public class OutputCacheEndToEndTests
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy =>
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy =>
         {
             policy.Duration = _longDuration;
             if (selectKey)
@@ -166,6 +174,7 @@ public class OutputCacheEndToEndTests
                 policy.VaryByQuery("tag");
             }
         }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             Interlocked.Increment(ref invocations);
@@ -199,7 +208,8 @@ public class OutputCacheEndToEndTests
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             Interlocked.Increment(ref invocations);
@@ -236,7 +246,8 @@ public class OutputCacheEndToEndTests
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             Interlocked.Increment(ref invocations);
@@ -270,11 +281,12 @@ public class OutputCacheEndToEndTests
         using InMemoryOutputCacheStore store = new();
         int invocations = 0;
 
-        factory.Application.UseOutputCache(store, options => options.AddBasePolicy(policy =>
+        factory.Builder.Services.AddOutputCache(cache => cache.UseStore(store).Options.AddBasePolicy(policy =>
         {
             policy.Duration = _longDuration;
             policy.Tag("catalog");
         }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             int n = Interlocked.Increment(ref invocations);
@@ -366,7 +378,8 @@ public class OutputCacheEndToEndTests
         int privateHits = 0;
         int publicHits = 0;
 
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -405,6 +418,84 @@ public class OutputCacheEndToEndTests
         public1.ShouldBe("public-1");
         public2.ShouldBe("public-1");
         publicHits.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Caching] - E2E: UseOutputCache places the last AddOutputCache registration")]
+    public async Task AddOutputCache_RegisteredTwice_ShouldPlaceTheLastRegistration()
+    {
+        // Arrange — the first registration is opt-in (no base policy) and would never cache this endpoint;
+        // the second caches every GET, so a second request served from the cache proves the last one won.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+
+        await using WebApplicationTestFactory factory = new();
+        int invocations = 0;
+
+        factory.Builder.Services.AddOutputCache();
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+
+        factory.Application.UseOutputCache();
+        factory.Application.Use(async (context, next) =>
+        {
+            int n = Interlocked.Increment(ref invocations);
+            context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+            await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes($"payload-{n}"), context.RequestCancelled);
+        });
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        string first = await client.GetStringAsync("/last-wins", cancellationToken);
+        string second = await client.GetStringAsync("/last-wins", cancellationToken);
+
+        // Assert
+        first.ShouldBe("payload-1");
+        second.ShouldBe("payload-1");
+        invocations.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Caching] - E2E: The service-provider AddOutputCache overload can take its store from the container")]
+    public async Task AddOutputCache_WithServiceProvider_ShouldUseTheContainerStore()
+    {
+        // Arrange — this overload builds on first resolve, so its callback can resolve a store the
+        // application registered; evicting from that same store proves the placed middleware uses it.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+
+        await using WebApplicationTestFactory factory = new();
+        using InMemoryOutputCacheStore store = new();
+        int invocations = 0;
+
+        factory.Builder.Services.AddSingleton<IOutputCacheStore>(store);
+        factory.Builder.Services.AddOutputCache((services, cache) => cache
+            .UseStore(services.GetRequiredService<IOutputCacheStore>())
+            .Options.AddBasePolicy(policy =>
+            {
+                policy.Duration = _longDuration;
+                policy.Tag("catalog");
+            }));
+
+        factory.Application.UseOutputCache();
+        factory.Application.Use(async (context, next) =>
+        {
+            int n = Interlocked.Increment(ref invocations);
+            context.Response.StatusCode = CohesionHttpStatusCode.Ok;
+            await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes($"v-{n}"), context.RequestCancelled);
+        });
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        string first = await client.GetStringAsync("/catalog", cancellationToken);
+        string cached = await client.GetStringAsync("/catalog", cancellationToken);
+        await store.EvictByTagAsync("catalog", cancellationToken);
+        string afterEvict = await client.GetStringAsync("/catalog", cancellationToken);
+
+        // Assert
+        first.ShouldBe("v-1");
+        cached.ShouldBe("v-1");
+        afterEvict.ShouldBe("v-2");
+        invocations.ShouldBe(2);
     }
 
     private static async Task<string> SendAsync(HttpClient client, string clientTag, CancellationToken cancellationToken)

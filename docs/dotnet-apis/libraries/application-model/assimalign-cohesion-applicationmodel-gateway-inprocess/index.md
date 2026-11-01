@@ -1,68 +1,68 @@
 # Assimalign.Cohesion.ApplicationModel.Gateway.InProcess
 
-Realizes composable resources as separately owned hosts inside a gateway process.
+The gateway half of the in-process platform: it runs each resource's program on a thread of the gateway's own process.
 
-## Reference
+> **Status:** Implemented.
 
-- **[Overview](index.md)** — purpose, dependencies, and principal types.
+## Reference pages
 
-- **[Design](design.md)** — decisions and extension boundaries.
+- **[Design](design.md)** — Program binding, environments, the channel, and lifecycle.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-- **[Examples](examples/index.md)** — source-backed usage and tests.
+`InProcessInfrastructure` is the infrastructure provider (`inprocess`), the channel its programs
+publish through, and the client the gateway calls their control planes with. Each resource is a
+program the gateway program references; deploying a resource calls the program's entry point on a
+thread of its own, in an environment scope of its own.
 
-- **[`InProcessGateway`](in-process-gateway.md)** — type reference.
+## Public types
 
-- **[`InProcessGatewayExtensions`](in-process-gateway-extensions.md)** — type reference.
+| Type | Role |
+|---|---|
+| `InProcessInfrastructure` | Binds programs with `AddProgram(provider, name, main)`, runs them, receives their publications, and calls their control planes. |
+| `InProcessApplicationGatewayBuilderExtensions` | `builder.UseInProcess(infrastructure)` sets the infrastructure as the gateway's provider, channel, and instance client. |
 
-- **[`InProcessGatewayOptions`](in-process-gateway-options.md)** — type reference.
+## Usage
 
-- **[`InProcessResourceDescriptorExtensions`](in-process-resource-descriptor-extensions.md)** — type reference.
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+using Assimalign.Cohesion.ApplicationModel.Gateway.InProcess;
 
-[ApplicationModel](../index.md)
+await using var infrastructure = new InProcessInfrastructure();
+infrastructure
+    .AddProgram("Web", "orders-api", Orders.Program.MainAsync)
+    .AddProgram("Web", "storefront", Storefront.Program.MainAsync);
 
-## Scope
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("local").UseInProcess(infrastructure);
+IApplicationResourceDefinition orders = builder.AddResource("Web", "orders-api");
+builder.AddResource("Web", "storefront").WithSetting("Orders:Url", orders.Endpoint);
 
-The gateway invokes real resource entry points with isolated ambient `ResourceContext` values. The
-consuming Composite supplies resource runtimes through project references; this package does not
-reference area hosting modules. Offline rendering produces plan units without invoking entry points
-or resolving runtime inputs.
+await builder.Build().RunAsync(cancellationToken);
+```
+
+Each program is an ordinary application that opts into the platform with
+[Hosting.InProcess](../assimalign-cohesion-applicationmodel-hosting-inprocess/index.md): a Web
+program calls `builder.Services.AddResource(name, resource => resource.UseInProcess())`. It listens
+on the loopback port the infrastructure assigned, reads its settings from configuration, publishes
+over the in-process channel, and receives the gateway's calls as direct calls. `storefront` starts
+only once `orders-api` has published, with `Orders:Url` set to the address `orders-api` serves.
+Programs outlive the gateway's run; disposing the infrastructure stops them, the last deployed first.
 
 ## Dependencies
 
-| Reference | Build item |
+| Reference | Kind |
 |---|---|
-| [`Assimalign.Cohesion.ApplicationModel`](../../application-model/assimalign-cohesion-applicationmodel/index.md) | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.ApplicationModel.Gateway`](../../application-model/assimalign-cohesion-applicationmodel-gateway/index.md) | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Hosting`](../../hosting/assimalign-cohesion-hosting/index.md) | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Hosting.Resources`](../../hosting/assimalign-cohesion-hosting-resources/index.md) | `CohesionProjectReference` |
+| `Assimalign.Cohesion.ApplicationModel.Gateway` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.ApplicationModel.Hosting` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess` | `CohesionProjectReference` |
 
-## Principal public types
+The reference to the instance half is the in-process rendezvous only. The package references no
+resource area.
 
-| Type | Source file |
-|---|---|
-| `InProcessGateway` | `src/InProcessGateway.cs` |
-| `InProcessGatewayExtensions` | `src/Extensions/InProcessGatewayExtensions.cs` |
-| `InProcessGatewayOptions` | `src/InProcessGatewayOptions.cs` |
-| `InProcessResourceDescriptorExtensions` | `src/Extensions/InProcessResourceDescriptorExtensions.cs` |
+[Parent: ApplicationModel](../index.md)
 
 ## Sources
 
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess.csproj`.
-
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/InProcessGateway.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/Extensions/InProcessGatewayExtensions.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/InProcessGatewayOptions.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/Extensions/InProcessResourceDescriptorExtensions.cs`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/OVERVIEW.md`.
+- **Design** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/DESIGN.md`.
+- **Project** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/src/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess.csproj`.

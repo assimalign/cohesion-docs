@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.ConfigurationStore.Hosting
 
-Provides the public `ConfigurationStoreApplication.CreateBuilder(args)` entry point and the public concrete durable ConfigurationStore host, builder, and context.
+The ConfigurationStore runtime module: `ConfigurationStoreApplication.CreateBuilder(args)`, the concrete host, and its services.
 
 > **Status:** Partial.
 
@@ -17,54 +17,28 @@ concrete durable ConfigurationStore host, builder, and context.
 
 ## Current Evaluation
 
-- **Status** — code-first namespaces, durable JSON storage, authenticated HTTP protocol, default control plane
-- **Runtime boundary** — ConfigurationStore root plus shared Hosting/Resources/Health, private Web transport, and IdentityModel JWT verification
+- Status: code-first namespaces, durable JSON storage, HTTP protocol
+- Runtime boundary: ConfigurationStore root plus shared Hosting and private Web transport
 
 ## Primary Responsibilities
 
-- **`Capture`** — `AddNamespace` declarations as first-start seeds.
-- **Persist configuration as plain** — JSON beneath the `data` volume using atomic replacement.
-- **Serve list/read/set/remove operations plus** — standard health, endpoints, and stop routes.
-- **`Verify`** — gateway bootstrap JWTs against the durable trusted-issuer set.
-- **Preserve plain-application behavior when** — resource opt-in is disabled.
+- Capture `AddNamespace` declarations as first-start seeds.
+- Persist configuration as plain JSON beneath the `data` volume using atomic replacement.
+- Serve list and read operations plus standard health and endpoints routes.
 
-The protocol listener starts after user services and drains before them. Enabled resources bind the
-ambient `api` endpoint; plain applications use `--endpoint` or the loopback default.
-
-Without a gateway identity, `/cohesion/v1` accepts only transport peers at `127.0.0.1`, `::1`,
-or IPv4-mapped `127.0.0.1`; other peers receive 403, regardless of forwarded headers.
-Bare `/healthz`, `/readyz`, and `/livez` stay open. Gateway-managed authentication is unchanged.
+The protocol listener starts after user services and drains before them. The host uses `--endpoint`
+or the loopback default. `/cohesion/v1` accepts only transport peers at `127.0.0.1`, `::1`, or
+IPv4-mapped `127.0.0.1`; other peers receive 403, regardless of forwarded headers. Bare `/healthz`,
+`/readyz`, and `/livez` stay open. The area's resource integration is
+`Assimalign.Cohesion.ConfigurationStore.Hosting.ApplicationModel`, which references this module;
+this module references no application-model library.
 
 ## Public types
 
-- **`ConfigurationStoreApplication`** — concrete host and creation entry point.
-- **`ConfigurationStoreApplicationBuilder`** — composition and background-work registration.
-- **`ConfigurationStoreApplicationContext`** — host environment and runtime state.
+- `ConfigurationStoreApplication` — concrete host and creation entry point.
+- `ConfigurationStoreApplicationBuilder` — composition and background-work registration.
+- `ConfigurationStoreApplicationContext` — host environment and runtime state.
 
-## Declarative commands
-
-Configuration commands now register runtime handlers on the same IResourceControlPlane used by
-direct in-process delivery. The HTTP adapter authenticates first, preserving issuer/owner equality
-(403), missing namespaces (404), and unsupported kinds (501), with status/detail JSON on command
-refusals. Other ownership refusals return 409. POST continues to accept the existing envelope and
-set payload {value}; typed declarations can additionally include namespace/key, which must match the
-envelope key. Configuration keys cannot contain `/`; namespaces may contain it, preserving one
-ownership identity. DELETE commands uses the same envelope: removing a set declaration removes its
-value; removing a remove-value declaration releases ownership without restoring an undeclared
-historical value.
-
-## Commands
-
-| Wire kind | Descriptor verb | Ownership key |
-|---|---|---|
-| `configurationstore.add-namespace` | `AddNamespace` | namespace name |
-
-`AddNamespace` creates a namespace if absent and atomically stores its owner and original seed
-alongside values. An identical declaration succeeds even after separate value commands change its
-contents. A different seed or foreign owner is rejected with a named detail. Resource-seeded
-namespaces are not implicitly adopted. Deletion removes the owned namespace; callers should remove
-its value commands first. Existing `SetValue` and `RemoveValue` behavior remains unchanged, including
-404 for unknown namespaces.
 
 ## Concrete composition (T10 / O34)
 
@@ -77,10 +51,10 @@ contract to `IHost`, and consumers use the concrete application for `RunAsync` a
 Runtime options and supporting services remain internal.
 
 Background-work registration belongs to the concrete `ConfigurationStoreApplicationBuilder`:
-`AddService(IHostService)` and
-`AddService(Func<ConfigurationStoreApplicationContext, IHostService>)`. The factory receives the
-same concrete context as Web's and `Database`'s `AddService`, so hosting consumers can use environment,
-state, and hosted-service members beyond the small root contract. Factories run once per build
+`AddService(IHostService)` and `AddService(Func<ConfigurationStoreApplicationContext,
+IHostService>)`. The factory receives the same concrete context as Web's and Database's AddService,
+so hosting consumers can use environment, state, and hosted-service members beyond the small root
+contract. Database's root-level AddServer keeps the interface context. Factories run once per build
 against the same context retained by the application; the hosted-service snapshot is installed after
 factory evaluation. Services start in registration order and stop in reverse. No area-owned service
 abstraction is introduced.
@@ -92,9 +66,10 @@ application and IHost route share it. Startup failures still roll back and propa
 ## Dependency injection composition
 
 `ConfigurationStoreApplicationBuilder.Services` holds every registration the application runs with.
-`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the lifecycle
-in the same order. `Build` closes registration and resolves the services once. Disposing the
-application disposes every factory-created service. See [Design](design.md#dependency-injection-composition).
+`AddService` registers an `IHostService`, and a direct `IHostService` registration joins the
+lifecycle in the same order. `Build` closes registration and resolves the services once. Disposing
+the application disposes every factory-created service. See
+[DESIGN.md](design.md#dependency-injection-composition).
 
 ## Project references
 
@@ -103,11 +78,10 @@ application disposes every factory-created service. See [Design](design.md#depen
 | `Assimalign.Cohesion.ConfigurationStore` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.DependencyInjection` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
+
+The area's resource integration, [`Assimalign.Cohesion.ConfigurationStore.Hosting.ApplicationModel`](../assimalign-cohesion-configurationstore-hosting-applicationmodel/index.md), references this module and registers the resource service in its `Services`.
 
 [Parent: ConfigurationStore](../index.md)
 

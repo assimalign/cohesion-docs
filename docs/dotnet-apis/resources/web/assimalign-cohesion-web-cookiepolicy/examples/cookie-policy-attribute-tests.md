@@ -31,8 +31,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.CookiePolicy.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Testing;
@@ -68,7 +71,8 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             context.Response.Cookies.Add(new HttpCookie("a", "1"));
@@ -88,7 +92,8 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.None);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.None);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             context.Response.Cookies.Add(new HttpCookie("plain", "1"));
@@ -124,7 +129,8 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.HttpOnly = CookieHttpOnlyPolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.HttpOnly = CookieHttpOnlyPolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             context.Response.Cookies.Add(new HttpCookie("a", "1"));
@@ -177,7 +183,8 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.MinimumSameSitePolicy = minimum);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.MinimumSameSitePolicy = minimum);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
             context.Response.Cookies.Add(new HttpCookie("a", "1", new HttpCookieOptions { SameSite = appended })));
 
@@ -195,11 +202,12 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options =>
+        factory.Builder.Services.AddCookiePolicy(policy =>
         {
-            options.Secure = CookieSecurePolicy.Always;
-            options.TimeProvider = new FixedTimeProvider(CookiePolicyTestHost.Now);
+            policy.Options.Secure = CookieSecurePolicy.Always;
+            policy.Options.TimeProvider = new FixedTimeProvider(CookiePolicyTestHost.Now);
         });
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             HttpCookieOptions options = new()
@@ -227,7 +235,8 @@ public class CookiePolicyAttributeTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, _ => { });
 
         // Act

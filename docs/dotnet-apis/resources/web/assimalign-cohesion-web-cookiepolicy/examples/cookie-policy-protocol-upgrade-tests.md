@@ -24,13 +24,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpMethod = System.Net.Http.HttpMethod;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.CookiePolicy.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Testing;
+
+using NetHttpMethod = System.Net.Http.HttpMethod;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.CookiePolicy.Tests;
 
@@ -45,7 +49,8 @@ public class CookiePolicyProtocolUpgradeTests
     {
         // Arrange — the default server registers the upgrade interceptor, and the policy adds Secure.
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         factory.Application.Use(async (context, next) =>
         {
             context.Response.Cookies.Add(new HttpCookie("a", "1"));

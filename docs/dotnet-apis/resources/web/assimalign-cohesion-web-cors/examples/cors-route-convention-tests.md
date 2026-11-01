@@ -27,13 +27,17 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpMethod = System.Net.Http.HttpMethod;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpMethod = System.Net.Http.HttpMethod;
 
 namespace Assimalign.Cohesion.Web.Cors.Tests;
 
@@ -54,9 +58,10 @@ public class CorsRouteConventionTests
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddCors(cors => cors.Options.AddPolicy("spa", policy => policy.WithOrigins(App)));
 
         IRouterBuilder routes = factory.Application.UseRouting();
-        factory.Application.UseCors(options => options.AddPolicy("spa", policy => policy.WithOrigins(App)));
+        factory.Application.UseCors();
         routes.Map(CohesionHttpMethod.Get, "/shared", Ok()).RequireCors("spa");
         routes.Map(CohesionHttpMethod.Get, "/internal", Ok());
 
@@ -129,9 +134,10 @@ public class CorsRouteConventionTests
         using CancellationTokenSource cancellation = new(_testTimeout);
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddCors(cors => cors.Options.AddDefaultPolicy(policy => policy.AllowAnyOrigin()));
 
         IRouterBuilder routes = factory.Application.UseRouting();
-        factory.Application.UseCors(options => options.AddDefaultPolicy(policy => policy.AllowAnyOrigin()));
+        factory.Application.UseCors();
         IRouterGroupBuilder admin = routes.MapGroup("/admin").DisableCors();
         admin.Map(CohesionHttpMethod.Get, "status", Ok()).RequireCors(policy => policy.WithOrigins(App));
         admin.Map(CohesionHttpMethod.Get, "secrets", Ok());

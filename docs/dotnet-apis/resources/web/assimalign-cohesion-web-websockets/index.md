@@ -10,10 +10,9 @@ WebSocket endpoints and the WebSocket policy for the Cohesion Web pipeline.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
 WebSockets for the Web pipeline. `MapWebSocket` maps a socket endpoint that answers every handshake
-shape, and `UseWebSockets` guards and shapes every WebSocket an endpoint accepts through
-`context.WebSockets`. The handshake, its negotiation and the BCL framing belong to
-[`Assimalign.Cohesion.Http.WebSockets`](../../../libraries/http/assimalign-cohesion-http-websockets/index.md);
-this package is the policy a browser-facing server needs around them.
+shape, and the policy `builder.Services.AddWebSockets(...)` configures and `UseWebSockets()` places
+guards and shapes every WebSocket an endpoint accepts through `context.WebSockets`
+(`Assimalign.Cohesion.Http.WebSockets`).
 
 ## Scope
 
@@ -30,68 +29,34 @@ this package is the policy a browser-facing server needs around them.
   extended CONNECT.
 - **Accept defaults.** Every accept downstream takes the keep-alive interval and timeout, and the
   compression switch, unless it sets its own. Compression stays off unless enabled.
-- **Drain close.** When the default server begins its drain, every open socket is closed with
-  `1001 Going Away`, inside the stop's budget.
-
-## Dependencies
-
-- **`Assimalign.Cohesion.Web`** — the pipeline seams.
-- **`Assimalign.Cohesion.Web.Server`** — the server drain feature (`IWebServerDrainFeature`).
-- **`Assimalign.Cohesion.Web.Routing`** — the router builder and the route groups `MapWebSocket`
-  maps into.
-- **`Assimalign.Cohesion.Http.WebSockets`** — the handshake, the negotiation and the accept.
-- **`Assimalign.Cohesion.Http.Forwarded`** — `EffectiveScheme` and `EffectiveHost` for the
-  same-origin check.
-- **`Assimalign.Cohesion.Http`** — the protocol core.
-
-It references nothing in the hosting family (`COHRES001`, `COHRES004`): the drain signal reaches it
-through `Web.Server`'s feature contract. The package, `Http.WebSockets`, `Http.ProtocolUpgrade` and
-`Http.ExtendedConnect` are members of the `App.Web` shared framework.
+- **Drain close.** When the default server begins its drain, every open socket is closed with `1001
+  Going Away`, inside the stop's budget.
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md) and the
-[WebSockets guide](../../../../web/websockets.md).
-
 ```csharp
-using System;
 using System.Net.WebSockets;
-using System.Threading;
-
 using Assimalign.Cohesion.Http;
-using Assimalign.Cohesion.Web.Hosting;
-using Assimalign.Cohesion.Web.RequestTimeouts;
-using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.WebSockets;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRouting();
-
-await using WebApplication app = builder.Build();
-app.UseRouting();
-
-// Behind a proxy, register UseForwardedHeaders first: the origin check reads the effective
-// scheme and host it resolves.
-app.UseWebSockets(options =>
+builder.Services.AddWebSockets(webSockets =>
 {
-    options.AllowedOrigins.Add("https://app.example");   // besides the request's own origin
-    options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+    webSockets.Options.AllowedOrigins.Add("https://app.example");   // besides the request's own origin
+    webSockets.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
 });
+
+WebApplication app = builder.Build();
+
+// Behind a proxy, place UseForwardedHeaders() first: the origin check reads the effective
+// scheme and host it resolves.
+app.UseWebSockets();
 
 app.MapWebSocket("/chat/{room}", async (IHttpContext context, WebSocket socket) =>
 {
-    byte[] buffer = new byte[4096];
-    WebSocketReceiveResult result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestCancelled);
-    while (result.MessageType != WebSocketMessageType.Close)
-    {
-        await socket.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count), result.MessageType, result.EndOfMessage, context.RequestCancelled);
-        result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestCancelled);
-    }
-
-    await socket.CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure, result.CloseStatusDescription, CancellationToken.None);
+    // ...receive and send until the peer closes; complete the close handshake with CloseAsync.
 }).DisableRequestTimeout();
-
-await app.RunAsync();
 ```
 
 Map socket endpoints with `MapWebSocket`, not `MapGet`. Over HTTP/1.1 a handshake is a `GET`, but
@@ -106,27 +71,50 @@ which negotiates HTTP/2 through ALPN. `MapWebSocket` maps both methods on one ro
 - the route builder takes policies as any endpoint's does (`RequireAuthorization`, `RequireCors`,
   `RequireRateLimiting`), on the endpoint or on its route group;
 - an overload chooses the accept options per handshake, for example a subprotocol the client
-  offered: `app.MapWebSocket("/chat", handler, context => new HttpWebSocketAcceptOptions { SubProtocol = ... })`.
+  offered: `app.MapWebSocket("/chat", handler, context => new HttpWebSocketAcceptOptions {
+  SubProtocol = ... })`.
 
-Without `UseWebSockets` in the pipeline, a `MapWebSocket` endpoint applies the default policy
-itself, so a socket endpoint is never left without the cross-site defense. The endpoint's own
-`CloseAsync` or `CloseOutputAsync` keeps working after a drain close: the policy coordinates the
-two, so a receive loop written the usual way ends cleanly.
+Configuration lives on the `Add` verb only ("Add configures, Use places"). `UseWebSockets()` takes
+no arguments: it places the policy `AddWebSockets` registered (the last one, when the application
+registered several), or the default policy when it registered none. Without `UseWebSockets` in the
+pipeline, a `MapWebSocket` endpoint applies the default policy itself, so a socket endpoint is never
+left without the cross-site defense; a registered policy applies only where `UseWebSockets()` places
+it.
+
+The endpoint's own `CloseAsync` or `CloseOutputAsync` keeps working after a drain close: the policy
+coordinates the two, so a receive loop written the usual way ends cleanly.
 
 ## Options
 
+Set on `WebSocketsBuilder.Options` in the `AddWebSockets` callback. `WebSocketsBuilder.Build()`
+validates and snapshots them; an invalid allowed origin throws `ArgumentException` where the policy
+is registered.
+
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `AllowedOrigins` | empty | Serialized origins, besides the request's own, whose pages may open a socket; validated when `UseWebSockets` runs |
+| `AllowedOrigins` | empty | Serialized origins, besides the request's own, whose pages may open a socket; validated when `AddWebSockets` registers the policy |
 | `AllowAnyOrigin` | `false` | Turns the hijacking defense off, for sockets that carry no ambient credentials |
 | `KeepAliveInterval` | 30 seconds | How often an idle socket sends a keep-alive frame |
 | `KeepAliveTimeout` | infinite | How long to wait for a pong before aborting; infinite sends unsolicited pongs |
 | `DangerousEnableCompression` | `false` | Whether accepts negotiate permessage-deflate when the client offers it |
 
+## Dependencies
+
+- `Assimalign.Cohesion.Web` — the pipeline seams.
+- `Assimalign.Cohesion.Web.Server` — the server drain feature (`IWebServerDrainFeature`).
+- `Assimalign.Cohesion.Web.Routing` — the router builder and route groups `MapWebSocket` maps into.
+- `Assimalign.Cohesion.Http.WebSockets` — the handshake, the negotiation and the accept.
+- `Assimalign.Cohesion.Http.Forwarded` — `EffectiveScheme` and `EffectiveHost` for the same-origin
+  check.
+- `Assimalign.Cohesion.Http` — the protocol core.
+
+It references nothing in the hosting family; the drain signal reaches it through `Web.Server`'s
+feature contract. See [DESIGN.md](design.md).
+
 Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
-connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
-use `IMultiplexedConnectionStream`. These contract names do not alter this package's
-request/response behavior.
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures use
+`IMultiplexedConnectionStream`. These contract names do not alter this package's request/response
+behavior.
 
 ## Project references
 
@@ -145,5 +133,3 @@ request/response behavior.
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Assimalign.Cohesion.Web.WebSockets.csproj`.
-- **Verbs and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketExtensions.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Extensions/WebSocketEndpointExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/WebSocketOptions.cs`.
-- **Framework membership** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.

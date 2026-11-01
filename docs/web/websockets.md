@@ -126,14 +126,18 @@ present and is neither the request's own origin nor one of `AllowedOrigins`:
 ```csharp
 using System;
 
+using Assimalign.Cohesion.Web.Hosting;
 using Assimalign.Cohesion.Web.WebSockets;
 
-// app is the built WebApplication.
-app.UseWebSockets(options =>
+// builder is the WebApplicationBuilder; the policy is configured where it is registered.
+builder.Services.AddWebSockets(webSockets =>
 {
-    options.AllowedOrigins.Add("https://app.example");   // besides the request's own origin
-    options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+    webSockets.Options.AllowedOrigins.Add("https://app.example");   // besides the request's own origin
+    webSockets.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
 });
+
+WebApplication app = builder.Build();
+app.UseWebSockets();
 ```
 
 - **Behind a proxy**, register `UseForwardedHeaders` first: the request's own origin is built from
@@ -141,13 +145,13 @@ app.UseWebSockets(options =>
   as `http://10.0.0.5:8080` once the forwarded headers are resolved. Without that middleware, list
   the public origin in `AllowedOrigins`.
 - **Origins are compared in serialized form**, `scheme://host[:port]`: lower case, the default port
-  dropped. Each configured origin is validated when `UseWebSockets` runs; a path, a trailing `/`, a
-  wildcard, or `null` fails there with a message that names the fix.
+  dropped. Each configured origin is validated when `AddWebSockets` registers the policy; a path, a
+  trailing `/`, a wildcard, or `null` fails there with a message that names the fix.
 - **`AllowAnyOrigin`** turns the defense off. Use it only for sockets that carry no ambient
   credentials, such as a token sent in a message.
 - **Without `UseWebSockets`**, a `MapWebSocket` endpoint applies the default policy itself, so a
   socket endpoint is never left without the cross-site defense. Configure origins, keep-alive or
-  compression with the middleware.
+  compression on `AddWebSockets`; `UseWebSockets()` takes no arguments.
 
 The policy also answers the refusals RFC 6455 prescribes: a malformed handshake gets `400`, and one
 for a version other than 13 gets `426` with `Sec-WebSocket-Version: 13`.

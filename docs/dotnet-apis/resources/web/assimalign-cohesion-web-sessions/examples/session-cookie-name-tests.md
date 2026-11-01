@@ -12,8 +12,9 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — UseSessions: An invalid CookieName fails before middleware registration.
-- **Case 2** — UseSessions: A token CookieName registers middleware through either overload.
+- **Case 1** — AddSessions: An invalid CookieName fails in the configuration assignment.
+- **Case 2** — AddSessions: A token CookieName builds the middleware with or without a supplied store.
+- **Case 3** — AddSessions: A default CookieName fails before the middleware is built.
 
 ## Source example
 
@@ -24,66 +25,72 @@ using Shouldly;
 using Xunit;
 
 using Assimalign.Cohesion.Http;
-using Assimalign.Cohesion.Web.Sessions.Tests.TestObjects;
+using Assimalign.Cohesion.Web.Sessions.Internal;
 
 namespace Assimalign.Cohesion.Web.Sessions.Tests;
 
 public class SessionCookieNameTests
 {
-    [Theory(DisplayName = "Cohesion Test [Web.Sessions] - UseSessions: An invalid CookieName fails before middleware registration")]
+    [Theory(DisplayName = "Cohesion Test [Web.Sessions] - AddSessions: An invalid CookieName fails in the configuration assignment")]
     [MemberData(nameof(InvalidCookieNames))]
-    public void UseSessions_CookieNameOutsideGrammar_ShouldThrowAtRegistration(string? cookieName, bool explicitStore)
+    public void AddSessions_CookieNameOutsideGrammar_ShouldThrowAtAssignment(string? cookieName, bool explicitStore)
     {
         // Arrange
-        TestPipelineBuilder builder = new();
+        IWebApplicationMiddleware? middleware = null;
         Action<HttpSessionOptions> configure = options => options.CookieName = cookieName!;
 
         // Act
-        ArgumentException exception = Should.Throw<ArgumentException>(() =>
-        {
-            if (explicitStore)
-            {
-                builder.UseSessions(new InMemoryHttpSessionStore(), configure);
-            }
-            else
-            {
-                builder.UseSessions(configure);
-            }
-        });
+        ArgumentException exception = Should.Throw<ArgumentException>(() => middleware = BuildSessions(configure, explicitStore));
 
         // Assert
-        exception.ParamName.ShouldBe("configure");
-        exception.Message.ShouldContain("HttpSessionOptions.CookieName", Case.Sensitive);
-        exception.InnerException.ShouldBeAssignableTo<ArgumentException>().ShouldNotBeNull().ParamName.ShouldBe("name");
+        exception.ParamName.ShouldBe("value");
+        exception.InnerException.ShouldBeNull();
         if (!string.IsNullOrEmpty(cookieName))
         {
             exception.ToString().ShouldNotContain(cookieName, Case.Sensitive);
         }
 
-        builder.LastMiddleware.ShouldBeNull();
+        middleware.ShouldBeNull();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Sessions] - UseSessions: A token CookieName registers middleware through either overload")]
+    [Theory(DisplayName = "Cohesion Test [Web.Sessions] - AddSessions: A token CookieName builds the middleware with or without a supplied store")]
     [InlineData("sid", false)]
     [InlineData("sid", true)]
     [InlineData(".Cohesion.Session", false)]
     [InlineData(".Cohesion.Session", true)]
     [InlineData("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", false)]
     [InlineData("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", true)]
-    public void UseSessions_CookieNameInGrammar_ShouldRegisterMiddleware(string cookieName, bool explicitStore)
+    public void AddSessions_CookieNameInGrammar_ShouldBuildMiddleware(string cookieName, bool explicitStore)
     {
         // Arrange
-        TestPipelineBuilder builder = new();
         Action<HttpSessionOptions> configure = options => options.CookieName = cookieName;
 
         // Act
-        IWebApplicationPipelineBuilder returned = explicitStore
-            ? builder.UseSessions(new InMemoryHttpSessionStore(), configure)
-            : builder.UseSessions(configure);
+        IWebApplicationMiddleware middleware = BuildSessions(configure, explicitStore);
 
         // Assert
-        returned.ShouldBeSameAs(builder);
-        builder.LastMiddleware.ShouldNotBeNull();
+        middleware.ShouldBeOfType<SessionMiddleware>();
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Sessions] - AddSessions: A default CookieName fails before the middleware is built")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AddSessions_DefaultCookieName_ShouldThrowAtRegistration(bool explicitStore)
+    {
+        // Arrange
+        IWebApplicationMiddleware? middleware = null;
+        Action<HttpSessionOptions> configure = options => options.CookieName = default;
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => middleware = BuildSessions(configure, explicitStore));
+
+        // Assert
+        exception.ParamName.ShouldBe("Options");
+        exception.Message.ShouldBe(new ArgumentException(
+            "HttpSessionOptions.CookieName must be a non-empty RFC 6265 token with no control characters, whitespace, or separators.",
+            "Options").Message);
+        exception.InnerException.ShouldBeNull();
+        middleware.ShouldBeNull();
     }
 
     public static TheoryData<string?, bool> InvalidCookieNames
@@ -94,7 +101,7 @@ public class SessionCookieNameTests
             foreach (string? name in new string?[]
             {
                 null, "", "a b", "a\tb", "a=b", "a;b", "a,b", "a/b", "a\\b",
-                "a\"b", "a\r\nb", "a\0b", "a\u007fb", "caf\u00e9",
+                "a\"b", "a\r\nb", "a\0b", "a\u007fb", "café",
             })
             {
                 data.Add(name, false);
@@ -103,6 +110,18 @@ public class SessionCookieNameTests
 
             return data;
         }
+    }
+
+    private static IWebApplicationMiddleware BuildSessions(Action<HttpSessionOptions> configure, bool explicitStore)
+    {
+        SessionsBuilder sessions = new();
+        if (explicitStore)
+        {
+            sessions.UseStore(new InMemoryHttpSessionStore());
+        }
+
+        configure(sessions.Options);
+        return sessions.Build();
     }
 }
 ```

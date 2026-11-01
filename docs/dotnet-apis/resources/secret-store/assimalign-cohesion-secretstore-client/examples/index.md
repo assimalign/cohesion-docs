@@ -4,10 +4,11 @@ Examples for `Assimalign.Cohesion.SecretStore.Client` are derived from source do
 
 > **Status:** Partial.
 
-The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
-examples require their original test project’s dependencies and supporting objects.
+The examples below retain real usage from project tests. Test examples require their original test
+project’s dependencies and supporting objects.
 
-- **[Resource Command Protocol Tests](resource-command-protocol-tests.md)** — This example exercises `Assimalign.Cohesion.SecretStore.Client` through its co-located test source.
+- **[Secret Store Client Tests](secret-store-client-tests.md)** — This example exercises `Assimalign.Cohesion.SecretStore.Client` through its co-located test source.
+- **[Secret Store Certificate Reference Tests](secret-store-certificate-reference-tests.md)** — This example exercises `Assimalign.Cohesion.SecretStore.Client` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

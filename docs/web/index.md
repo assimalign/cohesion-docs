@@ -27,7 +27,7 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 - **[WebSockets](websockets.md)** — Socket endpoints on HTTP/1.1, HTTP/2 and HTTP/3, the origin policy, keep-alive, compression, and the drain close.
 - **[Middleware](middleware.md)** — Feature families, composition order, and incomplete surfaces.
 - **[Middleware order](middleware-order.md)** — The registration order for every Web middleware and the reason for each position.
-- **[Testing](testing.md)** — In-memory protocol tests and real `Program.cs` execution.
+- **[Testing](testing.md)** — In-memory protocol tests over the composed pipeline.
 
 ## Project map
 
@@ -35,8 +35,8 @@ and [HTTP library reference](../dotnet-apis/libraries/http/index.md).
 |---|---|
 | [`Assimalign.Cohesion.Web`](../dotnet-apis/resources/web/assimalign-cohesion-web/index.md) | Root application, context, middleware, and pipeline contracts, and the composition verbs `Use`, `UseWhen` and `Run`; no feature contracts. |
 | [`Assimalign.Cohesion.Web.Server`](../dotnet-apis/resources/web/assimalign-cohesion-web-server/index.md) | Public `WebApplicationServer` engine and `WebApplicationServerOptions`; dispatch, drain, request spans, HTTP metrics, server events, and the seven per-exchange features it publishes. |
-| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, non-owning `WebApplicationServerHostService`, configuration, logging, HTTP defaults, transport composition and default EventSource forwarding; the shared resource-management terminal, bootstrap verification, deferred stop, control-plane events and hosting health adapter. |
-| [`Assimalign.Cohesion.Web.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-applicationmodel/index.md) | Manifest-backed Web resource, stateless planner, and default control plane. |
+| [`Assimalign.Cohesion.Web.Hosting`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting/index.md) | Concrete host, builder, non-owning `WebApplicationServerHostService`, configuration, logging, HTTP defaults, transport composition, and default EventSource forwarding. |
+| [`Assimalign.Cohesion.Web.Hosting.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-applicationmodel/index.md) | `builder.Services.AddResource(name, ...)`: the application as a managed resource instance whose registered settings, such as `cors`, become actions. |
 | [`Assimalign.Cohesion.Web.Routing`](../dotnet-apis/resources/web/assimalign-cohesion-web-routing/index.md) | Route patterns, constraints, groups, metadata, endpoint selection, fallback routes, and link generation; the endpoint contract, the shared pipeline terminal, and the `Map` and `MapWhen` branches that end in it. |
 | [`Assimalign.Cohesion.Web.Rewrite`](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md) | Ordered rewrite and redirect rules ahead of routing, the request view and `IWebRewriteFeature`, and canonicalization redirects (HTTPS, `www`, trailing slash, lowercase). |
 | [`Assimalign.Cohesion.Web.Api`](../dotnet-apis/resources/web/assimalign-cohesion-web-api/index.md) | Endpoint mapping that returns route builders for endpoint policies, source-generated typed-delegate binding (uploaded files included), returned values, `COHWEB` compile errors, and endpoint-description metadata with its description verbs. |
@@ -79,35 +79,45 @@ before servers and stop after servers drain. Every registered server runs throug
 the server also implements `IHostService`. Request-time features use typed context features;
 the host does not resolve services per request.
 
-An enabled executable discovers its generated `ResourceRuntime` registration and ambient
-`ResourceContext`. `Web.Hosting` supplies the management terminal for health, readiness, liveness,
-endpoint discovery, commands, and graceful stop, and adapts shared host health contributors onto
-the independent Web health model. Managed routes authenticate bootstrap credentials. These
-integrations ship in Web.Hosting with their existing public namespaces,
-`Assimalign.Cohesion.Web.Hosting.Resources` and `Assimalign.Cohesion.Web.Hosting.Health`;
-replace references to either former package with `Assimalign.Cohesion.Web.Hosting`.
+Without a listener of its own, the host binds the `http` endpoint its platform names, so the same
+`Program.cs` runs standalone, in a gateway's process, or in a container. See
+[Server and TLS](server.md) for explicit listener configuration.
 
-Configuration mounts and deployment settings arrive through the gateway's runtime contract.
-An HTTPS endpoint can name a Secret mount, default `tls`, carrying a PEM leaf, private key,
-and chain. See [Server and TLS](server.md) for explicit listener configuration.
+## Managed resource
 
-## Application model
+A Web application becomes a managed resource instance with one registration in its `Program.cs`,
+from [`Web.Hosting.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-applicationmodel/index.md):
 
-`AddWeb(manifest, options)` returns `IWebResourceDescriptor` over a `WebResource`.
-`RemoteReferenceWeb` supplies the typed external-reference surface. The planner emits a stateless
-`Deployment`, with no persistent Volumes, a service per endpoint, and exposure for each public
-endpoint. `WebResourceOptions.Replicas` is the typed replica override.
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Hosting.InProcess;
+using Assimalign.Cohesion.Web.Cors;
+using Assimalign.Cohesion.Web.Hosting;
+using Assimalign.Cohesion.Web.Hosting.ApplicationModel;
 
-`WebResourceControlPlane.Create()` supplies the default plane; accepted command kinds are empty.
-The declarative package references the generic model and `Hosting.Resources`, never Web.Hosting
-or a platform gateway. Platform-specific ingress and certificate resolution remain gateway work.
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCors(cors => cors.Options.AddDefaultPolicy(policy => policy.WithOrigins("https://shop.example")));
+builder.Services.AddResource("orders-api", resource => resource.UseInProcess());
+
+WebApplication app = builder.Build();
+app.UseCors();
+await app.RunAsync();
+```
+
+When the environment names a platform the resource opted into (`COHESION_GATEWAY`), the instance
+publishes its manifest and restores the state its gateway kept before any server starts, then lets
+the gateway run its actions. Its actions are the registered settings the resource knows, such as
+the default CORS policy as the `cors` action, followed by the ones the application adds with
+`AddAction`. Without a platform, `AddResource` registers nothing and the application is a plain Web
+application. A gateway declares the resource generically: `builder.AddResource("Web", "orders-api")`.
+See [ApplicationModel](../dotnet-apis/libraries/application-model/index.md) and
+[Platforms](../platforms/index.md).
 
 ## SDK and framework
 
-`Assimalign.Cohesion.Sdk.Web` delivers `Assimalign.Cohesion.App.Web`.
-`Assimalign.Cohesion.Web.ApplicationModel` is NuGet-only and added when
-`CohesionApplicationModel=enabled`. Disabled executables remain plain Web applications.
-`Assimalign.Cohesion.Web.OpenApi` is NuGet-only too: an application that serves an OpenAPI document
+`Assimalign.Cohesion.Sdk.Web` delivers `Assimalign.Cohesion.App.Web`, which carries
+`Assimalign.Cohesion.Web.Hosting.ApplicationModel`; the application references only the platform
+packages it opts into.
+`Assimalign.Cohesion.Web.OpenApi` is NuGet-only: an application that serves an OpenAPI document
 references it (see [OpenAPI](openapi.md)).
 
 The SDK also supplies the Web source generator for typed endpoint binding.
@@ -162,7 +172,7 @@ Return to [Cohesion Documentation](../index.md).
 - **Project map** — `cohesion/resources/Web/README.md`.
 - **Area integration** — `cohesion/docs/resources/Web/OVERVIEW.md` and `cohesion/docs/resources/Web/DESIGN.md`.
 - **Hosting** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
-- **Declarative plane** — `cohesion/resources/Web/Assimalign.Cohesion.Web.ApplicationModel/docs/OVERVIEW.md`.
+- **Resource integration** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.ApplicationModel/docs/OVERVIEW.md`.
 - **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.
 - **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/Program.cs` and `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-web/README.md`.
 - **SPA template and NativeAOT events** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-spa/README.md` and `cohesion/sdks/Assimalign.Cohesion.Sdk.Web/Tasks/docs/OVERVIEW.md`.

@@ -4,6 +4,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 CORS is a browser's opt-in for cross-origin reads. A browser withholds a cross-origin response from
@@ -12,7 +14,8 @@ request that a page could not have sent without script (a `PUT`, a JSON body, an
 header), it first asks the server with a preflight. This package is the server half of that
 protocol, as the Fetch standard defines it, for the Web pipeline: an immutable policy model
 validated at startup, a middleware that answers preflights and stamps actual responses, and
-per-endpoint policy selection through routing metadata (issue #3, with #109–#111).
+per-endpoint policy selection through routing metadata (issue #3, with
+#109–#111).
 
 CORS is not access control. The server never refuses an actual request because of its origin: CORS
 only decides whether the browser hands the response to the script. A "simple" cross-origin request
@@ -21,15 +24,17 @@ endpoints is the job of authorization (#155) and antiforgery (#1057); a prefligh
 from the requests a browser will not send without one.
 
 The package owns one immutable policy (`CorsPolicy`) and its builder, one options object
-(`CorsOptions`), one sealed metadata carrier (`CorsMetadata`), the `UseCors` pipeline verb, the
-`RequireCors` and `DisableCors` convention verbs, and the internal evaluation. It has no feature
-interface: nothing downstream needs the CORS decision.
+(`CorsOptions`), the `CorsBuilder` behind the `builder.Services.AddCors(...)` registration verb, one
+sealed metadata carrier (`CorsMetadata`), the `UseCors()` pipeline verb, the `RequireCors` and
+`DisableCors` convention verbs, and the internal evaluation. It has no feature interface: nothing
+downstream needs the CORS decision. What it registers is the application's `cors` setting, which an
+operator surface may change while the application runs.
 
 ## The protocol in one picture
 
-The middleware sorts each request into a preflight or an actual request and selects a policy. A preflight
-with a policy is answered on the spot. An actual request registers a starting callback and continues. Without a
-policy, the middleware steps aside.
+The middleware sorts each request into a preflight or an actual request and selects a policy. A
+preflight with a policy is answered on the spot. An actual request registers a starting callback and
+continues. Without a policy, the middleware steps aside.
 
 ```mermaid
 flowchart TD
@@ -45,8 +50,8 @@ flowchart TD
     Stamp --> Run["Call next; callback writes grant headers when the response head commits"]
 ```
 
-Each step is described below: policy selection in "Policy selection", the preflight branch in "Preflights",
-and the actual-request branch in "Actual requests".
+Each step is described below: policy selection in "Policy selection", the preflight branch in
+"Preflights", and the actual-request branch in "Actual requests".
 
 ## The policy model
 
@@ -90,6 +95,15 @@ Any origin excludes both.
 
 ### Methods
 
+- **Configured methods use `HttpMethod` validation (#1477).** `WithMethods` retains the existing
+  string arguments and constructs the method values it stores in the builder, so an RFC 9110 token
+  longer than 32 characters fails at composition. `Build` projects those values into the existing
+  immutable string list. This matches routing and CORS preflight's existing length limit; a policy
+  cannot list a method that no preflight can request. Invalid-token messages come from core Http's
+  generated `ErrorMessages`, while CORS owns its empty-value and wildcard errors. No public API is
+  added or changed. The policy implementation was absent from 10.0.0-preview.1, so this is a
+  behavior change only from the development implementation, which silently accepted overlong
+  methods.
 - **Byte-case-sensitive**, as Fetch compares them and as RFC 9110 §9.1 defines them. The requested
   method is read from the raw `Access-Control-Request-Method` header and compared ordinally
   everywhere: against the policy, and against the methods of a route that matched the `OPTIONS`
@@ -151,8 +165,26 @@ The policy for a request is chosen in this order:
 An endpoint that names an unregistered policy fails with `InvalidOperationException` when a request
 reaches it, the same posture Web.RateLimiting takes for an unknown policy name.
 
-The options are captured when `UseCors` runs. The middleware copies the default policy and the named
-policies into a frozen dictionary, so options changed later cannot change a running pipeline.
+## Registration: `AddCors` configures, `UseCors` places
+
+`builder.Services.AddCors(cors => ...)` is a component integration (`[assembly:
+ComponentIntegration]` in `Properties/ComponentIntegrations.cs`, builder template over
+`CorsBuilder`), with a `(services, cors)` overload. It registers the application's `cors` setting,
+an `IWebApplicationSetting<CorsPolicy?>` singleton listed on `IWebApplicationContext.Settings`.
+`CorsBuilder.Build` snapshots `CorsBuilder.Options`: changing the options afterwards has no effect.
+The setting's value is the default policy; the named policies are frozen in it.
+
+`UseCors()` takes no configuration (owner decision, 2026-10-28: configuration on a `Use` verb is an
+anti-pattern). It finds the last `cors` setting `AddCors` registered when the pipeline is built, and
+its middleware reads the default policy from the setting on each request. An operator surface that
+replaces the value, such as a resource's control plane, changes the policy from the next request;
+nothing else in the pipeline is rebuilt. Without `AddCors`, the middleware governs only endpoints
+that carry an inline policy.
+
+*Why:* configuration stays on `AddCors`, so the policies have one call site and stay in the
+registrations an operator surface can enumerate, and a Web application can be managed as a resource
+without being rewritten. *Limit:* a policy built with `SetIsOriginAllowed` holds code, which an
+operator surface cannot read back or write as data.
 
 The convention verbs are generic extension members over routing's `IRouterConventionBuilder`, so one
 verb serves a route and a group and returns the receiver's builder type: `RequireCors(name)`,
@@ -266,44 +298,48 @@ one variant per origin, and a cache hit restores headers that match the request.
 
 ### Written when the response starts
 
-Actual-response grant headers are written once through `IWebResponseStartingFeature`, the server-published
-contract in Web.Server. The server invokes callbacks in reverse registration order at its existing
-transport head-commit point, before serializing any byte. Buffered and streamed responses on HTTP/1.1,
-HTTP/2 and HTTP/3 use the same hook, and the in-memory Web.Testing transport honors it.
+Actual-response grant headers are written once through `IWebResponseStartingFeature`, the
+server-published contract in Web.Server. The server invokes callbacks in reverse registration order
+at its existing transport head-commit point, before serializing any byte. Buffered and streamed
+responses on HTTP/1.1, HTTP/2 and HTTP/3 use the same hook, and the in-memory Web.Testing transport
+honors it.
 
-The middleware captures the selected policy and allowed origin before calling `next`. Its callback applies
-that decision to the response about to commit, so a boundary registered ahead of `UseCors` can reset the
-response after CORS unwinds with a fault and the resulting error page still carries the grant. A handler
-cannot widen the grant by replacing headers before starting a streamed response.
+The middleware captures the selected policy and allowed origin before calling `next`. Its callback
+applies that decision to the response about to commit, so a boundary registered ahead of `UseCors`
+can reset the response after CORS unwinds with a fault and the resulting error page still carries
+the grant. A handler cannot widen the grant by replacing headers before starting a streamed
+response.
 
-`Vary: Origin` is also staged before `next`. The callback merges `Vary` again at commit, preserving the
-final response's other tokens. Output caching captures the final `Vary` and headers, including the
-callback's CORS grant fields, only after successful response completion. No grant field is emitted early.
+`Vary: Origin` is also staged before `next` because output caching snapshots headers before
+transport commit and needs the origin partition then. The callback merges `Vary` again at commit,
+preserving the final response's other tokens. No grant field is emitted early.
 
-If encode-time validation refuses the head (`InvalidResponseField`), the server carries the callback's
-added, changed and removed fields to a replacement buffered response without invoking the callback again.
-The middleware also registers `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`,
-`Access-Control-Expose-Headers` and `Vary` as explicitly preserved keys. The server snapshots those keys
-at registration and captures their final values or absence after every callback succeeds, including
-values that already matched the policy and the early `Vary` declaration. Other unchanged application
-fields are excluded; the replacement owns its status and body. A callback failure
-faults the exchange before bytes are sent. Custom servers must publish the starting feature; an actual
-response governed by a CORS policy fails explicitly with `InvalidOperationException` if it is missing.
-Preflights retain their immediate, grant-or-nothing `204` short-circuit. Transport-generated rejections
-and protocol-takeover heads do not run response-starting callbacks.
+If encode-time validation refuses the head (`InvalidResponseField`), the server carries the
+callback's added, changed and removed fields to a replacement buffered response without invoking the
+callback again. The middleware also registers `Access-Control-Allow-Origin`,
+`Access-Control-Allow-Credentials`, `Access-Control-Expose-Headers` and `Vary` as explicitly
+preserved keys. The server snapshots those keys at registration and captures their final values or
+absence after every callback succeeds, including values that already matched the policy and the
+early `Vary` declaration. Other unchanged application fields are excluded; the replacement owns its
+status and body. A callback failure faults the exchange before bytes are sent. Custom servers must
+publish the starting feature; an actual response governed by a CORS policy fails explicitly with
+`InvalidOperationException` if it is missing. Preflights retain their immediate, grant-or-nothing
+`204` short-circuit. Transport-generated rejections and protocol-takeover heads do not run
+response-starting callbacks.
 
 ### Compatibility against 10.0.0-preview.1 (#1156)
 
-The released tag contains only a CORS project scaffold, with no middleware implementation. No released
-implementation changes behavior. The integration requirements and behavior changes below apply to the
-post-tag development implementation.
+The released tag contains only a CORS project scaffold, with no middleware implementation. No
+released implementation changes behavior. The integration requirements and behavior changes below
+apply to the post-tag development implementation.
 
-Actual-response grant fields now appear at head commit instead of before and after `next`. Boundaries on
-either side of `UseCors` preserve CORS on their fault responses. Streamed heads now enforce the policy
-after the handler's header changes. `UseCors` must now precede `UseOutputCache`, including when an older
-pipeline relied on a cached grant from CORS registered after the cache. The area's recommended order
-already satisfies this requirement. Custom servers must implement `IWebResponseStartingFeature`.
-Web.Server replaces the package's Http.Streaming dependency; Web.Server is already an App.Web member.
+Actual-response grant fields now appear at head commit instead of before and after `next`.
+Boundaries on either side of `UseCors` preserve CORS on their fault responses. Streamed heads now
+enforce the policy after the handler's header changes. `UseCors` must now precede `UseOutputCache`,
+including when an older pipeline relied on a cached grant from CORS registered after the cache. The
+area's recommended order already satisfies this requirement. Custom servers must implement
+`IWebResponseStartingFeature`. Web.Server replaces the package's Http.Streaming dependency;
+Web.Server is already an App.Web member.
 
 ## Fail closed: `CorsMetadata` implements `IRouteMiddlewareMetadata` (decision)
 
@@ -356,34 +392,33 @@ UseForwardedHeaders → UseHostFiltering → … → UseRouting → UseCors → 
     → UseAntiforgery → UseOutputCache → endpoint
 ```
 
-The area's [middleware order](../../../../web/middleware-order.md) places every Web middleware.
+The area's middleware order places every Web middleware.
 
-- **After `UseRouting`**, so the endpoint and its `CorsMetadata` are known. Registered ahead of it, an
-  endpoint that declares CORS fails at dispatch (see above).
+- **After `UseRouting`**, so the endpoint and its `CorsMetadata` are known. Registered ahead of it,
+  an endpoint that declares CORS fails at dispatch (see above).
 - **Ahead of every middleware that can reject a preflight.** A preflight carries no credentials, so
-  authorization would answer it `401`, an antiforgery check `400`, and a rate limit `429`. `UseCors` answers
-  preflights before any of them runs. Web.RateLimiting already skips a preflight's candidate for endpoint
-  policies; with `UseCors` ahead of it, preflights also stay out of its global limiter.
+  authorization would answer it `401`, an antiforgery check `400`, and a rate limit `429`. `UseCors`
+  answers preflights before any of them runs. Web.RateLimiting already skips a preflight's candidate
+  for endpoint policies; with `UseCors` ahead of it, preflights also stay out of its global limiter.
 - **Either side of the exception boundary** keeps CORS on fault responses once `UseCors` has run.
-- **Ahead of `UseOutputCache`**, so cache hits still register the current request's response-starting
-  callback. Cache entries are captured only after successful response completion and contain the final
-  headers, including the callback's CORS grant fields. The final `Vary: Origin` keeps stored variants
-  partitioned by origin, and the starting callback applies the current request's policy on a cache hit.
-- **Middleware that answers before `UseRouting`**, such as static files or a path branch, answers before a
-  `UseCors` placed after `UseRouting` runs, so its responses carry no CORS headers.
+- **Ahead of `UseOutputCache`**, so cache hits still register the response-starting callback. Cache
+  entries are captured before the head commits and do not contain the callback's CORS grant fields.
+  The early `Vary: Origin` declaration keeps stored variants partitioned by origin.
+- **Middleware that answers before `UseRouting`**, such as static files or a path branch, answers
+  before a `UseCors` placed after `UseRouting` runs, so its responses carry no CORS headers.
 
 ## Error model
 
 - **Configuration errors** surface when `UseCors` or `RequireCors` runs, normally at startup:
-  `ArgumentException` for a value (an origin, a method, a header name), `ArgumentOutOfRangeException` for a
-  negative max age, and `InvalidOperationException` for an invalid combination, a duplicate policy name or a
-  second default policy.
-- **At request time**, the middleware throws `InvalidOperationException` for an endpoint that names an
-  unregistered policy or a custom server missing the starting feature. Routing throws it for an endpoint
-  whose `CorsMetadata` `UseCors` never processed.
+  `ArgumentException` for a value (an origin, a method, a header name),
+  `ArgumentOutOfRangeException` for a negative max age, and `InvalidOperationException` for an
+  invalid combination, a duplicate policy name or a second default policy.
+- **At request time**, the middleware throws `InvalidOperationException` for an endpoint that names
+  an unregistered policy or a custom server missing the starting feature. Routing throws it for an
+  endpoint whose `CorsMetadata` `UseCors` never processed.
 - **No exception type of the package's own.** No failure is one a caller would handle differently.
-- **No error status.** A denied CORS request is still a successful HTTP exchange; the browser enforces the
-  outcome.
+- **No error status.** A denied CORS request is still a successful HTTP exchange; the browser
+  enforces the outcome.
 
 ## AOT posture
 
@@ -410,36 +445,37 @@ request can carry an Origin field without needing a CORS grant.
 `HeaderNotAllowed`. The evaluator preserves that ordering and returns the rejected header as a span.
 Evaluation allocates nothing on success, including a predicate with serialized IPv6 origins and an
 any-header policy receiving repeated request-header fields. Request-origin validation checks the
-serialized form directly with spans; configuration still normalizes strings once at startup. Rendering
-joins repeated header fields only after evaluation succeeds. An application-supplied predicate owns any
-allocations inside its delegate.
+serialized form directly with spans; configuration still normalizes strings once at startup.
+Rendering joins repeated header fields only after evaluation succeeds. An application-supplied
+predicate owns any allocations inside its delegate.
 
-Ports and IPv6 pieces are checked against their ASCII digit and lowercase-hex alphabets before numeric
-parsing, because the BCL numeric parsers accept trailing NUL characters. Malformed numeric components
-remain rejected before an application predicate runs, matching configuration normalization.
+Ports and IPv6 pieces are checked against their ASCII digit and lowercase-hex alphabets before
+numeric parsing, because the BCL numeric parsers accept trailing NUL characters. Malformed numeric
+components remain rejected before an application predicate runs, matching configuration
+normalization.
 
-`cause` is `OptionsRouteOwnsPreflight`, `CorsDisabled`, or `NoPolicy`. These events are raised at the
-current preflight decision sites in `CorsMiddleware.InvokePreflight` and the reject branch of
+`cause` is `OptionsRouteOwnsPreflight`, `CorsDisabled`, or `NoPolicy`. These events are raised at
+the current preflight decision sites in `CorsMiddleware.InvokePreflight` and the reject branch of
 `CorsResponseHeaders.WritePreflight`; actual-response starting callbacks raise neither event.
 
-The lazy `rejected-preflights` polling counter counts every refused preflight exactly once, including
-when no listener is enabled. Pass-through requests are not counted. There is no `OriginRefused` event
-or counter, and neither Verbose event is throttled.
+The lazy `rejected-preflights` polling counter counts every refused preflight exactly once,
+including when no listener is enabled. Pass-through requests are not counted. There is no
+`OriginRefused` event or counter, and neither Verbose event is throttled.
 
 Every event reads the request id from `IWebRequestIdFeature` and the route template from
-`IWebEndpointFeature` inside `IsEnabled`. It never reads `Activity.Current` or a request path. The
-origin is a single serialized Origin value, empty when missing, repeated or malformed, truncated to
-256 characters inside `IsEnabled`; the first rejected header name is truncated there to 64 characters.
-The requested method has already passed the preflight token check and its 32-character limit. Other
-header values, query strings, bodies and credentials are never written.
+`IRouterEndpointFeature` inside `IsEnabled`. It never reads `Activity.Current` or a request path.
+The origin is a single serialized Origin value, empty when missing, repeated or malformed, truncated
+to 256 characters inside `IsEnabled`; the first rejected header name is truncated there to 64
+characters. The requested method has already passed the preflight token check and its 32-character
+limit. Other header values, query strings, bodies and credentials are never written.
 
 ### Compatibility against 10.0.0-preview.1 (#1402)
 
 The released package is a scaffold with no CORS implementation. This adds an internal diagnostics
 provider and no public API or released behavior break. Against the development implementation, the
-preflight response and policy decisions remain unchanged; diagnostics are opt-in through EventSource.
-Web.Server was already referenced for response-starting callbacks, so request correlation adds no
-dependency or framework member.
+preflight response and policy decisions remain unchanged; diagnostics are opt-in through
+EventSource. Web.Server was already referenced for response-starting callbacks, so request
+correlation adds no dependency or framework member.
 
 ## Non-goals
 
@@ -454,80 +490,79 @@ dependency or framework member.
   dynamic origin decision is the predicate's job.
 - **Blocking requests from denied origins:** CORS grants reads; it is not access control.
 - **WebSocket origin checks:** the WebSocket handshake is not subject to CORS. `UseWebSockets`
-  ([`Assimalign.Cohesion.Web.WebSockets`](../assimalign-cohesion-web-websockets/design.md#the-origin-check))
-  refuses a cross-site handshake with `403` unless its origin is the request's own or an allowed one.
+  (`Assimalign.Cohesion.Web.WebSockets`) refuses a cross-site handshake with `403` unless its origin
+  is the request's own or an allowed one.
 - **`Timing-Allow-Origin`:** it belongs to the Resource Timing specification, not to CORS.
 
 ## Scope-creep candidates (recorded, not taken)
 
-- A public evaluation seam for applications that answer CORS on their own `OPTIONS` routes, which today write
-  the headers by hand.
+- A public evaluation seam for applications that answer CORS on their own `OPTIONS` routes, which
+  today write the headers by hand.
 
 ## Testing
 
 `tests/CorsPolicyBuilderTests.cs` and `tests/CorsOptionsTests.cs` cover the policy model: origin
-normalization and every rejected form, method normalization, token validation, the combinations `Build()`
-rejects, list-plus-predicate matching and the predicate's well-formed-origin guard, duplicate and default
-registrations, and the metadata's `RequiredMiddleware` in every form.
+normalization and every rejected form, method normalization, token validation, the combinations
+`Build()` rejects, list-plus-predicate matching and the predicate's well-formed-origin guard,
+duplicate and default registrations, and the metadata's `RequiredMiddleware` in every form.
 
-`tests/CorsMiddlewareTests.cs` drives `UseCors` over a capturing pipeline builder and an `IHttpContext`
-double (`tests/TestObjects/`); a stage ahead of the middleware publishes a fake route match, which is what
-`UseRouting` does. It covers echoed, wildcard, credentialed and denied actual requests, exposed headers,
-`Vary: Origin` on denied and origin-less responses and its append rules, the authoritative removal of stale
-CORS headers, staging after a downstream reset, one callback pass at head commit, and the missing-feature
-error;
-preflight grants and denials, byte-exact methods with the safelisted ones always allowed, case-insensitive and
-malformed request headers, the any-method and any-header echoes, max age; and the preflight's policy source
-for a candidate, a disabled candidate, an `OPTIONS`-only route, a route that also serves the requested method
-(byte for byte: a `PATCH` route does not serve `patch`), an any-method route, and no endpoint at all.
+`tests/CorsMiddlewareTests.cs` drives `UseCors` over a capturing pipeline builder and an
+`IHttpContext` double (`tests/TestObjects/`); a stage ahead of the middleware publishes a fake route
+match, which is what `UseRouting` does. It covers echoed, wildcard, credentialed and denied actual
+requests, exposed headers, `Vary: Origin` on denied and origin-less responses and its append rules,
+the authoritative removal of stale CORS headers, staging after a downstream reset, one callback pass
+at head commit, and the missing-feature error; preflight grants and denials, byte-exact methods with
+the safelisted ones always allowed, case-insensitive and malformed request headers, the any-method
+and any-header echoes, max age; and the preflight's policy source for a candidate, a disabled
+candidate, an `OPTIONS`-only route, a route that also serves the requested method (byte for byte: a
+`PATCH` route does not serve `patch`), an any-method route, and no endpoint at all.
 
-`tests/CorsEndToEndTests.cs` and `tests/CorsRouteConventionTests.cs` run the real router over the in-memory
-`WebApplicationTestFactory`: wildcard, credentialed and denied requests on the wire; a preflight answered
-through its candidate, which never runs; named, group-level and route-level policies and their overrides;
-`DisableCors`; preflight grants and denials for methods and headers; exposed headers and max age; the
-preflight with no candidate, with and without a default policy; a preflight for `patch`, which resolves no
-`PATCH` candidate; the explicit `OPTIONS` route; a same-origin
-request to an endpoint with a policy; `UseCors` registered ahead of `UseRouting` and missing altogether, both
-failing closed at dispatch; the real exception boundary on either side of `UseCors` keeping the CORS
-headers on its `500`; streamed heads enforcing the policy after handler changes; and a preflight over HTTP/2.
+`tests/CorsEndToEndTests.cs` and `tests/CorsRouteConventionTests.cs` run the real router over the
+in-memory `WebApplicationTestFactory`: wildcard, credentialed and denied requests on the wire; a
+preflight answered through its candidate, which never runs; named, group-level and route-level
+policies and their overrides; `DisableCors`; preflight grants and denials for methods and headers;
+exposed headers and max age; the preflight with no candidate, with and without a default policy; a
+preflight for `patch`, which resolves no `PATCH` candidate; the explicit `OPTIONS` route; a
+same-origin request to an endpoint with a policy; `UseCors` registered ahead of `UseRouting` and
+missing altogether, both failing closed at dispatch; the real exception boundary on either side of
+`UseCors` keeping the CORS headers on its `500`; streamed heads enforcing the policy after handler
+changes; and a preflight over HTTP/2.
 
 ## HTTP interceptor consumer compatibility (#1465)
 
-The streamed-response test hosts now register `HttpResponseStreamingInterceptor.Create()` in place
-of `HttpResponseStreaming.CreateInterceptor()`. Applications that register this Http.Streaming
-interceptor directly make the same replacement and rebuild for its upstream source and binary
-break against `10.0.0-preview.1`, accepted on decision 15's terms and documented in
-[Http.Streaming's design](../../../libraries/http/assimalign-cohesion-http-streaming/design.md#public-interceptor-and-breaking-changes-since-1000-preview1-1465).
-This consumer update changes no API or response behavior owned by this package.
+The streamed-response test hosts now register `new HttpResponseStreamingInterceptor()` in place of
+`HttpResponseStreaming.CreateInterceptor()`. Applications that register this Http.Streaming
+interceptor directly make the same replacement and rebuild for its upstream source and binary break
+against `10.0.0-preview.1`, accepted on decision 15's terms and documented in Http.Streaming's
+design. This consumer update changes no API or response behavior owned by this package.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
-## Declared dependencies
+## Configured field-name types (#1476)
 
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
+`WithHeaders` and `WithExposedHeaders` take `params HttpFieldName[]`; `CorsPolicy.Headers` and
+`ExposedHeaders` expose `IReadOnlyList<HttpFieldName>`. Core Http owns the RFC 9110 token grammar
+and ordinal case-insensitive identity. The builder rejects uninitialized `default` names and keeps
+the CORS-specific wildcard restriction. Deduplication preserves the first spelling and order. The
+policy still prepares string-based frozen lookups and rendered response values once at build, so
+request-span parsing and matching do not acquire an extra validation or allocation.
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+These are source and binary signature changes relative to the prior API. CORS already validated
+malformed strings before this issue; its existing rejection tests pin preserved behavior, not a
+newly fixed validation defect. The CORS policy implementation is absent from 10.0.0-preview.1.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Cors/src/Assimalign.Cohesion.Web.Cors.csproj`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Caching/src/Internal/OutputCacheMiddleware.cs`.

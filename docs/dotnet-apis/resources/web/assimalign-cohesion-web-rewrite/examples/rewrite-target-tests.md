@@ -36,8 +36,11 @@ source project’s test context, with its test dependencies and supporting test 
 using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 
@@ -60,7 +63,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/u/(?<user>[a-z]+)/(\\d+)$", "/users/${user}/posts/$1?all=$0"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/u/(?<user>[a-z]+)/(\\d+)$", "/users/${user}/posts/$1?all=$0")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -77,7 +80,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/price/(\\d+)$", "/prices/$$$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/price/(\\d+)$", "/prices/$$$1")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -93,7 +96,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite(BlogPost(), "/posts/${slug}?year=${year}"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite(BlogPost(), "/posts/${slug}?year=${year}")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -111,7 +114,7 @@ public partial class RewriteTargetTests
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
         Regex pattern = new("^/docs/(.+)\\.html$", RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
-        builder.UseRewrite(rules => rules.AddRewrite(pattern, "/docs/$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite(pattern, "/docs/$1")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -127,9 +130,9 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules
+        builder.Use(TestRewriteMiddleware.Build(rules => rules
             .AddRewrite("^/About$", "/about-us")
-            .AddRewrite("(?i)^/contact$", "/contact-us"));
+            .AddRewrite("(?i)^/contact$", "/contact-us")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -148,7 +151,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/old$", "/new"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/old$", "/new")));
         builder.Run(probe.InvokeAsync);
         TestHttpContext context = new("/old", "a=1&b=2");
 
@@ -165,7 +168,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/products/(\\d+)$", "/product?id=$1&view=full"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/products/(\\d+)$", "/product?id=$1&view=full")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -184,7 +187,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/clean$", "/landing?"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/clean$", "/landing?")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -201,11 +204,11 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite(
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite(
             "^/item\\.php\\?id=(\\d+)$",
             "/items/$1?",
             RewriteFlow.Continue,
-            RewriteMatchTarget.PathAndQuery));
+            RewriteMatchTarget.PathAndQuery)));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -226,7 +229,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("id=", "/never"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("id=", "/never")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -242,7 +245,7 @@ public partial class RewriteTargetTests
         // Arrange — the decoded path segment carries '&' and '=', which must stay data in the query.
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/search/(.+)$", "/find?q=$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/search/(.+)$", "/find?q=$1")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -260,7 +263,7 @@ public partial class RewriteTargetTests
         // Arrange — the transport already decoded "%2541" to "%41"; a second decode would turn it into "A".
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/files/(.+)$", "/docs/$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/files/(.+)$", "/docs/$1")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -276,11 +279,11 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite(
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite(
             "^/search\\?q=([^&]+)$",
             "/find/$1?",
             RewriteFlow.Continue,
-            RewriteMatchTarget.PathAndQuery));
+            RewriteMatchTarget.PathAndQuery)));
         builder.Run(probe.InvokeAsync);
 
         // Act — the parsed query value is "café"; the pattern matches its re-encoded form.
@@ -296,11 +299,11 @@ public partial class RewriteTargetTests
         // Arrange — a space is not a legal request-path character once decoded, on any transport.
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite(
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite(
             "^/search\\?q=([^&]+)$",
             "/find/$1",
             RewriteFlow.Continue,
-            RewriteMatchTarget.PathAndQuery));
+            RewriteMatchTarget.PathAndQuery)));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -317,7 +320,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/menu$", "/café?dish=crème brûlée"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/menu$", "/café?dish=crème brûlée")));
         builder.Run(probe.InvokeAsync);
 
         // Act
@@ -334,7 +337,7 @@ public partial class RewriteTargetTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/a$", "/b%2Dc?x=1%262"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b%2Dc?x=1%262")));
         builder.Run(probe.InvokeAsync);
 
         // Act

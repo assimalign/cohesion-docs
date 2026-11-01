@@ -2,63 +2,49 @@
 
 EventHub defines the application and hosting seams for an event-stream service resource.
 
-> **Status:** Partial. The host and orchestration seams exist; domain services remain fillers.
+> **Status:** Partial. The host and its resource integration work; domain services remain fillers.
 
-EventHub is the L3 service platform intended to provide partitioned event streams, publishing and
-consumption, consumer groups, checkpoints, retention, and replay.
+EventHub is the L3 service platform intended to provide partitioned event streams, publishing and consumption, consumer groups, checkpoints, retention, and replay.
 
-The host supports enabled-resource control planes; domain services remain fillers pending the area
-program.
-
-Standalone HTTP control planes (no gateway identity) accept `/cohesion/v1` and its descendants
-only from transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers
-receive 403. Forwarded headers cannot grant access. Bare `/healthz`, `/readyz`, and `/livez` probes
-stay public. Gateway-managed credential checks are unchanged. This restricts remote standalone
-management compared with 10.0.0-preview.1 (#1431); use loopback for standalone development and a
-gateway identity with credentials for remote management.
+Domain services remain fillers pending the area program.
 
 ## Packages
 
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.EventHub`](assimalign-cohesion-eventhub/index.md) | `Root` | Public reference and runtime |
-| [`Assimalign.Cohesion.EventHub.ApplicationModel`](assimalign-cohesion-eventhub-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.EventHub.Hosting`](assimalign-cohesion-eventhub-hosting/index.md) | Hosting | Public reference and runtime |
+| [`Assimalign.Cohesion.EventHub.Hosting.ApplicationModel`](assimalign-cohesion-eventhub-hosting-applicationmodel/index.md) | Resource integration | Public reference and runtime |
 
 ## Dependency boundary
 
 The single runtime module is `Assimalign.Cohesion.EventHub.Hosting`. Roots and feature libraries do
-not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
-Feature registration composes against the root contracts. The exact runtime may reference any
-same-area library except the area's `Testing`, `ApplicationModel`, and
-`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
-closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
-integrations may not reference the exact runtime. The declarative application model remains separate
-from the runtime. See the
-[resource dependency rules](../index.md#dependency-rules) .
-
-The hosting family in this area contains `Assimalign.Cohesion.EventHub.Hosting`.
+not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries. The
+exact runtime may reference any same-area library except the area's `Testing` and
+`Hosting.ApplicationModel` packages, the framework producers, and harnesses (owner decision
+2026-10-09). `Assimalign.Cohesion.EventHub.Hosting.ApplicationModel` references the runtime module, the
+one reference `COHRES001` sanctions by name, and makes the application a managed resource
+instance. See the [resource dependency rules](../index.md#dependency-rules).
 
 ## Framework and SDK
 
-`Assimalign.Cohesion.Sdk.EventHub` delivers the `Assimalign.Cohesion.App.EventHub` family. Its
-producers, `Assimalign.Cohesion.EventHub.Refs` and `Assimalign.Cohesion.EventHub.Runtime`, declare
-`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public and
-private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which
-the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime
-packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.Sdk.EventHub` delivers the `Assimalign.Cohesion.App.EventHub` family. Its producers,
+`Assimalign.Cohesion.EventHub.Refs` and `Assimalign.Cohesion.EventHub.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The assembly
+inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs
+producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
+`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
-The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
-reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
-`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
-`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
-inventory below.
+The SDK also references the [App hosting kernel](../../libraries/app/index.md), which supplies
+`Assimalign.Cohesion.Hosting`, `Assimalign.Cohesion.ApplicationModel.Hosting`, the connection
+capability packages, and the configuration and logging providers alongside the area inventory below.
 
 | Public reference-pack assembly |
 |---|
 | `Assimalign.Cohesion.App.EventHub` |
 | `Assimalign.Cohesion.EventHub` |
 | `Assimalign.Cohesion.EventHub.Hosting` |
+| `Assimalign.Cohesion.EventHub.Hosting.ApplicationModel` |
 
 | Private runtime assembly |
 |---|
@@ -80,9 +66,8 @@ inventory below.
 | `Assimalign.Cohesion.Web.Routing` |
 | `Assimalign.Cohesion.Web.Server` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
+Platform packages a resource opts into, such as `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`,
+are NuGet packages the application references, never framework members.
 
 ## Related documentation
 
@@ -93,7 +78,7 @@ by the current framework inventory.
 ## Sources
 
 - **Primary source** — `cohesion/resources/EventHub/README.md`.
+- **Source** — `cohesion/resources/EventHub/Assimalign.Cohesion.EventHub.Hosting/docs/OVERVIEW.md`.
 - **Source** — `cohesion/.claude/rules/resource-areas.md`.
-- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting.Resources/docs/OVERVIEW.md`.
 - **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
-- **Source** — `cohesion/resources/EventHub/Assimalign.Cohesion.EventHub.Refs/src/Assimalign.Cohesion.EventHub.Refs.csproj` and `cohesion/resources/EventHub/Assimalign.Cohesion.EventHub.Runtime/Directory.Build.props`.
+- **Source** — `cohesion/resources/EventHub/Assimalign.Cohesion.EventHub.Runtime/Directory.Build.props`.

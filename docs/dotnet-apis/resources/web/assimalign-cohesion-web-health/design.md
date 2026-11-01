@@ -4,6 +4,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 One Web feature owns Cohesion health checks end to end: the application-facing health model, a
@@ -13,30 +15,39 @@ explicit API without introducing a DI-specific hosting layer.
 
 ## Public application composition
 
-Web application and resource authors can register typed checks, inline probes, or
-`Hosting.Health` contributors through Web.Hosting's adapter in the
-`Assimalign.Cohesion.Web.Hosting.Health` namespace:
+Web application and resource authors can register typed checks and inline probes:
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using Assimalign.Cohesion.Web.Health;
 
-`HealthChecks.CreateBuilder()` is the container-free composition seam. Registrations are mutable
-only while composing the builder; `Build()` snapshots them into an immutable `IHealthCheckService`.
-The service is supplied to endpoint middleware explicitly, so request-time service location is
+IHealthCheckService health = new HealthChecksBuilder()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy(),
+        tags: new[] { HealthTags.Ready, HealthTags.Live })
+    .Build();
+
+pipeline.MapHealthChecks(health);
+pipeline.MapReadinessCheck(health);
+pipeline.MapLivenessCheck(health);
+```
+
+`new HealthChecksBuilder()` is the container-free composition seam. Registrations are mutable only
+while composing the builder; `Build()` snapshots them into an immutable `IHealthCheckService`. The
+service is supplied to endpoint middleware explicitly, so request-time service location is
 unnecessary.
 
-## Hosting contributor integration
+## Hosting contributor integration (removed)
 
-The `AddContributor` adapter ships in `Assimalign.Cohesion.Web.Hosting`, keeping the
-`Assimalign.Cohesion.Web.Hosting.Health` namespace (owner decision 57, 2026-10-13). That module
-references this model and `Hosting.Health`; this package references only the Web root. No Web
-root or feature library may reference the hosting module. The adapter is included with hosting,
-not supplied by an optional package.
+A Web application registers its checks here directly; a managed resource reports its state to its
+gateway through `Web.Hosting.ApplicationModel`. This package references only the Web root, and no
+Web root or feature library may reference the hosting module.
 
 ## Status model and aggregation
 
-`HealthStatus` is ordered least to most healthy: `Unhealthy = 0`, `Degraded = 1`, and
-`Healthy = 2`. A report's aggregate status is the minimum across its entries. An empty report is
-healthy, allowing `/livez` or `/readyz` to remain meaningful when their tag slice has no entries.
+`HealthStatus` is ordered least to most healthy: `Unhealthy = 0`, `Degraded = 1`, and `Healthy = 2`.
+A report's aggregate status is the minimum across its entries. An empty report is healthy, allowing
+`/livez` or `/readyz` to remain meaningful when their tag slice has no entries.
 
 Checks run sequentially. A thrown or timed-out check becomes an entry with the registration's
 `FailureStatus`; caller cancellation propagates instead of being converted into a health result. The
@@ -50,7 +61,7 @@ Mapped health middleware:
 
 1. Passes through requests whose path or method does not match.
 2. Runs `IHealthCheckService.CheckHealthAsync` with the endpoint predicate and request cancellation.
-3. Attaches `IHttpHealthFeature` so other HTTP components can inspect the completed report.
+3. Attaches `IHealthFeature` so other HTTP components can inspect the completed report.
 4. Maps `Healthy` and `Degraded` to 200 and `Unhealthy` to 503 by default.
 5. Disables response caching unless explicitly allowed.
 6. Writes the response and terminates the matching pipeline branch.
@@ -61,11 +72,10 @@ Mapped health middleware:
 ## Response serialization and AOT
 
 The default `HealthCheckJsonResponseWriter` uses `Utf8JsonWriter`, not reflection-based
-serialization. `Diagnostic` data is handled through a closed primitive-value switch with a string
+serialization. Diagnostic data is handled through a closed primitive-value switch with a string
 fallback. Custom behavior is available through `IHealthResponseWriter`.
 
-The registration, evaluation, and default response path remains trim- and NativeAOT-compatible. The
-contributor adapter and its tests live in Web.Hosting.
+The registration, evaluation, and default response path remains trim- and NativeAOT-compatible.
 
 ## Exception detail
 
@@ -122,29 +132,28 @@ descriptions verbatim. It does not restore the preview.1 output:
 - An `Exception` in `data` is written as that fixed text, or as its message with the option on;
   preview.1 wrote its `ToString()`.
 
-**Server-side detail.** The exception object stays on the in-process report. An application reads
-it through `IHttpHealthFeature.Report` on the exchange, from `IHealthCheckService.CheckHealthAsync`
-directly, or in its own `IHealthResponseWriter`, which receives the whole report and decides what
-to publish. The internal `HealthCheckEventSource` reports status transitions and failed probes
-with their exception type and message (see Diagnostics).
+**Server-side detail.** The exception object stays on the in-process report. An application reads it
+through `IHealthFeature.Report` on the exchange, from `IHealthCheckService.CheckHealthAsync`
+directly, or in its own `IHealthResponseWriter`, which receives the whole report and decides what to
+publish. The internal `HealthCheckEventSource` reports status transitions and failed probes with
+their exception type and message (see Diagnostics).
 
 ## Framework packaging
 
 Framework membership is current, not deferred:
 
-- **`App.Web`** — includes `Assimalign.Cohesion.Web.Health` as a public
-  `CohesionFrameworkAssembly`, exposing it to Web application consumers.
-- **All 17 other area frameworks** — include it privately alongside their Web.Hosting implementation
-  closures. Decision 57 adds the 16 frameworks besides App.Database without exposing Web health
-  types through their public reference surfaces.
+- `App.Web` includes `Assimalign.Cohesion.Web.Health` as a public `CohesionFrameworkAssembly`,
+  exposing it to Web application consumers.
+- `App.Database` includes it as a private `CohesionFrameworkPrivateAssembly` alongside its private
+  Web runtime closure. That inclusion supports Database runtime implementation without exposing Web
+  health types through the Database reference surface.
 
 A resource may still reference Web.Health privately when it needs the implementation internally, but
 that is not the only consumption model and does not change App.Web's public API.
 
 ## Diagnostics
 
-The internal `HealthCheckEventSource` is named `Assimalign.Cohesion.Web.Health`. It also reports
-`Hosting.Health` contributors adapted by Web.Hosting; the adapter raises no second report.
+The internal `HealthCheckEventSource` is named `Assimalign.Cohesion.Web.Health`.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
@@ -153,18 +162,18 @@ The internal `HealthCheckEventSource` is named `Assimalign.Cohesion.Web.Health`.
 | 3 | HealthCheckFailed | Verbose | checkName, failureStatus, cause, exceptionType, exceptionMessage, timeoutMilliseconds |
 
 Transitions are tracked **per health-service instance**. Every `HealthChecksBuilder.Build()` creates
-independent per-registration slots, initially Unknown (-1). A first Healthy observation is silent;
-a first Degraded or Unhealthy observation worsens from Unknown. Each completed probe atomically
-exchanges its slot, so concurrent readiness and liveness probes reporting the same state produce
-one transition. Probes with different results transition in slot-exchange order; synchronous listener
+independent per-registration slots, initially Unknown (-1). A first Healthy observation is silent; a
+first Degraded or Unhealthy observation worsens from Unknown. Each completed probe atomically
+exchanges its slot, so concurrent readiness and liveness probes reporting the same state produce one
+transition. Probes with different results transition in slot-exchange order; synchronous listener
 callbacks can be delivered in a different order. Predicate-skipped checks and caller cancellation
 leave their slots unchanged. Registering one check in two services produces independent transitions.
 
 `cause` is Reported for returned results, Exception for thrown checks and Timeout for check
 cancellation while the caller is still active. Worsening includes returned Unhealthy results even
 without an exception. Repeated identical statuses produce no transition. Transitions are not
-throttled; `HealthCheckFailed` is the Verbose per-probe detail for the two caught failure paths.
-The lazy `failed-checks` PollingCounter counts those paths exactly, including when no listener is
+throttled; `HealthCheckFailed` is the Verbose per-probe detail for the two caught failure paths. The
+lazy `failed-checks` PollingCounter counts those paths exactly, including when no listener is
 enabled. Returned Unhealthy results and caller cancellation do not increment it.
 
 Health exceptions carry their full type name and Message, never a stack trace. Dependency exception
@@ -187,25 +196,24 @@ event. This is an observable diagnostics change on decision 15's terms, with no 
 
 ## Exception messages (#1467)
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
-## Declared dependencies
 
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
+## Health-check builder construction (#1470)
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+Composition uses the public sealed `HealthChecksBuilder` in `Assimalign.Cohesion.Web.Health`, with
+its public parameterless constructor. The standalone `HealthChecks.CreateBuilder()` factory is
+removed. Existing `IHealthChecksBuilder` adapters, duplicate-name checks and immutable service
+snapshots are preserved; Database's admin endpoint uses the same public constructor. No Database
+interface, protocol, format, diagnostic code, event or counter is added or changed.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Health/src/Assimalign.Cohesion.Web.Health.csproj`.
-- **Integrated adapter and tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Health/HealthChecksBuilderExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/Health/HealthChecksBuilderTests.cs`.

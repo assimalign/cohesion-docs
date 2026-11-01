@@ -43,12 +43,16 @@ Use it in the source project’s test context, with its test dependencies and su
 using System;
 using System.Net;
 using System.Threading.Tasks;
-using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.ForwardedHeaders;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
+
+using HttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.Rewrite.Tests;
 
@@ -467,7 +471,7 @@ public class RewriteCanonicalizationTests
     {
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(configure);
+        builder.Use(TestRewriteMiddleware.Build(configure));
         builder.Run(probe.InvokeAsync);
         return (builder, probe);
     }
@@ -476,12 +480,11 @@ public class RewriteCanonicalizationTests
     {
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseForwardedHeaders(options =>
-        {
-            options.Headers = ForwardedHeaderNames.XForwarded;
-            options.KnownProxies.Add(_trustedProxy.Address);
-        });
-        builder.UseRewrite(configure);
+        ForwardedHeadersBuilder forwarded = new();
+        forwarded.Options.Headers = ForwardedHeaderNames.XForwarded;
+        forwarded.Options.KnownProxies.Add(_trustedProxy.Address);
+        builder.Use(forwarded.Build());
+        builder.Use(TestRewriteMiddleware.Build(configure));
         builder.Run(probe.InvokeAsync);
         return (builder, probe);
     }

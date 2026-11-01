@@ -8,9 +8,9 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.OpenTelemetry
 
 ## Design and boundaries
 
-The exporter is transport-only; Hosting.Telemetry owns the logging adapter. A bounded queue, bounded
-retry, and bounded shutdown prevent a collector outage from owning host startup. Traces, metrics,
-gRPC, and binary protobuf export remain deferred.
+The exporter is transport-only; the application supplies the logging adapter. A bounded queue,
+bounded retry, and bounded shutdown prevent a collector outage from owning host startup. Traces,
+metrics, gRPC, and binary protobuf export remain deferred.
 
 Emitters of traces and metrics use the BCL `ActivitySource` and `Meter`, starting with the Web
 server's (`Assimalign.Cohesion.Web.Server`, #1064), so a trace or metric exporter would subscribe

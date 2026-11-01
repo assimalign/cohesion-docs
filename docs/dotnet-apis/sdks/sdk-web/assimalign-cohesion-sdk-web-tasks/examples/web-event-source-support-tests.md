@@ -1,27 +1,17 @@
 # Web Event Source Support Tests
 
-This example exercises `Assimalign.Cohesion.Sdk.Web` through the ApplicationModel SDK’s area-default test project.
+This example exercises `Assimalign.Cohesion.Sdk.Web` through the base SDK’s test project.
 
 > **Status:** Implemented.
 
 The example reproduces
-`cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Tasks/tests/WebEventSourceSupportTests.cs`. It
+`cohesion/sdks/Assimalign.Cohesion.Sdk/Tasks/tests/WebEventSourceSupportTests.cs`. It
 retains the test class and assertions so the setup, operation, and expected outcome stay together.
 Use it in the source project’s test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
-- **Case 1** — NativeAOT EventSource support defaults to true when no value is supplied.
-- **Case 2** — An explicit true before the import is preserved.
-- **Case 3** — An explicit false before the import is preserved.
-- **Case 4** — An explicit true after the import overrides the default.
-- **Case 5** — An explicit false after the import overrides the default.
-- **Case 6** — False after the import overrides true before it.
-- **Case 7** — True after the import overrides false before it.
-- **Case 8** — A command-line true overrides the unset project values.
-- **Case 9** — A command-line false overrides the unset project values.
-- **Case 10** — A command-line true overrides false before and after the import.
-- **Case 11** — A command-line false overrides true before and after the import.
+- **Case 1** — NativeAOT EventSource support defaults on and preserves explicit choices.
 
 ## Source example
 
@@ -36,7 +26,7 @@ using System.Xml.Linq;
 using Shouldly;
 using Xunit;
 
-namespace Assimalign.Cohesion.Sdk.ApplicationModel.Tests;
+namespace Assimalign.Cohesion.Sdk.Tests;
 
 /// <summary>Evaluates Sdk.Web's NativeAOT event-delivery default and consumer overrides with MSBuild.</summary>
 public sealed class WebEventSourceSupportTests
@@ -137,5 +127,5 @@ public sealed class WebEventSourceSupportTests
 
 ## Sources
 
-- **Primary source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Tasks/tests/WebEventSourceSupportTests.cs`.
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Tasks/tests/Assimalign.Cohesion.Sdk.ApplicationModel.Tests.csproj`.
+- **Primary source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Tasks/tests/WebEventSourceSupportTests.cs`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Tasks/tests/Assimalign.Cohesion.Sdk.Tests.csproj`.

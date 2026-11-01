@@ -31,7 +31,8 @@ Factories run once per build against the same context retained by the applicatio
 hosted-service snapshot is installed after factory evaluation. Services start in registration order
 and stop in reverse. No area-owned service abstraction is introduced.
 
-Enabled resources retain their ambient context and registered control-plane behavior; plain
+A managed resource is a registration the application makes, `builder.Services.AddResource(name, ...)`
+from the area's `Hosting.ApplicationModel` package; the root contracts do not change for it. Plain
 application defaults are described by the Hosting design.
 
 ## AOT posture

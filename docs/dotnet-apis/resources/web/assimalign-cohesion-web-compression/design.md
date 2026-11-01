@@ -4,13 +4,16 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 Two directions of transparent body compression, packaged together (no ASP.NET-style micro-package
 split) as plain Web feature middleware under the middleware-first composition model. Each direction
-is one `Use*` verb, options captured at builder time, no service container, no request-time service
-location, no transport changes. Compression rides the BCL codecs only (`GZipStream`, `BrotliStream`
-, `ZLibStream`), so the package is AOT/trim-clean with no external dependencies.
+is one `Add*` registration verb that captures the options and one parameterless `Use*` verb that
+places the result (see "Registration" below), no service location in the package, no request-time
+service location, no transport changes. Compression rides the BCL codecs only (`GZipStream`,
+`BrotliStream`, `ZLibStream`), so the package is AOT/trim-clean with no external dependencies.
 
 The correctness of the response half hinges on the response-body write path and header-commit
 timing, which is why it was sequenced behind the write-path maturity (#762, the streaming seam). The
@@ -19,14 +22,14 @@ recorded below because they are not obvious from the abstractions.
 
 ## The response write path this builds on (verified mechanics)
 
-- **`IHttpResponse.Body`** — defaults to a **buffered `MemoryStream`** (`TransportHttpResponse`). A
+- `IHttpResponse.Body` defaults to a **buffered `MemoryStream`** (`TransportHttpResponse`). A
   handler writing to it accumulates bytes in memory; nothing reaches the wire until the exchange
   ends. `Body` has a public setter, so a middleware may replace it.
-- **The server loop runs** — the **entire pipeline first**, then calls the transport's `SendAsync`. Only
+- The server loop runs the **entire pipeline first**, then calls the transport's `SendAsync`. Only
   inside `SendAsync` does the transport read the buffered body, **synthesize `Content-Length` from
   the final buffer length if and only if the header is absent**, and commit the head. All three
   transports (HTTP/1.1, HTTP/2, HTTP/3) follow this shape.
-- **The response-streaming feature (`IHttpResponseStreamingFeature`,** — `Http.Streaming`) writes to a
+- The response-streaming feature (`IHttpResponseStreamingFeature`, `Http.Streaming`) writes to a
   **separate** transport sink, not to `IHttpResponse.Body`. When that sink has started, `SendAsync`
   short-circuits and never reads `IHttpResponse.Body` at all.
 
@@ -38,16 +41,16 @@ the sink — that path must be handed off, not corrupted.
 
 ## The deferred-first-write wrapper
 
-`Web.Server` exposes `IWebResponseStartingFeature.OnStarting` for final status and header changes
-immediately before the head is serialized (#1156). Those callbacks cannot write the response body.
-Compression continues to wrap `IHttpResponse.Body` in `CompressionBodyStream` and **defers the whole
-decision to the first write**, when the media type, status, and handler-set `Content-Encoding` are
-available and the body can still be encoded:
+There is no `OnStarting` hook and no header-commit callback a middleware can register to decide
+compression once the response shape is known. The media type, the status, and any handler-set
+`Content-Encoding` only exist once the handler starts writing the body. So the middleware wraps
+`IHttpResponse.Body` in `CompressionBodyStream` and **defers the whole decision to the first
+write**:
 
 1. **At entry** it negotiates the coding from `Accept-Encoding` (via the shared Http primitive) and
    installs the wrapper and the opt-out feature. No headers are touched yet.
 2. **On the first body write** it evaluates eligibility against the now-known headers — handler
-   opt-out, an already-present `Content-Encoding`, a bodyless status, then the media-type gate. `For`
+   opt-out, an already-present `Content-Encoding`, a bodyless status, then the media-type gate. For
    an eligible media type it stamps `Vary: Accept-Encoding`. If the client accepts one of our
    codings it enters a **buffering** state; otherwise it passes through as identity (with `Vary`
    already stamped).
@@ -86,7 +89,7 @@ The wrapper preserves the no-clobber/`HasStarted` contract other middleware rely
 commit the head itself (the transport still does, from the buffered body), so a fault after the
 handler wrote a partial body is handled by the exception boundary exactly as before — an unstarted
 buffered response is reset and rewritten. When the exception boundary resets the response it clears
-the headers (including any `Content-Encoding` /`Vary` the wrapper staged) and the wrapper's
+the headers (including any `Content-Encoding`/`Vary` the wrapper staged) and the wrapper's
 `CompleteAsync` then finalizes over the reset body harmlessly.
 
 ### Composition with output caching (#1054)
@@ -106,14 +109,14 @@ carries `Vary: Accept-Encoding` — including the identity one a non-accepting c
 shared cache never serves a coded body to a client that did not accept it. The token is **appended**
 to any existing `Vary` (preserving, for example, the `Accept` a content-negotiated write stamped)
 and never duplicated or allowed to override a `Vary: *`. This mirrors the append helper in
-`Web.Serialization` and `Web.StaticFiles`. When compression is skipped for an ineligible media
-type, or entirely over HTTPS by the BREACH default, no `Vary` is added — those responses do not vary
-by `Accept-Encoding`.
+`Web.Serialization` and `Web.StaticFiles`. When compression is skipped for an ineligible media type,
+or entirely over HTTPS by the BREACH default, no `Vary` is added — those responses do not vary by
+`Accept-Encoding`.
 
 ## identity and unacceptable-encoding handling (RFC 9110 §12.5.3)
 
-The `Accept-Encoding` q-value logic lives entirely in `HttpContentNegotiation.TrySelectEncoding`;
-it is not re-implemented here. Two edges are handled through it:
+The `Accept-Encoding` q-value logic lives entirely in `HttpContentNegotiation.TrySelectEncoding`; it
+is not re-implemented here. Two edges are handled through it:
 
 - **No `Accept-Encoding` header** — the primitive treats a missing field as *identity only* (the
   conservative real-server behavior: compress only when the client explicitly asks). Such a response
@@ -123,9 +126,9 @@ it is not re-implemented here. Two edges are handled through it:
   regardless of size**. This acceptability is obtained by re-using the same primitive with an empty
   server-coding list (which returns whether identity is acceptable).
 - **Nothing acceptable (including identity)** — the middleware *disregards* the impossible
-  constraint and serves identity rather than answering `406`, matching the `Web.StaticFiles`
-  choice: refusing to serve a representation over a hostile or misconfigured header helps no one.
-  This is a deliberate choice among the two RFC-permitted options (406 or disregard).
+  constraint and serves identity rather than answering `406`, matching the `Web.StaticFiles` choice:
+  refusing to serve a representation over a hostile or misconfigured header helps no one. This is a
+  deliberate choice among the two RFC-permitted options (406 or disregard).
 
 ## BREACH (CVE-2013-3587)
 
@@ -147,10 +150,10 @@ scheme, not the app-facing hop. The guard reads `context.EffectiveScheme` from
   proxy relays over TLS is treated as HTTPS and left uncompressed unless `EnableForHttps` is set.
   Before #1050 the guard read the wire scheme, so every such response was compressed on the TLS leg
   — the exposure the default exists to prevent (defect D7).
-- **Without it** — or from a peer outside the forwarded-headers trust model — the effective scheme is
-  the transport-derived one: the app sees `http` behind the proxy and compresses as before. A client
-  that sends `X-Forwarded-Proto: https` itself cannot switch compression off, because this package
-  never reads forwarding headers.
+- **Without it** — or from a peer outside the forwarded-headers trust model — the effective scheme
+  is the transport-derived one: the app sees `http` behind the proxy and compresses as before. A
+  client that sends `X-Forwarded-Proto: https` itself cannot switch compression off, because this
+  package never reads forwarding headers.
 
 Deployments that relied on the old behavior (compression behind a trusted TLS-terminating proxy) set
 `EnableForHttps` explicitly once the proxy is resolved — the same opt-in a direct-TLS deployment
@@ -167,8 +170,8 @@ the decoded identity representation and the compressed length no longer describe
 
 ### Multiple codings
 
-`Content-Encoding: gzip, br` means the origin applied gzip then br, so the wire is `br(gzip(body))`
-. The chain is decoded in **reverse application order**: the innermost decoder wraps the transport
+`Content-Encoding: gzip, br` means the origin applied gzip then br, so the wire is `br(gzip(body))`.
+The chain is decoded in **reverse application order**: the innermost decoder wraps the transport
 body (and leaves it open — the transport owns it), each outer decoder closes the one it wraps, so
 disposing the final stream cascades the whole chain. If **any** listed coding is unsupported the
 whole request is refused with `415` before a handler runs. `deflate` is interpreted as the RFC 9110
@@ -199,23 +202,23 @@ status. A decoder's own failure still becomes `400` here. A transport limit fail
 
 ### Ordering requirement
 
-Because the guard surfaces during the handler's body read, `UseRequestDecompression` must be
-registered **after** `UseErrorHandling`: the exception boundary must sit *outside* it so that,
-between this middleware and the handler, there is no catch-all to intercept the guard's exception
-before this middleware's own catch converts it to a clean `413` /`400`. Error handling is
-conventionally the outermost middleware, so this is the natural order.
+Because the guard surfaces during the handler's body read, `UseRequestDecompression` must be placed
+**after** `UseErrorHandling`: the exception boundary must sit *outside* it so that, between this
+middleware and the handler, there is no catch-all to intercept the guard's exception before this
+middleware's own catch converts it to a clean `413`/`400`. Error handling is conventionally the
+outermost middleware, so this is the natural order.
 
 ## Error model
 
-- **`413 Content Too Large`** — decompressed request body exceeded the guard (internal
+- `413 Content Too Large` — decompressed request body exceeded the guard (internal
   `RequestDecompressionLimitException`, never escapes the package).
-- **`415 Unsupported Media Type`** — an unsupported request content coding (decided before any handler
+- `415 Unsupported Media Type` — an unsupported request content coding (decided before any handler
   runs).
-- **`400 Bad Request`** — a malformed coded request body (internal `RequestDecompressionFormatException`
+- `400 Bad Request` — a malformed coded request body (internal `RequestDecompressionFormatException`
   wrapping the decoder's `InvalidDataException`, so an unrelated handler `InvalidDataException` is
   never mis-mapped). A malformed message framing under the decoders is not wrapped when the server
   reports it as a client fault: it propagates, and the transport answers it (#1340).
-- **On any of these,** — a response that has already started streaming is aborted at the protocol layer
+- On any of these, a response that has already started streaming is aborted at the protocol layer
   (`IHttpContext.CancelAsync`) instead, since its head is locked.
 
 ## AOT posture
@@ -227,8 +230,8 @@ Nothing in the package or its tests needs dynamic code. `IsAotCompatible=true` h
 ## Diagnostics
 
 The internal `CompressionEventSource` is enabled as `Assimalign.Cohesion.Web.Compression`. It
-reports request decompression failures; successful decompression and response compression raise
-no events.
+reports request decompression failures; successful decompression and response compression raise no
+events.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
@@ -240,22 +243,22 @@ no events.
 rejected token, normalized to a fixed-order set. Each token appears at most once, so even a long
 repeated chain produces a bounded payload. Raw `Content-Encoding` values and unsupported tokens
 never reach diagnostics. Malformed content writes only the underlying decoder exception's type,
-never its message or stack trace. A transport framing fault or application exception is not
-reported as malformed coded content. Request ids come from `IWebRequestIdFeature` inside the
-enabled branch; no ambient activity is consulted.
+never its message or stack trace. A transport framing fault or application exception is not reported
+as malformed coded content. Request ids come from `IWebRequestIdFeature` inside the enabled branch;
+no ambient activity is consulted.
 
 Warnings are throttled independently to one per second per event id, with `suppressedCount`
 reporting the omitted occurrences on the next emitted event. The `decompression-limit-rejections`
-PollingCounter remains exact while warnings are suppressed and while no listener is enabled.
-Its increment occurs in the middleware catch, once per rejected exchange, rather than in the
-stream's throw path: an application can catch a failed read and retry it. It distinguishes this
-package's decompressed-size `413` from a transport body-cap `413` without duplicating request
-metrics. Counters are created lazily when a listener enables the source.
+PollingCounter remains exact while warnings are suppressed and while no listener is enabled. Its
+increment occurs in the middleware catch, once per rejected exchange, rather than in the stream's
+throw path: an application can catch a failed read and retry it. It distinguishes this package's
+decompressed-size `413` from a transport body-cap `413` without duplicating request metrics.
+Counters are created lazily when a listener enables the source.
 
 Compared with `10.0.0-preview.1`, this is an additive diagnostics change: the provider now exposes
 rejection events and a counter. On program decision 15's terms, the new entries are a diagnostic
-behavior break for applications forwarding the Web provider prefix into configured sinks.
-It changes no public API, rejection status, or compression behavior.
+behavior break for applications forwarding the Web provider prefix into configured sinks. It changes
+no public API, rejection status, or compression behavior.
 
 ## Non-goals
 
@@ -267,46 +270,77 @@ It changes no public API, rejection status, or compression behavior.
   `IHttpResponseStreamingFeature` is handed off untouched; compressing it needs a transport
   interceptor that `Web.Hosting` wires at server-composition time (see "Composition with streamed
   responses").
-- **No raw-deflate (RFC 1951) request bodies.** `deflate` is the RFC 9110 zlib format; a bare-deflate
-  sender gets a `400`.
+- **No raw-deflate (RFC 1951) request bodies.** `deflate` is the RFC 9110 zlib format; a
+  bare-deflate sender gets a `400`.
 - **No HEAD length mirroring.** A bodyless HEAD is left alone; precisely mirroring the coded
   `Content-Length` a GET would produce is a separate transport concern.
-- **No per-endpoint metadata surface.** Compression is a pipeline-wide policy configured at builder
-  time; a handler opts its own response out through `IResponseCompressionFeature`, and finer-grained
-  per-route control belongs to whatever source-generated mapping layer arrives later.
+- **No per-endpoint metadata surface.** Compression is a pipeline-wide policy configured where it is
+  registered; a handler opts its own response out through `IResponseCompressionFeature`, and
+  finer-grained per-route control belongs to whatever source-generated mapping layer arrives later.
 - **No Microsoft.Extensions dependencies, no separate hosting wiring.** The package composes purely
   against the Web root's builder seams and ships to applications via `App.Web`.
 
 Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
-connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
-use `IMultiplexedConnectionStream`. These contract names do not alter this package's
-request/response behavior.
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures use
+`IMultiplexedConnectionStream`. These contract names do not alter this package's request/response
+behavior.
 
 ## Exception messages (#1467)
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
-## Declared dependencies
+## Registration: `Add` configures, `Use` places (2026-10-28)
 
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
+`builder.Services.AddResponseCompression(compression => ...)` and
+`builder.Services.AddRequestDecompression(decompression => ...)` are generated component
+integrations over `ResponseCompressionBuilder` and `RequestDecompressionBuilder`
+(`src/Properties/ComponentIntegrations.cs`, both builder templates). Each builder's `Options` is the
+existing options type. `Build()` creates the middleware, which validates what the setters cannot: at
+least one coding enabled, and every `MimeTypes` pattern (compiled once into the matcher), both
+`ArgumentException`. The middleware snapshots every value it reads per request (the HTTPS opt-in,
+the threshold, the level, the decompressed-size guard), so a retained options object changes nothing
+after registration. The middleware registers as an `IWebApplicationMiddleware` singleton.
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+`UseResponseCompression()` and `UseRequestDecompression()` take no arguments: each places the last
+registration of its middleware it finds in `IWebApplicationContext.Middleware`, or one built from
+the defaults when the application registered none (gzip and Brotli, the seeded media types, a 1 KiB
+threshold, `Fastest`, HTTPS off; a 100 MiB guard). Both have safe defaults, so neither fails without
+a registration.
+
+*Why:* configuration stays on the registration verb, so the feature's settings have one call site
+and stay in the registrations the host enumerates.
+
+## Composition-time option validation (#1477)
+
+`MinimumResponseSizeBytes` and `MaxDecompressedSizeBytes` retain their primitive types and refuse
+negative assignments with resource-backed `ArgumentOutOfRangeException` guards. Zero remains a valid
+response threshold or decompressed-body limit. Since 2026-10-28 the middleware snapshots its options
+when it is built, so a retained options object changes nothing after registration; setter validation
+still refuses an invalid value where it is assigned.
+
+`AddResponseCompression` compiles only media-type patterns with one slash and nonempty RFC 9110
+tokens on both sides, reusing `HttpFieldName.IsValid` for that token grammar. Concrete types and
+`type/*` remain supported, as does the already documented `*/*` full wildcard. A star within a token
+is matched literally; it does not introduce another wildcard syntax. Surrounding SP/HTAB are trimmed
+as before. Blank entries, the bare `*` alias, parameters, controls, and malformed patterns such as
+`application json` now throw a resource-backed `ArgumentException` during registration. Response
+field parsing and request-time matching are unchanged.
+
+**Breaking from 10.0.0-preview.1 (decision 15):** negative thresholds and limits now throw on
+assignment; invalid configured MIME patterns now throw instead of being silently skipped, never
+matching, or acting as the bare-star wildcard. All three gaps exist in the released tag. They
+require application-controlled configuration, which an unauthenticated remote client cannot set;
+requests can only encounter its compression or rejection consequences. These are low-severity
+configuration validation defects (CWE-20), with lost compression or incorrect request rejection, not
+an independently reachable security boundary bypass. No public type or member is added.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Compression/src/Assimalign.Cohesion.Web.Compression.csproj`.
-- **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebResponseStartingFeature.cs`.

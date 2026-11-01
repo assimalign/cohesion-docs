@@ -11,9 +11,8 @@ retains the test class and assertions so the setup, operation, and expected outc
 
 ## Behavior exercised
 
-- **Case 1** — Scoped token cannot authorize management or query.
-- **Case 2** — Segments: persisted restart, filters and cursor retain ordering.
-- **Case 3** — JSON reader refuses service impersonation and malformed values.
+- **Case 1** — Segments: persisted restart, filters and cursor retain ordering.
+- **Case 2** — JSON reader refuses service impersonation and malformed values.
 
 ## Source example
 
@@ -23,31 +22,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+
 using Shouldly;
 using Xunit;
-using Assimalign.Cohesion.Hosting.Resources;
+
+using Assimalign.Cohesion.LogSpace.Hosting.Internal;
 
 namespace Assimalign.Cohesion.LogSpace.Hosting.Tests;
 
 public sealed class OtlpReceiverTests
 {
-    [Fact(DisplayName = "Cohesion Test [LogSpace.Hosting] - Scoped token cannot authorize management or query")]
-    public void Verify_TelemetryScope_ShouldSeparateManagement()
-    {
-        using var identity = new TestBootstrapIdentity("app", "local");
-        var context = new ResourceContext(applicationName: "app", resourceName: "logs", environmentName: "Development", gatewayName: "local",
-            contentRootPath: null, endpoints: null, mounts: null, settings: null, references: null,
-            bootstrapCredential: ReadOnlyMemory<byte>.Empty, applicationTrustKey: identity.PublicKey, ambientValues: null);
-        using var verifier = new LogSpaceTokenVerifier(context);
-        string token = identity.Issue("logs", "web", telemetry: true);
-        verifier.Validate(token, "logs", DateTimeOffset.UtcNow, true, out string? emitter).ShouldBe(LogSpaceTokenStatus.Authorized);
-        emitter.ShouldBe("web");
-        verifier.Validate(token, "logs", DateTimeOffset.UtcNow, false, out _).ShouldBe(LogSpaceTokenStatus.Forbidden);
-        verifier.Validate(identity.Issue("other", "web", telemetry: true), "logs", DateTimeOffset.UtcNow, true, out _).ShouldBe(LogSpaceTokenStatus.Forbidden);
-        verifier.Validate(identity.Issue("logs"), "logs", DateTimeOffset.UtcNow, false, out _).ShouldBe(LogSpaceTokenStatus.Authorized);
-        verifier.Validate(identity.Issue("logs"), "logs", DateTimeOffset.UtcNow, true, out _).ShouldBe(LogSpaceTokenStatus.Forbidden);
-    }
-
     [Fact(DisplayName = "Cohesion Test [LogSpace.Hosting] - Segments: persisted restart, filters and cursor retain ordering")]
     public void Store_Restart_ShouldAppendAndPage()
     {

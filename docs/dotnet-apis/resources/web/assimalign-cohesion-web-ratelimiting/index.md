@@ -17,54 +17,125 @@ plus partitioning and queueing, are available through the policy model.
 
 ## Scope
 
-- **A global limiter** (`RateLimitingOptions.GlobalPolicy`) applied to every request, acquired up-front
-  with the limiter's full queueing semantics. This is the primary flood shield.
-- **Named policies** (`options.AddPolicy(name, policy)`) attached to individual endpoints through the
-  sealed `RateLimitingMetadata` carrier in the routing metadata bag. A per-endpoint policy is evaluated
-  *in addition to* the global limiter, read from the endpoint `UseRouting` publishes and acquired
-  asynchronously, so queueing limiters work per endpoint too.
-- **Partitioned limiting** with AOT-safe partition-key selectors: `RateLimitPartitionKeys.ClientAddress`
-  (composing the forwarded-headers trust model), `RateLimitPartitionKeys.Header`, and any typed selector
-  delegate.
-- **Rejection handling**: `429 Too Many Requests` (configurable status) with a `Retry-After` header from
-  the lease metadata, an `OnRejected` hook that may own the response, and an `OnDecision` observation hook.
+- **Registration and placement**: `builder.Services.AddRateLimiting(rateLimiting => ...)` configures
+  everything below on `RateLimitingBuilder.Options` and registers the middleware;
+  `UseRateLimiting()` places it in the pipeline.
+- **A global limiter** (`RateLimitingOptions.GlobalPolicy`) applied to every request, acquired
+  up-front with the limiter's full queueing semantics. This is the primary flood shield.
+- **Named policies** (`rateLimiting.Options.AddPolicy(name, policy)`) attached to individual
+  endpoints through the sealed `RateLimitingMetadata` carrier in the routing metadata bag. A
+  per-endpoint policy is evaluated *in addition to* the global limiter, read from the endpoint
+  `UseRouting` publishes and acquired asynchronously, so queueing limiters work per endpoint too.
+- **Partitioned limiting** with AOT-safe partition-key selectors:
+  `RateLimitPartitionKeys.ClientAddress` (composing the forwarded-headers trust model),
+  `RateLimitPartitionKeys.Header`, and any typed selector delegate.
+- **Rejection handling**: `429 Too Many Requests` (configurable status) with a `Retry-After` header
+  from the lease metadata, an `OnRejected` hook that may own the response, and an `OnDecision`
+  observation hook.
 - **A typed feature** (`IRateLimitingFeature`) exposing the decision (policy name, whether acquired,
   retry-after) to downstream stages.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the pipeline builder and middleware abstractions the verb and middleware build on.
-- **`Assimalign.Cohesion.Web.Routing`** — the published route match and endpoint-metadata bag the per-endpoint gate reads, and the acknowledgement routing checks before it dispatches.
-- **`Assimalign.Cohesion.Web.Server`** — the request-id feature contract used to correlate rejection diagnostics.
-- **`Assimalign.Cohesion.Http`** — the HTTP context, status codes, and header keys.
-- **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveRemoteIp` read the client-address partition key composes with.
-- **`Assimalign.Cohesion.Http.Streaming`** — the response-streaming feature the rejection writer checks before answering.
-- **`System.Threading.RateLimiting` (BCL, AOT-safe)** — the limiter engine.
+- `Assimalign.Cohesion.Web` — the pipeline builder and middleware abstractions the verb and
+  middleware build on.
+- `Assimalign.Cohesion.Web.Routing` — the published route match and endpoint-metadata bag the
+  per-endpoint gate reads, and the acknowledgement routing checks before it dispatches.
+- `Assimalign.Cohesion.Web.Server` — the request-id feature contract used to correlate rejection
+  diagnostics.
+- `Assimalign.Cohesion.Http` — the HTTP context, status codes, and header keys.
+- `Assimalign.Cohesion.Http.Forwarded` — the `EffectiveRemoteIp` read the client-address partition
+  key composes with.
+- `Assimalign.Cohesion.Http.Streaming` — the response-streaming feature the rejection writer checks
+  before answering.
+- `System.Threading.RateLimiting` (AOT-safe) — the limiter engine. It is an out-of-band package, not
+  part of `Microsoft.NETCore.App`; the `App.Web` framework ships it as a public member, so an
+  `Sdk.Web` application compiles against its limiter types without a package reference.
 
 It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isolation rule,
 `COHRES001`).
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using System.Threading.RateLimiting;
 
-Register `UseRateLimiting` after `UseForwardedHeaders` (so client-address keys see the effective
-client identity) and after `UseRouting` (so the request's endpoint and its `RateLimitingMetadata`
-are known when it runs). Registered ahead of `UseRouting`, the global limiter still applies, but an
-endpoint that names a policy fails with `InvalidOperationException` when it is dispatched instead of
-running without its limit.
+using Assimalign.Cohesion.Web.Hosting;
+using Assimalign.Cohesion.Web.RateLimiting;
+using Assimalign.Cohesion.Web.Routing;
+using Assimalign.Cohesion.Web.Routing.Metadata;
 
-See `docs/DESIGN.md` for the policy model, the partition-key trust posture, the per-endpoint metadata
-mechanics, the queueing and disposal posture, diagnostics, and the non-goals.
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// A global limiter partitioned by the effective client address, plus a tighter named
+// policy for an expensive endpoint, configured where rate limiting is registered.
+builder.Services.AddRateLimiting(rateLimiting =>
+{
+    rateLimiting.Options.GlobalPolicy = RateLimitingPolicy.Create(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPartitionKeys.ClientAddress(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    rateLimiting.Options.AddPolicy("expensive", RateLimitingPolicy.Create(context =>
+        RateLimitPartition.GetConcurrencyLimiter(
+            RateLimitPartitionKeys.ClientAddress(context),
+            _ => new ConcurrencyLimiterOptions { PermitLimit = 5, QueueLimit = 10 })));
+
+    rateLimiting.Options.OnRejected = async (rejection, cancellationToken) =>
+    {
+        // Optional: own the response. The default is a bodyless 429 + Retry-After.
+    };
+});
+
+WebApplication app = builder.Build();
+
+IRouterBuilder routes = app.UseRouting();
+
+// Placed after UseRouting, so the endpoint is known.
+app.UseRateLimiting();
+
+// Attach the named policy where the endpoint is mapped, or to every route of a group.
+app.MapGet("/report", BuildReportAsync).RequireRateLimiting("expensive");
+
+IRouterGroupBuilder admin = app.MapGroup("/admin").RequireRateLimiting("expensive");
+admin.MapGet("ping", PingAsync).DisableRateLimiting();   // exempt one route of the group
+
+// The verbs append RateLimitingMetadata; attaching it through the route's metadata is equivalent.
+routes.Map(new Route(
+    HttpMethod.Get,
+    "/export",
+    new RouterRouteHandler(ExportAsync),
+    new RouterRouteMetadataCollection(new RateLimitingMetadata("expensive"))));
+```
+
+Configuration lives on the `Add` verb only ("Add configures, Use places"). `UseRateLimiting()` takes
+no arguments: it places the middleware `AddRateLimiting` registered (the last registration when
+there are several), or one with the defaults when the application registered none. The defaults set
+no global limit and no named policy, so only endpoints that carry an inline policy are limited, and
+a request for an endpoint that names a policy fails with `InvalidOperationException`.
+
+Place `UseRateLimiting` after `UseForwardedHeaders` (so client-address keys see the effective client
+identity) and after `UseRouting` (so the request's endpoint and its `RateLimitingMetadata` are known
+when it runs). Placed ahead of `UseRouting`, the global limiter still applies, but an endpoint that
+names a policy fails with `InvalidOperationException` when it is dispatched instead of running
+without its limit.
+
+See `docs/DESIGN.md` for the policy model, the partition-key trust posture, the per-endpoint
+metadata mechanics, the queueing and disposal posture, diagnostics, and the non-goals.
 
 ## Diagnostics
 
 Enable `Assimalign.Cohesion.Web.RateLimiting` with `dotnet-trace` for Verbose rejection details and
-throttled Warning events when a committed response has to be aborted. `dotnet-counters` publishes the
-exact `rejected-requests` total, maintained even before a listener attaches. Events identify the gate,
-configured policy, and request id; partition keys and request input are never written. The existing
-`OnDecision` hook remains available for application observations; OpenTelemetry instruments are deferred
-to #317.
+throttled Warning events when a committed response has to be aborted. `dotnet-counters` publishes
+the exact `rejected-requests` total, maintained even before a listener attaches. Events identify the
+gate, configured policy, and request id; partition keys and request input are never written. The
+existing `OnDecision` hook remains available for application observations; OpenTelemetry instruments
+are deferred to #317.
 
 ## Project references
 
@@ -76,6 +147,7 @@ to #317.
 | `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
+| `System.Threading.RateLimiting` | `CohesionPackageReference` |
 
 [Parent: Web](../index.md)
 

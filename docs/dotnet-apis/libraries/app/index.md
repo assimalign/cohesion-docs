@@ -22,21 +22,21 @@ is produced inside its own area under `resources/<Area>/`, and its members are l
 
 ## Kernel roots
 
-App derives its public reference and runtime inventory from these seventeen
+App derives its public reference and runtime inventory from these fifteen
 `CohesionAppKernelRoot` entries and their transitive Cohesion project references, then adds the
 `Assimalign.Cohesion.App` umbrella assembly. The three connection capability packages and
 `Logging.EventSource` are kernel roots, so resource frameworks obtain them through App.
+`Assimalign.Cohesion.ApplicationModel.Hosting` is a root because every area's
+`<Area>.Hosting.ApplicationModel` integration builds on it; area frameworks do not duplicate it.
 
 | Kernel root |
 |---|
 | `Assimalign.Cohesion.Hosting` |
-| `Assimalign.Cohesion.Hosting.Health` |
-| `Assimalign.Cohesion.Hosting.Resources` |
+| `Assimalign.Cohesion.ApplicationModel.Hosting` |
 | `Assimalign.Cohesion.Connections` |
 | `Assimalign.Cohesion.Connections.StreamAbort` |
 | `Assimalign.Cohesion.Connections.StreamLimits` |
 | `Assimalign.Cohesion.Connections.Tls` |
-| `Assimalign.Cohesion.Hosting.Telemetry` |
 | `Assimalign.Cohesion.Configuration.CommandLine` |
 | `Assimalign.Cohesion.Configuration.EnvironmentVariables` |
 | `Assimalign.Cohesion.Configuration.FileSystem` |

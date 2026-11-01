@@ -1,17 +1,17 @@
 # Assimalign.Cohesion.Sdk.SecretStore
 
-This SDK adds SecretStore framework references and resource defaults to a Cohesion executable.
+This SDK adds the SecretStore shared framework and the App hosting kernel to a Cohesion executable.
 
 > **Status:** Implemented. This describes the SDK build layer; resource runtime capabilities are documented separately.
 
-Choose `Assimalign.Cohesion.Sdk.SecretStore` for a SecretStore application. It imports
-`Assimalign.Cohesion.Sdk` and adds `Assimalign.Cohesion.App.SecretStore` alongside
-`Assimalign.Cohesion.App`.
+Choose `Assimalign.Cohesion.Sdk.SecretStore` for a SecretStore application. It imports `Assimalign.Cohesion.Sdk` and adds
+`Assimalign.Cohesion.App.SecretStore` alongside `Assimalign.Cohesion.App`. The application's composition,
+including whether it is a managed resource, lives in its `Program.cs`; the SDK generates nothing.
 
 ## Minimal project
 
 Save the project declaration in a `.csproj` file and the pins in `global.json`. Supply a
-`Program.cs` entry point; this declaration alone does not start a domain service.
+`Program.cs` entry point.
 
 ```xml
 <Project Sdk="Assimalign.Cohesion.Sdk.SecretStore">
@@ -31,9 +31,11 @@ Save the project declaration in a `.csproj` file and the pins in `global.json`. 
 }
 ```
 
-`CohesionApplicationModel` remains `disabled` until the consumer enables it. The area’s
-`Assimalign.Cohesion.Sdk.SecretStore.Tasks` packaging project exists, but contains no task
-implementation classes; shared tasks run from the base SDK.
+`App.SecretStore` carries `Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`, so the application calls
+`builder.Services.AddResource(name, resource => ...)` with no package reference. It references
+only the platform packages it opts into, such as
+`Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`. The area's
+`Assimalign.Cohesion.Sdk.SecretStore.Tasks` packaging project contains no task implementation classes.
 
 ## Reference
 
@@ -46,11 +48,9 @@ implementation classes; shared tasks run from the base SDK.
 
 ## Sources
 
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Sdk/Sdk.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Sdk/Sdk.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Targets/Sdk.SecretStore.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Targets/Sdk.SecretStore.targets`
-- **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Tasks/src/Assimalign.Cohesion.Sdk.SecretStore.Tasks.csproj`
-- **Source** — `cohesion/global.json`
-- **Source** — `cohesion/sdks/README.md`
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Sdk/Sdk.props`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Sdk/Sdk.targets`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Targets/Sdk.SecretStore.props`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Targets/Sdk.SecretStore.targets`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.SecretStore/Tasks/src/Assimalign.Cohesion.Sdk.SecretStore.Tasks.csproj`.
+- **Source** — `cohesion/sdks/README.md`.

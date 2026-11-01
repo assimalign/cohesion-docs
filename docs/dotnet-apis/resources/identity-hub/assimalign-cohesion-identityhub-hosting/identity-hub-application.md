@@ -2,42 +2,30 @@
 
 The `IdentityHubApplication` type belongs to `Assimalign.Cohesion.IdentityHub.Hosting`.
 
-> **Status:** Implemented.
+> **Status:** Partial.
 
-Namespace: `Assimalign.Cohesion.IdentityHub.Hosting`
+Namespace: `Assimalign.Cohesion.IdentityHub.Hosting` Assembly: `Assimalign.Cohesion.IdentityHub.Hosting`
 
-Assembly: `Assimalign.Cohesion.IdentityHub.Hosting`
+## Purpose
 
-`IdentityHubApplication.CreateBuilder(args)` creates the code-first IdentityHub builder for the
-executable resource assembly. `Build` validates registrations, captures ambient resource inputs,
-resolves the `https` endpoint and `data` mount, materializes additional services in registration
-order, and appends the built-in issuer service.
+`IdentityHubApplication` is the public concrete application and creation entry point for the IdentityHub hosting
+module. The application, builder, and context are public; runtime options remain internal.
 
-The issuer is registered with ResourceRuntime when a generated default control plane exists.
-`--endpoint` and `--data` provide standalone overrides when no corresponding ambient input is
-present. A materialized `tls` mount supplies production PEM certificate material; the built-in
-self-signed fallback and device-approval page are restricted to loopback Local.
+## Factory behavior
 
-## Concrete composition (T10 / O34)
+- **`CreateBuilder(string[] args)`** — validates the argument array and returns an `IdentityHubApplicationBuilder`.
+- **Building the returned builder** — closes registration and materializes the registered host
+  services in registration order, including the resource service `AddResource` registers for a
+  managed instance.
 
-`IdentityHubApplication.CreateBuilder(args)` returns the public concrete
-`IdentityHubApplicationBuilder`; its `Build()` returns the public
-`IdentityHubApplication : Host<IdentityHubApplicationContext>`. The public
-`IdentityHubApplicationContext` implements `IIdentityHubApplicationContext`, reading
-`ContentRootPath` from the host environment. The application explicitly forwards the root lifecycle
-contract to `IHost`, and consumers use the concrete application for `RunAsync` and `await using`.
-Runtime options and supporting services remain internal.
+## Usage
 
-Background-work registration belongs to the concrete `IdentityHubApplicationBuilder`:
-`AddService(IHostService)` and `AddService(Func<IdentityHubApplicationContext, IHostService>)`. The
-factory receives the same concrete context as Web's and `Database`'s `AddService`, so hosting consumers
-can use environment, state, and hosted-service members beyond the small root contract. Factories run
-once per build against the same context retained by the application; the hosted-service snapshot is
-installed after factory evaluation. Services start in registration order and stop in reverse. No
-area-owned service abstraction is introduced.
+See the [source-backed usage examples](examples/index.md) and the [assembly overview](index.md) for
+the area's runtime behavior. `RunAsync` delegates to the shared host runner.
 
 [Assembly overview](index.md) · [Examples](examples/index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Hosting/docs/Assembly/Assimalign.Cohesion.IdentityHub.Hosting/IdentityHubApplication/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Hosting/src/IdentityHubApplication.cs`.
+- **Source** — `cohesion/resources/IdentityHub/Assimalign.Cohesion.IdentityHub.Hosting/docs/OVERVIEW.md`.

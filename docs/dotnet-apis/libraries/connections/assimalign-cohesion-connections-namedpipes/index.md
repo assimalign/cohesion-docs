@@ -17,9 +17,8 @@ Carries ordered byte streams over named pipes for local inter-process communicat
 The named-pipe driver for the Cohesion Connections contracts: the Windows-native local
 inter-process transport, and the cross-platform peer of the Unix domain socket path in the
 stream (`Tcp`) driver. It produces reliable, ordered, single-stream connections over
-`NamedPipeServerStream` / `NamedPipeClientStream` for same-host IPC — the ApplicationModel
-LocalGateway addressing co-located service processes by pipe name instead of a loopback
-port. Because transports are selected by capability, a named-pipe listener composes into the
+`NamedPipeServerStream` / `NamedPipeClientStream` for same-host IPC — co-located service
+processes addressed by pipe name instead of a loopback port. Because transports are selected by capability, a named-pipe listener composes into the
 same `UseHttp1/2(IDuplexConnectionListener)` seams a socket listener does, with no HTTP-layer
 change. This mirrors Kestrel's `ListenNamedPipe` surface.
 

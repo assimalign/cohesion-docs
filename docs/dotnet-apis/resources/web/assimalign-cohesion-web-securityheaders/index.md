@@ -9,18 +9,21 @@ Browser security headers for the Cohesion Web pipeline.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-Browser security headers for the Cohesion Web pipeline. One verb, `UseSecurityHeaders`, puts safe
-defaults on every response that passes through it and lets an application opt into a Content
-Security Policy (with per-request nonces), a Permissions Policy, and the cross-origin isolation
-fields. Endpoints can adjust, replace or disable the policy through routing metadata.
+Browser security headers for the Cohesion Web pipeline. `builder.Services.AddSecurityHeaders(...)`
+configures the policy and `UseSecurityHeaders()` places the middleware, which puts safe defaults on
+every response that passes through it and lets an application opt into a Content Security Policy
+(with per-request nonces), a Permissions Policy, and the cross-origin isolation fields. Endpoints
+can adjust, replace or disable the policy through routing metadata.
 
 ## What it provides
 
-- **`UseSecurityHeaders(Action<SecurityHeadersPolicy>?)`** — a pipeline verb on
-  `IWebApplicationPipelineBuilder`. With no configuration it emits:
+- `AddSecurityHeaders(headers => ...)` and `UseSecurityHeaders()`: the registration verb on
+  `builder.Services`, a generated component integration over `SecurityHeadersBuilder`, configures
+  the policy (`SecurityHeadersBuilder.Options`, a `SecurityHeadersPolicy`), and the pipeline verb on
+  `IWebApplicationPipelineBuilder` places the middleware. With no configuration it emits:
   - `X-Content-Type-Options: nosniff`;
-  - clickjacking protection: `Content-Security-Policy: frame-ancestors 'none'` and
-    `X-Frame-Options: DENY`;
+  - clickjacking protection: `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options:
+    DENY`;
   - `Referrer-Policy: strict-origin-when-cross-origin`.
 - Opt-in fields on `SecurityHeadersPolicy`: `ContentSecurityPolicy` and
   `ContentSecurityPolicyReportOnly` (built with `ContentSecurityPolicy.Create`), `PermissionsPolicy`
@@ -44,34 +47,75 @@ A field the application set itself is never overwritten, unless
 `X-Frame-Options`, or a `Content-Security-Policy` with a `frame-ancestors` directive, owns framing,
 and the middleware then emits neither framing field.
 
+Configuration lives on the `Add` verb only ("Add configures, Use places"). `UseSecurityHeaders()`
+takes no arguments: it places the middleware `AddSecurityHeaders` registered (the last registration
+when there are several), or one with the safe defaults when the application registered none. An
+undefined enumeration value throws where the headers are registered, never per request.
+
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRouting();
+builder.Services.AddSecurityHeaders(headers =>
+{
+    headers.Options.ContentSecurityPolicy = ContentSecurityPolicy.Create(csp => csp
+        .DefaultSrc(sources => sources.Self())
+        .ScriptSrc(sources => sources.Nonce().StrictDynamic())
+        .ObjectSrc(sources => sources.None())
+        .BaseUri(sources => sources.None()));
+    headers.Options.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
+    headers.Options.PermissionsPolicy = PermissionsPolicy.Create(permissions => permissions
+        .Disable("camera")
+        .Disable("microphone")
+        .AllowSelf("geolocation"));
+});
+WebApplication app = builder.Build();
 
-Register `UseSecurityHeaders` at the front of the pipeline, where only `UseHttpLogging` goes ahead
-of it, and ahead of the exception boundary: every response then passes through it. The server stages
-fields at head commit, including on an error page produced by a boundary on either side of this
-middleware.
+// At the front of the pipeline (only UseHttpLogging goes ahead of it) and ahead of the exception
+// boundary: every response passes through it. The server stages fields at head commit, including
+// on an error page produced by a boundary on either side of this middleware.
+app.UseSecurityHeaders();
+
+app.UseErrorHandling();
+IRouterBuilder routes = app.UseRouting();
+
+// MapGet is the Web.Api endpoint verb; any mapped route or route group takes the override verbs.
+routes.MapGet("/", async context =>
+{
+    string nonce = context.Features.Get<ISecurityHeadersFeature>()!.Nonce;
+    // ... write <script nonce="{nonce}">...</script> into the page ...
+});
+
+// Partners may frame this one page; everything else stays unframeable.
+routes.MapGet("/embed", EmbedAsync)
+    .WithSecurityHeaders(policy => policy.Framing = FramingPolicy.AllowFrom("https://partner.example.com"));
+```
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the pipeline abstractions the verb extends.
-- **`Assimalign.Cohesion.Web.Routing`** — endpoint metadata and the convention-builder seam the override
+- `Assimalign.Cohesion.Web`: the pipeline abstractions `UseSecurityHeaders` extends and the
+  `IWebApplicationMiddleware` contract `AddSecurityHeaders` registers.
+- `Assimalign.Cohesion.Web.Routing`: endpoint metadata and the convention-builder seam the override
   verbs extend.
-- **`Assimalign.Cohesion.Http`** — the header keys, the feature collection, and the Structured Field
+- `Assimalign.Cohesion.Http`: the header keys, the feature collection, and the Structured Field
   toolkit `Permissions-Policy` is serialized with.
-- **`Assimalign.Cohesion.Web.Server`** — the response-starting contract covering buffered and streamed heads.
+- `Assimalign.Cohesion.Web.Server`: the response-starting contract covering buffered and streamed
+  heads.
 
-The default Web.Hosting server and Web.Testing publish the required starting feature. A custom server
-must implement `IWebResponseStartingFeature`; otherwise the middleware throws at request time.
-The callback registers the security-policy fields for preservation on a refused head's buffered
-replacement, including application-owned values kept by no-clobber, without running again.
+The default Web.Hosting server and Web.Testing publish the required starting feature. A custom
+server must implement `IWebResponseStartingFeature`; otherwise the middleware throws at request
+time. The callback registers the security-policy fields for preservation on a refused head's
+buffered replacement, including application-owned values kept by no-clobber, without running again.
 
-No DI, configuration, or logging dependency: the policy is captured and compiled when the verb is
-called, and the middleware resolves nothing per request. Delivered to applications through the
-`App.Web` shared framework (via `Sdk.Web`), with no project wiring required. `docs/DESIGN.md` records
-when the fields are written, the no-clobber and framing rules, the override model, the nonce, and the
-non-goals. HSTS is not part of this package; it is `UseHsts` in `Assimalign.Cohesion.Web.HttpsPolicy`.
+No DI, configuration, or logging dependency: `AddSecurityHeaders` is generated into the application
+from the package's component-integration declaration, the policy is captured and compiled when it is
+registered (with the provider overload, when the pipeline is composed), and the middleware resolves
+nothing per request. Delivered to applications through the `App.Web` shared framework (via
+`Sdk.Web`), with no project wiring required. `docs/DESIGN.md` records when the fields are written,
+the no-clobber and framing rules, the override model, the nonce, the registration, and the
+non-goals. HSTS is not part of this package; it is `AddHsts`/`UseHsts` in
+`Assimalign.Cohesion.Web.HttpsPolicy`.
 
 ## Project references
 

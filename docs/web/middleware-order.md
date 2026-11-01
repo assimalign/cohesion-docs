@@ -66,14 +66,16 @@ flowchart TD
 
 ## The order in code
 
-The whole order, with the configuration the verbs that require it take. `UseRouting`,
-`UseAuthorization` and `UseAntiforgery` also need their registrations on `builder.Services`
-(`AddRouting`, `AddAuthorization`, `AddAntiforgery`); the last two fail application start without
-one.
+The whole order. Every `Use<Feature>()` verb is parameterless and places what the matching
+`builder.Services.Add<Feature>(...)` registered ("Add configures, Use places"). The verbs whose
+feature has no safe default fail application start without their registration, naming the `Add`
+verb: `UseHttpLogging`, `UseForwardedHeaders`, `UseHostFiltering`, `UseRewrite`,
+`UseAuthorization`, and `UseAntiforgery` among them.
 
 ```csharp
 using System.Net;
 
+using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Logging;
 using Assimalign.Cohesion.Web;
 using Assimalign.Cohesion.Web.Antiforgery;
@@ -98,20 +100,26 @@ using Assimalign.Cohesion.Web.Sessions;
 using Assimalign.Cohesion.Web.StaticFiles;
 using Assimalign.Cohesion.Web.WebSockets;
 
-// app is the built WebApplication; loggerFactory is the application's composed ILoggerFactory.
-app.UseHttpLogging(loggerFactory);
-app.UseSecurityHeaders();
-app.UseForwardedHeaders(options =>
+// builder is the WebApplicationBuilder; the configuration lives on the registration verbs.
+builder.Services.AddHttpLogging((services, logging) => logging.UseLoggerFactory(services.GetRequiredService<ILoggerFactory>()));
+builder.Services.AddForwardedHeaders(forwarded =>
 {
-    options.Headers = ForwardedHeaderNames.XForwarded;
-    options.KnownNetworks.Add(IPNetwork.Parse("10.0.0.0/8"));
+    forwarded.Options.Headers = ForwardedHeaderNames.XForwarded;
+    forwarded.Options.KnownNetworks.Add(IPNetwork.Parse("10.0.0.0/8"));
 });
-app.UseHostFiltering(options => options.AllowedHosts.Add("example.com"));
+builder.Services.AddHostFiltering(hosts => hosts.Options.AllowedHosts.Add("example.com"));
+builder.Services.AddRewrite(rewrite => rewrite.Options.AddRewrite("^/legacy/(.*)$", "/$1"));
+
+WebApplication app = builder.Build();
+app.UseHttpLogging();
+app.UseSecurityHeaders();
+app.UseForwardedHeaders();
+app.UseHostFiltering();
 app.UseHttpsRedirection();
 app.UseHsts();
 app.UseErrorHandling();
 app.UseStatusCodePages();
-app.UseRewrite(rules => rules.AddRewrite("^/legacy/(.*)$", "/$1"));
+app.UseRewrite();
 app.UseCookiePolicy();
 app.UseRequestDecompression();
 app.UseStaticFiles();
@@ -155,9 +163,8 @@ and the [CORS end-to-end tests](../dotnet-apis/resources/web/assimalign-cohesion
 
 ## Outside this order
 
-- **The runtime's control plane** — For a resource with orchestration enabled, `Web.Hosting` runs
-  the resource control-plane middleware ahead of the application's pipeline and passes every other
-  request into it. It is not part of this order.
+- **A managed resource's control plane** — The gateway reaches it through the resource's platform,
+  never through the application's listeners, so it is not part of this order.
 - **Branches** — `Map`, `MapWhen` and `UseWhen` run after whatever is registered ahead of them. A
   branch registered ahead of `UseRouting` sees no endpoint, and its own pipeline registers any of
   these middleware it needs.

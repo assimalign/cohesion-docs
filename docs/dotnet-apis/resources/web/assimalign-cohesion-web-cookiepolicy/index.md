@@ -9,7 +9,8 @@ Cookie-policy enforcement for the Cohesion Web pipeline.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-Cookie-policy enforcement for the Cohesion Web pipeline. `UseCookiePolicy` makes every cookie the
+Cookie-policy enforcement for the Cohesion Web pipeline. The policy that
+`builder.Services.AddCookiePolicy` registers and `UseCookiePolicy` places makes every cookie the
 application appends through `context.Response.Cookies` pass the site's policy before it reaches a
 `Set-Cookie` field. The policy covers consent for non-essential cookies, the `Secure`, `HttpOnly`,
 and minimum `SameSite` floors, the RFC 6265bis requirements a browser enforces by ignoring a cookie,
@@ -18,8 +19,11 @@ and the 400-day lifetime cap. The cookie model it enforces against lives in
 
 ## What it provides
 
-- **`UseCookiePolicy(Action<CookiePolicyOptions>?)`** — a pipeline verb on
-  `IWebApplicationPipelineBuilder`. It validates and captures the options at registration and
+- **`builder.Services.AddCookiePolicy(policy => ...)`** — the registration verb, a generated
+  component integration over `CookiePolicyBuilder`. It validates and captures `policy.Options` at
+  registration.
+- **`UseCookiePolicy()`** — the pipeline verb on `IWebApplicationPipelineBuilder`. It places the
+  registered policy (the last registration, or the default policy when there is none), which
   replaces each exchange's response cookie feature, so `Web.Sessions`, `Web.Authentication.Cookie`,
   `Http.Antiforgery`, and application code are all covered without changes of their own.
 - **`CookiePolicyOptions`**:
@@ -29,7 +33,8 @@ and the 400-day lifetime cap. The cookie model it enforces against lives in
   - `MinimumSameSitePolicy`.
   - `SameSiteNoneWithoutSecure` and `PrefixViolation`: `Upgrade` or `Reject`.
   - `MaxLifetime` and `TimeProvider`: the lifetime cap and the clock it is applied against.
-  - `CheckConsentNeeded`, plus the consent cookie's name, value, and attributes.
+  - `CheckConsentNeeded`, plus `ConsentCookieName` (`HttpCookieName`), `ConsentCookieValue`
+    (`HttpCookieValue`), and the consent cookie's attributes. The default constants remain strings.
   - `OnRejected`: a hook that observes every dropped cookie.
 - **`ICookieConsentFeature`** — per-exchange consent state (`IsConsentNeeded`, `HasConsent`,
   `CanTrack`) and the `GrantConsent` / `WithdrawConsent` verbs. Resolve it with
@@ -44,26 +49,69 @@ removed.
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+Configuration lives on the `Add` verb only ("Add configures, Use places"):
+
+```csharp
+using Assimalign.Cohesion.Web.CookiePolicy;
+using Assimalign.Cohesion.Web.ForwardedHeaders;
+
+builder.Services.AddForwardedHeaders(forwarded => forwarded.Options.Headers = ForwardedHeaderNames.XForwarded);
+builder.Services.AddCookiePolicy(policy =>
+{
+    policy.Options.MinimumSameSitePolicy = HttpCookieSameSiteMode.Lax;
+    policy.Options.CheckConsentNeeded = context => IsInConsentRegion(context);
+    policy.Options.OnRejected = rejection => log.CookieDropped(rejection.Cookie.Name, rejection.Reason);
+});
+
+WebApplication app = builder.Build();
+app.UseForwardedHeaders();
+
+// Early: before anything that writes cookies.
+app.UseCookiePolicy();
+
+app.UseSessions();
+app.UseAuthentication();
+
+// A consent endpoint.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.Value == "/consent")
+    {
+        context.Features.Get<ICookieConsentFeature>()?.GrantConsent();
+        context.Response.StatusCode = HttpStatusCode.NoContent;
+        return;
+    }
+
+    await next(context);
+});
+
+// Application cookies are judged as they are appended. Mark the ones the site cannot work without.
+context.Response.Cookies.Add(new HttpCookie("cart", id, new HttpCookieOptions { IsEssential = true }));
+context.Response.Cookies.Add(new HttpCookie("analytics", visitor)); // dropped until consent is given
+```
 
 The Cookie authentication ticket is essential by default, so a consent requirement never prevents
 sign-in.
 
-`UseCookiePolicy` and its types are in the `Assimalign.Cohesion.Web.CookiePolicy` namespace. The
-pass-through verb this package shipped before enforcement landed was in `Assimalign.Cohesion.Web`,
-so an application that registered it imports the new namespace.
+The consent name and value accept string assignments through their value types' implicit
+conversions. An out-of-grammar string throws `ArgumentException` at assignment. `AddCookiePolicy`
+refuses a `default` name or value, and an empty consent value, with `ParamName = "Options"`; an
+empty string is valid cookie-value grammar but cannot record consent. The policy captures the typed
+values once at registration. These property types change the current PR's API; recompile consumers,
+retaining string literals for valid assignments or supplying the cookie value types. The consent
+properties did not exist in 10.0.0-preview.1, whose options type was a stub.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the pipeline abstractions the verb extends.
-- **`Assimalign.Cohesion.Http.Cookies`** — the cookie model: `HttpCookie`, the response cookie
-  feature the policy replaces, and `HttpCookie.ClampLifetime`.
-- **`Assimalign.Cohesion.Http.Forwarded`** — the `EffectiveScheme` read behind `SameAsRequest`,
-  which falls back to the transport's scheme when no forwarded-headers middleware ran.
-- **`Assimalign.Cohesion.Http`** — the HTTP context and feature collection.
+- `Assimalign.Cohesion.Web` — the pipeline abstractions the verb extends.
+- `Assimalign.Cohesion.Http.Cookies` — the cookie model: `HttpCookie`, the response cookie feature
+  the policy replaces, and `HttpCookie.ClampLifetime`.
+- `Assimalign.Cohesion.Http.Forwarded` — the `EffectiveScheme` read behind `SameAsRequest`, which
+  falls back to the transport's scheme when no forwarded-headers middleware ran.
+- `Assimalign.Cohesion.Http` — the HTTP context and feature collection.
 
 No DI, configuration, logging, or hosting dependency. The package is delivered to applications
-through the `App.Web` shared framework (via `Sdk.Web`). See [`DESIGN.md`](design.md) for the
+through the `App.Web` shared framework (via `Sdk.Web`). See [DESIGN.md](design.md) for the
 interception mechanism, rule order, defaults, consent model, pipeline placement, and non-goals.
 
 ## Project references
@@ -81,4 +129,3 @@ interception mechanism, rule order, defaults, consent model, pipeline placement,
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/src/Assimalign.Cohesion.Web.CookiePolicy.csproj`.
-- **Namespace change** — `cohesion/resources/Web/Assimalign.Cohesion.Web.CookiePolicy/src/Extensions/CookiePolicyExtensions.cs` and `cohesion/docs/programs/HTTP_WEB_PROGRAM_PLAN.md`.

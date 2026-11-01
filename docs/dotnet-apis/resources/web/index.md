@@ -16,7 +16,6 @@ framework.
 | [`Assimalign.Cohesion.Web`](assimalign-cohesion-web/index.md) | `Root` | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Antiforgery`](assimalign-cohesion-web-antiforgery/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Api`](assimalign-cohesion-web-api/index.md) | Feature library | Public reference and runtime |
-| [`Assimalign.Cohesion.Web.ApplicationModel`](assimalign-cohesion-web-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.Authentication`](assimalign-cohesion-web-authentication/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Authentication.Bearer`](assimalign-cohesion-web-authentication-bearer/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Authentication.Certificate`](assimalign-cohesion-web-authentication-certificate/index.md) | Feature library | Public reference and runtime |
@@ -33,6 +32,7 @@ framework.
 | [`Assimalign.Cohesion.Web.Health`](assimalign-cohesion-web-health/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.HostFiltering`](assimalign-cohesion-web-hostfiltering/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.Hosting`](assimalign-cohesion-web-hosting/index.md) | Hosting | Public reference and runtime |
+| [`Assimalign.Cohesion.Web.Hosting.ApplicationModel`](assimalign-cohesion-web-hosting-applicationmodel/index.md) | Resource integration | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.HttpsPolicy`](assimalign-cohesion-web-httpspolicy/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Web.OpenApi`](assimalign-cohesion-web-openapi/index.md) | Feature library | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Web.ProblemDetails`](assimalign-cohesion-web-problemdetails/index.md) | Feature library | Public reference and runtime |
@@ -52,17 +52,17 @@ framework.
 
 ## Architecture
 
-`Web.Hosting` includes reusable [resource-management middleware](assimalign-cohesion-web-hosting/design.md#resource-control-plane),
-including authentication and ahead-of-time (AOT) compilation-compatible JSON handling. Area hosts
-own their listeners, readiness gates, and lifecycle. Its [health integration](assimalign-cohesion-web-hosting/design.md#health-integration)
-adapts hosting health contributors into the independent `Web.Health` model. The public types keep
-the `Assimalign.Cohesion.Web.Hosting.Resources` and `Assimalign.Cohesion.Web.Hosting.Health`
-namespaces under `src/Resources/` and `src/Health/`, but their former separate packages are removed
-(owner decision 57, 2026-10-13).
+`Web.Hosting` is a plain host: the concrete builder composes features, servers, and services
+through its `Services` container. It carries no resource integration of its own. A Web
+application becomes a managed resource instance through
+[`Web.Hosting.ApplicationModel`](assimalign-cohesion-web-hosting-applicationmodel/index.md):
+`builder.Services.AddResource(name, resource => resource.UseInProcess())` registers one
+`ApplicationInstanceService` and exposes the application's registered settings, such as the `cors`
+setting, as resource actions. A Web application serves health through
+[`Web.Health`](assimalign-cohesion-web-health/index.md).
 
-The integrations are public through `Web.Hosting` in `App.Web` and private in each other area
-framework. `Web.Health` joins the 16 area framework closures that lacked it; Database already
-carried it. The hosting context owns retained control-plane resources internally.
+`Web.Hosting` is public in `App.Web` and private in each other area framework, which compose their
+own listeners on it.
 
 ## Dependency boundary
 
@@ -71,18 +71,15 @@ depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child l
 registration verbs are component integrations on `builder.Services` (owner decision 34, #1380), and
 pipeline verbs extend the root's `IWebApplicationPipelineBuilder`, so hosting a feature needs no
 reference to it. The exact runtime may reference any Web library except `Web.Testing`,
-`Web.ApplicationModel`, `Web.ApplicationModel.Orchestration`, the `App.Web` producers, and test,
-example, sample, and fixture projects (COHRES002, relaxed by owner decision 2026-10-09).
-It references only what it needs: `Web.Routing` for the pipeline terminal, `Web.Server` for the
-public engine and its per-exchange features, and `Web.Health` for the integrated health adapter,
-because every reference it takes ships in each framework that carries it: `App.Web` and, privately,
-all 17 other area frameworks. The declarative application model remains separate from the runtime.
-See the [resource dependency rules](../index.md#dependency-rules) .
+`Web.Hosting.ApplicationModel`, the `App.Web` producers, and test, example, sample, and fixture
+projects (COHRES002, relaxed by owner decision 2026-10-09). It references only what it needs:
+`Web.Routing` for the pipeline terminal and `Web.Server` for the public engine and its per-exchange
+features, because every reference it takes ships in each framework that carries it: `App.Web` and,
+privately, all 17 other area frameworks. See the [resource dependency rules](../index.md#dependency-rules).
 
-`Web.Hosting` integrates `Hosting.Health` and `Hosting.Resources` itself. No separate Web
-hosting-family package exists. A future integration package is only for an integration that must
-not land in every framework that carries the module. `Web.Testing` exempts only `Web.Hosting` to
-drive the runtime and its control plane.
+Two projects reference `Web.Hosting`: `Web.Hosting.ApplicationModel`, which `COHRES001` sanctions by
+its exact name, and `Web.Testing`, whose `CohesionHostingIsolationExemptions` names only
+`Web.Hosting` so the test factory can drive the concrete runtime.
 
 `Web.Server` references `Web.Routing` for the `http.route` template; `Web.Routing` must never
 reference `Web.Server`, which would form a cycle. The engine has no Hosting or connection-driver
@@ -124,10 +121,8 @@ former endpoint capture (decision 58, #1459).
 
 The [observability guide](../../../web/observability.md#diagnostic-signal-ownership) maps request
 spans, metrics, operator events and access logs to their Web or transport owner, and lists all
-22 Web event sources. `Web.Server` reports server diagnostics through `WebServerEventSource`,
+21 Web event sources. `Web.Server` reports server diagnostics through `WebServerEventSource`,
 with its EventSource, Meter and ActivitySource named `Assimalign.Cohesion.Web.Server`.
-`Web.Hosting` reports control-plane events through `WebHostingEventSource`, named
-`Assimalign.Cohesion.Web.Hosting`, including the exact `rejected-credentials` counter.
 `Http.Connections` reports transport rejections and protocol errors, including requests that
 never reach Web dispatch.
 

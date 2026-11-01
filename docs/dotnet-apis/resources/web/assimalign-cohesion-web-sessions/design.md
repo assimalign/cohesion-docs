@@ -4,6 +4,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 Per-request session support for the Cohesion Web pipeline. This document records the reasoning
 behind the middleware's shape so a future reader does not re-derive it from the code.
 
@@ -13,7 +15,7 @@ behind the middleware's shape so a future reader does not re-derive it from the 
 the async *store seam* (`IHttpSessionStore`, the in-memory default, the AOT-safe frame serializer).
 It deliberately ships no cookie and no per-request middleware — those are Web-layer concerns. This
 package supplies exactly that missing layer: it resolves a session per request, carries the session
-id in a hardened cookie, and drives the store's `Load` /`Commit` lifecycle around the pipeline. The
+id in a hardened cookie, and drives the store's `Load`/`Commit` lifecycle around the pipeline. The
 split keeps the HTTP session model usable without the Web runtime, and keeps this package a thin,
 dependency-free feature library composed against the Web root.
 
@@ -30,17 +32,18 @@ managed instance preserves ownership.
 Out-of-process session state is the motivating goal: Cohesion is a multi-service framework with a
 load balancer, so multi-instance web serving needs sticky-session-free affinity. Because the
 middleware runs entirely against the `IHttpSessionStore` seam, swapping the in-memory default for a
-distributed adapter is a one-argument change to `UseSessions` — nothing else in the pipeline moves.
+distributed adapter is one `sessions.UseStore(store)` call in the `AddSessions` callback — nothing
+else in the pipeline moves.
 
 ## Lifecycle — lazy, with the cookie established up front
 
 The middleware installs a lazy session feature (`WebSessionFeature`) before the pipeline runs and
 commits after it unwinds. The feature does nothing until the application first touches the session:
 
-1. **First access** (`context.LoadSessionAsync()` or `context.Session`) resolves the session id — from
-   the request cookie, or a freshly minted cryptographically random id. `For` a *new* id the session-id
-   cookie is appended **synchronously, at that moment**. The store-backed session is then created (and,
-   via `LoadSessionAsync`, loaded).
+1. **First access** (`context.LoadSessionAsync()` or `context.Session`) resolves the session id —
+   from the request cookie, or a freshly minted cryptographically random id. For a *new* id the
+   session-id cookie is appended **synchronously, at that moment**. The store-backed session is then
+   created (and, via `LoadSessionAsync`, loaded).
 2. **During the request** the application reads/writes the session dictionary.
 3. **After `next`** the middleware commits *only if the session was accessed*: a modified session is
    serialized and written to the store; an accessed-but-unmodified session slides the store's idle
@@ -96,18 +99,23 @@ The session-id cookie is built through the hardened `Http.Cookies` model with se
 
 - **`HttpOnly`** — from `HttpSessionOptions.CookieHttpOnly` (default `true`).
 - **`SameSite=Lax`** — a fixed secure default (CSRF-resistant while surviving top-level navigation).
-- **`Secure`** — set when the *effective* scheme is HTTPS (see "Behind a proxy" below), so the cookie
-  round-trips over the plaintext in-memory test transport yet is Secure in production HTTPS, including
-  behind a TLS-terminating proxy.
+- **`Secure`** — set when the *effective* scheme is HTTPS (see "Behind a proxy" below), so the
+  cookie round-trips over the plaintext in-memory test transport yet is Secure in production HTTPS,
+  including behind a TLS-terminating proxy.
 - **Session-scoped** — no `Max-Age`/`Expires`; the cookie clears when the browser session ends, and
   server-side idle timeout governs true expiry.
-- **Name / Path** — from `HttpSessionOptions.CookieName` / `CookiePath`. `UseSessions` checks both
-  before registering middleware: the name through the `HttpCookie` constructor against the RFC 6265
-  §4.1.1 non-empty `token` grammar (#1416), and the path through the `HttpCookieOptions.Path` setter
-  against `path-value` (#1153). A name such as `a b` or a path such as `/tenant;x` or `/café` fails
-  composition. Token punctuation remains valid in names; whitespace, separators, control characters,
-  non-ASCII characters, null and empty names do not. Reusing the cookie model keeps composition and
-  request-time emission on the same grammar.
+- **Name / Path** — `HttpSessionOptions.CookieName` is `HttpCookieName` and `CookiePath` is
+  `HttpCookiePath`. The value types reject out-of-grammar strings at assignment: names follow the
+  non-empty RFC 6265 §4.1.1 `token` grammar, and paths follow `path-value`. Names such as `a b` and
+  paths such as `/tenant;x` or `/café` fail before their setters run. Token punctuation and the
+  empty path remain valid. `SessionsBuilder.Build`, which `AddSessions` runs at registration,
+  refuses `default` before any middleware exists; it bypasses the conversions and carries no name or
+  path. Cookie lookup and replacement keep typed equality through `HttpCookieName`, whose
+  comparisons are ordinal.
+- **Empty incoming value** — an empty session cookie establishes a fresh session. The lookup unwraps
+  `HttpCookieValue` to the store's string identifier before choosing a nullable result; otherwise
+  the conditional expression converts its null branch into a cookie value and throws. This preserves
+  preview.1 behavior and fixes a regression introduced by the cookie value types.
 - **Not essential by default** — `HttpSessionOptions.CookieIsEssential` (default `false`) marks the
   cookie for a cookie-consent policy (Web.CookiePolicy). Under a consent requirement a non-essential
   session cookie is dropped until the user consents, because a session usually holds state that
@@ -126,63 +134,104 @@ the request.
 
 - **With `UseForwardedHeaders`** registered ahead of the first session access, a trusted proxy's
   `https` (RFC 7239 `proto` or `X-Forwarded-Proto`) marks the cookie `Secure`.
-- **Without it** — or from a peer outside the forwarded-headers trust model — the effective scheme is the
-  transport-derived scheme, so a client that sends `X-Forwarded-Proto: https` itself changes nothing.
+- **Without it** — or from a peer outside the forwarded-headers trust model — the effective scheme
+  is the transport-derived scheme, so a client that sends `X-Forwarded-Proto: https` itself changes
+  nothing.
 
 The package never parses forwarding headers; which proxy is believed is `Web.ForwardedHeaders`'
 trust model. The decision is taken when the cookie is established (first access or regeneration), so
 the forwarded-headers middleware must have run by then — registering it first satisfies that.
 
+## Registration: `AddSessions` configures, `UseSessions` places (2026-10-28)
+
+`builder.Services.AddSessions(sessions => ...)` is a generated component integration over
+`SessionsBuilder`, declared in `src/Properties/ComponentIntegrations.cs` with both builder
+templates. The builder owns `HttpSessionOptions` (`sessions.Options`) and the store
+(`sessions.UseStore(store)`). Its `Build` validates the options (a positive idle timeout, a cookie
+name and path that are not `default`), copies them, because the middleware reads them on every
+request, and builds the middleware over the supplied store or a new `InMemoryHttpSessionStore`; the
+verb registers it as an `IWebApplicationMiddleware` singleton. An invalid option therefore fails
+where sessions are registered.
+
+`UseSessions()` takes no arguments. It places the last registration of the middleware it finds in
+`IWebApplicationContext.Middleware`, or, when the application registered none, one with the
+defaults: the `.Cohesion.Session` cookie, a 20-minute idle timeout, and a new in-memory store.
+Placing it twice places the same registered instance, so both positions share one store. Store
+ownership is unchanged: a supplied store is borrowed, and the in-memory default holds no disposable
+state.
+
+*Why:* configuration stays on the registration verb, so the feature's settings have one call site
+and stay in the registrations the host enumerates.
+
 ## Error model
 
 The package defines no exception root; it throws framework `InvalidOperationException` /
-`ArgumentException` for misuse (sessions not enabled, regeneration after the head started, non-positive
-idle timeout, a cookie name outside `token`, or a cookie path outside `path-value`). All three option
-checks run in `UseSessions`, at composition. Each cookie-option failure is an `ArgumentException`
-with `ParamName` `configure`: its message names the full option, the cookie constructor's or setter's
-exception is preserved as `InnerException`, and neither message echoes the invalid value. No middleware
-is registered on failure. Store I/O surfaces whatever the `IHttpSessionStore` implementation throws.
+`ArgumentException` for misuse (sessions not enabled, regeneration after the head started,
+non-positive idle timeout, or a default cookie name or path). `SessionsBuilder.Build`, which
+`AddSessions` runs at registration, checks the idle timeout and refuses `default` cookie options.
+Each failure is an `ArgumentException` with `ParamName` `Options`, and each default-cookie failure
+carries the existing message naming the full option and no `InnerException`. Out-of-grammar strings
+throw `ArgumentException` from their implicit conversion at assignment, with `ParamName` `value` and
+no inner exception. Neither failure echoes the input. No middleware is registered on failure. Store
+I/O surfaces whatever the `IHttpSessionStore` implementation throws.
 
 ## Breaking behavior since 10.0.0-preview.1
 
-In 10.0.0-preview.1, `UseSessions` accepted an invalid `CookieName`; `HttpCookie` rejected it only when
-an application established a session cookie during a request. Since #1416 both `UseSessions` overloads
-reject it during composition, before registering middleware. Applications must configure a non-empty
-RFC 6265 `token` name. Defaults and other valid names are unchanged; applications that supplied an
-invalid name now fail at composition instead of failing cookie-establishing requests.
+In 10.0.0-preview.1, `UseSessions` accepted an invalid `CookieName`; `HttpCookie` rejected it only
+when an application established a session cookie during a request. Since #1416 both `UseSessions`
+overloads reject it during composition, before registering middleware. Applications must configure a
+non-empty RFC 6265 `token` name. Defaults and other valid names are unchanged; applications that
+supplied an invalid name now fail at composition instead of failing cookie-establishing requests.
 
-Since #1405, a new session first accessed after the response head starts reports a throttled
-Warning `SessionStateLost` when `IHttpStoredSession.IsModified` is true. This is a diagnostic
-behavior change from 10.0.0-preview.1 under decision 15: warning-level monitoring now observes
-discarded modifications. Read-only orphans remain Verbose-only; cookies, persistence, and public
-contracts are unchanged.
+Since #1473, `HttpSessionOptions.CookieName` changes from `string` to `HttpCookieName` and
+`CookiePath` from `string` to `HttpCookiePath`, both owned by Http.Cookies. These property-type
+changes break binary compatibility with 10.0.0-preview.1; callers of string-specific members use
+`.Value`. Valid string assignments retain their spelling through implicit conversion. Invalid
+strings now fail at assignment, including inside the configuration callback (`AddSessions` since
+2026-10-28), and default values fail at composition. The former construct-to-validate try/catch
+blocks are replaced by default checks.
+
+Since 2026-10-28 ("Add configures, Use places"), `UseSessions(configure)` and `UseSessions(store,
+configure)` are removed: the options and the store move to `builder.Services.AddSessions(sessions =>
+...)`, and `UseSessions()` takes no arguments. This is a source and binary break from
+10.0.0-preview.1. Validation failures that named parameter `configure` now name `Options`, and the
+options are copied when the middleware is built, so a change made to them afterwards no longer
+reaches it.
+
+Since #1405, a new session first accessed after the response head starts reports a throttled Warning
+`SessionStateLost` when `IHttpStoredSession.IsModified` is true. This is a diagnostic behavior
+change from 10.0.0-preview.1 under decision 15: warning-level monitoring now observes discarded
+modifications. Read-only orphans remain Verbose-only; cookies, persistence, and public contracts are
+unchanged.
 
 ## AOT posture
 
 No reflection, no dynamic serialization, no runtime code generation. Ids use `RandomNumberGenerator`
-+ `Base64Url`; framing rides `HttpSessionSerializer`; the middleware is plain delegate
-composition. Registration is dependency-free — options are captured at builder time, no service
++ `Base64Url`; framing rides `HttpSessionSerializer`; the middleware is plain delegate composition.
+Registration is dependency-free — options are captured when the middleware is built, no service
 container, no configuration binding, no request-time service location — in keeping with the
-feature-package rules.
+feature-package rules. `AddSessions` is projected into the consuming application by the component
+integration generator; this package takes no DI reference.
 
 ## Non-goals
 
-- **Concrete distributed backends.** This package ships the middleware over the store *seam* with the
-  in-memory default; a distributed cache / key-value / database store is a follow-up adapter that
-  implements `IHttpSessionStore` (see the scope-creep candidates below).
-- **A builder (`Add*`) verb.** Sessions are a global pipeline concern; there is nothing to seed at build
-  time beyond the captured options, so only the `UseSessions` pipeline verb ships.
-- **`SameSite` configurability.** `Lax` is fixed as the secure default; a configurable mode can layer on
-  additively if a concrete need arises without disturbing the contract.
-- **Owning DI/config/logging.** Feature packages never take the hosting module (`COHRES001`); the store
-  is supplied to `UseSessions`, not resolved from a container.
+- **Concrete distributed backends.** This package ships the middleware over the store *seam* with
+  the in-memory default; a distributed cache / key-value / database store is a follow-up adapter
+  that implements `IHttpSessionStore` (see the scope-creep candidates below).
+- **`SameSite` configurability.** `Lax` is fixed as the secure default; a configurable mode can
+  layer on additively if a concrete need arises without disturbing the contract.
+- **Owning DI/config/logging.** Feature packages never take the hosting module (`COHRES001`); the
+  store is handed to `SessionsBuilder.UseStore`, and the package never resolves it from a container
+  (an application may, in the callback of the generated `AddSessions((services, sessions) => ...)`
+  overload).
 
 ## Scope-creep candidates (recorded, not taken)
 
-- **Distributed store adapters.** The natural first adapter is over the `Database.KeyValuePair` resource
-  (now exists with etag/CAS), then a `libraries/Cache` distributed contract when it matures, then a
-  `Database.Cache` resource. Each is a package implementing `IHttpSessionStore` honoring last-commit-wins
-  (its stronger CAS is not required by, and not exposed through, this seam).
+- **Distributed store adapters.** The natural first adapter is over the `Database.KeyValuePair`
+  resource (now exists with etag/CAS), then a `libraries/Cache` distributed contract when it
+  matures, then a `Database.Cache` resource. Each is a package implementing `IHttpSessionStore`
+  honoring last-commit-wins (its stronger CAS is not required by, and not exposed through, this
+  seam).
 - **Configurable `SameSite` / cookie domain** on `HttpSessionOptions`, if a cross-subdomain or
   strict-CSRF deployment needs it.
 
@@ -192,8 +241,9 @@ Unit tests drive `SessionMiddleware` over an in-memory `IHttpContext` double (co
 `Secure`, lazy no-cookie-when-untouched, load-without-reissue, id regeneration, the head-committed
 guard, and the not-enabled / no-session error paths). End-to-end tests over
 `WebApplicationTestFactory` (in-memory HTTP/1.1) prove a session round-trips across requests through
-the session-id cookie, that an untouched request sets no cookie, and that a cookie-less client
-starts an independent session.
+the session-id cookie, that an untouched request sets no cookie, that a cookie-less client starts an
+independent session, and that the cookie name and store registered through the generated
+`AddSessions` verb are the ones `UseSessions()` places.
 
 `tests/SessionForwardedTests.cs` covers the proxy behavior with the real forwarded-headers
 middleware (the test project references `Web.ForwardedHeaders`): end to end, with the factory's
@@ -202,25 +252,29 @@ and a spoofed `X-Forwarded-Proto` without the middleware does not; at the unit l
 request from a trusted proxy address (the double's connection) and from an untrusted one pin the
 trust dependency.
 
-`tests/SessionPipelineExtensionsTests.cs` drives `UseSessions` over a capturing pipeline builder: a
-cookie path outside `path-value` throws at registration and registers no middleware; in-grammar paths,
-the percent-encoded form included, register it. `tests/SessionCookieNameTests.cs` covers both overloads'
-cookie-name check: null, empty, whitespace, separators, control and non-ASCII characters fail before
-registration, and names containing all token punctuation pass. The errors name the option, preserve the
-cookie constructor's exception, and do not echo the value.
+`tests/SessionPipelineExtensionsTests.cs` drives `SessionsBuilder`, the builder `AddSessions` runs:
+invalid paths throw in the configuration assignment, in-grammar paths, including the empty and
+percent-encoded forms, build the middleware, a non-positive idle timeout is refused, and options
+changed after `Build` do not reach the built middleware. It also drives `UseSessions()` over a
+pipeline builder whose application context lists what the test registered: it places the registered
+middleware, the last of two registrations, or the defaults without one.
+`tests/SessionCookieNameTests.cs` covers invalid names and all token punctuation with and without a
+supplied store. Both test files pin default rejection before the middleware is built, including the
+exact option-specific message, `Options` parameter name and absence of an inner exception.
+Assignment failures carry `value` and do not echo the invalid input.
 
 ## Store failure ownership (#1436)
 
-`Assimalign.Cohesion.Http.Sessions` owns store load and commit failure reporting through
-its internal same-named EventSource. Web.Sessions deliberately does not repeat those reports.
-The HTTP source reports exception types only because store messages can contain session ids
-or values. It also reports failures of the idle refresh performed instead of an unchanged
-payload commit. The original exception continues to propagate to the caller.
+`Assimalign.Cohesion.Http.Sessions` owns store load and commit failure reporting through its
+internal same-named EventSource. Web.Sessions deliberately does not repeat those reports. The HTTP
+source reports exception types only because store messages can contain session ids or values. It
+also reports failures of the idle refresh performed instead of an unchanged payload commit. The
+original exception continues to propagate to the caller.
 
-`IHttpStoredSession.IsModified` now exposes the built-in modification flag. Its default
-interface implementation returns `true`, preserving custom implementations that commit every
-time. Built-in sessions keep skipping unchanged payload writes while renewing the idle window;
-this property does not change read-only expiration behavior.
+`IHttpStoredSession.IsModified` now exposes the built-in modification flag. Its default interface
+implementation returns `true`, preserving custom implementations that commit every time. Built-in
+sessions keep skipping unchanged payload writes while renewing the idle window; this property does
+not change read-only expiration behavior.
 
 ## Diagnostics
 
@@ -231,9 +285,9 @@ The internal `WebSessionEventSource` is named `Assimalign.Cohesion.Web.Sessions`
 | 1 | SessionOrphaned | Verbose | reason (`ResponseStarted`), requestId |
 | 2 | SessionStateLost | Warning (throttled) | reason (`ResponseStarted`), requestId, suppressedCount:int |
 
-`orphaned-sessions` and `lost-sessions` are exact PollingCounter totals, maintained even when
-nobody listens. Every orphan increments `orphaned-sessions` once at the middleware's post-pipeline
-commit check and emits `SessionOrphaned` when Verbose is enabled. If the managed session's
+`orphaned-sessions` and `lost-sessions` are exact PollingCounter totals, maintained even when nobody
+listens. Every orphan increments `orphaned-sessions` once at the middleware's post-pipeline commit
+check and emits `SessionOrphaned` when Verbose is enabled. If the managed session's
 `IHttpStoredSession.IsModified` is true, the same check also increments `lost-sessions` and reports
 `SessionStateLost`. Reading `context.Session` materializes an empty new session, so a cookieless
 read after the head commits is an orphan without lost state: it remains Verbose-only and does not
@@ -246,36 +300,21 @@ every modified orphan. No session id, cookie, key, or value is written. The requ
 Http.Sessions owns load/commit failures (see above), with no duplicate report here.
 
 Since 10.0.0-preview.1, diagnostics become observable but cookie and persistence behavior are
-unchanged. The Web.Server dependency provides request correlation and adds
-no hosting dependency or framework member.
+unchanged. The Web.Server dependency provides request correlation and adds no hosting dependency or
+framework member.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Sessions` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Cookies` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Streaming` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
 ## Sources
 

@@ -20,6 +20,8 @@ test objects.
 - **Case 6** — E2E: Registered before UseRouting, an endpoint timeout should fail the request at dispatch instead of running unbounded.
 - **Case 7** — E2E: Registered before UseRouting, a disabled endpoint should still run because it requires nothing.
 - **Case 8** — E2E: A client-cancelled request should surface as cancellation, not a timeout response.
+- **Case 9** — E2E: The status AddRequestTimeouts registers is the one UseRequestTimeouts answers with.
+- **Case 10** — E2E: A policy configured through the provider overload of AddRequestTimeouts should govern the request.
 
 ## Source example
 
@@ -29,14 +31,18 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Routing.Metadata;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.RequestTimeouts.Tests;
 
@@ -62,8 +68,9 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
+        AddGlobalTimeout(factory, _globalTimeout);
 
-        factory.Application.UseRequestTimeouts(_globalTimeout);
+        factory.Application.UseRequestTimeouts();
         factory.Application.Use(async (context, next) =>
         {
             await Task.Delay(_neverInTestBudget, context.RequestCancelled);
@@ -86,12 +93,13 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
-
-        factory.Application.UseRequestTimeouts(options => options.DefaultPolicy = new RequestTimeoutPolicy
+        factory.Builder.Services.AddRequestTimeouts(timeouts => timeouts.Options.DefaultPolicy = new RequestTimeoutPolicy
         {
             Timeout = _globalTimeout,
             WriteProblemDetails = true,
         });
+
+        factory.Application.UseRequestTimeouts();
         factory.Application.Use(async (context, next) =>
         {
             await Task.Delay(_neverInTestBudget, context.RequestCancelled);
@@ -120,6 +128,7 @@ public class RequestTimeoutEndToEndTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        AddGlobalTimeout(factory, _neverInTestBudget);
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -131,7 +140,7 @@ public class RequestTimeoutEndToEndTests
             }),
             new RouterRouteMetadataCollection(new RequestTimeoutMetadata(_globalTimeout))));
 
-        factory.Application.UseRequestTimeouts(_neverInTestBudget);
+        factory.Application.UseRequestTimeouts();
 
         using HttpClient client = factory.CreateClient();
 
@@ -151,6 +160,7 @@ public class RequestTimeoutEndToEndTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        AddGlobalTimeout(factory, _globalTimeout);
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -164,7 +174,7 @@ public class RequestTimeoutEndToEndTests
             }),
             new RouterRouteMetadataCollection(new RequestTimeoutMetadata(_neverInTestBudget))));
 
-        factory.Application.UseRequestTimeouts(_globalTimeout);
+        factory.Application.UseRequestTimeouts();
 
         using HttpClient client = factory.CreateClient();
 
@@ -185,6 +195,7 @@ public class RequestTimeoutEndToEndTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        AddGlobalTimeout(factory, _globalTimeout);
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -198,7 +209,7 @@ public class RequestTimeoutEndToEndTests
             }),
             new RouterRouteMetadataCollection(RequestTimeoutMetadata.Disabled)));
 
-        factory.Application.UseRequestTimeouts(_globalTimeout);
+        factory.Application.UseRequestTimeouts();
 
         using HttpClient client = factory.CreateClient();
 
@@ -219,6 +230,7 @@ public class RequestTimeoutEndToEndTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        AddGlobalTimeout(factory, _neverInTestBudget);
 
         InvalidOperationException? dispatchFailure = null;
         int endpointInvocations = 0;
@@ -237,7 +249,7 @@ public class RequestTimeoutEndToEndTests
             }
         });
 
-        factory.Application.UseRequestTimeouts(_neverInTestBudget);
+        factory.Application.UseRequestTimeouts();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -271,8 +283,9 @@ public class RequestTimeoutEndToEndTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        AddGlobalTimeout(factory, _neverInTestBudget);
 
-        factory.Application.UseRequestTimeouts(_neverInTestBudget);
+        factory.Application.UseRequestTimeouts();
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(new Route(
@@ -303,8 +316,9 @@ public class RequestTimeoutEndToEndTests
         CancellationToken cancellationToken = cancellation.Token;
 
         await using WebApplicationTestFactory factory = new();
+        AddGlobalTimeout(factory, TimeSpan.FromSeconds(2));
 
-        factory.Application.UseRequestTimeouts(TimeSpan.FromSeconds(2));
+        factory.Application.UseRequestTimeouts();
         factory.Application.Use(async (context, next) =>
         {
             await Task.Delay(_neverInTestBudget, context.RequestCancelled);
@@ -316,6 +330,69 @@ public class RequestTimeoutEndToEndTests
 
         // Act / Assert — the client observes its own cancellation; no 504 arrives.
         await Should.ThrowAsync<TaskCanceledException>(client.GetAsync("/abandoned", clientCancellation.Token));
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.RequestTimeouts] - E2E: The status AddRequestTimeouts registers is the one UseRequestTimeouts answers with")]
+    public async Task AddRequestTimeouts_WithStatusPolicy_ShouldAnswerTheRegisteredStatus()
+    {
+        // Arrange — the generated verb registers the configured middleware; UseRequestTimeouts() places it.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRequestTimeouts(timeouts => timeouts.Options.DefaultPolicy = new RequestTimeoutPolicy
+        {
+            Timeout = _globalTimeout,
+            StatusCode = CohesionHttpStatusCode.ServiceUnavailable,
+        });
+
+        factory.Application.UseRequestTimeouts();
+        factory.Application.Use(async (context, next) =>
+        {
+            await Task.Delay(_neverInTestBudget, context.RequestCancelled);
+        });
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/slow", cancellationToken);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.ServiceUnavailable);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.RequestTimeouts] - E2E: A policy configured through the provider overload of AddRequestTimeouts should govern the request")]
+    public async Task AddRequestTimeouts_ProviderCallback_ShouldGovernTheRequest()
+    {
+        // Arrange — the provider overload builds when the container first resolves the middleware.
+        using CancellationTokenSource cancellation = new(_testTimeout);
+        CancellationToken cancellationToken = cancellation.Token;
+
+        await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddRequestTimeouts((services, timeouts) =>
+            timeouts.Options.DefaultPolicy = new RequestTimeoutPolicy { Timeout = _globalTimeout });
+
+        factory.Application.UseRequestTimeouts();
+        factory.Application.Use(async (context, next) =>
+        {
+            await Task.Delay(_neverInTestBudget, context.RequestCancelled);
+        });
+
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/slow", cancellationToken);
+
+        // Assert
+        response.StatusCode.ShouldBe(NetHttpStatusCode.GatewayTimeout);
+    }
+
+    // What every scenario here registers before touching the application: a global default with the
+    // default 504 response, through the generated AddRequestTimeouts verb.
+    private static void AddGlobalTimeout(WebApplicationTestFactory factory, TimeSpan timeout)
+    {
+        factory.Builder.Services.AddRequestTimeouts(timeouts =>
+            timeouts.Options.DefaultPolicy = new RequestTimeoutPolicy { Timeout = timeout });
     }
 }
 ```

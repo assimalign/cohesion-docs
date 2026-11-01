@@ -1,96 +1,81 @@
 # Platforms
 
-Platform gateways translate Cohesion resource plans into deployment objects and observe their runtime state.
+A platform is a pair of packages that deploys a gateway's resources and carries every exchange between the gateway and its instances.
 
-> **Status:** Partial. Plan compilers, controllers, observers, and provider contributions exist; platform-specific operational gaps remain.
+> **Status:** Partial. The in-process, Kubernetes, and Docker pairs deploy and manage Web resources end to end; authentication, more workload kinds, and storage are open.
 
-## Deployment and hosting plane
+## Platform pairs
 
-A Cohesion application declares a desired-state resource graph. At application `Build()`, each
-resource planner produces a validated `ResourcePlan` using the `cohesion/plan/v1` schema. Exactly
-one compiler for the selected platform translates those plans into target objects. Compilers do
-not dispatch on resource kind, area, or Common Language Runtime (CLR) type.
+A gateway runs one application model and deploys it through a platform. Each platform is two
+packages that never reference each other:
 
-The `cohesion` repository owns portable contracts, `ApplicationGateway`, and `LocalGateway`.
-The `cohesion-platforms` repository owns the container substrate and platform implementations.
+| Half | Used by | Role |
+|---|---|---|
+| Gateway half (`ApplicationModel.Gateway.<Platform>`) | The gateway program | The infrastructure provider that deploys workloads, the inbound channel instances publish through, and the client the gateway calls their control planes with. |
+| Instance half (`ApplicationModel.Hosting.<Platform>`) | Each resource's program | The gateway client a resource opts into on its options, such as `resource.UseKubernetes()`. |
 
-- **[Containers](containers/index.md)** — Image indexes, digest verification, artifact storage, and registry primitives.
-- **[Docker](docker/index.md)** — Containers, networks, volumes, and supervision through a compatible engine.
-- **[Kubernetes](kubernetes/index.md)** — Workloads, Services, configuration, secrets, and cluster observation.
+The instance selects the client of the platform its environment names (`COHESION_GATEWAY`), so one
+`Program.cs` that opts into several platforms runs on any of them. A platform the resource did not
+opt into fails its build.
 
-## Ownership through the lifecycle
+| Platform | Packages | Where | Target |
+|---|---|---|---|
+| In process | `ApplicationModel.Gateway.InProcess`, `ApplicationModel.Hosting.InProcess` | `cohesion` | Each program on a thread of the gateway's own process |
+| [Kubernetes](kubernetes/index.md) | `ApplicationModel.Gateway.Kubernetes`, `ApplicationModel.Hosting.Kubernetes` | `cohesion-platforms` | Kubernetes clusters, kind on Podman for development |
+| [Docker](docker/index.md) | `ApplicationModel.Gateway.Docker`, `ApplicationModel.Hosting.Docker` | `cohesion-platforms` | Docker-compatible engines, Podman locally |
 
-| Component | Responsibility |
-|---|---|
-| Area planner | Validate resource intent and produce a platform-neutral plan. |
-| Platform compiler | Pure translation of plans plus supplied runtime inputs into target objects. |
-| Controller | Idempotently apply desired state; do not wait for readiness. |
-| Observer | Sole writer of platform-realized lifecycle and endpoint observations. |
-| Gateway base | Order dependencies, gather artifacts, reconcile, and wait on plan-derived readiness. |
+## A gateway on a platform
 
-Gathering locates and validates existing artifacts; it never builds an image. Container identities
-are digest-pinned. Dependents receive observed endpoint addresses. Long-running workloads satisfy
-readiness at `Running`; Jobs at `Stopped`. A later `Degraded` observation does not re-gate them.
+A gateway is an executable on [`Assimalign.Cohesion.Sdk.Gateway`](../dotnet-apis/sdks/sdk-gateway/index.md)
+that references the gateway half it deploys through and registers it on the builder:
 
-`StopAsync` releases runtime supervision and observation while preserving persistent platform
-state. `UninstallAsync`, selected by `--mode teardown`, performs explicit reverse deletion.
-Each platform documents what is retained when ownership or custom-controller outcomes are unknown.
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+using Assimalign.Cohesion.ApplicationModel.Gateway.Kubernetes;
 
-## Selecting a provider
+await using KubernetesInfrastructure kubernetes = KubernetesInfrastructure.Create(new KubernetesInfrastructureOptions
+{
+    Namespace = "shop",
+});
+kubernetes.AddImage("Web", "orders-api", "localhost:5001/orders-api:1.0");
 
-Use `Assimalign.Cohesion.Sdk.Gateway` for the application's gateway executable. Its
-`CohesionGateways` property is a semicolon-delimited allowlist. This project fragment permits
-local, Docker, and Kubernetes selection:
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("shop");
+builder.UseKubernetes(kubernetes);
+builder.AddResource("Web", "orders-api").WithReplicas(2);
 
-```xml
-<Project Sdk="Assimalign.Cohesion.Sdk.Gateway">
-  <PropertyGroup>
-    <CohesionApplicationName>example</CohesionApplicationName>
-    <CohesionGateways>Local;Docker;Kubernetes</CohesionGateways>
-  </PropertyGroup>
-</Project>
+await builder.Build().RunAsync();
 ```
 
-Pin the base and Gateway SDK identities consistently in `global.json`. External platform packages
-resolve at `CohesionPlatformsVersion`; choose an available compatible platform release for the
-configured feed. Resource references and declarations make the gateway's application graph.
+Each resource's program opts into the platform with the instance half:
 
-Provider packages contribute `CohesionGatewayProvider` items through `buildTransitive` props.
-Metadata includes `Name`, `GatewayType`, `OptionsType`, and `RequiresJit`, plus an optional
-`CommandLineApplyMethod`. Generated `UseGateway(args)` selects among those contributions and
-applies the selected provider's argument hook after common options. Platform types are not
-hard-coded in the SDK's generated dispatch logic.
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Hosting.Kubernetes;
+using Assimalign.Cohesion.Web.Hosting.ApplicationModel;
 
-`Local` and `InProcess` come from Cohesion's gateway libraries. Docker and Kubernetes are external
-provider packages. Containers is shared machinery, not another selectable provider.
-The Gateway SDK has no matching `Assimalign.Cohesion.App.Gateway` shared framework.
+builder.Services.AddResource("orders-api", resource => resource.UseKubernetes());
+```
 
-See the [Gateway SDK reference](../dotnet-apis/sdks/sdk-gateway/index.md) and
-[ApplicationModel reference](../dotnet-apis/libraries/application-model/index.md).
+The model stays the same across platforms; switching platform replaces the gateway half's package
+and its registration. A platform's typed verbs, such as `WithReplicas`, record a platform extension
+that only a gateway on that platform applies.
 
-## Boundaries and delivery
+## Boundaries
 
-`COHPLT001` enforces platform dependency isolation: shipped platform projects cannot depend on
-resource-area ApplicationModel packages, resource hosting runtimes, or `Microsoft.Extensions.*`.
-They consume the generic model/gateway contracts, shared Containers machinery, and permitted thin
-clients. Docker and Kubernetes do not reference each other.
-
-The platform repository has no Native ahead-of-time compilation (NativeAOT) mandate. Kubernetes
-advertises `RequiresJit=true`; Docker advertises `RequiresJit=false`. Cohesion resource runtimes
-retain their separate NativeAOT requirement.
-
-| Delivered surface | Remaining boundary |
-|---|---|
-| Shared image indexes, verified store, pull-only registry | General Kubernetes node-to-registry reachability remains separate work. |
-| Docker compiler/controller/observer and offline renderer | Real-daemon coverage and atomic sensitive-input staging remain incomplete. |
-| Kubernetes compiler/controller/observer, render/bootstrap, and discovery | Managed port forwarding and live multi-model control-plane addressing remain incomplete. |
+- **No transport in the core packages** — Every transport belongs to a platform, push or pull.
+- **No resource-area dependency** — Platform packages build on the generic gateway and instance
+  contracts and reference no resource area. Resource areas never resolve a gateway assembly
+  (`COHRES003`).
+- **No NativeAOT mandate** — `cohesion-platforms` gateway halves are deploy-time control planes;
+  the resource runtimes they deploy keep their NativeAOT requirement.
+- **Authentication** — Publications and the gateway's calls are each platform's to authenticate;
+  neither out-of-process pair authenticates its control-plane port yet.
 
 Return to [Cohesion Documentation](../index.md).
 
 ## Sources
 
-- **Architecture** — `cohesion-platforms/README.md` and `cohesion-platforms/.claude/rules/platform-areas.md`.
-- **Delivery** — `cohesion-platforms/docs/PLATFORMS_PROGRAM_PLAN.md`.
+- **Architecture** — `cohesion-platforms/README.md`.
 - **Application model** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`.
-- **Provider channel** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md` and `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Targets/Sdk.Gateway.props`.
-- **Operational boundaries** — `cohesion-platforms/platforms/Docker/README.md` and `cohesion-platforms/platforms/Kubernetes/README.md`.
+- **In-process pair** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway.InProcess/docs/OVERVIEW.md`.
+- **Platform areas** — `cohesion-platforms/platforms/Kubernetes/README.md` and `cohesion-platforms/platforms/Docker/README.md`.

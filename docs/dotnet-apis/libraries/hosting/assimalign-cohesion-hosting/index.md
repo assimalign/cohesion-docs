@@ -14,9 +14,10 @@ Coordinates plain host and hosted-service lifecycles.
 
 ## Scope
 
-Plain Hosting depends only on Core. Host execution and run observers do not own resource mounts,
-process signals, control planes, or health reporting. Those opt-in concerns extend the run seam from
-sibling packages rather than changing every host.
+Plain Hosting depends only on Core. It owns no resource context, mounts, control plane, or health
+reporting; the process's shutdown signals are handled only while `RunAsync` runs. A managed resource
+joins a host as an ordinary lifecycle service, `ApplicationInstanceService` from
+`Assimalign.Cohesion.ApplicationModel.Hosting`, so no host changes for it.
 
 ## Dependencies
 
@@ -42,8 +43,6 @@ sibling packages rather than changing every host.
 | `IHostContext` | `src/Abstractions/IHostContext.cs` |
 | `IHostEnvironment` | `src/Abstractions/IHostEnvironment.cs` |
 | `IHostLifecycleService` | `src/Abstractions/IHostLifecycleService.cs` |
-| `IHostRun` | `src/Abstractions/IHostRun.cs` |
-| `IHostRunner` | `src/Abstractions/IHostRunner.cs` |
 
 ## Sources
 
@@ -84,7 +83,3 @@ sibling packages rather than changing every host.
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Abstractions/IHostEnvironment.cs`.
 
 - **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Abstractions/IHostLifecycleService.cs`.
-
-- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Abstractions/IHostRun.cs`.
-
-- **Source** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Abstractions/IHostRunner.cs`.

@@ -1,6 +1,6 @@
 # Testing
 
-Web test factories exercise manually composed pipelines or an enabled executable's real entry point.
+Web test factories exercise composed pipelines over in-memory connections.
 
 > **Status:** Implemented. The factory supports HTTP/1 and prior-knowledge HTTP/2; HTTP/3 is outside its scope.
 
@@ -58,17 +58,15 @@ await using WebApplicationTestFactory factory = new(new WebApplicationTestFactor
 });
 ```
 
-## Real Program execution
+## Managed resources in tests
 
-`WebApplicationTestFactory.FromProgram<Program>()` invokes an enabled resource executable under an
-invocation-local `ResourceContext`. It waits for that invocation's registered control plane and
-uses the ambient loopback `http` endpoint. The returned `IWebApplicationProgramTestFactory` exposes
-the invocation context.
-
-This mode tests the same composition root used by the executable, including its resource
-registration and lifecycle. It is distinct from constructing a second application solely inside
-the test. `WebApplicationProgramTestFactoryOptions` configures context, arguments, and lifecycle
-budgets; declare the executable's `Program` marker public and partial so the test project can name it.
+The factory composes a plain Web application; it hosts no resource. To test a program as a managed
+resource, run it under an in-process gateway: `InProcessInfrastructure` from
+[`Gateway.InProcess`](../dotnet-apis/libraries/application-model/assimalign-cohesion-applicationmodel-gateway-inprocess/index.md)
+calls the program's entry point on its own thread and environment, and the gateway's
+`ExecuteAsync` runs its actions. The
+[Web resource tests](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-applicationmodel/examples/index.md)
+use that pattern.
 
 ## Protocol scope
 
@@ -76,7 +74,6 @@ budgets; declare the executable's `Program` marker public and partial so the tes
 |---|---|
 | Default manual factory | Hypertext Transfer Protocol (HTTP) 1 over in-memory connections. |
 | `WebApplicationTestProtocol.Http2` | Prior-knowledge HTTP/2 over the same in-memory connection pair. |
-| Program-backed factory | The enabled executable's ambient loopback endpoint. |
 
 HTTP/3 requires its separate real transport integration coverage. The factory's in-memory tests
 do not establish QUIC platform availability or certificate behavior.
@@ -93,9 +90,8 @@ server's request ids and `serverId` to correlate concurrent work.
 that each has at most one internal sealed source named for its assembly, validates strict
 manifests, and compares the Web sources with the event-source catalog and deliberate no-source
 list. The Web.Server tests cover direct engine use, dispatch, drain, exchange features and server
-diagnostics. Web.Hosting tests cover the host-service wrapper, HTTP composition, health and resource
-integrations, and default forwarding; the moved health and resource suites live under its
-`tests/Health/` and `tests/Resources/` folders. NativeAOT
+diagnostics. Web.Hosting tests cover the host-service wrapper, HTTP composition, dependency
+injection, and default forwarding. NativeAOT
 delivery is exercised separately by the hosting AOT guard; a normal in-memory factory test does
 not establish that a published binary retains event support.
 
@@ -109,7 +105,8 @@ Return to [Web](index.md).
 
 - **Factory scope and examples** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/OVERVIEW.md`.
 - **Lifecycle and isolation** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/docs/DESIGN.md`.
-- **Program marker contract and disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.
+- **Factory disposal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Testing/src/WebApplicationTestFactory.cs`.
+- **In-process resource tests** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting.ApplicationModel/tests/WebResourceInProcessTests.cs`.
 - **Diagnostic recorder and conformance** — `cohesion/build/TestSupport/EventSourceRecorder.cs` and `cohesion/libraries/App/Assimalign.Cohesion.App.Runtime/tests/WebEventSourceConformanceTests.cs`.
 - **Server engine and host service** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebApplicationServerDirectUseTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebApplicationServerHostServiceTests.cs`.
 - **Server diagnostics and AOT delivery** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/tests/WebServerEventSourceAcceptanceTests.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/tests/WebDefaultEventSourceForwardingTests.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard/Program.cs`.

@@ -1,17 +1,29 @@
 # Overview
 
-Cohesion composes executable services through shared libraries, domain SDKs, and a portable application model.
+Cohesion composes executable services through shared libraries, domain SDKs, and a code-first application model.
 
 ## Code-first services
 
-A resource instance is an executable project with its own `Program.cs`. Its domain builder
-captures application declarations; its concrete host owns lifecycle and runtime composition.
-An application gateway describes relationships between those executables and realizes the graph
-on a selected target. The application model keeps deployment facts separate from service code.
+A resource instance is an ordinary executable project with its own `Program.cs`. Its domain builder
+captures application declarations; its concrete host owns lifecycle and runtime composition. Being
+managed is one registration in that program, never a build behavior:
 
-This separation supports local child processes, explicit in-process composites, and container
-platforms. A resource's manifest and the selected platform's capabilities still constrain which
-topologies are valid.
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Hosting.InProcess;
+using Assimalign.Cohesion.Web.Hosting;
+using Assimalign.Cohesion.Web.Hosting.ApplicationModel;
+
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddResource("orders-api", resource => resource.UseInProcess());
+
+WebApplication app = builder.Build();
+await app.RunAsync();
+```
+
+An application gateway is a separate executable that declares an application model, the resources
+it deploys, their dependencies and settings, and runs it on a platform. The logical model (what a
+gateway runs) and the physical side (what each instance runs) never load each other's code; they
+share only resource identity and the gateway-to-instance protocol.
 
 ## SDK and shared-framework model
 
@@ -19,10 +31,13 @@ The base `Assimalign.Cohesion.Sdk` and domain `Assimalign.Cohesion.Sdk.<Domain>`
 `Assimalign.Cohesion.App` and `Assimalign.Cohesion.App.<Domain>`. This follows the
 `Microsoft.NET.Sdk` plus `Microsoft.NETCore.App` model: selecting a domain SDK supplies the
 matching framework's reference and runtime assemblies through NuGet, without a framework installer.
+Each area framework carries its `<Area>.Hosting.ApplicationModel` integration, and the App kernel
+carries `ApplicationModel.Hosting`, so a resource calls `AddResource` with no package reference.
 
-`Assimalign.Cohesion.Sdk.Gateway` is the exception. It consumes ordinary orchestration packages;
-there is no `Assimalign.Cohesion.App.Gateway`. Resource `.ApplicationModel` and `.Client` packages
-are also NuGet-only, outside resource shared frameworks.
+`Assimalign.Cohesion.Sdk.Gateway` is the exception. It references the
+`Assimalign.Cohesion.ApplicationModel.Gateway` package; there is no `Assimalign.Cohesion.App.Gateway`.
+Platform packages, such as `ApplicationModel.Hosting.InProcess` and the `cohesion-platforms` pairs,
+and area `.Client` packages a resource does not consume at run time are NuGet-only.
 
 See [SDKs](dotnet-apis/sdks/index.md) and the
 [Gateway SDK](dotnet-apis/sdks/sdk-gateway/index.md).
@@ -45,63 +60,51 @@ belong in the area's hosting module.
 Every resource area has one exact runtime module, `Assimalign.Cohesion.<Area>.Hosting`.
 The root owns `I<Area>ApplicationBuilder` and `I<Area>Application`. The hosting module exposes
 `<Area>Application.CreateBuilder(args)`, a concrete builder, and a concrete application supporting
-`RunAsync` and asynchronous disposal. `AddService` belongs to the concrete hosting builder.
+`RunAsync` and asynchronous disposal. `AddService` belongs to the concrete hosting builder. Each
+area's one application-model integration is `<Area>.Hosting.ApplicationModel`.
 
 | Diagnostic | Enforced boundary |
 |---|---|
-| `COHRES001` | Area libraries cannot reference their exact runtime module without a named assembly exemption. Roots/features cannot reference their hosting-family integrations; integrations cannot reference the exact runtime module. |
-| `COHRES002` | The runtime module may reference only its own area root and hosting family within the area. |
+| `COHRES001` | Area libraries cannot reference their exact runtime module, except the area's `<Area>.Hosting.ApplicationModel` (by its exact name) and a named exemption holder. Roots/features cannot reference hosting-family integrations; integrations cannot reference the exact runtime module. |
+| `COHRES002` | The runtime module may reference any same-area library except `<Area>.Testing`, `<Area>.Hosting.ApplicationModel`, the framework producers, and harnesses. |
 | `COHRES003` | Shipped resource projects cannot resolve `Assimalign.Cohesion.ApplicationModel.Gateway*` assemblies; there is no opt-out. |
-| `COHRES004` | Area roots/features cannot reference shared `Assimalign.Cohesion.Hosting*` libraries directly or transitively; hosting families, testing, and ApplicationModel are the allowed consumers. |
-| `COHAM001` | An opted-in ApplicationModel package has a fixed dependency closure of Core, ApplicationModel, Hosting, Hosting.Health, Hosting.Resources, and permitted base class library assemblies. |
-
-`CohesionApplicationModelGuard=true` enables the last guard. Its allowlist includes the
-`System.Security.Cryptography.ProtectedData` facade used by the Windows mount carrier.
-It is a migration gate, not a way to add local exceptions. All 18 resource areas have guarded
-declarative packages. Generated consumer code joins the declarative and hosting sides through
-`ResourceRuntime`; those packages do not reference each other.
+| `COHRES004` | Area roots/features cannot reference shared `Assimalign.Cohesion.Hosting*` libraries directly or transitively; the hosting family and the area's testing package are the allowed consumers. |
+| `COHLIB001` | Libraries and SDKs never reference a resource project, except the same-area SDK. |
 
 ## From declarations to running resources
 
-1. A resource SDK builds a `resource.json` manifest describing the executable and its endpoints,
-   mounts, commands, and workload facts. `CohesionApplicationModel=enabled` opts a resource in.
-2. `IApplicationBuilder` collects descriptors and graph relationships. At `Build()`, area planners
-   validate the manifests and produce immutable, platform-neutral `ResourcePlan` values.
-3. The selected gateway gathers existing artifacts, starts its observer, and reconciles resources
-   in dependency order. Gathering does not build images.
-4. Controllers apply desired state; observers publish lifecycle and endpoint observations. The
-   gateway waits on each plan's readiness gate before admitting dependents.
+1. A gateway program declares its model with `ApplicationGateway.CreateBuilder(name)`: one
+   `AddResource(provider, name)` per resource, with `DependsOn`, `WithSetting`, and platform
+   extensions. It registers the platform it deploys through, such as `UseInProcess(infrastructure)`.
+2. `StartAsync` takes the gateway's record over with a new epoch and deploys the resources in
+   dependency order, independent ones at once, through the platform's infrastructure provider.
+3. Each instance's resource service publishes its manifest through the platform's client before
+   any application service or server starts, and restores the state the gateway answers with.
+4. A resource is ready once an instance of its deployment has published and its outputs are read;
+   dependents then deploy with their settings filled in from those outputs.
+5. The run continues until `StopAsync` or a shutdown signal; an operator's action runs on one
+   instance's control plane, and a write is restored on every instance.
 
-Long-running workloads satisfy initial readiness at `Running`. Jobs satisfy it at `Stopped`.
-`Degraded` is an observation after startup and does not re-gate already admitted dependents.
-Dependency addresses come from observed endpoints, not ports guessed from the desired model.
-
-`LocalGateway` realizes local processes. The InProcess gateway invokes real entry points under
-isolated ambient contexts. A Composite is the explicit colocation boundary. Docker and Kubernetes
-compilers live in `cohesion-platforms`; see [Platforms](platforms/index.md).
-
-`IApplicationSet`, external declarations, and remote references represent application boundaries.
-The gateway control plane supplies authenticated discovery, observed views, and command delivery.
-Local discovery metadata is published beneath `.cohesion/<application>/control-plane.json`.
-[ApplicationModel reference](dotnet-apis/libraries/application-model/index.md) covers these contracts.
+A platform is a pair of packages that owns every transport between the two sides. The in-process
+pair ships in `cohesion`: `Gateway.InProcess` runs each resource's program on a thread of the
+gateway's process. Kubernetes and Docker pairs live in `cohesion-platforms`; see
+[Platforms](platforms/index.md). A child gateway runs its own model and joins its parent.
+[ApplicationModel reference](dotnet-apis/libraries/application-model/index.md) covers these
+contracts.
 
 ## Runtime inputs and trust
 
 The versioned runtime contract uses `COHESION_*` keys. Out-of-process resources receive environment
-variables and file paths; in-process resources receive corresponding ambient context values.
-`ResourceEnvironment` supplies the .NET constants and readers; `ResourceContext` supplies the
-resource invocation's endpoints, mounts, credentials, and environment.
+variables; in-process resources receive the same keys through the `AppEnvironmentScope` the
+in-process gateway enters for each program, read through Core's `AppEnvironment`.
+`COHESION_GATEWAY` names the platform and selects the instance's client; `COHESION_MANIFEST_ENDPOINT`
+says where it reaches its gateway; `COHESION_DEPLOYMENT` names the deployment the instance repeats in
+its manifest; `COHESION_CONFIG__<Section>__<Key>` carries each setting. Without `COHESION_GATEWAY`, a
+program runs unmanaged.
 
-The gateway owns endpoint binding and resolves Configuration and Secret mount sources before
-startup. Resources consume delivered values. An HTTPS endpoint names an ordinary Secret mount,
-usually `tls`, holding its certificate, private key, and chain. Trust anchors travel separately.
-Bootstrap credentials authorize management; telemetry-scoped credentials cannot authorize sink
-query or management.
-
-Without a gateway identity, a standalone resource's `/cohesion/v1` control plane accepts only
-transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other or unknown peers receive
-`403`; forwarded headers cannot grant access. Bare `/healthz`, `/readyz` and `/livez` probes stay
-public. See [resource management](web/server.md#enabled-resource-management).
+Authentication of publications and the gateway's calls belongs to each platform; the in-process
+platform needs none. Standalone operational stores such as SecretStore and ConfigurationStore accept
+`/cohesion/v1` requests only from loopback transport peers.
 
 `Local` denotes a developer machine. `Development` is a deployable environment. Without an
 explicit value, environment selection falls back through `DOTNET_ENVIRONMENT` to `Production`.
@@ -113,10 +116,9 @@ Native ahead-of-time compilation (NativeAOT) compatibility is a standing require
 runtime libraries and resources. Composition favors explicit registration, source-generated
 serialization, and static metadata over runtime reflection or assembly scanning.
 
-Platform gateways have a separate policy: `cohesion-platforms` has no repository-wide NativeAOT
-mandate. Kubernetes advertises `RequiresJit=true`, where JIT means just-in-time compilation;
-the Gateway SDK can therefore disable `PublishAot` in automatic mode. Docker advertises
-`RequiresJit=false`. These provider facts do not relax the deployed resource runtime requirement.
+Platform packages have a separate policy: `cohesion-platforms` has no repository-wide NativeAOT
+mandate, because their gateway halves are deploy-time control planes. That does not relax the
+deployed resource runtime requirement.
 
 ## Delivery status
 
@@ -126,9 +128,10 @@ models and identity follow, then messaging, secondary services, and advanced net
 Historical scheduling rows are planning context, not proof that a feature is delivered.
 
 The current area sources show working Web hosting; configuration, secret, and identity services;
-LogSpace ingestion/query; and Scheduler cron/timer execution. Rezolvr persists record declarations
-but does not serve DNS answers. The other non-Database areas have enabled-resource hosts with
-domain behavior still deferred. See [Database](database/index.md) for its model-specific status.
+and Scheduler cron/timer execution. LogSpace's receiver is present but not registered by its host.
+Rezolvr does not serve DNS answers. The other non-Database
+areas have hosts and resource integrations with domain behavior still deferred. See
+[Database](database/index.md) for its model-specific status.
 
 Per-area pages take their status from current implementations. Older repository summaries and the
 historical service-layer design can lag those implementations; neither establishes a working API
@@ -166,7 +169,7 @@ may consistently select the local package identity instead of the canonical rele
 | `sdks/` | Base, domain, and Gateway MSBuild SDKs. |
 | `tooling/` | Command-line tooling, developer scripts, and project templates. |
 
-The companion `cohesion-platforms` repository owns Containers, Docker, and Kubernetes.
+The companion `cohesion-platforms` repository owns the Docker and Kubernetes platform pairs.
 Return to [Cohesion Documentation](index.md).
 
 ## Sources
@@ -174,9 +177,8 @@ Return to [Cohesion Documentation](index.md).
 - **Orientation** — `cohesion/README.md` and `cohesion/docs/OVERVIEW.md`.
 - **Boundaries** — `cohesion/.claude/rules/resource-areas.md`.
 - **Application architecture** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md` and `cohesion/docs/DEVELOPER_EXPERIENCE_DESIGN.md`.
-- **Historical context** — `cohesion/docs/SERVICE_LAYER_DESIGN.md`.
 - **Runtime inputs** — `cohesion/docs/RUNTIME_CONTRACT.md`.
 - **Delivery** — `cohesion/docs/programs/DELIVERY_ROADMAP.md` and `cohesion/resources/Scheduler/README.md`.
 - **Release policy** — `cohesion/docs/VERSIONING_RELEASE_POLICY.md`, `cohesion/docs/versioning/VERSIONING.md`, and `cohesion/build/Targets/Build.Version.props`.
 - **Gateway SDK** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`.
-- **Platforms** — `cohesion-platforms/README.md` and `cohesion-platforms/.claude/rules/platform-areas.md`.
+- **Platforms** — `cohesion-platforms/README.md`.

@@ -11,32 +11,37 @@ Use it in the source project’s test context, with its test dependencies and su
 
 ## Behavior exercised
 
-- **Case 1** — `UseHttpsRedirection`: Should answer an insecure request with 307 and an https `Location` and short-circuit.
-- **Case 2** — `UseHttpsRedirection`: Should emit 308 when configured permanent.
-- **Case 3** — `UseHttpsRedirection`: Should preserve the method by using a method-preserving status for a non-GET request.
-- **Case 4** — `UseHttpsRedirection`: Should omit the port for the default HTTPS port 443 and drop the inbound port.
-- **Case 5** — `UseHttpsRedirection`: Should emit a non-default HTTPS port and swap the inbound port.
-- **Case 6** — `UseHttpsRedirection`: Should preserve the request path verbatim.
-- **Case 7** — `UseHttpsRedirection`: Should percent-encode each segment of the decoded path.
-- **Case 8** — `UseHttpsRedirection`: Should redirect an `OPTIONS *` request to the bare authority.
-- **Case 9** — `UseHttpsRedirection`: Should answer 400 instead of redirecting to a host it cannot name.
-- **Case 10** — `UseHttpsRedirection`: Should preserve and re-encode the query.
-- **Case 11** — `UseHttpsRedirection`: Should carry every query entry across the redirect.
-- **Case 12** — `UseHttpsRedirection`: Should re-bracket an IPv6 host authority.
-- **Case 13** — `UseHttpsRedirection`: Should re-bracket an unbracketed IPv6 host and emit a custom port.
-- **Case 14** — `UseHttpsRedirection`: Should pass an already-secure request straight through.
-- **Case 15** — `UseHttpsRedirection`: Should reject a non-method-preserving status at builder time.
-- **Case 16** — `UseHttpsRedirection`: Should reject an out-of-range HTTPS port at builder time.
+- **Case 1** — UseHttpsRedirection: Should answer an insecure request with 307 and an https Location and short-circuit.
+- **Case 2** — UseHttpsRedirection: Should emit 308 when configured permanent.
+- **Case 3** — UseHttpsRedirection: Should preserve the method by using a method-preserving status for a non-GET request.
+- **Case 4** — UseHttpsRedirection: Should omit the port for the default HTTPS port 443 and drop the inbound port.
+- **Case 5** — UseHttpsRedirection: Should emit a non-default HTTPS port and swap the inbound port.
+- **Case 6** — UseHttpsRedirection: Should preserve the request path verbatim.
+- **Case 7** — UseHttpsRedirection: Should percent-encode each segment of the decoded path.
+- **Case 8** — UseHttpsRedirection: Should redirect an OPTIONS * request to the bare authority.
+- **Case 9** — UseHttpsRedirection: Should answer 400 instead of redirecting to a host it cannot name.
+- **Case 10** — UseHttpsRedirection: Should preserve and re-encode the query.
+- **Case 11** — UseHttpsRedirection: Should carry every query entry across the redirect.
+- **Case 12** — UseHttpsRedirection: Should re-bracket an IPv6 host authority.
+- **Case 13** — UseHttpsRedirection: Should re-bracket an unbracketed IPv6 host and emit a custom port.
+- **Case 14** — UseHttpsRedirection: Should pass an already-secure request straight through.
+- **Case 15** — AddHttpsRedirection: Should reject a non-method-preserving status at registration.
+- **Case 16** — AddHttpsRedirection: Should reject an out-of-range HTTPS port at registration.
+- **Case 17** — UseHttpsRedirection: Should place the middleware the application registered.
+- **Case 18** — UseHttpsRedirection: Should place the defaults when the application registered none.
 
 ## Source example
 
 ```csharp
 using System;
 using System.Threading.Tasks;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.HttpsPolicy.Tests.TestObjects;
+
+using Shouldly;
+
+using Xunit;
 
 namespace Assimalign.Cohesion.Web.HttpsPolicy.Tests;
 
@@ -282,14 +287,14 @@ public class HttpsRedirectionTests
         context.Response.Headers.ContainsKey(HttpHeaderKey.Location).ShouldBeFalse();
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.HttpsPolicy] - UseHttpsRedirection: Should reject a non-method-preserving status at builder time")]
+    [Fact(DisplayName = "Cohesion Test [Web.HttpsPolicy] - AddHttpsRedirection: Should reject a non-method-preserving status at registration")]
     public void Redirection_NonMethodPreservingStatus_ShouldThrowAtBuilderTime()
     {
         // Arrange & Act & Assert
         Should.Throw<ArgumentException>(() => BuildRedirection(options => options.StatusCode = HttpStatusCode.Found));
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.HttpsPolicy] - UseHttpsRedirection: Should reject an out-of-range HTTPS port at builder time")]
+    [Theory(DisplayName = "Cohesion Test [Web.HttpsPolicy] - AddHttpsRedirection: Should reject an out-of-range HTTPS port at registration")]
     [InlineData(0)]
     [InlineData(70000)]
     public void Redirection_OutOfRangeHttpsPort_ShouldThrowAtBuilderTime(int port)
@@ -298,12 +303,44 @@ public class HttpsRedirectionTests
         Should.Throw<ArgumentException>(() => BuildRedirection(options => options.HttpsPort = port));
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.HttpsPolicy] - UseHttpsRedirection: Should place the middleware the application registered")]
+    public async Task UseHttpsRedirection_WithRegisteredMiddleware_ShouldPlaceIt()
+    {
+        // Arrange
+        TestPipelineBuilder pipeline = new();
+        pipeline.Registered.Add(BuildRedirection(options => options.StatusCode = HttpStatusCode.PermanentRedirect));
+        TestHttpContext context = new(HttpScheme.Http, "example.com");
+
+        // Act
+        pipeline.UseHttpsRedirection();
+        await pipeline.LastComposed.ShouldNotBeNull().Invoke(context);
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(308);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.HttpsPolicy] - UseHttpsRedirection: Should place the defaults when the application registered none")]
+    public async Task UseHttpsRedirection_WithoutRegistration_ShouldPlaceTheDefaults()
+    {
+        // Arrange
+        TestPipelineBuilder pipeline = new();
+        TestHttpContext context = new(HttpScheme.Http, "example.com");
+
+        // Act
+        pipeline.UseHttpsRedirection();
+        await pipeline.LastComposed.ShouldNotBeNull().Invoke(context);
+
+        // Assert
+        context.Response.StatusCode.Value.ShouldBe(307);
+        context.Response.Headers[HttpHeaderKey.Location].Value.ShouldBe("https://example.com/");
+    }
+
     private static IWebApplicationMiddleware BuildRedirection(Action<HttpsRedirectionOptions>? configure = null)
     {
-        TestPipelineBuilder builder = new();
-        builder.UseHttpsRedirection(configure);
+        HttpsRedirectionBuilder redirection = new();
+        configure?.Invoke(redirection.Options);
 
-        return builder.LastMiddleware.ShouldNotBeNull();
+        return redirection.Build();
     }
 
     private static Task Terminal(IHttpContext context) => Task.CompletedTask;

@@ -68,12 +68,25 @@ public class HttpLoggingRequestViewTests
         CancellationToken upstreamCancellation = default;
         CancellationToken handlerCancellation = default;
         await using WebApplicationTestFactory factory = new();
+        if (composeOtherViews)
+        {
+            factory.Builder.Services
+                .AddRewrite(rewrite => rewrite.Options.AddRewrite("^/original$", "/rewritten?source=rewritten"))
+                .AddRequestTimeouts(timeouts => timeouts.Options.DefaultPolicy = new RequestTimeoutPolicy { Timeout = TimeSpan.FromMinutes(1) });
+        }
+        factory.Builder.Services.AddHttpLogging(logging =>
+        {
+            logging.UseLoggerFactory(loggerFactory);
+            logging.Options.Fields = HttpLoggingFields.RequestBody | HttpLoggingFields.BytesTransferred
+                | HttpLoggingFields.RequestPath | HttpLoggingFields.RequestQuery;
+            logging.Options.RequestBodyLimit = captureLimit;
+        });
         factory.Application.UseRequestDecompression();
         if (composeOtherViews)
         {
             factory.Application
-                .UseRewrite(rules => rules.AddRewrite("^/original$", "/rewritten?source=rewritten"))
-                .UseRequestTimeouts(TimeSpan.FromMinutes(1));
+                .UseRewrite()
+                .UseRequestTimeouts();
         }
         factory.Application
             .Use((context, next) =>
@@ -81,19 +94,14 @@ public class HttpLoggingRequestViewTests
                 upstreamCancellation = context.RequestCancelled;
                 return next(context);
             })
-            .UseHttpLogging(loggerFactory, options =>
-            {
-                options.Fields = HttpLoggingFields.RequestBody | HttpLoggingFields.BytesTransferred
-                    | HttpLoggingFields.RequestPath | HttpLoggingFields.RequestQuery;
-                options.RequestBodyLimit = captureLimit;
-            })
+            .UseHttpLogging()
             .Use(async (context, next) =>
             {
                 handledPath = context.Request.Path.Value;
                 handledQuery = context.Request.Query["source"].Value;
                 requestContextMatches = ReferenceEquals(context.Request.HttpContext, context);
                 handlerCancellation = context.RequestCancelled;
-                sawRewrite = context.Features.Get<IWebRewriteFeature>() is not null;
+                sawRewrite = context.Features.Get<IRewriteFeature>() is not null;
                 sawTimeout = context.Features.Get<IRequestTimeoutFeature>() is not null;
                 context.Response.StatusCode = HttpStatusCode.Ok;
                 // Reading through the request's context must still observe the logging stream.
@@ -137,19 +145,23 @@ public class HttpLoggingRequestViewTests
         string? handledQuery = null;
         string? originalPath = null;
         await using WebApplicationTestFactory factory = new();
-        factory.Application
-            .UseRewrite(rules => rules.AddRewrite("^/original$", "/rewritten?source=rewritten"))
-            .UseHttpLogging(loggerFactory, options =>
+        factory.Builder.Services
+            .AddRewrite(rewrite => rewrite.Options.AddRewrite("^/original$", "/rewritten?source=rewritten"))
+            .AddHttpLogging(logging =>
             {
-                options.Fields = HttpLoggingFields.RequestBody | HttpLoggingFields.BytesTransferred
+                logging.UseLoggerFactory(loggerFactory);
+                logging.Options.Fields = HttpLoggingFields.RequestBody | HttpLoggingFields.BytesTransferred
                     | HttpLoggingFields.RequestPath | HttpLoggingFields.RequestQuery;
-                options.RequestBodyLimit = captureLimit;
-            })
+                logging.Options.RequestBodyLimit = captureLimit;
+            });
+        factory.Application
+            .UseRewrite()
+            .UseHttpLogging()
             .Use(async (context, next) =>
             {
                 handledPath = context.Request.Path.Value;
                 handledQuery = context.Request.Query["source"].Value;
-                originalPath = context.Features.Get<IWebRewriteFeature>()?.OriginalPath.Value;
+                originalPath = context.Features.Get<IRewriteFeature>()?.OriginalPath.Value;
                 context.Response.StatusCode = HttpStatusCode.Ok;
                 await context.Request.Body.CopyToAsync(context.Response.Body, context.RequestCancelled);
             });
@@ -184,14 +196,18 @@ public class HttpLoggingRequestViewTests
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
         await using WebApplicationTestFactory factory = new();
-        factory.Application
-            .UseRewrite(rules => rules.AddRewrite("^/original$", "/rewritten"))
-            .UseHttpLogging(loggerFactory, options =>
+        factory.Builder.Services
+            .AddRewrite(rewrite => rewrite.Options.AddRewrite("^/original$", "/rewritten"))
+            .AddHttpLogging(logging =>
             {
-                options.Fields = HttpLoggingFields.BytesTransferred
+                logging.UseLoggerFactory(loggerFactory);
+                logging.Options.Fields = HttpLoggingFields.BytesTransferred
                     | (captureRequested ? HttpLoggingFields.RequestBody : HttpLoggingFields.None);
-                options.RequestBodyLimit = captureLimit;
-            })
+                logging.Options.RequestBodyLimit = captureLimit;
+            });
+        factory.Application
+            .UseRewrite()
+            .UseHttpLogging()
             .Use(async (context, next) =>
             {
                 context.Response.StatusCode = HttpStatusCode.Ok;

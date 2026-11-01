@@ -4,6 +4,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 Browsers enforce a set of response fields that limit what a page can do to its user: whether a
@@ -13,10 +15,11 @@ opener, or use the camera. None of them are emitted unless a server says so. Thi
 with safe defaults on every response and opt-in policies for the rest (issue #1058, owner decision 4
 of the HTTP/Web program: in v1).
 
-The package owns one pipeline verb (`UseSecurityHeaders`), one policy type, validating builders for
-the two fields with a real grammar (Content Security Policy and Permissions Policy), a framing
-policy, four enumerations, one sealed endpoint-metadata carrier with three convention verbs, and one
-typed feature that carries the per-request nonce. Everything is composed at builder time;
+The package owns one registration verb (`AddSecurityHeaders`, generated over
+`SecurityHeadersBuilder`), one pipeline verb (`UseSecurityHeaders`), one policy type, validating
+builders for the two fields with a real grammar (Content Security Policy and Permissions Policy), a
+framing policy, four enumerations, one sealed endpoint-metadata carrier with three convention verbs,
+and one typed feature that carries the per-request nonce. Everything is composed at builder time;
 request-time work is a presence check and an assignment per field, plus one string join when a
 policy carries a nonce.
 
@@ -52,15 +55,16 @@ deliberate, per-application decision.
 
 ## When the fields are written
 
-The middleware registers one callback on `IWebResponseStartingFeature`, the server-published contract
-in Web.Server. Web.Hosting drives it from the transport's existing response-head commit point for HTTP/1.1,
-HTTP/2 and HTTP/3. The same callback covers buffered responses and a handler's first streamed start, write,
-flush or completion; this package neither tracks response start nor decorates the streaming feature.
+The middleware registers one callback on `IWebResponseStartingFeature`, the server-published
+contract in Web.Server. Web.Hosting drives it from the transport's existing response-head commit
+point for HTTP/1.1, HTTP/2 and HTTP/3. The same callback covers buffered responses and a handler's
+first streamed start, write, flush or completion; this package neither tracks response start nor
+decorates the streaming feature.
 
 The server runs callbacks once in reverse registration order, before serializing any head byte. The
-callback resolves endpoint overrides and applies the no-clobber rule at that moment. A boundary registered
-on either side of this middleware can clear a failed response and write an error page: the registered
-callback survives unwinding and stages the fields on that final response.
+callback resolves endpoint overrides and applies the no-clobber rule at that moment. A boundary
+registered on either side of this middleware can clear a failed response and write an error page:
+the registered callback survives unwinding and stages the fields on that final response.
 
 The callback follows the exchange through its final head commit:
 
@@ -81,50 +85,50 @@ callback's added, changed and removed fields for a replacement buffered response
 callback again. The middleware also registers every security-policy field above as an explicitly
 preserved key, including both `Content-Security-Policy` and `X-Frame-Options`. The server snapshots
 these keys at registration and captures their final values or absence after every callback succeeds.
-This keeps application-owned values honored by no-clobber, including framing ownership, even when the
-callback left them unchanged. Before retaining an unchanged application field, the server checks its
-name and every value against the transport's syntax rules. An invalid value (including CR, LF, NUL
-or another disallowed control character) is omitted from replacement replay, so it cannot defeat the
-clean server 500. Valid application policy fields and the callback's protections still survive.
-This corrects the post-preview.1 starting hook; the package did not exist in that release.
-Other unchanged application fields are excluded; the replacement owns
-its status and body.
-The nonce stays the exchange's nonce. A callback failure faults the exchange before any bytes are sent;
-no partially applied security policy is sent as a fallback response.
+This keeps application-owned values honored by no-clobber, including framing ownership, even when
+the callback left them unchanged. Before retaining an unchanged application field, the server checks
+its name and every value against the transport's syntax rules. An invalid value (including CR, LF,
+NUL or another disallowed control character) is omitted from replacement replay, so it cannot defeat
+the clean server 500. Valid application policy fields and the callback's protections still survive.
+This corrects the post-preview.1 starting hook; the package did not exist in that release. Other
+unchanged application fields are excluded; the replacement owns its status and body. The nonce stays
+the exchange's nonce. A callback failure faults the exchange before any bytes are sent; no partially
+applied security policy is sent as a fallback response.
 
-A custom server must publish `IWebResponseStartingFeature`. If it does not, `UseSecurityHeaders` throws
-an actionable `InvalidOperationException` instead of silently omitting protection.
+A custom server must publish `IWebResponseStartingFeature`. If it does not, the middleware
+`UseSecurityHeaders` placed throws an actionable `InvalidOperationException` when it runs, instead
+of silently omitting protection.
 
 ### Compatibility against 10.0.0-preview.1 (#1156)
 
-The released tag contains no Web.SecurityHeaders package. No released
-implementation changes behavior. The integration requirements and behavior changes below apply to the
-post-tag development implementation.
+The released tag contains no Web.SecurityHeaders package. No released implementation changes
+behavior. The integration requirements and behavior changes below apply to the post-tag development
+implementation.
 
-Header staging moves from middleware unwind and a streaming decorator to the server's starting callback.
-An outer exception boundary's response now carries the configured policy, and fields are no longer
-observable immediately after `next` returns but before the server commits the head. A nonce or endpoint
-adjustment failure at commit aborts the exchange without a response head. Custom servers must implement
-the new Web.Server feature. The package replaces its Http.Streaming dependency with Web.Server, which is
-already an App.Web member.
+Header staging moves from middleware unwind and a streaming decorator to the server's starting
+callback. An outer exception boundary's response now carries the configured policy, and fields are
+no longer observable immediately after `next` returns but before the server commits the head. A
+nonce or endpoint adjustment failure at commit aborts the exchange without a response head. Custom
+servers must implement the new Web.Server feature. The package replaces its Http.Streaming
+dependency with Web.Server, which is already an App.Web member.
 
 ### What does not get the fields
 
 - **A response a middleware ahead of `UseSecurityHeaders` writes.** It never passes through the
   middleware. That is why the documented position is the front of the pipeline, behind only
   `UseHttpLogging`, which writes no response.
-- **A head already committed.** Registration after the server has started running its callbacks fails;
-  fields cannot be added to a head already sent.
-- **Heads outside pipeline dispatch.** Transport-generated rejections and protocol-takeover heads do not
-  run response-starting callbacks. A parse-time rejection never reaches this middleware.
+- **A head already committed.** Registration after the server has started running its callbacks
+  fails; fields cannot be added to a head already sent.
+- **Heads outside pipeline dispatch.** Transport-generated rejections and protocol-takeover heads do
+  not run response-starting callbacks. A parse-time rejection never reaches this middleware.
 - **`101 Switching Protocols` and upgraded exchanges.** WebSocket and extended-CONNECT acceptance
-  bypass response-starting callbacks in the default server. A `101` is also excluded explicitly
-  when a custom server invokes the callback for it. These exchanges are not unprotected documents.
-- **`304 Not Modified`.** A `304` freshens a response the user agent has already stored, and RFC 9111
-  §4.3.4 replaces only the stored fields the `304` carries. The stored response already has the fields
-  of the response that created it. Re-emitting them would change nothing, except that a fresh nonce
-  would replace the stored policy's nonce while the stored body still carries the old one in its
-  `nonce` attributes, and every inline script would stop running. So a `304` gets no fields.
+  bypass response-starting callbacks in the default server. A `101` is also excluded explicitly when
+  a custom server invokes the callback for it. These exchanges are not unprotected documents.
+- **`304 Not Modified`.** A `304` freshens a response the user agent has already stored, and RFC
+  9111 §4.3.4 replaces only the stored fields the `304` carries. The stored response already has the
+  fields of the response that created it. Re-emitting them would change nothing, except that a fresh
+  nonce would replace the stored policy's nonce while the stored body still carries the old one in
+  its `nonce` attributes, and every inline script would stop running. So a `304` gets no fields.
 
 ## Never clobber a field the application set
 
@@ -149,8 +153,8 @@ clickjacking protection is kept without contradicting the application's policy.
 ## The endpoint override model
 
 `SecurityHeadersMetadata` is a sealed carrier in the routing metadata bag, attached with convention
-verbs that work on routes and groups alike
-(`extension<TBuilder>(TBuilder) where TBuilder : IRouterConventionBuilder`):
+verbs that work on routes and groups alike (`extension<TBuilder>(TBuilder) where TBuilder :
+IRouterConventionBuilder`):
 
 | Verb | Metadata | Effect for the endpoint |
 | --- | --- | --- |
@@ -159,14 +163,16 @@ verbs that work on routes and groups alike
 | `DisableSecurityHeaders()` | `SecurityHeadersMetadata.Disabled` | emit nothing |
 
 **Adjust is the common case.** "Like every other page, but partners may frame it" should not mean
-re-declaring the application's CSP on the endpoint. An adjustment receives a copy of the policy
-configured on the `UseSecurityHeaders` that serves the request, so it depends on that middleware. It
-is compiled the first time the middleware stages a response for the endpoint, then cached per
-metadata instance in that middleware; the route table bounds the cache. The cost is that an
-exception thrown by the adjustment surfaces on that first request rather than at startup, the same
-trade `Web.RateLimiting` makes for an unknown policy name. A replacement does not depend on the
-pipeline, so it is copied and compiled when the metadata is created, and an invalid value fails at
-map time.
+re-declaring the application's CSP on the endpoint. An adjustment receives a copy of the policy of
+the middleware that serves the request (the one `AddSecurityHeaders` registered, or the defaults),
+so it depends on that middleware. It is compiled the first time the middleware stages a response for
+the endpoint, then cached per metadata instance in that middleware; the route table bounds the
+cache. The middleware holds its own copy of the registered policy, so a reference to
+`SecurityHeadersBuilder.Options` kept after registration cannot reach an adjustment either. The cost
+is that an exception thrown by the adjustment surfaces on that first request rather than at startup,
+the same trade `Web.RateLimiting` makes for an unknown policy name. A replacement does not depend on
+the pipeline, so it is copied and compiled when the metadata is created, and an invalid value fails
+at map time.
 
 **Resolution.** The override is read, last-wins, from the endpoint `UseRouting` published, at the
 moment the fields are staged. By then the endpoint is known, wherever the middleware sits. A
@@ -197,9 +203,9 @@ when the policy is built:
 
 - **Directives are typed.** Every fetch directive, `base-uri`, `form-action`, `sandbox`,
   `upgrade-insecure-requests`, `report-to` and `report-uri` has its own method, and re-setting one
-  replaces it in place, because CSP itself would ignore the second occurrence.
-  `Directive(name, value)` covers directives the builder does not model, with the generic CSP3
-  directive grammar enforced.
+  replaces it in place, because CSP itself would ignore the second occurrence. `Directive(name,
+  value)` covers directives the builder does not model, with the generic CSP3 directive grammar
+  enforced.
 - **Sources are typed.** Keywords come from methods (`Self()`, `StrictDynamic()`, …), so their
   quotes are always right. A bare keyword name passed as a host (`Host("self")`) is refused: CSP
   would read it as a host named `self`, which is never what was meant. Host and scheme sources are
@@ -248,25 +254,52 @@ entries are serialized origins (`scheme://host[:port]`, with an optional `*.` su
 The four forms map to `Disable` (`()`), `AllowAll` (`*`), `AllowSelf` (`(self ...)`) and
 `AllowOrigins` (`("..." ...)`).
 
+## Registration: `AddSecurityHeaders` configures, `UseSecurityHeaders` places (2026-10-28)
+
+`builder.Services.AddSecurityHeaders(headers => ...)` is a generated component integration over
+`SecurityHeadersBuilder`, declared in `src/Properties/ComponentIntegrations.cs` through Core's
+`ComponentIntegration` shared-source module, so the package takes no DI reference. The builder's
+`Options` is a `SecurityHeadersPolicy` that starts from the safe defaults. `Build` copies it,
+compiles the copy (an undefined enumeration value throws there), and returns the middleware, which
+the verb registers as an `IWebApplicationMiddleware` singleton. The ordinary overload builds at the
+`Add` call. The provider overload, `AddSecurityHeaders((services, headers) => ...)`, builds when its
+registration is first resolved, normally when the pipeline is composed and `UseSecurityHeaders()`
+reads the registrations.
+
+`UseSecurityHeaders()` takes no arguments. It places the last security-headers middleware it finds
+in `IWebApplicationContext.Middleware`, skipping the other features' registrations in that
+aggregate, or one with the safe defaults when the application registered none. Placing the verb
+twice places the registered middleware twice; as before, the exchange keeps one nonce and the
+diagnostics count an unprotected response once.
+
+The copy in `Build` matters beyond the pipeline's own fields, which are compiled when the middleware
+is built: an endpoint adjustment derives from the middleware's policy on that endpoint's first
+response, so without the copy a reference to `Options` kept after registration would reach it.
+
+*Why:* configuration stays on the registration verb, so the feature's settings have one call site
+and stay in the registrations the host enumerates.
+
 ## Ordering
 
 `UseHttpLogging` → `UseSecurityHeaders` → `UseForwardedHeaders` → `UseHostFiltering` →
 `UseHttpsRedirection` → `UseHsts` → `UseErrorHandling` → `UseStaticFiles` → `UseRouting` → policy
-middleware → endpoint. The area's [middleware order](../../../../web/middleware-order.md) places every Web middleware.
+middleware → endpoint. The area's middleware order places every Web middleware.
 
-- **At the front**, so every response that passes through the pipeline gets the fields, the rejections
-  of the middleware after it included. Only `UseHttpLogging`, which writes no response, goes ahead of
-  it, and since this middleware reads no client identity it can precede `UseForwardedHeaders`.
-- **Either side of `UseErrorHandling`** preserves the fields on an error response once this middleware
-  has run. The recommended front position also covers earlier short-circuits and redirects.
+- **At the front**, so every response that passes through the pipeline gets the fields, the
+  rejections of the middleware after it included. Only `UseHttpLogging`, which writes no response,
+  goes ahead of it, and since this middleware reads no client identity it can precede
+  `UseForwardedHeaders`.
+- **Either side of `UseErrorHandling`** preserves the fields on an error response once this
+  middleware has run. The recommended front position also covers earlier short-circuits and
+  redirects.
 - **Ahead of `UseRouting`** is fine: endpoint overrides still apply, because they are read when the
   fields are staged, after routing has run.
 
 ## Family map
 
 The package references the Web root (pipeline abstractions), Web.Routing (endpoint metadata and the
-convention-builder seam), Web.Server (the response-starting contract), and the Http core (header keys,
-the feature collection, the Structured Field toolkit). It references no hosting library.
+convention-builder seam), Web.Server (the response-starting contract), and the Http core (header
+keys, the feature collection, the Structured Field toolkit). It references no hosting library.
 
 ```mermaid
 flowchart LR
@@ -281,50 +314,57 @@ flowchart LR
 ```
 
 The dotted edge is the reference `COHRES001` rejects: like every Web feature library, this one never
-references the runtime module, and its composition is dependency-free (values captured at builder time,
-no container, no configuration binding). Applications get it through the `App.Web` shared framework.
+references the runtime module, and its composition is dependency-free (values captured at builder
+time, no container, no configuration binding). It also compiles Core's `ComponentIntegration`
+shared-source module, a build-time declaration of `AddSecurityHeaders`, not a runtime reference; the
+generator emits the verb into each application that references both this package and the DI library.
+Applications get the package through the `App.Web` shared framework.
 
 ## Error model
 
 There is no package exception root; every failure is a BCL argument or state exception thrown when
 the policy is composed:
 
-- `ArgumentException` for a value outside its grammar (a host source, digest, directive name or value,
-  sandbox keyword, reporting endpoint, feature name, origin, ancestor source) and for an empty or
-  `'none'`-mixed source list.
-- `ArgumentOutOfRangeException` for an undefined enumeration value, thrown when the policy is compiled:
-  at `UseSecurityHeaders` for the pipeline's policy, at map time for a replacement.
-- `InvalidOperationException` for a CSP or Permissions Policy built with nothing in it, and, at request
-  time, for an application-supplied nonce outside the CSP grammar or a missing response-starting feature.
+- `ArgumentException` for a value outside its grammar (a host source, digest, directive name or
+  value, sandbox keyword, reporting endpoint, feature name, origin, ancestor source) and for an
+  empty or `'none'`-mixed source list.
+- `ArgumentOutOfRangeException` for an undefined enumeration value, thrown when the policy is
+  compiled: by `SecurityHeadersBuilder.Build` for the pipeline's policy (at the `AddSecurityHeaders`
+  call, or when the provider overload's registration is first resolved as the pipeline is composed),
+  at map time for a replacement.
+- `InvalidOperationException` for a CSP or Permissions Policy built with nothing in it, and, at
+  request time, for an application-supplied nonce outside the CSP grammar or a missing
+  response-starting feature.
 
 A missing response-starting feature fails when the middleware runs. The nonce check and an exception
-thrown by an endpoint adjustment on its first use fail the starting callback at head commit; the server
-aborts the exchange without sending a head.
+thrown by an endpoint adjustment on its first use fail the starting callback at head commit; the
+server aborts the exchange without sending a head.
 
 ## AOT posture
 
-No reflection, no runtime code generation, no configuration binding. Enumerations map to their
-tokens through switch expressions. Field values are computed once when a policy is compiled; per
-response the middleware does feature-collection lookups, header presence checks and assignments, and
-one `string.Join` for a nonce-bearing policy. The Structured Field serializer and
+No reflection, no runtime code generation, no configuration binding. `AddSecurityHeaders` is
+generated at compile time and registers a factory over the built middleware. Enumerations map to
+their tokens through switch expressions. Field values are computed once when a policy is compiled;
+per response the middleware does feature-collection lookups, header presence checks and assignments,
+and one `string.Join` for a nonce-bearing policy. The Structured Field serializer and
 `RandomNumberGenerator` are AOT-safe.
 
 ## Diagnostics
 
-The internal `SecurityHeadersEventSource` is named `Assimalign.Cohesion.Web.SecurityHeaders`.
-It reports a policy that could not be staged because the starting callback saw read-only response
+The internal `SecurityHeadersEventSource` is named `Assimalign.Cohesion.Web.SecurityHeaders`. It
+reports a policy that could not be staged because the starting callback saw read-only response
 headers. Successful staging, including a policy deliberately configured without CSP and application
-framing ownership, emits nothing. `304`, `101`, protocol takeovers (including HTTP/2 extended CONNECT),
-and `DisableSecurityHeaders` endpoints are excluded before the read-only check. Protocol takeovers
-do not run the default server's starting callbacks at all.
+framing ownership, emits nothing. `304`, `101`, protocol takeovers (including HTTP/2 extended
+CONNECT), and `DisableSecurityHeaders` endpoints are excluded before the read-only check. Protocol
+takeovers do not run the default server's starting callbacks at all.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
 | 1 | `HeadersNotApplied` | Warning | `statusCode:int`, `routeTemplate`, `committedBeforeTurn:bool`, `suppressedCount:int`, `requestId` |
 
 The callback is the sole raising site. The pre-#1156 unwind and streaming-decorator sites no longer
-exist, so `committedBeforeTurn` is always `false`: staging happens before the server commits the head.
-Registering after commit fails instead of silently sending an unprotected response. A nonce or
+exist, so `committedBeforeTurn` is always `false`: staging happens before the server commits the
+head. Registering after commit fails instead of silently sending an unprotected response. A nonce or
 endpoint-adjustment failure aborts the exchange and raises no unprotected-response warning or count,
 because no response is sent. The diagnostic describes the skipped staging attempt; it cannot prove
 that a custom server subsequently completed the response or that another callback supplied a policy.
@@ -332,18 +372,18 @@ that a custom server subsequently completed the response or that another callbac
 The process-wide warning is limited to one event per second. `suppressedCount` reports earlier
 warnings withheld during the interval (saturating at `Int32.MaxValue`); the `unprotected-responses`
 PollingCounter counts every read-only staging skip exactly with `Interlocked`, even with no listener
-or when the warning is suppressed. The counter is created on the first enable command. Route-template
-and request-id reads occur only inside `IsEnabled`. An internal failure marker shared by nested
-registrations counts each exchange once; it is allocated only on the read-only failure path. The
-request id comes from `IWebRequestIdFeature`, never an ambient activity. No request path, header value,
-nonce, or exception text is emitted.
+or when the warning is suppressed. The counter is created on the first enable command.
+Route-template and request-id reads occur only inside `IsEnabled`. An internal failure marker shared
+by nested registrations counts each exchange once; it is allocated only on the read-only failure
+path. The request id comes from `IWebRequestIdFeature`, never an ambient activity. No request path,
+header value, nonce, or exception text is emitted.
 
 ### Compatibility against 10.0.0-preview.1 (#1402)
 
 The released tag has no Web.SecurityHeaders package. This change introduces diagnostics for the
-post-tag implementation and explicitly skips a `101` passed to a starting callback by a custom server.
-There is no released public API or response behavior break. No shipped dependency or framework closure
-changes; the WebSocket acceptance tests add a test-only Web.WebSockets reference.
+post-tag implementation and explicitly skips a `101` passed to a starting callback by a custom
+server. There is no released public API or response behavior break. No shipped dependency or
+framework closure changes; the WebSocket acceptance tests add a test-only Web.WebSockets reference.
 
 ## Non-goals
 
@@ -372,51 +412,46 @@ changes; the WebSocket acceptance tests add a test-only Web.WebSockets reference
 ## Testing
 
 `tests/SecurityHeadersEndToEndTests.cs` drives the middleware over the in-memory
-`WebApplicationTestFactory`: the defaults and their opt-outs, every opt-in field with its exact wire
-value, an unmatched route's `404`, a short-circuiting middleware, the exception boundary's error page on either side of the middleware,
-a static file and its `304`, the no-clobber and framing-ownership rules, `OverwriteExistingHeaders`,
-the nonce (matching the handler's, unique per request, 128 bits, shared by both policies, supplied by
-the application, never read without a nonce source, refused when outside the grammar), streamed
-responses over HTTP/1.1 (chunked framing proves the handler committed the head) and HTTP/2, and
-composition-time validation. `tests/SecurityHeadersRouteConventionTests.cs` covers the overrides
-through the real router: adjust, replace (copied at map time), disable, group-versus-route precedence,
-the override on an endpoint's error and streamed responses, the CORS preflight, an adjustment compiled
-once, and map-time validation. The builder, framing and feature suites cover serialization and every
-grammar rule in isolation.
+`WebApplicationTestFactory`, registered with the generated `AddSecurityHeaders` verb: the defaults
+and their opt-outs, every opt-in field with its exact wire value, an unmatched route's `404`, a
+short-circuiting middleware, the exception boundary's error page on either side of the middleware, a
+static file and its `304`, the no-clobber and framing-ownership rules, `OverwriteExistingHeaders`,
+the nonce (matching the handler's, unique per request, 128 bits, shared by both policies, supplied
+by the application, never read without a nonce source, refused when outside the grammar), streamed
+responses over HTTP/1.1 (chunked framing proves the handler committed the head) and HTTP/2, and the
+registration itself: validation at the `Add` call, a kept `Options` reference that cannot
+reconfigure the pipeline, the last of two registrations winning in the real container, and the
+provider overload. `tests/SecurityHeadersBuilderTests.cs` drives `SecurityHeadersBuilder.Build` and
+`UseSecurityHeaders()` over a pipeline double (`TestPipelineBuilder`) whose application context
+lists the registrations, staging through the starting callback of `TestHttpContext`: the registered
+middleware is placed, the last of two registrations wins, the defaults stand in when nothing is
+registered, and another feature's registered middleware is never placed.
+`tests/SecurityHeadersRouteConventionTests.cs` covers the overrides through the real router: adjust
+(from the policy as it was registered), replace (copied at map time), disable, group-versus-route
+precedence, the override on an endpoint's error and streamed responses, the CORS preflight, an
+adjustment compiled once, and map-time validation. The CSP and Permissions Policy builder, framing
+and feature suites cover serialization and every grammar rule in isolation.
 
 ## HTTP interceptor consumer compatibility (#1465)
 
-The streamed-response test hosts now register `HttpResponseStreamingInterceptor.Create()` in place
-of `HttpResponseStreaming.CreateInterceptor()`. Applications that register this Http.Streaming
-interceptor directly make the same replacement and rebuild for its upstream source and binary
-break against `10.0.0-preview.1`, accepted on decision 15's terms and documented in
-[Http.Streaming's design](../../../libraries/http/assimalign-cohesion-http-streaming/design.md#public-interceptor-and-breaking-changes-since-1000-preview1-1465).
-This consumer update changes no API or response behavior owned by this package.
+The streamed-response test hosts now register `new HttpResponseStreamingInterceptor()` in place of
+`HttpResponseStreaming.CreateInterceptor()`. Applications that register this Http.Streaming
+interceptor directly make the same replacement and rebuild for its upstream source and binary break
+against `10.0.0-preview.1`, accepted on decision 15's terms and documented in Http.Streaming's
+design. This consumer update changes no API or response behavior owned by this package.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
 ## Sources
 
