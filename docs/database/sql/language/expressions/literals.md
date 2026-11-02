@@ -110,7 +110,8 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery. Every earlier format is refused at open
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
+migration intent semantics; format 33 and earlier are refused before data recovery. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
 Compiled schemas stay version 11.
 

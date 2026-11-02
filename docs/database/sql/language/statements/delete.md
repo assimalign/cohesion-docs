@@ -159,7 +159,8 @@ The target stays outer in the association join. Safe target-only predicates can 
 mandatory target/source equalities can drive a source index probe or budgeted hash join.
 Equality-driven steps follow written USING order: list the source connected by equality to the
 target first (USING b, a when only b connects to the target). Independent source graphs can use
-[exact join-order search](../clauses/join.md#join-order-search); target-referencing WHERE terms
+[join-order search](../clauses/join.md#join-order-search): exact search through eight sources,
+then safe filter pushdown in the existing order through 64. Target-referencing WHERE terms
 keep bound order. [EXPLAIN](explain.md#source-dml) describes these paths without deleting rows.
 StatementMemoryBudget covers hash builds and retained targets, source/intermediate buffers,
 derived copies, associations and joined cascade state. CS05067 (53200) refuses exhaustion before

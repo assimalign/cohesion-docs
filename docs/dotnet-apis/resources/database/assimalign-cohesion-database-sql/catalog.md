@@ -68,7 +68,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 33 and compiled schema version 11.
+The integration branch uses SQL row-storage format 34 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -84,14 +84,15 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
+migration intent semantics; format 33 and earlier are refused before data recovery.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 
 ## Internal sequences
 
 The catalog contains internal [sequence definitions and reservations](catalog-design.md#standalone-sequences)
-in format 33. Sequences share the table/view relation namespace and the
+in format 34. Sequences share the table/view relation namespace and the
 [identity allocator](storage-design.md#identity-and-sequence-reservations). Catalog sequence types
 remain internal; [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
 [session functions](../../../../database/sql/language/functions/sequences.md) and

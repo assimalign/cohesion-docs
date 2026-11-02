@@ -47,8 +47,10 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
   to select another database or create/drop databases through a session.
 - **Compiled-schema provisioning** — `ISqlDatabase` diffs a validated
   `CompiledSchema`, renders deterministic table/column/index DDL into parsed
-  `SqlQueryRequest`s, compensates completed reversible steps on failure, and
-  records the canonical document/hash only after live-catalog convergence.
+  `SqlQueryRequest`s and records the canonical document/hash after convergence. Plans containing
+  TYPE rewrites prepare the complete target unpublished and publish in one catalog commit;
+  preparation failure leaves the old schema online. Other migrations retain per-step execution
+  and inline compensation. See [joint migrations](design.md#joint-type-migrations).
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
   planned rule-based and executed through scans or eligible index seeks: `SELECT` with `WHERE`,
   projection, N-way INNER/LEFT/RIGHT/FULL/CROSS/comma joins with ON/USING, grouping and aggregates,

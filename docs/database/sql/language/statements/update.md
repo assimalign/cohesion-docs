@@ -191,7 +191,8 @@ Equality-driven steps follow written FROM order. With t joined to b by equality 
 to a, write `FROM b, a`, rather than `FROM a, b`: the latter first visits the t × a product.
 For example, `UPDATE t SET v = b.v FROM b, a WHERE t.id = b.tid AND b.aid = a.id`
 puts the source connected to the target first. Both orders give the same result. Independent source graphs can use
-[exact join-order search](../clauses/join.md#join-order-search); the target-referencing WHERE
+[join-order search](../clauses/join.md#join-order-search): exact search through eight sources,
+then safe filter pushdown in the existing order through 64. The target-referencing WHERE
 condition in this example keeps bound order. See [performance](../../performance.md#joined-mutations).
 
 Before applying writes, the engine locks targets and checks their original physical location

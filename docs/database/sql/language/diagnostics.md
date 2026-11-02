@@ -334,6 +334,23 @@ ALTER uses `CS03027` for volatile ADD COLUMN defaults on live rows (no SQLSTATE)
 DROP NOT NULL on a primary key uses CS00003. SET/DROP DEFAULT and DROP NOT NULL on identity
 columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries remain CK00001.
 
+## Typed schema migrations
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without any TYPE rewrite | — |
+| `CS03402` | Joint migration preparation, reservation or space admission failed; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
+| `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
+| `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
+
+Joint preparation has no automatic retry. A later explicit apply or Build declaring the target
+can retry; a Build declaring the old schema opens normally. After successful publication, returning
+to an earlier declaration is a reverse migration with the same destructive-change gate.
+Provisioning health retains the failure code until a successful apply/Build, including an
+already-applied skip. Non-TYPE deferred failure retains `CS03104` and its offline/reopen contract.
+See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
+[health and recovery](../index.md#typed-migration-health-and-recovery).
+
 ## Database creation and open
 
 | Code | Meaning and trigger | SQLSTATE |
@@ -347,7 +364,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Format remains 25;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 34;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 
@@ -714,6 +731,7 @@ InMemory/TCP session. I/O in named-control parameter reads or result preparation
 
 ## Sources
 
+- **Joint typed migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md`, `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` and `tests/SqlJointTypeMigrationTests.cs` with its partials at `0b00f181e`.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` at `ff5112515`.
 - **Batch 17 JSON and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ad0da989f`, checked against `SqlJsonAccessTests.cs`, `SqlJsonReviewFixTests.cs` and `NamedSavepointTests.cs` in the SQL tests.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

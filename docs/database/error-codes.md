@@ -7,7 +7,7 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
 | CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/0b00f181e/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
 | CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
 | CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
 | CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
@@ -208,6 +208,20 @@ datatype_mismatch). Full-definition default/implicit collation changes retain CS
 Identity, view, CHECK/domain, FK, index, lock and conversion failures retain their existing codes;
 see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 
+## SQL typed schema migrations
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
+| CS03402 | Joint preparation, reservation or space admission failed; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
+| CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
+| CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
+
+See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
+[conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
+and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
+does not retry automatically; non-TYPE deferred failures keep their CS03104 offline contract.
+
 ## SQL MERGE
 
 [MERGE](sql/language/statements/merge.md) adds CS01053 for merge_action() outside MERGE RETURNING
@@ -219,14 +233,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 33.
+remains nonexecuting; SQL storage stays at format 34.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 33 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 34 is unchanged.
 
 ## SQL table rewrite
 
@@ -234,7 +248,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 33 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 33 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 34 is unchanged.
 
 ## Document array indexes
 
@@ -608,6 +622,7 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.
 - **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 

@@ -103,17 +103,37 @@ pair-costing path. Search preserves results, output columns and their written or
 still requires ORDER BY. A separate memory-retention check can keep the previous costed plan
 even when enumeration finds a cheaper candidate.
 
+From nine through 64 eligible relations, a bounded connected greedy search compares ordered
+seed pairs, chooses one pair, then grows it by one relation at a time. Connected joins take
+priority; cross products come last. It does not enumerate bushy alternatives. The same query
+and data produce the same plan on every platform: estimated work, retained memory and written
+binding ordinals settle choices deterministically, with no random search.
+
+For these larger graphs, a searched plan runs only when it is estimated no more expensive,
+needs no more retained memory and preserves the written plan's access paths. Otherwise the
+previous costed plan runs. Every hash build and nested-loop input buffer counts, including
+decoded rows and growing arrays. A streamed input whose size is unknown or only partly counted
+is never moved into a retained buffer. Safe filters can also move earlier while keeping the
+written join order; this candidate is eligible even at equal estimated work. Thus an accepted
+search need not reorder relations. See the [EXPLAIN example](../statements/explain.md#join-order-search).
+
 Any outer join in a SELECT keeps its bound association. Derived tables, views, system relations,
 subquery predicates and predicates lacking the [non-throwing proof](#predicate-safety) prevent
-search. More than eight relations retain bound order; bounded search for larger joins belongs
-to the next run, SQ-Z2. LATERAL remains refused with CK00001. Search adds no diagnostic codes.
+search. Above 64 relations, the written association retains ordinary costing and execution
+without join-order search; the statement still runs. LATERAL remains refused with CK00001.
+Search adds no diagnostic codes. Planning work for the larger search grows polynomially with
+the relation count and is bounded by the 64-relation limit.
 
-UPDATE ... FROM, DELETE ... USING and MERGE search only two through eight eligible source
-relations. The target stays outside the search at its original boundary. Target-referencing
-cross-conjuncts in UPDATE/DELETE WHERE retain bound order because their source probes depend
-on the target row. One source retains existing planning; outer/derived sources and unsafe
+UPDATE ... FROM, DELETE ... USING and MERGE consider only eligible source relations: exact
+search covers two through eight sources, and the bounded path covers nine through 64. The
+target stays outside the search at its original boundary. Above eight, flat UPDATE/DELETE
+source plans and plans with existing hash builds consider only filter pushdown in the existing
+order; normalized trees, including MERGE associations, keep their existing plan.
+Target-referencing cross-conjuncts in UPDATE/DELETE WHERE retain bound order because their
+source probes depend on the target row. One source retains existing planning; outer/derived sources and unsafe
 predicates retain bound order. Independent FROM/USING graphs and MERGE's source subtree can
-be searched. [EXPLAIN](../statements/explain.md#join-order-search) reports the selected order.
+use exact search within its limit. [EXPLAIN](../statements/explain.md#join-order-search) reports
+the selected order and search work.
 
 ### Access paths
 
@@ -322,6 +342,8 @@ and transient planning remain outside this accounting. See [performance and conf
 
 ## Sources
 
+- **Large-join search and retention** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs`, `SqlPlanExecutor.JoinSearch.cs` in the same directory, and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJoinSearchFixTests.cs`.
+- **Greedy choices, limits and barriers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlGreedyJoinSearchTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.
 - **FULL semantics, refusal, metadata and budgets** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlFullJoinTests.cs`.
 
 - **Boolean conditions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBooleanPredicateTests.cs`.

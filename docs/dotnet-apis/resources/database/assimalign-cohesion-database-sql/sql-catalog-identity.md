@@ -29,7 +29,7 @@ and NOT NULL. Invalid metadata raises SqlCatalogException.
 
 [SqlCatalogColumn.Identity](sql-catalog-column.md) holds this facet and forces IsNullable false.
 Table extension 8 stores this facet; its owned sequence uses kind 18 and kind-19 reservations.
-Kind 16 is retired. SQL format 33 refuses format 32 and earlier files without an upgrade reader.
+Kind 16 is retired. SQL format 34 refuses format 33 and earlier files without an upgrade reader.
 Allocation uses [SqlCatalog.AllocateIdentity](sql-catalog.md). SQL identity allocations also update
 session currval/lastval; direct catalog allocation has no session observation context.
 
@@ -58,7 +58,8 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
+migration intent semantics; format 33 and earlier are refused before data recovery.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

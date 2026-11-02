@@ -36,7 +36,9 @@ their retained start/counter (CS03025, no SQLSTATE for definition/range failures
 explicit-transaction checks retain CS03066 (42501) and CS04003 (25001). Failures use
 DatabaseException.Diagnostics; malformed text returns parser diagnostics and execution rejects it
 with DatabaseParseException. See [ALTER TABLE](../../../../database/sql/language/statements/alter-table.md#alter-column-type)
-for conversion, defaults, full-definition differences and remaining batch-7 worker handoff.
+for conversion, defaults and full-definition differences. Code-first type changes use
+[joint preparation and publication](../../../../database/sql/language/statements/alter-table.md#code-first-type-changes),
+deferred on populated tables; this adds no AST member.
 
 ## Example
 
