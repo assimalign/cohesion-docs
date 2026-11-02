@@ -4,6 +4,8 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 `Web.CookiePolicy` enforces a site's **cookie policy** on top of the wire-level cookie model in
@@ -12,8 +14,9 @@ this package answers *"is this well-formed cookie **allowed**, and if not, is it
 dropped?"* Those decisions depend on deployment posture and on the user's consent, not on the RFC
 grammar.
 
-`UseCookiePolicy(...)` replaces the exchange's response cookie feature. From then on, every cookie
-appended through `context.Response.Cookies` is judged before it reaches a `Set-Cookie` field:
+The policy `builder.Services.AddCookiePolicy(policy => ...)` registers and `UseCookiePolicy()`
+places replaces the exchange's response cookie feature. From then on, every cookie appended through
+`context.Response.Cookies` is judged before it reaches a `Set-Cookie` field:
 
 - **consent** for non-essential cookies;
 - the **floors**: `Secure`, `HttpOnly`, and a minimum `SameSite`;
@@ -32,14 +35,14 @@ The split is documented on both sides (`Assimalign.Cohesion.Http.Cookies/docs/DE
 
 | RFC 6265 / 6265bis rule | Owner | Rationale |
 |---|---|---|
-| `cookie-name` token / `cookie-value` octet-grammar validation (anti header-splitting) | **`Http.Cookies`** | A malformed value corrupts the wire regardless of policy. Enforced at `HttpCookie` construction. |
+| `cookie-name` token / `cookie-value` octet-grammar validation (anti header-splitting) | **`Http.Cookies`** | A malformed value corrupts the wire regardless of policy. Enforced by `HttpCookieName` and `HttpCookieValue` construction and string conversion. |
 | `Path` `path-value` / `Domain` `domain-value` grammar (attribute injection, #1153) | **`Http.Cookies`** | Enforced in the `HttpCookieOptions` setters; the policy can rely on both values being well-formed. |
 | Per-cookie size limits (name+value ≤ 4096, attribute value ≤ 1024, bounded attribute count) | **`Http.Cookies`** | Parse robustness; oversized input is ignored while parsing (`HttpCookieLimits`). |
 | 400-day lifetime **cap math** (`HttpCookie.ClampLifetime`) | **`Http.Cookies`** | Pure and clock-free, so it is deterministic to test. |
 | **Applying** the lifetime cap to outbound cookies at emission, against a clock | **`Web.CookiePolicy`** | Overriding an application's explicit lifetime, and reading the clock, is an emission decision. |
 | `__Host-` / `__Secure-` **prefix requirements** | **`Web.CookiePolicy`** | Repair or reject is a site decision, not grammar. |
 | `SameSite=None` **requires** `Secure` | **`Web.CookiePolicy`** | Repair or reject is configurable. |
-| Nameless cookies (RFC 6265bis § 5.7 step 22) | **`Http.Cookies`** | `HttpCookie` rejects an empty name, so no nameless cookie can be emitted and the policy has nothing to enforce. |
+| Nameless cookies (RFC 6265bis &#167; 5.7 step 22) | **`Http.Cookies`** | `HttpCookie` rejects an empty name, so no nameless cookie can be emitted and the policy has nothing to enforce. |
 
 ## Interception: replace the response cookie feature, judge at append
 
@@ -151,29 +154,30 @@ an explicit rank rather than by the enum's numeric values.
 
 | Option | Default | Why |
 |---|---|---|
-| `Secure` | `SameAsRequest` | Every cookie issued to a client that used HTTPS is `Secure`. Without it, a cookie set over HTTPS rides along on any later plaintext request to the host. `Always` is for deployments where every client uses HTTPS but the application cannot see it; a user agent ignores a `Secure` cookie set over plaintext (RFC 6265bis § 5.7 step 13), except on origins it treats as secure, such as `localhost`. |
+| `Secure` | `SameAsRequest` | Every cookie issued to a client that used HTTPS is `Secure`. Without it, a cookie set over HTTPS rides along on any later plaintext request to the host. `Always` is for deployments where every client uses HTTPS but the application cannot see it; a user agent ignores a `Secure` cookie set over plaintext (RFC 6265bis &#167; 5.7 step 13), except on origins it treats as secure, such as `localhost`. |
 | `HttpOnly` | `None` | Client-side script legitimately reads some cookies: a double-submit antiforgery token, or the consent cookie. Forcing `HttpOnly` by default would break them silently. |
 | `MinimumSameSitePolicy` | `Unspecified` (no floor) | `Lax` also raises an explicit `SameSite=None`, which breaks embeds and federated sign-in that depend on one. Applications without cross-site cookies should set `Lax`. |
-| `SameSiteNoneWithoutSecure` | `Upgrade` | Adding `Secure` is a pure tightening, and the result is the only form of the cookie a user agent accepts (RFC 6265bis § 5.7 step 19). |
-| `PrefixViolation` | `Upgrade` | The name is the declaration. `Upgrade` adds `Secure`, and for `__Host-` sets `Path=/` and removes `Domain`, which is what the prefix promises. Removing `Domain` narrows the cookie to the host. Widening the path stays within the same host, and a path is not a confidentiality boundary (RFC 6265 § 8.5). `Reject` is for deployments that want misconfigurations to surface as drops. |
-| `MaxLifetime` | 400 days | The limit RFC 6265bis § 5.5 has user agents enforce. It is validated to be greater than zero and at most 400 days: a longer cap would let the response claim a lifetime no client honors, and a zero cap would turn every persistent cookie into a deletion. |
+| `SameSiteNoneWithoutSecure` | `Upgrade` | Adding `Secure` is a pure tightening, and the result is the only form of the cookie a user agent accepts (RFC 6265bis &#167; 5.7 step 19). |
+| `PrefixViolation` | `Upgrade` | The name is the declaration. `Upgrade` adds `Secure`, and for `__Host-` sets `Path=/` and removes `Domain`, which is what the prefix promises. Removing `Domain` narrows the cookie to the host. Widening the path stays within the same host, and a path is not a confidentiality boundary (RFC 6265 &#167; 8.5). `Reject` is for deployments that want misconfigurations to surface as drops. |
+| `MaxLifetime` | 400 days | The limit RFC 6265bis &#167; 5.5 has user agents enforce. It is validated to be greater than zero and at most 400 days: a longer cap would let the response claim a lifetime no client honors, and a zero cap would turn every persistent cookie into a deletion. |
 | `CheckConsentNeeded` | `null` (consent never needed) | Whether consent is needed is a legal and product decision per request (region, user type); the package cannot guess it. |
 
 ## The RFC 6265bis requirements
 
 The rules follow draft-ietf-httpbis-rfc6265bis-22.
 
-- **Prefixes are matched case-insensitively.** The server section (§ 4.1.3) tells servers to match
-  `__Secure-` and `__Host-` case-sensitively, but a user agent MUST match them case-insensitively
-  (§ 5.4) and ignores a cookie that breaks one (§ 5.7 steps 20 and 21). The policy exists to keep
-  emitted cookies acceptable to the user agent, so it matches the way the user agent does:
-  `__HOST-id` is held to the `__Host-` rules. A prefix counts only at the start of the name.
+- **Prefixes are matched case-insensitively.** The server section (&#167; 4.1.3) tells servers to
+  match `__Secure-` and `__Host-` case-sensitively, but a user agent MUST match them
+  case-insensitively (&#167; 5.4) and ignores a cookie that breaks one (&#167; 5.7 steps 20 and 21).
+  The policy exists to keep emitted cookies acceptable to the user agent, so it matches the way the
+  user agent does: `__HOST-id` is held to the `__Host-` rules. A prefix counts only at the start of
+  the name.
 - **`__Host-` compliance** means `Secure`, a `Path` attribute of exactly `/`, and no `Domain`.
   `HttpCookie` omits a blank `Domain` when it serializes, so a blank `Domain` counts as absent; a
   blank `Path` counts as missing.
-- **`SameSite=None` requires `Secure`** (§ 5.7 step 19).
-- **Not enforced: a `Secure` cookie set over plaintext** (§ 5.7 step 13). The server cannot know
-  whether the user agent treats the origin as secure. Browsers accept `Secure` cookies from
+- **`SameSite=None` requires `Secure`** (&#167; 5.7 step 19).
+- **Not enforced: a `Secure` cookie set over plaintext** (&#167; 5.7 step 13). The server cannot
+  know whether the user agent treats the origin as secure. Browsers accept `Secure` cookies from
   `http://localhost`, so dropping them would break local development for no gain.
 
 ## The lifetime cap at emission
@@ -185,8 +189,8 @@ pipeline returns, after the clock was read, but a delay of one request's process
 immaterial against a 400-day cap. The model's `ClampLifetime` performs the math: it reduces
 `Max-Age`, pulls `Expires` back to now + cap, and leaves deletions untouched.
 
-**What counts as a deletion** follows how a user agent reads the cookie (RFC 6265bis § 5.6.2 and
-§ 5.7). When `Max-Age` is present it wins over `Expires`, and the value judged is the one
+**What counts as a deletion** follows how a user agent reads the cookie (RFC 6265bis &#167; 5.6.2
+and &#167; 5.7). When `Max-Age` is present it wins over `Expires`, and the value judged is the one
 `HttpCookie` serializes, in whole seconds, so a 400 ms `Max-Age` is `Max-Age=0`. Otherwise, an
 `Expires` at or before now is a deletion. A cookie with `Max-Age=3600` and an epoch `Expires` lives
 for an hour on a conforming client, so the consent rule treats it as a live cookie, not a deletion.
@@ -228,11 +232,11 @@ itself, while a Cohesion application grants consent from an endpoint.
 
 The request side is consulted for the consent cookie through `request.Cookies`; the request cookie
 feature is not replaced. Filtering inbound non-essential cookies while consent is missing was
-rejected. A `Cookie` header carries bare `name=value` pairs (RFC 6265 § 4.2), with no attributes and
-no essential marker, so the server cannot classify them. A name allow-list would have to enumerate
-every essential cookie the stack emits (session, authentication, antiforgery) and would silently
-sign users out when one was missed. The policy governs what the server **emits**; withdrawal is
-handled by deletion.
+rejected. A `Cookie` header carries bare `name=value` pairs (RFC 6265 &#167; 4.2), with no
+attributes and no essential marker, so the server cannot classify them. A name allow-list would have
+to enumerate every essential cookie the stack emits (session, authentication, antiforgery) and would
+silently sign users out when one was missed. The policy governs what the server **emits**;
+withdrawal is handled by deletion.
 
 ### One consent decision per exchange
 
@@ -240,12 +244,13 @@ The rules consult consent only through `ICookieConsentFeature.CanTrack`, and `Us
 installs its own feature only when the exchange has none. The first consent feature installed on an
 exchange therefore decides for every registration:
 
-- **Nested registrations.** A branch may register its own policy, for example
-  `app.Map("/admin", b => b.UseCookiePolicy(...))`. The inner registration wraps the outer one's
-  collection, so **attribute rules compose**: both registrations' rules apply to each appended
-  cookie. The inner registration reuses the outer registration's consent feature instead of
-  installing its own. Two independent consent states would let a grant made through one feature be
-  refused by the other.
+- **Nested policies.** A branch may place a policy of its own. `UseCookiePolicy()` places the one
+  registered policy wherever it is called, so a branch with different rules places a middleware
+  built from its own `CookiePolicyBuilder`, for example `app.Map("/admin", b =>
+  b.Use(adminPolicy.Build()))`. The inner policy wraps the outer one's collection, so **attribute
+  rules compose**: both policies' rules apply to each appended cookie. The inner policy reuses the
+  outer policy's consent feature instead of installing its own. Two independent consent states would
+  let a grant made through one feature be refused by the other.
 - **An application-supplied feature.** Consent kept somewhere other than the consent cookie, such as
   a consent-management platform's signal or the `Sec-GPC` request header, plugs in as an
   `ICookieConsentFeature` installed before `UseCookiePolicy` runs. `CheckConsentNeeded` and the
@@ -270,11 +275,22 @@ changes the options.
 Beyond the hook, a dropped cookie is absent from `response.Cookies` (`Contains` is `false`) and from
 the `Set-Cookie` fields.
 
+## Registration: `AddCookiePolicy` configures, `UseCookiePolicy` places (2026-10-28)
+
+The policy is configured only where it is registered. `builder.Services.AddCookiePolicy(policy =>
+...)` is a generated component integration over `CookiePolicyBuilder`: it builds the middleware
+once, which validates the options and captures them (`CookiePolicyRules`), and registers it as an
+`IWebApplicationMiddleware`. A validation failure throws from the registration with `ParamName` =
+`Options`. `UseCookiePolicy()` takes no arguments and places the last such registration it finds in
+`IWebApplicationContext.Middleware`, or the default policy when the application registered none.
+Nothing is registered per placement, so placing the verb in a branch as well places the same policy
+again; a branch with rules of its own places a middleware built from its own builder (see "One
+consent decision per exchange").
+
 ## Where it goes in the pipeline
 
-Register `UseCookiePolicy` early: after `UseForwardedHeaders` and `UseHostFiltering`, and before
-`UseRouting`, `UseSessions`, `UseAuthentication`, and anything else that writes cookies. The area's
-[middleware order](../../../../web/middleware-order.md) gives its exact place.
+Place `UseCookiePolicy()` early: after `UseForwardedHeaders` and `UseHostFiltering`, and before
+`UseRouting`, `UseSessions`, `UseAuthentication`, and anything else that writes cookies.
 
 The design tolerates other placements, but early is still the recommendation:
 
@@ -315,11 +331,20 @@ like any other cookie. The defaults of the two packages are chosen to compose sa
 
 ## Error model
 
-- **Registration:** `ArgumentNullException` for a `null` builder. `ArgumentException` (`ParamName` =
-  `configure`) for an undefined enum value, a lifetime cap outside (0, 400 days], a `null`
-  `TimeProvider`, or a malformed consent cookie: an invalid name or value, an empty value, a
-  non-positive `Max-Age`, or an `Expires`. An invalid consent cookie name or value is caught by
-  constructing an `HttpCookie` at registration, so the first grant cannot fail.
+- **Assignment:** `ConsentCookieName` is `HttpCookieName` and `ConsentCookieValue` is
+  `HttpCookieValue`. Assigning an out-of-grammar string throws `ArgumentException` from the
+  conversion before the setter runs, including inside the registration callback.
+- **Registration:** `ArgumentNullException` from `UseCookiePolicy()` for a `null` builder.
+  `ArgumentException` (`ParamName` = `Options`) from `CookiePolicyBuilder.Build`, which
+  `AddCookiePolicy` calls, for an undefined enum value, a lifetime cap outside (0, 400 days], a
+  `null` `TimeProvider`, a `default` consent cookie name or value, an empty consent value, a
+  non-positive `Max-Age`, or an `Expires`. `default` skips value-type construction, so
+  `CookiePolicyRules.Create` checks the underlying values directly. The name guard retains the
+  message "The consent cookie name or value is not a valid RFC 6265 cookie name or value." The
+  default and empty value guard retains "The consent cookie value must not be empty: an empty value
+  cannot be told apart from a deleted consent cookie." Empty values satisfy the cookie grammar but
+  cannot record consent. No cookie is constructed solely to validate options. The captured fields
+  and members stay typed, and consent matching uses the value types' ordinal equality.
 - **Request time:** policy decisions never throw; a dropped cookie is reported, not raised.
   `Add(null)`, `Remove(null)`, and `Contains(null)` throw `ArgumentNullException`, as the model
   does. An exception from `CheckConsentNeeded` or `OnRejected` propagates to the code that appended
@@ -335,10 +360,9 @@ library, no `Web.Hosting`, and no DI, configuration, or logging dependency (COHR
 
 ## AOT posture
 
-`<IsAotCompatible>true</IsAotCompatible>`. Enforcement is plain string comparison (ordinal and
-ordinal-ignore-case prefix checks), enum switches, and the model's `ClampLifetime`. Option
-validation uses the generic `Enum.IsDefined<TEnum>`. No reflection, no regex, and no runtime code
-generation.
+`<IsAotCompatible>true</IsAotCompatible>`. Enforcement uses typed ordinal cookie equality,
+ordinal-ignore-case prefix checks, enum switches, and the model's `ClampLifetime`. Option validation
+uses the generic `Enum.IsDefined<TEnum>`. No reflection, no regex, and no runtime code generation.
 
 ## Non-goals
 
@@ -361,8 +385,10 @@ generation.
 and asserts on the `Set-Cookie` fields an `HttpClient` receives. Those fields are parsed by a
 test-side parser (`TestObjects/SetCookieField.cs`), not by the model under test.
 
-- `CookiePolicyOptionsTests` covers the documented defaults and every registration-time validation
-  failure, and that options changed after registration have no effect.
+- `CookiePolicyOptionsTests` covers the documented defaults, assignment-time grammar rejection,
+  default and empty consent-value guards with their messages and parameter names, every other
+  registration-time validation failure, that options changed after registration have no effect, that
+  the last registration wins, and that `UseCookiePolicy()` places the default policy without one.
 - `CookiePolicyAttributeTests` covers the `Secure` modes, the `HttpOnly` modes, the
   minimum-`SameSite` matrix (raise, never lower), attribute preservation on a rewrite, and the
   no-cookie response.
@@ -379,8 +405,7 @@ test-side parser (`TestObjects/SetCookieField.cs`), not by the model under test.
   and the feature's presence.
 - `CookiePolicyInterceptionTests` covers adoption of queued cookies (in order), on-the-way-out
   appends, `Remove`/`Contains` identity, copy-on-write, a shared instance across requests,
-  composition over a pre-installed feature, raw header adoption, and nested registration in a
-  branch.
+  composition over a pre-installed feature, raw header adoption, and a nested policy in a branch.
 - `CookiePolicyForwardedTests` covers the effective scheme: a trusted proxy's `https` and `http`, a
   spoofed header without the middleware, the policy registered ahead of `UseForwardedHeaders`, and
   the `Secure` floor satisfying `Reject` rules.
@@ -396,33 +421,37 @@ test-side parser (`TestObjects/SetCookieField.cs`), not by the model under test.
 The cookie-authentication integration tests now use `FileSystemKeyRepository.Create(path)` to
 compose their data-protection provider. Rebuild the tests against the updated DataProtection
 package; its DESIGN records the factory source and binary breaks against 10.0.0-preview.1 on
-decision 15's terms. This cleanup changes no Web.CookiePolicy API, consent or emission behavior,
-or shipped dependency. Advisory: not applicable: API shape.
+decision 15's terms. This cleanup changes no Web.CookiePolicy API, consent or emission behavior, or
+shipped dependency. Advisory: not applicable: API shape.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
-## Declared dependencies
+## Typed consent options (#1473)
 
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Cookies` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
+`CookiePolicyOptions.ConsentCookieName` changes from `string` to `HttpCookieName`, and
+`CookiePolicyOptions.ConsentCookieValue` changes from `string` to `HttpCookieValue`. These are
+source and binary changes to the current PR's API. Recompile consumers; valid string assignments
+keep working through implicit conversion, and code that depends on the property signatures must use
+the cookie value types. `DefaultConsentCookieName` and `DefaultConsentCookieValue` remain `const
+string`. Against 10.0.0-preview.1, there is no additional property-type break: that tag shipped an
+empty `CookiePolicyOptions` stub, without either consent property or `CookiePolicyRules`.
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+Malformed strings now fail at assignment, with the cookie value type's message and parameter name,
+instead of being wrapped at registration. Composition still refuses missing values and an empty
+consent value before a request can grant consent. The policy keeps its immutable snapshot and wire
+behavior. This change closes no remote-input vulnerability: consent options are application
+configuration, and registration already rejected malformed consent names and values.
 
 ## Sources
 

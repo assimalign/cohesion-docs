@@ -16,9 +16,9 @@ Exports bounded OpenTelemetry Protocol (OTLP) logs over HTTP using JSON.
 
 ## Scope
 
-The exporter is transport-only; Hosting.Telemetry owns the logging adapter. A bounded queue, bounded
-retry, and bounded shutdown prevent a collector outage from owning host startup. Traces, metrics,
-gRPC, and binary protobuf export remain deferred.
+The exporter is transport-only; the application supplies the logging adapter. A bounded queue,
+bounded retry, and bounded shutdown prevent a collector outage from owning host startup. Traces,
+metrics, gRPC, and binary protobuf export remain deferred.
 
 ## Dependencies
 

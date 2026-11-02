@@ -4,61 +4,47 @@ SecretStore provides protected secret persistence and private certificate workfl
 
 > **Status:** Partial. Package-level pages distinguish implemented behavior from deferred surfaces.
 
-SecretStore is the L3 operational service platform for protected secret persistence, application
-trust, and private certificate workflows. The substantive runtime stores protected files on its
-persistent `data` volume, verifies gateway-issued ES256 bootstrap credentials, and issues durable
-private-CA leaves on first resolution of `certs/<name>`.
-
-A standalone host has no bootstrap credential and therefore may bind only to loopback, including
-when it uses HTTPS. Its `/cohesion/v1` and `/cohesion/v1/*` routes accept only transport peers at
-`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive `403`. Forwarded
-headers do not affect this check. Bare `/healthz`, `/readyz`, and `/livez` remain open for probes.
-This tightens standalone request authorization from 10.0.0-preview.1; gateway-managed
-authentication is unchanged.
+SecretStore is the L3 operational service platform for protected secret persistence and private certificate workflows. The substantive runtime stores protected files on its persistent `data` volume and issues durable private-CA leaves on first resolution of `certs/<name>`. A SecretStore application becomes a managed resource instance with `Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`: `builder.Services.AddResource("secrets", resource => resource.UseInProcess())` joins the gateway that runs it through the platform it opted into.
 
 ## Packages
 
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.SecretStore`](assimalign-cohesion-secretstore/index.md) | `Root` | Public reference and runtime |
-| [`Assimalign.Cohesion.SecretStore.ApplicationModel`](assimalign-cohesion-secretstore-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.SecretStore.Client`](assimalign-cohesion-secretstore-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.SecretStore.Hosting`](assimalign-cohesion-secretstore-hosting/index.md) | Hosting | Public reference and runtime |
+| [`Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`](assimalign-cohesion-secretstore-hosting-applicationmodel/index.md) | Resource integration | Public reference and runtime |
 
 ## Dependency boundary
 
-The single runtime module is `Assimalign.Cohesion.SecretStore.Hosting`. Roots and feature libraries
-do not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
+The single runtime module is `Assimalign.Cohesion.SecretStore.Hosting`. Roots and feature libraries do
+not depend on the hosting family or on `Assimalign.Cohesion.Hosting` and its child libraries.
 Feature registration composes against the root contracts. The exact runtime may reference any
-same-area library except the area's `Testing`, `ApplicationModel`, and
-`ApplicationModel.Orchestration` packages, the framework producers, and harnesses, and its resolved
-closure may carry neither of the two ApplicationModel packages (owner decision 2026-10-09);
-integrations may not reference the exact runtime. The declarative application model remains separate
-from the runtime. See the
-[resource dependency rules](../index.md#dependency-rules) .
-
-The hosting family in this area contains `Assimalign.Cohesion.SecretStore.Hosting`.
+same-area library except the area's `Testing` and `Hosting.ApplicationModel` packages, the
+framework producers, and harnesses (owner decision 2026-10-09).
+`Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel` references the runtime module, the one reference
+`COHRES001` sanctions by name, and makes the application a managed resource instance with
+`builder.Services.AddResource(name, ...)`. See the [resource dependency rules](../index.md#dependency-rules).
 
 ## Framework and SDK
 
-`Assimalign.Cohesion.Sdk.SecretStore` delivers the `Assimalign.Cohesion.App.SecretStore` family. Its
-producers, `Assimalign.Cohesion.SecretStore.Refs` and `Assimalign.Cohesion.SecretStore.Runtime`,
-declare `CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The public
-and private assembly inventory is hand-curated in the Runtime producer's `Directory.Build.props`,
-which the Refs producer imports. `CohesionFrameworkAssembly` entries appear in the reference and
-runtime packs; `CohesionFrameworkPrivateAssembly` entries appear only at runtime.
+`Assimalign.Cohesion.Sdk.SecretStore` delivers the `Assimalign.Cohesion.App.SecretStore` family. Its producers,
+`Assimalign.Cohesion.SecretStore.Refs` and `Assimalign.Cohesion.SecretStore.Runtime`, declare
+`CohesionFrameworkName` and import `libraries/App/Assimalign.Cohesion.App.props`. The assembly
+inventory is hand-curated in the Runtime producer's `Directory.Build.props`, which the Refs
+producer imports. `CohesionFrameworkAssembly` entries appear in the reference and runtime packs;
+`CohesionFrameworkPrivateAssembly` entries appear only at runtime.
 
-The SDK also references the [App hosting kernel](../../libraries/app/index.md). Its public
-reference and runtime packs supply `Assimalign.Cohesion.Connections.StreamAbort`,
-`Assimalign.Cohesion.Connections.StreamLimits`, `Assimalign.Cohesion.Connections.Tls`, and
-`Assimalign.Cohesion.Logging.EventSource`; these assemblies are supplied by App alongside the area
-inventory below.
+The SDK also references the [App hosting kernel](../../libraries/app/index.md), which supplies
+`Assimalign.Cohesion.Hosting`, `Assimalign.Cohesion.ApplicationModel.Hosting`, the connection
+capability packages, and the configuration and logging providers alongside the area inventory below.
 
 | Public reference-pack assembly |
 |---|
 | `Assimalign.Cohesion.App.SecretStore` |
 | `Assimalign.Cohesion.SecretStore` |
 | `Assimalign.Cohesion.SecretStore.Hosting` |
+| `Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel` |
 
 | Private runtime assembly |
 |---|
@@ -81,10 +67,8 @@ inventory below.
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 | `Assimalign.Cohesion.Security.DataProtection` |
 
-`Application`-model and client packages are NuGet-only and are excluded from the area shared
-framework. The package table distinguishes assemblies present in the source tree from those included
-by the current framework inventory.
-
+Platform packages a resource opts into, such as `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`,
+are NuGet packages the application references, never framework members.
 ## Related documentation
 
 - **Product** — [SecretStore](../../../secret-store/index.md).

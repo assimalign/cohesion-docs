@@ -4,24 +4,25 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 A Cohesion application terminates its own HTTP traffic. There is no IIS or nginx rewrite tier
 assumed in front of it, so the URL work such a tier usually does has to be expressible in the
 application: canonical URLs (scheme, host, trailing slash, case), migration of legacy paths, and
 internal rewrites that map a public URL onto the resource that serves it. This package is that work
-as one pipeline verb, `UseRewrite(rules => ...)`, over code-first rules registered at composition
-time (#782).
+as code-first rules registered at composition time with `builder.Services.AddRewrite(rewrite =>
+...)` and placed in the pipeline with `UseRewrite()` (issue #782).
 
-The package owns the `UseRewrite` verb, the `RewriteOptions` rule list, the `IRewriteRule` and
-`IRewriteContext` contracts for custom rules, the `IWebRewriteFeature` that keeps the original URL
-readable, the `RewriteFlow` and `RewriteMatchTarget` enums, and the internal engine: the middleware,
-the request view, the target parser and the built-in rules.
+The package owns the `AddRewrite` component integration over `RewriteBuilder`, the `UseRewrite`
+verb, the `RewriteOptions` rule list, the `IRewriteRule` and `IRewriteContext` contracts for custom
+rules, the `IRewriteFeature` that keeps the original URL readable, the `RewriteFlow` and
+`RewriteMatchTarget` enums, and the internal engine: the middleware, the request view, the target
+parser and the built-in rules.
 
 It references the Web root, `Web.Routing`, `Http` and `Http.Forwarded`, and nothing else. Like every
-Web feature it never references `Web.Hosting` or a `Hosting*` library (`COHRES001`, `COHRES004`). In
-the graph an arrow means "references"; the dotted edge is the reference the build rejects, because a
-feature library never references the area's runtime module.
+Web feature it never references `Web.Hosting` or a `Hosting*` library (`COHRES001`, `COHRES004`).
 
 ```mermaid
 flowchart LR
@@ -36,33 +37,32 @@ flowchart LR
     Rewrite -.->|"COHRES001 ✗"| Hosting["Web.Hosting"]
 ```
 
+The dotted edge is the reference the build rejects: a feature library never references the area's
+runtime module.
+
 **Why `Web.Routing`.** The rewrite runs ahead of routing and uses none of the router's types. It
 references the package for the path-branch view: inside `Map(path)` the rules read
-`IWebPathBaseFeature` and `context.GetEffectivePath()`, and a rewrite publishes its own
-`IWebPathBaseFeature` (see "Path branches"). Both lived in the Web root until #1379 moved them, with
-`Map(path)` itself, to `Web.Routing` (owner decision 33: the root holds no feature contracts). The
-reference adds nothing to an application's closure, since `App.Web` carries `Web.Routing` already.
+`IRouterPathBaseFeature` and `context.GetEffectivePath()`, and a rewrite publishes its own
+`IRouterPathBaseFeature` (see "Path branches"). Both lived in the Web root until #1379 moved them,
+with `Map(path)` itself, to `Web.Routing` (owner decision 33: the root holds no feature contracts).
+The reference adds nothing to an application's closure, since `App.Web` carries `Web.Routing`
+already.
 
 ## The decision this implements: a request view
 
-`IHttpRequest` is immutable: `Path` and `Query` are get-only and owned by the transport. The Web
-area's ADR 1 (`cohesion/docs/resources/Web/DECISIONS.md`, plan §7.4 decision 17) settled how a
-rewrite still reaches the rest of the pipeline. **A rewrite hands the rest of the pipeline a request
-view**: an `IHttpContext` whose `Request.Path` and `Request.Query` are the rewritten values and whose
-every other member is the original's. The original values stay readable through
-`IWebRewriteFeature`.
+`IHttpRequest` is immutable: `Path` and `Query` are get-only and owned by the transport. Web ADR 1
+(`docs/resources/Web/DECISIONS.md`, plan §7.4 decision 17) settled how a rewrite still reaches the
+rest of the pipeline. **A rewrite hands the rest of the pipeline a request view**: an `IHttpContext`
+whose `Request.Path` and `Request.Query` are the rewritten values and whose every other member is
+the original's. The original values stay readable through `IRewriteFeature`.
 
-Two alternatives were rejected:
-
-- **An effective-path feature** would have needed every reader of `Request.Path` and
-  `Request.Query` (20 call sites in 10 packages, plus the endpoint generator's emitted binders) to
-  migrate, and a reader that was missed would silently ignore the rewrite: routing and static files
-  disagreeing on the path would be a security-relevant inconsistency.
-- **A settable path on a transport feature** would have mutated shared transport state and broken
-  `IHttpRequest`'s immutability for every consumer.
-
-The view makes every existing reader correct without changing it, and it is the pattern
-Web.Compression (`RequestDecompressionHttpContext`) and Web.RequestTimeouts
+Two alternatives were rejected. An *effective-path feature* would have needed every reader of
+`Request.Path` and `Request.Query` (20 call sites in 10 packages, plus the endpoint generator's
+emitted binders) to migrate, and a reader that was missed would silently ignore the rewrite: routing
+and static files disagreeing on the path would be a security-relevant inconsistency. A *settable
+path on a transport feature* would have mutated shared transport state and broken `IHttpRequest`'s
+immutability for every consumer. The view makes every existing reader correct without changing it,
+and it is the pattern Web.Compression (`RequestDecompressionHttpContext`) and Web.RequestTimeouts
 (`RequestTimeoutHttpContext`) already established.
 
 ### How the view is built
@@ -76,47 +76,48 @@ that reaches the exchange through the request stays on the rewritten URL. Every 
 response state, features and cancellation never fork.
 
 The middleware creates a view only when the rules changed the URL. A request no rule rewrote
-continues with the context the middleware received, and so does a rewrite back to the same path
-with the same query.
+continues with the context the middleware received, and so does a rewrite back to the same path with
+the same query.
 
-### `IWebRewriteFeature`
+### `IRewriteFeature`
 
 The first rewrite of a request publishes the feature with the request's path and query as the
-middleware received them, which are the values the client sent. A later rewrite (a second
-`UseRewrite`, or one inside a branch after one at the application level) keeps the first one's
-originals. The feature lives only while the rest of the pipeline runs: the middleware removes it
-when `next` returns, so it is present exactly where `Request` carries rewritten values.
+middleware received them, which are the values the client sent. A later rewrite (the registration
+placed again inside a branch after the application level, or a second rewrite middleware placed with
+`Use`) keeps the first one's originals. The feature lives only while the rest of the pipeline runs:
+the middleware removes it when `next` returns, so it is present exactly where `Request` carries
+rewritten values.
 
 ### The pitfall the view carries
 
 A component that holds a context across `next` sees the values of the context it holds. For the
-middleware registered ahead of `UseRewrite` that is intended: an access log, the exception boundary
-and the server's own request telemetry describe the URL the client sent. It is a trap for a
-middleware that captures the context before the rewrite and expects to see the rewrite after `next`
-returns. Two further consequences:
+middleware placed ahead of `UseRewrite` that is intended: an access log, the exception boundary and
+the server's own request telemetry describe the URL the client sent. It is a trap for a middleware
+that captures the context before the rewrite and expects to see the rewrite after `next` returns.
+Two further consequences:
 
-- **A URL built after the rewrite from `Request.Path` carries the rewritten path.** The cookie
-  authentication handler's sign-in return URL is one such URL. Read `IWebRewriteFeature.OriginalPath`
+- A URL built after the rewrite from `Request.Path` carries the rewritten path. The cookie
+  authentication handler's sign-in return URL is one such URL. Read `IRewriteFeature.OriginalPath`
   for the client's URL.
-- **`context.Response.HttpContext` is the original context**, because the response is shared rather
-  than wrapped. Reach the request through the context you were handed, not through the response.
+- `context.Response.HttpContext` is the original context, because the response is shared rather than
+  wrapped. Reach the request through the context you were handed, not through the response.
 
 The same holds for every view in the area, so it is documented here rather than worked around.
 
 ## Path branches
 
-A path branch publishes `IWebPathBaseFeature`: the prefix it matched (`PathBase`) and the path below
-it (`Path`), with `Request.Path` left whole. Inside a branch the rewrite works on the branch's terms
-(ADR 1, decision 3):
+A path branch publishes `IRouterPathBaseFeature`: the prefix it matched (`PathBase`) and the path
+below it (`Path`), with `Request.Path` left whole. Inside a branch the rewrite works on the branch's
+terms (ADR 1, decision 3):
 
 - **The rules see the effective path**, the path below the prefix, and `IRewriteContext.PathBase`
   reports the prefix. A rule written inside `Map("/docs")` matches `/old/intro`, not
   `/docs/old/intro`.
-- **A rewrite publishes a matching `IWebPathBaseFeature`**: the same `PathBase` over the rewritten
-  path, in the slot the branch's own feature uses (the feature collection is keyed by the contract's
-  name, so a reader resolves exactly one). `Request.Path` on the view is the path base followed by
-  the rewritten path: `/docs/old/intro` rewritten to `/new/intro` reads `/docs/new/intro`. The
-  branch's own feature comes back when `next` returns.
+- **A rewrite publishes a matching `IRouterPathBaseFeature`**: the same `PathBase` over the
+  rewritten path, in the slot the branch's own feature uses (the feature collection is keyed by the
+  contract's name, so a reader resolves exactly one). `Request.Path` on the view is the path base
+  followed by the rewritten path: `/docs/old/intro` rewritten to `/new/intro` reads
+  `/docs/new/intro`. The branch's own feature comes back when `next` returns.
 - **A redirect's target path is relative to the path base**: `/new/$1` in `Map("/docs")` answers
   `Location: /docs/new/...`. An absolute `http` or `https` target is written as it is. To redirect
   outside the branch, use an absolute URL.
@@ -139,8 +140,6 @@ before it left it, through `IRewriteContext.Path` and `Query`. A rule acts in on
 | Redirect | Ends | Ends with the redirect |
 | `EndResponse()` | Ends | Ends with the rule's own response |
 
-The diagram traces one request through the middleware; an arrow reads "goes to".
-
 ```mermaid
 flowchart TD
     Start["Request reaches UseRewrite"] --> Asterisk{"OPTIONS * ?"}
@@ -154,7 +153,7 @@ flowchart TD
     Rule -->|"redirect or EndResponse"| Answer["Answer the exchange; next does not run"]
     Rule -->|"SkipRemainingRules, or the last rule ran"| Changed{"Did the URL change?"}
     Changed -->|"no"| PassThrough
-    Changed -->|"yes"| View["Continue with the request view and IWebRewriteFeature"]
+    Changed -->|"yes"| View["Continue with the request view and IRewriteFeature"]
 ```
 
 ### Stopping and restarting
@@ -171,8 +170,9 @@ Restart is the only way a rule set can loop, because a pass runs each rule once.
 `RewriteOptions.MaxPasses` (default `10`, nginx's bound for the same loop) bounds the passes a
 request may take. A request that would need more fails with an `InvalidOperationException` naming
 the bound. A rule set that keeps restarting has a bug, and a `500` that surfaces it is better than a
-request that spins or a silent half-rewrite. The bound is per middleware: a second `UseRewrite` has
-its own, and there is no re-execution of the pipeline that could chain them.
+request that spins or a silent half-rewrite. The bound is per placement: the middleware placed again
+in a branch, or a second rewrite middleware, counts its own passes, and there is no re-execution of
+the pipeline that could chain them.
 
 The canonicalization helpers cannot loop the client either: each is idempotent, so the URL it
 redirects to is one it leaves alone. A pair of hand-written redirects that point at each other is a
@@ -193,8 +193,8 @@ one-second match timeout: the input is the client's URL, and the timeout bounds 
 pattern. A caller-supplied `Regex` is used as it is, with its own options and timeout. That is how
 to get `RegexOptions.NonBacktracking` (linear-time matching, no lookarounds or backreferences) or a
 source-generated `[GeneratedRegex]` (compiled-speed matching under NativeAOT). The package never
-creates a `RegexOptions.Compiled` regex: under NativeAOT it falls back to the interpreter anyway, and
-it emits IL at run time under the JIT.
+creates a `RegexOptions.Compiled` regex: under NativeAOT it falls back to the interpreter anyway,
+and it emits IL at run time under the JIT.
 
 ### What a pattern matches
 
@@ -238,39 +238,35 @@ lands in:
 The expansion is then parsed back the way a transport parses a request target:
 `HttpPath.FromUriComponent` for the path and `HttpQuery.Parse` for the query. Every value is decoded
 exactly once, and a capture can never add a query parameter (`/search/a&admin=true` into `?q=$1`
-stays one `q`), a fragment, or a host. A target's literal text is taken as written, with characters a
-URL cannot carry (a space, non-ASCII text) percent-encoded at registration and a valid `%XX` kept.
+stays one `q`), a fragment, or a host. A target's literal text is taken as written, with characters
+a URL cannot carry (a space, non-ASCII text) percent-encoded at registration and a valid `%XX` kept.
 
 A rewrite's literal text that decodes to a path no request can carry (a space, `?`, `#`, a control
 character or NUL, which `HttpPath` rejects on every transport) is an `ArgumentException` at
 registration, as is a literal query entry without a key. When a *capture* makes the target
-undecodable, for example a query value with a space moved into the path, the rule answers
-`400 Bad Request` and ends the exchange. That is what a transport answers for the same request
-target sent directly, and the client's input is what made it invalid.
+undecodable, for example a query value with a space moved into the path, the rule answers `400 Bad
+Request` and ends the exchange. That is what a transport answers for the same request target sent
+directly, and the client's input is what made it invalid.
 
 ### Predicate and delegate rules
 
 A predicate rule (`AddRewrite(predicate, target)`, `AddRedirect(predicate, target)`) has no pattern,
 so its target is fixed: it is parsed once, at registration, and cannot substitute. A delegate rule
-(`Add(context => ...)`) and a custom `IRewriteRule` act through `IRewriteContext`:
-
-- `Rewrite(path, query, flow)` with a decoded `HttpPath`;
-- `Redirect(location, status)` with a `Location` written as given (already encoded, not made
-  relative to the path base);
-- `SkipRemainingRules()`;
-- `EndResponse()` after writing a response through `HttpContext`.
-
-Actions are recorded and applied once the rule returns, so a rule that throws leaves the response
-untouched. A rule that has redirected or ended the response can take no further action.
+(`Add(context => ...)`) and a custom `IRewriteRule` act through `IRewriteContext`: `Rewrite(path,
+query, flow)` with a decoded `HttpPath`, `Redirect(location, status)` with a `Location` written as
+given (already encoded, not made relative to the path base), `SkipRemainingRules()`, and
+`EndResponse()` after writing a response through `HttpContext`. Actions are recorded and applied
+once the rule returns, so a rule that throws leaves the response untouched. A rule that has
+redirected or ended the response can take no further action.
 
 ## Redirects
 
 A redirect answers with the status and `Location` and nothing else. Being a `3xx`, it is below the
-range `UseStatusCodePages` fills. The statuses are `301` and `308` for a permanent move and `302` and
-`307` for a temporary one; `307` and `308` keep the request method and body (RFC 9110 §15.4), `301`
-and `302` let a client switch a `POST` to `GET`. `AddRedirect` defaults to `302`, as ASP.NET Core
-does, because a permanent redirect is cached by browsers and a mistaken one is hard to take back.
-The canonicalization helpers default to `308`. Anything other than the four statuses is an
+range `UseStatusCodePages` fills. The statuses are `301` and `308` for a permanent move and `302`
+and `307` for a temporary one; `307` and `308` keep the request method and body (RFC 9110 §15.4),
+`301` and `302` let a client switch a `POST` to `GET`. `AddRedirect` defaults to `302`, as ASP.NET
+Core does, because a permanent redirect is cached by browsers and a mistaken one is hard to take
+back. The canonicalization helpers default to `308`. Anything other than the four statuses is an
 `ArgumentOutOfRangeException` at registration: `303` answers with a different resource rather than
 moving this one, and the other `3xx` codes are not redirects a client follows.
 
@@ -305,11 +301,11 @@ Each helper is a redirect rule that answers only when the URL is not already in 
 | `AddRedirectToNoTrailingSlash` | the path ends in `/` and is not the root | the path without every trailing `/` |
 | `AddRedirectToLowercase` | the path has an uppercase letter | the path in lowercase (invariant culture), the query untouched |
 
-- **Effective values.** The scheme and host are `context.EffectiveScheme` and `context.EffectiveHost`
-  (decision 3): behind a TLS-terminating proxy that `UseForwardedHeaders` trusts, a forwarded
-  `https` counts as secure, so the HTTPS rule never redirects a proxied request in a loop, and the
-  `Location` names the host the client addressed. Without forwarded-header resolution they are the
-  wire values, and a client's own `X-Forwarded-Proto` changes nothing.
+- **Effective values.** The scheme and host are `context.EffectiveScheme` and
+  `context.EffectiveHost` (decision 3): behind a TLS-terminating proxy that `UseForwardedHeaders`
+  trusts, a forwarded `https` counts as secure, so the HTTPS rule never redirects a proxied request
+  in a loop, and the `Location` names the host the client addressed. Without forwarded-header
+  resolution they are the wire values, and a client's own `X-Forwarded-Proto` changes nothing.
 - **A host the rule can echo safely.** The host helpers write the request's host into the
   `Location`. A host that is not a DNS name or IP literal (a `/`, `@`, `\` or `?` an attacker put in
   `Host`) is left alone rather than echoed. `UseHostFiltering` ahead of `UseRewrite` is still the
@@ -323,23 +319,42 @@ Each helper is a redirect rule that answers only when the URL is not already in 
 - **Inside a branch** the path helpers work on the path below the prefix: the branch root is never
   given or stripped a trailing slash, and only the path below the prefix is lowercased.
 
+## Registration: `AddRewrite` configures, `UseRewrite` places (2026-10-28)
+
+`builder.Services.AddRewrite(rewrite => ...)` is a generated component integration over
+`RewriteBuilder`. The rules are added to `RewriteBuilder.Options`, and each is built and validated
+as it is added, so an invalid pattern, target, status, flow or match target throws inside the
+`AddRewrite` call. `RewriteBuilder.Build` copies the rule list and `MaxPasses` into the middleware,
+which the verb registers as a container-owned `IWebApplicationMiddleware` singleton; changing the
+options afterwards has no effect. The `(services, rewrite) => ...` overload builds when the
+middleware is first resolved, as the pipeline is composed, so its misconfiguration fails the start
+instead of the registration.
+
+`UseRewrite()` takes no arguments: it places the last registration of the rewrite middleware it
+finds in `IWebApplicationContext.Middleware`. The rules have no default. An empty rule set passes
+every request through, so placing one would turn a forgotten `AddRewrite` into a verb that silently
+does nothing; placing `UseRewrite()` without a registration fails the pipeline composition with an
+`InvalidOperationException` that names `AddRewrite`, the same shape as `UseHostFiltering`. A
+registration whose callback adds no rules is accepted: it is explicit, and a rule set composed
+conditionally (by environment, say) may be empty.
+
+Placing `UseRewrite()` more than once, at the application level and again inside a `Map(path)`
+branch, places the same middleware each time. A branch that needs rules of its own builds a second
+middleware with `new RewriteBuilder()` and places it with the raw `Use(IWebApplicationMiddleware)`;
+that middleware is not a registration the host enumerates.
+
 ## Ordering
 
 `UseRewrite` runs ahead of everything that reads the path: `UseStaticFiles`, `UseRouting` and the
 endpoint. It runs after `UseForwardedHeaders` and `UseHostFiltering`, so the helpers read the
 client's scheme and a validated host, and after `UseHttpsRedirection` and `UseHsts`. It sits inside
 the exception boundary and after `UseStatusCodePages`, so a fault in a rule becomes a
-problem-details response and its `400` gets a body: row 9 of the area's
-[middleware order](../../../../web/middleware-order.md).
+problem-details response and its `400` gets a body: row 9 of `MIDDLEWARE_ORDER.md`.
 
 Rules see the URL as the rules before them left it, so register redirects, the helpers included,
 ahead of internal rewrites. A redirect evaluated after a rewrite sends the client to the rewritten
 URL, exposing an internal path. This is the order mod_rewrite, IIS and ASP.NET Core rules follow
 too.
-
-With orchestration enabled, `Web.Hosting` answers the resource control plane (`/cohesion/v1/*`) and
-the Web.Health endpoints ahead of the application's pipeline, so the rules never see those requests
-and cannot rewrite, redirect or canonicalize them. With it disabled, the rules see every request.
 
 ## Telemetry and logging
 
@@ -347,23 +362,24 @@ The server starts a request's span and records its `url.path` before the pipelin
 context the transport created, so telemetry keeps the client's path. It reads `http.route` from the
 endpoint feature after the pipeline returns, and the features are shared with the view, so the route
 is the one the rewritten path matched: a request to `/legacy/orders/9` rewritten to `/orders/9`
-reports `url.path=/legacy/orders/9` and `http.route=/orders/{id:int}`. `UseHttpLogging`, registered
-ahead of `UseRewrite`, logs the client's path too. Middleware registered after `UseRewrite` that
-logs the path logs the rewritten one, and reads `IWebRewriteFeature` for the original. The package
-itself emits no log entries or spans: it has no logger seam of its own, and the rewrite is visible in
-the route the request reports.
+reports `url.path=/legacy/orders/9` and `http.route=/orders/{id:int}`. `UseHttpLogging`, placed
+ahead of `UseRewrite`, logs the client's path too. Middleware placed after `UseRewrite` that logs
+the path logs the rewritten one, and reads `IRewriteFeature` for the original. The package itself
+emits no log entries or spans: it has no logger seam of its own, and the rewrite is visible in the
+route the request reports.
 
-`UseHttpLogging` captures the request body through its own `IHttpContext`/`IHttpRequest` view, wrapping the
-body exposed by the request it receives. Capture works after `UseRewrite` and request decompression;
-registered after decompression, it observes decoded bytes. Capture remains opt-in, content-type gated and
-bounded, and observes only bytes consumed downstream.
+`UseHttpLogging` captures the request body through its own `IHttpContext`/`IHttpRequest` view,
+wrapping the body exposed by the request it receives. Capture works after `UseRewrite` and request
+decompression; placed after decompression, it observes decoded bytes. Capture remains opt-in,
+content-type gated and bounded, and observes only bytes consumed downstream.
 
 ## Error model
 
 | When | What | Where it surfaces |
 | --- | --- | --- |
-| Registration | An invalid pattern, a malformed target, a reference to an undefined group, an absolute or fragment rewrite target, a rewrite target that decodes to an invalid path | `ArgumentException` from the `Add*` call, so at startup |
-| Registration | A status other than `301`, `302`, `307` or `308`; an undefined `RewriteFlow` or `RewriteMatchTarget`; an HTTPS port outside 1–65535; `MaxPasses` below `1` | `ArgumentOutOfRangeException` |
+| Registration | An invalid pattern, a malformed target, a reference to an undefined group, an absolute or fragment rewrite target, a rewrite target that decodes to an invalid path | `ArgumentException` from the `Add*` call inside `AddRewrite`, so at startup (at the pipeline's composition for the `(services, rewrite) => ...` overload) |
+| Registration | A status other than `301`, `302`, `307` or `308`; an undefined `RewriteFlow` or `RewriteMatchTarget`; an HTTPS port outside 1–65535; `MaxPasses` below `1` | `ArgumentOutOfRangeException`, likewise |
+| Composition | `UseRewrite()` placed with no `AddRewrite` registration | `InvalidOperationException` naming `AddRewrite`, when the application starts |
 | Request | Rules restart more than `MaxPasses` times | `InvalidOperationException`; the exception boundary answers `500` |
 | Request | A capture makes the target decode to an invalid path or an empty query key | `400 Bad Request`, bodyless |
 | Request | A string pattern's match exceeds its one-second timeout | `RegexMatchTimeoutException`; `500` |
@@ -375,11 +391,11 @@ The package defines no exception type of its own: every failure above is a confi
 ## AOT posture
 
 Interpreted, `NonBacktracking` and source-generated regular expressions are all AOT-safe; `Compiled`
-is never used. Composition is plain delegates and arrays built at registration, with no reflection,
-no service container and no configuration binding. The Web NativeAOT guard
-(`cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard`)
-publishes a rewrite and a redirect rule with trim and AOT warnings as errors and exercises both over
-HTTP.
+is never used. Composition is plain delegates and arrays built at registration, with no reflection
+and no configuration binding; the package references no service container, because the `AddRewrite`
+verb is generated into the application that calls it. The Web NativeAOT guard
+(`resources/Web/Assimalign.Cohesion.Web.Hosting/samples/Assimalign.Cohesion.Web.AotGuard`) publishes
+a rewrite and a redirect rule with trim and AOT warnings as errors and exercises both over HTTP.
 
 ## Non-goals
 
@@ -388,9 +404,8 @@ HTTP.
   can express directly.
 - **Rewriting the scheme or host.** A rewrite changes which resource is served, not how the request
   arrived; that is forwarded-header resolution's job.
-- **Asynchronous rules.** See [why the rules are synchronous](#why-the-rules-are-synchronous).
+- **Asynchronous rules.** See "Why the rules are synchronous".
 - **A query-merging flag** (mod_rewrite's `[QSA]`). A delegate rule can merge queries in a line.
-- **Rewriting the requests the control plane answers.** See [Ordering](#ordering).
 
 ## Extending
 
@@ -401,32 +416,18 @@ middleware received.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/src/Assimalign.Cohesion.Web.Rewrite.csproj`.
-- **Decision record** — `cohesion/docs/resources/Web/DECISIONS.md` (ADR 1).
-- **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.

@@ -13,10 +13,9 @@ verification.
 
 ## The cryptographic boundary is format execution versus key management
 
-Design item 25b (`#970`) places the compact-JWS primitives here so headless resources can mint
-or verify Cohesion bootstrap credentials without depending on the Web area. This supersedes the
-older plan in `#830` that assigned all keyed token cryptography to a future Security package.
-The boundary is now:
+Design item 25b (`#970`) places the compact-JWS primitives here so headless resource hosts can mint
+or verify compact JWS tokens without depending on the Web area. This supersedes the older plan in
+`#830` that assigned all keyed token cryptography to a future Security package. The boundary is now:
 
 - **This package executes format-specific BCL primitives.** `JsonWebTokenWriter.CreateEs256`
   returns a public sealed `JsonWebTokenWriter` implementing `IJsonWebTokenWriter` that writes compact JWS
@@ -66,10 +65,8 @@ unrelated to JWS signing.
 
 ## Public keys and the ES256 validator
 
-Seven Cohesion call sites — the resource bootstrap verifiers in the Web, IdentityHub, and Scheduler
-hosting modules, the LogSpace sink verifier, the SecretStore and ConfigurationStore trusted-issuer
-verifiers, and the gateway control plane — once carried their own copy of the same JWK parsing,
-thumbprint, ECDSA import, and claim rules. Those copies now configure three shared types:
+Cohesion's token call sites share three types instead of each carrying its own copy of the JWK
+parsing, thumbprint, ECDSA import, and claim rules:
 
 - **`JsonWebKey`** — a structural parse of one public JWK (`TryParse` from UTF-8 JSON or a
   `JsonElement`). It captures the string-valued `kty`, `crv`, `x`, `y`, `n`, `e`, `kid`, `alg`, and
@@ -122,10 +119,8 @@ borrowed verifier to the selected trusted key and coordinate verification with d
 has no mutable static state, no handle ownership, and no public API. Public validators retain their
 existing contract and token acceptance relative to 10.0.0-preview.1.
 
-The Cohesion claim names and ceilings (`cohesion_token_use`, `scope=telemetry`, `cohesion-export`,
-24 hours, 8 hours) are not here: they belong to the resource credential seam, so they live in
-`Assimalign.Cohesion.Hosting.Resources.ResourceCredentialProfile`, which this package does not
-reference, and each call site passes them into its profile.
+No Cohesion claim names or lifetime ceilings are built in: each call site passes its own into its
+profile.
 
 ## Preview.1 compatibility — public implementations (#1465)
 
@@ -153,7 +148,7 @@ unchanged. No compatibility facade remains. Advisory: not applicable: API shape.
 ## Dependency boundary
 
 The declared build inputs are `Assimalign.Cohesion.IdentityModel.Token` and this package's
-`shared/Es256JsonWebTokenValidation.cs` through `CohesionSharedSource`. The
+`shared/Validation/Es256JsonWebTokenValidation.cs` through `CohesionSharedSource`. The
 [overview](index.md#dependencies) distinguishes project references, package references, shared
 source, and analyzer inputs.
 
@@ -171,4 +166,4 @@ source, and analyzer inputs.
 
 - **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/src`.
 
-- **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/shared/Es256JsonWebTokenValidation.cs`.
+- **Source** — `cohesion/libraries/IdentityModel/Assimalign.Cohesion.IdentityModel.Token.JsonWebToken/shared/Validation/Es256JsonWebTokenValidation.cs`.

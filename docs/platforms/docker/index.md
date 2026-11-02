@@ -1,93 +1,108 @@
 # Docker
 
-The Docker gateway realizes resource plans through Docker-compatible engines, with Podman as its local target.
+The Docker platform runs a gateway's resources as containers on a Docker-compatible engine, with Podman as its local target.
 
-> **Status:** Partial. Compilation, reconciliation, observation, and rendering are implemented; live sensitive-input staging and full engine coverage remain incomplete.
+> **Status:** Partial. Containers, polling publication, and actions on published loopback ports work end to end; authentication, remote engines, staged rollouts, and health checks are open.
 
-## Package and selection
+## Packages
 
-The package is `Assimalign.Cohesion.ApplicationModel.Gateway.Docker`. Add `Docker` to the gateway
-project's `CohesionGateways` allowlist and select `--gateway docker` through generated
-`UseGateway(args)`. The package contributes its gateway/options types and
-`DockerGatewayCommandLine.Apply` through `CohesionGatewayProvider` metadata.
+| Package | Half | Purpose |
+|---|---|---|
+| `Assimalign.Cohesion.ApplicationModel.Gateway.Docker` | Gateway | `DockerInfrastructure`: the infrastructure provider, the inbound channel, and the instance client in one. It talks to the engine's API directly, with no Docker SDK. |
+| `Assimalign.Cohesion.ApplicationModel.Hosting.Docker` | Instance | `resource.UseDocker()` on a resource's `ApplicationInstanceOptions`. |
 
-```xml
-<PropertyGroup>
-  <CohesionGateways>Local;Docker</CohesionGateways>
-</PropertyGroup>
+The two halves share one protocol file, `Hosting.Docker/shared/DockerProtocol.cs`, compiled into
+both. The gateway runs on the engine's host and pulls: it reaches each instance on the loopback port
+the engine publishes the container's control-plane port on, so a container needs no address of its
+gateway.
+
+## Gateway half
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+using Assimalign.Cohesion.ApplicationModel.Gateway.Docker;
+
+await using DockerInfrastructure docker = DockerInfrastructure.Create(new DockerInfrastructureOptions
+{
+    Network = "shop",
+});
+docker
+    .AddImage("Web", "orders-api", "orders-api:1.0")
+    .AddImage("Web", "storefront", "storefront:1.0");
+
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("shop");
+builder.UseDocker(docker);
+IApplicationResourceDefinition orders = builder.AddResource("Web", "orders-api").WithDockerReplicas(2);
+builder.AddResource("Web", "storefront").WithSetting("Orders:Url", orders.Endpoint);
+
+await builder.Build().RunAsync();
 ```
 
-`CohesionPlatformsVersion` selects the external package version. See
-[provider setup](../index.md#selecting-a-provider) for the SDK and pinning contract.
-Direct composition also exposes `UseDockerGateway(args, configure)`.
-
-## Plan compilation
-
-| Plan fact | Docker realization |
+| Member | Purpose |
 |---|---|
-| Resource workload | One container on an application network, with stable service aliases. |
-| `DaemonSet` | One container on the selected engine. |
-| `Job` | One execution; unsupported replica counts fail validation. |
-| Persistent claim | Named volume. |
-| Configuration mount | Staged file content before start. |
-| Secret and bootstrap input | Sensitive archive entries targeting temporary in-memory file-system paths. |
-| Endpoint and probe | Scheme-aware binding, explicit probes, or declared control-plane readiness. |
+| `DockerInfrastructure.Create(options)` | Resolves the engine the options name: `Endpoint`, `DOCKER_HOST`, then the platform's default socket or pipe. |
+| `DockerInfrastructure.AddImage(provider, name, image)` | Binds a resource to the container image that runs it. |
+| `DockerInfrastructureOptions` | `Endpoint`, `Network` (`cohesion`), `EndpointPort` (8080), `ControlPlanePort` (9090), `ImagePullPolicy` (`IfNotPresent`). |
+| `builder.UseDocker(infrastructure)` | Sets the infrastructure as the gateway's provider, inbound channel, and instance client. |
+| `resource.WithDockerReplicas(count)` | The resource's `replicas` extension on the `docker` platform. |
 
-`DockerPlanCompiler` is pure. A level-triggered controller applies its output, while an
-events-plus-inspect observer owns lifecycle and endpoint observations. Private readiness probes
-receive loopback-only ephemeral host bindings. Explicitly disabled readiness remains disabled.
+Each resource is one container per replica on the gateway's network under the resource's name. A
+resource's `endpoint` output is `http://{name}:8080`, its name on the network; the engine also
+publishes each container's `http` port on a loopback port of its host.
 
-The gateway supervises `Always`, `OnFailure`, and `Never` restart policies; engine restart stays
-`no` so one component owns restarts and can restage sensitive inputs. Configuration/startup exits
-remain final. Liveness degradation is observed without re-gating dependents.
+## Instance half
 
-## Images and local development
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Hosting.Docker;
+using Assimalign.Cohesion.Web.Hosting;
+using Assimalign.Cohesion.Web.Hosting.ApplicationModel;
 
-Podman's Docker-compatible application programming interface (API) is the supported local engine.
-`--docker-host` selects an endpoint. Repeatable `--image-archive=<digest-reference>=<path>` inputs
-identify existing archives. The image index, when configured, must agree with the resource manifest.
-A pinned registry wins over `ContainerRegistry`; execution uses a verified immutable engine image
-identifier. Gather never builds.
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddResource("orders-api", resource => resource.UseDocker());
+```
 
-Tests that require a compatible daemon skip when none is available. The source explicitly leaves
-the full Docker/Podman end-to-end matrix open, including OCI-layout loading. Engine pulls currently
-have no private-registry authentication carrier.
+The client is selected only when the instance's environment names the platform
+(`COHESION_GATEWAY=docker`), which the gateway sets on every container it runs. The instance serves
+its side of the publication channel and its control plane on its container's control-plane port.
 
-## Rendering and control plane
+## The exchange
 
-`--mode render --gateway docker` invokes `IApplicationGatewayRenderer.RenderAsync` to produce a
-Compose-style review document. It preserves declaration order, resolves artifact identities
-offline, and neither opens the engine nor resolves credentials. Unresolved mounts remain visible
-with empty preview content. The renderer is not a Compose deployment controller.
+1. The gateway creates the network once, pulls the image if missing, and creates and starts one
+   container per replica with the runtime contract in its environment.
+2. Every second it lists the network's containers and reads each one's channel state through the
+   published loopback port; it hands an unanswered manifest to the gateway's publisher and posts the
+   publication answer back.
+3. The instance renews by moving its renewal count; a renewal the gateway does not know clears the
+   answer, so the instance publishes again.
+4. An operator's action is a `GET` or `POST` to `/actions/{name}`, and a restore a `PUT` to
+   `/state/{name}`, on the container's published control-plane port.
 
-`--control-plane-bind` accepts localhost, an IP address, or an absolute HTTP URI; a bare host uses
-port zero. With no override, the bind is loopback with an ephemeral port. The shared gateway
-ControlPlane package owns authentication and writes discovery beside `export.json`, normally
-under `.cohesion/<application>/control-plane.json`.
+## Development on an engine
 
-## Lifecycle and current limits
+The end-to-end tests run a gateway against a real engine: two `orders-api` instances and a
+`storefront` configured with `orders-api`'s endpoint; a second gateway that adopts the containers the
+first left running; and a program that fails its start, which fails the gateway's start with the
+container's exit and the program's last output. They are skipped unless `COHESION_DOCKER_E2E=1`.
 
-`StopAsync` stops containers and releases supervision while retaining persistent networks and
-claims. Teardown deletes in reverse order and continues after failures. Shared networks remain
-when custom-controller delete outcomes cannot establish that removal is safe.
+```pwsh
+pwsh platforms/Docker/scripts/Publish-CohesionDockerFixtures.ps1
+$env:COHESION_DOCKER_E2E = '1'
+```
 
-Sensitive archive upload occurs after container start, leaving a process-start race. Visibility of
-temporary mounts also depends on the engine's archive implementation. The implementation does not
-fall back to persisting secrets in disk volumes, but compilation tests do not prove portable,
-atomic live secret population.
+## Open work
 
-The normal upstream reconciliation path does not expose telemetry-header bytes to this provider;
-the compiler's optional telemetry input remains empty there. Managed port forwarding and
-cross-gateway topology integration are also open.
-
-The package advertises `RequiresJit=false` and `IsAotCompatible=true`; this is a scoped Docker
-choice, not a platform-repository mandate.
+- **Authentication** — Any process on the engine's host, and any container on the network, can
+  reach an instance's channel and control plane; a per-container secret would close both.
+- **Remote engines** — Ports are published on the engine's loopback, so the gateway must run on
+  the engine's host; `tcp://`, TLS, and SSH engine endpoints are not supported.
+- **Rollout** — An update starts every new replica at once beside the old ones.
+- **Readiness and liveness** — Containers have no health check yet.
 
 Return to [Platforms](../index.md).
 
 ## Sources
 
-- **Area behavior** — `cohesion-platforms/platforms/Docker/README.md`.
-- **Project design** — `cohesion-platforms/platforms/Docker/Assimalign.Cohesion.ApplicationModel.Gateway.Docker/docs/DESIGN.md`.
-- **Provider metadata** — `cohesion-platforms/platforms/Docker/Assimalign.Cohesion.ApplicationModel.Gateway.Docker/buildTransitive/Assimalign.Cohesion.ApplicationModel.Gateway.Docker.props`.
-- **SDK selection** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`.
+- **Area** — `cohesion-platforms/platforms/Docker/README.md`.
+- **Gateway half** — `cohesion-platforms/platforms/Docker/Assimalign.Cohesion.ApplicationModel.Gateway.Docker/docs/OVERVIEW.md` and `cohesion-platforms/platforms/Docker/Assimalign.Cohesion.ApplicationModel.Gateway.Docker/docs/DESIGN.md`.
+- **Instance half** — `cohesion-platforms/platforms/Docker/Assimalign.Cohesion.ApplicationModel.Hosting.Docker/docs/OVERVIEW.md`.

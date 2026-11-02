@@ -14,18 +14,19 @@ test objects.
 
 - **Case 1** — Conventions: An adjustment should apply to its route only.
 - **Case 2** — Conventions: An adjustment should start from the pipeline's configured policy.
-- **Case 3** — Conventions: A replacement should take the place of the pipeline's policy.
-- **Case 4** — Conventions: A replacement should be a copy taken when it is attached.
-- **Case 5** — Conventions: Disabling should drop every field except the application's own.
-- **Case 6** — Conventions: A route-level declaration should override its group's.
-- **Case 7** — Conventions: An endpoint's override should reach its error response.
-- **Case 8** — Conventions: A CORS preflight should keep the pipeline policy.
-- **Case 9** — Conventions: A streamed endpoint should carry its override.
-- **Case 10** — Conventions: An adjustment should be compiled once and reused.
-- **Case 11** — Conventions: An invalid replacement should throw when it is attached.
-- **Case 12** — Conventions: Metadata should report its kind.
-- **Case 13** — Conventions: A verb on a null builder should throw ArgumentNullException.
-- **Case 14** — Conventions: A null policy or adjustment should throw ArgumentNullException.
+- **Case 3** — Conventions: An adjustment should start from the policy as it was registered.
+- **Case 4** — Conventions: A replacement should take the place of the pipeline's policy.
+- **Case 5** — Conventions: A replacement should be a copy taken when it is attached.
+- **Case 6** — Conventions: Disabling should drop every field except the application's own.
+- **Case 7** — Conventions: A route-level declaration should override its group's.
+- **Case 8** — Conventions: An endpoint's override should reach its error response.
+- **Case 9** — Conventions: A CORS preflight should keep the pipeline policy.
+- **Case 10** — Conventions: A streamed endpoint should carry its override.
+- **Case 11** — Conventions: An adjustment should be compiled once and reused.
+- **Case 12** — Conventions: An invalid replacement should throw when it is attached.
+- **Case 13** — Conventions: Metadata should report its kind.
+- **Case 14** — Conventions: A verb on a null builder should throw ArgumentNullException.
+- **Case 15** — Conventions: A null policy or adjustment should throw ArgumentNullException.
 
 ## Source example
 
@@ -34,16 +35,21 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using NetHttpMethod = System.Net.Http.HttpMethod;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.ErrorHandling;
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+
 using static Assimalign.Cohesion.Web.SecurityHeaders.Tests.SecurityHeadersTestHost;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
+using NetHttpMethod = System.Net.Http.HttpMethod;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.SecurityHeaders.Tests;
 
@@ -90,11 +96,12 @@ public class SecurityHeadersRouteConventionTests
         using CancellationTokenSource cancellation = new(TestTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
         factory.Builder.Services.AddRouting();
-        factory.Application.UseSecurityHeaders(policy =>
+        factory.Builder.Services.AddSecurityHeaders(headers =>
         {
-            policy.ContentSecurityPolicy = ContentSecurityPolicy.Create(csp => csp.DefaultSrc(sources => sources.Self()));
-            policy.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
+            headers.Options.ContentSecurityPolicy = ContentSecurityPolicy.Create(csp => csp.DefaultSrc(sources => sources.Self()));
+            headers.Options.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
         });
+        factory.Application.UseSecurityHeaders();
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/partner", Ok())
             .WithSecurityHeaders(policy => policy.Framing = FramingPolicy.AllowFrom("https://partner.example.com"));
@@ -110,6 +117,32 @@ public class SecurityHeadersRouteConventionTests
         Header(response, "X-Content-Type-Options").ShouldBe("nosniff");
     }
 
+    [Fact(DisplayName = "Cohesion Test [Web.SecurityHeaders] - Conventions: An adjustment should start from the policy as it was registered")]
+    public async Task WithSecurityHeaders_PolicyMutatedAfterRegistration_ShouldAdjustTheRegisteredSnapshot()
+    {
+        // Arrange — an adjustment is derived from the middleware's own policy on its endpoint's first
+        // response, long after this mutation; AddSecurityHeaders built the middleware from a copy.
+        using CancellationTokenSource cancellation = new(TestTimeout);
+        SecurityHeadersPolicy? captured = null;
+        await using WebApplicationTestFactory factory = CreateFactory();
+        factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddSecurityHeaders(headers => captured = headers.Options);
+        captured!.ReferrerPolicy = ReferrerPolicy.UnsafeUrl;
+        captured.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
+        factory.Application.UseSecurityHeaders();
+        IRouterBuilder routes = factory.Application.UseRouting();
+        routes.Map(CohesionHttpMethod.Get, "/embed", Ok()).WithSecurityHeaders(policy => policy.Framing = FramingPolicy.SameOrigin);
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage response = await client.GetAsync("/embed", cancellation.Token);
+
+        // Assert
+        Header(response, "X-Frame-Options").ShouldBe("SAMEORIGIN");
+        Header(response, "Referrer-Policy").ShouldBe("strict-origin-when-cross-origin");
+        Header(response, "Cross-Origin-Opener-Policy").ShouldBeNull();
+    }
+
     [Fact(DisplayName = "Cohesion Test [Web.SecurityHeaders] - Conventions: A replacement should take the place of the pipeline's policy")]
     public async Task WithSecurityHeaders_Replacement_ShouldReplaceThePipelinePolicy()
     {
@@ -117,11 +150,12 @@ public class SecurityHeadersRouteConventionTests
         using CancellationTokenSource cancellation = new(TestTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
         factory.Builder.Services.AddRouting();
-        factory.Application.UseSecurityHeaders(policy =>
+        factory.Builder.Services.AddSecurityHeaders(headers =>
         {
-            policy.ContentSecurityPolicy = ContentSecurityPolicy.Create(csp => csp.DefaultSrc(sources => sources.Self()));
-            policy.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
+            headers.Options.ContentSecurityPolicy = ContentSecurityPolicy.Create(csp => csp.DefaultSrc(sources => sources.Self()));
+            headers.Options.CrossOriginOpenerPolicy = CrossOriginOpenerPolicy.SameOrigin;
         });
+        factory.Application.UseSecurityHeaders();
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/api", Ok())
             .WithSecurityHeaders(new SecurityHeadersPolicy { ReferrerPolicy = ReferrerPolicy.NoReferrer });
@@ -165,7 +199,8 @@ public class SecurityHeadersRouteConventionTests
         using CancellationTokenSource cancellation = new(TestTimeout);
         await using WebApplicationTestFactory factory = CreateFactory();
         factory.Builder.Services.AddRouting();
-        factory.Application.UseSecurityHeaders(policy => policy.CrossOriginResourcePolicy = CrossOriginResourcePolicy.SameOrigin);
+        factory.Builder.Services.AddSecurityHeaders(headers => headers.Options.CrossOriginResourcePolicy = CrossOriginResourcePolicy.SameOrigin);
+        factory.Application.UseSecurityHeaders();
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/raw", new RouterRouteHandler(context =>
         {

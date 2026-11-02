@@ -4,21 +4,19 @@ The `ISecretStoreClient` type belongs to `Assimalign.Cohesion.SecretStore.Client
 
 > **Status:** Partial.
 
-`ISecretStoreClient` is the asynchronous contract for reading secret material and submitting
-commands to a SecretStore endpoint.
+`ISecretStoreClient` is the asynchronous contract for reading secret material from a SecretStore
+endpoint.
 
 ## API
 
 - **`GetSecretAsync(string path, CancellationToken)`** — returns the stored bytes from
   `GET /cohesion/v1/secrets?path=...`.
-- **`GetCertificateAsync(string name, CancellationToken)`** — returns PEM text from
-  `GET /cohesion/v1/certificates?name=...`.
-- **`SendCommandAsync(ResourceCommand command, CancellationToken)`** — submits the command with
-  `POST /cohesion/v1/commands`.
+- **`GetCertificateAsync(SecretStoreCertificateReference reference, CancellationToken)`** — returns PEM
+  text from `GET /cohesion/v1/certificates?name=...`; string arguments convert implicitly.
 
 All methods propagate cancellation. Blank paths or names raise `ArgumentException`; transport and
 non-success status failures raise `HttpRequestException`. An empty certificate raises
-`InvalidDataException`, and command serialization may raise `JsonException`.
+`InvalidDataException`.
 
 ## Usage
 
@@ -36,4 +34,4 @@ See the [source-backed usage examples](examples/index.md).
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/docs/Assembly/Assimalign.Cohesion.SecretStore.Client/ISecretStoreClient/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/src/Abstractions/ISecretStoreClient.cs`.

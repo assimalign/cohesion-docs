@@ -1,6 +1,6 @@
 # SDKs
 
-Cohesion software development kits connect project declarations to shared frameworks and build-time generation.
+Cohesion software development kits connect project declarations to shared frameworks and build defaults.
 
 ## SDK family
 
@@ -15,7 +15,7 @@ area whose framework the application needs.
 | [`Assimalign.Cohesion.Sdk.Database`](sdk-database/index.md) | Database resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.Database` |
 | [`Assimalign.Cohesion.Sdk.EmailHub`](sdk-email-hub/index.md) | EmailHub resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.EmailHub` |
 | [`Assimalign.Cohesion.Sdk.EventHub`](sdk-event-hub/index.md) | EventHub resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.EventHub` |
-| [`Assimalign.Cohesion.Sdk.Gateway`](sdk-gateway/index.md) | Application gateway composition | No gateway framework; in-process composition adds App and the referenced areas’ frameworks |
+| [`Assimalign.Cohesion.Sdk.Gateway`](sdk-gateway/index.md) | Application gateway executable | None; it references the `Assimalign.Cohesion.ApplicationModel.Gateway` package |
 | [`Assimalign.Cohesion.Sdk.IdentityHub`](sdk-identity-hub/index.md) | IdentityHub resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.IdentityHub` |
 | [`Assimalign.Cohesion.Sdk.IoTHub`](sdk-iot-hub/index.md) | IoTHub resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.IoTHub` |
 | [`Assimalign.Cohesion.Sdk.LoadBalancer`](sdk-load-balancer/index.md) | LoadBalancer resource application | `Assimalign.Cohesion.App` + `Assimalign.Cohesion.App.LoadBalancer` |
@@ -91,10 +91,10 @@ These resolve to `Assimalign.Cohesion.App[.<Area>].Ref` targeting packs and
 defaults to the packaged `CohesionVersion`. Configure `CohesionAutoIncludeAppFramework=false`
 before props inclusion to suppress implicit items; registrations remain available.
 
-The [App hosting kernel](../libraries/app/index.md) carries Hosting and its Health, Resources, and
-Telemetry siblings; the CommandLine, EnvironmentVariables, FileSystem, and Json configuration
-providers; Logging.Console and Logging.EventSource; OpenTelemetry; DependencyInjection;
-FileSystem.Physical; and Connections. The pack manifest derives from the roots’ transitive
+The [App hosting kernel](../libraries/app/index.md) carries Hosting and ApplicationModel.Hosting;
+the CommandLine, EnvironmentVariables, FileSystem, and Json configuration providers;
+Logging.Console and Logging.EventSource; OpenTelemetry; DependencyInjection; FileSystem.Physical; and
+Connections. The pack manifest derives from the roots’ transitive
 Assimalign project-reference closure plus the App umbrella assembly. Libraries outside that
 closure remain ordinary NuGet packages and are referenced when used.
 
@@ -102,17 +102,10 @@ See [framework and props details](sdk/msbuild/props.md) for pack layout and impo
 
 ## Shared generation
 
-`CohesionApplicationModel=enabled` makes an area SDK import
-[`Assimalign.Cohesion.Sdk.ApplicationModel`](sdk-application-model/index.md) at its exact packaged version. That auxiliary SDK owns
-resource manifests, generated resource APIs, certificates, images, and orchestration targets. Area
-SDKs supply defaults; they do not author the application’s `Program.cs`. The base SDK defaults the
-property to `disabled`; a base-only project that enables it fails with `COHSDK011` and directs the
-author to an area SDK or an explicit ApplicationModel SDK import.
-
-Generated resource-reference `ConnectionFactory()` accessors return `IDuplexConnectionFactory`,
-suitable for database client options and other byte-stream consumers. See the
-[ApplicationModel design](sdk-application-model/assimalign-cohesion-sdk-applicationmodel-tasks/design.md)
-for the generated contract and import order.
+No SDK generates application-model sources. A resource is managed by one registration in its
+`Program.cs`, `builder.Services.AddResource(name, resource => ...)`, from the area's
+`<Area>.Hosting.ApplicationModel` package that its area framework carries; a gateway declares its
+model in its own `Program.cs`.
 
 Set `CohesionAppSettingsClass` to opt into strongly typed `appsettings*.json` generation. The public
 generated root has an explicit `Bind(IConfiguration)` method suitable for ahead-of-time (AOT)
@@ -121,20 +114,17 @@ diagnostics.
 
 ## Gateway boundary
 
-`Assimalign.Cohesion.Sdk.Gateway` forces an enabled executable `Composite` resource. No
-`Assimalign.Cohesion.App.Gateway` framework exists. Provider packages contribute
-`CohesionGatewayProvider` metadata; generation uses those declared types. In-process composition
-adds App plus only the referenced resource areas’ frameworks.
-
-Gateway remains guarded while external Docker/Kubernetes provider contributions and a first-restore
-manifest dependency channel are incomplete. The [Gateway section](sdk-gateway/index.md) documents
-those limits and external provider integration.
+`Assimalign.Cohesion.Sdk.Gateway` defaults to an executable and references the
+`Assimalign.Cohesion.ApplicationModel.Gateway` package at the SDK's version. No
+`Assimalign.Cohesion.App.Gateway` framework exists, and the SDK adds no platform: the gateway
+references the gateway half of each platform it deploys through, the in-process pair here or the
+Kubernetes and Docker pairs in `cohesion-platforms`. See the [Gateway section](sdk-gateway/index.md).
 
 ## Templates and repository build
 
 The [template package](templates/index.md) supplies authored entry points and pins all twenty SDK
-identities. Standalone resources explicitly disable orchestration; application and landing-zone
-members enable it. `cohesion-spa` serves `wwwroot` and falls back to `index.html` for GET/HEAD
+identities. `cohesion-app` pairs an API that registers itself as a resource with an in-process
+gateway; standalone resources are plain applications. `cohesion-spa` serves `wwwroot` and falls back to `index.html` for GET/HEAD
 client-side routes such as `/settings`. Missing assets whose last path segment names a file remain
 404 responses. See [standalone SPA routing](templates/design.md#standalone-spa-routing-1092) and
 [acceptance examples](templates/examples/index.md).
@@ -150,8 +140,6 @@ packaged consumers. In particular, the shipped `Build.Version.props` is a static
 - **Source** — `cohesion/global.json`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.props`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.ApplicationModel/Targets/Sdk.Resource.targets`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Defaults.props`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`

@@ -12,11 +12,11 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — `AddService`: Should honor mixed registration lifecycle order.
-- **Case 2** — `AddService`: Null registrations should fail explicitly.
-- **Case 3** — `Build`: Null service factory result should fail explicitly.
-- **Case 4** — `RunAsync`: Should stop cleanly when cancellation is requested.
-- **Case 5** — `DisposeAsync`: Should dispose the owned endpoint service.
+- **Case 1** — AddService: Should honor mixed registration lifecycle order.
+- **Case 2** — AddService: Null registrations should fail explicitly.
+- **Case 3** — Build: Null service factory result should fail explicitly.
+- **Case 4** — RunAsync: Should stop cleanly when cancellation is requested.
+- **Case 5** — DisposeAsync: Should dispose the owned endpoint service.
 
 ## Source example
 
@@ -26,10 +26,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
+
 using Assimalign.Cohesion.Hosting;
-using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.SecretStore;
 
 namespace Assimalign.Cohesion.SecretStore.Hosting.Tests;
@@ -41,14 +42,11 @@ public class ApplicationLifecycleTests
     {
         // Arrange
         using var directory = new TemporaryDirectory();
-        using IDisposable scope = ResourceRuntime.CreateScope(SecretStoreTestHost.CreateContext(
-            SecretStoreTestHost.GetEndpoint(),
-            directory.Path,
-            gatewayName: null));
+        using IDisposable scope = SecretStoreTestHost.EnterEnvironment();
         List<string> events = [];
         RecordingService firstService = new("first", events);
         RecordingService secondService = new("second", events);
-        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder();
+        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder(directory.Path);
         SecretStoreApplicationContext? factoryContext = null;
         var factoryCount = 0;
 
@@ -83,11 +81,8 @@ public class ApplicationLifecycleTests
     {
         // Arrange
         using var directory = new TemporaryDirectory();
-        using IDisposable scope = ResourceRuntime.CreateScope(SecretStoreTestHost.CreateContext(
-            SecretStoreTestHost.GetEndpoint(),
-            directory.Path,
-            gatewayName: null));
-        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder();
+        using IDisposable scope = SecretStoreTestHost.EnterEnvironment();
+        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder(directory.Path);
 
         // Act and assert
         Should.Throw<ArgumentNullException>(() => builder.AddService((IHostService)null!));
@@ -100,11 +95,8 @@ public class ApplicationLifecycleTests
     {
         // Arrange
         using var directory = new TemporaryDirectory();
-        using IDisposable scope = ResourceRuntime.CreateScope(SecretStoreTestHost.CreateContext(
-            SecretStoreTestHost.GetEndpoint(),
-            directory.Path,
-            gatewayName: null));
-        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder();
+        using IDisposable scope = SecretStoreTestHost.EnterEnvironment();
+        SecretStoreApplicationBuilder builder = SecretStoreTestHost.CreateBuilder(directory.Path);
         builder.AddService(_ => null!);
 
         // Act
@@ -119,11 +111,8 @@ public class ApplicationLifecycleTests
     {
         // Arrange
         using var directory = new TemporaryDirectory();
-        using IDisposable scope = ResourceRuntime.CreateScope(SecretStoreTestHost.CreateContext(
-            SecretStoreTestHost.GetEndpoint(),
-            directory.Path,
-            gatewayName: null));
-        await using SecretStoreApplication application = SecretStoreTestHost.CreateBuilder().Build();
+        using IDisposable scope = SecretStoreTestHost.EnterEnvironment();
+        await using SecretStoreApplication application = SecretStoreTestHost.CreateBuilder(directory.Path).Build();
         using var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.Cancel();
 
@@ -139,11 +128,8 @@ public class ApplicationLifecycleTests
     {
         // Arrange
         using var directory = new TemporaryDirectory();
-        using IDisposable scope = ResourceRuntime.CreateScope(SecretStoreTestHost.CreateContext(
-            SecretStoreTestHost.GetEndpoint(),
-            directory.Path,
-            gatewayName: null));
-        SecretStoreApplication application = SecretStoreTestHost.CreateBuilder().Build();
+        using IDisposable scope = SecretStoreTestHost.EnterEnvironment();
+        SecretStoreApplication application = SecretStoreTestHost.CreateBuilder(directory.Path).Build();
         IHostService endpointService = application.Context.HostedServices.Last();
         await ((IHost)application).StartAsync();
 
@@ -154,22 +140,36 @@ public class ApplicationLifecycleTests
         await Should.ThrowAsync<ObjectDisposedException>(() => endpointService.StartAsync());
     }
 
-    private sealed class RecordingService(
-        string name,
-        ICollection<string> events) : IHostService
+    private sealed class RecordingService : IHostService
     {
+        private readonly string _name;
+        private readonly ICollection<string> _events;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RecordingService"/> class.
+        /// </summary>
+        /// <param name="name">The name recorded as the prefix of each lifecycle event.</param>
+        /// <param name="events">The collection that receives the recorded lifecycle events.</param>
+        public RecordingService(
+            string name,
+            ICollection<string> events)
+        {
+            _name = name;
+            _events = events;
+        }
+
         public ServiceId Id { get; } = ServiceId.New();
 
         public Task StartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            events.Add($"{name}:start");
+            _events.Add($"{_name}:start");
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
         {
-            events.Add($"{name}:stop");
+            _events.Add($"{_name}:stop");
             return Task.CompletedTask;
         }
     }

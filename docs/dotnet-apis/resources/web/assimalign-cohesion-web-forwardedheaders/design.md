@@ -4,15 +4,17 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 Cohesion's deployment story makes a proxy hop the norm: the ApplicationModel K8s self-registry
 gateway and the first-party LoadBalancer/NatGateway resources put every web service behind at least
-one forwarder. Without resolution, every downstream concern — CORS origin checks, cookie `Secure`
-/`SameSite` decisions, session partitioning, rate-limit keys, redirect generation, access logs —
-sees the proxy's IP and `http://`. This package is the **trust half** of forwarded-header handling:
-it decides which forwarded hops to believe and publishes the result. The protocol half (parsing)
-shipped in `Assimalign.Cohesion.Http` (#770); the output contract lives in
+one forwarder. Without resolution, every downstream concern — CORS origin checks, cookie
+`Secure`/`SameSite` decisions, session partitioning, rate-limit keys, redirect generation, access
+logs — sees the proxy's IP and `http://`. This package is the **trust half** of forwarded-header
+handling: it decides which forwarded hops to believe and publishes the result. The protocol half
+(parsing) shipped in `Assimalign.Cohesion.Http` (#770); the output contract lives in
 `Assimalign.Cohesion.Http.Forwarded`.
 
 ## The three-package split
@@ -27,8 +29,8 @@ Dependency direction is one-way: this package → `Web` (seams) + `Http.Forwarde
 (primitives). The middleware never re-parses header text — it consumes already-validated value
 objects, so the security-sensitive code has one job: apply policy.
 
-Diagnostics additionally references `Web.Server` for the request-id feature. The
-feature contracts remain with their owners:
+Diagnostics additionally references `Web.Server` for the request-id feature. The feature contracts
+remain with their owners:
 
 ```mermaid
 flowchart LR
@@ -40,53 +42,49 @@ flowchart LR
 
 ## The trust model is explicit, and header selection is part of it
 
-`ForwardedHeadersOptions` carries four inputs, validated and snapshotted at composition time
-(`UseForwardedHeaders` — no request-time configuration reads, no service location):
+`ForwardedHeadersOptions` carries four inputs, validated and snapshotted where the trust model is
+registered (`ForwardedHeadersBuilder.Build`, which `builder.Services.AddForwardedHeaders(...)` calls
+— no request-time configuration reads, no service location):
 
-- **`Headers`** (`ForwardedHeaderNames` flags) — which headers to honor. There is no
-  safe default: a header the proxy does not manage arrives exactly as the attacker sent
-  it, so honoring it hands over the nearest-hop position of the chain. `None` is
-  rejected at composition time rather than silently no-opping (contrast ASP.NET, whose
-  middleware silently does nothing until configured — a misconfiguration that surfaces
-  as a subtle production identity bug instead of a thrown exception).
-- **`KnownProxies` / `KnownNetworks`** — the trust boundary, as exact addresses and CIDR
-  ranges (`System.Net.IPNetwork`). Defaults: the IPv4/IPv6 loopback addresses, nothing
-  else. IPv4-mapped IPv6 addresses are normalized to IPv4 on both sides of every
-  comparison.
-- **`ForwardLimit`** (default `1`) — how many hops may be accepted. The default trusts
-  exactly the entry appended by the directly connected proxy; raising it is an explicit
-  statement about how many trusted forwarders are actually chained.
-- **`TrustLocalTransports`** (default `true`) — whether a *non-IP* transport peer (Unix
-  domain socket, named pipe, in-memory) is trusted as the first hop. Cohesion ships
-  those drivers (#773) and a local reverse proxy forwarding over IPC is the canonical
-  topology they exist for; a non-IP endpoint is machine-local by construction, so the
-  default mirrors the loopback default. `DnsEndPoint` is excluded from the category and
-  is never trusted. This knob is also why the in-memory `Web.Testing` factory can drive
-  the middleware end to end.
+- **`Headers`** (`ForwardedHeaderNames` flags) — which headers to honor. There is no safe default: a
+  header the proxy does not manage arrives exactly as the attacker sent it, so honoring it hands
+  over the nearest-hop position of the chain. `None` is rejected at registration rather than
+  silently no-opping (contrast ASP.NET, whose middleware silently does nothing until configured — a
+  misconfiguration that surfaces as a subtle production identity bug instead of a thrown exception).
+- **`KnownProxies` / `KnownNetworks`** — the trust boundary, as exact addresses and CIDR ranges
+  (`System.Net.IPNetwork`). Defaults: the IPv4/IPv6 loopback addresses, nothing else. IPv4-mapped
+  IPv6 addresses are normalized to IPv4 on both sides of every comparison.
+- **`ForwardLimit`** (default `1`) — how many hops may be accepted. The default trusts exactly the
+  entry appended by the directly connected proxy; raising it is an explicit statement about how many
+  trusted forwarders are actually chained.
+- **`TrustLocalTransports`** (default `true`) — whether a *non-IP* transport peer (Unix domain
+  socket, named pipe, in-memory) is trusted as the first hop. Cohesion ships those drivers (#773)
+  and a local reverse proxy forwarding over IPC is the canonical topology they exist for; a non-IP
+  endpoint is machine-local by construction, so the default mirrors the loopback default.
+  `DnsEndPoint` is excluded from the category and is never trusted. This knob is also why the
+  in-memory `Web.Testing` factory can drive the middleware end to end.
 
 ## The walk
 
 Entries are evaluated **rightmost-first** — nearest hop first, per the traversal affordances the
 #770 primitives expose (`Reverse`, `Nearest`, wire-order indexing):
 
-1. `Entry` *r* applies only if the peer that handed it over is trusted: the transport
-   peer for *r* = 0, the address adopted from entry *r*−1 after that. The first
-   untrusted peer stops the walk; everything to its left is attacker-writable noise.
-2. A hop asserting anything malformed — an unparseable `X-Forwarded-For` node, a
-   `proto` other than `http`/`https`, a `host` that fails a shape check (separators,
-   whitespace, quotes and friends are rejected; *which* hosts are acceptable is a
-   consumer allowlist concern, not shape validation) — stops the walk **before any of
-   that hop's values apply**. Already-accepted hops stay applied; they were vouched for
-   independently.
-3. A hop whose `for` discloses no address (`unknown`, an obfuscated §6.3 identifier, or
-   no `for` at all) applies its scheme/host values — the trusted peer vouched for the
-   whole entry — but ends the walk: with no address, nothing can vouch for deeper
-   entries. Corollary: without an `X-Forwarded-For` chain in play, `X-Forwarded-Proto`
-   and `X-Forwarded-Host` are believed at most **one** hop deep regardless of
-   `ForwardLimit` (stricter than ASP.NET, which re-checks the unchanged connection
-   address and can walk deeper on proto alone).
-4. Within a hop, later (nearer-client) applications overwrite earlier ones, so the
-   deepest *accepted* entry wins — the closest the walk verifiably gets to the client.
+1. Entry *r* applies only if the peer that handed it over is trusted: the transport peer for *r* =
+   0, the address adopted from entry *r*−1 after that. The first untrusted peer stops the walk;
+   everything to its left is attacker-writable noise.
+2. A hop asserting anything malformed — an unparseable `X-Forwarded-For` node, a `proto` other than
+   `http`/`https`, a `host` that fails a shape check (separators, whitespace, quotes and friends are
+   rejected; *which* hosts are acceptable is a consumer allowlist concern, not shape validation) —
+   stops the walk **before any of that hop's values apply**. Already-accepted hops stay applied;
+   they were vouched for independently.
+3. A hop whose `for` discloses no address (`unknown`, an obfuscated §6.3 identifier, or no `for` at
+   all) applies its scheme/host values — the trusted peer vouched for the whole entry — but ends the
+   walk: with no address, nothing can vouch for deeper entries. Corollary: without an
+   `X-Forwarded-For` chain in play, `X-Forwarded-Proto` and `X-Forwarded-Host` are believed at most
+   **one** hop deep regardless of `ForwardLimit` (stricter than ASP.NET, which re-checks the
+   unchanged connection address and can walk deeper on proto alone).
+4. Within a hop, later (nearer-client) applications overwrite earlier ones, so the deepest
+   *accepted* entry wins — the closest the walk verifiably gets to the client.
 
 ## One family per exchange, RFC 7239 first
 
@@ -102,7 +100,7 @@ knob can be added compatibly if a real topology ever needs legacy-first.
 
 ## Output is a feature, never mutation
 
-`IHttpRequest.Scheme` /`Host`, the raw headers, and `IHttpContext.ConnectionInfo` are deliberately
+`IHttpRequest.Scheme`/`Host`, the raw headers, and `IHttpContext.ConnectionInfo` are deliberately
 get-only wire facts, and this middleware keeps them that way — it only attaches an
 `IHttpForwardedFeature` (effective scheme/host/remote endpoint + the original wire values + the
 accepted-hop count) to `IHttpContext.Features`, one instance per exchange, on **every** exchange it
@@ -115,6 +113,16 @@ opt into the effective view. In exchange, the wire truth is never destroyed, "wh
 actually see" stays answerable (no `X-Original-*` header shuffling), and the resolution is
 observable (`TrustedHopCount`) rather than implicit.
 
+## Registration: `AddForwardedHeaders` configures, `UseForwardedHeaders` places (2026-10-28)
+
+The trust model is configured only where it is registered. `builder.Services.AddForwardedHeaders(
+forwarded => ...)` is a generated component integration over `ForwardedHeadersBuilder`: it builds
+the middleware once, which validates the options, and registers it as an
+`IWebApplicationMiddleware`. `UseForwardedHeaders()` takes no arguments and places the last such
+registration it finds in `IWebApplicationContext.Middleware`. There is no default trust model, so
+placing the middleware without a registration fails the pipeline's composition, which the
+application's start performs, with a message that names `AddForwardedHeaders`.
+
 ## Ordering contract — ahead of every identity consumer
 
 Forwarded-headers resolution must run **before anything that consumes client identity on the way
@@ -122,111 +130,95 @@ in**: host filtering, HTTPS redirection, CORS, authentication, cookie policy, re
 middleware, rate limiting. Middleware execution follows registration order, so
 `UseForwardedHeaders(...)` must run ahead of every such consumer. Only middleware that reads no
 client identity on the way in may precede it: `UseHttpLogging`, which reads on the way out (see
-below), and `UseSecurityHeaders`, which reads none. The area's
-[middleware order](../../../../web/middleware-order.md) gives the full sequence. Until the repo-wide
-middleware-ordering rules land (#26/#145), this contract is documentation + XML docs on the verb;
-when those rules introduce enforceable ordering constraints, this middleware is the canonical "must
-precede its consumers" case and should be annotated accordingly. (Sequenced behind #26/#145 by
-design — do not invent a one-off enforcement mechanism here.)
+below), and `UseSecurityHeaders`, which reads none. The area's middleware order gives the full
+sequence. Until the repo-wide middleware-ordering rules land (#26/#145), this contract is
+documentation + XML docs on the verb; when those rules introduce enforceable ordering constraints,
+this middleware is the canonical "must precede its consumers" case and should be annotated
+accordingly. (Sequenced behind #26/#145 by design — do not invent a one-off enforcement mechanism
+here.)
 
 The Web feature libraries that consume the effective view (#1050, owner decision 3 in
 `docs/programs/HTTP_WEB_PROGRAM_PLAN.md` §7.4) read it at one of two points, which is what the
 ordering contract protects:
 
-- **Before `next`** — `Web.HttpsPolicy` redirection, `Web.HostFiltering`,
-  `Web.Routing`'s host-constrained route selection (`RequireHost`, #1077),
-  `Web.Compression`'s BREACH guard, `Web.Caching`'s primary key, `Web.RateLimiting`'s
-  client-address partition, and the `Secure` decisions of `Web.Sessions` and
-  `Web.Authentication.Cookie` (taken when the cookie is issued). These must run after
-  this middleware.
-- **After `next` returns** — `Web.HttpsPolicy`'s HSTS emission and
-  `Web.Diagnostics`' access-log entry. The feature stays on the exchange once attached,
-  so these honor the forwarded identity even when registered ahead of this middleware,
-  which is why `UseHttpLogging` can keep its own first position.
+- **Before `next`** — `Web.HttpsPolicy` redirection, `Web.HostFiltering`, `Web.Routing`'s
+  host-constrained route selection (`RequireHost`, #1077), `Web.Compression`'s BREACH guard,
+  `Web.Caching`'s primary key, `Web.RateLimiting`'s client-address partition, and the `Secure`
+  decisions of `Web.Sessions` and `Web.Authentication.Cookie` (taken when the cookie is issued).
+  These must run after this middleware.
+- **After `next` returns** — `Web.HttpsPolicy`'s HSTS emission and `Web.Diagnostics`' access-log
+  entry. The feature stays on the exchange once attached, so these honor the forwarded identity even
+  when registered ahead of this middleware, which is why `UseHttpLogging` can keep its own first
+  position.
 
 ## AOT posture
 
-Plain delegate/feature wiring over BCL `IPAddress` /`IPNetwork` and the #770 value objects — no
+Plain delegate/feature wiring over BCL `IPAddress`/`IPNetwork` and the #770 value objects — no
 reflection, no runtime codegen, no dynamic serialization (`IsAotCompatible=true`).
 
 ## Diagnostics
 
-The internal `ForwardedHeadersEventSource` is named
-`Assimalign.Cohesion.Web.ForwardedHeaders`. It reports an interrupted walk once from
-`ForwardedHeadersResolver.ResolveCore`, after the RFC 7239 parse or the selected
-family's walk has supplied its stop reason. Missing or unselected forwarding headers
-and successfully exhausted chains are silent. No request success event is emitted.
+The internal `ForwardedHeadersEventSource` is named `Assimalign.Cohesion.Web.ForwardedHeaders`. It
+reports an interrupted walk once from `ForwardedHeadersResolver.ResolveCore`, after the RFC 7239
+parse or the selected family's walk has supplied its stop reason. Missing or unselected forwarding
+headers and successfully exhausted chains are silent. No request success event is emitted.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
 | 1 | `ForwardingStopped` | Verbose | `reason`, `family`, `hopsApplied:int`, `untrustedPeer`, `requestId` |
 
-`reason` is `UntrustedPeer`, `ForwardLimit`, `MalformedFor`, `InvalidProto`,
-`ImplausibleHost`, `UnusableForwardedHeader`, or `AddresslessHop`; `family` is
-`Forwarded` or `X-Forwarded`. The depth-0 `UntrustedPeer` case alone includes the
-transport peer's IP address (without its port). An untrusted intermediate hop is
-header-derived and is never written; all other cases carry an empty `untrustedPeer`.
-Non-IP endpoints are never formatted. The permitted peer address is personal data
-in the receiving sink. Header values, paths, queries, and claimed hosts are never
-written.
+`reason` is `UntrustedPeer`, `ForwardLimit`, `MalformedFor`, `InvalidProto`, `ImplausibleHost`,
+`UnusableForwardedHeader`, or `AddresslessHop`; `family` is `Forwarded` or `X-Forwarded`. The
+depth-0 `UntrustedPeer` case alone includes the transport peer's IP address (without its port). An
+untrusted intermediate hop is header-derived and is never written; all other cases carry an empty
+`untrustedPeer`. Non-IP endpoints are never formatted. The permitted peer address is personal data
+in the receiving sink. Header values, paths, queries, and claimed hosts are never written.
 
-`requestId` comes from `IWebRequestIdFeature` in `Web.Server`, with an empty fallback
-for a custom context that omits the feature. It never comes from an ambient activity.
-The request-id read, reason formatting and permitted peer formatting are all inside
-the Verbose `IsEnabled` guard. These events have no keywords and need no throttle.
+`requestId` comes from `IWebRequestIdFeature` in `Web.Server`, with an empty fallback for a custom
+context that omits the feature. It never comes from an ambient activity. The request-id read, reason
+formatting and permitted peer formatting are all inside the Verbose `IsEnabled` guard. These events
+have no keywords and need no throttle.
 
 | Counter | Kind | Exact transition |
 | --- | --- | --- |
 | `untrusted-forwarding` | PollingCounter total | Each walk stopped by `UntrustedPeer` |
 | `malformed-forwarding` | PollingCounter total | Each walk stopped by `MalformedFor`, `InvalidProto`, `ImplausibleHost`, or `UnusableForwardedHeader` |
 
-Counters update with `Interlocked` whether or not a listener is enabled and are
-created lazily when a listener enables the source. `ForwardLimit` and
-`AddresslessHop` are policy/topology stops and increment neither total. The raw-input
-resolver overload used by unit callers follows the same diagnostics path, with an
-empty request id because it has no context.
+Counters update with `Interlocked` whether or not a listener is enabled and are created lazily when
+a listener enables the source. `ForwardLimit` and `AddresslessHop` are policy/topology stops and
+increment neither total. The raw-input resolver overload used by unit callers follows the same
+diagnostics path, with an empty request id because it has no context.
 
-Compared with `10.0.0-preview.1`, the source and attribution counters are additive.
-There is no public API or wire behavior break: the existing trust decisions, applied
-values, family precedence, and stop points are unchanged.
+Compared with `10.0.0-preview.1`, the source and attribution counters are additive. There is no
+public API or wire behavior break: the existing trust decisions, applied values, family precedence,
+and stop points are unchanged.
 
 ## Non-goals
 
-- **Producing forwarding headers.** `Header` *injection* belongs to the LoadBalancer
-  resource's data plane when it is implemented, not to the consumer middleware.
-- **Host allowlisting.** The shape check on forwarded hosts prevents smuggling; deciding
-  which hosts are acceptable for redirects/links is a consumer policy, not identity
-  resolution. `Web.HostFiltering` is that consumer: registered after this middleware, it
-  validates the effective host against its allowlist (#1050).
-- **Vendor headers** (`X-Real-IP`, `X-Forwarded-Port`, …) and custom header names. The
-  scope is RFC 7239 plus the ubiquitous trio, mirroring the #770 primitives' scope.
-- **De-obfuscating RFC 7239 identifiers.** An obfuscated node ends the walk; reversing
-  it is private to the proxy that issued it.
+- **Producing forwarding headers.** Header *injection* belongs to the LoadBalancer resource's data
+  plane when it is implemented, not to the consumer middleware.
+- **Host allowlisting.** The shape check on forwarded hosts prevents smuggling; deciding which hosts
+  are acceptable for redirects/links is a consumer policy, not identity resolution.
+  `Web.HostFiltering` is that consumer: registered after this middleware, it validates the effective
+  host against its allowlist (#1050).
+- **Vendor headers** (`X-Real-IP`, `X-Forwarded-Port`, …) and custom header names. The scope is RFC
+  7239 plus the ubiquitous trio, mirroring the #770 primitives' scope.
+- **De-obfuscating RFC 7239 identifiers.** An obfuscated node ends the walk; reversing it is private
+  to the proxy that issued it.
 - **Mutating wire state.** No seam exists for it on purpose; see above.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
 ## Sources
 

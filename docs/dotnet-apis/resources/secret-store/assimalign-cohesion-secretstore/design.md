@@ -30,29 +30,27 @@ configuration, or service-container dependency into the root.
 
 `AddSecret(path, value)` declares first-start seed data. An implementation snapshots the bytes at
 registration and writes them only when the durable store has no version at that exact, ordinal path.
-This distinction is deliberate: composition must not roll back a value later changed by rotation or
-a command. Duplicate declarations are rejected instead of making call order an implicit overwrite
-policy.
+This distinction is deliberate: composition must not roll back a value already on disk. Duplicate
+declarations are rejected instead of making call order an implicit overwrite policy.
 
-## Certificate-authority bootstrap
+## Certificate-authority seeding
 
 `AddCertificateAuthority` captures one `CertificateAuthorityOptions` declaration. Existing durable
 authority state always wins. On first start, the decision order is:
 
-1. `Use` the paired `InitialCertificate` and `InitialPrivateKey` PEM material when supplied. This is
-   the explicit `parameter:`/operator-seeded route.
-2. Otherwise, when `PlatformEnrollmentEndpoint` is configured, create durable pending state for
-   gateway-mediated enrollment with the Platform SecretStore. `PlatformCertificate` optionally
-   pins the Platform trust anchor when the response is completed.
-3. Otherwise, when `SelfSeedWhenNoPlatform` is true (the default), generate a self-signed
-   development root.
-4. Otherwise, fail configuration because no authority source exists.
+1. Use the paired `InitialCertificate` and `InitialPrivateKey` PEM material when supplied. This is
+   the operator-seeded route.
+2. Otherwise, when `SelfSeed` is true (the default), generate a self-signed development root.
+3. Otherwise, fail configuration because no authority source exists.
 
-A configured or incomplete Platform enrollment never falls through to self-seeding. Silent fallback
-would split the application's certificate hierarchy from the Platform hierarchy and hide an
-operational trust failure. The default common name is stable for standalone use and can be
-overridden for an application-specific root. Intermediate requests use the authenticated ambient
-application/resource identity as their subject.
+The default common name is stable and can be overridden for an application-specific root. The
+store enrolls with no parent authority and issues no intermediate authorities.
+
+Compared with `10.0.0-preview.1`, `CertificateAuthorityOptions` is a source and binary break:
+`PlatformEnrollmentEndpoint` and `PlatformCertificate` are removed with the gateway-mediated
+Platform enrollment they configured, and `SelfSeedWhenNoPlatform` is renamed `SelfSeed`, because
+with no Platform source its condition no longer qualifies anything. The default (`true`) and the
+self-seeding behavior are unchanged.
 
 ## Composition lifecycle
 
@@ -64,7 +62,8 @@ once per build against the same context retained by the application; the hosted-
 installed after factory evaluation. Services start in registration order and stop in reverse. No
 area-owned service abstraction is introduced.
 
-Enabled resources retain their ambient context and registered control-plane behavior; plain
+A managed resource is a registration the application makes, `builder.Services.AddResource(name, ...)`
+from the area's `Hosting.ApplicationModel` package; the root contracts do not change for it. Plain
 application defaults are described by the Hosting design.
 
 ## AOT posture
@@ -76,11 +75,9 @@ implementation while the public root remains trimming- and NativeAOT-safe.
 
 ## Non-goals
 
-This project does not persist or encrypt secrets, generate or enroll certificates, contact the
-Platform service, verify bootstrap credentials, or expose a protocol endpoint. Those are runtime
-responsibilities. Cross-resource command verbs (`AddSecret`, `IssueCertificate`, and `Enroll` on a
-SecretStore resource descriptor) are a separate ApplicationModel surface and are not builder-time
-seed declarations.
+This project does not persist or encrypt secrets, generate certificates, or expose a protocol
+endpoint. Those are runtime responsibilities. Seed declarations are builder-time only; changing a
+running store is the resource integration's, through the actions its application adds.
 
 ## Hosting-free application contract (O34)
 

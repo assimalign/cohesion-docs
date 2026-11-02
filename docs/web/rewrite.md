@@ -8,13 +8,15 @@ A Cohesion application serves its own traffic, with no IIS or nginx rewrite tier
 it, so canonical URLs, the migration of legacy paths and internal rewrites have to be expressible in
 the application (#782).
 [`Web.Rewrite`](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/index.md), a member of
-the `App.Web` shared framework, is that work as one pipeline verb, `UseRewrite(rules => ...)`, over
-code-first rules registered at composition time.
+the `App.Web` shared framework, is that work: `builder.Services.AddRewrite(rewrite => ...)`
+registers code-first rules, and the parameterless pipeline verb `UseRewrite()` places them ("Add
+configures, Use places").
 
 ## Register the rules
 
-`UseRewrite` goes ahead of `UseStaticFiles` and `UseRouting`, so both see the rewritten URL. This
-is a complete `Program.cs`:
+The rules are configured on `AddRewrite`; `UseRewrite()` goes ahead of `UseStaticFiles` and
+`UseRouting`, so both see the rewritten URL. Placing it without a registration fails the
+application's start with an error that names `AddRewrite`. This is a complete `Program.cs`:
 
 ```csharp
 using Assimalign.Cohesion.Http;
@@ -27,9 +29,7 @@ using Assimalign.Cohesion.Web.StaticFiles;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRouting();
 
-await using WebApplication app = builder.Build();
-
-app.UseRewrite(rules => rules
+builder.Services.AddRewrite(rewrite => rewrite.Options
     // Redirects first: a redirect evaluated after a rewrite would send the client to the rewritten URL.
     .AddRedirect("^/blog/(\\d+)/(.*)$", "/posts/$2", HttpStatusCode.MovedPermanently)
     .AddRedirect("^/item\\.php\\?id=(\\d+)$", "/items/$1?", HttpStatusCode.MovedPermanently, RewriteMatchTarget.PathAndQuery)
@@ -37,6 +37,10 @@ app.UseRewrite(rules => rules
     // Internal rewrites: the client keeps its URL.
     .AddRewrite("^/assets/v\\d+/(.*)$", "/$1")
     .AddRewrite("^/products/(\\d+)$", "/product?id=$1"));
+
+await using WebApplication app = builder.Build();
+
+app.UseRewrite();
 
 app.UseStaticFiles();
 app.UseRouting();
@@ -96,8 +100,8 @@ absolute `http://` or `https://` URL. A predicate rule (`AddRewrite(predicate, t
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite;
 
-// app is the built WebApplication.
-app.UseRewrite(rules => rules
+// builder is the WebApplicationBuilder.
+builder.Services.AddRewrite(rewrite => rewrite.Options
     .Add(context =>
     {
         if (context.Path.StartsWith(new HttpPath("/api/")))
@@ -207,8 +211,8 @@ path of the view it receives.
   problem-details response and a rule's `400` gets a body.
 - **Ahead of everything that reads the path**: `UseStaticFiles`, `UseRouting` and the endpoint.
 
-With orchestration enabled, `Web.Hosting` answers the resource control plane and the Web.Health
-endpoints ahead of the application's pipeline, so the rules never see those requests.
+A managed resource's control plane is reached through its platform, never through the application's
+pipeline, so the rules never see the gateway's calls.
 
 For the package's design, including the encoding table and the error model, see
 [Web.Rewrite's design](../dotnet-apis/resources/web/assimalign-cohesion-web-rewrite/design.md).

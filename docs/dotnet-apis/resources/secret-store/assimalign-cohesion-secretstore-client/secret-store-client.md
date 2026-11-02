@@ -19,12 +19,9 @@ The returned client uses a process-shared BCL `HttpMessageInvoker`. Redirects an
 disabled so its Bearer credential is not forwarded to another authority or mixed with ambient cookie
 state. Callers do not own or dispose the shared transport.
 
-`CreateForControlPlane(Uri controlPlaneAddress, ClientCredential credential, HttpMessageInvoker transport)`
-uses the supplied full manifest control-plane path and caller-owned transport, including its TLS
-trust policy. The existing two-argument overload delegates using the shared transport. The caller
-keeps a supplied invoker alive until requests finish and disposes it afterward; the client does not
-own it. A null transport throws `ArgumentNullException`; endpoint and credential validation are
-unchanged. The existing three-argument `Create` follows the same ownership rule.
+The three-argument `Create(Uri, ClientCredential, HttpMessageInvoker)` uses a caller-owned transport,
+including its TLS trust policy. The caller keeps a supplied invoker alive until requests finish and
+disposes it afterward; the client does not own it. A null transport throws `ArgumentNullException`.
 
 ## Links
 
@@ -36,4 +33,4 @@ unchanged. The existing three-argument `Create` follows the same ownership rule.
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/docs/Assembly/Assimalign.Cohesion.SecretStore.Client/SecretStoreClient/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/src/SecretStoreClient.cs`.

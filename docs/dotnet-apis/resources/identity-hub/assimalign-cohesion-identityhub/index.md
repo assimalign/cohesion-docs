@@ -23,9 +23,8 @@ concrete issuer is supplied by `Assimalign.Cohesion.IdentityHub.Hosting`.
 - **`AddClient(string, Action<IdentityHubClientOptions>)`** — registers client credentials, device authorization, token lifetime, and allowed audiences.
 - **`Build()`** — produces an `IIdentityHubApplication`, which exposes `Context`, `StartAsync`, and `StopAsync`.
 
-At least one grant and one declared audience are required for every registered client. Gateway
-command descriptors ship in IdentityHub.ApplicationModel; the runtime code-first verbs ship here.
-Hosting honors both registration paths through the same token issuer.
+At least one grant and one declared audience are required for every registered client. The
+code-first verbs here are the only registration path; Hosting issues tokens for them.
 
 ## Hosting-free application contract (O34)
 

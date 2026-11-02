@@ -1,101 +1,96 @@
 # Assimalign.Cohesion.ApplicationModel.Gateway
 
-Realizes application graphs in dependency order and tracks resource and command observations.
+The gateway that runs one application model: it deploys resources through a platform in dependency order, receives their publications, lets child gateways join, and runs operators' actions.
 
-## Reference
+> **Status:** Partial. The in-process, Kubernetes, and Docker platforms deploy through it; authentication of publications and calls belongs to each platform and remains open.
 
-- **[Overview](index.md)** — purpose, dependencies, and principal types.
+## Reference pages
 
-- **[Design](design.md)** — decisions and extension boundaries.
+- **[Design](design.md)** — Deployment order, readiness, records, leases, joins, and actions.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-- **[Examples](examples/index.md)** — source-backed usage and tests.
+A gateway is an executable on [`Assimalign.Cohesion.Sdk.Gateway`](../../../sdks/sdk-gateway/index.md).
+Its `Program.cs` declares the model with `ApplicationGateway.CreateBuilder(name)`, registers the
+platform it deploys through, and runs. A resource is declared generically by provider and name; no
+resource area ships a gateway-side package.
 
-[ApplicationModel](../index.md)
+## Public types
 
-## Scope
+| Area | Types |
+|---|---|
+| Composition | `ApplicationGateway`, `ApplicationGatewayBuilder`, `IApplicationGatewayBuilder`, `IApplicationGateway`, `IApplicationGatewayContext`, `ApplicationGatewayExtensions` (`RunAsync`) |
+| Platform seams | `IApplicationGatewayInfrastructureProvider` (also the inbound channel), `IApplicationGatewayInstanceClient`, `IApplicationGatewayParent` |
+| Deployments | `IApplicationGatewayDeployment`, `IApplicationGatewayDeploymentAction`, `ApplicationGatewayDeploymentPlan`, `ApplicationGatewayDeploymentChange`, `ApplicationGatewayDeploymentRecord`, `ApplicationGatewayOutputValue`, `ApplicationGatewayMembership` |
+| Record | `IApplicationGatewayStore`, `ApplicationGatewayRecord`, `JsonFileApplicationGatewayStore` |
+| Errors | `ApplicationGatewayException`, `ApplicationGatewayErrorCode` |
 
-Readiness and required command application gate dependent startup. Stop preserves declarations,
-whereas teardown removes owned commands and resources in reverse order. Command clients receive the
-target application's certificate validator; replacing a client must preserve that trust boundary.
+## Usage
+
+The root gateway declares its model and runs it through a platform's infrastructure:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("root");
+builder.AddResource("IdentityHub", "identity");
+
+ApplicationGateway root = builder.UseInfrastructure(infrastructure).Build();
+await root.RunAsync(cancellationToken);
+```
+
+A child gateway is its own program. It joins its parent before it deploys anything, and its
+`orders-api` deploys once `orders-db` is ready, with both endpoints in its configuration:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("east");
+IApplicationModelParent root = builder.UseParent(rootGateway);
+
+IApplicationResourceDefinition database = builder.AddResource("Database.Sql", "orders-db");
+builder.AddResource("Web", "orders-api")
+    .DependsOn(database, "data.read")
+    .WithSetting("Identity:Authority", root.Endpoint("IdentityHub", "identity"))
+    .WithSetting("Database:Endpoint", database.Endpoint);
+
+ApplicationGateway east = builder.UseInfrastructure(infrastructure).Build();
+await east.RunAsync(cancellationToken);
+```
+
+An operator's action runs on one instance's control plane; a write's state is recorded and restored
+on every other instance, and an instance that starts later restores it when it publishes:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+
+ApplicationActionResult result = await gateway.ExecuteAsync(
+    "Web",
+    "orders-api",
+    "cors",
+    ApplicationActionContext.Create(ApplicationActionOperation.Write, serializer, """{"origins":["https://partner.example"]}"""u8.ToArray()));
+```
+
+A host that drives the run itself calls `StartAsync` and `StopAsync` and watches `Completion`, which
+faults when the run fails after startup. To run every resource in the gateway's own process, use
+[Gateway.InProcess](../assimalign-cohesion-applicationmodel-gateway-inprocess/index.md):
+`builder.UseInProcess(infrastructure)`.
 
 ## Dependencies
 
-| Reference | Build item |
+| Reference | Kind |
 |---|---|
-| [`Assimalign.Cohesion.ApplicationModel`](../../application-model/assimalign-cohesion-applicationmodel/index.md) | `CohesionProjectReference` |
-| `Assimalign.Cohesion.ConfigurationStore.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Database.Client` | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Hosting.Resources`](../../hosting/assimalign-cohesion-hosting-resources/index.md) | `CohesionProjectReference` |
-| `Assimalign.Cohesion.IdentityHub.Client` | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.IdentityModel.Token.JsonWebToken`](../../identity-model/assimalign-cohesion-identitymodel-token-jsonwebtoken/index.md) | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Rezolvr.Client` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.SecretStore.Client` | `CohesionProjectReference` |
-| [`Assimalign.Cohesion.Security.DataProtection`](../../security/assimalign-cohesion-security-dataprotection/index.md) | `CohesionProjectReference` |
-| `System.Security.Cryptography.ProtectedData` | `CohesionPackageReference` |
+| `Assimalign.Cohesion.ApplicationModel.Definition` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.ApplicationModel.Protocol` | `CohesionProjectReference` |
 
-## Principal public types
+The gateway references the protocol but never the instance runtime. It is a NuGet package, not a
+shared-framework member; `Sdk.Gateway` references it implicitly.
 
-| Type | Source file |
-|---|---|
-| `ApplicationGateway` | `src/ApplicationGateway.Rendering.cs` |
-| `ApplicationGatewayOptions` | `src/ApplicationGatewayOptions.cs` |
-| `IGatewayResourceCommandClient` | `src/Abstractions/IGatewayResourceCommandClient.cs` |
-| `IResourceTransportTrustProvider` | `src/Abstractions/IResourceTransportTrustProvider.cs` |
-| `TrustedIssuer` | `src/TrustedIssuer.cs` |
-| `ApplicationGatewayCommandLine` | `src/ApplicationGatewayCommandLine.cs` |
-| `ApplicationGatewayResourceExtensions` | `src/Extensions/ApplicationGatewayResourceExtensions.cs` |
-| `IApplicationGatewayControlPlane` | `src/Abstractions/IApplicationGatewayControlPlane.cs` |
-| `IApplicationGatewayControlPlaneFactory` | `src/Abstractions/IApplicationGatewayControlPlaneFactory.cs` |
-| `IApplicationTrustGateway` | `src/Abstractions/IApplicationTrustGateway.cs` |
-| `IAuthenticatedControlPlaneClient` | `src/Abstractions/IAuthenticatedControlPlaneClient.cs` |
-| `IContainerResourceOptionsBuilder` | `src/Abstractions/IContainerResourceOptionsBuilder.cs` |
-| `IExecutableResourceOptionsBuilder` | `src/Abstractions/IExecutableResourceOptionsBuilder.cs` |
-| `IGatewayStoreClient` | `src/Abstractions/IGatewayStoreClient.cs` |
-| `IGatewayTrustKeyRepository` | `src/Abstractions/IGatewayTrustKeyRepository.cs` |
-| `IImageRealizer` | `src/Abstractions/IImageRealizer.cs` |
+[Parent: ApplicationModel](../index.md)
 
 ## Sources
 
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Assimalign.Cohesion.ApplicationModel.Gateway.csproj`.
-
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/ApplicationGateway.Rendering.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/ApplicationGatewayOptions.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IGatewayResourceCommandClient.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IResourceTransportTrustProvider.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/TrustedIssuer.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/ApplicationGatewayCommandLine.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Extensions/ApplicationGatewayResourceExtensions.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IApplicationGatewayControlPlane.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IApplicationGatewayControlPlaneFactory.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IApplicationTrustGateway.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IAuthenticatedControlPlaneClient.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IContainerResourceOptionsBuilder.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IExecutableResourceOptionsBuilder.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IGatewayStoreClient.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IGatewayTrustKeyRepository.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Abstractions/IImageRealizer.cs`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/OVERVIEW.md`.
+- **Design** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/DESIGN.md`.
+- **Project** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Assimalign.Cohesion.ApplicationModel.Gateway.csproj`.

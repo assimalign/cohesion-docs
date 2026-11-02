@@ -13,27 +13,29 @@ test objects.
 ## Behavior exercised
 
 - **Case 1** — Create: returns the public concrete handler implementing its contract.
-- **Case 2** — SignIn then Authenticate round-trips the principal.
-- **Case 3** — SignIn emits an HttpOnly cookie.
-- **Case 4** — SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it.
-- **Case 5** — Authenticate with no cookie yields NoResult.
-- **Case 6** — Authenticate with a tampered cookie fails.
-- **Case 7** — Authenticate with an expired ticket fails.
-- **Case 8** — Sliding expiration renews the cookie past the midpoint.
-- **Case 9** — Sliding expiration does not renew before the midpoint.
-- **Case 10** — Challenge on a browser endpoint redirects to the login path.
-- **Case 11** — Challenge should carry the request path percent-encoded in the return URL.
-- **Case 12** — Forbid should carry the request path percent-encoded in the return URL.
-- **Case 13** — Challenge on an API endpoint returns 401 without redirect.
-- **Case 14** — Forbid on an API endpoint returns 403 without redirect.
-- **Case 15** — Forbid on a browser endpoint redirects to access denied.
-- **Case 16** — SignOut deletes the cookie.
-- **Case 17** — A non-persistent sign-in emits a session cookie.
-- **Case 18** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
-- **Case 19** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
-- **Case 20** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
-- **Case 21** — SignIn from an untrusted peer asserting https keeps the template's Secure.
-- **Case 22** — SignIn without UseForwardedHeaders ignores a forwarded https header.
+- **Case 2** — CookieName: Invalid assignment fails before handler creation or sign-in.
+- **Case 3** — Create: Default cookie name fails before sign-in.
+- **Case 4** — SignIn then Authenticate round-trips the principal.
+- **Case 5** — SignIn emits an HttpOnly cookie.
+- **Case 6** — SignIn: The default template should emit an essential cookie, so a consent policy never suppresses it.
+- **Case 7** — Authenticate with no cookie yields NoResult.
+- **Case 8** — Authenticate with a tampered cookie fails.
+- **Case 9** — Authenticate with an expired ticket fails.
+- **Case 10** — Sliding expiration renews the cookie past the midpoint.
+- **Case 11** — Sliding expiration does not renew before the midpoint.
+- **Case 12** — Challenge on a browser endpoint redirects to the login path.
+- **Case 13** — Challenge should carry the request path percent-encoded in the return URL.
+- **Case 14** — Forbid should carry the request path percent-encoded in the return URL.
+- **Case 15** — Challenge on an API endpoint returns 401 without redirect.
+- **Case 16** — Forbid on an API endpoint returns 403 without redirect.
+- **Case 17** — Forbid on a browser endpoint redirects to access denied.
+- **Case 18** — SignOut deletes the cookie.
+- **Case 19** — A non-persistent sign-in emits a session cookie.
+- **Case 20** — SignIn over a direct HTTPS request emits a Secure cookie without the template flag.
+- **Case 21** — SignIn behind a trusted TLS-terminating proxy emits a Secure cookie.
+- **Case 22** — SignOut behind a trusted TLS-terminating proxy emits a Secure deletion cookie.
+- **Case 23** — SignIn from an untrusted peer asserting https keeps the template's Secure.
+- **Case 24** — SignIn without UseForwardedHeaders ignores a forwarded https header.
 
 ## Source example
 
@@ -102,6 +104,42 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
 
     private CookieAuthenticationOptions CreateOptions()
         => new() { TicketProtector = _protector, TimeProvider = _time };
+
+    [Theory(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - CookieName: Invalid assignment fails before handler creation or sign-in")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("bad name")]
+    [InlineData("bad;name")]
+    [InlineData("bad=name")]
+    [InlineData("bad\r\nname")]
+    [InlineData("café")]
+    public void CookieName_InvalidAssignment_ShouldThrowBeforeCreate(string? name)
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => options.CookieName = name!);
+
+        // Assert
+        exception.ParamName.ShouldBe("value");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Authentication.Cookie] - Create: Default cookie name fails before sign-in")]
+    public void Create_DefaultCookieName_ShouldThrowAtComposition()
+    {
+        // Arrange
+        CookieAuthenticationOptions options = CreateOptions();
+        options.CookieName = default;
+
+        // Act
+        ArgumentException exception = Should.Throw<ArgumentException>(() => CookieAuthenticationHandler.Create(options));
+
+        // Assert
+        exception.ParamName.ShouldBe("options");
+        exception.Message.ShouldStartWith("CookieAuthenticationOptions.CookieName must be a non-empty RFC 6265 token.", Case.Sensitive);
+        exception.InnerException.ShouldBeNull();
+    }
 
     private static async Task<IAuthenticationSignInHandler> InitializeAsync(
         CookieAuthenticationOptions options, TestHttpContext context)
@@ -572,14 +610,11 @@ public sealed class CookieAuthenticationHandlerTests : IDisposable
 
     private static IWebApplicationMiddleware BuildForwardedHeaders()
     {
-        TestPipelineBuilder builder = new();
-        builder.UseForwardedHeaders(options =>
-        {
-            options.Headers = ForwardedHeaderNames.XForwarded;
-            options.KnownProxies.Add(_trustedProxy.Address);
-        });
+        ForwardedHeadersBuilder forwarded = new();
+        forwarded.Options.Headers = ForwardedHeaderNames.XForwarded;
+        forwarded.Options.KnownProxies.Add(_trustedProxy.Address);
 
-        return builder.LastMiddleware.ShouldNotBeNull();
+        return forwarded.Build();
     }
 }
 ```

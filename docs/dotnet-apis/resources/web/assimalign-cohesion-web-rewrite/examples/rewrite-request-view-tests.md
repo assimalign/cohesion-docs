@@ -27,8 +27,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 
@@ -36,7 +39,7 @@ namespace Assimalign.Cohesion.Web.Rewrite.Tests;
 
 /// <summary>
 /// The request view a rewrite hands the rest of the pipeline (Web ADR 1): the rewritten path and query, every
-/// other member the original's, the original values kept in <see cref="IWebRewriteFeature"/> while the rest
+/// other member the original's, the original values kept in <see cref="IRewriteFeature"/> while the rest
 /// of the pipeline runs, and the original context left as it was for the middleware ahead of the rewrite.
 /// </summary>
 public class RewriteRequestViewTests
@@ -47,7 +50,7 @@ public class RewriteRequestViewTests
         // Arrange
         IHttpContext? downstream = null;
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/products/(\\d+)$", "/product?id=$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/products/(\\d+)$", "/product?id=$1")));
         builder.Run(context =>
         {
             downstream = context;
@@ -94,7 +97,7 @@ public class RewriteRequestViewTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/a$", "/b"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b")));
         builder.Run(context => context.CancelAsync());
         TestHttpContext original = new("/a");
 
@@ -111,7 +114,7 @@ public class RewriteRequestViewTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/old/(.*)$", "/new/$1?v=2"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/old/(.*)$", "/new/$1?v=2")));
         builder.Run(probe.InvokeAsync);
         TestHttpContext context = new("/old/page", "v=1");
         IHttpQueryCollection originalQuery = context.Request.Query;
@@ -125,7 +128,7 @@ public class RewriteRequestViewTests
         probe.Rewrite.OriginalQuery.ShouldBeSameAs(originalQuery);
         probe.Path!.Value.Value.ShouldBe("/new/page");
         probe.Query!["v"].Value.ShouldBe("2");
-        context.Features.Get<IWebRewriteFeature>().ShouldBeNull();
+        context.Features.Get<IRewriteFeature>().ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Rewrite] - Feature: A second rewrite should keep the values the client sent")]
@@ -134,8 +137,8 @@ public class RewriteRequestViewTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/a$", "/b?step=1"));
-        builder.UseRewrite(rules => rules.AddRewrite("^/b$", "/c?step=2"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b?step=1")));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/b$", "/c?step=2")));
         builder.Run(probe.InvokeAsync);
         TestHttpContext context = new("/a", "client=1");
 
@@ -147,7 +150,7 @@ public class RewriteRequestViewTests
         probe.Query!["step"].Value.ShouldBe("2");
         probe.Rewrite!.OriginalPath.Value.ShouldBe("/a");
         probe.Rewrite.OriginalQuery["client"].Value.ShouldBe("1");
-        context.Features.Get<IWebRewriteFeature>().ShouldBeNull();
+        context.Features.Get<IRewriteFeature>().ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Rewrite] - Feature: A fault downstream should still remove the feature")]
@@ -155,7 +158,7 @@ public class RewriteRequestViewTests
     {
         // Arrange
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/a$", "/b"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b")));
         builder.Run(_ => throw new InvalidOperationException("downstream fault"));
         TestHttpContext context = new("/a");
 
@@ -163,7 +166,7 @@ public class RewriteRequestViewTests
         await Should.ThrowAsync<InvalidOperationException>(() => builder.SendAsync(context));
 
         // Assert
-        context.Features.Get<IWebRewriteFeature>().ShouldBeNull();
+        context.Features.Get<IRewriteFeature>().ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Rewrite] - Pitfall: Middleware ahead of the rewrite should keep seeing the original values after next returns")]
@@ -180,7 +183,7 @@ public class RewriteRequestViewTests
             await next(context);
             afterNext = context.Request.Path.Value;
         });
-        builder.UseRewrite(rules => rules.AddRewrite("^/old$", "/new"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/old$", "/new")));
         builder.Use(async (IHttpContext context, WebApplicationMiddleware next) =>
         {
             inside = context.Request.Path.Value;
@@ -205,7 +208,7 @@ public class RewriteRequestViewTests
         IHttpContext? downstream = null;
         TestPipelineBuilder builder = new();
         builder.Use(next => context => next(new BodyView(context, decoded)));
-        builder.UseRewrite(rules => rules.AddRewrite("^/a$", "/b"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b")));
         builder.Run(context =>
         {
             downstream = context;

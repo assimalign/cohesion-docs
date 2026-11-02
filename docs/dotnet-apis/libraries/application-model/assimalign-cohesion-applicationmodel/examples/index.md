@@ -1,16 +1,16 @@
 # Examples
 
-Source-backed examples for `Assimalign.Cohesion.ApplicationModel`.
+Examples for `Assimalign.Cohesion.ApplicationModel` are derived from source documentation and code.
+
+> **Status:** Implemented.
+
+The examples below retain real usage from project tests. Test examples require their original test
+project’s dependencies and supporting objects.
+
+- **[Resource Identity Tests](resource-identity-tests.md)** — This example exercises `Assimalign.Cohesion.ApplicationModel` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise Cohesion Application Attribute behavior using the original repository tests.
-
 ## Sources
 
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Assimalign.Cohesion.ApplicationModel.csproj`.
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/OVERVIEW.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/DESIGN.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/OVERVIEW.md`.

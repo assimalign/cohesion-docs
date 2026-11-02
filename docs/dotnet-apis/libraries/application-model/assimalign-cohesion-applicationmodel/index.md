@@ -1,92 +1,50 @@
 # Assimalign.Cohesion.ApplicationModel
 
-Defines application graphs, resource manifests, portable plans, and desired resource commands.
+The resource identity every plane of the application model shares: provider and resource names, their ids, and platform names.
 
-## Reference
+> **Status:** Implemented.
 
-- **[Overview](index.md)** — purpose, dependencies, and principal types.
+## Reference pages
 
-- **[Design](design.md)** — decisions and extension boundaries.
+- **[Design](design.md)** — Placement rule, naming, and dependency boundaries.
+- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-- **[Examples](examples/index.md)** — source-backed usage and tests.
+A resource takes three forms: its definition, which a gateway's model declares; its deployment, a
+gateway's view of it across its instances; and each instance, one running copy. This assembly holds
+the names all three share, so the logical model, the gateway, and every instance carry the same
+identity without loading each other's code.
 
-[ApplicationModel](../index.md)
+## Public types
 
-## Scope
+| Type | Role |
+|---|---|
+| `IApplicationResource` | The base of every form of a resource: `Provider`, `Name`, and the `Id` derived from them. |
+| `ProviderName`, `ResourceName` | What a resource is (its provider, such as `Web`) and which one it is (`orders-api`). |
+| `ProviderId`, `ResourceId` | Version 5 UUIDs derived from the names. |
+| `PlatformName` | A platform, such as `inprocess` or `kubernetes`: what a gateway deploys onto and which client an instance reaches its gateway through. |
 
-Descriptors own graph identity, and `Build()` validates dependencies and commands before
-realization. Commands contain portable desired state, so payloads must not contain secrets. Area
-packages add typed composition verbs without moving resource runtimes into the base model.
+## Usage
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel;
+
+ResourceId id = ResourceId.FromName("Web", "orders-api");
+PlatformName platform = "kubernetes";
+```
 
 ## Dependencies
 
-| Reference | Build item |
+| Reference | Kind |
 |---|---|
-| [`Assimalign.Cohesion.Core`](../../core/assimalign-cohesion-core/index.md) | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
 
-## Principal public types
+The hyphenated-words name grammar in `shared/Names/` is compiled into this assembly, Protocol, and
+Definition as shared source; there is no public helper.
 
-| Type | Source file |
-|---|---|
-| `Application` | `src/Application.cs` |
-| `ApplicationName` | `src/ValueObjects/ApplicationName.cs` |
-| `GatewayCommand` | `src/ValueObjects/GatewayCommand.cs` |
-| `IApplication` | `src/Abstractions/IApplication.cs` |
-| `IApplicationBuilder` | `src/Abstractions/IApplicationBuilder.cs` |
-| `IApplicationEnvironment` | `src/Abstractions/IApplicationEnvironment.cs` |
-| `IApplicationModel` | `src/Abstractions/IApplicationModel.cs` |
-| `IResourceCommand` | `src/Abstractions/IResourceCommand.cs` |
-| `IResourceCommandDescriptor` | `src/Abstractions/IResourceCommandDescriptor.cs` |
-| `ResourceCommands` | `src/Commands/ResourceCommands.cs` |
-| `ApplicationBuilderExternalExtensions` | `src/Extensions/ApplicationBuilderExternalExtensions.cs` |
-| `ApplicationDeclaration` | `src/ApplicationSets/ApplicationDeclaration.cs` |
-| `ApplicationExportDocument` | `src/Documents/ApplicationExportDocument.cs` |
-| `ApplicationExportEndpoint` | `src/Documents/ApplicationExportEndpoint.cs` |
-| `ApplicationExportResource` | `src/Documents/ApplicationExportResource.cs` |
-| `ApplicationModelCommandDocument` | `src/Documents/ApplicationModelCommandDocument.cs` |
+[Parent: ApplicationModel](../index.md)
 
 ## Sources
 
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Assimalign.Cohesion.ApplicationModel.csproj`.
-
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/OVERVIEW.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/DESIGN.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Application.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/ValueObjects/ApplicationName.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/ValueObjects/GatewayCommand.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IApplication.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IApplicationBuilder.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IApplicationEnvironment.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IApplicationModel.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IResourceCommand.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Abstractions/IResourceCommandDescriptor.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Commands/ResourceCommands.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Extensions/ApplicationBuilderExternalExtensions.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/ApplicationSets/ApplicationDeclaration.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Documents/ApplicationExportDocument.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Documents/ApplicationExportEndpoint.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Documents/ApplicationExportResource.cs`.
-
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Documents/ApplicationModelCommandDocument.cs`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/OVERVIEW.md`.
+- **Design** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/docs/DESIGN.md`.
+- **Project** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel/src/Assimalign.Cohesion.ApplicationModel.csproj`.

@@ -26,12 +26,16 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.FileSystem;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web;
+
+using Shouldly;
+
+using Xunit;
+
+using HttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 
 namespace Assimalign.Cohesion.Web.StaticFiles.Tests;
 
@@ -47,7 +51,7 @@ public class StaticFilesFileAccessTests
     private static IWebApplicationPipeline CreatePipeline(IFileSystem site)
     {
         var builder = new TestPipelineBuilder();
-        builder.UseStaticFiles(site);
+        builder.Use(StaticFilesMount.Build(site));
         return builder.Build();
     }
 

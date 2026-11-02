@@ -1,29 +1,43 @@
 # Assimalign.Cohesion.Sdk.Gateway
 
-The Gateway SDK generates an application composition surface from resource manifests and provider contributions.
+The Gateway SDK makes an executable project a Cohesion application gateway that references the gateway package.
 
-> **Status:** Partial. Manifest dependency restoration and external provider integration remain explicit completion gates.
+> **Status:** Implemented. The SDK generates nothing; the gateway's model and platform are code in its `Program.cs`.
 
-Choose this SDK for the application gateway that references resources through
-`CohesionResourceReference`. It forces an executable, orchestration-enabled `Composite` resource
-and generates `Gateway.CreateBuilder(args)`, resource verbs, external declarations, and provider
-selection.
+The SDK chains to the base `Assimalign.Cohesion.Sdk`, defaults the project to an executable, and
+references `Assimalign.Cohesion.ApplicationModel.Gateway` at the SDK's own version. It adds no
+shared framework and no platform: the project references the gateway half of each platform it
+deploys through.
 
-Gateway suppresses the implicit `Assimalign.Cohesion.App` reference before importing base props.
-There is no `Assimalign.Cohesion.App.Gateway` framework. The normal orchestration path uses NuGet
-packages. The active in-process exception currently adds `Assimalign.Cohesion.App`,
-`Assimalign.Cohesion.App.Web`, and `Assimalign.Cohesion.App.Database` explicitly.
-
-## Minimal consumer
+## Project contract
 
 ```xml
 <Project Sdk="Assimalign.Cohesion.Sdk.Gateway">
-  <PropertyGroup>
-    <CohesionApplicationName>example</CohesionApplicationName>
-    <CohesionGateways>Local</CohesionGateways>
-  </PropertyGroup>
+  <ItemGroup>
+    <!-- The platform the model runs on. -->
+    <PackageReference Include="Assimalign.Cohesion.ApplicationModel.Gateway.InProcess" Version="10.0.1-preview.3" />
+  </ItemGroup>
 </Project>
 ```
+
+The gateway's `Program.cs` declares its model and runs it on the platform it references:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+using Assimalign.Cohesion.ApplicationModel.Gateway.InProcess;
+
+await using var infrastructure = new InProcessInfrastructure();
+infrastructure.AddProgram("Web", "orders-api", Orders.Api.Program.MainAsync);
+
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("orders").UseInProcess(infrastructure);
+builder.AddResource("Web", "orders-api");
+await builder.Build().RunAsync();
+```
+
+The in-process platform runs each resource's program in the gateway's own process, so the gateway
+references the programs it registers. An out-of-process platform, such as the Kubernetes or Docker
+pair in `cohesion-platforms`, replaces the in-process package and its registration; the model does
+not change. See [Platforms](../../../platforms/index.md).
 
 ```json
 {
@@ -38,36 +52,17 @@ packages. The active in-process exception currently adds `Assimalign.Cohesion.Ap
 }
 ```
 
-Supply a `Program.cs` entry point and enabled resource references for a runnable application. An
-empty same-application manifest set produces a build warning; the generated builder rejects a
-zero-resource application. The minimal project shows SDK resolution and required identity, not a
-complete application topology.
+## Reference
 
-## Current boundary
-
-The shipped dependency bootstrap includes the seven Web, Database, ConfigurationStore, SecretStore,
-IdentityHub, Rezolvr, and LogSpace ApplicationModel packages and the SecretStore, Database, and
-ConfigurationStore clients. Manifest-derived requirements are discovered after restore and cannot
-rewrite `project.assets.json`. A restore-visible producer dependency descriptor remains future
-work. Other kinds use generic `ResourceOptions` /`AddResource` mapping. Docker/Kubernetes providers
-belong to external platform packages; the SDK contains their package selection but does not supply
-their implementations.
-
-- **Overview** — [Consumer properties, provider metadata, outputs, and diagnostics](overview.md).
-- **MSBuild** — [Import graph and task scheduling](msbuild/index.md).
-- **Task assembly** —
-  [`Assimalign.Cohesion.Sdk.Gateway.Tasks`](assimalign-cohesion-sdk-gateway-tasks/index.md).
-- **Platforms** — [Deployment platform documentation](../../../platforms/index.md).
-- **Family** — [All SDKs](../index.md).
+- **Overview** — [Properties and decisions](overview.md).
+- **MSBuild** — [Import order](msbuild/index.md).
+- **Packaging project** — [`Assimalign.Cohesion.Sdk.Gateway.Tasks`](assimalign-cohesion-sdk-gateway-tasks/index.md).
+- **Gateway library** — [ApplicationModel.Gateway](../../libraries/application-model/assimalign-cohesion-applicationmodel-gateway/index.md).
+- **SDK family** — [All SDKs](../index.md).
 
 ## Sources
 
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Sdk/Sdk.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Sdk/Sdk.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Targets/Sdk.Gateway.Images.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Targets/Sdk.Gateway.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Targets/Sdk.Gateway.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/DESIGN.md`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/src/Tasks/CohesionCreateResourceVerbs.cs`
-- **Source** — `cohesion/global.json`
+- **Primary source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/OVERVIEW.md`.
+- **Design** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Tasks/docs/DESIGN.md`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Sdk/Sdk.props`.
+- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Gateway/Targets/Sdk.Gateway.props`.

@@ -16,54 +16,134 @@ tag-aware store built on Cohesion's owned cache foundation. It is the middleware
 
 ## Purpose and scope
 
-- **Cache cacheable GET/HEAD responses** at the server, needing no client participation — the standard
-  enterprise capability for high-traffic API and page workloads.
+- **Cache cacheable GET/HEAD responses** at the server, needing no client participation — the
+  standard enterprise capability for high-traffic API and page workloads.
 - **Policy model at builder time**: a base policy applied to every request, named policies, and
-  per-endpoint overrides through a sealed metadata carrier read from the endpoint `UseRouting` publishes.
+  per-endpoint overrides through a sealed metadata carrier read from the endpoint `UseRouting`
+  publishes.
 - **Correct cache-or-bypass decisions** via the #755 typed `Cache-Control` primitives: bypass on
   `no-store`/`private`/`Set-Cookie`, on non-safe methods, and on non-`200` responses; never cache
   authenticated responses by default; never answer or store a protocol switch (a WebSocket handshake
   on any protocol), so a cached page and a WebSocket can share a URL.
-- **Vary-correct**: the stored response's own `Vary` header partitions the cache key (RFC 9111 §4.1), so
-  a compressed or content-negotiated variant is never served to a client that cannot accept it.
-- **Repeated query values stay distinct**: both the default query policy and `VaryByQuery` include all
-  values in their original order, including empty repeats. A projected key with zero occurrences,
-  an absent key, and one empty occurrence each get a separate cache entry.
-- **`Tag`-based invalidation** reachable from application code.
+- **Vary-correct**: the stored response's own `Vary` header partitions the cache key (RFC 9111
+  §4.1), so a compressed or content-negotiated variant is never served to a client that cannot
+  accept it.
+- **Repeated query values stay distinct**: both the default query policy and `VaryByQuery` include
+  all values in their original order, including empty repeats. A projected key with zero
+  occurrences, an absent key, and one empty occurrence each get a separate cache entry.
+- **Tag-based invalidation** reachable from application code.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the root pipeline-builder seam the `UseOutputCache` verb composes against.
-- **`Assimalign.Cohesion.Web.Routing`** — the published route match (endpoint, route values) and the endpoint-metadata seam.
-- **`Assimalign.Cohesion.Web.Server`** — successful response completion, after starting callbacks, gates storage.
-- **`Assimalign.Cohesion.Http`** — the `IHttpContext` surface and the #755 `HttpCacheControl` / `HttpFreshness`
-  primitives.
-- **`Assimalign.Cohesion.Http.Forwarded`** — the effective scheme and host the primary key is built from
+- `Assimalign.Cohesion.Web` — the root pipeline-builder seam the `UseOutputCache` verb composes
+  against.
+- `Assimalign.Cohesion.Core`'s `ComponentIntegration` shared source — declares `AddOutputCache` as a
+  component integration the consumer's generator projects onto `builder.Services`; the package takes
+  no DI reference.
+- `Assimalign.Cohesion.Web.Routing` — the published route match (endpoint, route values) and the
+  endpoint-metadata seam.
+- `Assimalign.Cohesion.Web.Server` — successful response completion, after starting callbacks, gates
+  storage.
+- `Assimalign.Cohesion.Http` — the `IHttpContext` surface and the #755 `HttpCacheControl` /
+  `HttpFreshness` primitives.
+- `Assimalign.Cohesion.Http.Forwarded` — the effective scheme and host the primary key is built from
   (forwarded by a trusted proxy when `UseForwardedHeaders` runs first, otherwise the wire values).
-- **`Assimalign.Cohesion.Http.Streaming`** — the `IHttpResponseStreamingFeature.HasStarted` guard.
-- **`Assimalign.Cohesion.Caching` / `Assimalign.Cohesion.Caching.InMemory`** — the synchronous cache
+- `Assimalign.Cohesion.Http.Streaming` — the `IHttpResponseStreamingFeature.HasStarted` guard.
+- `Assimalign.Cohesion.Caching` / `Assimalign.Cohesion.Caching.InMemory` — the synchronous cache
   foundation the default in-memory store adapts.
 
-It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isolation rule, `COHRES001`).
+It never references `Assimalign.Cohesion.Web.Hosting` (the resource hosting-isolation rule,
+`COHRES001`).
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+A policy's `MaximumBodySize` override must be positive or null. Zero and negative values throw
+`ArgumentOutOfRangeException` on assignment; null uses the middleware-wide limit. Use a disabled
+policy to turn caching off.
 
-Register `UseOutputCache` **after** `UseRouting`, and **before** `UseResponseCompression` and any
-content-negotiated write (see `DESIGN.md` for why the ordering is load-bearing). Registered ahead of
-`UseRouting`, only the base policy applies: endpoint metadata cannot opt an endpoint in, and a response
-from an endpoint that carries it is never stored, so an opt-out still holds.
+```csharp
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRouting();
+
+// Hold the store to evict by tag. Without UseStore the middleware creates, and disposes with the
+// application, an in-memory store sized from Options.SizeLimit.
+InMemoryOutputCacheStore store = new();
+
+builder.Services.AddOutputCache(cache =>
+{
+    cache.UseStore(store);
+
+    // Opt-in mode (no base policy): cache only endpoints that ask for it, here by name. Add
+    // cache.Options.AddBasePolicy(policy => policy.Duration = TimeSpan.FromMinutes(1)) to cache
+    // every GET/HEAD instead (base-policy mode).
+    cache.Options.AddPolicy("catalog", policy =>
+    {
+        policy.Duration = TimeSpan.FromMinutes(5);
+        policy.VaryByQuery("page");
+        policy.Tag("catalog");
+    });
+});
+
+WebApplication app = builder.Build();
+var routes = app.UseRouting();
+app.UseOutputCache();   // after UseRouting, ahead of UseResponseCompression
+
+// Declare it where the endpoint is mapped, or on a group; a route can opt out of its group.
+IRouterGroupBuilder catalog = app.MapGroup("/catalog").CacheOutput("catalog");
+catalog.MapGet("items", GetItems);
+catalog.MapGet("live", GetLiveStock).DisableOutputCache();
+app.MapGet("/home", GetHome).CacheOutput();   // base/default policy, even in opt-in mode
+
+// The verbs append OutputCacheMetadata; attaching it through the route's metadata is equivalent.
+routes.Map(new Route(HttpMethod.Get, "/offers",
+    new RouterRouteHandler(GetOffers),
+    new RouterRouteMetadataCollection(new OutputCacheMetadata("catalog"))));
+
+// Invalidate by tag when the underlying data changes.
+await store.EvictByTagAsync("catalog");
+```
+
+Configuration lives on the `Add` verb only ("Add configures, Use places"). `AddOutputCache` builds
+the middleware from `OutputCacheBuilder` (`cache.Options` and `cache.UseStore`) and registers it;
+`UseOutputCache()` takes no arguments and places it. Without a registration it places the defaults:
+opt-in mode over a new in-memory store. When the application registers the cache more than once, the
+last registration wins. A store passed to `UseStore` stays the application's to dispose.
+
+Place `UseOutputCache` **after** `UseRouting`, and **before** `UseResponseCompression` and any
+content-negotiated write (see `DESIGN.md` for why the ordering is load-bearing). Placed ahead of
+`UseRouting`, only the base policy applies: endpoint metadata cannot opt an endpoint in, and a
+response from an endpoint that carries it is never stored, so an opt-out still holds.
 
 Storage happens after successful response completion, using the final status and headers left by
-response-starting callbacks. Failed callbacks and cancelled or failed sends never populate the cache.
-A custom server must publish `IWebResponseCompletionFeature` to store misses; without it, misses pass
-through and existing cache hits can still be served.
+response-starting callbacks. Failed callbacks and cancelled or failed sends never populate the
+cache. A custom server must publish `IWebResponseCompletionFeature` to store misses; without it,
+misses pass through and existing cache hits can still be served.
 
 ## Documentation
 
-- **`docs/DESIGN.md`** — the store seam, policy model, bypass matrix, the Vary decision and ordering rationale,
-  the QUERY posture, size accounting, and non-goals.
+- `docs/DESIGN.md` — the store seam, policy model, bypass matrix, the Vary decision and ordering
+  rationale, the QUERY posture, size accounting, and non-goals.
+
+## Typed cache field configuration
+
+`policy.VaryByHeader("Accept-Language")` still accepts individual string arguments through
+`HttpFieldName` conversions. Prebuilt arrays and `VaryByHeaders` entries use `HttpFieldName`;
+invalid names and `default` are refused when added or replaced.
+
+Custom stores construct headers with `new OutputCacheHeader("Content-Type", ["text/plain"])`. The
+constructor now takes `HttpFieldName` and `HttpFieldValue?[]`; `Name` and `Values` expose those
+types. Use `.Value` to read text. Null entries remain absent and empty strings remain valid. Field
+grammar is checked before replay, and the constructor snapshots the value array. These are source
+and binary changes from 10.0.0-preview.1.
+
+Capture after successful completion trims only surrounding SP/HTAB from response values before
+storing them. Internal whitespace and obs-text (including C1 characters) are preserved, null and
+empty entries remain distinct, and OWS-only entries become empty. The response collection is
+unchanged. Custom stores supply field values without surrounding SP/HTAB.
+
+`OutputCacheEntry` still accepts `IReadOnlyList<string>` for `varyBy`. It validates each name
+through `HttpFieldName` and snapshots the list, so a custom store must provide valid names before
+lookup and cannot change an entry's vary dimensions by mutating the original list.
 
 ## Project references
 

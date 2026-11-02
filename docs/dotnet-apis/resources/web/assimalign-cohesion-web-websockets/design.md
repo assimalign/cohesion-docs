@@ -4,20 +4,21 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
-The package is the WebSocket **policy** of the Web pipeline, as the Http area's ADR 1 decided
-(`cohesion/docs/libraries/Http/DECISIONS.md`, plan §7.4 decision 16).
-[`Assimalign.Cohesion.Http.WebSockets`](../../../libraries/http/assimalign-cohesion-http-websockets/index.md)
-owns the protocol: the handshake, its negotiation, and the BCL framing. A browser-facing server
-needs more around that accept, and this package supplies it as one middleware, `UseWebSockets`:
+The WebSocket **policy** of the Web pipeline, as decided by Http ADR 1 (plan §7.4, decision 16).
+`Assimalign.Cohesion.Http.WebSockets` owns the protocol: the handshake, its negotiation, and the BCL
+framing. A browser-facing server needs more around that accept, and this package supplies it as one
+middleware, configured by `builder.Services.AddWebSockets(...)` and placed by `UseWebSockets()`:
 
 1. **The cross-site WebSocket hijacking defense** (decision 6). A browser sends cookies with a
    WebSocket handshake to any site, and neither the same-origin policy nor CORS applies to it, so
    without a check any page a user visits could open a socket authenticated as that user. A
-   handshake whose `Origin` is present and is neither the request's own origin nor an allowed one
-   is refused with `403`. A handshake without `Origin` passes: browsers always send it, so its
-   absence means the client is not a page.
+   handshake whose `Origin` is present and is neither the request's own origin nor an allowed one is
+   refused with `403`. A handshake without `Origin` passes: browsers always send it, so its absence
+   means the client is not a page.
 2. **Defaults for every accept**: the keep-alive interval and timeout, and compression, which stays
    off unless enabled.
 3. **The drain close** (decision 7). When the default server begins its lame-duck drain, every open
@@ -32,12 +33,12 @@ downstream of it takes the policy, whether or not it was written with the policy
 
 The package also maps socket endpoints: `MapWebSocket` serves one handler for the HTTP/1.1 upgrade
 and the HTTP/2 and HTTP/3 extended CONNECT, and applies the policy even when the middleware is
-absent (see [Mapping a socket endpoint](#mapping-a-socket-endpoint)).
+absent (see "Mapping a socket endpoint").
 
 ## The request flow
 
-The middleware decides on the handshake status the protocol package computed, then on the origin.
-In the diagram an arrow reads "goes to".
+An arrow reads "goes to"; the middleware decides on the handshake status the protocol package
+computed, then on the origin.
 
 ```mermaid
 flowchart TD
@@ -83,12 +84,12 @@ there with a message that names the fix: a path (even a trailing `/`), a wildcar
 information, or text that is not `scheme://host[:port]`. `null` cannot be allowed by value, because
 every sandboxed page sends it; `AllowAnyOrigin` is the deliberate way to accept it.
 
-**Why not reuse Web.Cors.** CORS governs which responses a page may read; it is not access control
-and does not apply to WebSockets at all (see
-[Web.Cors's non-goals](../assimalign-cohesion-web-cors/design.md#non-goals)). Its origin parser is
-internal to Web.Cors, and a cross-feature reference for one parsing helper would couple the two
-packages' release cadence. This package carries its own small parser with the same normalization
-rules.
+### Why not reuse Web.Cors
+
+CORS governs which responses a page may read; it is not access control and does not apply to
+WebSockets at all (Web.Cors DESIGN, "Non-goals"). Its origin parser is internal to Web.Cors, and a
+cross-feature reference for one parsing helper would couple the two packages' release cadence. This
+package carries its own small parser with the same normalization rules.
 
 ## Accept defaults
 
@@ -111,11 +112,10 @@ attacker-controlled data is a per-endpoint question.
 
 ## The drain close
 
-The default server installs `IWebServerDrainFeature` on every exchange (a
-[`Web.Server`](../assimalign-cohesion-web-server/design.md) contract); its token fires when the stop
-begins, before anything is cancelled. When the feature is present, the accepted socket is
-wrapped in `DrainAwareWebSocket`, which registers on the token and, when it fires, starts the close
-handshake with `1001 Going Away`. The flow shows a stop that drains a socket within its budget.
+The default server installs `IWebServerDrainFeature` on every exchange (a `Web.Server` contract);
+its token fires when the stop begins, before anything is cancelled. When the feature is present, the
+accepted socket is wrapped in `DrainAwareWebSocket`, which registers on the token and, when it
+fires, starts the close handshake with `1001 Going Away`.
 
 ```mermaid
 sequenceDiagram
@@ -139,12 +139,12 @@ own close. Once the peer answers the drain's close, the BCL socket is `Closed`, 
 or `CloseOutputAsync` that ends a typical receive loop throws for an invalid state. So the close
 output is claimed once, by whichever side asks first:
 
-- **When the drain claimed it**, the application's `CloseOutputAsync` waits for the drain's close
-  frame to be sent, and its `CloseAsync` also waits for the peer's answer if it has not arrived.
-  Neither throws.
-- **When the application claimed it first**, the drain does nothing.
-- **A send after the drain's close** fails as a send on any closing socket does; a receive returns
-  the peer's remaining messages and then its close.
+- When the drain claimed it, the application's `CloseOutputAsync` waits for the drain's close frame
+  to be sent, and its `CloseAsync` also waits for the peer's answer if it has not arrived. Neither
+  throws.
+- When the application claimed it first, the drain does nothing.
+- A send after the drain's close fails as a send on any closing socket does; a receive returns the
+  peer's remaining messages and then its close.
 
 The registration is released when the socket is disposed or aborted, and when the pipeline returns
 (the exchange ends then, and with it the HTTP/1.1 connection or the HTTP/2 or HTTP/3 stream). A
@@ -161,13 +161,13 @@ Nothing in the policy depends on the protocol. `Http.WebSockets` detects the han
 (the HTTP/1.1 upgrade, the HTTP/2 and HTTP/3 extended CONNECT) and reports one `HandshakeStatus`, so
 the middleware's decisions are the same everywhere:
 
-- **The origin check** reads the effective scheme and host, which an HTTP/2 or HTTP/3 request takes
-  from `:scheme` and `:authority`.
-- **The refusals** are `Http.WebSockets`' own, so an HTTP/2 or HTTP/3 `426` carries no `Upgrade` or
-  `Connection` field, which those protocols prohibit.
-- **The drain close** is a WebSocket close frame inside the socket, so it travels in the stream's
-  `DATA` like any message. On HTTP/2 and HTTP/3 the server's drain also sends `GOAWAY`, which stops
-  new streams and leaves the open socket's stream to finish its close handshake within the budget.
+- the origin check reads the effective scheme and host, which an HTTP/2 or HTTP/3 request takes from
+  `:scheme` and `:authority`;
+- the refusals are `Http.WebSockets`' own, so an HTTP/2 or HTTP/3 `426` carries no `Upgrade` or
+  `Connection` field, which those protocols prohibit;
+- the drain close is a WebSocket close frame inside the socket, so it travels in the stream's `DATA`
+  like any message. On HTTP/2 and HTTP/3 the server's drain also sends `GOAWAY`, which stops new
+  streams and leaves the open socket's stream to finish its close handshake within the budget.
 
 The end-to-end suites run the echo, the cross-site refusal, the `426` and the `1001` drain over all
 three protocols: the BCL client over loopback TCP for HTTP/1.1 and prior-knowledge HTTP/2, and a
@@ -176,19 +176,16 @@ WebSockets.
 
 Routing is the one thing that differs by protocol: the handshake's method is `GET` on HTTP/1.1 and
 `CONNECT` on HTTP/2 and HTTP/3, so a WebSocket route mapped for `GET` only does not match the
-latter. `MapWebSocket` removes the difference.
+latter. `MapWebSocket` (below) removes the difference.
 
 ## Mapping a socket endpoint
 
 `MapWebSocket(pattern, handler)` maps one route for both handshake methods, `GET` and `CONNECT`, on
-the application (through the router `builder.Services.AddRouting()` registered) or on a route
-group, and returns the route's builder. #1336 exists because the `MapGet` alternative fails only in
+the application (through the router `builder.Services.AddRouting()` registered) or on a route group,
+and returns the route's builder. #1336 exists because the `MapGet` alternative fails only in
 production: a local test over `http://localhost` speaks HTTP/1.1 and passes, while every browser
 behind `UseHttps` negotiates HTTP/2 through ALPN, opens the socket with RFC 8441, and gets the
 router's `405`. ASP.NET Core documents the same pitfall; a verb that owns both methods removes it.
-
-The diagram shows what the endpoint does with a request its route matched; an arrow reads "goes
-to".
 
 ```mermaid
 flowchart TD
@@ -201,28 +198,34 @@ flowchart TD
     Accept --> Handler["handler(context, socket); the socket is disposed when it returns"]
 ```
 
+The decisions:
+
 - **The handler receives the accepted socket**, `Func<IHttpContext, WebSocket, Task>`. Accepting is
   the endpoint's whole reason to exist, so the verb does it and the handler only drives the socket;
   the context is still there for route values, the user and `RequestCancelled`. An overload takes
   `Func<IHttpContext, HttpWebSocketAcceptOptions?>`, called after the handshake is validated and
   before the accept, so the accept options (a subprotocol among
-  `context.WebSockets.RequestedProtocols`, compression, keep-alive) are chosen per handshake. A value
-  it leaves `null` takes the policy's default, as for any accept.
+  `context.WebSockets.RequestedProtocols`, compression, keep-alive) are chosen per handshake. A
+  value it leaves `null` takes the policy's default, as for any accept.
 - **The socket is disposed when the handler returns.** The handler completes the close handshake;
   one that returns early aborts the socket, and the exchange ends with it.
 - **A request that is not a handshake gets `400`, never the handler.** The route exists, so `404`
   would hide it; the route does take `GET`, so `405` would contradict its own `Allow`. RFC 6455
   §4.2.1 answers a request that does not match the handshake with `400`, and so does every protocol
   here, where `426` could name the WebSocket protocol only on HTTP/1.1 (HTTP/2 and HTTP/3 prohibit
-  `Upgrade`). A method other than `GET`, `HEAD` or `CONNECT` gets the router's `405` with
-  `Allow: GET, CONNECT, HEAD`. A page and a socket therefore cannot share a URL through this verb;
-  serve the page at another path, or write one handler that branches on
+  `Upgrade`). A method other than `GET`, `HEAD` or `CONNECT` gets the router's `405` with `Allow:
+  GET, CONNECT, HEAD`. A page and a socket therefore cannot share a URL through this verb; serve the
+  page at another path, or write one handler that branches on
   `context.WebSockets.IsWebSocketRequest`.
 - **The policy always applies.** When `UseWebSockets` ran, it refused a malformed or cross-site
   handshake before the endpoint and installed its decorator. Otherwise the endpoint applies the
-  default policy itself, the one `UseWebSockets()` with default options applies, so an application
-  that forgot the middleware still refuses a cross-site handshake. Configure origins, keep-alive or
-  compression with `UseWebSockets`.
+  default policy itself, the one `UseWebSockets()` places when the application registered none, so
+  an application that forgot the middleware still refuses a cross-site handshake. Configure origins,
+  keep-alive or compression with `AddWebSockets`; a registered policy applies where
+  `UseWebSockets()` places it, never through the endpoint's fallback. The endpoint does not look the
+  registration up: `MapWebSocket` on a route group has no application context to look in, and a
+  fallback that read it on one verb and not the other would make the group's endpoints behave
+  differently.
 - **Policies attach where the endpoint is mapped.** The route builder takes metadata like any
   route's: `RequireAuthorization` on the endpoint or its group refuses an anonymous handshake with
   the scheme's `401` before the handler runs, on every protocol. A socket outlives any request
@@ -230,12 +233,29 @@ flowchart TD
 - **No source generator.** The verb takes typed delegates, not `Delegate`, so the Web endpoint
   generator neither intercepts it nor needs to; it is AOT-safe as written.
 
+## Registration: `AddWebSockets` configures, `UseWebSockets` places (2026-10-28)
+
+`builder.Services.AddWebSockets(webSockets => ...)` is a generated component integration over
+`WebSocketsBuilder` (`src/Properties/ComponentIntegrations.cs`, both builder templates). The
+builder's `Options` is the existing `WebSocketOptions`; the keep-alive values validate themselves on
+assignment, and `Build()` validates the allowed origins (`ArgumentException` for an empty entry, the
+`*` wildcard, the opaque `null`, or anything that is not a serialized origin) and snapshots
+everything into the immutable `WebSocketPolicy`, so a retained options object changes nothing after
+registration. The middleware registers as an `IWebApplicationMiddleware` singleton.
+`UseWebSockets()` takes no arguments: it places the last `WebSocketMiddleware` it finds in
+`IWebApplicationContext.Middleware`, or one built from the default policy (same-origin only,
+30-second keep-alive, compression off) when the application registered none. The defaults are safe,
+so placing the verb never fails.
+
+*Why:* configuration stays on the registration verb, so the feature's settings have one call site
+and stay in the registrations the host enumerates.
+
 ## Ordering
 
-Register `UseWebSockets` after `UseForwardedHeaders`, whose effective scheme and host the origin
-check reads, and ahead of every endpoint that accepts a socket. The area's
-[middleware order](../../../../web/middleware-order.md) places it last, closest to the endpoints, so
-host filtering, authorization and rate limiting apply to a handshake first.
+Place `UseWebSockets` after `UseForwardedHeaders`, whose effective scheme and host the origin check
+reads, and ahead of every endpoint that accepts a socket. The area's middleware order places it
+last, closest to the endpoints, so host filtering, authorization and rate limiting apply to a
+handshake first.
 
 A request-timeout policy (`Web.RequestTimeouts`) cancels a WebSocket endpoint when it fires, as it
 does any request, so disable the timeout on WebSocket endpoints (`DisableRequestTimeout()`).
@@ -245,24 +265,24 @@ does any request, so disable the timeout on WebSocket endpoints (`DisableRequest
 A Web feature library: it references the Web root (for `IWebApplicationPipelineBuilder`),
 `Web.Server` (for `IWebServerDrainFeature`), `Web.Routing` (the router builder and route groups
 `MapWebSocket` maps into), `Http`, `Http.WebSockets` and `Http.Forwarded`, and nothing in the
-hosting family (`COHRES001`, `COHRES004`). Both Web references are feature-to-feature references the
-area allows. The drain signal reaches this package through `Web.Server`'s feature contract,
+hosting family (COHRES001, COHRES004). Both Web references are feature-to-feature references the
+area allows. The drain signal crosses from `Web.Hosting` through `Web.Server`'s feature contract,
 which is how the policy reaches the server's lifecycle without referencing it. The contract lived in
 the Web root until #1379 moved the server's per-exchange contracts to `Web.Server` (owner decision
 33); its namespace stayed `Assimalign.Cohesion.Web`, so this package's code did not change.
 
 ## AOT posture
 
-No reflection and no runtime code generation: span parsing for origins, delegate composition for
-the middleware and the endpoint, and a `WebSocket` subclass that forwards to the BCL socket. The Web
+No reflection and no runtime code generation: span parsing for origins, delegate composition for the
+middleware and the endpoint, and a `WebSocket` subclass that forwards to the BCL socket. The Web
 NativeAOT guard publishes the middleware and a `MapWebSocket` endpoint, and runs its echo over
 HTTP/1.1 and over HTTP/2, its `400` for a plain `GET`, and a refused cross-site handshake.
 
 ## Diagnostics
 
-The internal `WebSocketEventSource` is named `Assimalign.Cohesion.Web.WebSockets`. It reports
-the policy's rejections and accepted socket lifetimes; it adds no public diagnostics API and
-does not depend on logging. All events are Verbose because a socket belongs to one request.
+The internal `WebSocketEventSource` is named `Assimalign.Cohesion.Web.WebSockets`. It reports the
+policy's rejections and accepted socket lifetimes; it adds no public diagnostics API and does not
+depend on logging. All events are Verbose because a socket belongs to one request.
 
 | Id | Event | Level | Payload |
 | --- | --- | --- | --- |
@@ -271,19 +291,19 @@ does not depend on logging. All events are Verbose because a socket belongs to o
 | 3 | `WebSocketClosed` | Verbose | `requestId`, `closeStatus:int`, `closedByDrain:bool` |
 | 4 | `DrainCloseFailed` | Verbose | `requestId`, `exceptionType`, `exceptionMessage` |
 
-Protocol rejection reasons are the handshake status names (`Invalid`, `UnsupportedVersion`,
-and `None` for a plain request to `MapWebSocket`). Origin policy reasons are `OriginMultiple`,
-`OriginUnparseable`, and `OriginNotAllowed`. Only `OriginNotAllowed` includes an origin: the
-already normalized `scheme://host[:port]`, truncated to 256 characters inside `IsEnabled` and
-treated as untrusted text. No request path, query, raw Origin field, cookie, or message body is
-written. The application's selected subprotocol is bounded to 128 characters at Verbose.
-Drain-close failures retain the exception type and `Message`, following the standard rule for
-exceptions outside the type-only carve-outs; they do not write a stack trace.
+Protocol rejection reasons are the handshake status names (`Invalid`, `UnsupportedVersion`, and
+`None` for a plain request to `MapWebSocket`). Origin policy reasons are `OriginMultiple`,
+`OriginUnparseable`, and `OriginNotAllowed`. Only `OriginNotAllowed` includes an origin: the already
+normalized `scheme://host[:port]`, truncated to 256 characters inside `IsEnabled` and treated as
+untrusted text. No request path, query, raw Origin field, cookie, or message body is written. The
+application's selected subprotocol is bounded to 128 characters at Verbose. Drain-close failures
+retain the exception type and `Message`, following the standard rule for exceptions outside the
+type-only carve-outs; they do not write a stack trace.
 
 `requestId` comes from `IWebRequestIdFeature`, and `routeTemplate` comes from
-`IWebEndpointFeature`. Missing features yield empty strings. Their reads, exception formatting,
-status formatting, and payload truncation happen only while the event is enabled. Ambient
-activities never supply correlation.
+`IRouterEndpointFeature`. Missing features yield empty strings. Their reads, exception formatting,
+status formatting, and payload truncation happen only while the event is enabled. Ambient activities
+never supply correlation.
 
 Three lazily created `PollingCounter`s retain exact backing values even without a listener:
 
@@ -294,19 +314,18 @@ Three lazily created `PollingCounter`s retain exact backing values even without 
 | `rejected-handshakes` | Total | Each policy or socket-endpoint rejection adds one. |
 
 The accepted socket is tracked independently of the optional server drain feature. Release
-atomically exchanges that socket with null, so repeated release, an aborted/disposed socket,
-and a throwing handler cannot decrement twice. The gauge describes accepted exchanges until
-their pipeline ends; it returns to its previous value for custom servers without a drain
-signal as well. Nested `UseWebSockets` policies retain their behavior, with the innermost policy
-alone reporting the socket lifetime so counters and events are not duplicated.
-`closeStatus` is `-1` if no close code is available, and `closedByDrain` records
-whether the drain won ownership of the close output. A failed drain write is reported once by
-the existing catch and remains best effort.
+atomically exchanges that socket with null, so repeated release, an aborted/disposed socket, and a
+throwing handler cannot decrement twice. The gauge describes accepted exchanges until their pipeline
+ends; it returns to its previous value for custom servers without a drain signal as well. Nested
+`UseWebSockets` policies retain their behavior, with the innermost policy alone reporting the socket
+lifetime so counters and events are not duplicated. `closeStatus` is `-1` if no close code is
+available, and `closedByDrain` records whether the drain won ownership of the close output. A failed
+drain write is reported once by the existing catch and remains best effort.
 
-The source's tests cover real loopback close handshakes with and without drain, failure and
-abort paths, request correlation, normalized origin payloads, listener-free counters, strict
-manifest generation, and counter publication. The linked recorder is the repository's shared
-test-only `build/TestSupport/EventSourceRecorder.cs`.
+The source's tests cover real loopback close handshakes with and without drain, failure and abort
+paths, request correlation, normalized origin payloads, listener-free counters, strict manifest
+generation, and counter publication. The linked recorder is the repository's shared test-only
+`build/TestSupport/EventSourceRecorder.cs`.
 
 ### Compatibility with 10.0.0-preview.1
 
@@ -322,40 +341,24 @@ package's addition under #1405.
 - **Message-size limits.** Recorded as "to revisit" in Http ADR 1.
 
 Transport integration tests consume duplex byte pipes through `IDuplexConnection` and HTTP
-connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures
-use `IMultiplexedConnectionStream`. These contract names do not alter this package's
-request/response behavior.
+connections through `IHttpConnection`. Their listeners use `AcceptAsync`; HTTP/3 stream fixtures use
+`IMultiplexedConnectionStream`. These contract names do not alter this package's request/response
+behavior.
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.Forwarded` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http.WebSockets` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.WebSockets/src/Assimalign.Cohesion.Web.WebSockets.csproj`.
-- **Decision record** — `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 1).
-- **Middleware order** — `cohesion/docs/resources/Web/MIDDLEWARE_ORDER.md`.

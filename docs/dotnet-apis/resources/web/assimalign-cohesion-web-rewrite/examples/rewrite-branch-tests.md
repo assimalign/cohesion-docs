@@ -25,8 +25,11 @@ source project’s test context, with its test dependencies and supporting test 
 
 ```csharp
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite.Tests.TestObjects;
 using Assimalign.Cohesion.Web.Routing;
@@ -35,7 +38,7 @@ namespace Assimalign.Cohesion.Web.Rewrite.Tests;
 
 /// <summary>
 /// Rewriting inside a <c>Map(path)</c> branch (Web ADR 1, decision 3): the rules see the branch's effective
-/// path, a rewrite publishes a matching <see cref="IWebPathBaseFeature"/> under the unchanged path base while
+/// path, a rewrite publishes a matching <see cref="IRouterPathBaseFeature"/> under the unchanged path base while
 /// <c>Request.Path</c> is the path base and the rewritten path, redirects are relative to the path base, and
 /// the branch's own view comes back when the rest of the branch returns.
 /// </summary>
@@ -49,7 +52,7 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules.AddRewrite("^/old/(.*)$", "/new/$1"));
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/old/(.*)$", "/new/$1")));
             branch.Run(probe.InvokeAsync);
         });
 
@@ -61,8 +64,8 @@ public class RewriteBranchTests
         probe.PathBase!.Value.Value.ShouldBe("/docs");
         probe.Path!.Value.Value.ShouldBe("/docs/new/intro");
         probe.Rewrite!.OriginalPath.Value.ShouldBe("/docs/old/intro");
-        context.Features.Get<IWebPathBaseFeature>().ShouldBeNull();
-        context.Features.Get<IWebRewriteFeature>().ShouldBeNull();
+        context.Features.Get<IRouterPathBaseFeature>().ShouldBeNull();
+        context.Features.Get<IRewriteFeature>().ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Rewrite] - Branch: Rules in a branch should match the path below the prefix, not the full path")]
@@ -73,7 +76,7 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules.AddRewrite("^/docs/(.*)$", "/never/$1"));
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/docs/(.*)$", "/never/$1")));
             branch.Run(probe.InvokeAsync);
         });
 
@@ -101,7 +104,7 @@ public class RewriteBranchTests
                 effectiveAfterNext = context.GetEffectivePath();
                 requestAfterNext = context.Request.Path;
             });
-            branch.UseRewrite(rules => rules.AddRewrite("^/a$", "/b"));
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/a$", "/b")));
             branch.Run(probe.InvokeAsync);
         });
 
@@ -122,7 +125,7 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/api", api =>
         {
-            api.UseRewrite(rules => rules.AddRewrite("^/latest/(.*)$", "/v2/$1"));
+            api.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/latest/(.*)$", "/v2/$1")));
             api.Map("/v2", v2 => v2.Run(probe.InvokeAsync));
         });
 
@@ -143,7 +146,7 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules.AddRewrite("^/index\\.html$", "/"));
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/index\\.html$", "/")));
             branch.Run(probe.InvokeAsync);
         });
 
@@ -162,7 +165,7 @@ public class RewriteBranchTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/help/(.*)$", "/docs/$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/help/(.*)$", "/docs/$1")));
         builder.Map("/docs", branch => branch.Run(probe.InvokeAsync));
 
         // Act
@@ -180,10 +183,10 @@ public class RewriteBranchTests
         // Arrange
         DownstreamProbe probe = new();
         TestPipelineBuilder builder = new();
-        builder.UseRewrite(rules => rules.AddRewrite("^/help/(.*)$", "/docs/$1"));
+        builder.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/help/(.*)$", "/docs/$1")));
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules.AddRewrite("^/intro$", "/getting-started"));
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.AddRewrite("^/intro$", "/getting-started")));
             branch.Run(probe.InvokeAsync);
         });
 
@@ -203,10 +206,10 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules
+            branch.Use(TestRewriteMiddleware.Build(rules => rules
                 .AddRedirect("^/old/(.*)$", "/new/$1", HttpStatusCode.MovedPermanently)
                 .AddRedirect("^/elsewhere$", "https://example.org/", HttpStatusCode.Found)
-                .AddRedirectToLowercase());
+                .AddRedirectToLowercase()));
             branch.Run(_ => Task.CompletedTask);
         });
 
@@ -230,11 +233,11 @@ public class RewriteBranchTests
         TestPipelineBuilder builder = new();
         builder.Map("/docs", branch =>
         {
-            branch.UseRewrite(rules => rules.Add(context =>
+            branch.Use(TestRewriteMiddleware.Build(rules => rules.Add(context =>
             {
                 seenBase = context.PathBase;
                 seenPath = context.Path;
-            }));
+            })));
             branch.Run(_ => Task.CompletedTask);
         });
 

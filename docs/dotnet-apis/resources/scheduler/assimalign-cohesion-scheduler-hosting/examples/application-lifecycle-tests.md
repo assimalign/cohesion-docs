@@ -12,18 +12,17 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — `AddService`: Should honor mixed registration lifecycle order.
-- **Case 2** — `AddService`: Null registrations should fail explicitly.
-- **Case 3** — `AddScheduleProvider`: rejects the same provider instance twice.
-- **Case 4** — `Build`: rejects one schedule returned by multiple providers.
+- **Case 1** — AddService: Should honor mixed registration lifecycle order.
+- **Case 2** — AddService: Null registrations should fail explicitly.
+- **Case 3** — AddScheduleProvider: rejects the same provider instance twice.
+- **Case 4** — Build: rejects one schedule returned by multiple providers.
 - **Case 5** — Execution: first schedule fault cancels sibling loops.
-- **Case 6** — `Build`: Null service factory result should fail explicitly.
-- **Case 7** — `RunAsync`: pre-cancelled token starts and stops once.
+- **Case 6** — Build: Null service factory result should fail explicitly.
+- **Case 7** — RunAsync: pre-cancelled token starts and stops once.
 - **Case 8** — Lifecycle: stop drains an active occurrence.
 - **Case 9** — Lifecycle: stop bounds an occurrence that exceeds grace.
-- **Case 10** — `AddJob`: an unbound job remains dormant.
-- **Case 11** — `Build`: rejects schedules bound to undeclared jobs.
-- **Case 12** — Control plane: serves probes and authenticated management.
+- **Case 10** — AddJob: an unbound job remains dormant.
+- **Case 11** — Build: rejects schedules bound to undeclared jobs.
 
 ## Source example
 
@@ -31,19 +30,13 @@ test objects.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Net.Sockets;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
-using Assimalign.Cohesion.Core;
+
 using Assimalign.Cohesion.Hosting;
-using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Scheduler;
 using Assimalign.Cohesion.Scheduler.Timer;
 
@@ -286,94 +279,34 @@ public class ApplicationLifecycleTests
         error.Message.ShouldContain("declared with AddJob", Case.Sensitive);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Scheduler.Hosting] - Control plane: serves probes and authenticated management")]
-    public async Task ControlPlane_WithAmbientHttpEndpoint_ShouldServeResourceRoutes()
+    private sealed class RecordingService : IHostService
     {
-        int port = GetAvailablePort();
-        var endpoint = new Uri($"http://127.0.0.1:{port}");
-        using var identity = new TestBootstrapIdentity("tests", "test-gateway");
-        string credential = identity.Issue("scheduler");
-        Assembly entryAssembly = typeof(ApplicationLifecycleTests).Assembly;
-        ResourceRuntime.RegisterControlPlane(
-            entryAssembly,
-            static () => ResourceControlPlane.Create());
-        var untrustedResourceContext = new ResourceContext(
-            applicationName: "tests",
-            resourceName: "scheduler",
-            environmentName: "Development",
-            gatewayName: null,
-            contentRootPath: null,
-            endpoints: new Dictionary<string, Uri> { ["http"] = endpoint },
-            mounts: null,
-            settings: null,
-            references: null,
-            bootstrapCredential: ReadOnlyMemory<byte>.Empty,
-            applicationTrustKey: identity.PublicKey,
-            ambientValues: null);
-        using (ResourceRuntime.CreateScope(untrustedResourceContext))
+        private readonly string _name;
+        private readonly ICollection<string> _events;
+
+        /// <summary>Initializes a new instance of the <see cref="RecordingService"/> class.</summary>
+        /// <param name="name">The name recorded with each lifecycle event.</param>
+        /// <param name="events">The collection that receives the recorded lifecycle events.</param>
+        public RecordingService(
+            string name,
+            ICollection<string> events)
         {
-            SchedulerApplicationBuilder untrustedBuilder = CreateResourceBuilder(entryAssembly);
-            InvalidOperationException error = Should.Throw<InvalidOperationException>(
-                () => untrustedBuilder.Build());
-            error.Message.ShouldContain("gateway identity", Case.Insensitive);
+            _name = name;
+            _events = events;
         }
 
-        var resourceContext = new ResourceContext(
-            applicationName: "tests",
-            resourceName: "scheduler",
-            environmentName: "Development",
-            gatewayName: "test-gateway",
-            contentRootPath: null,
-            endpoints: new Dictionary<string, Uri> { ["http"] = endpoint },
-            mounts: null,
-            settings: null,
-            references: null,
-            bootstrapCredential: Encoding.UTF8.GetBytes(credential),
-            applicationTrustKey: identity.PublicKey,
-            ambientValues: null);
-
-        using (ResourceRuntime.CreateScope(resourceContext))
-        {
-            SchedulerApplicationBuilder builder = CreateResourceBuilder(entryAssembly);
-            await using SchedulerApplication application = builder.Build();
-            await ((IHost)application).StartAsync();
-            using var client = new HttpClient { BaseAddress = endpoint };
-
-            HttpResponseMessage health = await client.GetAsync("/healthz");
-            HttpResponseMessage unauthorized = await client.GetAsync("/cohesion/v1/endpoints");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-                "Bearer",
-                credential);
-            HttpResponseMessage endpoints = await client.GetAsync("/cohesion/v1/endpoints");
-            HttpResponseMessage stop = await client.PostAsync("/cohesion/v1/stop", content: null);
-
-            health.StatusCode.ShouldBe(HttpStatusCode.OK);
-            unauthorized.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-            endpoints.StatusCode.ShouldBe(HttpStatusCode.OK);
-            string endpointDocument = await endpoints.Content.ReadAsStringAsync();
-            endpointDocument.ShouldContain(endpoint.ToEndpointString());
-            endpointDocument.ShouldNotContain(endpoint.ToString());
-            stop.StatusCode.ShouldBe(HttpStatusCode.Accepted);
-            await ((IHost)application).StopAsync();
-        }
-    }
-
-    private sealed class RecordingService(
-        string name,
-        ICollection<string> events) : IHostService
-    {
         public ServiceId Id { get; } = ServiceId.New();
 
         public Task StartAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            events.Add($"{name}:start");
+            _events.Add($"{_name}:start");
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
         {
-            events.Add($"{name}:stop");
+            _events.Add($"{_name}:stop");
             return Task.CompletedTask;
         }
     }
@@ -392,12 +325,21 @@ public class ApplicationLifecycleTests
             ValueTask.CompletedTask;
     }
 
-    private sealed class TestScheduleProvider(params ISchedule[] schedules) : IScheduleProvider
+    private sealed class TestScheduleProvider : IScheduleProvider
     {
-        public ISchedule GetSchedule(ScheduleId id) =>
-            schedules.Single(schedule => schedule.Id == id);
+        private readonly ISchedule[] _schedules;
 
-        public IEnumerable<ISchedule> GetSchedules() => schedules;
+        /// <summary>Initializes a new instance of the <see cref="TestScheduleProvider"/> class.</summary>
+        /// <param name="schedules">The schedules the provider exposes.</param>
+        public TestScheduleProvider(params ISchedule[] schedules)
+        {
+            _schedules = schedules;
+        }
+
+        public ISchedule GetSchedule(ScheduleId id) =>
+            _schedules.Single(schedule => schedule.Id == id);
+
+        public IEnumerable<ISchedule> GetSchedules() => _schedules;
 
         public void DisableJob(ScheduleId scheduleId, JobId jobId) =>
             throw new NotSupportedException();
@@ -408,8 +350,17 @@ public class ApplicationLifecycleTests
         public bool IsJobEnabled(ScheduleId scheduleId, JobId jobId) => true;
     }
 
-    private sealed class TestSchedule(Func<CancellationToken, Task>? run = null) : ISchedule
+    private sealed class TestSchedule : ISchedule
     {
+        private readonly Func<CancellationToken, Task>? _run;
+
+        /// <summary>Initializes a new instance of the <see cref="TestSchedule"/> class.</summary>
+        /// <param name="run">The optional delegate invoked when the schedule runs; <see langword="null"/> completes immediately.</param>
+        public TestSchedule(Func<CancellationToken, Task>? run = null)
+        {
+            _run = run;
+        }
+
         public ScheduleId Id { get; } = ScheduleId.New();
 
         public string? Name => "test";
@@ -433,31 +384,7 @@ public class ApplicationLifecycleTests
         public IEnumerable<IScheduleJob> Jobs => [];
 
         public Task RunAsync(CancellationToken cancellationToken = default) =>
-            run?.Invoke(cancellationToken) ?? Task.CompletedTask;
-    }
-
-    private static SchedulerApplicationBuilder CreateResourceBuilder(Assembly resourceAssembly)
-    {
-        MethodInfo createBuilder = typeof(SchedulerApplication).GetMethod(
-            "CreateBuilder",
-            BindingFlags.Static | BindingFlags.NonPublic,
-            binder: null,
-            [typeof(string[]), typeof(Assembly)],
-            modifiers: null)
-            ?? throw new InvalidOperationException("The internal resource builder overload was not found.");
-        return (SchedulerApplicationBuilder)(createBuilder.Invoke(
-            obj: null,
-            parameters: [Array.Empty<string>(), resourceAssembly])
-            ?? throw new InvalidOperationException("The internal resource builder returned null."));
-    }
-
-    private static int GetAvailablePort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+            _run?.Invoke(cancellationToken) ?? Task.CompletedTask;
     }
 }
 ```

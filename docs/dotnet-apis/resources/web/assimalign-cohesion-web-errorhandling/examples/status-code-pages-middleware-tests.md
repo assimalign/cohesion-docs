@@ -17,17 +17,25 @@ test objects.
 - **Case 3** — StatusCodePages: Should not touch a success response.
 - **Case 4** — StatusCodePages: Should invoke a custom responder for a bodyless error.
 - **Case 5** — StatusCodePages: Should not touch a bodyless error whose head already committed.
-- **Case 6** — `UseStatusCodePages`: Should reject a null pipeline builder.
+- **Case 6** — UseStatusCodePages: Should reject a null pipeline builder.
+- **Case 7** — UseStatusCodePages: Should place the middleware the application registered.
+- **Case 8** — UseStatusCodePages: The last registration should win.
+- **Case 9** — UseStatusCodePages: Without a registration it should place the problem+json default.
+- **Case 10** — AddStatusCodePages: A responder set after registration should not reach the middleware.
 
 ## Source example
 
 ```csharp
 using System;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.ErrorHandling.Tests.TestObjects;
 
@@ -41,13 +49,24 @@ namespace Assimalign.Cohesion.Web.ErrorHandling.Tests;
 /// </summary>
 public class StatusCodePagesMiddlewareTests
 {
+    /// <summary>
+    /// The middleware <c>builder.Services.AddStatusCodePages(pages =&gt; ...)</c> registers.
+    /// </summary>
+    private static IWebApplicationMiddleware Registration(Action<StatusCodePagesOptions>? configure)
+    {
+        StatusCodePagesBuilder pages = new();
+        configure?.Invoke(pages.Options);
+        return pages.Build();
+    }
+
     private static async Task<TestHttpContext> RunAsync(
         Action<StatusCodePagesOptions>? configure,
         Func<IHttpContext, Task> downstream,
         IHttpResponseStreamingFeature? streaming = null)
     {
         TestPipelineBuilder builder = new();
-        builder.UseStatusCodePages(configure);
+        builder.RegisteredMiddleware.Add(Registration(configure));
+        builder.UseStatusCodePages();
         builder.Run(downstream);
         IWebApplicationPipeline pipeline = builder.Build();
 
@@ -163,6 +182,93 @@ public class StatusCodePagesMiddlewareTests
         // Act / Assert
         Should.Throw<ArgumentNullException>(() => builder.UseStatusCodePages());
     }
+
+    [Fact(DisplayName = "Cohesion Test [Web.ErrorHandling] - UseStatusCodePages: Should place the middleware the application registered")]
+    public async Task UseStatusCodePages_WithRegisteredMiddleware_ShouldPlaceIt()
+    {
+        // Arrange
+        TestPipelineBuilder builder = new();
+        builder.RegisteredMiddleware.Add(Registration(options => options.Responder = WriteAsync("registered")));
+        builder.UseStatusCodePages();
+        builder.Run(NotFoundAsync);
+        TestHttpContext context = new();
+
+        // Act
+        await builder.Build().ExecuteAsync(context);
+
+        // Assert
+        context.ResponseBodyText().ShouldBe("registered");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.ErrorHandling] - UseStatusCodePages: The last registration should win")]
+    public async Task UseStatusCodePages_TwoRegistrations_ShouldPlaceTheLast()
+    {
+        // Arrange
+        TestPipelineBuilder builder = new();
+        builder.RegisteredMiddleware.Add(Registration(options => options.Responder = WriteAsync("first")));
+        builder.RegisteredMiddleware.Add(Registration(options => options.Responder = WriteAsync("last")));
+        builder.UseStatusCodePages();
+        builder.Run(NotFoundAsync);
+        TestHttpContext context = new();
+
+        // Act
+        await builder.Build().ExecuteAsync(context);
+
+        // Assert
+        context.ResponseBodyText().ShouldBe("last");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.ErrorHandling] - UseStatusCodePages: Without a registration it should place the problem+json default")]
+    public async Task UseStatusCodePages_WithoutRegistration_ShouldPlaceTheDefaults()
+    {
+        // Arrange
+        TestPipelineBuilder builder = new();
+        builder.UseStatusCodePages();
+        builder.Run(NotFoundAsync);
+        TestHttpContext context = new();
+
+        // Act
+        await builder.Build().ExecuteAsync(context);
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        context.Response.Headers[HttpHeaderKey.ContentType].Value.ShouldBe("application/problem+json");
+        using JsonDocument document = JsonDocument.Parse(context.ResponseBodyText());
+        document.RootElement.GetProperty("status").GetInt32().ShouldBe(404);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.ErrorHandling] - AddStatusCodePages: A responder set after registration should not reach the middleware")]
+    public async Task UseStatusCodePages_ResponderSetAfterRegistration_ShouldKeepTheRegisteredOptions()
+    {
+        // Arrange — Build copies the options, as the generated verb calls it when it registers.
+        StatusCodePagesBuilder pages = new();
+        IWebApplicationMiddleware registered = pages.Build();
+        pages.Options.Responder = WriteAsync("late");
+        TestPipelineBuilder builder = new();
+        builder.RegisteredMiddleware.Add(registered);
+        builder.UseStatusCodePages();
+        builder.Run(NotFoundAsync);
+        TestHttpContext context = new();
+
+        // Act
+        await builder.Build().ExecuteAsync(context);
+
+        // Assert
+        context.ResponseBodyText().ShouldNotContain("late", Case.Sensitive);
+        context.Response.Headers[HttpHeaderKey.ContentType].Value.ShouldBe("application/problem+json");
+    }
+
+    private static Task NotFoundAsync(IHttpContext context)
+    {
+        context.Response.StatusCode = HttpStatusCode.NotFound;
+        return Task.CompletedTask;
+    }
+
+    private static Func<IHttpContext, Task> WriteAsync(string body) => async context =>
+    {
+        context.Response.Headers[HttpHeaderKey.ContentType] = "text/plain; charset=utf-8";
+        await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(body));
+    };
 }
 ```
 

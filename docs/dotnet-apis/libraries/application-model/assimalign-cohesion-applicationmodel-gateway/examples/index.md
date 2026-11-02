@@ -1,19 +1,18 @@
 # Examples
 
-Source-backed examples for `Assimalign.Cohesion.ApplicationModel.Gateway`.
+Examples for `Assimalign.Cohesion.ApplicationModel.Gateway` are derived from source documentation and code.
+
+> **Status:** Implemented.
+
+The examples below retain real usage from project tests. Test examples require their original test
+project’s dependencies and supporting objects.
+
+- **[Application Gateway Builder Tests](application-gateway-builder-tests.md)** — This example exercises `Assimalign.Cohesion.ApplicationModel.Gateway` through its co-located test source.
+- **[Application Gateway Order Tests](application-gateway-order-tests.md)** — This example exercises `Assimalign.Cohesion.ApplicationModel.Gateway` through its co-located test source.
+- **[Application Gateway Action Tests](application-gateway-action-tests.md)** — This example exercises `Assimalign.Cohesion.ApplicationModel.Gateway` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 
-- **[Behavioral tests](behavioral-tests.md)** — Exercise application gateway resource extensions, credential issuance, and trust behavior using the original repository tests.
-
 ## Sources
 
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/Assimalign.Cohesion.ApplicationModel.Gateway.csproj`.
-- **Source** — `cohesion/libraries/Directory.Build.props`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/OVERVIEW.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/DESIGN.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/README.md`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/ApplicationGatewayResourceExtensionsTests.cs`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/GatewayCredentialIssuerTests.cs`.
-- **Source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/tests/GatewayTrustTests.cs`.
+- **Primary source** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/docs/OVERVIEW.md`.

@@ -112,9 +112,8 @@ endpoints, the WebSocket policy.
   Establish new sessions before the response starts so their cookies can be delivered. A modified
   session first accessed after the head starts is discarded and reports `SessionStateLost` at
   Warning; a read-only orphan reports only Verbose `SessionOrphaned`.
-- **Health integration** — `Web.Health` owns the Web model. `Web.Hosting` includes the adapter for
-  shared hosting contributors in the unchanged `Assimalign.Cohesion.Web.Hosting.Health` namespace;
-  the feature itself has no hosting-library dependency.
+- **Health** — `Web.Health` owns the Web health model and its `/healthz`, `/livez`, and `/readyz`
+  endpoints; the feature has no hosting-library dependency.
 
 Response compression supports gzip and Brotli and is off for HTTPS by default under its security
 policy. Request decompression supports gzip, Brotli, and deflate, returns 413 when the decompressed

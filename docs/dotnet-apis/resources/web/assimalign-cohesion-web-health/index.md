@@ -1,6 +1,6 @@
 # Assimalign.Cohesion.Web.Health
 
-`Assimalign.Cohesion.Web.Health` is the public health-check feature for Cohesion Web applications.
+Health checks for Web applications: `/healthz`, `/livez`, and `/readyz` endpoints over registered checks.
 
 > **Status:** Partial.
 
@@ -19,26 +19,25 @@ pipeline endpoints.
 
 - **Model:** `IHealthCheck`, `HealthStatus`, `HealthCheckResult`, `HealthReport`,
   `HealthReportEntry`, and `HealthCheckRegistration`.
-- **Composition:** `HealthChecks.CreateBuilder()`, `IHealthChecksBuilder`, inline and typed checks.
-  Web.Hosting supplies `AddContributor` for host contributors in its `.Hosting.Health` namespace.
+- **Composition:** `new HealthChecksBuilder()`, `IHealthChecksBuilder`, inline and typed checks.
 - **Filtering:** `HealthTags` and `HealthCheckPredicates` for aggregate, readiness, and liveness
   views.
 - **HTTP delivery:** `MapHealthChecks`, `MapReadinessCheck`, `MapLivenessCheck`,
-  `HealthEndpointOptions`, `IHealthResponseWriter`, and `IHttpHealthFeature`.
+  `HealthEndpointOptions`, `IHealthResponseWriter`, and `IHealthFeature`.
 
 ## Dependencies
 
-The package references `Assimalign.Cohesion.Web` for pipeline and HTTP contracts. It references
-no hosting library or dependency-injection container. `Web.Hosting` references this package and
-`Hosting.Health` to supply its integrated contributor bridge (owner decision 57, 2026-10-13).
+The package references `Assimalign.Cohesion.Web` for pipeline and HTTP contracts. It references no
+hosting library or dependency-injection container. `Web.Hosting` references this package, so the
+health model is part of its runtime closure.
 
 ## Framework delivery
 
-- **`App.Web`** — lists `Assimalign.Cohesion.Web.Health` as a public framework assembly. Web application
+- `App.Web` lists `Assimalign.Cohesion.Web.Health` as a public framework assembly. Web application
   authors see and use its types directly.
-- **All 17 other area frameworks** — list the same assembly privately because they carry
-  Web.Hosting and its implementation closure. Their application authors do not gain a public Web
-  health surface from that inclusion; decision 57 adds the 16 frameworks besides App.Database.
+- `App.Database` lists the same assembly privately because Database.Hosting references it for its
+  admin endpoint. Its application authors do not gain a public Web health surface from that
+  inclusion. Web.Hosting does not reference Web.Health, so no other area framework carries it.
 
 The package can also be referenced directly outside those framework profiles.
 
@@ -46,12 +45,20 @@ The package can also be referenced directly outside those framework profiles.
 
 Compose an immutable service, then explicitly map the endpoints that the application exposes:
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using Assimalign.Cohesion.Web.Health;
 
-`AddContributor` uses `IHealthContributor.Name` as the registration name and preserves the
-contribution's status, description, and diagnostic data. It forwards request cancellation and
-supports the same failure status, tags, and timeout policy as `AddCheck`. When tags are omitted,
-both `ready` and `live` are applied; pass an empty collection for aggregate-only participation.
+IHealthCheckService health = new HealthChecksBuilder()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy("accepting traffic"),
+        tags: new[] { HealthTags.Ready, HealthTags.Live })
+    .Build();
+
+pipeline.MapHealthChecks(health);       // /healthz, all checks
+pipeline.MapReadinessCheck(health);     // /readyz, ready-tagged checks
+pipeline.MapLivenessCheck(health);      // /livez, live-tagged checks
+```
 
 The middleware receives `IHealthCheckService` explicitly. It does not locate services during a
 request and does not mutate registrations after the service is built.
@@ -59,10 +66,10 @@ request and does not mutate registrations after the service is built.
 ### Exception detail stays out of the response
 
 The default JSON writer publishes each check's status, duration, description, tags and data, and no
-exception text. A check that throws or times out is described by fixed text
-(`The check threw an exception.` or `The check timed out.`), and a returned description that
-contains its exception's message, or an exception placed in `data`, is replaced. Keep connection
-detail out of the descriptions and data a check returns.
+exception text. A check that throws or times out is described by fixed text (`The check threw an
+exception.` or `The check timed out.`), and a returned description that contains its exception's
+message, or an exception placed in `data`, is replaced. Keep connection detail out of the
+descriptions and data a check returns.
 
 In development, opt in to the exception messages per endpoint:
 
@@ -76,11 +83,9 @@ writes descriptions as the checks returned them, and writes an exception in `dat
 It writes no exception type or stack trace, and it does not affect a custom `ResponseWriter`. It
 does not restore the 10.0.0-preview.1 output: a thrown or timed-out check keeps its fixed
 description either way ([breaking changes](design.md#exception-detail)). The exception object itself
-is always available in process, through `IHttpHealthFeature.Report` or a custom
-`IHealthResponseWriter` ([Design](design.md#exception-detail)).
+is always available in process, through `IHealthFeature.Report` or a custom `IHealthResponseWriter`
+([DESIGN](design.md#exception-detail)).
 
-Hosting contributor integration ships in `Assimalign.Cohesion.Web.Hosting`, using the
-`Assimalign.Cohesion.Web.Hosting.Health` namespace; no separate adapter package is needed.
 `Web.Health` owns the health model and endpoints and references no hosting library (O34).
 
 ### Server-side diagnostics
@@ -88,8 +93,17 @@ Hosting contributor integration ships in `Assimalign.Cohesion.Web.Hosting`, usin
 Listen to `Assimalign.Cohesion.Web.Health` with `dotnet-trace`, `dotnet-counters`, or the
 event-source logging forwarder. It reports status worsening and recovery per service instance,
 Verbose thrown/timed-out probes, and the exact `failed-checks` total. Health exceptions include
-their type and message in server-side sinks; dependency messages can contain host, database or
-user names. HTTP response sanitization is independent. See [Diagnostics](design.md#diagnostics).
+their type and message in server-side sinks; dependency messages can contain host, database or user
+names. HTTP response sanitization is independent. See [Diagnostics](design.md#diagnostics).
+
+
+## Health-check builder construction (#1470)
+
+Composition uses the public sealed `HealthChecksBuilder` in `Assimalign.Cohesion.Web.Health`, with
+its public parameterless constructor. The standalone `HealthChecks.CreateBuilder()` factory is
+removed. Existing `IHealthChecksBuilder` adapters, duplicate-name checks and immutable service
+snapshots are preserved; Database's admin endpoint uses the same public constructor. No Database
+interface, protocol, format, diagnostic code, event or counter is added or changed.
 
 ## Project references
 

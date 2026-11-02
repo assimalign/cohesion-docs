@@ -13,48 +13,106 @@ Static file serving for the Cohesion Web pipeline, built over the `libraries/Fil
 abstractions. One feature package covers file serving, default documents, conditional GET, single
 byte-range responses, content-type mapping, and precompressed (`.br`/`.gz`) sibling negotiation —
 composed from the shared `Assimalign.Cohesion.Http` protocol primitives rather than re-deriving any
-RFC semantics locally. Handlers get the same behavior for a file or a stream of their own through the
-`SendFileAsync` and `WriteStreamAsync` response helpers.
+RFC semantics locally. Handlers get the same behavior for a file or a stream of their own through
+the `SendFileAsync` and `WriteStreamAsync` response helpers.
 
 ## Diagnostics
 
 The `Assimalign.Cohesion.Web.StaticFiles` EventSource reports web-root mounts once when the pipeline
 is built, including branches and fallback routes. It also reports traversal rejections and throttled
-mount lookup failures, with exact `traversal-rejections` and `mount-lookup-failures` counters. Configured
-root/prefix identifiers may be reported; request paths and exception messages are never written.
-See [Diagnostics in the design](design.md#diagnostics) for events and payloads.
+mount lookup failures, with exact `traversal-rejections` and `mount-lookup-failures` counters.
+Configured root/prefix identifiers may be reported; request paths and exception messages are never
+written. See [Diagnostics in the design](design.md#diagnostics) for events and payloads.
 
 ## Scope
 
 - **Content root = an `IFileSystem` mount.** Any implementation works: `PhysicalFileSystem`,
-  `InMemoryFileSystem`, `AggregateFileSystem` composites. The middleware can never address
-  anything outside the mount — path-traversal defense is a hard guarantee, not an option.
+  `InMemoryFileSystem`, `AggregateFileSystem` composites. The middleware can never address anything
+  outside the mount — path-traversal defense is a hard guarantee, not an option.
 - **`GET`/`HEAD` only.** Everything else passes through to the next middleware.
-- **Builder-time composition only.** The file system and every option are supplied at
-  `UseStaticFiles(...)` and frozen into the middleware; there is no service container, no
-  configuration binding, and no request-time service location (the Web-area rule).
+- **Registration-time composition only.** The file system and every option are supplied where the
+  middleware is registered, `builder.Services.AddStaticFiles(files => ...)`, and frozen into it;
+  `UseStaticFiles()` only places it. The package takes no service-container reference, binds no
+  configuration, and locates no service per request (the Web-area rule).
 
 ## Usage
 
-The parameterless verb serves the application's web root: `wwwroot` under the content root
-(`IWebApplicationContext.WebRootPath`, set by the hosting runtime). It never serves the content root
-itself or the working directory, and it passes every request through when the application has no web
-root:
+Configuration lives on the `Add` verb only ("Add configures, Use places"). `AddStaticFiles` is a
+generated component integration over `StaticFilesBuilder`: `files.Options` holds the options and
+`files.UseFileSystem(...)` names the mount. `UseStaticFiles()` takes no arguments: it places every
+mount `AddStaticFiles` registered, in registration order (mounts add up: a request goes to the first
+mount that serves it), or one with the default options over the web root when the application
+registered none.
 
-See the [source-backed usage examples](examples/index.md).
+`DefaultDocuments` entries must be valid bare file names of at most 255 characters. Invalid
+characters (for example `?`) fail when `AddStaticFiles` registers the middleware.
+`MapFallbackToFile` similarly rejects paths that cannot parse inside the web-root mount, including
+`bad?.html`, during registration.
+
+A registration that names no file system, and `UseStaticFiles()` without a registration, serve the
+application's web root: `wwwroot` under the content root (`IWebApplicationContext.WebRootPath`, set
+by the hosting runtime), which `UseStaticFiles()` mounts when the pipeline is built. It never serves
+the content root itself or the working directory, and it passes every request through when the
+application has no web root:
+
+```csharp
+app.UseStaticFiles();                                  // no registration: serves <content root>/wwwroot
+
+// Or configure the web root's middleware where it is registered:
+builder.Services.AddStaticFiles(files => files.Options.CacheControl = "public, max-age=3600");
+// ...
+app.UseStaticFiles();
+```
 
 Mount any other file system explicitly:
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using Assimalign.Cohesion.FileSystem;
+using Assimalign.Cohesion.Web.StaticFiles;
+
+var contentRoot = new PhysicalFileSystem(new PhysicalFileSystemOptions { /* root */ });
+
+builder.Services.AddStaticFiles(files =>
+{
+    files.UseFileSystem(contentRoot);                        // default: the application's web root
+    files.Options.RequestPath = new HttpPath("/static");     // mount prefix (default "/")
+    files.Options.CacheControl = "public, max-age=3600";     // emitted on every served response
+    files.Options.DefaultDocuments.Add("default.html");      // probed after index.html/index.htm
+    files.Options.ContentTypeMappings[".gltf"] = "model/gltf+json";
+    files.Options.ServeUnknownContentTypes = false;          // default: unmapped or missing extensions pass through
+    files.Options.ServePrecompressedAssets = true;           // default: .br/.gz siblings negotiate
+});
+
+WebApplication app = builder.Build();
+app.UseStaticFiles();
+```
+
+The application keeps ownership of a file system it mounts: the middleware never disposes it.
+
+`ContentTypeMappings` values and `FallbackContentType` must be non-empty HTTP field values.
+Registration rejects RFC CTLs other than interior HTAB, plus leading or trailing SP/HTAB, using
+`HttpFieldValue`; case and obs-text (including C1 characters) are preserved. The fallback is checked
+even when `ServeUnknownContentTypes` is disabled.
 
 A `ContentTypeMappings` key maps an extension, never a whole file name, so no key types a file
 without one, such as `apple-app-site-association`. Give such files a mount of their own whose
-fallback type is theirs, or send them from a handler with an explicit type:
+fallback type is theirs, registered beside the web root, or send them from a handler with an
+explicit type:
 
-- **A mount of their own** — `UseStaticFiles(wellKnownRoot, ...)` over a file system that holds
-  only the extensionless files, with `RequestPath = new HttpPath("/.well-known")`,
-  `ServeUnknownContentTypes = true`, and `FallbackContentType = "application/json"`.
-- **A handler** — `context.Response.SendFileAsync(wellKnownRoot, name, "application/json")`.
+```csharp
+builder.Services.AddStaticFiles(wellKnown =>
+{
+    wellKnown.UseFileSystem(wellKnownRoot);              // holds only the extensionless files
+    wellKnown.Options.RequestPath = new HttpPath("/.well-known");
+    wellKnown.Options.ServeUnknownContentTypes = true;
+    wellKnown.Options.FallbackContentType = "application/json";
+});
+builder.Services.AddStaticFiles();                       // the web root
+
+app.UseStaticFiles();                                    // places both mounts, in that order
+
+// or: context.Response.SendFileAsync(wellKnownRoot, name, "application/json")
+```
 
 Request paths whose segments look like Windows 8.3 short names (`UPLOAD~1.HTM`) answer `404`: an
 alias would open `upload.htmlx` and type it from the alias's extension.
@@ -62,7 +120,12 @@ alias would open `upload.htmlx` and type it from the alias's extension.
 A single-page application serves its assets first and answers every client-side route with
 `index.html`. The fallback never answers a file-name path, so a missing asset stays a 404:
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+app.UseStaticFiles();                  // existing assets
+app.UseRouting();                      // API routes
+app.MapGet("/api/orders", ...);
+app.MapFallbackToFile("index.html");   // everything else that is not a file
+```
 
 Static files can also be mounted in a path branch, which serves below the branch's prefix:
 `app.Map("/static", branch => branch.UseStaticFiles())`.
@@ -73,13 +136,24 @@ Static files can also be mounted in a path branch, which serves below the branch
 the middleware answers it — validators, conditional requests, single byte ranges, `HEAD` — because
 they run the same engine:
 
-- **`SendFileAsync(IFileSystem fileSystem, string path, ...)`** — a path inside a mount. It is safe
-  to build the path from a route value: dot segments, `\` traversal, drive and stream forms, NUL,
-  and 8.3 short-name aliases are answered `404`, and nothing outside the mount can be addressed.
-- **`SendFileAsync(IFileSystemFile file, ...)`** — a file the handler already resolved, with an
-  optional explicit content type.
-- **`WriteStreamAsync(Stream stream, ...)`** — a stream. The caller supplies the validators
-  (`entityTag`, `lastModified`); nothing is hashed.
+```csharp
+using Assimalign.Cohesion.Web.StaticFiles;
+
+var reports = new PhysicalFileSystem(new PhysicalFileSystemOptions { Root = reportsRoot, IsReadOnly = true });
+
+// A path inside a mount. Safe to build from a route value: dot segments, '\' traversal, drive and
+// stream forms, NUL, and 8.3 short-name aliases are answered 404, and nothing outside the mount can
+// be addressed.
+app.MapGet("/reports/{name}", (string name, IHttpContext context)
+    => context.Response.SendFileAsync(reports, name, cancellationToken: context.RequestCancelled));
+
+// A file the handler already resolved, with an explicit content type.
+await context.Response.SendFileAsync(file, "application/pdf");
+
+// A stream: the caller supplies the validators; nothing is hashed.
+await context.Response.WriteStreamAsync(blobStream, "video/mp4",
+    entityTag: HttpEntityTag.Strong(blob.Version), lastModified: blob.UpdatedOn);
+```
 
 | Helper | Content type | Validators | Ranges |
 |---|---|---|---|
@@ -89,9 +163,9 @@ they run the same engine:
 
 The representation a stream contributes is its remaining bytes, from the current position; the
 stream is not disposed. Headers set before the call (`Cache-Control`, `Content-Disposition`) are
-kept and also ride on a `304`. Pass an explicit content type for user-supplied files: a name such
-as `avatar.html` would otherwise be served as `text/html`. The reasoning behind each choice is in
-the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061).
+kept and also ride on a `304`. Pass an explicit content type for user-supplied files: a name such as
+`avatar.html` would otherwise be served as `text/html`. The reasoning behind each choice is in
+`DESIGN.md`, "Response helpers".
 
 ## What a served response carries
 
@@ -108,20 +182,20 @@ the [design](design.md#response-helpers-sendfileasync-and-writestreamasync-1061)
 The response helpers produce the same columns for a handler's file or stream, minus precompression
 and default documents.
 
-The transports supply `Date` before dispatch. Disabling automatic dates for a proxy that adds
-its own (`AddDateHeader = false`) removes only that automatic header: `Last-Modified`,
+The transports supply `Date` before dispatch. Disabling automatic dates for a proxy that adds its
+own (`AddDateHeader = false`) removes only that automatic header: `Last-Modified`,
 `If-Modified-Since`, `If-Unmodified-Since`, and date-form `If-Range` keep working. A single valid
 response `Date` remains the reference; otherwise StaticFiles reads `TimeProvider.System.GetUtcNow()`
 once for clamping and date validation. It does not add or replace the `Date` header.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — pipeline contracts (`IWebApplicationPipelineBuilder`,
+- `Assimalign.Cohesion.Web` — pipeline contracts (`IWebApplicationPipelineBuilder`,
   `IWebApplicationMiddleware`).
-- **`Assimalign.Cohesion.Web.Routing`** — `MapFallbackToFile`'s fallback route, and the path-branch
-  view (`context.GetEffectivePath()`) a `Map(path)` branch publishes.
-- **`Assimalign.Cohesion.Http`** — the protocol primitives listed above.
-- **`Assimalign.Cohesion.FileSystem`** — the content-root abstraction.
+- `Assimalign.Cohesion.Web.Routing` — `MapFallbackToFile`'s fallback route, and the path-branch view
+  (`context.GetEffectivePath()`) a `Map(path)` branch publishes.
+- `Assimalign.Cohesion.Http` — the protocol primitives listed above.
+- `Assimalign.Cohesion.FileSystem` — the content-root abstraction.
 
 Per the Web-area hosting-isolation rule this package never references `Web.Hosting`; applications
 receive it through the `App.Web` shared framework (`Sdk.Web`).
@@ -148,5 +222,4 @@ parity note.
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/OVERVIEW.md`.
-- **Response helpers** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/src/Extensions/HttpResponseFileExtensions.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/src/Assimalign.Cohesion.Web.StaticFiles.csproj`.

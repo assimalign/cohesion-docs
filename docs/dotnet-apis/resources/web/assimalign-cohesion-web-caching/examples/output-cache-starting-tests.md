@@ -14,7 +14,8 @@ Use it in the source project’s test context, with its test dependencies and su
 - **Case 1** — Starting: Final callback restrictions prevent cache storage.
 - **Case 2** — Starting: Callback Vary partitions stored representations.
 - **Case 3** — Starting: Stored headers include the endpoint callback's final values.
-- **Case 4** — Starting: A failed callback never publishes the captured response.
+- **Case 4** — Starting: Response OWS is cached after successful transmission.
+- **Case 5** — Starting: A failed callback never publishes the captured response.
 
 ## Source example
 
@@ -55,6 +56,7 @@ public class OutputCacheStartingTests
         using CancellationTokenSource cancellation = new(_timeout);
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(_ => { }));
         factory.Application.Use(async (context, next) =>
         {
             context.Features.Get<IWebResponseStartingFeature>()!.OnStarting(_ =>
@@ -65,7 +67,7 @@ public class OutputCacheStartingTests
             }, null);
             await next(context);
         });
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(_ => { }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, _) =>
         {
             int invocation = Interlocked.Increment(ref invocations);
@@ -93,6 +95,7 @@ public class OutputCacheStartingTests
         using CancellationTokenSource cancellation = new(_timeout);
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(_ => { }));
         factory.Application.Use(async (context, next) =>
         {
             context.Features.Get<IWebResponseStartingFeature>()!.OnStarting(_ =>
@@ -102,7 +105,7 @@ public class OutputCacheStartingTests
             }, null);
             await next(context);
         });
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(_ => { }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, _) =>
         {
             Interlocked.Increment(ref invocations);
@@ -138,7 +141,8 @@ public class OutputCacheStartingTests
         using CancellationTokenSource cancellation = new(_timeout);
         await using WebApplicationTestFactory factory = new();
         int invocations = 0;
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(_ => { }));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(_ => { }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, _) =>
         {
             Interlocked.Increment(ref invocations);
@@ -163,6 +167,62 @@ public class OutputCacheStartingTests
         invocations.ShouldBe(1);
     }
 
+    [Theory(DisplayName = "Cohesion Test [Web.Caching] - Starting: Response OWS is cached after successful transmission")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UseOutputCache_StartingCallbackWhitespace_ShouldReplayNormalizedHeader(bool http2)
+    {
+        // Arrange
+        using CancellationTokenSource cancellation = new(_timeout);
+        await using WebApplicationTestFactory factory = new(new WebApplicationTestFactoryOptions
+        {
+            Protocol = http2 ? WebApplicationTestProtocol.Http2 : WebApplicationTestProtocol.Http1,
+        });
+        const string rawValue = " \tvalue \t";
+        HttpHeaderKey name = new("X-Final");
+        TaskCompletionSource<string> completed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int invocations = 0;
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(_ => { }));
+        factory.Application.Use(async (context, next) =>
+        {
+            await next(context);
+            // Registered after the cache callback, so the next request observes completed storage.
+            context.Features.Get<IWebResponseCompletionFeature>()!.Register(() =>
+            {
+                completed.TrySetResult(context.Response.Headers[name].Value);
+                return ValueTask.CompletedTask;
+            });
+        });
+        factory.Application.UseOutputCache();
+        factory.Application.Use(async (context, _) =>
+        {
+            Interlocked.Increment(ref invocations);
+            context.Features.Get<IWebResponseStartingFeature>()!.OnStarting(_ =>
+            {
+                context.Response.Headers[name] = rawValue;
+                return Task.CompletedTask;
+            }, null);
+            await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes("payload"), context.RequestCancelled);
+        });
+        using HttpClient client = factory.CreateClient();
+
+        // Act
+        using HttpResponseMessage first = await client.GetAsync("/", cancellation.Token);
+        string original = await completed.Task.WaitAsync(cancellation.Token);
+        using HttpResponseMessage hit = await client.GetAsync("/", cancellation.Token);
+
+        // Assert
+        first.IsSuccessStatusCode.ShouldBeTrue();
+        hit.IsSuccessStatusCode.ShouldBeTrue();
+        (await first.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("payload");
+        (await hit.Content.ReadAsStringAsync(cancellation.Token)).ShouldBe("payload");
+        first.Headers.GetValues("X-Final").ShouldBe(new[] { "value" });
+        hit.Headers.GetValues("X-Final").ShouldBe(new[] { "value" });
+        hit.Headers.Contains("Age").ShouldBeTrue();
+        invocations.ShouldBe(1);
+        original.ShouldBe(rawValue);
+    }
+
     [Theory(DisplayName = "Cohesion Test [Web.Caching] - Starting: A failed callback never publishes the captured response")]
     [InlineData(false)]
     [InlineData(true)]
@@ -175,6 +235,7 @@ public class OutputCacheStartingTests
             Protocol = http2 ? WebApplicationTestProtocol.Http2 : WebApplicationTestProtocol.Http1,
         });
         int invocations = 0;
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(_ => { }));
         factory.Application.Use(async (context, next) =>
         {
             if (context.Request.Headers.ContainsKey(new HttpHeaderKey("X-Fail")))
@@ -184,7 +245,7 @@ public class OutputCacheStartingTests
             }
             await next(context);
         });
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(_ => { }));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, _) =>
         {
             int invocation = Interlocked.Increment(ref invocations);

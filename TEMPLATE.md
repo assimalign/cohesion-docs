@@ -32,7 +32,6 @@ Cohesion Documentation
 ├── VPNGateway/
 ├── Web/
 ├── Platforms/
-│   ├── Containers/
 │   ├── Docker/
 │   └── Kubernetes/
 └──.NET APIs/                                   # Standard API documentation.

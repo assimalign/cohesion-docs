@@ -6,9 +6,10 @@ Design decisions and ownership boundaries for `Assimalign.Cohesion.Hosting`.
 
 ## Design and boundaries
 
-Plain Hosting depends only on Core. Host execution and run observers do not own resource mounts,
-process signals, control planes, or health reporting. Those opt-in concerns extend the run seam from
-sibling packages rather than changing every host.
+Plain Hosting depends only on Core. It owns no resource context, mounts, control plane, or health
+reporting; the process's shutdown signals are handled only while `RunAsync` runs. A managed resource
+joins a host as an ordinary lifecycle service, `ApplicationInstanceService` from
+`Assimalign.Cohesion.ApplicationModel.Hosting`, so no host changes for it.
 
 ## Lifecycle coordinator
 

@@ -12,7 +12,7 @@ test objects.
 
 ## Behavior exercised
 
-- **Case 1** — Boundary E2E: A client fault found reading the body should reach the client as the transport's status without `OnException`.
+- **Case 1** — Boundary E2E: A client fault found reading the body should reach the client as the transport's status without OnException.
 - **Case 2** — Boundary E2E: A body the client cuts short should cancel with the exchange token without OnException.
 - **Case 3** — Boundary E2E: An application fault reading a well-formed body should still be observed and answered 500.
 
@@ -60,11 +60,12 @@ public class ExceptionBoundaryClientFaultTests
         await using InMemoryConnectionListener transport = new();
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Server.UseServer(options => options.UseHttp1(transport, http1 => http1.Limits.MaxRequestBodySize = 16));
-        factory.Application.UseErrorHandling(options => options.OnException = (_, _) =>
+        factory.Builder.Services.AddErrorHandling(errors => errors.Options.OnException = (_, _) =>
         {
             Interlocked.Increment(ref observed);
             return ValueTask.CompletedTask;
         });
+        factory.Application.UseErrorHandling();
         factory.Application.Use(async (context, next) =>
         {
             byte[] buffer = new byte[256];
@@ -105,11 +106,12 @@ public class ExceptionBoundaryClientFaultTests
         await using InMemoryConnectionListener transport = new();
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Server.UseServer(options => options.UseHttp1(transport));
-        factory.Application.UseErrorHandling(options => options.OnException = (_, _) =>
+        factory.Builder.Services.AddErrorHandling(errors => errors.Options.OnException = (_, _) =>
         {
             Interlocked.Increment(ref observed);
             return ValueTask.CompletedTask;
         });
+        factory.Application.UseErrorHandling();
         factory.Application.Use(async (context, next) =>
         {
             byte[] buffer = new byte[256];
@@ -159,11 +161,12 @@ public class ExceptionBoundaryClientFaultTests
         await using InMemoryConnectionListener transport = new();
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Server.UseServer(options => options.UseHttp1(transport));
-        factory.Application.UseErrorHandling(options => options.OnException = (_, _) =>
+        factory.Builder.Services.AddErrorHandling(errors => errors.Options.OnException = (_, _) =>
         {
             Interlocked.Increment(ref observed);
             return ValueTask.CompletedTask;
         });
+        factory.Application.UseErrorHandling();
         factory.Application.Use(async (context, next) =>
         {
             await context.Request.Body.CopyToAsync(Stream.Null, context.RequestCancelled);

@@ -23,12 +23,16 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
-using NetHttpVersion = System.Net.HttpVersion;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
+using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpVersion = System.Net.HttpVersion;
 
 namespace Assimalign.Cohesion.Web.Caching.Tests;
 
@@ -95,7 +99,8 @@ public class OutputCacheWebSocketTests
 
     private static void ConfigureEchoOrPage(WebApplicationTestFactory factory, Func<int> nextPage)
     {
-        factory.Application.UseOutputCache(options => options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Builder.Services.AddOutputCache(cache => cache.Options.AddBasePolicy(policy => policy.Duration = _longDuration));
+        factory.Application.UseOutputCache();
         factory.Application.Use(async (context, next) =>
         {
             IHttpWebSocketFeature webSockets = context.WebSockets;

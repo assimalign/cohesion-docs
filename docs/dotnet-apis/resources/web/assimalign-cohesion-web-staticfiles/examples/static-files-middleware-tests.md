@@ -40,7 +40,7 @@ test objects.
 - **Case 26** — Invoke: a content-type key without its dot should not map a file of that bare name.
 - **Case 27** — Invoke: content-type overlays should override the default map.
 - **Case 28** — Invoke: a configured Cache-Control should be emitted on 200 and 304.
-- **Case 29** — UseStaticFiles: an invalid Cache-Control should throw at composition.
+- **Case 29** — AddStaticFiles: an invalid Cache-Control should throw at registration.
 - **Case 30** — Invoke: a matching If-None-Match should respond 304 without a body.
 - **Case 31** — Invoke: an unchanged If-Modified-Since should respond 304.
 - **Case 32** — Invoke: If-None-Match should take precedence over If-Modified-Since.
@@ -60,6 +60,11 @@ test objects.
 - **Case 46** — Invoke: disabling precompression should always serve identity.
 - **Case 47** — Invoke: each encoding is its own representation with its own ETag.
 - **Case 48** — Invoke: ranges should apply to the negotiated representation.
+- **Case 49** — UseStaticFiles: Should place the middleware the application registered.
+- **Case 50** — UseStaticFiles: Every registered mount should serve, in registration order.
+- **Case 51** — UseStaticFiles: The first registered mount that serves a request should answer it.
+- **Case 52** — UseStaticFiles: Without a registration or a web root every request should pass through.
+- **Case 53** — Use: A web-root registration placed without UseStaticFiles should pass every request through.
 
 ## Source example
 
@@ -122,7 +127,7 @@ public class StaticFilesMiddlewareTests
         bool[]? passedThrough = null)
     {
         var builder = new TestPipelineBuilder();
-        builder.UseStaticFiles(fileSystem, configure);
+        builder.Use(StaticFilesMount.Build(fileSystem, configure));
         builder.Use((context, next) =>
         {
             if (passedThrough is not null)
@@ -648,16 +653,15 @@ public class StaticFilesMiddlewareTests
         Header(second, HttpHeaderKey.CacheControl).ShouldBe(cacheControl);
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - UseStaticFiles: an invalid Cache-Control should throw at composition")]
-    public void UseStaticFiles_InvalidCacheControl_ShouldThrowAtComposition()
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - AddStaticFiles: an invalid Cache-Control should throw at registration")]
+    public void AddStaticFiles_InvalidCacheControl_ShouldThrowAtRegistration()
     {
         // Arrange
         using InMemoryFileSystem site = StaticSite.Create(("app.js", "let x;"));
-        var builder = new TestPipelineBuilder();
 
-        // Act / Assert — configuration typos surface at composition time, not per request.
+        // Act / Assert — configuration typos surface where static files are registered, not per request.
         Should.Throw<ArgumentException>(() =>
-            builder.UseStaticFiles(site, options => options.CacheControl = "max-age=,,,"));
+            StaticFilesMount.Build(site, options => options.CacheControl = "max-age=,,,"));
     }
 
     // ---------------------------------------------------------------- conditional GET
@@ -1030,6 +1034,117 @@ public class StaticFilesMiddlewareTests
         context.ReadResponseBody().ShouldBe("brotli");
         Header(context, HttpHeaderKey.ContentRange).ShouldBe("bytes 0-5/12");
         Header(context, HttpHeaderKey.ContentEncoding).ShouldBe("br");
+    }
+
+    // ---------------------------------------------------------------- placement
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - UseStaticFiles: Should place the middleware the application registered")]
+    public async Task UseStaticFiles_WithRegisteredMiddleware_ShouldPlaceIt()
+    {
+        // Arrange
+        using InMemoryFileSystem site = StaticSite.Create(("app.js", "let x;"));
+        TestPipelineBuilder pipeline = new();
+        pipeline.Registered.Add(StaticFilesMount.Build(site, options => options.RequestPath = new HttpPath("/static")));
+        TestHttpContext context = new("/static/app.js", HttpMethod.Get);
+
+        // Act
+        pipeline.UseStaticFiles();
+        await pipeline.Build().ExecuteAsync(context);
+
+        // Assert
+        context.Response.StatusCode.ShouldBe(HttpStatusCode.Ok);
+        context.ReadResponseBody().ShouldBe("let x;");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - UseStaticFiles: Every registered mount should serve, in registration order")]
+    public async Task UseStaticFiles_TwoRegistrations_ShouldPlaceEveryMountInOrder()
+    {
+        // Arrange — a /static mount, then a root mount that also holds an app.js.
+        using InMemoryFileSystem assets = StaticSite.Create(("app.js", "assets"));
+        using InMemoryFileSystem site = StaticSite.Create(("app.js", "site"), ("index.txt", "home"));
+        TestPipelineBuilder pipeline = new();
+        pipeline.Registered.Add(StaticFilesMount.Build(assets, options => options.RequestPath = new HttpPath("/static")));
+        pipeline.Registered.Add(StaticFilesMount.Build(site));
+        TestHttpContext underStatic = new("/static/app.js", HttpMethod.Get);
+        TestHttpContext atRoot = new("/index.txt", HttpMethod.Get);
+
+        // Act
+        pipeline.UseStaticFiles();
+        IWebApplicationPipeline built = pipeline.Build();
+        await built.ExecuteAsync(underStatic);
+        await built.ExecuteAsync(atRoot);
+
+        // Assert — each request is served by the mount that holds it.
+        underStatic.ReadResponseBody().ShouldBe("assets");
+        atRoot.ReadResponseBody().ShouldBe("home");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - UseStaticFiles: The first registered mount that serves a request should answer it")]
+    public async Task UseStaticFiles_OverlappingRegistrations_ShouldServeFromTheFirst()
+    {
+        // Arrange
+        using InMemoryFileSystem first = StaticSite.Create(("app.js", "first"));
+        using InMemoryFileSystem second = StaticSite.Create(("app.js", "second"), ("other.js", "other"));
+        TestPipelineBuilder pipeline = new();
+        pipeline.Registered.Add(StaticFilesMount.Build(first));
+        pipeline.Registered.Add(StaticFilesMount.Build(second));
+        TestHttpContext shared = new("/app.js", HttpMethod.Get);
+        TestHttpContext onlySecond = new("/other.js", HttpMethod.Get);
+
+        // Act
+        pipeline.UseStaticFiles();
+        IWebApplicationPipeline built = pipeline.Build();
+        await built.ExecuteAsync(shared);
+        await built.ExecuteAsync(onlySecond);
+
+        // Assert
+        shared.ReadResponseBody().ShouldBe("first");
+        onlySecond.ReadResponseBody().ShouldBe("other");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - UseStaticFiles: Without a registration or a web root every request should pass through")]
+    public async Task UseStaticFiles_WithoutRegistrationOrWebRoot_ShouldPassThrough()
+    {
+        // Arrange — the defaults serve the web root, and this application has none.
+        TestPipelineBuilder pipeline = new();
+        bool passedThrough = false;
+        TestHttpContext context = new("/index.html", HttpMethod.Get);
+
+        // Act
+        pipeline.UseStaticFiles();
+        pipeline.Use((ctx, next) =>
+        {
+            passedThrough = true;
+            return Task.CompletedTask;
+        });
+        await pipeline.Build().ExecuteAsync(context);
+
+        // Assert
+        passedThrough.ShouldBeTrue();
+        context.ReadResponseBody().ShouldBeEmpty();
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.StaticFiles] - Use: A web-root registration placed without UseStaticFiles should pass every request through")]
+    public async Task Use_WebRootRegistrationPlacedDirectly_ShouldPassThrough()
+    {
+        // Arrange — only UseStaticFiles() mounts the web root; the bare registration has nothing to serve,
+        // not even a 404 for a hostile path.
+        TestPipelineBuilder pipeline = new();
+        bool[] passedThrough = [false, false];
+        pipeline.Use(new StaticFilesBuilder().Build());
+        pipeline.Use((ctx, next) =>
+        {
+            passedThrough[ctx.Request.Path.Value.Contains("..", StringComparison.Ordinal) ? 1 : 0] = true;
+            return Task.CompletedTask;
+        });
+        IWebApplicationPipeline built = pipeline.Build();
+
+        // Act
+        await built.ExecuteAsync(new TestHttpContext("/index.html", HttpMethod.Get));
+        await built.ExecuteAsync(new TestHttpContext("/../secret.txt", HttpMethod.Get));
+
+        // Assert
+        passedThrough.ShouldBe([true, true]);
     }
 }
 ```

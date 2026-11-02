@@ -21,7 +21,7 @@ test objects.
 - **Case 7** — Interception: A cookie instance shared across requests should not carry one request's decision into the next.
 - **Case 8** — Interception: A response cookie feature installed earlier should be composed underneath the policy.
 - **Case 9** — Interception: A Set-Cookie field written before the cookie collection exists should be judged when the collection is created.
-- **Case 10** — Interception: A nested registration should add its rules and share the outer consent state.
+- **Case 10** — Interception: A nested policy should add its rules and share the outer consent state.
 
 ## Source example
 
@@ -32,8 +32,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
+
 using Xunit;
+
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.CookiePolicy.Tests.TestObjects;
 using Assimalign.Cohesion.Web.ForwardedHeaders;
@@ -56,18 +59,19 @@ public class CookiePolicyInterceptionTests
         // Arrange
         RejectionRecorder recorder = new();
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddCookiePolicy(policy =>
+        {
+            policy.Options.Secure = CookieSecurePolicy.Always;
+            policy.Options.CheckConsentNeeded = _ => true;
+            policy.Options.OnRejected = recorder.Record;
+        });
         factory.Application.Use(async (context, next) =>
         {
             context.Response.Cookies.Add(new HttpCookie("early", "1"));
             context.Response.Cookies.Add(new HttpCookie("tracking", "1"));
             await next.Invoke(context);
         });
-        factory.Application.UseCookiePolicy(options =>
-        {
-            options.Secure = CookieSecurePolicy.Always;
-            options.CheckConsentNeeded = _ => true;
-            options.OnRejected = recorder.Record;
-        });
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, _ => { });
 
         // Act
@@ -83,6 +87,7 @@ public class CookiePolicyInterceptionTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
         factory.Application.Use(async (context, next) =>
         {
             context.Response.Cookies.Add(new HttpCookie("first", "1"));
@@ -90,7 +95,7 @@ public class CookiePolicyInterceptionTests
             context.Response.Cookies.Add(new HttpCookie("third", "1"));
             await next.Invoke(context);
         });
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
             context.Response.Cookies.Add(new HttpCookie("fourth", "1")));
 
@@ -107,12 +112,13 @@ public class CookiePolicyInterceptionTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
         factory.Application.Use(async (context, next) =>
         {
             await next.Invoke(context);
             context.Response.Cookies.Add(new HttpCookie("late", "1"));
         });
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, _ => { });
 
         // Act
@@ -130,7 +136,8 @@ public class CookiePolicyInterceptionTests
         // Arrange
         (bool ContainsBefore, bool Removed, bool ContainsAfter, int Count)? observed = null;
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             IHttpCookieCollection cookies = context.Response.Cookies;
@@ -155,7 +162,8 @@ public class CookiePolicyInterceptionTests
         // Arrange
         (bool Contains, bool Removed, int Count)? observed = null;
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.CheckConsentNeeded = _ => true);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.CheckConsentNeeded = _ => true);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             IHttpCookieCollection cookies = context.Response.Cookies;
@@ -179,7 +187,8 @@ public class CookiePolicyInterceptionTests
         HttpCookie appended = new("a", "1");
         (bool QueuedSecure, bool AppendedSecure, bool SameInstance)? observed = null;
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             context.Response.Cookies.Add(appended);
@@ -200,7 +209,8 @@ public class CookiePolicyInterceptionTests
         // Arrange
         HttpCookie shared = new("shared", "1");
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseForwardedHeaders(options => options.Headers = ForwardedHeaderNames.XForwarded);
+        factory.Builder.Services.AddForwardedHeaders(forwarded => forwarded.Options.Headers = ForwardedHeaderNames.XForwarded);
+        factory.Application.UseForwardedHeaders();
         factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context => context.Response.Cookies.Add(shared));
 
@@ -224,13 +234,14 @@ public class CookiePolicyInterceptionTests
         RecordingResponseCookieFeature? recording = null;
         (bool ResolvedIsRecording, int FeatureCount)? observed = null;
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
         factory.Application.Use(async (context, next) =>
         {
             recording = new RecordingResponseCookieFeature(context.Response.Headers);
             context.Features.Set<IHttpResponseCookieFeature>(recording);
             await next.Invoke(context);
         });
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             observed = (
@@ -245,7 +256,7 @@ public class CookiePolicyInterceptionTests
         // Assert — the policy is in charge, and the earlier feature still received the issued cookie.
         observed.ShouldBe((false, 1));
         HttpCookie stored = recording.ShouldNotBeNull().Added.ShouldHaveSingleItem();
-        stored.Name.ShouldBe("a");
+        stored.Name.ShouldBe<HttpCookieName>("a");
         stored.Options.Secure.ShouldBeTrue();
         fields.ShouldHaveSingleItem().Has("Secure").ShouldBeTrue();
     }
@@ -255,7 +266,8 @@ public class CookiePolicyInterceptionTests
     {
         // Arrange
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.Secure = CookieSecurePolicy.Always);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.Secure = CookieSecurePolicy.Always);
+        factory.Application.UseCookiePolicy();
         CookiePolicyTestHost.UseCookieWriter(factory.Application, context =>
         {
             context.Response.Headers[HttpHeaderKey.SetCookie] = "raw=1; Path=/";
@@ -270,16 +282,21 @@ public class CookiePolicyInterceptionTests
         fields.ShouldAllBe(field => field.Has("Secure"));
     }
 
-    [Fact(DisplayName = "Cohesion Test [Web.CookiePolicy] - Interception: A nested registration should add its rules and share the outer consent state")]
+    [Fact(DisplayName = "Cohesion Test [Web.CookiePolicy] - Interception: A nested policy should add its rules and share the outer consent state")]
     public async Task UseCookiePolicy_NestedInABranch_ShouldComposeRulesAndShareConsent()
     {
-        // Arrange
+        // Arrange — UseCookiePolicy() places the one registered policy wherever it is called, so a branch
+        // that needs rules of its own places a middleware built from its own CookiePolicyBuilder.
         int consentFeatures = 0;
+        CookiePolicyBuilder strict = new();
+        strict.Options.MinimumSameSitePolicy = HttpCookieSameSiteMode.Strict;
+        IWebApplicationMiddleware branchPolicy = strict.Build();
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseCookiePolicy(options => options.CheckConsentNeeded = _ => true);
+        factory.Builder.Services.AddCookiePolicy(policy => policy.Options.CheckConsentNeeded = _ => true);
+        factory.Application.UseCookiePolicy();
         factory.Application.Map("/strict", branch =>
         {
-            branch.UseCookiePolicy(options => options.MinimumSameSitePolicy = HttpCookieSameSiteMode.Strict);
+            branch.Use(branchPolicy);
             branch.Run(context =>
             {
                 consentFeatures = context.Features.OfType<ICookieConsentFeature>().Count();

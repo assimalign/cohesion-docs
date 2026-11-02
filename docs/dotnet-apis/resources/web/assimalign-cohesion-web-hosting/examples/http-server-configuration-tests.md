@@ -16,41 +16,42 @@ test objects.
 - **Case 2** — HttpServerConfiguration: Refuses invalid automatic Date configuration.
 - **Case 3** — HttpServerConfiguration: Applies the configured alternate-scheme policy on both binding paths.
 - **Case 4** — HttpServerConfiguration: Refuses an invalid alternate-scheme policy before registering endpoints.
-- **Case 5** — HTTPS configuration: Resolves the named Secret mount for each secure protocol.
-- **Case 6** — HTTPS configuration: Missing material names the endpoint and tls mount.
-- **Case 7** — HttpServerConfiguration: Should bind server limits from configuration.
-- **Case 8** — HttpServerConfiguration: Should leave defaults when a section is absent.
-- **Case 9** — HttpServerConfiguration: Should treat 'unbounded' body size as null.
-- **Case 10** — HttpServerConfiguration: Should treat 'infinite' timeout as InfiniteTimeSpan.
-- **Case 11** — HttpServerConfiguration: Should bind the minimum request-body data rate from configuration.
-- **Case 12** — HttpServerConfiguration: A data-rate section with one dimension should keep the other.
-- **Case 13** — HttpServerConfiguration: Should treat 'none' as a disabled minimum request-body data rate.
-- **Case 14** — HttpServerConfiguration: Should throw on an unusable minimum request-body data rate.
-- **Case 15** — HttpServerConfiguration: Should bind the minimum response data rate from configuration.
-- **Case 16** — HttpServerConfiguration: Should treat 'none' as a disabled minimum response data rate.
-- **Case 17** — HttpServerConfiguration: Should throw on an unusable minimum response data rate.
-- **Case 18** — HttpServerConfiguration: Every endpoint should receive the bound minimum response data rate.
-- **Case 19** — HttpServerConfiguration: Every endpoint should receive the bound minimum request-body data rate.
-- **Case 20** — HttpServerConfiguration: Should register HTTP/1.1 and HTTP/2 endpoints from configuration.
-- **Case 21** — HttpServerConfiguration: Should throw on an invalid endpoint port.
-- **Case 22** — HttpServerConfiguration: Should throw on an unsupported endpoint protocol.
-- **Case 23** — HttpServerConfiguration: Should throw on an unparseable limit value.
-- **Case 24** — Default endpoints: the binder registers the development endpoint when none is configured.
-- **Case 25** — Default endpoints: the binder registers only configured endpoints when present.
-- **Case 26** — HttpServerConfiguration: Should register an HTTP/3 endpoint and advertise it through Alt-Svc.
-- **Case 27** — HttpServerConfiguration: Should leave Alt-Svc off when no HTTP/3 endpoint is configured.
-- **Case 28** — HTTPS configuration: Loads the certificate from a PEM or PFX file.
-- **Case 29** — HTTPS configuration: A certificate section without a Path names the endpoint.
-- **Case 30** — HTTPS configuration: An unreadable certificate file names the endpoint and the file.
-- **Case 31** — HttpServerConfiguration: Should bind the HTTP/2 limits from configuration.
-- **Case 32** — HttpServerConfiguration: Should throw on an unparseable HTTP/2 limit.
-- **Case 33** — HttpServerConfiguration: Should hand the configured connection cap to the server.
-- **Case 34** — HttpServerConfiguration: Should reject a connection cap that is not a positive integer.
-- **Case 35** — UseConfiguration: Should cap the default server with the configured connection limit.
-- **Case 36** — UseConfiguration: An explicit LimitConcurrentConnections takes precedence over the configured cap.
-- **Case 37** — HTTPS configuration: An invalid handshake timeout should name the endpoint and key.
-- **Case 38** — HTTPS configuration: An unsupported ClientCertificateMode names the endpoint.
-- **Case 39** — HTTP configuration: A ClientCertificateMode on a cleartext endpoint is refused.
+- **Case 5** — HTTPS configuration: Missing material names the endpoint and the certificate file setting.
+- **Case 6** — HttpServerConfiguration: Should bind server limits from configuration.
+- **Case 7** — HttpServerConfiguration: Should leave defaults when a section is absent.
+- **Case 8** — HttpServerConfiguration: Should treat 'unbounded' body size as null.
+- **Case 9** — HttpServerConfiguration: Should treat 'infinite' timeout as InfiniteTimeSpan.
+- **Case 10** — HttpServerConfiguration: Should bind the minimum request-body data rate from configuration.
+- **Case 11** — HttpServerConfiguration: A data-rate section with one dimension should keep the other.
+- **Case 12** — HttpServerConfiguration: Should treat 'none' as a disabled minimum request-body data rate.
+- **Case 13** — HttpServerConfiguration: Should throw on an unusable minimum request-body data rate.
+- **Case 14** — HttpServerConfiguration: Should bind the minimum response data rate from configuration.
+- **Case 15** — HttpServerConfiguration: Should treat 'none' as a disabled minimum response data rate.
+- **Case 16** — HttpServerConfiguration: Should throw on an unusable minimum response data rate.
+- **Case 17** — HttpServerConfiguration: Every endpoint should receive the bound minimum response data rate.
+- **Case 18** — HttpServerConfiguration: Every endpoint should receive the bound minimum request-body data rate.
+- **Case 19** — HttpServerConfiguration: Should register HTTP/1.1 and HTTP/2 endpoints from configuration.
+- **Case 20** — HttpServerConfiguration: Should throw on an invalid endpoint port.
+- **Case 21** — HttpServerConfiguration: Should throw on an unsupported endpoint protocol.
+- **Case 22** — HttpServerConfiguration: Should throw on an unparseable limit value.
+- **Case 23** — Default endpoints: the binder registers the development endpoint when none is configured.
+- **Case 24** — Default endpoints: the binder registers only configured endpoints when present.
+- **Case 25** — Default endpoints: the http endpoint the platform assigned replaces the development endpoint.
+- **Case 26** — Default endpoints: no http endpoint, or an https one, leaves the development endpoint.
+- **Case 27** — HttpServerConfiguration: Should register an HTTP/3 endpoint and advertise it through Alt-Svc.
+- **Case 28** — HttpServerConfiguration: Should leave Alt-Svc off when no HTTP/3 endpoint is configured.
+- **Case 29** — HTTPS configuration: Loads the certificate from a PEM or PFX file.
+- **Case 30** — HTTPS configuration: A certificate section without a Path names the endpoint.
+- **Case 31** — HTTPS configuration: An unreadable certificate file names the endpoint and the file.
+- **Case 32** — HttpServerConfiguration: Should bind the HTTP/2 limits from configuration.
+- **Case 33** — HttpServerConfiguration: Should throw on an unparseable HTTP/2 limit.
+- **Case 34** — HttpServerConfiguration: Should hand the configured connection cap to the server.
+- **Case 35** — HttpServerConfiguration: Should reject a connection cap that is not a positive integer.
+- **Case 36** — UseConfiguration: Should cap the default server with the configured connection limit.
+- **Case 37** — UseConfiguration: An explicit LimitConcurrentConnections takes precedence over the configured cap.
+- **Case 38** — HTTPS configuration: An invalid handshake timeout should name the endpoint and key.
+- **Case 39** — HTTPS configuration: An unsupported ClientCertificateMode names the endpoint.
+- **Case 40** — HTTP configuration: A ClientCertificateMode on a cleartext endpoint is refused.
 
 ## Source example
 
@@ -68,7 +69,6 @@ using Assimalign.Cohesion.Configuration;
 using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Http.Connections;
-using Assimalign.Cohesion.Hosting.Resources;
 using Assimalign.Cohesion.Testing;
 using Assimalign.Cohesion.Web.Hosting.Internal;
 using Assimalign.Cohesion.Web.Hosting.Tests.TestObjects;
@@ -198,51 +198,9 @@ public class HttpServerConfigurationTests
         options.AllowAlternateSchemes.ShouldBeFalse();
     }
 
-    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - HTTPS configuration: Resolves the named Secret mount for each secure protocol")]
-    [InlineData("Https", HttpProtocol.Http11 | HttpProtocol.Http20)]
-    [InlineData("Http1s", HttpProtocol.Http11)]
-    [InlineData("Http2s", HttpProtocol.Http20)]
-    public async Task Bind_HttpsProtocols_ShouldUseCertificateMount(string protocol, HttpProtocol expected)
-    {
-        var local = new ResourceContext(environmentName: AppEnvironment.Keys.Local);
-        using X509Certificate2 certificate = local.CreateDevelopmentEndpointCertificate("localhost");
-        using var key = certificate.GetECDsaPrivateKey()!;
-        string pem = certificate.ExportCertificatePem() + "\n" + key.ExportPkcs8PrivateKeyPem();
-        var resource = new ResourceContext(mounts: new Dictionary<string, ResourceMount>
-        {
-            ["https-key"] = ResourceMount.FromBytes(Encoding.UTF8.GetBytes(pem)),
-        });
-        using IDisposable scope = ResourceRuntime.CreateScope(resource);
-        IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["Http:Endpoints:Secure:Protocol"] = protocol,
-            ["Http:Endpoints:Secure:Host"] = "localhost",
-            ["Http:Endpoints:Secure:Port"] = "0",
-            ["Http:Endpoints:Secure:Certificate"] = "https-key",
-            ["Http:Limits:MaxRequestBodySize"] = "1024",
-        });
-        var options = new HttpConnectionListenerOptions();
-        var owned = new List<X509Certificate2>();
-        try
-        {
-            HttpServerConfiguration.Bind(configuration, "Http", options, owned.Add);
-            await using HttpConnectionListener listener = new(options);
-            listener.Protocols.ShouldBe(expected);
-            owned[0].Thumbprint.ShouldBe(certificate.Thumbprint);
-        }
-        finally
-        {
-            foreach (X509Certificate2 item in owned)
-            {
-                item.Dispose();
-            }
-        }
-    }
-
-    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - HTTPS configuration: Missing material names the endpoint and tls mount")]
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - HTTPS configuration: Missing material names the endpoint and the certificate file setting")]
     public void Bind_MissingHttpsCertificate_ShouldFailClosed()
     {
-        using IDisposable scope = ResourceRuntime.CreateScope(new ResourceContext());
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             ["Http:Endpoints:Secure:Protocol"] = "Https",
@@ -250,7 +208,7 @@ public class HttpServerConfigurationTests
         });
         InvalidOperationException error = Should.Throw<InvalidOperationException>(() => HttpServerConfiguration.Bind(configuration, "Http", new HttpConnectionListenerOptions()));
         error.Message.ShouldContain("Secure");
-        error.Message.ShouldContain("tls");
+        error.Message.ShouldContain("Certificate:Path");
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - HttpServerConfiguration: Should bind server limits from configuration")]
@@ -589,6 +547,57 @@ public class HttpServerConfigurationTests
         // Assert
         await using HttpConnectionListener listener = new(options);
         listener.Protocols.ShouldBe(HttpProtocol.Http20);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [Web.Hosting] - Default endpoints: the http endpoint the platform assigned replaces the development endpoint")]
+    public void GetPlatformEndPoint_WithAssignedHttpEndpoint_ShouldReturnIt()
+    {
+        // Arrange — a scope, as a gateway that runs the application in its own process gives it.
+        AppEnvironmentScope scope = AppEnvironmentScope.Create(
+            new Dictionary<string, string>
+            {
+                [AppEnvironment.Variables.Endpoint("http", "HOST")] = "127.0.0.1",
+                [AppEnvironment.Variables.Endpoint("http", "PORT")] = "5123",
+                [AppEnvironment.Variables.Endpoint("http", "SCHEME")] = "http",
+            },
+            CancellationToken.None);
+
+        // Act
+        System.Net.IPEndPoint? endPoint;
+        using (AppEnvironment.Enter(scope))
+        {
+            endPoint = HttpServerConfiguration.GetPlatformEndPoint();
+        }
+
+        // Assert
+        endPoint.ShouldBe(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 5123));
+    }
+
+    [Theory(DisplayName = "Cohesion Test [Web.Hosting] - Default endpoints: no http endpoint, or an https one, leaves the development endpoint")]
+    [InlineData(null)]
+    [InlineData("https")]
+    public void GetPlatformEndPoint_WithoutPlainHttpEndpoint_ShouldReturnNull(string? scheme)
+    {
+        // Arrange
+        var variables = new Dictionary<string, string>();
+        if (scheme is not null)
+        {
+            variables[AppEnvironment.Variables.Endpoint("http", "HOST")] = "127.0.0.1";
+            variables[AppEnvironment.Variables.Endpoint("http", "PORT")] = "5124";
+            variables[AppEnvironment.Variables.Endpoint("http", "SCHEME")] = scheme;
+        }
+
+        AppEnvironmentScope scope = AppEnvironmentScope.Create(variables, CancellationToken.None);
+
+        // Act
+        System.Net.IPEndPoint? endPoint;
+        using (AppEnvironment.Enter(scope))
+        {
+            endPoint = HttpServerConfiguration.GetPlatformEndPoint();
+        }
+
+        // Assert
+        endPoint.ShouldBeNull();
     }
 
     [Fact(DisplayName = "Cohesion Test [Web.Hosting] - HttpServerConfiguration: Should register an HTTP/3 endpoint and advertise it through Alt-Svc")]

@@ -16,8 +16,8 @@ The repository places this area in delivery wave 3. The wave is a dependency-ord
 release or completeness guarantee.
 
 The root wave diagram groups OpenTelemetry with protocol and format work. Its current area README
-describes the log exporter as a Layer 2 transport library; Hosting.Telemetry owns the logging
-adapter.
+describes the log exporter as a Layer 2 transport library. An application composes the exporter with
+its own logging provider.
 
 | Assembly | Declared dependencies |
 |---|---|

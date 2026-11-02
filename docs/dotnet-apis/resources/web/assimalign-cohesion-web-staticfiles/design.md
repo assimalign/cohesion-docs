@@ -4,15 +4,19 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
 Serve files from a mounted `IFileSystem` as a single middleware-first feature package: one
-`UseStaticFiles` verb on `IWebApplicationPipelineBuilder`, one internal `IWebApplicationMiddleware`
-that writes responses imperatively, and zero request-time composition. The package is deliberately a
-*composer of protocol primitives* — conditional requests, range selection, content negotiation, and
-content-type mapping all come from `Assimalign.Cohesion.Http` (`HttpConditionalRequest`,
-`HttpRangeSelector`, `HttpIfRange`, `HttpContentNegotiation`, `HttpContentTypes`), so RFC
-semantics live in one tested place and this middleware only sequences them.
+registration verb, `builder.Services.AddStaticFiles(files => ...)`, one `UseStaticFiles()` verb on
+`IWebApplicationPipelineBuilder` that places what it registered, one internal
+`IWebApplicationMiddleware` that writes responses imperatively, and zero request-time composition.
+The package is deliberately a *composer of protocol primitives* — conditional requests, range
+selection, content negotiation, and content-type mapping all come from `Assimalign.Cohesion.Http`
+(`HttpConditionalRequest`, `HttpRangeSelector`, `HttpIfRange`, `HttpContentNegotiation`,
+`HttpContentTypes`), so RFC semantics live in one tested place and this middleware only sequences
+them.
 
 Unlike ASP.NET's per-concern packaging (StaticFiles + DefaultFiles + DirectoryBrowser as separate
 middlewares that must be ordered correctly), one package covers file serving, default documents, and
@@ -27,109 +31,106 @@ and `HEAD` in the package (see "Response helpers" below).
 
 ## Why-this-not-that decisions
 
-- **`IFileSystem` as the content root, not a bespoke file-provider seam.** The FileSystem
-  library already models mounts (physical, in-memory, aggregate, isolated-storage) with a
-  richer surface than ASP.NET's `IFileProvider`, and the mount boundary doubles as the
-  security boundary: the middleware cannot express a lookup outside the mounted root.
-  Lookups are mount-relative: the middleware strips the request path's leading `/` before
-  calling the mount, because every provider merges a relative path against its own root while
-  a leading `/` is absolute in the provider's namespace (the drive root for the physical
-  provider).
-- **The parameterless verb serves the web root, never the content root (#1045).**
-  `UseStaticFiles()` mounts `IWebApplicationContext.WebRootPath` — `wwwroot` under the content
-  root by default, resolved by the hosting runtime — and passes every request through when the
-  application has no web root. Until 2026-09 it mounted `ContentRootPath`, which Web.Hosting
-  never set, so it fell back to the process working directory; `.json` is a served content type,
-  which exposed `appsettings*.json`. Its options are configured and validated once, when the
-  verb is called, exactly like the explicit `UseStaticFiles(IFileSystem, ...)` overloads (they
-  used to be rebuilt on every request).
-- **Middleware-first, no result types.** The 2026-07-10 direction withdrew `IResult`; this
-  package writes status, headers, and body directly on `IHttpResponse`. The `#864` edge
-  (serializer registry / `OnError`) was dropped from this item accordingly — errors here are
-  protocol outcomes (`304`/`404`/`412`/`416`), not application faults.
+- **`IFileSystem` as the content root, not a bespoke file-provider seam.** The FileSystem library
+  already models mounts (physical, in-memory, aggregate, isolated-storage) with a richer surface
+  than ASP.NET's `IFileProvider`, and the mount boundary doubles as the security boundary: the
+  middleware cannot express a lookup outside the mounted root. Lookups are mount-relative: the
+  middleware strips the request path's leading `/` before calling the mount, because every provider
+  merges a relative path against its own root while a leading `/` is absolute in the provider's
+  namespace (the drive root for the physical provider).
+- **Without an explicit mount, the web root is served, never the content root (#1045).** A
+  registration that names no file system, and `UseStaticFiles()` without a registration, mount
+  `IWebApplicationContext.WebRootPath` — `wwwroot` under the content root by default, resolved by
+  the hosting runtime — and pass every request through when the application has no web root. Until
+  2026-09 the parameterless verb mounted `ContentRootPath`, which Web.Hosting never set, so it fell
+  back to the process working directory; `.json` is a served content type, which exposed
+  `appsettings*.json`. The options are configured once, where the middleware is registered, and
+  `StaticFilesBuilder.Build` validates and snapshots them (they used to be rebuilt on every
+  request). `UseStaticFiles()` only mounts the web root under that snapshot when the pipeline is
+  built, so an options object changed after registration is never read.
+- **Middleware-first, no result types.** The 2026-07-10 direction withdrew `IResult`; this package
+  writes status, headers, and body directly on `IHttpResponse`. The `#864` edge (serializer registry
+  / `OnError`) was dropped from this item accordingly — errors here are protocol outcomes
+  (`304`/`404`/`412`/`416`), not application faults.
 - **Reject hostile paths with `404`, don't pass them along.** Under the mount prefix, a path
   containing dot segments (or `:`/NUL) is answered `404` directly rather than forwarded to
   downstream middleware. Forwarding would hand a hostile path to whatever handler comes next;
-  answering is the honest owner behavior for URL space the mount claims. Outside-the-claim
-  misses (plain not-found, unmapped extensions, bare directories) *do* pass through — those
-  are legitimately someone else's URLs.
-- **Two-layer traversal defense.** Layer 1 is an explicit gate
-  (`StaticFilePath.HasUnsafeSegments`) over the decoded path: any `.`/`..` segment — split on both `/` and
-  `\`, since `FileSystemPath` treats backslash as a separator — plus `:` (Windows drive/ADS
-  shapes), NUL, and any segment shaped like an 8.3 short-name alias (below). Layer 2 is
-  `FileSystemPath.Parse` itself, which throws on interior dot segments and illegal
-  characters; the gate runs first so hostile requests get a
-  deterministic `404` instead of exception-driven flow. Non-canonical-but-safe forms
-  (`/./x`) are also rejected rather than normalized — Cohesion transports do not collapse
-  dot segments, and a static server has no business inventing URL equivalences.
+  answering is the honest owner behavior for URL space the mount claims. Outside-the-claim misses
+  (plain not-found, unmapped extensions, bare directories) *do* pass through — those are
+  legitimately someone else's URLs.
+- **Two-layer traversal defense.** Layer 1 is an explicit gate (`StaticFilePath. HasUnsafeSegments`)
+  over the decoded path: any `.`/`..` segment — split on both `/` and `\`, since `FileSystemPath`
+  treats backslash as a separator — plus `:` (Windows drive/ADS shapes), NUL, and any segment shaped
+  like an 8.3 short-name alias (below). Layer 2 is `FileSystemPath.Parse` itself, which throws on
+  interior dot segments and illegal characters; the gate runs first so hostile requests get a
+  deterministic `404` instead of exception-driven flow. Non-canonical-but-safe forms (`/./x`) are
+  also rejected rather than normalized — Cohesion transports do not collapse dot segments, and a
+  static server has no business inventing URL equivalences.
 - **Directory detection by info type, not `FileAttributes`.** Not every mount stamps
   `FileAttributes.Directory` (InMemory leaves attributes unset); every mount returns an
   `IFileSystemDirectory`-typed info. Type tests are the portable signal.
-- **Strong ETag from `Size` + `UpdatedOn` (hex ticks-dash-length).** Cheap (no content
-  hashing), stable per representation, and distinct across representations — a precompressed
-  sibling naturally carries different size/mtime, satisfying the RFC 9110 rule that distinct
-  encodings must not share a strong validator. Timestamps are normalized to UTC and
-  truncated to whole seconds *for comparisons and emission* (HTTP-date resolution), while
-  the ETag uses full-resolution ticks for discrimination.
-- **Preconditions evaluate against the *negotiated* representation.** Sibling selection runs
-  before validator derivation, so `If-None-Match`/`If-Range` compare against the validators
-  of the representation that would actually be served — and a `Range` applies to the encoded
-  bytes (RFC 9110 §14.2: ranges address the selected representation).
+- **Strong ETag from `Size` + `UpdatedOn` (hex ticks-dash-length).** Cheap (no content hashing),
+  stable per representation, and distinct across representations — a precompressed sibling naturally
+  carries different size/mtime, satisfying the RFC 9110 rule that distinct encodings must not share
+  a strong validator. Timestamps are normalized to UTC and truncated to whole seconds *for
+  comparisons and emission* (HTTP-date resolution), while the ETag uses full-resolution ticks for
+  discrimination.
+- **Preconditions evaluate against the *negotiated* representation.** Sibling selection runs before
+  validator derivation, so `If-None-Match`/`If-Range` compare against the validators of the
+  representation that would actually be served — and a `Range` applies to the encoded bytes (RFC
+  9110 §14.2: ranges address the selected representation).
 - **A date `If-Range` applies only to a settled file (#1185).** `HttpIfRange.Matches` honors the
   range for a date only when the date equals `Last-Modified` and `Last-Modified` is at least one
-  second before the response's origination time. `RepresentationWriter` uses a single valid
-  response `Date` (#1417), or one `TimeProvider.System.GetUtcNow()` read when that header is
-  absent, invalid, or repeated (#1449). The transport makes its default date available before
-  dispatch and preserves a date the application set. A file written in that
-  second can change again without changing its `Last-Modified`, so it gets the full `200`, and so
-  does any date earlier or later than `Last-Modified`. The one-second test is a conservative
-  heuristic, not RFC 9110 §8.8.2.2's "reliably knows" condition: a file written twice inside one
-  second, with a client's copy taken between the writes, keeps one `Last-Modified`, so that
-  client's date still matches (the core `HttpIfRange` design). The strong `ETag` form has no such
-  case; it is what a resuming client should send anyway.
+  second before the response's origination time. `RepresentationWriter` uses a single valid response
+  `Date` (#1417), or one `TimeProvider.System.GetUtcNow()` read when that header is absent, invalid,
+  or repeated (#1449). The transport makes its default date available before dispatch and preserves
+  a date the application set. A file written in that second can change again without changing its
+  `Last-Modified`, so it gets the full `200`, and so does any date earlier or later than
+  `Last-Modified`. The one-second test is a conservative heuristic, not RFC 9110 §8.8.2.2's
+  "reliably knows" condition: a file written twice inside one second, with a client's copy taken
+  between the writes, keeps one `Last-Modified`, so that client's date still matches (the core
+  `HttpIfRange` design). The strong `ETag` form has no such case; it is what a resuming client
+  should send anyway.
 - **A future `Last-Modified` is sent as the response time.** RFC 9110 §8.8.2.1 forbids an origin
   server with a clock to send a `Last-Modified` later than the response's origination, and makes it
-  send that time instead. A file stamped in the future (a clock that ran ahead, an archive
-  extracted with its original times) or a `WriteStreamAsync` caller's future `lastModified` would
-  otherwise go out unchanged. `TrySelectContent` selects the response's valid `Date` or the
-  single clock fallback once, clamps `RepresentationMetadata.LastModified` to that second
-  (`ClampLastModified`), and evaluates the preconditions, the `If-Range` test, and every header
-  section that carries validators (`200`,
-  `206`, `304`, `416`) against the clamped value, passing the same instant to `HttpIfRange.Matches`.
-  A clamped `Last-Modified` falls in the current second, so it never applies a date `If-Range`.
-  The `ETag` keeps the file's real timestamp, so it stays stable while the clamped date moves.
-- **Disabling `Date` removes only the automatic header (#1449, owner decision 53).** A listener
-  can disable automatic dates (`AddDateHeader = false`) for a proxy that adds its own. A custom
-  response can also have no date, or the application can supply an invalid or repeated date.
-  Without one valid response `Date`, `RepresentationWriter` reads `TimeProvider.System.GetUtcNow()`
-  exactly once for that selection. That instant supplies the future-date clamp, the
-  `If-Modified-Since` / `If-Unmodified-Since` comparisons through the clamped modification date,
-  and the date-form `If-Range` strength check. `Last-Modified` and all date validators therefore
-  keep working. A valid response `Date` remains authoritative, with no fallback clock read.
-  StaticFiles never adds or rewrites `Date`; a missing header stays missing.
-  This also applies to both `SendFileAsync` overloads and to a `WriteStreamAsync` caller's
-  supplied `lastModified`; their public helper documentation describes the same clock fallback.
-  This restores the no-`Date` validation that #1417 inadvertently disabled after
-  10.0.0-preview.1. **Breaking behavior against 10.0.0-preview.1 (decision 15)** remains the
-  future-date clamp and the one-second date `If-Range` strength rule introduced by #1185:
-  preview.1 emitted source modification dates unchanged and used date matching without that
-  strength check. No transport supplied an automatic `Date` in that release.
-- **Single-range only; multi-range falls back to full `200`.** `multipart/byteranges`
-  assembly is complexity with almost no modern client demand; the RFC permits serving the
-  full representation instead. `HttpRangeSelector`'s DoS guard (16-range cap → full) rides
-  along for free.
-- **`Vary: Accept-Encoding` whenever a sibling exists** — including on identity responses
-  and `304`s. The URL's response varies the moment a sibling is on disk, regardless of what
-  this particular client received; caches must know. No siblings → no `Vary`.
+  send that time instead. A file stamped in the future (a clock that ran ahead, an archive extracted
+  with its original times) or a `WriteStreamAsync` caller's future `lastModified` would otherwise go
+  out unchanged. `TrySelectContent` selects the response's valid `Date` or the single clock fallback
+  once, clamps `RepresentationMetadata.LastModified` to that second (`ClampLastModified`), and
+  evaluates the preconditions, the `If-Range` test, and every header section that carries validators
+  (`200`, `206`, `304`, `416`) against the clamped value, passing the same instant to
+  `HttpIfRange.Matches`. A clamped `Last-Modified` falls in the current second, so it never applies
+  a date `If-Range`. The `ETag` keeps the file's real timestamp, so it stays stable while the
+  clamped date moves.
+- **Disabling `Date` removes only the automatic header (#1449, owner decision 53).** A listener can
+  disable automatic dates (`AddDateHeader = false`) for a proxy that adds its own. A custom response
+  can also have no date, or the application can supply an invalid or repeated date. Without one
+  valid response `Date`, `RepresentationWriter` reads `TimeProvider.System.GetUtcNow()` exactly once
+  for that selection. That instant supplies the future-date clamp, the `If-Modified-Since` /
+  `If-Unmodified-Since` comparisons through the clamped modification date, and the date-form
+  `If-Range` strength check. `Last-Modified` and all date validators therefore keep working. A valid
+  response `Date` remains authoritative, with no fallback clock read. StaticFiles never adds or
+  rewrites `Date`; a missing header stays missing. This also applies to both `SendFileAsync`
+  overloads and to a `WriteStreamAsync` caller's supplied `lastModified`; their public helper
+  documentation describes the same clock fallback. This restores the no-`Date` validation that #1417
+  inadvertently disabled after 10.0.0-preview.1. **Breaking behavior against 10.0.0-preview.1
+  (decision 15)** remains the future-date clamp and the one-second date `If-Range` strength rule
+  introduced by #1185: preview.1 emitted source modification dates unchanged and used date matching
+  without that strength check. No transport supplied an automatic `Date` in that release.
+- **Single-range only; multi-range falls back to full `200`.** `multipart/byteranges` assembly is
+  complexity with almost no modern client demand; the RFC permits serving the full representation
+  instead. `HttpRangeSelector`'s DoS guard (16-range cap → full) rides along for free.
+- **`Vary: Accept-Encoding` whenever a sibling exists** — including on identity responses and
+  `304`s. The URL's response varies the moment a sibling is on disk, regardless of what this
+  particular client received; caches must know. No siblings → no `Vary`.
 - **Identity fallback instead of `406`.** When negotiation reports even identity refused
-  (`identity;q=0` with no acceptable coding), the middleware serves identity anyway: for
-  cacheable static assets a spec-permitted `406` punishes misconfigured clients for no
-  operational gain.
+  (`identity;q=0` with no acceptable coding), the middleware serves identity anyway: for cacheable
+  static assets a spec-permitted `406` punishes misconfigured clients for no operational gain.
 - **Slash-less directory URLs redirect (`301`) before serving a default document.** Serving
-  directory content at `/docs` would break every relative link inside the document;
-  canonicalizing to `/docs/` first is the correctness move. The query string is preserved by
-  re-encoding the parsed pairs (semantic, not byte-for-byte, fidelity — an accepted trade
-  since the raw query text is not surfaced by `IHttpRequest`).
+  directory content at `/docs` would break every relative link inside the document; canonicalizing
+  to `/docs/` first is the correctness move. The query string is preserved by re-encoding the parsed
+  pairs (semantic, not byte-for-byte, fidelity — an accepted trade since the raw query text is not
+  surfaced by `IHttpRequest`).
 - **The redirect's `Location` is percent-encoded (#1324).** The transports decode the request path,
   so `Location` encodes it back per segment with `HttpPath.ToUriComponent()` and rebuilds the query
   with `HttpQuery.Create`, the two calls `UseHttpsRedirection` makes. Written decoded, a request for
@@ -144,57 +145,96 @@ and `HEAD` in the package (see "Response helpers" below).
   client to the host `docs`. A backslash is encoded (`/%5Cdocs/`), so a browser cannot read
   `/\docs/` that way either.
 - **Unknown extensions blocked by default.** Serving unmapped types as `octet-stream` invites
-  accidental exposure (config files, dotfiles); the default passes them through so the
-  application decides. `ServeUnknownContentTypes` + `FallbackContentType` opt in explicitly.
+  accidental exposure (config files, dotfiles); the default passes them through so the application
+  decides. `ServeUnknownContentTypes` + `FallbackContentType` opt in explicitly.
+- **Configured content types are HTTP field values (#1476).** Every `ContentTypeMappings` value and
+  `FallbackContentType` is checked through `HttpFieldValue.TryCreate` at composition, with a
+  separate non-empty requirement for a content type. This refuses RFC CTLs other than interior HTAB
+  and leading or trailing SP/HTAB before a value can reach `Content-Type`. Case, valid interior
+  whitespace and obs-text (including C1 characters) are preserved; a quoted media-type parameter can
+  contain obs-text. The fallback is checked even when unknown types are disabled, so every supplied
+  configuration value is safe. The dictionary and fallback retain their string signatures;
+  validation uses the shared core grammar without adding checks to `HttpHeaderValue` or per-request
+  response writing. This is a behavior break against 10.0.0-preview.1: malformed mappings and
+  fallbacks formerly passed registration, and empty mapping values were silently ignored. They now
+  throw `ArgumentException` during composition. `AddStaticFiles` snapshots the options when it
+  registers the middleware, so a captured options object mutated afterwards is never read.
+  `MapFallbackToFile` snapshots at pipeline build and checks again immediately before it, including
+  when the web root is unavailable; mutating its captured options object after registration cannot
+  bypass the field-value check.
 - **A name with no extension has no type (#1186).** The gate asks
-  `HttpContentTypes.TryGetFromFileName` for the logical file name, and a name with no dot
-  (`html`, `json`) or a dotfile (`.json`) maps to nothing, so it is blocked like any unmapped
-  name, and with `ServeUnknownContentTypes` on it gets the fallback type. The lookup it
-  replaced read a dotless name as a bare extension token, so a user upload named `html` under
-  the static root was served as `text/html` — stored XSS from a file name alone. A
-  `ContentTypeMappings` key maps an extension only: the key `gltf` maps `model.gltf`, never a
-  file named `gltf`. That is a silent runtime change for a key that used to type an
-  extensionless file, such as `apple-app-site-association` (which Apple requires to have no
-  extension): the key is still accepted and never matches, so the request passes through. Type
-  such files with a dedicated mount that holds only them and whose fallback is the type,
-  `UseStaticFiles(wellKnownRoot, o => { o.RequestPath = new HttpPath("/.well-known"); o.ServeUnknownContentTypes = true; o.FallbackContentType = "application/json"; })`,
-  or from a handler with `SendFileAsync(fileSystem, path, "application/json")`.
-- **8.3 short-name aliases are refused with `404`.** A volume that generates short names (NTFS
-  with 8.3 generation on, and FAT) opens `upload.htmlx` through its alias `UPLOAD~1.HTM`. The
+  `HttpContentTypes.TryGetFromFileName` for the logical file name, and a name with no dot (`html`,
+  `json`) or a dotfile (`.json`) maps to nothing, so it is blocked like any unmapped name, and with
+  `ServeUnknownContentTypes` on it gets the fallback type. The lookup it replaced read a dotless
+  name as a bare extension token, so a user upload named `html` under the static root was served as
+  `text/html` — stored XSS from a file name alone. A `ContentTypeMappings` key maps an extension
+  only: the key `gltf` maps `model.gltf`, never a file named `gltf`. That is a silent runtime change
+  for a key that used to type an extensionless file, such as `apple-app-site-association` (which
+  Apple requires to have no extension): the key is still accepted and never matches, so the request
+  passes through. Type such files with a dedicated mount that holds only them and whose fallback is
+  the type (a `StaticFilesBuilder` over `wellKnownRoot` with `RequestPath = "/.well-known"`,
+  `ServeUnknownContentTypes = true` and `FallbackContentType = "application/json"`), or from a
+  handler with `SendFileAsync(fileSystem, path, "application/json")`.
+- **8.3 short-name aliases are refused with `404`.** A volume that generates short names (NTFS with
+  8.3 generation on, and FAT) opens `upload.htmlx` through its alias `UPLOAD~1.HTM`. The
   content-type gate reads the name the request spells, so the alias served an unmapped upload as
-  `text/html`, the same stored XSS the rule above closes, and `SendFileAsync(fileSystem, path)`
-  had the same hole (`.svgz` reached `.SVG` and `.xmlx` reached `.XML` the same way). The gate
-  therefore refuses any segment shaped like a generated alias: a stem of at most eight characters
-  before the first dot that contains `~` followed by a digit, checked after the trailing dots and
-  spaces Windows trims (`UPLOAD~1.HTM.`). The check runs on every OS: an in-memory mount answers
-  the same on every host, and a non-Windows host still reaches short names through an SMB share
-  or a FAT volume. The cost is that a real file named like an alias (`report~1.txt`) cannot be
-  served, and `MapFallbackToFile` rejects one when it is mapped, through the same gate; a longer
-  stem (`photo~2023.png`) is unaffected. A short name an administrator sets by hand
-  (`fsutil file setshortname`) need not contain `~` and is not detected. Comparing the resolved
-  file's real name with the request was rejected: the physical mount reports the name as
-  requested, so finding the real one would cost a directory read per request.
-- **Open the stream only after all no-body outcomes are resolved.** `304`/`412`/`416` never
-  touch the file; a file that vanishes between resolution and open yields a clean `404`
-  because nothing has been committed to the response yet. "Vanishes" covers how each mount says
-  so: `FileSystemException` where a mount maps the failure, and the BCL's `FileNotFoundException`
-  and `DirectoryNotFoundException` where it does not — the physical and in-memory mounts' `Open`,
-  and the physical mount's `Size`, which is read first. Until #1061 only the first was caught, so a
+  `text/html`, the same stored XSS the rule above closes, and `SendFileAsync(fileSystem, path)` had
+  the same hole (`.svgz` reached `.SVG` and `.xmlx` reached `.XML` the same way). The gate therefore
+  refuses any segment shaped like a generated alias: a stem of at most eight characters before the
+  first dot that contains `~` followed by a digit, checked after the trailing dots and spaces
+  Windows trims (`UPLOAD~1.HTM.`). The check runs on every OS: an in-memory mount answers the same
+  on every host, and a non-Windows host still reaches short names through an SMB share or a FAT
+  volume. The cost is that a real file named like an alias (`report~1.txt`) cannot be served, and
+  `MapFallbackToFile` rejects one when it is mapped, through the same gate; a longer stem
+  (`photo~2023.png`) is unaffected. A short name an administrator sets by hand (`fsutil file
+  setshortname`) need not contain `~` and is not detected. Comparing the resolved file's real name
+  with the request was rejected: the physical mount reports the name as requested, so finding the
+  real one would cost a directory read per request.
+- **Open the stream only after all no-body outcomes are resolved.** `304`/`412`/`416` never touch
+  the file; a file that vanishes between resolution and open yields a clean `404` because nothing
+  has been committed to the response yet. "Vanishes" covers how each mount says so:
+  `FileSystemException` where a mount maps the failure, and the BCL's `FileNotFoundException` and
+  `DirectoryNotFoundException` where it does not — the physical and in-memory mounts' `Open`, and
+  the physical mount's `Size`, which is read first. Until #1061 only the first was caught, so a
   vanished file on those mounts faulted the exchange instead.
 - **Open for shared reading, not with `Open()`.** The parameterless `IFileSystemFile.Open()` denies
   all sharing (and asks for write access on a writable mount), so two overlapping requests for one
   file failed with a sharing violation on both the physical and in-memory mounts; until #1061 the
-  second request faulted. Files are opened with `FileAccess.Read` and
-  `FileShare.Read | FileShare.Delete`: any number of responses read a file at once, a deployment
-  may delete or rename a file while it is served (the open handle keeps reading the bytes its
-  validators describe), and writers stay refused for the duration, so the content cannot change
-  under a copy. `FileShare.ReadWrite` (ASP.NET's choice) was rejected: it lets a writer modify a
-  file mid-copy, serving mixed bytes under the old strong `ETag`, which caches would then keep.
-- **Copy exactly the declared length.** Once `Content-Length` is in the header section, the body
-  is that many bytes: content that grew after its size was read is cut there, and content that
-  shrank aborts the response with `EndOfStreamException`, as a short range always did. Copying
-  "to the end" instead would let a file replaced between its metadata read and its open
-  desynchronize HTTP/1.1 framing.
+  second request faulted. Files are opened with `FileAccess.Read` and `FileShare.Read |
+  FileShare.Delete`: any number of responses read a file at once, a deployment may delete or rename
+  a file while it is served (the open handle keeps reading the bytes its validators describe), and
+  writers stay refused for the duration, so the content cannot change under a copy.
+  `FileShare.ReadWrite` (ASP.NET's choice) was rejected: it lets a writer modify a file mid-copy,
+  serving mixed bytes under the old strong `ETag`, which caches would then keep.
+- **Copy exactly the declared length.** Once `Content-Length` is in the header section, the body is
+  that many bytes: content that grew after its size was read is cut there, and content that shrank
+  aborts the response with `EndOfStreamException`, as a short range always did. Copying "to the end"
+  instead would let a file replaced between its metadata read and its open desynchronize HTTP/1.1
+  framing.
+
+## Registration: `AddStaticFiles` configures, `UseStaticFiles` places (2026-10-28)
+
+`builder.Services.AddStaticFiles(files => ...)` is a generated component integration over
+`StaticFilesBuilder`: `files.Options` holds the options and `files.UseFileSystem(fileSystem)` names
+the mount. It builds the middleware once, which validates and snapshots the options (the request
+path, default-document names, `Cache-Control`, and content-type fields), and registers it as an
+`IWebApplicationMiddleware`. `UseStaticFiles()` takes no arguments and places every such
+registration it finds in `IWebApplicationContext.Middleware`, in registration order, or the default
+options when the application registered none.
+
+The web root is the one value only the application context has, so it is the one thing the verb
+adds: a registration that named no file system, and the defaults, are completed with a read-only
+mount of `WebRootPath` when the pipeline is built (or with nothing, when there is no web root). That
+is not configuration — the registration chose the web root by naming no mount. Placed any other way,
+such a registration has nothing to serve and passes every request on.
+
+**Mounts add up.** Unlike features whose registrations replace each other (the last registration of
+HSTS wins), each static-files registration is a mount, so `UseStaticFiles()` places all of them: a
+request goes to the first mount that serves it, and one no mount serves passes to the next
+middleware. An asset folder under `/assets` beside the web root is two `AddStaticFiles` calls and
+one `UseStaticFiles()`. Nothing is registered per placement, so calling `UseStaticFiles()` twice
+places the same mounts twice. `MapFallbackToFile(..., Action<StaticFilesOptions>)` keeps its
+options: it is a route verb, and its options describe the one file the route answers with.
 
 ## Request flow
 
@@ -212,8 +252,8 @@ open stream → head (Content-*, ETag, Last-Modified, Accept-Ranges, Cache-Contr
 ```
 
 Deriving the validators (`RepresentationMetadata.WithFile`) and every step after it belong to the
-shared `RepresentationWriter` engine, which the response helpers run as well; the steps before it are
-the middleware's own.
+shared `RepresentationWriter` engine, which the response helpers run as well; the steps before it
+are the middleware's own.
 
 The request path the flow starts from is `context.GetEffectivePath()` (#1056; a `Web.Routing`
 accessor since #1379, which this package already references for `MapFallbackToFile`). Inside a
@@ -237,10 +277,11 @@ The package takes a `Web.Routing` reference for this (a feature-to-feature refer
 Web dependency rule). Register `UseStaticFiles()` ahead of `UseRouting()`, so an existing asset is
 served before routing, and the fallback answers only what remains.
 
-The route is registered when `MapFallbackToFile` is called, and a composition-time component resolves
-its web-root mount when the containing pipeline is built. This matches `UseStaticFiles` and makes
-both mount diagnostics report once per registration per pipeline build, including nested branches.
-The fallback handler uses that composed mount; requests never repeat the mount lookup or its event.
+The route is registered when `MapFallbackToFile` is called, and a composition-time component
+resolves its web-root mount when the containing pipeline is built. This matches `UseStaticFiles()`,
+which mounts the web root when the pipeline is built, and makes both mount diagnostics report once
+per placement per pipeline build, including nested branches. The fallback handler uses that composed
+mount; requests never repeat the mount lookup or its event.
 
 ## Response helpers: `SendFileAsync` and `WriteStreamAsync` (#1061)
 
@@ -248,14 +289,17 @@ Before #1061 only the middleware could answer with a file under conditional and 
 handler that sent a download had to re-derive RFC 9110 §13 and §14 itself. The package now exposes
 three `extension(IHttpResponse)` members in `HttpResponseFileExtensions`:
 
-- **`Task SendFileAsync(IFileSystemFile file, string? contentType = null, CancellationToken cancellationToken = default)`**
-- **`Task SendFileAsync(IFileSystem fileSystem, string path, string? contentType = null, CancellationToken cancellationToken = default)`**
-- **`Task WriteStreamAsync(Stream stream, string? contentType = null, HttpEntityTag? entityTag = null, DateTimeOffset? lastModified = null, CancellationToken cancellationToken = default)`**
+```csharp
+Task SendFileAsync(IFileSystemFile file, string? contentType = null, CancellationToken cancellationToken = default);
+Task SendFileAsync(IFileSystem fileSystem, string path, string? contentType = null, CancellationToken cancellationToken = default);
+Task WriteStreamAsync(Stream stream, string? contentType = null, HttpEntityTag? entityTag = null,
+    DateTimeOffset? lastModified = null, CancellationToken cancellationToken = default);
+```
 
 Every caller of the engine, and what the engine composes, is shown below. An arrow means "calls";
-the middleware's file resolution and the path overload share the traversal gate and mount lookup
-in `StaticFilePath`, and everything that writes a response goes through `RepresentationWriter`,
-which is the only code that touches the Http primitives.
+the middleware's file resolution and the path overload share the traversal gate and mount lookup in
+`StaticFilePath`, and everything that writes a response goes through `RepresentationWriter`, which
+is the only code that touches the Http primitives.
 
 ```mermaid
 flowchart TD
@@ -274,20 +318,20 @@ flowchart TD
 
 - **`RepresentationMetadata`** describes the selected representation independently of where its
   bytes come from: content type, length (or unknown), `ETag`, `Last-Modified` at HTTP-date
-  precision, and the middleware-only `Content-Encoding`, `Cache-Control`, and
-  `Vary: Accept-Encoding`. `RepresentationMetadata.WithFile` derives the length, strong `ETag`, and
+  precision, and the middleware-only `Content-Encoding`, `Cache-Control`, and `Vary:
+  Accept-Encoding`. `RepresentationMetadata.WithFile` derives the length, strong `ETag`, and
   `Last-Modified` from `Size` and `UpdatedOn` exactly as the middleware always did, so a handler and
   the middleware emit identical validators for the same file, and a cache can revalidate either URL
   with either tag.
 - **`RepresentationWriter`** works in two steps. `TrySelectContent` evaluates the preconditions
   (`HttpConditionalRequest`) and the range (`HttpIfRange`, then `HttpRangeSelector`) and writes the
-  `304`, `412`, or `416` itself. Only when it returns `true` does the caller open its content and call
-  `WriteContentAsync`, which writes the `200`/`206` header section and, except for `HEAD`, the bytes.
-  The split keeps the rule "open the content only after every no-body outcome is resolved" for files
-  and streams alike. `SendFileAsync(context, file, …)` and `WriteStreamAsync(context, …)` are the two
-  compositions of those steps; the file one also owns the file-access rules above (missing file →
-  `404`, shared reading, exact-length copy), so the middleware and the helpers cannot drift apart on
-  them.
+  `304`, `412`, or `416` itself. Only when it returns `true` does the caller open its content and
+  call `WriteContentAsync`, which writes the `200`/`206` header section and, except for `HEAD`, the
+  bytes. The split keeps the rule "open the content only after every no-body outcome is resolved"
+  for files and streams alike. `SendFileAsync(context, file, …)` and `WriteStreamAsync(context, …)`
+  are the two compositions of those steps; the file one also owns the file-access rules above
+  (missing file → `404`, shared reading, exact-length copy), so the middleware and the helpers
+  cannot drift apart on them.
 - **The middleware** keeps what is specific to static files (the prefix match, default documents,
   the add-a-slash redirect, the content-type gate, and precompressed-sibling negotiation) and ends
   with one call: `RepresentationWriter.SendFileAsync(context, servedFile, presentation, ...)`, where
@@ -296,12 +340,12 @@ flowchart TD
   existed passes unmodified; the file-access rules then changed it deliberately, and only for
   concurrent, vanishing, or resized files.
 
-### Why-this-not-that decisions for the helpers
+### Why-this-not-that decisions
 
-- **Home: Web.StaticFiles, not the Web root or Http.** This package already owns
-  `IFileSystem`-based serving and composes the RFC primitives. The Web root references only `Http`,
-  and `Http` only `Core`; hosting the helpers in either would add a `FileSystem` dependency to a root
-  every Web library takes, or would have meant a second copy of the engine.
+- **Home: Web.StaticFiles, not the Web root or Http.** This package already owns `IFileSystem`-based
+  serving and composes the RFC primitives. The Web root references only `Http`, and `Http` only
+  `Core`; hosting the helpers in either would add a `FileSystem` dependency to a root every Web
+  library takes, or would have meant a second copy of the engine.
 - **Receiver: `IHttpResponse`.** The helpers write a response, like `WriteContentAsync` and
   `WriteProblemDetailsAsync`; they read the request (method, preconditions, `Range`, `If-Range`)
   through the `IHttpResponse.HttpContext` back-reference.
@@ -309,28 +353,27 @@ flowchart TD
   the path from a route value is the normal case, so the path runs the same two layers as a request
   path: the `HasUnsafeSegments` gate (any `.`/`..` segment split on `/` and `\`, any `:`, any NUL,
   any 8.3 short-name alias) and then `FileSystemPath.Parse`, before the mount's own lookup, and a
-  leading `/` means the mount root.
-  An unsafe, missing, or directory path is answered `404`, not thrown: request input must not turn
-  into a `500`, and one answer for "outside" and "missing" gives an attacker no oracle. A
-  physical-mount test proves the gate is load-bearing — with it removed, `../secret.txt` reaches the
-  file next to the mount. The trusted-physical-path alternative (`SendFileAsync(string physicalPath)`,
-  ASP.NET's shape) was rejected because the common bug is exactly an application concatenating user
-  input into it.
+  leading `/` means the mount root. An unsafe, missing, or directory path is answered `404`, not
+  thrown: request input must not turn into a `500`, and one answer for "outside" and "missing" gives
+  an attacker no oracle. A physical-mount test proves the gate is load-bearing — with it removed,
+  `../secret.txt` reaches the file next to the mount. The trusted-physical-path alternative
+  (`SendFileAsync(string physicalPath)`, ASP.NET's shape) was rejected because the common bug is
+  exactly an application concatenating user input into it.
 - **Content type.** An explicit type wins; it must be a concrete media type and may not contain
   control characters, because it is written into the header section verbatim and `HttpMediaType`
   skips a malformed parameter rather than failing (a CR/LF would otherwise reach the wire). Without
   one, a file's type comes from its extension in `HttpContentTypes.Default`
   (`HttpContentTypes.GetFromFileName`), and a name whose extension is unmapped, or that has none
-  (`html`, `.json`), is sent as `application/octet-stream`. That differs from the middleware,
-  which passes unknown types through: the middleware guards a whole directory, while a handler that
-  calls `SendFileAsync` chose this file. A stream defaults to `application/octet-stream`.
-- **Stream validators are the caller's, never computed.** Hashing a stream would turn every
-  request, `304`s included, into a full read of something that may be large, one-shot, or remote.
-  Callers supply `entityTag` and `lastModified` when they have them (a blob version, a row
-  timestamp). Without them the representation still exists, so only the `*` forms of
-  `If-Match`/`If-None-Match` match, and `If-Range` always yields the full `200`. A weak tag satisfies
-  `If-None-Match` (weak comparison) but never `If-Match` or `If-Range` (strong comparison), exactly
-  as the primitives define.
+  (`html`, `.json`), is sent as `application/octet-stream`. That differs from the middleware, which
+  passes unknown types through: the middleware guards a whole directory, while a handler that calls
+  `SendFileAsync` chose this file. A stream defaults to `application/octet-stream`.
+- **Stream validators are the caller's, never computed.** Hashing a stream would turn every request,
+  `304`s included, into a full read of something that may be large, one-shot, or remote. Callers
+  supply `entityTag` and `lastModified` when they have them (a blob version, a row timestamp).
+  Without them the representation still exists, so only the `*` forms of `If-Match`/`If-None-Match`
+  match, and `If-Range` always yields the full `200`. A weak tag satisfies `If-None-Match` (weak
+  comparison) but never `If-Match` or `If-Range` (strong comparison), exactly as the primitives
+  define.
 - **Ranges need a seekable stream.** The representation is the stream's remaining bytes, from its
   current position to its end, so a seekable stream has a known length (`Length - Position`), gets
   `Content-Length` and `Accept-Ranges: bytes`, and reaches a range by seeking. A non-seekable stream
@@ -356,7 +399,7 @@ the middleware sees it: HTTP/1.1's `Http1MessageReader` percent-decodes the orig
 request-target through the same `HttpPath.FromUriComponent` HTTP/2 (`Http2Stream`) and HTTP/3
 (`Http3HeaderCodec`) run over the `:path` pseudo-header (issue #895). So `%2e%2e` arrives here as
 `..` on h1 exactly as on h2/h3, `%2F` stays encoded on all three (it never becomes a separator), and
-a decoded octet that is not a legal path character (a space, control, `?` /`#`, or NUL) makes the
+a decoded octet that is not a legal path character (a space, control, `?`/`#`, or NUL) makes the
 request-target malformed on every transport — so `my%20file.txt` is uniformly unreachable rather
 than resolving on h1 alone.
 
@@ -376,11 +419,12 @@ engine and add nothing AOT-relevant. The package inherits `IsAotCompatible=true`
 ## Error model
 
 No package-specific exception types. `FileSystemException` from mount lookups is absorbed into
-not-found/pass-through semantics; `ArgumentException` from `UseStaticFiles` validation (bad prefix,
-bad default-document name, unparseable `Cache-Control`, missing fallback type) surfaces at
-composition time. A file that shrinks mid-copy, whether a range or the full body, aborts the
-response with `EndOfStreamException` rather than silently serving wrong bytes (matching the h2
-truncated-body abort posture); one that grew is cut at its declared length.
+not-found/pass-through semantics; `ArgumentException` from option validation (bad prefix, bad
+default-document name, unparseable `Cache-Control`, invalid content-type field) surfaces at
+registration: `StaticFilesBuilder.Build`, which `AddStaticFiles` calls, or `MapFallbackToFile`. A
+file that shrinks mid-copy, whether a range or the full body, aborts the response with
+`EndOfStreamException` rather than silently serving wrong bytes (matching the h2 truncated-body
+abort posture); one that grew is cut at its declared length.
 
 The response helpers throw only for caller mistakes, synchronously, before anything is written:
 `ArgumentNullException` for a missing argument, and `ArgumentException` for a content type that is
@@ -391,8 +435,8 @@ or `416`. Cancellation surfaces as `OperationCanceledException` from the copy.
 
 ## Diagnostics
 
-The internal `StaticFilesEventSource` is named `Assimalign.Cohesion.Web.StaticFiles`. It adds no public
-diagnostics API, logging dependency, or metrics instruments. The `Web.Server` reference
+The internal `StaticFilesEventSource` is named `Assimalign.Cohesion.Web.StaticFiles`. It adds no
+public diagnostics API, logging dependency, or metrics instruments. The `Web.Server` reference
 supplies `IWebRequestIdFeature` for rejected-request correlation; no ambient activity is read.
 
 | Id | Event | Level | Payload |
@@ -402,40 +446,46 @@ supplies `IWebRequestIdFeature` for rejected-request correlation; no ambient act
 | 3 | TraversalRejected | Verbose | reason, prefix, requestId |
 | 4 | MountLookupFailed | Warning | prefix, exceptionType, suppressedCount:int |
 
-`WebRootMounted` and `WebRootUnavailable` describe each web-root registration at pipeline build,
-including a `UseStaticFiles` inside `Map` / `UseWhen` branches and a `MapFallbackToFile` route. They are
-never repeated for requests. The consumer is `UseStaticFiles` or `MapFallbackToFile`. An explicit
-`IFileSystem` mount has no application web root and does not raise these two web-root events.
+`WebRootMounted` and `WebRootUnavailable` describe each web-root mount at pipeline build: every
+`UseStaticFiles()` placement of a registration that names no file system (or of the defaults),
+including inside `Map` / `UseWhen` branches, and every `MapFallbackToFile` route. They are never
+repeated for requests, and registering the middleware raises neither. The consumer is
+`UseStaticFiles` or `MapFallbackToFile`. A registration with an explicit file system
+(`StaticFilesBuilder.UseFileSystem`) has no application web root and does not raise these two
+web-root events.
 
 The root and prefix are application-configured mount identifiers permitted by the source's scope;
-the prefix is normalized to empty for the site root and otherwise has no trailing slash. No requested
-path, query, header value, file contents, or exception message is written. `TraversalRejected` carries
-`UnsafeSegment` or `InvalidPath` plus the request feature's id, or an empty id if a custom server omits
-that feature. `MountLookupFailed` reports only the exception type because `FileSystemException.Message`
-can contain the client's path. The shared catch covers middleware and `SendFileAsync` path lookups;
-the latter has no configured request prefix and reports an empty prefix.
+the prefix is normalized to empty for the site root and otherwise has no trailing slash. No
+requested path, query, header value, file contents, or exception message is written.
+`TraversalRejected` carries `UnsafeSegment` or `InvalidPath` plus the request feature's id, or an
+empty id if a custom server omits that feature. `MountLookupFailed` reports only the exception type
+because `FileSystemException.Message` can contain the client's path. The shared catch covers
+middleware and `SendFileAsync` path lookups; the latter has no configured request prefix and reports
+an empty prefix.
 
 `MountLookupFailed` is throttled to one report per second across the source. Its `suppressedCount`
 reports earlier suppressed failures. The lazy PollingCounters `traversal-rejections` and
 `mount-lookup-failures` count every rejection or caught lookup failure with `Interlocked`, including
-when no listener is enabled and when an event is suppressed. There are no per-request success events or gauges.
+when no listener is enabled and when an event is suppressed. There are no per-request success events
+or gauges.
 
 Compared with 10.0.0-preview.1, this adds operator visibility without changing request status or
-file-serving semantics. `MapFallbackToFile`, introduced after preview.1, now resolves its mount during
-pipeline build rather than route registration; changes to directory availability between those steps
-are therefore observed at build. Date selection, its clock fallback, and validators remain unchanged.
+file-serving semantics. `MapFallbackToFile`, introduced after preview.1, now resolves its mount
+during pipeline build rather than route registration; changes to directory availability between
+those steps are therefore observed at build. Date selection, its clock fallback, and validators
+remain unchanged.
 
 ## Non-goals
 
 - **Directory browsing** — deferred follow-up (explicitly out of #777's scope).
 - **Fingerprinted asset manifests** — deferred behind endpoint routing (#28).
-- **On-the-fly compression** — that is `Web.Compression`'s job (#779); this package only
-  selects pre-existing sibling files.
+- **On-the-fly compression** — that is `Web.Compression`'s job (#779); this package only selects
+  pre-existing sibling files.
 - **`multipart/byteranges`** — multi-range sets serve the full representation.
-- **Trailing-dot and trailing-space equivalence** — Windows trims them, so `app.js.` opens
-  `app.js`. The mount still confines the lookup, and this aliasing can only remove a type, never
-  add one: the request's name ends in a dot or a space, which the content-type lookup reads as no
-  extension or an unmapped one, so the request passes through, or gets the fallback type when
+- **Trailing-dot and trailing-space equivalence** — Windows trims them, so `app.js.` opens `app.js`.
+  The mount still confines the lookup, and this aliasing can only remove a type, never add one: the
+  request's name ends in a dot or a space, which the content-type lookup reads as no extension or an
+  unmapped one, so the request passes through, or gets the fallback type when
   `ServeUnknownContentTypes` is on. 8.3 short names, which can add a type, are refused (above).
   Serve dedicated mounts rather than pointing a physical mount at a directory whose *siblings* are
   sensitive.
@@ -447,33 +497,42 @@ are therefore observed at build. Date selection, its clock fallback, and validat
 
 ## Exception messages (#1467, #1471)
 
-Resource names are short PascalCase noun phrases naming the failure, at most 40 characters.
-The internal naming cleanup preserves message text, placeholders and resource order.
+Resource names are short PascalCase noun phrases naming the failure, at most 40 characters. The
+internal naming cleanup preserves message text, placeholders and resource order.
 
-Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate
-an internal `ErrorMessages` accessor in this project's root namespace under the intermediate
-output directory; no designer is checked in. Formatted messages use
+Exception text lives in `src/Properties/ErrorMessages.resx`. The shared build targets generate an
+internal `ErrorMessages` accessor in this project's root namespace under the intermediate output
+directory; no designer is checked in. Formatted messages use
 `string.Format(CultureInfo.CurrentCulture, ErrorMessages.<Name>, ...)`. Resource extraction
-preserves the existing exception text and input-disclosure rules, including any diagnostic
-type-only exclusions. EventSource templates, log messages and response bodies retain their
-existing ownership. This is a conventions change with no public API or behavior break against
-10.0.0-preview.1.
+preserves the existing exception text and input-disclosure rules, including any diagnostic type-only
+exclusions. EventSource templates, log messages and response bodies retain their existing ownership.
+This is a conventions change with no public API or behavior break against 10.0.0-preview.1.
 
-## Declared dependencies
+## Composition-time path validation (#1477)
 
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Web` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Server` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Web.Routing` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Http` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.FileSystem` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
+Default documents retain their public string collection, but composition parses them into the
+existing `System.IO.FileName` snapshot consumed by the middleware. The existing bare-name and
+dot-name restrictions run before parsing; invalid file characters and names over 255 characters now
+fail with a resource-backed `ArgumentException` before a directory request can reach the resolver.
+`AddStaticFiles` snapshots the names at registration, and `MapFallbackToFile` repeats this
+validation before its deferred snapshot, so a captured options object cannot introduce an invalid
+name after registration.
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+`MapFallbackToFile` applies the traversal gate and parses the configured mount-relative path with
+`FileSystemPath.Parse` when the route is registered. The normalized relative path is retained for
+serving. The existing optional leading forward slash still denotes the web-root mount; root-only and
+backslash-rooted paths are refused. Unparseable text such as `bad?.html` now throws an
+`ArgumentException` using the package's error resource instead of becoming a request-time 404. No
+new public type or member is added.
+
+**Breaking from 10.0.0-preview.1 (decision 15):** invalid and overlong default-document names
+formerly passed registration and now throw. The fallback registration refusal is a change from the
+branch base only: `MapFallbackToFile` was introduced after preview.1. The released default-name
+defect requires application-controlled invalid configuration; an unauthenticated directory request
+can trigger the resulting failure, but cannot supply the configured name. It is an input-validation
+availability defect (CWE-20), with low severity conditional on that misconfiguration.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/docs/DESIGN.md`.
-- **Response helpers** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/src/Extensions/HttpResponseFileExtensions.cs`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.StaticFiles/src/Assimalign.Cohesion.Web.StaticFiles.csproj`.

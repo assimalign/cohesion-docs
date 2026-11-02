@@ -26,13 +26,17 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
-using NetHttpStatusCode = System.Net.HttpStatusCode;
-using Shouldly;
-using Xunit;
+
 using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Testing;
+
+using Shouldly;
+
+using Xunit;
+
 using CohesionHttpMethod = Assimalign.Cohesion.Http.HttpMethod;
 using CohesionHttpStatusCode = Assimalign.Cohesion.Http.HttpStatusCode;
+using NetHttpStatusCode = System.Net.HttpStatusCode;
 
 namespace Assimalign.Cohesion.Web.RateLimiting.Tests;
 
@@ -54,12 +58,13 @@ public class RateLimitingRouteConventionTests
 
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Services.AddRouting();
+        factory.Builder.Services.AddRateLimiting(rateLimiting => rateLimiting.Options.AddPolicy("expensive", SinglePermitPerPath()));
 
         IRouterBuilder routes = factory.Application.UseRouting();
         routes.Map(CohesionHttpMethod.Get, "/expensive", Ok()).RequireRateLimiting("expensive");
         routes.Map(CohesionHttpMethod.Get, "/cheap", Ok());
 
-        factory.Application.UseRateLimiting(options => options.AddPolicy("expensive", SinglePermitPerPath()));
+        factory.Application.UseRateLimiting();
 
         using HttpClient client = factory.CreateClient();
 

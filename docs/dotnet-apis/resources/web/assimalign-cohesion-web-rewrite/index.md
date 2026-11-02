@@ -9,17 +9,17 @@ URL rewriting and redirect rules for the Cohesion Web pipeline.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
-URL rewriting and redirect rules for the Cohesion Web pipeline (#782). A Cohesion application serves
-its own traffic, with no IIS or nginx rewrite tier assumed in front of it, so canonical URLs,
+URL rewriting and redirect rules for the Cohesion Web pipeline (issue #782). A Cohesion application
+serves its own traffic, with no IIS or nginx rewrite tier assumed in front of it, so canonical URLs,
 legacy-path migration and internal rewrites have to be expressible in the application.
-`UseRewrite(rules => ...)` registers code-first rules that run, in order, ahead of static files and
-routing.
+`builder.Services.AddRewrite(rewrite => ...)` registers code-first rules, and `UseRewrite()` places
+them ahead of static files and routing, where they run in order.
 
 ## Scope
 
 - **Internal rewrites.** A rewrite changes the path and query the rest of the pipeline sees, without
   telling the client. The request itself is never mutated: the rest of the pipeline receives a
-  request view whose `Path` and `Query` are the rewritten values, and `IWebRewriteFeature` keeps the
+  request view whose `Path` and `Query` are the rewritten values, and `IRewriteFeature` keeps the
   originals readable (Web ADR 1). Routing, static files and the generated endpoint binders follow
   the rewrite with no change.
 - **Redirects.** A redirect answers `301`, `302`, `307` or `308` with a `Location` and ends the
@@ -38,31 +38,32 @@ routing.
 
 ## Dependencies
 
-- **`Assimalign.Cohesion.Web`** — the pipeline builder and the middleware abstraction.
-- **`Assimalign.Cohesion.Web.Routing`** — the path-branch view (`IWebPathBaseFeature`,
+- `Assimalign.Cohesion.Web`: the pipeline builder and the middleware abstraction.
+- `Assimalign.Cohesion.Web.Routing`: the path-branch view (`IRouterPathBaseFeature`,
   `context.GetEffectivePath()`), which moved there with `Map(path)` (#1379). The rewrite still runs
   ahead of routing and uses none of the router's types.
-- **`Assimalign.Cohesion.Http`** — the HTTP context, the `HttpPath`, `HttpHost` and query value
-  objects, and the parsing the transports use for a request target.
-- **`Assimalign.Cohesion.Http.Forwarded`** — the effective scheme and host the canonicalization
-  helpers read.
+- `Assimalign.Cohesion.Http`: the HTTP context, the `HttpPath`, `HttpHost` and query value objects,
+  and the parsing the transports use for a request target.
+- `Assimalign.Cohesion.Http.Forwarded`: the effective scheme and host the canonicalization helpers
+  read.
 
 It never references `Assimalign.Cohesion.Web.Hosting` or any `Assimalign.Cohesion.Hosting*` library
-(`COHRES001`, `COHRES004`). The package is a member of the `App.Web` shared framework.
+(`COHRES001`, `COHRES004`).
 
 ## Usage
-
-See the [source-backed usage examples](examples/index.md) and the
-[rewrite guide](../../../../web/rewrite.md).
 
 ```csharp
 using Assimalign.Cohesion.Http;
 using Assimalign.Cohesion.Web.Rewrite;
 
-// app is the built WebApplication. Behind a proxy, UseForwardedHeaders and UseHostFiltering come
-// first, so the helpers read the client's scheme and a validated host.
-// Ahead of UseStaticFiles and UseRouting.
-app.UseRewrite(rules => rules
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Behind a proxy, so the helpers read the client's scheme and a validated host.
+builder.Services.AddForwardedHeaders(forwarded => forwarded.Options.Headers = ForwardedHeaderNames.XForwarded);
+builder.Services.AddHostFiltering(hosts => hosts.Options.AllowedHosts.Add("example.com"));
+
+// The rules are configured where they are registered.
+builder.Services.AddRewrite(rewrite => rewrite.Options
     // Redirects first: a redirect built after a rewrite would send the client to the rewritten URL.
     .AddRedirectToHttps()
     .AddRedirectToNonWww()
@@ -73,12 +74,30 @@ app.UseRewrite(rules => rules
     .AddRewrite("^/assets/v\\d+/(.*)$", "/$1")
     .AddRewrite("^/products/(\\d+)$", "/product?id=$1")
     .AddRewrite(context => context.HttpContext.Request.Headers.ContainsKey("X-Mobile"), "/mobile"));
+
+WebApplication app = builder.Build();
+
+app.UseForwardedHeaders();
+app.UseHostFiltering();
+
+// Ahead of UseStaticFiles and UseRouting.
+app.UseRewrite();
+
+app.UseStaticFiles();
+app.UseRouting();
+app.MapGet("/product", (int id) => ...);   // binds the rewritten query
 ```
 
-Inside an endpoint, `context.Request.Path` is the rewritten path, and the URL the client sent is
-`context.Features.Get<IWebRewriteFeature>()?.OriginalPath`.
+Configuration lives on `AddRewrite` only ("Add configures, Use places"). `UseRewrite()` takes no
+arguments: it places the last rule set the application registered. The rules have no default, so
+placing it without a registration fails the application's start with an error that names
+`AddRewrite`. A rule that cannot be built (an invalid pattern, or a target naming a group the
+pattern does not define) throws inside the `AddRewrite` call.
 
-See the [design](design.md) for the request view and the pitfall it carries, path branches, rule
+Inside an endpoint, `context.Request.Path` is the rewritten path, and the URL the client sent is
+`context.Features.Get<IRewriteFeature>()?.OriginalPath`.
+
+See [`DESIGN.md`](design.md) for the request view and the pitfall it carries, path branches, rule
 evaluation and loop protection, the target syntax and its encoding model, redirects, the
 canonicalization helpers, ordering, telemetry, the error model and the non-goals.
 
@@ -97,5 +116,3 @@ canonicalization helpers, ordering, telemetry, the error model and the non-goals
 
 - **Primary source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/docs/OVERVIEW.md`.
 - **Source** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/src/Assimalign.Cohesion.Web.Rewrite.csproj`.
-- **Verbs and options** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/src/Extensions/RewriteExtensions.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Rewrite/src/RewriteOptions.cs`.
-- **Framework membership** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Runtime/Directory.Build.props`.

@@ -15,7 +15,7 @@ reserved projects.
 |---|---|
 | [Amqp](amqp/index.md) | Advanced Message Queuing Protocol (AMQP) wire handling and connection bindings. |
 | [App](app/index.md) | Hosting kernel, shared-framework producers, and framework membership validation. |
-| [ApplicationModel](application-model/index.md) | Application graphs, portable realization plans, and gateway orchestration. |
+| [ApplicationModel](application-model/index.md) | Resource identity and protocol, gateway models, the instance runtime, and the gateway. |
 | [Cache](cache/index.md) | Cache contracts and an in-process memory-cache implementation. |
 | [Configuration](configuration/index.md) | A shared configuration model with command-line, environment, and file-format providers. |
 | [Connections](connections/index.md) | Connection contracts and concrete stream, multiplexed, datagram, and security drivers. |
@@ -24,7 +24,7 @@ reserved projects.
 | [DependencyInjection](dependency-injection/index.md) | Service registration, resolution, provider construction, and scope lifetime management. |
 | [Dns](dns/index.md) | Domain Name System (DNS) contracts, wire models, resolvers, and transport packages. |
 | [FileSystem](file-system/index.md) | Portable file-system contracts with physical, memory, isolated, and aggregate providers. |
-| [Hosting](hosting/index.md) | Plain host execution, opt-in resource supervision, health, and telemetry composition. |
+| [Hosting](hosting/index.md) | Plain host execution, hosted services, and the complete run. |
 | [Http](http/index.md) | Hypertext Transfer Protocol (HTTP) contracts, connection handling, and optional exchange features. |
 | [IdentityModel](identity-model/index.md) | Canonical identity contracts with independent protocol and token-document branches. |
 | [Logging](logging/index.md) | Structured logging contracts, factory composition, and console and debug sinks, and EventSource forwarding. |

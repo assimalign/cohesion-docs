@@ -7,7 +7,7 @@ Examples for `Assimalign.Cohesion.Sdk.Web` are derived from source documentation
 The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
 examples require their original test project’s dependencies and supporting objects.
 
-- **[Web Event Source Support Tests](web-event-source-support-tests.md)** — Evaluates NativeAOT event delivery defaults and all consumer override positions using the ApplicationModel SDK test project.
+- **[Web Event Source Support Tests](web-event-source-support-tests.md)** — Evaluates NativeAOT event delivery defaults and all consumer override positions using the base SDK test project.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

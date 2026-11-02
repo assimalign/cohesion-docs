@@ -1,0 +1,268 @@
+# Configuration Store Client Tests
+
+This example exercises `Assimalign.Cohesion.ConfigurationStore.Client` through its co-located test source.
+
+> **Status:** Partial.
+
+The example reproduces
+`cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Client/tests/ConfigurationStoreClientTests.cs`. It
+retains the test class and assertions so the setup, operation, and expected outcome stay together.
+Use it in the source project’s test context, with its test dependencies and supporting test objects.
+
+## Behavior exercised
+
+- **Case 1** — ListNamespacesAsync: Should send an authenticated request and return names.
+- **Case 2** — ListNamespacesAsync: Should reject a null namespace list.
+- **Case 3** — GetNamespaceAsync: Should send an authenticated request and return values.
+- **Case 4** — GetNamespaceAsync: Should reject a redirect response.
+- **Case 5** — GetNamespaceAsync: Should reject a null namespace document.
+- **Case 6** — Create: Should reject a non-HTTP endpoint.
+- **Case 7** — Create: Should reject an endpoint with a query.
+- **Case 8** — Create: Should reject a null endpoint.
+- **Case 9** — ClientCredential: Should redact the token when formatted.
+
+## Source example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Shouldly;
+using Xunit;
+
+using Assimalign.Cohesion.ConfigurationStore.Client.Tests.TestObjects;
+
+namespace Assimalign.Cohesion.ConfigurationStore.Client.Tests;
+
+public class ConfigurationStoreClientTests
+{
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - ListNamespacesAsync: Should send an authenticated request and return names")]
+    public async Task ListNamespacesAsync_WhenEndpointReturnsArray_ShouldReturnNames()
+    {
+        // Arrange
+        string? observedAccept = null;
+        string? observedAuthorization = null;
+        string? observedMethod = null;
+        string? observedUri = null;
+        var handler = new FakeHttpMessageHandler((request, _) =>
+        {
+            observedAccept = request.Headers.Accept.ToString();
+            observedAuthorization = request.Headers.Authorization?.ToString();
+            observedMethod = request.Method.Method;
+            observedUri = request.RequestUri?.AbsoluteUri;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "[\"apps/api\",\"platform/shared\"]",
+                    Encoding.UTF8,
+                    "application/json")
+            });
+        });
+        using var transport = new HttpMessageInvoker(handler);
+        IConfigurationStoreClient client = ConfigurationStoreClient.Create(
+            new Uri("https://configuration.test:8443/api"),
+            new ClientCredential("bearer-token"),
+            transport);
+
+        // Act
+        IReadOnlyList<string> result = await client.ListNamespacesAsync(CancellationToken.None);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result[0].ShouldBe("apps/api");
+        result[1].ShouldBe("platform/shared");
+        Action mutation = () => ((IList<string>)result).Add("late");
+        Should.Throw<NotSupportedException>(mutation);
+        observedAccept.ShouldBe("application/json");
+        observedAuthorization.ShouldBe("Bearer bearer-token");
+        observedMethod.ShouldBe("GET");
+        observedUri.ShouldBe(
+            "https://configuration.test:8443/api/cohesion/v1/namespaces");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - ListNamespacesAsync: Should reject a null namespace list")]
+    public async Task ListNamespacesAsync_WhenEndpointReturnsNull_ShouldThrowJsonException()
+    {
+        // Arrange
+        var handler = new FakeHttpMessageHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("null", Encoding.UTF8, "application/json")
+            }));
+        using var transport = new HttpMessageInvoker(handler);
+        IConfigurationStoreClient client = ConfigurationStoreClient.Create(
+            new Uri("https://configuration.test:8443"),
+            new ClientCredential("bearer-token"),
+            transport);
+
+        // Act
+        Func<Task> action = () => client.ListNamespacesAsync(CancellationToken.None);
+
+        // Assert
+        await Should.ThrowAsync<JsonException>(action);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - GetNamespaceAsync: Should send an authenticated request and return values")]
+    public async Task GetNamespaceAsync_WhenEndpointReturnsObject_ShouldReturnValues()
+    {
+        // Arrange
+        string? observedMethod = null;
+        string? observedUri = null;
+        string? observedAuthorization = null;
+        var handler = new FakeHttpMessageHandler((request, _) =>
+        {
+            observedMethod = request.Method.Method;
+            observedUri = request.RequestUri?.AbsoluteUri;
+            observedAuthorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"mode\":\"production\",\"optional\":null}",
+                    Encoding.UTF8,
+                    "application/json")
+            });
+        });
+        using var transport = new HttpMessageInvoker(handler);
+        IConfigurationStoreClient client = ConfigurationStoreClient.Create(
+            new Uri("https://configuration.test:8443/api"),
+            new ClientCredential("bearer-token"),
+            transport);
+
+        // Act
+        IReadOnlyDictionary<string, string?> result = await client.GetNamespaceAsync(
+            "apps/api",
+            CancellationToken.None);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result["mode"].ShouldBe("production");
+        result["optional"].ShouldBeNull();
+        Action mutation = () => ((IDictionary<string, string?>)result).Add("late", "change");
+        Should.Throw<NotSupportedException>(mutation);
+        observedMethod.ShouldBe("GET");
+        observedUri.ShouldBe(
+            "https://configuration.test:8443/api/cohesion/v1/namespaces?name=apps%2Fapi");
+        observedAuthorization.ShouldBe("Bearer bearer-token");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - GetNamespaceAsync: Should reject a redirect response")]
+    public async Task GetNamespaceAsync_WhenEndpointRedirects_ShouldThrowHttpRequestException()
+    {
+        // Arrange
+        int requestCount = 0;
+        var handler = new FakeHttpMessageHandler((_, _) =>
+        {
+            requestCount++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TemporaryRedirect)
+            {
+                Headers =
+                {
+                    Location = new Uri("https://other.test/cohesion/v1/namespaces")
+                }
+            });
+        });
+        using var transport = new HttpMessageInvoker(handler);
+        IConfigurationStoreClient client = ConfigurationStoreClient.Create(
+            new Uri("https://configuration.test:8443"),
+            new ClientCredential("bearer-token"),
+            transport);
+
+        // Act
+        Func<Task> action = () => client.GetNamespaceAsync("apps/api", CancellationToken.None);
+
+        // Assert
+        await Should.ThrowAsync<HttpRequestException>(action);
+        requestCount.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - GetNamespaceAsync: Should reject a null namespace document")]
+    public async Task GetNamespaceAsync_WhenEndpointReturnsNull_ShouldThrowJsonException()
+    {
+        // Arrange
+        var handler = new FakeHttpMessageHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("null", Encoding.UTF8, "application/json")
+            }));
+        using var transport = new HttpMessageInvoker(handler);
+        IConfigurationStoreClient client = ConfigurationStoreClient.Create(
+            new Uri("https://configuration.test:8443"),
+            new ClientCredential("bearer-token"),
+            transport);
+
+        // Act
+        Func<Task> action = () => client.GetNamespaceAsync("apps/api", CancellationToken.None);
+
+        // Assert
+        await Should.ThrowAsync<JsonException>(action);
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - Create: Should reject a non-HTTP endpoint")]
+    public void Create_WhenEndpointIsNotHttp_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var endpoint = new Uri("tcp://configuration.test:8443");
+        var credential = new ClientCredential("bearer-token");
+
+        // Act
+        Action action = () => ConfigurationStoreClient.Create(endpoint, credential);
+
+        // Assert
+        Should.Throw<ArgumentException>(action).ParamName.ShouldBe("endpoint");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - Create: Should reject an endpoint with a query")]
+    public void Create_WhenEndpointHasQuery_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var endpoint = new Uri("https://configuration.test:8443?q=1");
+        var credential = new ClientCredential("bearer-token");
+
+        // Act
+        Action action = () => ConfigurationStoreClient.Create(endpoint, credential);
+
+        // Assert
+        Should.Throw<ArgumentException>(action).ParamName.ShouldBe("endpoint");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - Create: Should reject a null endpoint")]
+    public void Create_WhenEndpointIsNull_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var credential = new ClientCredential("bearer-token");
+
+        // Act
+        Action action = () => ConfigurationStoreClient.Create(null!, credential);
+
+        // Assert
+        Should.Throw<ArgumentNullException>(action).ParamName.ShouldBe("endpoint");
+    }
+
+    [Fact(DisplayName = "Cohesion Test [ConfigurationStore] - ClientCredential: Should redact the token when formatted")]
+    public void ClientCredential_WhenFormatted_ShouldRedactToken()
+    {
+        // Arrange
+        var credential = new ClientCredential("do-not-log-this-token");
+
+        // Act
+        string result = credential.ToString();
+
+        // Assert
+        result.ShouldNotContain("do-not-log-this-token", Case.Sensitive);
+        result.ShouldContain("[redacted]", Case.Sensitive);
+    }
+}
+```
+
+[Examples](index.md) · [Assembly overview](../index.md)
+
+## Sources
+
+- **Primary source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Client/tests/ConfigurationStoreClientTests.cs`.
+- **Source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Client/tests/Assimalign.Cohesion.ConfigurationStore.Client.Tests.csproj`.

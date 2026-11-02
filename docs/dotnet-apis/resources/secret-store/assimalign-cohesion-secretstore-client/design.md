@@ -4,11 +4,16 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+[Assembly overview](index.md) · [Examples](examples/index.md)
+
 ## Design intent
 
-The client is the narrow O13 exception that lets an orchestration gateway resolve SecretStore mount
-sources without learning the store's protocol or referencing a runtime module. The public contract
-is interface-first and the HTTP implementation remains internal.
+The client is the SecretStore protocol boundary: a program that reads secrets and certificates
+references it, without referencing a runtime module, and the package takes no application-model
+reference. A gateway does not use it: a managed SecretStore instance is reached through its resource
+integration, `Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`, whose actions the gateway
+runs through the platform the instance runs on. The public contract is interface-first and the HTTP
+implementation remains internal.
 
 ## Dependency boundary
 
@@ -19,82 +24,70 @@ rejects user information, query strings, and fragments. The package deliberately
 dependency injection, configuration, logging, or Microsoft.Extensions packages. It is a standalone
 NuGet package and is not part of an `App.SecretStore` shared framework.
 
+The stateless certificate-reference grammar in `shared/` is compiled into both this package and
+Hosting through `CohesionSharedSource`. It carries no state or public contract and introduces no
+assembly reference, so the client remains Core-only and Hosting does not acquire a NuGet-only client
+dependency. The generated `SecretStoreCertificateReference.IsValid` and the runtime retrieval
+boundary use this one predicate.
+
+## Certificate references
+
+`ISecretStoreClient.GetCertificateAsync` takes the generated `SecretStoreCertificateReference`. The
+protocol accepts exact `ca/root`, or `certs/` followed by a nonblank segment with neither slash nor
+backslash, excluding `.` and `..`. These are case-sensitive storage identifiers; ordinal comparison
+preserves the protocol's spelling. The generated constructor and implicit string conversion reject
+invalid input before HTTP, and `TryCreate` provides a non-throwing check. The client explicitly
+rejects `default`, whose null value bypasses construction.
+
+Compared with 10.0.0-preview.1, changing the parameter from `string` is a binary and implementer
+source break. Ordinary string call sites retain the implicit conversion. Malformed nonblank
+references now throw `ArgumentException` locally instead of producing a remote request and an
+eventual HTTP refusal.
+
 ## Protocol
 
-The client defines the initial client-side protocol under the endpoint's existing path prefix:
+The client defines the client-side protocol under the endpoint's existing path prefix:
 
-- **`GET /cohesion/v1/secrets?path=<escaped-path>`** — returns secret bytes.
-- **`GET /cohesion/v1/certificates?name=<escaped-name>`** — returns a PEM string.
-- **`POST /cohesion/v1/commands`** — sends the source-generated JSON `ResourceCommand`
-  envelope and succeeds on any 2xx response.
+- `GET /cohesion/v1/secrets?path=<escaped-path>` returns secret bytes.
+- `GET /cohesion/v1/certificates?name=<escaped-name>` returns a PEM string.
 
 Every request carries `Authorization: Bearer <opaque-token>`. Redirects and cookies are disabled so
 a credential is never forwarded to a different authority or mixed with ambient cookie state.
 Non-success status codes surface as `HttpRequestException`; cancellation propagates unchanged.
 
-`Assimalign.Cohesion.SecretStore.Hosting` serves this protocol. A gateway-managed store validates
-the ES256 bearer token against its persistent trusted-issuer set and distinguishes an invalid or
-unknown credential (`401`) from a valid credential with the wrong resource audience (`403`). Secret
-and certificate responses are marked `no-store`. Item 31c adds observed secret and certificate
-mutations alongside the existing `cohesion.trust.add` bootstrap command.
+`Assimalign.Cohesion.SecretStore.Hosting` serves the secret and certificate routes. The area's
+resource integration is `Assimalign.Cohesion.SecretStore.Hosting.ApplicationModel`. Secret and
+certificate responses are marked `no-store`.
 
-## Credential and command contracts
+## Credential contract
 
 `ClientCredential` is intentionally package-local: it is an opaque token holder, not a JWT model or
-token provider. Its formatted representation is redacted. `ResourceCommand` is likewise a minimal,
-package-local transport envelope whose payload bytes are base64-encoded by JSON so this package does
-not depend on the shared Hosting seam. Gateway adapters translate between the separate client-side
-and orchestration command contracts.
+token provider. Its formatted representation is redacted.
 
 ## Transport lifecycle
 
-The two-argument factories share a process-lifetime `HttpMessageInvoker` backed by
+The two-argument factory shares a process-lifetime `HttpMessageInvoker` backed by
 `SocketsHttpHandler`, with redirects and cookies disabled. Creating clients is synchronous and
-performs no I/O. Both `Create` and
-`CreateForControlPlane(Uri controlPlaneAddress, ClientCredential credential, HttpMessageInvoker transport)`
-accept a caller-owned transport, including its TLS trust policy. The latter preserves the exact
-manifest control-plane path for command delivery. The client never owns or disposes the supplied
-transport; the caller retains it until requests finish, then disposes it. Trust discovery and
-protected-file reading stay outside this Core-only package.
+performs no I/O. The three-argument `Create` accepts a caller-owned transport, including its TLS
+trust policy. The client never owns or disposes the supplied transport; the caller retains it until
+requests finish, then disposes it. Trust discovery and protected-file reading stay outside this
+Core-only package.
 
 ## AOT posture
 
-Command JSON uses a source-generated `JsonSerializerContext`. The implementation uses no
-reflection, runtime type inspection, dynamic code generation, assembly scanning, DI activation, or
-runtime configuration binding, preserving trimming and NativeAOT compatibility.
+The client serializes no JSON. The implementation uses no reflection, runtime type inspection,
+dynamic code generation, assembly scanning, DI activation, or runtime configuration binding,
+preserving trimming and NativeAOT compatibility.
 
 ## Non-goals
 
-- **Reading bootstrap-token files or** — acquiring and rotating credentials.
-- **Resolving mount declarations in** — a gateway.
-- **Hosting SecretStore endpoints or** — implementing persistence, trust, enrollment, or certificate
-  issuance.
-- **Defining SecretStore-specific verbs or** — handlers; those belong to ApplicationModel and Hosting.
-
-## Observed command delivery
-
-`CreateForControlPlane` accepts the full control-plane prefix. `ObserveCommandAsync` and
-`DeleteCommandAsync` return `ResourceCommandObservation`; `SendCommandAsync` retains its original
-Task-returning behavior. The new secret/certificate commands return 200 application/octet-stream on
-success and JSON {status,detail} on refusal. Legacy cohesion.trust.add keeps empty 204/409/403
-responses. The observation client treats an empty 2xx body as Applied, or Deleted for DELETE, and
-supplies a named HTTP detail when a legacy refusal has no body. DELETE is for the new kinds; trust
-grants remain POST-only. The package still has exactly one Core reference and no Hosting or Gateway
-dependencies. Identity verification and grant policy belong to the endpoint.
-
-The existing custom-transport `Create` overload is public for gateway-supplied TLS trust. The caller
-owns the HttpMessageInvoker and must retain it until requests complete, then dispose it. The client
-remains Core-only and does not discover trust or read protected files.
-
-## Declared dependencies
-
-| Reference | Kind |
-|---|---|
-| `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
-
-[Assembly overview](index.md) · [Examples](examples/index.md)
+- Reading token files or acquiring and rotating credentials.
+- Resolving mount declarations in a gateway.
+- Changing a store's state: a managed instance takes changes as actions through its platform.
+- Hosting SecretStore endpoints or implementing persistence or certificate issuance.
+- Defining SecretStore-specific verbs or handlers; those belong to SecretStore.Hosting and its
+  resource integration.
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/SecretStore/Assimalign.Cohesion.SecretStore.Client/src/Assimalign.Cohesion.SecretStore.Client.csproj`.

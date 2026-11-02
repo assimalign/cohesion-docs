@@ -228,10 +228,11 @@ status and records `request_canceled`; completion callbacks do not run.
 3. Deployment settings, including `COHESION_CONFIG__` variables or their ambient equivalents.
 4. Command-line arguments.
 
-Enabled resources resolve files from `ResourceContext.ContentRootPath`; ordinary applications
-use `AppContext.BaseDirectory`. The variable prefix is removed, and double underscores become
-configuration path separators. In-process settings arrive through the ambient resource context
-without modifying process-wide environment variables.
+The JSON files resolve from the content root: `WebApplicationOptions.ContentRootPath` when set,
+otherwise `AppContext.BaseDirectory`. The variable prefix is removed, and double underscores become
+configuration path separators. A gateway supplies settings as `COHESION_CONFIG__` variables: out of
+process in the process environment, and in process through the `AppEnvironmentScope` the
+in-process gateway enters for each program, without modifying process-wide environment variables.
 
 The web root, which `UseStaticFiles()` serves, is `wwwroot` under the content root unless
 `WebApplicationOptions.WebRootPath` names another directory. The content root itself is never
@@ -301,10 +302,10 @@ application also serves HTTP/3, a client that reached a TCP endpoint discovers i
 included, once the advertisement is turned on (`options.AdvertiseAltService(...)`, or by
 configuring an `Http3` endpoint).
 
-In an enabled resource, endpoint metadata names an ordinary Secret mount, defaulting to `tls`.
-The delivered PEM document contains a leaf certificate, exactly one private key, and optional
-issuer chain. Empty content means absent; malformed or multi-key bundles fail. Gateway-materialized
-trust anchors travel separately from this certificate mount.
+An application that configured no listener of its own binds HTTP/1.1 on its platform's `http`
+endpoint (`COHESION_ENDPOINT_HTTP_HOST`, `_PORT`, and `_SCHEME`) when the platform assigned one,
+otherwise the loopback development endpoint `127.0.0.1:5000`. An `https` endpoint needs a
+certificate the application configures itself, so the platform endpoint is never bound as HTTPS.
 
 ### Handshakes and failing clients
 
@@ -581,12 +582,6 @@ remain visible, but stack traces do not; a refused response head uses a fixed de
 than echoing its header name. Pipeline faults belong to `Web.ErrorHandling`, and transport
 rejections and protocol errors to `Assimalign.Cohesion.Http.Connections`.
 
-Web.Hosting's `WebHostingEventSource` is named `Assimalign.Cohesion.Web.Hosting`. It reports
-`ControlPlaneDisabled` (Warning), credential or standalone loopback refusal (Warning), malformed
-commands (Warning), and accepted stop (Informational), with `resourceName` for attribution.
-Credential and malformed-command events are throttled; the `rejected-credentials` counter stays
-exact. Control-plane events share this source with no separate resource-integration provider.
-
 `WebApplication.CreateBuilder(args)` forwards the `Assimalign.Cohesion.Web.` prefix and exact
 `Assimalign.Cohesion.Http.Connections` source into configured logging providers by default
 (#1399). It adds no provider or filter rule. Set `builder.EnableEventSourceForwarding = false` to
@@ -607,45 +602,32 @@ builder.Logging.AddRule("Assimalign.Cohesion.Web.Server", LogLevel.Debug);
 Request spans, HTTP server metrics, and the request id are covered in
 [Observability](observability.md).
 
-## Enabled-resource management
+## Managed resources
 
-The host discovers its entry assembly's generated `ResourceRuntime` registration. Ambient
-binding tries endpoint name `http`, then `https`, and accepts the corresponding URI schemes. An
-ambient `https` endpoint is registered through `UseHttps`, so it serves HTTP/2 and HTTP/1.1.
-The shared terminal in `Web.Hosting`, whose public namespace remains
-`Assimalign.Cohesion.Web.Hosting.Resources`, authenticates namespaced management requests.
-Without a gateway name, `/cohesion/v1` and every path beneath it accept only transport peers at
-`127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other or unknown peers receive `403`. Forwarded
-headers cannot grant access. Bare probes remain public, and gateway-managed credential checks
-are unchanged.
-
-Graceful stop returns HTTP 202 before invoking the shutdown signal through a response-completion
-hook. This lets the acknowledgement reach the caller before the server's stop begins.
-
-Control-plane middleware transfers its bootstrap verifier lease directly to
-`WebApplicationContext`'s internal disposal owner. A normal stop preserves it for restart; final
-application disposal releases owned resources once, in reverse registration order, after service
-provider disposal. Every release is attempted even if shutdown or another release fails (#1412).
-Managed `UseResourceControlPlane` composition requires a `WebApplicationContext`; a custom managed
-pipeline context fails composition with `InvalidOperationException`. Manual hosts retain the lease
-from `ResourceControlPlaneMiddleware.CreateLifetime(resourceContext)`, compose `InvokeAsync`, and
-dispose the lease after requests drain. Standalone composition remains supported.
+`Web.Hosting` carries no resource management of its own: it serves no `/cohesion/v1` routes and
+verifies no gateway credential. A Web application becomes a managed resource with
+`builder.Services.AddResource(name, resource => ...)` from
+[`Web.Hosting.ApplicationModel`](../dotnet-apis/resources/web/assimalign-cohesion-web-hosting-applicationmodel/index.md),
+which registers one lifecycle service. Its platform carries the gateway's calls to the instance's
+control plane over the platform's own transport, never through the application's listeners or
+middleware. On stop, the application's servers drain first while the control plane is still
+reachable. See [Web](index.md#managed-resource).
 
 Return to [Web](index.md).
 
 ## Sources
 
 - **Runtime** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
-- **Public server and host wrapper** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerHostService.cs`.
+- **Public server and host wrapper** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/WebApplicationServerHostService.cs`.
 - **TLS registrations** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Extensions/WebHostingExtensions.cs`.
 - **Configuration binder** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/HttpServerConfiguration.cs`.
 - **Client certificates** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Security/src/TlsServerOptions.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Tls/docs/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Authentication.Certificate/docs/OVERVIEW.md`.
-- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServer.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/EventSource/WebServerEventSource.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/Internal/EventSource/WebHostingEventSource.cs`.
+- **Drain and diagnostics** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/WebApplicationServer.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/EventSource/WebServerEventSource.cs`.
 - **Default interceptors and the drain signal** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/src/WebApplicationServerBuilder.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.ExtendedConnect/src/HttpExtendedConnectInterceptor.cs` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Abstractions/IWebServerDrainFeature.cs`.
 - **Client faults and refused responses** — `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/src/Internal/WebClientFaultInterceptor.cs`, `cohesion/resources/Web/Assimalign.Cohesion.Web.Server/docs/OVERVIEW.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md`.
 - **Timeouts and data rates** — `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/libraries/Http/Assimalign.Cohesion.Http.RequestLimits/docs/OVERVIEW.md`.
 - **Accept back-off** — `cohesion/libraries/Connections/Assimalign.Cohesion.Connections.Tcp/docs/DESIGN.md`.
 - **Trailers** — `cohesion/libraries/Http/Assimalign.Cohesion.Http/src/Abstractions/IHttpResponse.cs`, `cohesion/libraries/Http/Assimalign.Cohesion.Http.Connections/docs/DESIGN.md` and `cohesion/docs/libraries/Http/DECISIONS.md` (ADR 2).
 - **Shutdown budget** — `cohesion/libraries/Hosting/Assimalign.Cohesion.Hosting/src/Implementation/HostOptions.TContext.cs`.
-- **Control-plane ownership** — `cohesion/docs/resources/Web/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
+- **Managed resources** — `cohesion/docs/resources/Web/DESIGN.md` and `cohesion/resources/Web/Assimalign.Cohesion.Web.Hosting/docs/DESIGN.md`.
 - **Certificate carrier** — `cohesion/docs/RUNTIME_CONTRACT.md`.

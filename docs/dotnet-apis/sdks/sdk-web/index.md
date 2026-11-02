@@ -1,9 +1,9 @@
 # Assimalign.Cohesion.Sdk.Web
 
 Sdk.Web builds a Cohesion HTTP application with the base SDK's executable defaults and the App and
-App.Web shared frameworks. It declares the Web resource endpoint/probe defaults, enables generated
-typed-handler interceptors, and copies `wwwroot/**` into build and publish output. Optional resource
-orchestration is supplied through Sdk.ApplicationModel when `CohesionApplicationModel=enabled`.
+App.Web shared frameworks. It enables generated typed-handler interceptors and copies `wwwroot/**`
+into build and publish output. An application makes itself a managed resource in `Program.cs` with
+`builder.Services.AddResource(...)` from `Web.Hosting.ApplicationModel`, which App.Web carries.
 
 Select `Assimalign.Cohesion.Sdk.Web` as the project SDK and pin both it and
 `Assimalign.Cohesion.Sdk` to the same exact version in `global.json`, as described in the
@@ -50,10 +50,10 @@ Save the project declaration in a `.csproj` file and the pins in `global.json`. 
 }
 ```
 
-`CohesionApplicationModel` remains `disabled` until the consumer enables it. The area’s
-`Assimalign.Cohesion.Sdk.Web.Tasks` packaging project exists, but contains no task implementation
-classes. Shared settings tasks run from the base SDK; enabled resource orchestration uses
-`Assimalign.Cohesion.Sdk.ApplicationModel`.
+The SDK generates no resource manifest or resource source. The application references only the
+platform packages it opts into, such as `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`.
+The area's `Assimalign.Cohesion.Sdk.Web.Tasks` packaging project contains no task implementation
+classes.
 
 ## Reference
 

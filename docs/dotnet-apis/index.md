@@ -31,14 +31,14 @@ The base and domain SDKs automatically add the appropriate `FrameworkReference` 
 is delivered through a `.Ref` targeting package and a `.Runtime.<rid>` runtime package, separating
 compile-time reference assemblies from runtime implementations.
 
-`Assimalign.Cohesion.Sdk.Gateway` is the exception: gateway orchestration is delivered through NuGet
-package references, and there is no `Assimalign.Cohesion.App.Gateway` framework. In-process
-Composite
-applications add the resource frameworks required by their members explicitly.
+`Assimalign.Cohesion.Sdk.Gateway` is the exception: it references the
+`Assimalign.Cohesion.ApplicationModel.Gateway` NuGet package, and there is no
+`Assimalign.Cohesion.App.Gateway` framework. A gateway references the platform packages it deploys
+through, and an in-process gateway references the resource programs it runs.
 
 ## Sources
 
 - **Source** — `cohesion/sdks/README.md`.
 - **Source** — `cohesion/.claude/rules/build-system.md`.
-- **Source** — `cohesion/frameworks/Assimalign.Cohesion.App.props`.
+- **Source** — `cohesion/libraries/App/Assimalign.Cohesion.App.props`.
 - **Source** — `cohesion/docs/programs/DELIVERY_ROADMAP.md`.

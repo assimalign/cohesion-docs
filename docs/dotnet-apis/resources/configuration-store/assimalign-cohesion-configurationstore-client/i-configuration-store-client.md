@@ -5,7 +5,7 @@ The `IConfigurationStoreClient` type belongs to `Assimalign.Cohesion.Configurati
 > **Status:** Partial.
 
 `IConfigurationStoreClient` is the asynchronous contract for listing and reading configuration
-namespaces and submitting commands to a ConfigurationStore endpoint.
+namespaces from a ConfigurationStore endpoint.
 
 ## API
 
@@ -13,19 +13,10 @@ namespaces and submitting commands to a ConfigurationStore endpoint.
   `GET /cohesion/v1/namespaces` with no query string.
 - **`GetNamespaceAsync(string name, CancellationToken)`** — returns a direct JSON object's string or null
   values from `GET /cohesion/v1/namespaces?name=...`.
-- **`SendCommandAsync(ResourceCommand command, CancellationToken)`** — submits the command with
-  `POST /cohesion/v1/commands`.
-- **`ObserveCommandAsync(ResourceCommand command, CancellationToken)`** — submits the same command and
-  returns `ResourceCommandObservation` with `Status` and the provider's `Detail`, including refusals.
-- **`DeleteCommandAsync(ResourceCommand command, CancellationToken)`** — deletes the owned declaration
-  with the same envelope and returns its observation. The explicit control-plane factory makes
-  these two observation methods honor the manifest's exact path.
 
 All methods propagate cancellation. A blank namespace name raises `ArgumentException`; transport
-failures raise `HttpRequestException`. Non-success statuses throw for the original methods and
-become `Rejected` observations for the observation methods. Invalid, empty, or JSON `null`
-namespace-list and namespace-value documents raise `JsonException`. A null command raises
-`ArgumentNullException`.
+failures raise `HttpRequestException`, and non-success statuses throw. Invalid, empty, or JSON
+`null` namespace-list and namespace-value documents raise `JsonException`.
 
 ## Usage
 
@@ -43,4 +34,4 @@ See the [source-backed usage examples](examples/index.md).
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Client/docs/Assembly/Assimalign.Cohesion.ConfigurationStore.Client/IConfigurationStoreClient/OVERVIEW.md`.
+- **Primary source** — `cohesion/resources/ConfigurationStore/Assimalign.Cohesion.ConfigurationStore.Client/src/Abstractions/IConfigurationStoreClient.cs`.

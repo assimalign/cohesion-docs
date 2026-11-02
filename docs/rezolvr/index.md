@@ -1,91 +1,70 @@
 # Rezolvr
 
-Rezolvr declares and persists DNS records while its DNS answer-serving runtime remains deferred.
+Rezolvr is the Cohesion resource area intended to be a standalone DNS server; its DNS runtime remains deferred.
 
-> **Status:** Partial. Authenticated record commands and durable ownership work; the DNS listener remains dormant.
+> **Status:** Partial. The host and its resource integration work; domain services remain fillers.
 
 ## What it is
 
 Rezolvr is the Domain Name System (DNS) server product area, intended for authoritative zones,
 forwarding, recursion, caching, transfers, and administration. It is not Cohesion's service
-discovery subsystem. Discovery uses observed endpoints, platform Service DNS, and export documents.
+discovery subsystem; discovery uses the outputs a gateway reads from each deployment and the
+platform's own Service DNS.
+Those domain capabilities are not supplied by the current host. The executable composes explicit
+host services and can be managed by a gateway while the area program remains unfinished.
 
-The current runtime stores A and CNAME declarations but does not answer DNS queries.
-
-See the [Rezolvr API reference](../dotnet-apis/resources/rezolvr/index.md).
+See the [architecture overview](../overview.md) and
+[Rezolvr API reference](../dotnet-apis/resources/rezolvr/index.md).
 
 ## Project map
 
 | Assembly | Responsibility |
 |---|---|
-| [`Assimalign.Cohesion.Rezolvr`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr/index.md) | Hosting-free application contracts and DNS service abstractions. |
-| [`Assimalign.Cohesion.Rezolvr.ApplicationModel`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr-applicationmodel/index.md) | Typed resource, Deployment planner, and record command descriptors. |
-| [`Assimalign.Cohesion.Rezolvr.Client`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr-client/index.md) | Authenticated apply/delete client for control-plane commands. |
-| [`Assimalign.Cohesion.Rezolvr.Hosting`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr-hosting/index.md) | Resource management listener and durable record-command registry. |
+| [`Assimalign.Cohesion.Rezolvr`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr/index.md) | Hosting-free application, context, and builder contracts. |
+| [`Assimalign.Cohesion.Rezolvr.Hosting`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr-hosting/index.md) | Concrete builder, dependency-injection composition, and host lifecycle. |
+| [`Assimalign.Cohesion.Rezolvr.Hosting.ApplicationModel`](../dotnet-apis/resources/rezolvr/assimalign-cohesion-rezolvr-hosting-applicationmodel/index.md) | `builder.Services.AddResource(name, ...)`: the application as a managed resource instance. |
 
 ## Hosting model
 
-`RezolvrApplication.CreateBuilder(args)` creates the concrete builder. Explicit services start
-in registration order and stop in reverse. Enabled resources expose the default plane on the
-ambient `admin` endpoint: health, readiness, liveness, endpoint discovery, command envelopes,
-and graceful stop. Managed routes verify ES256 bootstrap credentials.
+`RezolvrApplication.CreateBuilder(args)` in `Assimalign.Cohesion.Rezolvr.Hosting` creates the concrete
+`RezolvrApplicationBuilder`. Its `Build()` returns `RezolvrApplication`, which supports `RunAsync`
+and asynchronous disposal. The root `IRezolvrApplication` contract exposes `Context`, `StartAsync`,
+and `StopAsync`.
 
-Records are atomically stored in `records.json` below the `data` mount, or under the content
-root's `data` directory when that mount is absent. Ownership is restored before the management
-listener starts. The plain unregistered host opens no listener; `ResolverEndpointService`
-remains dormant.
+`RezolvrApplicationBuilder.Services` is the application's one composition registry. `AddService`
+registers an `IHostService` instance or a context factory; factories run once per build, services
+start in registration order and stop in reverse. An empty host opens no listener and runs no domain
+service.
 
-Non-persistent Configuration and Secret mounts remain manifest-driven runtime inputs. The current
-Deployment planner does not establish a persistent-volume deployment contract for the record store.
+## Managed resource
 
-The SDK retains `dns` over User Datagram Protocol (UDP) on port 53, `dns-tcp` over Transmission
-Control Protocol (TCP) on port 53, and `admin` over HTTP on port 8081. Only the management endpoint
-has a listener in the current host; declaring the DNS endpoints does not activate DNS serving.
-
-## Application model
-
-`AddRezolvr(manifest, options)` returns `IRezolvrResourceDescriptor` over a `RezolvrResource`.
-The planner produces a platform-neutral `Deployment` plan; typed descriptors support dependency
-edges, `AddARecord`, and `AddCnameRecord`. `RezolvrResourceControlPlane.Create()` advertises both
-record-command kinds.
-
-The guarded declarative package uses base class library address values, keeping DNS assemblies
-outside its `COHAM001` dependency closure. The generic planner requires `StatefulSet` for a
-persistent Volume, while Rezolvr requires `Deployment`; reconciling these constraints is deferred.
+An application becomes a managed resource instance with one registration in its `Program.cs`:
+`builder.Services.AddResource("resolver", resource => resource.UseInProcess())`. The verb ships in
+`Assimalign.Cohesion.Rezolvr.Hosting.ApplicationModel`, a public member of the area framework. When the
+environment names a platform the resource opted into, the instance publishes its manifest, restores
+the state its gateway kept, and runs the gateway's actions; otherwise it registers nothing and the
+program runs as a plain application. Rezolvr exposes no actions of its own yet; the application can add
+its own with `AddAction`. A gateway declares the resource generically:
+`builder.AddResource("Rezolvr", "resolver")`. See [ApplicationModel](../dotnet-apis/libraries/application-model/index.md).
 
 ## SDK and framework
 
-`Assimalign.Cohesion.Sdk.Rezolvr` delivers the runtime family through
-`Assimalign.Cohesion.App.Rezolvr`. The area's `.ApplicationModel` package is NuGet-only
-and added to enabled resource executables; it remains outside the runtime shared framework.
-The `.Client` package is also NuGet-only.
-
-See the [Rezolvr SDK reference](../dotnet-apis/sdks/sdk-rezolvr/index.md).
-
-## Record commands
-
-| Descriptor verb | Wire kind | Value |
-|---|---|---|
-| `AddARecord` | `rezolvr.add-a-record` | An IPv4 `IPAddress`, serialized as a string. |
-| `AddCnameRecord` | `rezolvr.add-cname-record` | A DNS target name. |
-
-The record name is the ownership key. Time to live (TTL) is a positive integer in seconds,
-defaulting to 300. These declarations persist record intent and ownership; successful command
-application is not evidence of an active DNS listener.
-
-`RezolvrCommandClient.Create` takes a full control-plane URI and bearer credential.
-`SendCommandAsync` and `DeleteCommandAsync` return `ResourceCommandObservation` values preserving
-status and detail. The client does not acquire credentials or resolve sources.
+The domain SDK `Assimalign.Cohesion.Sdk.Rezolvr` supplies the runtime and the resource integration
+through `Assimalign.Cohesion.App.Rezolvr`; the application references only the platform packages it
+opts into. See the [Rezolvr SDK reference](../dotnet-apis/sdks/sdk-rezolvr/index.md).
 
 ## Getting started
 
-The `cohesion-rezolvr` template supplies this minimal `Program.cs`.
+This minimal `Program.cs` runs the lifecycle shell as a resource on the in-process platform; it
+does not enable the deferred domain services.
 
 ```csharp
-using Assimalign.Cohesion.Rezolvr;
+using Assimalign.Cohesion.ApplicationModel.Hosting.InProcess;
 using Assimalign.Cohesion.Rezolvr.Hosting;
+using Assimalign.Cohesion.Rezolvr.Hosting.ApplicationModel;
 
 RezolvrApplicationBuilder builder = RezolvrApplication.CreateBuilder(args);
+builder.Services.AddResource("resolver", resource => resource.UseInProcess());
 
 await using RezolvrApplication application = builder.Build();
 await application.RunAsync();
@@ -95,10 +74,7 @@ Return to [Cohesion Documentation](../index.md).
 
 ## Sources
 
-- **Area** — `cohesion/resources/Rezolvr/README.md`.
-- **Hosting** — `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Hosting/docs/DESIGN.md`.
-- **Application model** — `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.ApplicationModel/docs/OVERVIEW.md` and `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.ApplicationModel/docs/DESIGN.md`.
-- **Client** — `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Client/docs/OVERVIEW.md`.
-- **Runtime contract** — `cohesion/docs/RUNTIME_CONTRACT.md`.
-- **Package boundaries** — `cohesion/.claude/rules/resource-areas.md`.
-- **Template** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-rezolvr/Program.cs`.
+- **Area and example** — `cohesion/resources/Rezolvr/README.md`.
+- **Host contract** — `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Hosting/docs/OVERVIEW.md` and `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Hosting/docs/DESIGN.md`.
+- **Resource integration** — `cohesion/resources/Rezolvr/Assimalign.Cohesion.Rezolvr.Hosting.ApplicationModel/docs/OVERVIEW.md`.
+- **Framework boundaries** — `cohesion/.claude/rules/resource-areas.md`.

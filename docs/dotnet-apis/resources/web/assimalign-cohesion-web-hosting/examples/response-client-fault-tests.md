@@ -69,10 +69,20 @@ public class ResponseClientFaultTests
 
         await using ResponseBackpressureTransport transport = new();
         await using WebApplicationTestFactory factory = new();
-        factory.Builder.Services.AddErrorHandling(errors => errors.OnError((_, _, _) => ValueTask.FromResult(true)));
+        factory.Builder.Services.AddErrorHandling(errors =>
+        {
+            errors.OnError((_, _, _) => ValueTask.FromResult(true));
+            errors.Options.OnException = (context, exception) =>
+            {
+                observed.TrySetResult((exception, context.RequestCancelled.IsCancellationRequested,
+                    context.Features.Get<IWebResponseClientFaultFeature>()?.ResponseAbortedByClient == true,
+                    context.Response.Streaming.HasStarted));
+                return ValueTask.CompletedTask;
+            };
+        });
         factory.Builder.Server.UseServer(options =>
         {
-            options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
+            options.Interceptors.Add(new HttpResponseStreamingInterceptor());
             if (protocol == 1)
             {
                 options.UseHttp1(transport.StreamListener);
@@ -97,13 +107,7 @@ public class ResponseClientFaultTests
                 boundaryCompleted.TrySetResult();
             }
         });
-        factory.Application.UseErrorHandling(options => options.OnException = (context, exception) =>
-        {
-            observed.TrySetResult((exception, context.RequestCancelled.IsCancellationRequested,
-                context.Features.Get<IWebResponseClientFaultFeature>()?.ResponseAbortedByClient == true,
-                context.Response.Streaming.HasStarted));
-            return ValueTask.CompletedTask;
-        });
+        factory.Application.UseErrorHandling();
         factory.Application.Use(async (context, _) =>
         {
             requestId = context.Features.Get<IWebRequestIdFeature>()!.RequestId.ToHexString();
@@ -216,14 +220,22 @@ public class ResponseClientFaultTests
         await using ResponseBackpressureTransport transport = new();
         await using WebApplicationTestFactory factory = new();
         factory.Builder.Logging.AddProvider(recorded);
-        factory.Builder.Services.AddErrorHandling(errors => errors.OnError((_, _, _) =>
+        factory.Builder.Services.AddErrorHandling(errors =>
         {
-            Interlocked.Increment(ref errorHandlers);
-            return ValueTask.FromResult(true);
-        }));
+            errors.OnError((_, _, _) =>
+            {
+                Interlocked.Increment(ref errorHandlers);
+                return ValueTask.FromResult(true);
+            });
+            errors.Options.OnException = (_, _) =>
+            {
+                Interlocked.Increment(ref exceptionCallbacks);
+                return ValueTask.CompletedTask;
+            };
+        });
         factory.Builder.Server.UseServer(options =>
         {
-            options.Interceptors.Add(HttpResponseStreamingInterceptor.Create());
+            options.Interceptors.Add(new HttpResponseStreamingInterceptor());
             if (protocol == 1)
             {
                 options.UseHttp1(transport.StreamListener, http => http.Limits.MinResponseDataRate = rate);
@@ -251,11 +263,7 @@ public class ResponseClientFaultTests
                 throw;
             }
         });
-        factory.Application.UseErrorHandling(options => options.OnException = (_, _) =>
-        {
-            Interlocked.Increment(ref exceptionCallbacks);
-            return ValueTask.CompletedTask;
-        });
+        factory.Application.UseErrorHandling();
         factory.Application.Use(async (context, _) =>
         {
             requestId = context.Features.Get<IWebRequestIdFeature>()!.RequestId.ToHexString();

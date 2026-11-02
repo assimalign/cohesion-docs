@@ -4,10 +4,10 @@ Examples for `Assimalign.Cohesion.ConfigurationStore.Client` are derived from so
 
 > **Status:** Partial.
 
-The examples below retain real usage from project documentation, templates, fixtures, or tests. Test
-examples require their original test project’s dependencies and supporting objects.
+The examples below retain real usage from project tests. Test examples require their original test
+project’s dependencies and supporting objects.
 
-- **[Command Observation Tests](command-observation-tests.md)** — This example exercises `Assimalign.Cohesion.ConfigurationStore.Client` through its co-located test source.
+- **[Configuration Store Client Tests](configuration-store-client-tests.md)** — This example exercises `Assimalign.Cohesion.ConfigurationStore.Client` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

@@ -60,6 +60,7 @@ public class HttpLoggingTraceContextTests
         Activity? child = null;
         ActivityTraceId requestId = default;
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddHttpLogging(logging => logging.UseLoggerFactory(loggerFactory));
         factory.Application
             .Use(async (context, next) =>
             {
@@ -70,7 +71,7 @@ public class HttpLoggingTraceContextTests
                 child = nested;
                 await next(context);
             })
-            .UseHttpLogging(loggerFactory)
+            .UseHttpLogging()
             .Use((context, next) => Task.CompletedTask);
         using HttpClient client = factory.CreateClient();
         using HttpRequestMessage request = new(System.Net.Http.HttpMethod.Get, "/trace");
@@ -124,8 +125,9 @@ public class HttpLoggingTraceContextTests
         Activity? observedAmbient = null;
         ActivityTraceId requestId = default;
         await using WebApplicationTestFactory factory = new();
+        factory.Builder.Services.AddHttpLogging(logging => logging.UseLoggerFactory(loggerFactory));
         factory.Application
-            .UseHttpLogging(loggerFactory)
+            .UseHttpLogging()
             .Use((context, next) =>
             {
                 observedAmbient = Activity.Current;
@@ -169,7 +171,8 @@ public class HttpLoggingTraceContextTests
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
         ActivityTraceId requestId = default;
         await using WebApplicationTestFactory factory = new();
-        factory.Application.UseHttpLogging(loggerFactory).Use((context, next) =>
+        factory.Builder.Services.AddHttpLogging(logging => logging.UseLoggerFactory(loggerFactory));
+        factory.Application.UseHttpLogging().Use((context, next) =>
         {
             requestId = context.Features.Get<IWebRequestIdFeature>()!.RequestId;
             context.Features.Get<IWebRequestActivityFeature>()!.Activity.ShouldBeNull();
@@ -198,13 +201,12 @@ public class HttpLoggingTraceContextTests
         // Arrange
         RecordingLoggerProvider recorded = new();
         using ILoggerFactory loggerFactory = new LoggerFactoryBuilder().AddProvider(recorded).Build();
-        TestPipelineBuilder builder = new();
-        builder.UseHttpLogging(loggerFactory);
+        IWebApplicationMiddleware middleware = new HttpLoggingBuilder().UseLoggerFactory(loggerFactory).Build();
         LoggingTestContext context = new(new HttpConnectionInfo());
         context.Request.Headers[HttpHeaderKey.TraceParent] = traceParent;
 
         // Act
-        await builder.LastMiddleware!.InvokeAsync(context, _ => Task.CompletedTask);
+        await middleware.InvokeAsync(context, _ => Task.CompletedTask);
 
         // Assert
         ILoggerEntry entry = recorded.Entries.ShouldHaveSingleItem();
