@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 82 of 84 named clauses against the live engine. The 2 excluded names are
+The profile measures 83 of 85 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -81,9 +81,9 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | Precision on CURRENT_TIME/CURRENT_TIMESTAMP/LOCALTIME/LOCALTIMESTAMP | `CK00001` | Transaction-start UTC clock at existing precision |
 | UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `CS01006` (42883) | Signatures reject incompatible inputs during planning |
 | Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `CS02003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
-| Prefix or infix `~` | `CK00001` | Recognized unsupported operator |
-| ILIKE/NOT ILIKE, SIMILAR TO/NOT SIMILAR TO, postfix ISNULL/NOTNULL | `CK00001` | Use [LIKE ESCAPE and IS tests](expressions/operators.md); ordinary identifier positions retain their meaning |
-| Binary `&`, `\|`, `<<`, `>>`, general `::`, IS JSON/OF/NORMALIZED | `CK00001` | Use CAST(x AS type); only the sequence-specific `name::regclass` postfix executes |
+| Regex operators, including prefix or infix `~`; SIMILAR TO/NOT SIMILAR TO | `CK00001` | [LIKE and ILIKE](expressions/operators.md#ilike-and-not-ilike) execute with ESCAPE |
+| Postfix ISNULL/NOTNULL, IS JSON/OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
+| Binary `&`, `\|`, `#`, `^`, `<<`, `>>` | `CK00001` | Bitwise operators are deferred to SQ-O2; [expr::type](expressions/cast.md#postfix-casts) executes |
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
 | CREATE INDEX direction modifiers, expression keys, or INCLUDE | No dedicated diagnostic promised by the dialect | Only plain column lists are in the contract |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |

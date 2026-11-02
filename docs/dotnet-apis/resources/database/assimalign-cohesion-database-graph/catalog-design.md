@@ -16,7 +16,9 @@ The catalog gives each logical graph database a durable vocabulary. A label or r
 a stable GUID identity and an ordinal, case-sensitive name. Property and index metadata references
 the stable identity, so dropping and recreating the same name does not reuse old child metadata.
 Identities cannot be reused across definitions or renamed. Label names and relationship-type names
-occupy separate namespaces.
+occupy separate namespaces. Index and constraint names share one database-wide ordinal,
+case-sensitive namespace. The writer lock serializes name reservations through commit/rollback.
+A duplicate current name uses CG03008; a stale Snapshot writer retains CG04007.
 
 A dropped identity cannot name another definition until version purge reclaims its old records.
 Older databases can contain dropped/live names sharing an identity; candidate lookup checks every
@@ -66,6 +68,14 @@ name and property key, and are nonunique. The physical tree identity and registr
 in `Graph.Storage`. A catalog index save cannot silently retarget an existing name to another
 property.
 
+Named [GraphConstraintMetadata](graph-constraint-metadata.md) rules identify a parent GUID and
+property, with an optional type. A null Type denotes existence; type rules permit absent/null
+values. Creating through GraphSchema streams existing owner data and refuses a violation with
+CG03010. Duplicate rule kinds or incompatible type rules use CG03009. Named and identical
+unnamed rules may coexist independently. GetDeclaredPropertyKeys excludes named effects;
+GetPropertyKeys and SHOW report effective rules. Independently dropping a constraint preserves
+the other rules and the discovered property key.
+
 ## On-disk format
 
 Catalog records occupy `Graph.Storage` owner 0 pages. Graph data, adjacency, and physical index
@@ -78,13 +88,19 @@ The payload begins at byte 16:
 
 | Offset / order | Encoding | Meaning |
 | --- | --- | --- |
-| 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index |
-| 17 | byte | Format version, currently 1 |
-| 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4 |
-| 34 | string | Definition name, property key, or index name |
+| 16 | byte | Kind: 1 label, 2 relationship type, 3 property key, 4 named index, 5 named constraint |
+| 17 | byte | Format version, currently 2 for every kind |
+| 18 | 16 bytes | CLR `Guid.ToByteArray()` representation: definition ID for kinds 1/2, parent ID for kinds 3/4/5 |
+| 34 | string | Definition name, property key, index name, or constraint name |
 | Following name, kinds 1/2 | byte, string | `DatabaseObjectOwner` value and owning schema |
 | Following name, kind 3 | byte, byte | Shared `DatabaseType` value (255 means unconstrained), required flag (0 or 1) |
 | Following name, kind 4 | string | Indexed scalar property key |
+| Following name, kind 5 | string, byte | Property key and DatabaseType (255 denotes existence) |
+
+Only catalog v2 is admitted. Earlier/future record versions refuse with CG06019 before logical
+recovery scrub, with no legacy reader or upgrade path; recreate the database. Physical journal
+redo runs before this gate. Empty catalogs have no versioned records to refuse. The graph
+entity/tree format remains 5.
 
 All fixed-width numeric values are little-endian. Strings use a signed 32-bit little-endian UTF-8
 byte length followed by exactly that many strict UTF-8 bytes. Length -1 represents null, accepted

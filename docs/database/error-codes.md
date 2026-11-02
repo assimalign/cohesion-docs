@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/8ac5744fa/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -62,6 +62,8 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CD04105 | OQL collection/index DDL inside an explicit transaction | — |
 | CD07002 | Text transaction control without the negotiated transaction-status capability | — |
 | CK07002 | Malformed negotiated statement Ready: exactly I/T/E plus a retained-state 0/1 byte is required | — |
+| CK04008 | Undo marker is foreign, released, discarded or ended; undo control context is foreign, stale, a statement view or a snapshot pin | — |
+| CK04009 | Partial undo is running or incomplete, or statement/control/end activity prevents control admission; retry its target or an earlier marker, or roll back the transaction | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,
@@ -70,6 +72,38 @@ Outer GQL modes and SQL UPDATE ... FROM / DELETE ... USING execute.
 Optional SQL costing falls back on committed definition changes; mutation execution retains
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
+
+## SQL partial indexes
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03082 | Predicate on a primary key | 42P16 |
+| CS03083 | Type change of a column read by a partial-index predicate, widening included | 0A000 |
+| CS03084 | Inconsistent predicate text/dependency metadata | 42P17 |
+| CS05091 | Prohibited expression or unproven immutable call/conversion in a predicate | 42P17 |
+
+Unresolved predicate registrations use existing CS01009 (42883) for table writes. See
+[CREATE INDEX](sql/language/statements/create-index.md#partial-indexes).
+
+## Named graph schema rules
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG01021 | Named index or constraint requested for DROP is absent | — |
+| CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
+| CG03009 | Duplicate constraint kind or incompatible property type rule | — |
+| CG03010 | Existing data violates a newly created named constraint | — |
+| CG06019 | Catalog record version differs from v2; recreate the database, no legacy reader | — |
+
+See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
+for the typed surface; text DDL is not available yet.
+
+## SQL operator diagnostics
+
+ILIKE and postfix casts allocate no new code. LIKE/ILIKE ESCAPE errors reuse CS02034 (22025);
+invariant LIKE/ILIKE and their NOT forms share CS05040 (no SQLSTATE). Postfix casts retain CAST
+diagnostics; unary signs on a TEXT cast use CS02003 (42804). Regex, SIMILAR TO, #, ^ and other
+bitwise operators remain CK00001. See [SQL operators](sql/language/expressions/operators.md).
 
 ## Joined SQL mutations
 
@@ -119,14 +153,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 30.
+remains nonexecuting; SQL storage stays at format 31.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 30 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 31 is unchanged.
 
 ## SQL table rewrite
 
@@ -134,7 +168,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 30 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 30 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 31 is unchanged.
 
 ## Document array indexes
 

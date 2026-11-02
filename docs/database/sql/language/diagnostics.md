@@ -6,6 +6,19 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 
 > **Status:** Implemented.
 
+## Partial-index conditions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03082 | A primary-key definition has a partial predicate | 42P16 |
+| CS03083 | ALTER COLUMN TYPE targets a predicate column, including widening; drop and recreate the index | 0A000 |
+| CS03084 | Blank or inconsistent index predicate text/dependency metadata | 42P17 |
+| CS05091 | Predicate contains a prohibited expression or a call/conversion not proven immutable | 42P17 |
+
+An unresolved predicate after a registration change lets the database open and serve reads and
+DROP INDEX, but writes to its table refuse with CS01009 (42883), even with empty input.
+See [partial indexes](statements/create-index.md#partial-indexes) for admission and recovery.
+
 ## Language diagnostics
 
 | Code | Meaning |
@@ -74,13 +87,13 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03031` | DROP SCHEMA targets dbo, required by code-first provisioning | — |
 | `CS03033` | View declaration/replacement failure, changed bound column identity, invalid dependency/cycle, oversized record, wrong DROP VIEW target or recoverable uncoded body bind failure | — |
 | `CS05032` | DISTINCT/ALL/ORDER BY on a non-aggregate function, or DISTINCT input ordering key not structurally present in the argument list | — |
-| `CS02034` | LIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
+| `CS02034` | LIKE/ILIKE ESCAPE has more than one Unicode scalar or the pattern ends in its escape; fixed/parameter patterns validate eagerly, dynamic patterns at evaluation | 22025 |
 | `CS06041` | Storage/index operation failed at an engine boundary, including wrapped/aggregate causes; original cause retained | 58030 for I/O |
 | `CS05043` | Server-side statement execution deadline expired; failed statement effects are rolled back | 57014 (`query_canceled`) |
 | `CS04044` | Individual contended lock wait expired, including unique-index key waits and RewriteTableAsync's pre-queue exclusive table lock | 55P03 (`lock_not_available`) |
 | `CS05045` | Uncoded result encoding/preparation failure, or an encoded header/row above the wire frame limit; see [result delivery](#result-encoding-and-delivery) | 54000 for size refusals; otherwise — |
 | `CS05042` | Encoded row, index key or catalog definition exceeds its size limit, or catalog DDL generation is exhausted | 54000 (`program_limit_exceeded`) |
-| `CS05040` | Invariant LIKE/NOT LIKE exceeds its per-match work budget; located ExecutionFailure leaves the connection usable | — |
+| `CS05040` | Invariant LIKE, ILIKE or their NOT forms exceed the per-match work budget; located ExecutionFailure leaves the connection usable | — |
 | `CS03035` | ON CONFLICT lacks a matching unique arbiter, names a nonunique/missing target, or DO UPDATE omitted its target; planning failure | 42P10 |
 | `CS05036` | ON CONFLICT repeats an inserted/updated row; MERGE selects a second modification of one physical target, including after rechecks | 21000 |
 | `CS03037` | UNIQUE, PRIMARY KEY or unique-index violation, including a second unique index during ON CONFLICT DO UPDATE | 23505 |
@@ -137,9 +150,10 @@ construction without source text leaves the diagnostic unlocated. NOT NULL retai
 not a separate field on the diagnostic or SQL exception.
 
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
-with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and general `::` casts use CK00001;
-the sequence-specific `name::regclass` form executes.
+with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE/NOT ILIKE
+and general `expr::type` casts execute with existing LIKE/CAST diagnostics. SIMILAR TO, regex,
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and binary bitwise operators (including # and ^) use
+CK00001; bitwise execution is deferred to SQ-O2.
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 

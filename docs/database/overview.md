@@ -182,14 +182,14 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 30.
+resolution and do not advise restore or drop. SQL remains at format 31.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 30 and Graph's record
-format 4. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
+The shared storage format is **4**, independent of SQL's data/catalog format 31 and Graph's record
+format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
 header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
@@ -397,12 +397,12 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 30;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 31;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 82 of 84 declared clauses, including executable MERGE with
+The current SQL contract measures 83 of 85 declared clauses, including executable MERGE with
 ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.

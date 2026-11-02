@@ -31,13 +31,14 @@ See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 
 ## Current format boundary
 
-v9 adds always-serialized OnUpdate metadata. The earlier v8 changed typed TimeSpan defaults
-to exact signed seconds; v9 retains that rendering.
+v10 adds optional CompiledSchemaIndex.Predicate metadata and retains v9's always-serialized
+OnUpdate metadata. The earlier v8 changed typed TimeSpan defaults to exact signed seconds;
+v10 retains that rendering.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-30/v9 upgrade note](../../../../database/sql/index.md#sql-format-30-and-schema-v9).
+[format-31/v10 upgrade note](../../../../database/sql/index.md#sql-format-31-and-schema-v10).
 
-The integration branch uses SQL row-storage format 30 and compiled schema version 9.
+The integration branch uses SQL row-storage format 31 and compiled schema version 10.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -50,10 +51,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
-in table extension 8 and retains TYPE default assignment coercion.
+Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
+Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 9.
+upgrade path. Compiled schema format remains version 10.
 
 ## Sources
 

@@ -27,9 +27,17 @@ an explicit `GraphDatabaseSession` belonging to that exact database. Session ide
 when databases share an engine or name. Queries cannot select a different database.
 
 `GraphSchema.Open(database, session)` provides label/type discovery, property metadata, ownership
-enforcement, and node-property index creation. Labels, relationship types, property names, and
+enforcement, node-property index creation and independently named type/existence constraints.
+Index and constraint names share a database-wide ordinal, case-sensitive namespace. Named
+constraints validate existing data on creation; type rules allow absent/null properties, while
+existence rules require non-NULL values. These are [typed GraphSchema operations](../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md);
+text DDL is not available yet. Labels, relationship types, property names, and
 variable names use ordinal, case-sensitive identity. String predicates use ordinal comparison;
 SQL collation settings do not apply.
+
+Graph catalog records are v2; earlier or future record versions refuse at open with CG06019
+and require recreation. There is no legacy reader. Graph entity/tree format remains 5.
+SHOW PROPERTY KEYS reports effective rules and SHOW OBJECT OWNERSHIP includes CONSTRAINT rows.
 
 ## Transactions and traversal
 

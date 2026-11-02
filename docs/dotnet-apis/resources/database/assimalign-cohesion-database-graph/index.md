@@ -36,6 +36,7 @@ packages are retired. Wire contracts ship separately in [Graph.Protocol](../assi
 - **[`GraphQueryRequest`](graph-query-request.md)** — Documented public type.
 - **[`GraphRelationship`](../assimalign-cohesion-database-graph-protocol/graph-relationship.md)** — Documented public type.
 - **[`GraphSchema`](graph-schema.md)** — Documented public type.
+- **[GraphConstraintMetadata](graph-constraint-metadata.md)** — Independently named type or existence rule.
 - **[`GraphTraversal`](graph-traversal.md)** — Documented public type.
 - **[GraphShortestPathSearch](graph-shortest-path-search.md)** — Endpoints, direction, type and lower limits.
 - **[GraphShortestPathResult](graph-shortest-path-result.md)** — Selected path and unweighted distance.
@@ -56,7 +57,9 @@ subset described in [Graph.Language](../assimalign-cohesion-database-graph-langu
 See the [source-backed usage examples](examples/index.md).
 
 `GraphSchema.Open` supplies session-bound label/type discovery, property metadata, ownership
-enforcement and node-property index creation. `AddGraph(name, graph => ...)` captures
+enforcement, database-wide named indexes and independently droppable type/existence constraints.
+Schema names use ordinal, case-sensitive identity. Text DDL is not available yet.
+`AddGraph(name, graph => ...)` captures
 construction through `IDatabaseApplicationBuilder` and returns that builder. The callback runs at
 `Build` with `GraphDatabaseEngineBuilder`. Its Options.RootPath selects file-backed storage;
 omitting it uses memory. Workers and servers register as nested factories; the built engine owns

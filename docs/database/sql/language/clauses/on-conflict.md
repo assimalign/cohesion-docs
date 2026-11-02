@@ -37,10 +37,17 @@ UNKNOWN and skips the update.
 
 ## Remarks
 
-Arbiter keys use index collation and temporal normalization. NULL conflicts with NULL, including
+Arbiter keys use index collation and temporal normalization. For unconditional unique indexes,
+NULL conflicts with NULL, including
 a component of a composite unique key. This follows Cohesion's existing UNIQUE rule and differs
 from PostgreSQL's default NULL-distinct behavior. SQL has no MISSING key value. A conflict outside
 an explicit target still fails ordinary unique enforcement.
+
+Untargeted DO NOTHING also arbitrates [partial unique indexes](../statements/create-index.md#partial-indexes).
+Each proposed row participates only where its index predicate is TRUE. FALSE/UNKNOWN membership
+and NULL-containing partial keys do not conflict or take unique-key locks, following PostgreSQL.
+Targeted column-set or named-index inference excludes partial indexes (`CS03035`, 42P10).
+Predicate syntax in a conflict target remains unsupported (`CK00001`).
 
 DO UPDATE SET/WHERE sees the original target row and `EXCLUDED`, the proposed stored row after
 coercion, defaults and identity allocation. Qualify target references by its alias or, without an

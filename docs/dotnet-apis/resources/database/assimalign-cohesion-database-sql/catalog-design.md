@@ -15,6 +15,25 @@ This catalog component ships inside the model package. Keep its namespace
 imports and replace the former satellite package reference with `Assimalign.Cohesion.Database.Sql`; recompile consumers.
 The model enforces engine → Catalog → Storage → shared kernel through architecture tests.
 
+## Partial-index metadata
+
+SqlCatalogIndex stores nullable Predicate text plus copied PredicateColumns and
+PredicateFunctionCalls dependency vectors. Index extension 2 and catalog format 31 persist
+these alongside existing key metadata. Engine admission requires an immutable, row-local
+Boolean expression; application conversions without immutability metadata are refused.
+
+| Code | Catalog condition | SQLSTATE |
+| --- | --- | --- |
+| CS03082 | Partial primary key | 42P16 |
+| CS03083 | TYPE changes a predicate column, including widening | 0A000 |
+| CS03084 | Blank predicate or dependencies without a predicate | 42P17 |
+| CS05091 | Prohibited expression or unproven immutable call/conversion during engine admission | 42P17 |
+
+Column removal atomically removes dependent indexes; renames rewrite predicate references.
+Unresolved registrations permit open/read/drop but refuse table writes with CS01009 (42883).
+See [catalog metadata](sql-catalog.md#index-predicate-metadata) and
+[partial indexes](../../../../database/sql/language/statements/create-index.md#partial-indexes).
+
 ## `Collation` metadata (#1025)
 
 `SqlCatalogColumn.Collation` is an optional string-column override. Null inherits
@@ -88,7 +107,7 @@ those same transforms for uniqueness enforcement.
   record cannot be told apart record-by-record, and version 2 vs 3 (shared page
   stream vs per-object page chains) is a page-placement property no record
   carries — so the database-grain marker is catalog metadata, read by the
-  engine at open to enforce format 30. Earlier or newer markers, including format 26, are
+  engine at open to enforce format 31. Earlier or newer markers, including format 26, are
   refused without an upgrade reader. An absent marker does not authorize migration; only
   proven interrupted creation can complete under the engine's creation rules.
 - **The applied compiled-schema state lives here** (kind-6 records). The catalog
@@ -165,7 +184,7 @@ ordinals and rebuilds indexes before atomic catalog publication. Dropped ordinal
 with the old owner for pinned snapshots. Logical schema, identity allocation, ownership and
 dependent view identities survive. Prepared and retired owners use durable kind-14 reclamation
 intents; recovery selects a complete old or replacement layout/index set and maintenance reclaims
-abandoned storage. This reuses format 30 and the TRUNCATE replacement contract.
+abandoned storage. This reuses format 31 and the TRUNCATE replacement contract.
 
 ## Single source for SQL system views (C1)
 
@@ -249,7 +268,7 @@ hidden table identity with a durable kind-14 abandonment intent, using the same 
 reclamation mechanism as TRUNCATE. One builder transaction writes all rows before catalog
 publication removes the intent and exposes the table. Recovery retains either the whole table or
 an abandoned owner to reclaim, with no partial table. A lost name race uses CS03049 (42P07), or a
-zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 30.
+zero-row no-op with IF NOT EXISTS. The protocol reuses SQL format 31.
 
 ## Error model
 
@@ -305,7 +324,7 @@ captures namespaces with tables/indexes, and CASCADE removes contents and incomi
 while preserving outside tables. The SQL executor owns DDL locks and ownership/protection checks.
 SQL database creation seeds dbo; low-level catalog open does not mutate or seed records.
 
-The integration branch uses SQL row-storage format 30 and compiled schema version 9.
+The integration branch uses SQL row-storage format 31 and compiled schema version 10.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -318,21 +337,21 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
-in table extension 8 and retains TYPE default assignment coercion.
+Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
+Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 9.
+upgrade path. Compiled schema format remains version 10.
 
 ## Persisted views
 
-Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
-in table extension 8 and retains TYPE default assignment coercion. Format 29 and
+Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
+Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion. Format 30 and
 every earlier catalog are refused before definitions bind, carrying CS06041; they are never
 silently rewritten. Format 26 introduced the temporal DEFAULT/frozen missing-value fence.
-Compiled documents must be v9. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-30-and-schema-v9).
+Compiled documents must be v10. See the [format and rebuild procedure](../../../../database/sql/index.md#sql-format-31-and-schema-v10).
 
 [SqlCatalogView](sql-catalog-view.md) stores canonical bodies, nullable frozen columns and resolved
-dependencies in kind 17 records introduced by format 23. Current format is 30. Publication checks
+dependencies in kind 17 records introduced by format 23. Current format is 31. Publication checks
 collisions, live dependencies, cycles and append-only compatible replacement atomically; records
 larger than 8,092 bytes use CS03033. DROP RESTRICT protects dependents; CASCADE removes dependent
 views. Table/function/domain/column changes independently protect view dependencies with CS03302.

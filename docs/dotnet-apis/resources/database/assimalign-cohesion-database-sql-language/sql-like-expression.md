@@ -1,6 +1,6 @@
 # SqlLikeExpression
 
-Parsed LIKE/NOT LIKE pattern with an optional ESCAPE operand.
+Parsed LIKE/ILIKE pattern, optionally negated, with an optional ESCAPE operand.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -13,6 +13,7 @@ public sealed class SqlLikeExpression : SqlExpression
     public SqlExpression Pattern { get; }
     public SqlExpression? Escape { get; }
     public bool IsNegated { get; }
+    public bool IsCaseInsensitive { get; }
 }
 ```
 
@@ -22,7 +23,8 @@ The parser owns construction. Escape is null when ESCAPE is omitted, selecting b
 an explicit SQL NULL is a SqlLiteralExpression, while an empty string disables escaping.
 Pattern and Escape can be arbitrary supported scalar trees, including parameters and
 concatenations. Depth is one plus the maximum child depth, including Escape. The canonical
-renderer retains explicit ESCAPE and conservative parentheses around concatenated operands.
+renderer retains explicit ESCAPE, the ILIKE spelling when IsCaseInsensitive is true, and
+conservative parentheses around concatenated operands. IsNegated controls NOT independently.
 
 Properties add no validation exceptions. Parse returns diagnostics; request/session factories
 reject malformed text with DatabaseParseException. A missing ESCAPE operand uses CS00003.
@@ -34,22 +36,24 @@ give UNKNOWN. Wildcards consume original Unicode scalars under every collation. 
 
 Ordinary invariant matches use linear work in input length. Pathological invariant matching raises
 DatabaseException with located CS05040 when its per-match work budget is exhausted; no SQLSTATE
-is assigned. The linked language reference gives the exact budget and charging rules. LIKE and
-NOT LIKE both fail without a Boolean result. The executing statement token reaches row-time
+is assigned. The linked language reference gives the exact budget and charging rules. LIKE,
+ILIKE and their NOT forms fail without a Boolean result. The executing statement token reaches row-time
 matching, including cached views and stored CHECKs; cancellation takes precedence over refusal.
 
 ## Example
 
 ```csharp
 var statement = (SqlQueryStatement)new SqlQueryParser().Parse(
-    "SELECT name LIKE 'a!%' ESCAPE '!' FROM t;");
+    "SELECT name ILIKE 'a!%' ESCAPE '!' FROM t;");
 var node = (SqlLikeExpression)((SqlSelectExpression)statement.SqlExpression).Columns[0].Expression;
 Console.WriteLine(node.Escape is SqlLiteralExpression); // True
 Console.WriteLine(node.IsNegated); // False
-Console.WriteLine(SqlExpressionRenderer.Render(node)); // name LIKE 'a!%' ESCAPE '!'
+Console.WriteLine(node.IsCaseInsensitive); // True
+Console.WriteLine(SqlExpressionRenderer.Render(node)); // name ILIKE 'a!%' ESCAPE '!'
 ```
 
-For name equal to `a%`, execution returns TRUE; `abc` returns FALSE.
+For name equal to `A%`, execution returns TRUE; `abc` returns FALSE. Case matching follows
+[the effective collation](../../../../database/sql/language/expressions/operators.md#ilike-and-not-ilike).
 
 ## Related reference
 

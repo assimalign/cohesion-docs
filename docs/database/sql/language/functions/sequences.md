@@ -67,6 +67,35 @@ Dynamic references lock the captured sequence directory. [Constant column sequen
 record dependencies; compound/dynamic defaults and CHECK/domain/view/SQL-function sequence
 expressions remain CS03074 (0A000). Identity, SERIAL and OWNED BY use the same allocator.
 
+## Column defaults
+
+These constant column DEFAULT forms retain an early-bound sequence dependency and survive
+restart:
+
+```sql
+DEFAULT nextval('s')
+DEFAULT nextval('s'::regclass)
+DEFAULT nextval(CAST('s' AS REGCLASS))
+DEFAULT NEXT VALUE FOR s
+```
+
+Numeric sequence identities and the existing `nextval('s' : : REGCLASS)` spelling also work.
+Domain defaults calling nextval are refused with CS03074 (0A000), as are dynamic/compound
+column allocation defaults. See [DEFAULT dependencies](../clauses/default.md#sequence-defaults).
+
+Execute separately in a fresh database:
+
+```sql
+CREATE SEQUENCE s;
+CREATE TABLE allocated(k BIGINT DEFAULT nextval('s'::regclass));
+INSERT INTO allocated DEFAULT VALUES;
+SELECT k FROM allocated;
+```
+
+SELECT returns `1`. After closing and reopening that database, INSERT DEFAULT VALUES still
+allocates from s. With no intervening allocations, SELECT ordered by k returns `1`, `33`:
+restart skips the unused tail of the existing 32-value reservation.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |
@@ -110,6 +139,8 @@ Returns `(2,2)`, then `3`: the skipped first row consumed value 1, while the thi
 [Functions](index.md) · [CREATE SEQUENCE](../statements/create-sequence.md) · [NEXT VALUE FOR](../expressions/next-value-for.md) · [RETURNING](../clauses/returning.md)
 
 ## Sources
+
+- **Default forms and restart** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNextvalReopenFixTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSequenceSqlTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSequenceSecondPassTests.Projection.cs`.

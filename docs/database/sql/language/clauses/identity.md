@@ -122,7 +122,7 @@ budget; exhaustion is CS05067 (53200). ADD GENERATED on an existing column is me
 Explicit [ALTER COLUMN TYPE](../statements/alter-table.md#alter-column-type) permits integer-family
 changes, preserving the live last value and called flag, including pending RESTART/setval(false).
 Full-definition identity type changes remain refused. Compiled typed schemas have no identity
-metadata and retain version 9; SQL script-created tables retain their SQL definitions.
+metadata and retain version 10; SQL script-created tables retain their SQL definitions.
 
 [TRUNCATE](../statements/truncate.md) CONTINUE IDENTITY preserves allocator state. RESTART IDENTITY
 atomically restarts **all sequences owned by tables in the truncate closure** at configured START,

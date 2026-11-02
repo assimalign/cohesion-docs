@@ -23,6 +23,10 @@ ON [ schema_name . ] table_name
 Index names are not database-global, so `DROP INDEX index_name` is not the complete statement.
 Fresh system-view snapshots reflect removal of the index and its key-column rows.
 
+The same syntax drops a [partial index](create-index.md#partial-indexes), including one whose
+predicate became unresolved after a registration change at restart. Dropping the affected index
+can restore table writes that were refusing with CS01009 (42883).
+
 DDL is self-committing and rejected inside explicit transactions with `CS04003`.
 Ordinary sessions cannot drop indexes owned by a compiled schema.
 

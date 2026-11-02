@@ -30,6 +30,9 @@ The expression is refused with CS03076 (0A000), before allocation, in:
 A [column DEFAULT](../clauses/default.md#sequence-defaults) may use NEXT VALUE FOR a published
 named sequence. Other persisted contexts, including compound defaults, CHECK, domain, view and
 SQL-function expressions use CS03074 (0A000). Window arguments and keys use CS03076 (0A000).
+Column DEFAULT NEXT VALUE FOR survives restart, as do the supported constant nextval forms:
+`nextval('s')`, `nextval('s'::regclass)` and `nextval(CAST('s' AS REGCLASS))`.
+Domain defaults calling nextval remain CS03074 (0A000).
 An absent sequence uses CS03073 (42P01); range exhaustion uses CS02002 (22003).
 Allocation is nontransactional and follows the
 [sequence evaluation and locking rules](../functions/sequences.md#evaluation-order).
@@ -54,6 +57,8 @@ Returns `(1,1,2)`, `(3,3,4)`.
 [Expressions](index.md) · [Sequence functions](../functions/sequences.md) · [CREATE SEQUENCE](../statements/create-sequence.md)
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlNextvalReopenFixTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSequenceSqlTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSequenceSecondPassTests.Validation.cs`.
