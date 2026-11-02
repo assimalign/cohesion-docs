@@ -16,7 +16,9 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 - **[SqlWindowExpression](sql-window-expression.md)** — Function and OVER syntax.
 - **[SqlWindowSpecification](sql-window-specification.md)** — Written partition/order, frame and inherited name.
-- **[SqlWindowFrame](sql-window-frame.md)** — Explicit ROWS/RANGE mode and boundaries.
+- **[SqlWindowFrame](sql-window-frame.md)** — Explicit ROWS/RANGE/GROUPS mode and boundaries.
+- **[SqlWindowExclusion](sql-window-exclusion.md)** — Members removed from the selected frame.
+- **[SqlWindowNullTreatment](sql-window-null-treatment.md)** — Navigation and frame-value NULL policy.
 - **[SqlWindowFrameBound](sql-window-frame-bound.md)** — Boundary kind and optional row offset.
 - **[SqlNamedWindow](sql-named-window.md)** — Ordered WINDOW definitions.
 

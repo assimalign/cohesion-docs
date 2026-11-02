@@ -12,7 +12,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 
 - **[Syntax conventions](syntax-conventions.md)** — diagrams, names, literals, and comments.
 - **[Statements](statements/index.md)** — queries, mutations, and catalog introspection.
-- **[Clauses](clauses/index.md)** — filtering, grouping, projection, ordering and paging.
+- **[Clauses](clauses/index.md)** — filtering, grouping, projection, UNION, ordering and paging.
 - **[Functions](functions/index.md)** — scalar signatures, transaction clocks, aggregates and NULL behavior.
 - **[Patterns](patterns.md)** — nodes, relationships, maps, directions, and execution bounds.
 - **[Path selectors](path-selectors.md)** — ANY/ALL/SHORTEST execution, modes, prefilters and budgets.
@@ -32,6 +32,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [LET](clauses/let.md), [FILTER](clauses/filter.md) | Supported | Sequential value bindings and TRUE-only stage filtering |
 | [FOR / UNWIND](clauses/for.md) | Supported | Streaming list expansion; NULL gives no rows; proven entity kinds survive |
 | [WITH](clauses/with.md), [RETURN … NEXT](clauses/next.md) | Supported | Intermediate projection, scoped carry-forward and one statement transaction |
+| [UNION and UNION ALL](clauses/union.md) | Supported subset | Read-only operands, matching columns, structural duplicate removal, operand-local paging and NEXT composition |
 | `RETURN` | Supported | Standalone or after MATCH/insertion; expressions, aliases, ALL/DISTINCT and named-binding star |
 | [ORDER BY](clauses/order-by.md) | Supported | Expression keys, ASC/ASCENDING/DESC/DESCENDING, NULLS FIRST/LAST and stable ties |
 | [OFFSET/SKIP and LIMIT](clauses/limit-offset.md) | Supported | Output paging after RETURN; offset precedes limit |

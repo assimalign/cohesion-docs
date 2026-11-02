@@ -24,7 +24,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00013` | NULLS without FIRST or LAST; at the invalid option or end of input; no assigned SQLSTATE |
 | `CD00014` | Direct IN subquery without SELECT RAW/VALUE; at SELECT; no assigned SQLSTATE |
 
-See [subqueries](expressions/subqueries.md) for evaluation, CD05015 depth and CD05018 memory limits.
+See [subqueries](expressions/subqueries.md) for evaluation, CD05015 depth, CD05018 memory and CD05020 work limits.
 
 Numeric tokens retain their digits in a JsonElement. Valid syntax that is out of decimal range,
 underflows, or loses nonzero fractional digits fails during planning/evaluation as CD02007,
@@ -277,10 +277,16 @@ standalone parsers retain unknown-name parse diagnostics. See [functions](functi
 | CD01033 | FROM expression has no explicit alias or implicit field name | — |
 | CD01034 | Unbound source variable without an input-row scope | — |
 
-[Derived and expression sources](clauses/from.md) execute. Correlation and mutation-source
-integration retain CK00001; generated star wrappers count toward CD05015's projection depth.
+[Derived and expression sources](clauses/from.md), correlation and DML subqueries execute.
+Generated star wrappers count toward CD05015's projection depth.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD05020 | Shared expression-evaluation budget exhausted across subqueries and expression sources, including cache hits; statement writes roll back | — |
 
 ## Sources
+
+- **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against `DocumentCorrelatedSubqueryTests.cs` and `DocumentDmlSubqueryTests.cs`.
 
 - **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 

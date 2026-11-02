@@ -194,6 +194,11 @@ Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
 SQL storage format 30 and wire frames are unchanged.
 
+[ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
+SET DEFAULT for referenced-key changes. RESTRICT is immediate; NO ACTION checks the final state.
+RETURNING shows direct writes before cascades. Conflicting action origins report CS05085 (27000);
+every referential closure shares StatementMemoryBudget (CS05067 / 53200).
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE |

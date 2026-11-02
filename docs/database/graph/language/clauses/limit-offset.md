@@ -34,6 +34,10 @@ mutation set: insertion executes for every matched binding even when LIMIT is ze
 the first move. Final results remain materialized under the statement memory budget. Ordered
 finite pages retain a top set bounded by OFFSET + LIMIT; the physical-work budget still applies. EXPLAIN validates counts before returning SortPage plan rows.
 
+In a [UNION composite](union.md), this RETURN tail applies only to its operand. A tail after
+the final RETURN pages/orders only that operand; grouped composites accept no global suffix.
+Use NEXT to project the combined binding table.
+
 ## Diagnostics
 
 | Code | Meaning and trigger |

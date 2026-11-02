@@ -33,8 +33,8 @@ ArrayComprehension and FirstComprehension are also admitted by the profile. Both
 [OqlComprehensionExpression](oql-comprehension-expression.md); their retired function spellings
 remain CK00001.
 
-Subquery and Exists are admitted for uncorrelated [expression subqueries](oql-subquery-expression.md)
-and the EXISTS unary operator. Correlated and DML forms remain CK00001.
+Subquery and Exists are admitted for [expression subqueries](oql-subquery-expression.md)
+and the EXISTS unary operator. Correlated and DML forms execute.
 
 DerivedFrom and ExpressionFrom are admitted by the profile and use
 [OqlSelectExpression.Source](oql-select-expression.md). See [FROM](../../../../database/document/language/clauses/from.md).

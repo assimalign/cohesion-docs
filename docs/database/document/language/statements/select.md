@@ -98,7 +98,7 @@ paging consume expanded rows. A star over a stored collection without UNNEST sti
 
 ## Derived and expression sources
 
-[FROM](../clauses/from.md) accepts an aliased SELECT or uncorrelated expression. Arrays expand in
+[FROM](../clauses/from.md) accepts an aliased SELECT or expression. Arrays expand in
 order, objects/scalars/NULL supply one row, and MISSING supplies none. Their lone stars produce
 alias-keyed objects; META returns NULL. Simple queries stream through paging; LIMIT 0 skips
 execution after static validation, including sorting and grouping. These sources compose with
@@ -106,10 +106,10 @@ UNNEST and nested SELECTs. Stored collection byte-preservation rules above apply
 
 ## Expression subqueries
 
-Uncorrelated [(SELECT ...)](../expressions/subqueries.md) returns an array wherever a SELECT
+[(SELECT ...)](../expressions/subqueries.md) returns an array wherever a SELECT
 expression is allowed. [EXISTS](../expressions/exists.md) tests for a nonempty array. Nested
-queries share this statement's snapshot and memory budget. Correlation and
-subqueries in DML remain CK00001. Nested star results wrap nonobject roots under `document`;
+queries share this statement's snapshot and work/memory budgets. Correlation and DML
+subqueries execute; see the linked reference for capture scope and statement-start reads. Nested star results wrap nonobject roots under `document`;
 a top-level lone star over a stored collection keeps the stored-value rule above.
 
 ## JSON bytes

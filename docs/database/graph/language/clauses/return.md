@@ -90,6 +90,10 @@ ExecutePaths/QueryPathsAsync accepts exactly one bare node, relationship or path
 read-only composition, optionally DISTINCT, or star over one named binding. Computed, multiple or
 multi-binding star projections fail the path-request shape check before duplicate-name checks.
 
+In a [UNION composite](union.md), this RETURN tail applies only to its operand. A tail after
+the final RETURN pages/orders only that operand; grouped composites accept no global suffix.
+Use NEXT to project the combined binding table.
+
 ## Diagnostics
 
 | Code | Meaning and trigger |

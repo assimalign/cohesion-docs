@@ -18,7 +18,7 @@ OQL expressions combine document paths, scalar values, parameters, operators, an
 - **Array predicates** — [ANY/SOME/EVERY](quantified-predicates.md) test scoped elements; [IN](operators.md#in-and-between) also accepts an array operand.
 
 Parentheses group expressions. Aggregate calls are documented under
-[Aggregate functions](../functions/aggregate-functions.md). [Expression subqueries](subqueries.md) return arrays; [EXISTS](exists.md) tests array presence. Correlated and DML subqueries remain deferred. [Derived and expression FROM](../clauses/from.md) execute. Recursive expression parsing is capped at 128 levels.
+[Aggregate functions](../functions/aggregate-functions.md). [Expression subqueries](subqueries.md) return arrays; [EXISTS](exists.md) tests array presence. Correlated and DML subqueries execute with shared work/memory limits. [Derived and expression FROM](../clauses/from.md) execute. Recursive expression parsing is capped at 128 levels.
 
 ## See also
 

@@ -31,6 +31,32 @@ failure. DML pending buffers are completely staged before mutation, so pending-b
 refuses before the first write. Serialization preflight also enforces 16 MiB frames (CD05016)
 and 256-level result depth (CD05019) inside the transaction. These codes have no assigned SQLSTATE.
 
+## StatementWorkBudget
+
+```csharp
+public long StatementWorkBudget { get; set; } = 10_000_000;
+```
+
+The positive count bounds reached expression evaluations in statements containing subqueries or
+expression sources. All depths and cache hits share it; unreached branches spend no work. Engine
+creation throws ArgumentOutOfRangeException with ParamName StatementWorkBudget for a nonpositive value.
+The engine copies the option at construction. Exhaustion raises DatabaseException with CD05020
+(no assigned SQLSTATE), before the next evaluation, and rolls back statement writes.
+
+Adapted from `DocumentCorrelatedSubqueryTests.Create_WorkBudget_ShouldValidateAndSnapshotOptionAsync`:
+
+```csharp
+var options = new DocumentDatabaseEngineOptions { StatementWorkBudget = 16 };
+await using var engine = DocumentDatabaseEngine.Create("frozen-work", options);
+options.StatementWorkBudget = 32;
+```
+
+The engine continues using the copied limit of 16 evaluations.
+
+Cached arrays have statement lifetime; uncached nested scratch releases with the consuming
+expression/row. Retained projections and keys own separate charged values under
+StatementMemoryBudget. See [subquery evaluation](../../../../database/document/language/expressions/subqueries.md#evaluation).
+
 ## Example
 
 Adapted from `DocumentReturningBudgetTests.ExecuteAsync_ExactReturningBudget_ShouldCountEachOwnedRepresentationOnce`:
@@ -50,6 +76,8 @@ encoded or patched bytes, so their limits differ.
 See [RETURNING](../../../../database/document/language/clauses/returning.md).
 
 ## Sources
+
+- `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCorrelatedSubqueryTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngineOptions.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/src/DocumentDatabaseEngine.cs`.

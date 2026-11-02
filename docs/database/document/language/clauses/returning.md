@@ -26,7 +26,7 @@ The target alias, or collection name without an alias, binds the image. META().i
 META(binding).version address that image's metadata. INSERT/UPSERT SELECT source bindings do
 not escape into RETURNING. Scalar functions, parameters, predicates, CASE, constructors and
 [ARRAY/FIRST comprehensions](../expressions/comprehensions.md) work;
-aggregates and subqueries are excluded. Names and types follow [SELECT](../statements/select.md).
+[subqueries](../expressions/subqueries.md) execute; aggregates in the outer projection are excluded. Names and types follow [SELECT](../statements/select.md).
 Named MISSING members are omitted; explicit NULL remains JSON null. RAW/VALUE converts top-level
 MISSING to JSON null. Constructors omit MISSING object members and replace MISSING array elements
 with null. ELEMENT is not a synonym for VALUE.
@@ -35,6 +35,11 @@ There is no separate RETURNING DISTINCT, sort or paging. Zero matches returns an
 projection metadata and affected count 0. Parameter and expression-context validation still runs.
 Without RETURNING, writes retain count-only completion. EXPLAIN validates the clause and describes
 Returning/ReturningValue without reading documents, invoking projection callbacks or writing.
+
+Nested collection reads see statement-start content, including earlier transaction statements,
+while captured target bindings see the returned image and actual version. A clause containing
+subqueries stages before writes. Callbacks can run before a later write failure; results remain
+private until all writes succeed. Failed statements can leave version gaps.
 
 ### Atomicity and limits
 
@@ -78,8 +83,9 @@ client's error does not mean the autocommit write rolled back. See
 | CD05015 | Array/object constructor exceeds the 256-level result limit, at its expression | — |
 | CD05016 | Serialized result row or header exceeds the 16 MiB frame limit | — |
 | CD05018 | Retained result exceeds StatementMemoryBudget, at the clause | — |
+| CD05020 | Shared reached-expression work budget exhausted; statement writes roll back | — |
 | CD05019 | Serialized value exceeds 256 levels, including the named wrapper, at the clause | — |
-| CK00001 | Unsupported projection form, such as a subquery or ELEMENT call | — |
+| CK00001 | Unsupported projection form, such as an ELEMENT call | — |
 
 Other expressions retain their [normal diagnostic codes](../diagnostics.md).
 

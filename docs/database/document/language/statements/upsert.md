@@ -50,12 +50,17 @@ with SELECT staging and RETURNING. The complete pending buffer is charged before
 exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
 success, failure and cancellation.
 
+[Subqueries](../expressions/subqueries.md#mutation-subqueries) execute in this statement,
+including RETURNING. Nested reads see statement-start data and earlier transaction statements,
+never this statement's writes. INSERT/UPSERT SELECT also accepts derived and expression sources.
+The shared work limit reports CD05020 (no assigned SQLSTATE) on exhaustion.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `CD00002` | Missing KEY/VALUE header, malformed pair/binding, qualified destination or trailing syntax | — |
-| `CK00001` | OPTIONS or a nested SELECT in VALUES | — |
+| `CK00001` | OPTIONS | — |
 | `CD05001` | VALUES reads paths/metadata/aggregates, or KEY/VALUE binding names no SELECT output | — |
 | `CD01002` | Destination collection does not exist | — |
 | `CD04004` | Read-only system destination | — |

@@ -10,6 +10,7 @@ Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 public sealed class SqlWindowExpression : SqlExpression
 {
     public SqlFunctionCallExpression Function { get; }
+    public SqlWindowNullTreatment NullTreatment { get; }
     public string? WindowName { get; }
     public SqlWindowSpecification? Specification { get; }
 }
@@ -19,13 +20,14 @@ public sealed class SqlWindowExpression : SqlExpression
 
 Construction is internal; parse SQL to obtain the node. Function retains the call and arguments.
 WindowName is the direct `OVER name` reference; Specification holds a parenthesized OVER,
-including any copied name. Depth includes call arguments and keys. Accessors add no exceptions.
+including any copied name. [NullTreatment](sql-window-null-treatment.md) retains Default, Ignore
+or Respect; Default means RESPECT NULLS. Depth includes call arguments and keys. Accessors add no exceptions.
 
 Inspect parser diagnostics before execution. Invalid call signatures use CS00011 (42601),
 placement/missing OVER uses CS05076 (42P20), and nested windows use CS05077 (42P20).
-ROWS, offset-free RANGE, aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE execute.
-OVER on a scalar function uses CS05083 (42809). Aggregate-window DISTINCT, deferred frame modes
-and value modifiers retain CK00001. Engine failures
+ROWS, RANGE offsets, GROUPS, exclusion and NULL treatment execute.
+OVER on a scalar function uses CS05083 (42809). NULL treatment on an incompatible function uses
+CS05088 (42601). Aggregate-window DISTINCT and FROM FIRST/LAST retain CK00001. Engine failures
 carry DatabaseException.Diagnostics. See [all window codes](../../../../database/sql/language/clauses/window.md#diagnostics).
 
 ## Example

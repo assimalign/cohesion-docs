@@ -6,7 +6,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
-| Correlated and DML subqueries; JOIN/NEST, WITH, set operations | CK00001 | Uncorrelated [expression subqueries](expressions/subqueries.md) execute in SELECT; INSERT SELECT remains supported |
+| JOIN/NEST, WITH, set operations | CK00001 | [Correlated and DML subqueries](expressions/subqueries.md) execute, including derived/expression INSERT SELECT sources; qualified stars remain CK00001 |
 | LIMIT m, n and FETCH FIRST | CK00001 | Use [LIMIT n OFFSET m](clauses/limit-offset.md); SELECT paging executes |
 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS | CK00001 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) with one binding and [array IN](expressions/operators.md#in-and-between) execute |
 | UNNEST in UPDATE/DELETE, NEST, WITHIN, FLATTEN calls | CK00001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |

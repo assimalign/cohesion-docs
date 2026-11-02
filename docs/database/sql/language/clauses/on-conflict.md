@@ -147,6 +147,11 @@ SQL BEGIN has no isolation-level clause. In-process callers select ReadCommitted
 `SqlDatabaseSession.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)`.
 See [transactions](../statements/begin-transaction.md).
 
+[ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
+SET DEFAULT for referenced-key changes. RESTRICT is immediate; NO ACTION checks the final state.
+RETURNING shows direct writes before cascades. Conflicting action origins report CS05085 (27000);
+every referential closure shares StatementMemoryBudget (CS05067 / 53200).
+
 ## Diagnostics and limits
 
 ### Size limits

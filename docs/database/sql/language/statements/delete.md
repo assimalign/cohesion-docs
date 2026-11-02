@@ -67,6 +67,11 @@ a missing replacement parent also uses CS03039. Each constraint exception carrie
 diagnostic. The statement rolls back parent and child changes together, leaving an explicit
 transaction usable. See [Diagnostics](../diagnostics.md).
 
+Every [referential closure](../constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
+StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
+about 79,900 rows, less when other statement work is retained. There is no cascade depth limit.
+CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned attempts.
+
 ## Lock waits and time limits
 
 Foreign-key preparation reuses one [statement reference graph](../constraints.md#foreign-key-preparation-and-concurrent-ddl)

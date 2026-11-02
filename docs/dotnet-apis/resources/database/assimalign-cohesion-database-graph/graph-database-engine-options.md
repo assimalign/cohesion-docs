@@ -36,6 +36,11 @@ await using var engine = await builder.BuildAsync();
 
 [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md) can lower the ceilings for an embedded request or typed traversal. Remote statements use the server's engine configuration. See [streaming execution](design.md#streaming-execution-budgets).
 
+[UNION/UNION ALL](../../../../database/graph/language/clauses/union.md) shares these ceilings
+across all operands and outputs. Each submitted composite row spends one work unit. UNION
+duplicate-elimination state uses CG05030 on exhaustion; other memory and work use CG05020 and
+CG05004. UNION ALL has no distinct table or per-operand result set; final results still materialize.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngineOptions.cs`.

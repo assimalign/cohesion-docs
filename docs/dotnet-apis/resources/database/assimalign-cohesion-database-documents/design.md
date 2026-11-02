@@ -782,7 +782,8 @@ be rolled back.
 [Expression subqueries](../../../../database/document/language/expressions/subqueries.md) return
 owned arrays on the statement's snapshot and budget. Lazy deterministic results cache per statement;
 callbacks and NOW functions disable caching. Unreached branches perform no nested execution.
-Correlation and DML subqueries remain CK00001. IS now binds above EXISTS and the
+Correlation and DML subqueries execute. Captures follow lexical shadowing and every enclosing
+GROUP BY; ORDER BY subqueries can capture projection aliases. IS now binds above EXISTS and the
 comparison/IN/BETWEEN/LIKE tier; the [full precedence table](../../../../database/document/language/expressions/operators.md#precedence)
 also includes string concatenation and IS [NOT] DISTINCT FROM.
 
@@ -792,19 +793,26 @@ also includes string concatenation and IS [NOT] DISTINCT FROM.
 | CD00015 | Derived FROM SELECT has no alias | — |
 | CD01033 | FROM expression has no explicit alias or implicit field name | — |
 | CD01034 | Unbound source variable without an input-row scope | — |
+| CD05020 | Shared reached-expression work budget exhausted | — |
 
 CD05015 now guards complete SELECT projection depth, including named row wrappers. CD05018
-covers nested sources, scratch and results; materialized arrays remain charged until statement exit.
+covers nested sources, scratch and results. Cached arrays have statement lifetime; uncached
+arrays release with their consumer expression/row. Retained output and keys own charged copies.
+StatementWorkBudget defaults to 10,000,000 reached expression evaluations, shared across all depths
+and cache hits. DML nested reads see statement-start content; RETURNING captures its normal
+post-image (DELETE pre-image) and actual metadata. See the linked subquery reference for examples
+and the open unaliased-path inconsistency, cohesion#1767.
 
 ## Derived and expression FROM sources
 
 [FROM](../../../../database/document/language/clauses/from.md) admits derived SELECTs with a required
-alias and uncorrelated expressions. [OqlSelectExpression.Source](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
+alias and expressions that may capture outer bindings. [OqlSelectExpression.Source](../assimalign-cohesion-database-documents-language/oql-select-expression.md)
 retains the source; Collection is empty for these queries. Stars wrap the alias and META returns
 NULL. Simple sources stream through LIMIT; sorting, grouping and DISTINCT retain required rows
 under CD05018. LIMIT 0 validates statically, then skips every source and execution stage while
 keeping planned column metadata. All levels share the operation snapshot, own writes and budget.
-Correlation, JOIN/NEST and mutation-source integration remain deferred.
+Correlated sources evaluate per outer row; INSERT/UPSERT SELECT accepts both source forms.
+JOIN/NEST remains deferred.
 
 ## Sources
 

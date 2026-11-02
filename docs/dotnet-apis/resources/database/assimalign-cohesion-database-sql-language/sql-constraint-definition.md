@@ -30,8 +30,8 @@ SetDefault requests their defaults. See [constraints](../../../../database/sql/l
 for cascade chains, final-state checks and atomicity. Property access adds no exceptions.
 Parser.Parse returns diagnostics; execution rejects invalid text with DatabaseParseException.
 Deferred constraints remain CK00001. ON UPDATE declarations accept all five actions in either
-order beside ON DELETE. Duplicate/incomplete actions use CS00003. Changing referenced keys
-under Cascade/SetNull/SetDefault retains CK00001 until action execution is implemented.
+order beside ON DELETE. Duplicate/incomplete actions use CS00003. Cascade/SetNull/SetDefault execute on referenced-key changes. Restrict is immediate; NoAction
+checks the final statement state. Conflicting action origins use CS05085 (27000).
 
 ## Example
 

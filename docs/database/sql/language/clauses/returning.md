@@ -32,6 +32,10 @@ read the original row. DELETE returns old values for directly targeted rows; cas
 SET NULL/DEFAULT child updates do not contribute rows. UPDATE/DELETE output order is unspecified.
 NULL follows the selected expressions' ordinary rules; SQL has no MISSING value.
 
+Across UPDATE, UPDATE FROM, ON CONFLICT DO UPDATE and MERGE, RETURNING shows the statement's
+own writes before subsequent ON UPDATE actions. A cascade may therefore leave a stored row
+different from its returned direct image. See [update actions](../constraints.md#on-update-declarations).
+
 [ON CONFLICT](on-conflict.md) returns inserted and post-update rows in proposal source order.
 DO NOTHING and FALSE/UNKNOWN update filters return no row and contribute no affected count.
 The EXCLUDED pseudo-relation is outside RETURNING scope (CK00001); a real target named or

@@ -29,7 +29,7 @@ source alias. Collection and Predicate inherit their enclosing clause's aggregat
 use its group. An aggregate argument can contain this predicate, but cannot contain another
 aggregate inside it (CD05001). Aggregate EVERY is a separate [OqlCallExpression](oql-call-expression.md)
 aliasing BOOL_AND. See the [nesting examples](../../../../database/document/language/functions/aggregate-functions.md#examples).
-Multi-binding text forms use CK00001. Uncorrelated [subqueries](oql-subquery-expression.md) execute in SELECT expressions.
+Multi-binding text forms use CK00001. [Subqueries](oql-subquery-expression.md) can capture the quantifier binding and execute in SELECT and DML expressions.
 
 ## Example
 

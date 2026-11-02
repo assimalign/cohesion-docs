@@ -74,12 +74,17 @@ with SELECT staging and RETURNING. The complete pending buffer is charged before
 exhaustion reports CD05018 (no assigned SQLSTATE) before any write. Reservations release on
 success, failure and cancellation.
 
+[Subqueries](../expressions/subqueries.md#mutation-subqueries) execute in this statement,
+including RETURNING. Nested reads see statement-start data and earlier transaction statements,
+never this statement's writes.
+The shared work limit reports CD05020 (no assigned SQLSTATE) on exhaustion.
+
 ## Diagnostics
 
 | Code | Meaning and trigger | SQLSTATE where supplied |
 | --- | --- | --- |
 | `CD00002` | Missing SET/UNSET, malformed path or assignment, qualified database target or leftover syntax | — |
-| `CK00001` | USE KEYS, LIMIT, FOR or a nested SELECT | — |
+| `CK00001` | USE KEYS, LIMIT or FOR | — |
 | `CD05001` | Invalid metadata or aggregate context | — |
 | `CD01002` | Collection does not exist | — |
 | `CD04004` | Read-only system collection target | — |

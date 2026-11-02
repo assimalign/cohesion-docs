@@ -59,11 +59,12 @@ execute in WHERE over the pre-statement snapshot, including the target table and
 earlier uncommitted changes. Independent children materialize once; correlated children evaluate
 for each candidate row before writes. Subqueries in SET and RETURNING report CK00001.
 [RETURNING](../clauses/returning.md) projects the new values; SET expressions read original values.
-Foreign keys and incoming NO ACTION/RESTRICT checks use the statement's final replacements, rather
-than old rows that are being replaced. A self-reference may move with its key and mutually referenced
+Foreign keys and incoming NO ACTION checks use the statement's final replacements, rather
+than old rows that are being replaced. ON UPDATE RESTRICT checks existing references immediately. A self-reference may move with its key and mutually referenced
 keys may swap; a final dangling reference fails atomically. See the
-[final-row examples](../constraints.md#update-final-row-examples). [ON UPDATE declarations](../constraints.md#on-update-declarations) persist, but CASCADE/SET NULL/SET DEFAULT
-refuse changed referenced keys with CK00001 before writes, including case-only changes.
+[final-row examples](../constraints.md#update-final-row-examples). [ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
+SET DEFAULT, including case/accent changes detected on stored key representations. RETURNING
+shows direct writes before cascades. Conflicting action origins use CS05085 (27000).
 Row updates remain available on schema-owned tables even though session DDL is restricted.
 
 Constraint failures carry one Error diagnostic: `CS03037` (23505) for duplicate primary,
@@ -201,7 +202,8 @@ Joined DML holds intent-shared table locks on read sources, including tables rea
 CTEs or subqueries, until the transaction ends. Failure/cancellation undoes the statement and
 releases its new grants while preserving earlier transaction grants. Ordinary constraint checks,
 final-row foreign-key validation, index maintenance and statement rollback still apply; a
-RETURNING failure also undoes the statement. ON UPDATE CASCADE/SET NULL/SET DEFAULT action execution remains refused with CK00001.
+RETURNING failure also undoes the statement. ON UPDATE CASCADE/SET NULL/SET DEFAULT actions also execute for UPDATE FROM.
+All referential closures share StatementMemoryBudget (CS05067 / 53200).
 
 ### Example
 

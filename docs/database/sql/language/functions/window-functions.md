@@ -38,7 +38,9 @@ of rows leave trailing buckets empty; the function still returns consecutive buc
 The omitted offset is 1 and the omitted default is NULL. Offsets evaluate per current row and
 accept signed integers through the full Int64 range. Zero selects the current row; a negative
 offset reverses direction. NULL offset returns NULL. A target outside the partition uses the
-current row's default expression. NULL target values remain NULL: navigation respects NULLs.
+current row's default expression. Omission or RESPECT NULLS counts NULL target values;
+IGNORE NULLS skips NULL argument values while counting the offset. Offset zero still reads
+the current row. Place the modifier after the call, before OVER.
 
 Value/default use common-type implicit casts, including registered casts. Unknown string
 constants coerce at binding even when the default will not be used; for example,
@@ -51,7 +53,8 @@ See [OVER diagnostics](../clauses/window.md#diagnostics) for modifiers and place
 ## Frame value functions
 
 FIRST_VALUE, LAST_VALUE and NTH_VALUE read the selected [frame](../clauses/window.md#frame-boundaries-and-defaults),
-respecting NULL values. An empty frame or missing nth member yields NULL. Without an explicit
+respecting NULL values by default. IGNORE NULLS counts only non-NULL argument values among the
+frame members remaining after exclusion. An empty frame or missing nth member yields NULL. Without an explicit
 frame, ordered windows end at the last current-row peer; LAST_VALUE therefore need not return
 the last value of the partition. Use ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
 for the whole partition. Ranking and LAG/LEAD ignore explicit frame boundaries.
@@ -60,12 +63,11 @@ NTH_VALUE evaluates index for each current row. NULL index returns NULL; zero or
 raises CS05082 (22016), even with an empty frame. It accepts signed integer types through BIGINT;
 other types raise CS02073 (42804). **Difference from PostgreSQL:** BIGINT indexes are accepted.
 FIRST_VALUE/LAST_VALUE take one argument and NTH_VALUE takes two. Invalid arity/modifiers use
-CS00011 (42601); every call requires OVER (CS05076, 42P20). FROM FIRST/LAST and explicit
-IGNORE/RESPECT NULLS remain CK00001, although default evaluation respects NULLs.
+CS00011 (42601); every call requires OVER (CS05076, 42P20). FROM FIRST/LAST remains CK00001. IGNORE/RESPECT NULLS executes only on LAG, LEAD, FIRST_VALUE,
+LAST_VALUE and NTH_VALUE; other functions use CS05088 (42601).
 
 [Aggregate windows](aggregate-functions.md#aggregate-windows) also return one value per row and
-accept FILTER. See the [recomputation limit](../clauses/window.md#recomputation-limit), including
-native aggregates over moving frames.
+accept FILTER. See the [recomputation limit](../clauses/window.md#recomputation-limit) for application/order-sensitive aggregates and restart-sensitive inputs.
 
 ## Example
 
@@ -96,6 +98,16 @@ FROM t ORDER BY id;
 ```
 
 Returns `(1,NULL,10)`, `(2,NULL,10)`, `(3,10,20)`, `(4,10,NULL)`.
+
+NULL treatment on the same table:
+
+```sql
+SELECT id, FIRST_VALUE(k) IGNORE NULLS OVER(ORDER BY id) AS first_nonnull,
+       LAG(k) IGNORE NULLS OVER(ORDER BY id) AS previous_nonnull
+FROM t ORDER BY id;
+```
+
+Returns (1,NULL,NULL), (2,10,NULL), (3,10,10), (4,10,10).
 
 ## See also
 

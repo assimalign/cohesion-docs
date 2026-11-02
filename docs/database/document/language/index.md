@@ -29,7 +29,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
-| [Expression subqueries](expressions/subqueries.md), [EXISTS](expressions/exists.md) | Supported subset | Uncorrelated SELECT arrays, including RAW/VALUE and direct IN; DML subqueries remain deferred; [derived and expression FROM](clauses/from.md) execute |
+| [Expression subqueries](expressions/subqueries.md), [EXISTS](expressions/exists.md) | Supported subset | Correlated SELECT arrays, including RAW/VALUE and direct IN; DML subqueries execute; [derived and expression FROM](clauses/from.md) execute |
 | CREATE/DROP COLLECTION | Supported | Conditional DDL in an automatic statement transaction |
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
 | [RETURNING](clauses/returning.md) | Supported | INSERT/UPSERT/UPDATE post-images, DELETE pre-images; named, RAW/VALUE or lone star projection with affected count |

@@ -38,9 +38,9 @@ Serialization round-trips the action; provisioning, reconciliation, compensating
 catalog rename and reopen retain it. Earlier artifacts, applied markers and pending targets
 are refused at schema.format before comparison; no upgrade reader exists.
 
-The action is a declaration in this release. Parent-key changes under Cascade, SetNull or
-SetDefault raise DatabaseException/CK00001 before row writes. Restrict and NoAction retain
-statement-end checks. See [ON UPDATE](../../../../database/sql/language/constraints.md#on-update-declarations).
+Cascade, SetNull and SetDefault execute on referenced-key changes across all update paths.
+Restrict checks existing references immediately; NoAction checks the final statement state.
+Conflicting replacements from different action origins raise DatabaseException/CS05085 (27000). See [ON UPDATE](../../../../database/sql/language/constraints.md#on-update-declarations).
 
 ## Example
 

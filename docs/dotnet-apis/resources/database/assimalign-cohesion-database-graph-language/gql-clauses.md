@@ -23,6 +23,9 @@ public static class GqlClauses
     public const string Unwind = "UNWIND";
     public const string With = "WITH";
     public const string Next = "NEXT";
+    public const string SetOperation = "UNION";
+    public const string UnionDistinct = "UNION DISTINCT";
+    public const string UnionAll = "UNION ALL";
     public const string Set = "SET";
     public const string Remove = "REMOVE";
     public const string Merge = "MERGE";
@@ -112,6 +115,10 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.PathMode)); //
 PatternComprehension is enabled by GqlLanguageProfile.Instance and produces
 [GqlPatternComprehensionExpression](gql-pattern-comprehension-expression.md). Reading the constant
 throws no exceptions. `Instance.Supports(GqlClauses.PatternComprehension)` returns true.
+
+SetOperation, UnionDistinct and UnionAll are enabled. They admit read-only
+[composite queries](gql-composite-query.md), including NEXT pipelines, with matching columns
+and shared work/memory budgets. Reading the constants adds no exceptions.
 
 ## Sources
 

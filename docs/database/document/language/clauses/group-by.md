@@ -35,6 +35,10 @@ expressions built from group keys and constants. Binding compares expression str
 literal scalar types, and treats qualified and unqualified paths for the same iteration variable
 as equivalent. Aggregate queries without explicit grouping form one group even for an empty source.
 
+[Correlated subqueries](../expressions/subqueries.md#correlation-and-scope) may capture group-term
+and GROUP AS bindings. Captures must satisfy every enclosing GROUP BY; an inner aggregate does
+not expose an ungrouped outer field. Violations use CD05001.
+
 ### GROUP AS and aliases
 
 Each GROUP AS array element is an object containing the FROM binding (its alias, or the collection

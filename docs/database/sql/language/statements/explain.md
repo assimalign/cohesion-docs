@@ -51,10 +51,11 @@ ANALYZE's actual_rows counts candidate pairs, excluding the separately emitted u
 ### Window frames
 
 WindowAgg detail retains each function's frame and sort_shared for compatible partition/order
-specifications. Different frames can share the sort. EXPLAIN ANALYZE reports frame_visits,
-counting candidate aggregate inputs before FILTER. It executes full partitions even with LIMIT
-and can reach [CS05084's recomputation cap](../clauses/window.md#recomputation-limit), including
-for native moving frames. Plain EXPLAIN does not evaluate frame offsets or aggregate inputs.
+specifications. Different frames can share the sort. EXPLAIN ANALYZE reports frame_visits
+(distinct safe native inputs or fallback candidates before FILTER), transitions, inverse_transitions
+and boundary_visits. It executes full partitions even with LIMIT. Application/order-sensitive
+aggregates and restart-sensitive inputs retain [CS05084](../clauses/window.md#recomputation-limit).
+Plain EXPLAIN does not evaluate frame offsets or aggregate inputs.
 
 ### Planning and results
 

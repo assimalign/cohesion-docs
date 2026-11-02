@@ -36,7 +36,7 @@ functions is an invalid call modifier (CS00011, 42601).
 Calls with different filters have independent states. Filtered calls with volatile arguments,
 ordering keys or conditions also retain independent states; child queries conservatively prevent
 sharing. EXPLAIN includes `filtered_aggregates=N` on a grouping node when N is nonzero.
-FILTER adds one named clause; the profile now measures 77 of 79 declared clauses.
+FILTER adds one named clause; the profile now measures 80 of 82 declared clauses.
 
 ## Diagnostics
 
