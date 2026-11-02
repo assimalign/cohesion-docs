@@ -2,7 +2,7 @@
 
 Matches a complete fixed pattern for each incoming row, or creates every unbound part.
 
-> **Status:** Implemented, including ON CREATE SET and ON MATCH SET.
+> **Status:** Implemented. Includes ON CREATE SET and ON MATCH SET.
 
 ## Syntax
 

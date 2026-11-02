@@ -2,7 +2,7 @@
 
 Graph patterns describe fixed or quantified paths of labeled nodes and typed relationships with scalar expression properties.
 
-> **Status:** Fixed/quantified matching, selectors and inline WHERE execute under statement budgets.
+> **Status:** Partial. Fixed/quantified matching, selectors and inline WHERE execute under statement budgets.
 
 ## Syntax
 

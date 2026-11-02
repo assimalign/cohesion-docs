@@ -2,7 +2,7 @@
 
 Exports a physical table as UTF-8 text or CSV to a caller-owned stream.
 
-> **Status:** Implemented for table exports through the COPY consumer APIs.
+> **Status:** Implemented. Supports table exports through the COPY consumer APIs.
 
 ## Syntax
 

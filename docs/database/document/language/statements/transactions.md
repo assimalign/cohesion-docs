@@ -2,7 +2,7 @@
 
 Begins, commits or rolls back an explicit transaction on one Documents session.
 
-> **Status:** Implemented in process and over InMemory and TCP through the Documents client.
+> **Status:** Implemented. Works in process and over InMemory and TCP through the Documents client.
 
 ## Syntax
 

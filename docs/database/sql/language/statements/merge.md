@@ -2,7 +2,7 @@
 
 Applies ordered INSERT, UPDATE or DELETE actions over a target/source association.
 
-> **Status:** Execution, including ReadCommitted target rechecks and mixed-action final-state constraints.
+> **Status:** Implemented. Includes ReadCommitted target rechecks and mixed-action final-state constraints.
 
 ## Syntax
 

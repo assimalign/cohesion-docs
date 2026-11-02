@@ -2,7 +2,7 @@
 
 Creates or releases a named undo scope inside an explicit transaction.
 
-> **Status:** Implemented in process and over InMemory and TCP.
+> **Status:** Implemented. Works in process and over InMemory and TCP.
 
 ## Syntax
 

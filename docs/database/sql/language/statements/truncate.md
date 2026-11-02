@@ -2,7 +2,7 @@
 
 Empties a set of stored tables atomically while preserving their definitions and indexes.
 
-> **Status:** Implemented for automatic statements; explicit transactions remain excluded.
+> **Status:** Partial. Automatic statements execute; explicit transactions remain excluded.
 
 ## Syntax
 
