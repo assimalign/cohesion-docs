@@ -1,27 +1,28 @@
 # Props
 
-Database props register the schema tasks and supply declarative resource and compiler defaults.
+Database props register schema tasks and retain metadata alongside compiler defaults.
 
 ## `Sdk/Sdk.props`
 
-Imports the base SDK with no inline version, conditionally adds `Assimalign.Cohesion.App.Database`
-when `CohesionAutoIncludeAppFramework` is not `false`, then imports `Targets/Sdk.Database.props`.
+Marks a resource SDK before importing the base SDK with no inline version, conditionally adds
+`Assimalign.Cohesion.App` and `Assimalign.Cohesion.App.Database` when
+`CohesionAutoIncludeAppFramework` is not `false`, then imports `Targets/Sdk.Database.props`.
 Pin the base and Database SDKs together.
 
 ## `Targets/Sdk.Database.props`
 
-All public Database defaults are conditional on empty values. Endpoints, probes, mounts, and command
-kinds use ordinary `Include` items before the consumer project. The Database resource defaults to a
-single-replica `StatefulSet`, with its control plane on `admin` and persistent data at `/data`.
+Property defaults apply when empty. Endpoint, probe, and mount items use ordinary `Include` before
+the consumer project. Database props retain `StatefulSet`, replica, endpoint, and mount metadata,
+but no current target turns it into a resource manifest. It does not select the platform, bind
+Database listeners, or register a managed instance. Use explicit application composition and
+[AddResource](../../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
 
 | Property | Value | Effect | Condition and source |
 |---|---|---|---|
-| `CohesionResourceApplicationModel` | `Assimalign.Cohesion.Database.ApplicationModel` | Application-model assembly/package selected for an enabled resource. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceApplicationModel)' == ''` |
-| `CohesionResourceControlPlaneType` | `Assimalign.Cohesion.Database.ApplicationModel.DatabaseResourceControlPlane` | Fully qualified control-plane type used by generated registration. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceControlPlaneType)' == ''` |
-| `CohesionResourceKind` | `Database` | Resource kind recorded in the manifest. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceKind)' == ''` |
-| `CohesionControlPlaneEndpoint` | `admin` | Endpoint used for the default control plane. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
-| `CohesionControlPlanePath` | `/cohesion/v1` | Absolute control-plane route prefix. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
-| `CohesionWorkloadKind` | `StatefulSet` | Workload lifecycle kind written to the manifest. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
+| `CohesionResourceKind` | `Database` | Retained resource-kind metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceKind)' == ''` |
+| `CohesionControlPlaneEndpoint` | `admin` | Retained admin endpoint metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
+| `CohesionControlPlanePath` | `/cohesion/v1` | Retained admin route metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
+| `CohesionWorkloadKind` | `StatefulSet` | Retained workload metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
 | `CohesionReplicas` | `1` | Replica count written to lifecycle metadata. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
 | `CohesionMaxReplicas` | `1` | Upper bound on replicas; must not be below the replica count. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
 | `_CohesionDatabaseTaskAssembly` | `$(MSBuildThisFileDirectory)..\Tasks\Assimalign.Cohesion.Sdk.Database.Tasks.dll` | Assigned during `evaluation`. | `Targets/Sdk.Database.props`; unconditional |
@@ -31,7 +32,6 @@ single-replica `StatefulSet`, with its control plane on `admin` and persistent d
 
 | Item | Declaration | Metadata | Source |
 |---|---|---|---|
-| `CohesionCommand` | `Include=database.add-database;database.add-principal` | No additional child metadata | `Targets/Sdk.Database.props` |
 | `CohesionEndpoint` | `Include=db`; `Scheme=cohesion-db`; `ContainerPort=5740`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
 | `CohesionEndpoint` | `Include=admin`; `Scheme=http`; `ContainerPort=8081`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
 | `CohesionProbe` | `Include=readiness`; `Endpoint=admin`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Database.props` |

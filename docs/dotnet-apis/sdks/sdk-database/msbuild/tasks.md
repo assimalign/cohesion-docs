@@ -10,10 +10,9 @@ and items; direct task defaults are shown separately.
 
 ## `CompileDatabaseSchemaTask`
 
-Use Roslyn syntax and symbols to analyze exactly one `SqlSchema.Compile` or `SqlSchema.Create`
-declaration. Lower it into `SqlCompiledSchema` and serialize canonical semantic JSON plus its
-SHA-256
-hash. Never execute the consumer entry point.
+Use Roslyn syntax and symbols to analyze retained `SqlSchema.Compile`, `SqlSchema.Create`, or
+inline engine-builder `database.Schema(...)` declarations. Lower each into `SqlCompiledSchema` and
+write one canonical JSON/hash pair per database. Never execute the consumer entry point.
 
 `Tasks/src/Tasks/DatabaseTask.CompileSchema.cs` defines this type.
 
@@ -25,10 +24,9 @@ hash. Never execute the consumer entry point.
 | `LanguageVersion` | `string?` | Optional input | Type default | The consumer project's C# language version. |
 | `AssemblyName` | `string` | Required input | `string.Empty` | The consumer assembly's simple name, used in portable CLR type identities. |
 | `Model` | `string` | Required input | `string.Empty` | The database model the project targets. Only Sql currently supplies a compiled-schema package. |
-| `OutputPath` | `string` | Required input | `string.Empty` | The path the schema model artifact is written to. |
-| `HashOutputPath` | `string` | Required input | `string.Empty` | The path the lowercase SHA-256 sidecar is written to. |
+| `OutputDirectory` | `string` | Required input | `string.Empty` | Directory for the per-database schema JSON and hash pairs. |
 | `ProjectDirectory` | `string` | Required input | `string.Empty` | The consumer project directory used to resolve relative item paths. |
-| `SchemaHash` | `string` | Output | `string.Empty` | The lowercase SHA-256 of the canonical semantic document. |
+| `Schemas` | `ITaskItem[]` | Output | `Array.Empty<ITaskItem>()` | Per-database items with Hash, SchemaPath, and HashPath metadata. |
 
 ### Errors
 
@@ -46,7 +44,7 @@ expression failures. KeyValuePair produces `COHDBSDK106` without artifacts.
   `Execute_WithUnsupportedExpression_ShouldReportNamedDiagnostic`;
   `Execute_WithDanglingReference_ShouldFailWithoutArtifacts`;
   `Execute_WithMismatchedReferenceType_ShouldFailPrecisely`;
-  `Execute_WithoutExactlyOneSchemaDeclaration_ShouldFail`.
+  declaration validation.
 - **`DatabaseModelTargetsTests`** —
   `Evaluate_WithTargetFrameworkIntermediatePath_ShouldUseItForSchemaArtifacts`;
   `Evaluate_WithKnownModel_ShouldImportOnlyItsToolSet`;
@@ -62,7 +60,8 @@ timestamps.
 
 | Parameter | Type | Direction | Task default | Meaning |
 |---|---|---|---|---|
-| `SchemaModelPath` | `string` | Required input | `string.Empty` | The desired compiled schema produced by CompileDatabaseSchemaTask. |
+| `SchemaDirectory` | `string` | Required input | `string.Empty` | Directory containing the declared databases' compiled schemas. |
+| `DatabaseName` | `string` | Optional input | `string.Empty` | Migration database; optional when exactly one is declared. |
 | `MigrationsRoot` | `string` | Required input | `string.Empty` | The directory generated migration files are written to. |
 | `MigrationName` | `string` | Required input | `string.Empty` | The source-control-safe migration name. |
 | `Model` | `string` | Required input | `string.Empty` | The selected database model. |
@@ -108,7 +107,7 @@ No additional diagnostics.
   `Execute_WithUnsupportedExpression_ShouldReportNamedDiagnostic`;
   `Execute_WithDanglingReference_ShouldFailWithoutArtifacts`;
   `Execute_WithMismatchedReferenceType_ShouldFailPrecisely`;
-  `Execute_WithoutExactlyOneSchemaDeclaration_ShouldFail`.
+  declaration validation.
 - **`CreateDatabaseMigrationTaskTests`** —
   `Execute_WithSqlSchema_ShouldWriteOrdinalScriptAndBaseline`;
   `Execute_WithKeyValuePairModel_ShouldFailExplicitly`;
@@ -116,7 +115,7 @@ No additional diagnostics.
   `Execute_WithRequiredColumnAddition_ShouldFailWithoutFiles`.
 
 
-The compiler helpers `CSharpSchemaExtractor`, `CSharpExpressionCanonicalizer`,
+The compiler helpers `CSharpSchemaExtractor`, `the shared SQL expression canonicalizer`,
 `CSharpTypeIdentity`, and `CompiledSchemaSourceWriter` bind and normalize source without loading a
 consumer assembly. They are not separately registered tasks.
 [Diagnostic meanings](../overview.md#diagnostics) cover the helper-produced codes.
@@ -134,12 +133,12 @@ consumer assembly. They are not separately registered tasks.
   `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/tests/CreateDatabaseMigrationTaskTests.cs`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/DatabaseTask.cs`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/CompiledSchemaSourceWriter.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CompiledSchemaSourceWriter.cs`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/CSharpExpressionCanonicalizer.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/the shared SQL expression canonicalizer.cs`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/CSharpSchemaExtractor.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CSharpSchemaExtractor.cs`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/CSharpTypeIdentity.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CSharpTypeIdentity.cs`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/SchemaSourceModel.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/SchemaSourceModel.cs`

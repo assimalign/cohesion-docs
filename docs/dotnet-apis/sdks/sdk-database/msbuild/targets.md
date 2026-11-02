@@ -10,9 +10,9 @@ Model imports use ordinal string equality with fixed paths; consumer text never 
 import path. Both model files set `_CohesionDatabaseModelTargetsLoaded=true` and their own
 `_CohesionDatabaseModelCompileTarget`.
 
-The model compiler tracks `Compile`, `ReferencePath`, and the task assembly as `Inputs` and both
-schema files as `Outputs`. The outer target reads the hash sidecar even when generation is skipped.
-Both outputs are `FileWrites` for cleanup. The targets do not declare properties such as
+The model compiler tracks `Compile`, `ReferencePath`, and the task assembly as `Inputs`, with
+per-database artifacts tracked by its output record. The outer target exposes `CohesionDatabaseSchema`
+items with `DatabaseName` and `HashPath` metadata, and tracks artifacts with `FileWrites`. The targets do not declare properties such as
 `DefineConstants` as separate timestamp inputs.
 
 Evaluation registers targets; `DependsOnTargets` establishes execution dependencies, while
@@ -57,14 +57,15 @@ without a compile target.
 
 ### `CohesionDatabaseCompileSchema`
 
-Resolve compiler references, validate and invoke the selected model target, then read the hash
-sidecar back into CohesionDatabaseSchemaHash.
+Resolve references, validate the model, check recorded artifacts, and invoke the selected compiler.
+Then expose each declared schema as a `CohesionDatabaseSchema` item. Missing recorded artifacts
+invalidate the incremental output so compilation runs again.
 
 | Contract | Exact value |
 |---|---|
 | `BeforeTargets` | `CoreCompile` |
 | `AfterTargets` | Not declared |
-| `DependsOnTargets` | `ResolveReferences;_CohesionDatabaseValidateModel;$(_CohesionDatabaseModelCompileTarget)` |
+| `DependsOnTargets` | `ResolveReferences;_CohesionDatabaseValidateModel;_CohesionDatabaseCheckSchemaArtifacts;$(_CohesionDatabaseModelCompileTarget)` |
 | `Condition` | `'$(CohesionDatabaseProject)' == 'true'` |
 | `Inputs` | Not declared |
 | `Outputs` | Not declared |
@@ -72,7 +73,7 @@ sidecar back into CohesionDatabaseSchemaHash.
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `ReadLinesFromFile` | `File=$(CohesionDatabaseSchemaHashOutputPath)` | `TaskParameter=Lines`; `ItemName=_CohesionDatabaseSchemaHashLine` |
+| Schema items | Per-database artifact paths under `CohesionDatabaseSchemaOutputDirectory` | `CohesionDatabaseSchema`, with `DatabaseName` and `HashPath` metadata |
 
 ### `CohesionDatabaseCreateMigration`
 
@@ -91,7 +92,7 @@ schema.
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `CreateDatabaseMigrationTask` | `SchemaModelPath=$(CohesionDatabaseSchemaOutputPath)`; `MigrationsRoot=$(CohesionDatabaseMigrationsRoot)`; `MigrationName=$(CohesionDatabaseMigrationName)`; `Model=$(CohesionDatabaseModel)`; `ProjectDirectory=$(MSBuildProjectDirectory)` | None |
+| `CreateDatabaseMigrationTask` | `SchemaDirectory=$(CohesionDatabaseSchemaOutputDirectory)`; `DatabaseName=$(CohesionDatabaseName)`; `MigrationsRoot=$(CohesionDatabaseMigrationsRoot)`; `MigrationName=$(CohesionDatabaseMigrationName)`; `Model=$(CohesionDatabaseModel)`; `ProjectDirectory=$(MSBuildProjectDirectory)` | None |
 
 ## `Targets/Sdk.Database.KeyValuePair.targets`
 
@@ -107,18 +108,18 @@ model-owned schema package exists.
 | `DependsOnTargets` | Not declared |
 | `Condition` | `'$(CohesionDatabaseProject)' == 'true'` |
 | `Inputs` | `@(Compile);@(ReferencePath);$(_CohesionDatabaseTaskAssembly)` |
-| `Outputs` | `$(CohesionDatabaseSchemaOutputPath);$(CohesionDatabaseSchemaHashOutputPath)` |
+| `Outputs` | `$(_CohesionDatabaseSchemaManifest)` |
 | `Returns` | Not declared |
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `CompileDatabaseSchemaTask` | `SourceFiles=@(Compile)`; `ReferencePaths=@(ReferencePath)`; `DefineConstants=$(DefineConstants)`; `LanguageVersion=$(LangVersion)`; `AssemblyName=$(AssemblyName)`; `Model=KeyValuePair`; `ProjectDirectory=$(MSBuildProjectDirectory)`; `OutputPath=$(CohesionDatabaseSchemaOutputPath)`; `HashOutputPath=$(CohesionDatabaseSchemaHashOutputPath)` | `TaskParameter=SchemaHash`; `PropertyName=CohesionDatabaseSchemaHash` |
+| `CompileDatabaseSchemaTask` | `SourceFiles=@(Compile)`; `ReferencePaths=@(ReferencePath)`; `DefineConstants=$(DefineConstants)`; `LanguageVersion=$(LangVersion)`; `AssemblyName=$(AssemblyName)`; `Model=KeyValuePair`; `ProjectDirectory=$(MSBuildProjectDirectory)`; `OutputDirectory=$(CohesionDatabaseSchemaOutputDirectory)` | None bound by the target |
 
 ## `Targets/Sdk.Database.Sql.targets`
 
 ### `_CohesionCompileSqlDatabaseSchema`
 
-Statically compile one retained C# SQL schema declaration into canonical JSON and a SHA-256 sidecar.
+Statically compile each declared database's C# SQL schema into canonical JSON and a SHA-256 sidecar.
 
 | Contract | Exact value |
 |---|---|
@@ -127,12 +128,12 @@ Statically compile one retained C# SQL schema declaration into canonical JSON an
 | `DependsOnTargets` | Not declared |
 | `Condition` | `'$(CohesionDatabaseProject)' == 'true'` |
 | `Inputs` | `@(Compile);@(ReferencePath);$(_CohesionDatabaseTaskAssembly)` |
-| `Outputs` | `$(CohesionDatabaseSchemaOutputPath);$(CohesionDatabaseSchemaHashOutputPath)` |
+| `Outputs` | `$(_CohesionDatabaseSchemaManifest)` |
 | `Returns` | Not declared |
 
 | Task or operation | Parameters | `Outputs` |
 |---|---|---|
-| `CompileDatabaseSchemaTask` | `SourceFiles=@(Compile)`; `ReferencePaths=@(ReferencePath)`; `DefineConstants=$(DefineConstants)`; `LanguageVersion=$(LangVersion)`; `AssemblyName=$(AssemblyName)`; `Model=Sql`; `ProjectDirectory=$(MSBuildProjectDirectory)`; `OutputPath=$(CohesionDatabaseSchemaOutputPath)`; `HashOutputPath=$(CohesionDatabaseSchemaHashOutputPath)` | `TaskParameter=SchemaHash`; `PropertyName=CohesionDatabaseSchemaHash` |
+| `CompileDatabaseSchemaTask` | `SourceFiles=@(Compile)`; `ReferencePaths=@(ReferencePath)`; `DefineConstants=$(DefineConstants)`; `LanguageVersion=$(LangVersion)`; `AssemblyName=$(AssemblyName)`; `Model=Sql`; `ProjectDirectory=$(MSBuildProjectDirectory)`; `OutputDirectory=$(CohesionDatabaseSchemaOutputDirectory)` | None bound by the target |
 
 
 [MSBuild](index.md) · [Tasks](tasks.md)
