@@ -72,7 +72,7 @@ connectors and fails waiting renters with ObjectDisposedException.
 
 SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
-## Declarative commands
+## Retained HTTP command client
 
 `DatabaseCommandClient.Create(Uri controlPlaneAddress, string bearerToken, HttpMessageInvoker transport)`
 accepts a caller-owned transport, including its TLS trust policy. Disposing the returned client does
@@ -81,14 +81,19 @@ The two-argument factory still creates a transport owned and disposed by the cli
 perform the same endpoint and credential validation; a null supplied transport throws
 `ArgumentNullException`. The client does not discover application trust.
 
-`IDatabaseCommandClient` is the separate HTTP admin command contract. `DatabaseCommandClient.Create`
-accepts the full manifest control-plane URI (including its path) and an opaque bootstrap bearer.
+`DatabaseCommandClient` is a sealed HTTP command helper retained in this package. Its factory
+accepts a caller-supplied HTTP(S) base URI and opaque bearer credential.
 `SendCommandAsync` posts the camel-case id/kind/owner/key/payload envelope to commands; payload is
 base64. `DeleteCommandAsync` sends DELETE to the same route and envelope. Both return package-local
 `ResourceCommandObservation` with Status and Detail, retaining actionable provider refusal text.
 Transport failures propagate; HTTP refusals become Rejected observations. Serialization uses
 explicit Utf8JsonWriter/JsonDocument access. The caller disposes the client; redirect following and
-cookies are disabled. No runtime Hosting or ApplicationModel dependency was added.
+cookies are disabled. It has no runtime Hosting or ApplicationModel dependency.
+
+This helper does not implement the restarted gateway action protocol. The current Database admin
+implementation refuses non-health `/cohesion/v1` requests with 403, including command requests
+from credentialed loopback callers. Managed instances use the platform client and application-added
+actions described by [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md).
 
 Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.
 

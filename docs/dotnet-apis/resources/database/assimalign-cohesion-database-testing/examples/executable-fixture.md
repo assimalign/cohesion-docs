@@ -1,44 +1,39 @@
 # Executable test fixture
 
-The test factory invokes this real executable fixture entry point.
+The Database SDK sample composes SQL through an ordinary executable entry point.
 
-> **Status:** Partial.
+> **Status:** Implemented.
 
-This is the owning project’s `Program.cs` acceptance fixture. `Use` it with the fixture project and
-its adjacent source files; the test factory invokes this entry point under a test-scoped resource
-context.
+This is the SampleHost fixture's `Program.cs`. Use its SDK project and adjacent `Order.cs`.
+The program reads explicit configuration and declares its database on the engine builder. It does
+not use generated resource accessors or a resource manifest.
 
 ```csharp
 using System;
+
 using Assimalign.Cohesion.Database;
 using Assimalign.Cohesion.Database.Hosting;
-using Assimalign.Cohesion.Database.SampleHost;
 using Assimalign.Cohesion.Database.Sql;
-using Assimalign.Cohesion.Database.Sql.Schema;
-using Assimalign.Cohesion.Database.Storage;
-using Assimalign.Cohesion.Hosting;
 
 DatabaseApplicationBuilder builder = DatabaseApplication.CreateBuilder(args);
 
-builder.AddSql((_, options) =>
+builder.AddSql("sample-sql", sql =>
 {
-    options.EngineName = "sample-sql";
-    options.RootPath = Resource.Mounts.Data.Path
-        ?? throw new InvalidOperationException("The Database data mount must have a materialized path.");
-    options.Durability = Resource.Settings.DatabaseDurability.Get<StorageCommitDurability>();
-    options.AddServer(engine => SqlDatabaseServer.Create(
-        (SqlDatabaseEngine)engine, new SqlDatabaseServerOptions().Listen(Resource.Endpoints.Db)));
-});
+    sql.Options.RootPath = builder.Configuration["Sample:DataPath"] ?? "data";
+    sql.AddServer(server => server.Listen(new Uri("cohesion-db://127.0.0.1:5740")));
 
-builder.AddDatabase("sample-sql", "sample", SqlSchema.Compile("sample", database =>
-{
-    database.Table<Order>("orders", table =>
+    // The engine's build provisions the database before application Build returns; the SDK reads
+    // this declaration to emit obj/.../cohesion/database/sample.schema.json at build time.
+    sql.AddDatabase("sample", database => database.Schema(schema =>
     {
-        table.Key(order => order.Id);
-        table.Column(order => order.Item);
-        table.Index(order => order.Item);
-    });
-}));
+        schema.Table<Order>("orders", table =>
+        {
+            table.Key(order => order.Id);
+            table.Column(order => order.Item);
+            table.Index(order => order.Item);
+        });
+    }));
+});
 
 await using DatabaseApplication application = builder.Build();
 await application.RunAsync();
@@ -47,8 +42,6 @@ await application.RunAsync();
 /// Exposes the compiler-generated top-level entry point to in-process test factories.
 /// </summary>
 public partial class Program;
-
-internal sealed record Order(long Id, string Item);
 ```
 
 [All examples](index.md) · [Assembly overview](../index.md)
