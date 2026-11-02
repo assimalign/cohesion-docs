@@ -24,9 +24,12 @@ fields. The explicit FROM alias (or unaliased collection name) and all UNNEST va
 unique. An unaliased collection name is reserved for duplicate checks and the synthetic star key;
 it does not become an implicit path variable.
 
+[JOIN and NEST](join.md) can interleave with UNNEST. When a statement contains either, every
+SELECT source requires an explicit alias, including UNNEST; inferred path aliases use CD00016.
+
 With UNNEST, SELECT * constructs an object keyed by the source alias (or collection name) and
 each UNNEST variable. MISSING bindings are omitted and explicit NULL is retained. An unaliased
-system source uses its full COHESION_SCHEMA name as the key. Plain star without UNNEST retains
+system source uses its full COHESION_SCHEMA name as the key. Plain star without UNNEST, JOIN or NEST retains
 the stored value and exact bytes. Named projections retain
 [SupportsMissing/IsMissing](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-execution/database-row.md).
 
@@ -47,7 +50,7 @@ adds Unnest/LeftUnnest nodes with each variable name.
 | CD01023 | Direct SELECT AST repeats a binding name or supplies an empty UNNEST name |
 | CD00002 | Expression has no inferable path name and no alias |
 | CD05001 | META(variable) on an UNNEST variable, or aggregate in the array expression |
-| CK00001 | UNNEST clause in UPDATE/DELETE; JOIN, NEST, WITHIN or FLATTEN calls |
+| CK00001 | UNNEST clause in UPDATE/DELETE; WITHIN or FLATTEN calls |
 
 These codes have no assigned SQLSTATE. Quantifiers may shadow outer bindings.
 

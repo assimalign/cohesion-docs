@@ -143,7 +143,7 @@ intent lock, it aborts retryably before default/identity allocation. Re-executio
 indexes; a dropped explicit arbiter may then produce CS03035. A live index entry pointing at
 a missing/undecodable heap row is storage corruption, not a serialization retry.
 
-SQL BEGIN has no isolation-level clause. In-process callers select ReadCommitted through
+SQL `BEGIN ISOLATION LEVEL READ COMMITTED` selects ReadCommitted. In-process callers can also use
 `SqlDatabaseSession.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)`.
 See [transactions](../statements/begin-transaction.md).
 

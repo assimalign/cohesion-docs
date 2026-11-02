@@ -2,7 +2,7 @@
 
 OQL is the Documents engine's executable SQL++ subset, including collection DDL, INSERT, UPSERT, UPDATE and DELETE.
 
-> **Status:** Partial. Queries, mutations and DDL execute; text transaction control is available in process and through the Documents client.
+> **Status:** Partial. Queries, mutations and DDL execute; text transaction control is available in process and through the Documents client. The OQL T2 lane is complete.
 
 OQL retains its name and follows the Couchbase SQL++ NULL/MISSING and Boolean rules. A statement
 uses its session database. [UPDATE](statements/update.md) changes selected paths and
@@ -23,7 +23,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 
 | Construct | Support | Scope |
 | --- | --- | --- |
-| SELECT/FROM/WHERE | Supported | One collection, derived SELECT or expression, ordered UNNEST bindings and SQL++ truth conversion |
+| SELECT/FROM/WHERE | Supported | One collection, derived SELECT or expression, ordered key/UNNEST bindings and SQL++ truth conversion |
 | [SELECT ALL/DISTINCT, VALUE/RAW](statements/select.md) | Supported | Duplicate removal and one bare JSON value per row; top-level MISSING becomes NULL |
 | GROUP BY/HAVING/ORDER BY | Supported | Separate NULL/MISSING groups and ordering |
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
@@ -42,6 +42,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [Eleven native aggregate names](functions/aggregate-functions.md) | Supported | ALL/DISTINCT; ARRAY_AGG retains NULL; Boolean/statistics aggregates skip wrong kinds; COUNT(*) counts input rows |
 | [34 scalar functions](functions/scalar-functions.md) | Supported | Strings, exact numerics, transaction-start UTC dates, types, arrays and lazy conditionals |
 | META and [object](expressions/object-constructors.md)/[array constructors](expressions/array-constructors.md) | Supported | Stored metadata, keyed objects and ordered arrays |
+| [Key JOIN and NEST](clauses/join.md) | Supported | INNER/LEFT key lookup, per-source META, alias-keyed stars and bounded cache |
 | [UNNEST/LEFT UNNEST](clauses/unnest.md) | Supported | Array rows; LEFT preserves empty/non-array inputs with MISSING |
 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) and array IN | Supported | Scoped SQL++ predicates and structural membership |
 | [ARRAY/FIRST comprehensions](expressions/comprehensions.md) | Supported | Ordered mapping, optional WHEN and nested scopes; RETURNING included |

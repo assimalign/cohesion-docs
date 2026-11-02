@@ -8,9 +8,12 @@ FROM supplies rows from a collection, a derived SELECT or an expression, includi
 FROM { collection_name [ [ AS ] iteration_variable ]
      | ( SELECT ... ) [ AS ] alias
      | expression AS alias }
-[ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
+[ source_binding ...n ]
 
 <collection_name> ::= { identifier | COHESION_SCHEMA . identifier }
+<source_binding> ::= { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ]
+                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ AS ] alias
+                    ON META(alias).id = key_expression
 ```
 
 ## Supported clauses
@@ -22,7 +25,7 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 | Expression | Supported | AS required before an explicit alias |
 | `AS iteration_variable` or `iteration_variable` | Supported | Optional path qualifier |
 | `COHESION_SCHEMA` source | Supported | Reserved current-database metadata collection |
-| `JOIN` | Recognized, not supported (`CK00001`) | No multi-source query |
+| [JOIN and NEST](join.md) | Supported | Stored right-hand collection and META(alias).id key equality |
 
 ## Arguments
 
@@ -101,8 +104,10 @@ It runs no source expression, predicate, projection or callback. An inner SELECT
 has the same behavior. Missing collections, parameters and invalid names still fail validation.
 EXPLAIN describes DerivedSource/ExpressionSource and nested plans without executing them.
 
-Correlated sources and derived/expression INSERT/UPSERT SELECT sources execute. JOIN/NEST
-(including comma joins) remain CK00001. See [expression subqueries](../expressions/subqueries.md)
+Correlated sources and derived/expression INSERT/UPSERT SELECT sources execute.
+[Key JOIN and NEST](join.md) can follow these sources and interleave with UNNEST. A statement
+containing JOIN/NEST requires explicit source aliases in every SELECT scope (CD00016 in text).
+Comma joins and general predicates remain CK00001. See [expression subqueries](../expressions/subqueries.md)
 for captures, shared work limits and statement-start mutation reads.
 
 ## Diagnostics
@@ -112,7 +117,8 @@ for captures, shared work limits and statement-start mutation reads.
 | CD00015 | Derived SELECT has no alias | — |
 | CD01033 | Expression source has neither an explicit alias nor an implicit field name | — |
 | CD01034 | Free variable in a source expression with no input-row scope | — |
-| CK00001 | JOIN/NEST | — |
+| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
+| CK00001 | General/comma joins or unsupported key predicates | — |
 | CD05015 | Serialized projection exceeds 256 levels, including the star wrapper | — |
 | CD05018 | Shared statement memory budget exhausted | — |
 | CD05020 | Shared reached-expression work budget exhausted | — |

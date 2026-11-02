@@ -72,7 +72,7 @@ results materialize in memory, with no spilling or streaming guarantee.
 | CS00003 | Operand tail appears before another operator without parentheses | — |
 | CK00001 | CORRESPONDING, including BY forms | — |
 
-Nested WITH, recursive execution and LATERAL remain excluded. See [Diagnostics](../diagnostics.md).
+Recursive UNION ALL/DISTINCT executes through [WITH RECURSIVE](with.md). Nested WITH and LATERAL remain excluded. See [Diagnostics](../diagnostics.md).
 
 ## Examples
 

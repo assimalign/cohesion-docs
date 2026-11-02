@@ -100,7 +100,7 @@ with `CS04003`. See [Constraints](../constraints.md) for foreign-key and check r
 
 ## CREATE TABLE AS
 
-`AS query_body` accepts the ordinary SELECT/set-operation subset, including a non-recursive WITH
+`AS query_body` accepts the ordinary SELECT/set-operation subset, including WITH and WITH RECURSIVE
 inside the body and parameters. WITH DATA is the default and copies the query's rows, including
 duplicates. WITH NO DATA binds and validates the query, then creates an empty table without
 evaluating rows, predicates, functions or row-limit expressions.

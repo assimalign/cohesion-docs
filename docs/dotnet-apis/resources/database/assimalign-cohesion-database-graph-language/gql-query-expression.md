@@ -55,7 +55,7 @@ The composite constructor throws ArgumentNullException for null and retains the 
 Composite is null for a linear pipeline. A composite/NEXT pipeline uses
 [GqlCompositeStage](gql-composite-stage.md) among its stages. ToString preserves semantic grouping
 and NEXT precedence. Operand column, shape and read-only checks occur during planning;
-[UNION](../../../../database/graph/language/clauses/union.md) lists the diagnostics and execution rules.
+[Composite queries](../../../../database/graph/language/clauses/union.md) list the diagnostics and execution rules.
 
 Planning validates each incoming scope before execution. Missing mandatory stage operands and
 invalid boundaries use CG05001; text leading/trailing NEXT or WITH immediately followed by NEXT

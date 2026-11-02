@@ -15,11 +15,13 @@ public sealed class OqlSelectExpression : OqlExpression
         IReadOnlyList<OqlOrdering> orderBy, bool isDistinct, bool isValue,
         OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
         IReadOnlyList<OqlUnnestExpression>? unnest = null,
-        IReadOnlyList<string?>? groupAliases = null, string? groupAs = null, OqlExpression? source = null);
+        IReadOnlyList<string?>? groupAliases = null, string? groupAs = null, OqlExpression? source = null,
+        IReadOnlyList<OqlSourceBindingExpression>? bindings = null);
     public string Collection { get; }
     public OqlExpression? Source { get; }
     public string? Alias { get; }
     public IReadOnlyList<OqlUnnestExpression> Unnest { get; }
+    public IReadOnlyList<OqlSourceBindingExpression> Bindings { get; }
     public IReadOnlyList<OqlProjection> Projections { get; }
     public OqlExpression? Predicate { get; }
     public IReadOnlyList<OqlExpression> GroupBy { get; }
@@ -43,22 +45,25 @@ DISTINCT uses structural collation equality and retains the first representative
 NULL can deduplicate. See [SELECT](../../../../database/document/language/statements/select.md).
 
 Limit and Offset retain literal or parameter operands and their locations. Except for LIMIT 0
-and nonblocking expression/derived sources, paging runs last,
+and nonblocking expression/derived/joined sources, paging runs last,
 after grouping, DISTINCT and ordering. Planning validates counts even for direct AST requests and
 EXPLAIN: invalid kinds, NULL, negative, fractional or out-of-Int64 values raise DatabaseException
 with CD00007 at the operand; unbound parameters use CD01005. No SQLSTATE is assigned.
 See [LIMIT/OFFSET](../../../../database/document/language/clauses/limit-offset.md).
 
 Construction stores arguments and does not execute. Engine validation rejects an empty projection,
-or IsValue with multiple expressions, an alias or star, with DatabaseException `CD05001`.
+or IsValue with multiple expressions, an alias or unqualified star, with DatabaseException `CD05001`.
 Under IsDistinct, an ORDER BY expression outside the projection after alias rewriting raises
 `CD01014`. Duplicate projected names use `CD01003`. Inspect parser diagnostics before planning.
 
-Unnest is the supplied ordered binding list or an empty list when null; direct construction
-retains references. Expansion precedes Predicate. A direct SELECT AST with a repeated binding
+Bindings contains ordered UNNEST/JOIN/NEST bindings. A non-null bindings argument takes precedence
+over unnest; Unnest then exposes only its array bindings. With no key bindings, Bindings uses the
+ordinary Unnest representation. Construction retains children without executing. Expansion precedes Predicate. A direct SELECT AST with a repeated binding
 or empty UNNEST name raises DatabaseException/CD01023. Parser duplicates use CD00010, including
 collision with an unaliased collection name. Star with bindings constructs synthetic objects.
-See [OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
+A joined statement requires explicit aliases in every SELECT scope; missing direct-AST aliases
+use CD01035 (text CD00016). See [OqlJoinExpression](oql-join-expression.md),
+[OqlUnnestExpression](oql-unnest-expression.md) and [UNNEST](../../../../database/document/language/clauses/unnest.md).
 
 GroupAliases is empty when no aliases are supplied, or parallel to GroupBy with null entries for
 unnamed terms. GroupAs is the optional group-array name. Construction stores metadata without

@@ -8,7 +8,7 @@ GQL clauses filter matched bindings and project graph bindings or scalar express
 - **[FILTER](filter.md)** — filter the current binding table.
 - **[FOR and UNWIND](for.md)** — expand lists, retaining proven entity element kinds.
 - **[WITH](with.md)** — intermediate projection with scoped aliases and filtering after paging.
-- **[UNION and UNION ALL](union.md)** — combine read-only query results with structural duplicate handling.
+- **[UNION, EXCEPT, INTERSECT and OTHERWISE](union.md)** — combine read-only results with set/multiset rules or lazy fallback.
 - **[NEXT](next.md)** — compose source-ordered segments in one statement.
 
 - **[WHERE](where.md)** — Boolean expressions, arithmetic and exact numeric comparisons.

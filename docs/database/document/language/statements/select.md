@@ -1,6 +1,6 @@
 # SELECT
 
-SELECT projects document expressions from one collection, derived query or expression source, with filtering, grouping and ordering.
+SELECT projects document expressions from a collection, derived query or expression and ordered key/array bindings.
 
 ## Syntax
 
@@ -8,7 +8,7 @@ SELECT projects document expressions from one collection, derived query or expre
 SELECT [ ALL | DISTINCT ] { projection [ , ...n ] | { VALUE | RAW } expression }
 FROM { collection_name [ [ AS ] iteration_variable ]
      | ( SELECT ... ) [ AS ] alias | expression AS alias }
-[ { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ] ...n ]
+[ source_binding ...n ]
 [ WHERE predicate ]
 [ GROUP BY expression [ [ AS ] alias ] [ , ...n ] [ GROUP AS group_name ] ]
 [ HAVING predicate ]
@@ -16,14 +16,18 @@ FROM { collection_name [ [ AS ] iteration_variable ]
 [ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
 [ ; ]
 
-<projection> ::= { * | expression } [ AS output_name ]
+<projection> ::= { * | alias.* | expression } [ AS output_name ]
+<source_binding> ::= { [ INNER ] UNNEST | LEFT [ OUTER ] UNNEST } expression [ [ AS ] variable ]
+                  | [ INNER | LEFT [ OUTER ] ] { JOIN | NEST } collection_name [ AS ] alias
+                    ON META(alias).id = key_expression
 ```
 
 ## Supported clauses
 
 | Clause | Support | Requirement |
 |---|---|---|
-| `FROM` | Supported | Required; exactly one source |
+| `FROM` | Supported | Required initial source; optional ordered JOIN/NEST/UNNEST bindings |
+| [JOIN and NEST](../clauses/join.md) | Supported | Stored right-hand collection; META(b).id = key_expression |
 | `WHERE` | Supported | Optional document predicate |
 | `GROUP BY` | Supported | Optional grouping expressions |
 | [GROUP AS and group-term aliases](../clauses/group-by.md#group-as-and-aliases) | Supported | Named keys and post-group arrays of input binding wrappers |
@@ -50,7 +54,7 @@ are omitted from JSON objects; explicit NULL members remain. In-process rows dis
 with SupportsMissing/IsMissing; the wire sends one JSON Document per projected row.
 
 `SELECT VALUE expression` and `SELECT RAW expression` return the expression itself, without a
-member-name wrapper. They require exactly one expression without an alias or star (`CD00002` in
+member-name wrapper. They require exactly one expression without an alias or unqualified star (`CD00002` in
 text; `CD05001` for an invalid direct AST). The single metadata column is named `value`.
 A top-level MISSING becomes NULL before DISTINCT, ordering by that projection, and completion
 counting, in process, over InMemory and over TCP. Each source row still contributes one row before
@@ -65,7 +69,7 @@ projected expression after alias rewriting, otherwise `CD01014` is reported at t
 [Aggregate ALL/DISTINCT](../functions/aggregate-functions.md) instead controls inputs to one
 aggregate call, such as COUNT(DISTINCT x), independently of SELECT-level deduplication.
 
-Results have the same shape on every transport. A lone star over a stored collection without UNNEST returns the stored JSON bytes unchanged,
+Results have the same shape on every transport. A lone star over a stored collection without UNNEST/JOIN/NEST returns the stored JSON bytes unchanged,
 including whitespace and scalar roots. Named projections form one object per row; a star mixed
 with other projections is a named `document` member. VALUE/RAW emits one bare JSON value. The client
 sets IsDocumentQuery for lone star and VALUE/RAW even on an empty result. See
@@ -94,7 +98,13 @@ OFFSET + LIMIT residual survivors in identity order; SELECT still owns its mater
 
 With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by the source and array
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
-paging consume expanded rows. A star over a stored collection without UNNEST still preserves the stored bytes.
+paging consume expanded rows. A star over a stored collection without UNNEST/JOIN/NEST still preserves the stored bytes.
+
+[Key JOIN and NEST](../clauses/join.md) bind documents or arrays by scalar key. Joined SELECT *
+constructs an alias-keyed object; top-level qualified stars such as b.* return a binding value in
+ungrouped joined projections. All SELECT sources throughout a joined statement need explicit
+aliases. META(alias) retains each stored source's own identity. See the linked page for unmatched
+MISSING values, NEST arrays, paging and the bounded lookup cache.
 
 ## Derived and expression sources
 

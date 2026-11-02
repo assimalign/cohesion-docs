@@ -134,7 +134,7 @@ derived bodies evaluate per enclosing frame. Only a reference that binds to a re
 the LATERAL refusal; typos retain CS01015. Outer ordering over derived outputs stays CK00001.
 CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains limited to 32 query
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
-nested CTEs, recursive execution and explicit LATERAL remain excluded.
+nested CTEs and explicit LATERAL remain excluded. Recursive fixpoints execute on demand.
 
 Current SQL data-storage format is 30. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
@@ -901,14 +901,10 @@ share that context and its visibility snapshot. `COMMIT` awaits the coordinator'
 explicit wire termination, or server shutdown, rolls back an open transaction before releasing the
 session. The C# transaction API and SQL control commands operate on the same scope.
 
-The session owns `Stack<SqlTransactionScope>`, with zero entries outside a transaction and exactly
-one root entry in B2. Each scope carries its transaction and the existing
-`Database.Transactions.IsolationLevel` value. The session's default isolation value is `Snapshot`;
-begin and auto-commit pass that value to the coordinator instead of embedding a level at each call
-site. B7 anticipates `SAVEPOINT name`, `ROLLBACK TO [SAVEPOINT] name`, `RELEASE [SAVEPOINT] name`
-, and `SET TRANSACTION ISOLATION LEVEL ...`: named scopes and undo markers can extend the stack,
-while isolation syntax sets the carried value. B2 implements none of that syntax or savepoint undo
-machinery. `Serializable` remains rejected by the existing C# seam until the coordinator supports
+The session exposes one root SqlDatabaseTransaction. Optionless BEGIN and automatic statements
+default to Snapshot; SQL isolation modes can select ReadCommitted or Snapshot. Early SET replaces
+the kernel context while preserving transaction identity, sequence, lifecycle and original BEGIN
+snapshot. Savepoints and named scopes remain unimplemented. `Serializable` remains rejected by the existing C# seam until the coordinator supports
 serialization detection.
 
 The session lifecycle below applies equally to SQL requests and C# transactions.
@@ -2002,12 +1998,13 @@ end after success. Cascade retries reuse associations and reacquire source inten
 [UPDATE](../../../../database/sql/language/statements/update.md#from-sources) and
 [DELETE](../../../../database/sql/language/statements/delete.md#using-sources).
 
-## WITH RECURSIVE binding
+## WITH RECURSIVE binding and execution
 
 [WITH RECURSIVE](../../../../database/sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
 term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
-to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
-EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+to preserve that contract. Recursive UNION ALL/DISTINCT fixpoints execute on demand through shared
+readers. Single-pass scans reclaim consumed history; retained rows, DISTINCT state and consumer
+scratch share StatementMemoryBudget. All definitions bind, but unused definitions do not execute.
 Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
 RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
 
@@ -2024,6 +2021,8 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+| CS05067 | Retained recursive tables, buffers, DISTINCT state or consumer scratch exceed statement memory | 53200 |
+| CS05090 | Internal invariant: a CTE opens more readers than its plan counted | XX000 |
 
 ## Owned sequence diagnostics
 
@@ -2080,7 +2079,24 @@ Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inver
 and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
 can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
 
+## SQL transaction isolation
+
+[SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md) changes the current block before its first admitted data statement,
+including plain EXPLAIN and failed data/DDL attempts. Parse/control failures leave configuration
+open. READ UNCOMMITTED maps to ReadCommitted; REPEATABLE READ maps to Snapshot, fixed at the
+original BEGIN even after early SET. This differs from PostgreSQL's first-query snapshot.
+Outside-block SET changes no default, including for SERIALIZABLE. Refusals preserve the block.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed or incomplete transaction isolation mode | 42601 |
+| CS04071 | SET outside a block: warning and successful no-op | 25000 |
+| CS04072 | SET after the first admitted data statement or during an operation | 25001 |
+| CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+
 ## Sources
+
+- **Recursive execution and isolation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveFixpointTests.cs`, `SqlRecursiveReclamationTests.cs`, `SqlRecursiveReaderTests.cs`, `SqlIsolationSyntaxTests.cs` and `SqlIsolationReviewTests.cs` in the same directory.
 
 - **Lane isolation evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlWorkerResilienceTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/MaintenanceCapacityTests.cs`.
 - **Bounded DDL validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.

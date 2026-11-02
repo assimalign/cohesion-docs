@@ -10,7 +10,8 @@ EXPLAIN { match_statement | return_statement | insert_statement | create_stateme
 
 ## Remarks
 
-[UNION and UNION ALL](../clauses/union.md) show Union/UnionAll nodes preserving binary grouping,
+[Composite queries](../clauses/union.md) show Union/UnionAll, Except/ExceptAll,
+Intersect/IntersectAll and Otherwise nodes preserving binary grouping,
 every operand's complete plan and correlated subplans. NEXT pipelines show those groups beside
 Next and later stage nodes. All operands bind and validate without executing data or callbacks.
 

@@ -1,6 +1,6 @@
 # GqlCompositeQuery
 
-A binary read-only UNION operation with isolated query operands.
+A binary read-only set/multiset operation or whole-result fallback with isolated operands.
 
 Namespace: `Assimalign.Cohesion.Database.Graph.Language`.
 
@@ -20,13 +20,16 @@ The positional record retains Left, Operator and Right without constructor valid
 [GqlQueryExpression.Composite](gql-query-expression.md) retains a standalone binary tree;
 [GqlCompositeStage](gql-composite-stage.md) embeds it within a NEXT pipeline. ToString renders
 explicit grouping, preserving the operator tree and NEXT precedence; UNION DISTINCT normalizes
-to UNION. Parsed chains associate left, while parentheses retain explicit grouping.
+to UNION; EXCEPT/INTERSECT DISTINCT normalize to their bare operator. All four operators have
+equal precedence and associate left, while parentheses retain explicit grouping.
 
 Planning rejects modifying operands (CG05029), mismatched column names/order/count (CG01020),
 incompatible shapes (CG02017), and mixed UNION/UNION ALL modes (CG00016). Execution also checks
-unknown runtime shapes before publishing results. UNION distinct-state exhaustion is CG05030.
+unknown runtime shapes before publishing results. UNION distinct-state exhaustion is CG05030;
+EXCEPT/INTERSECT retained-state exhaustion is CG05032. OTHERWISE skips right execution when
+the entire left result is nonempty, but still validates both branches statically.
 These engine failures carry DatabaseException.Diagnostics and no assigned SQLSTATE. See
-[UNION](../../../../database/graph/language/clauses/union.md) for snapshot, metadata and budget rules.
+[Composite queries](../../../../database/graph/language/clauses/union.md) for snapshot, metadata and budget rules.
 
 ## Example
 

@@ -40,13 +40,14 @@ Reference for the supported data definition, data manipulation, and transaction-
 ## Transaction control
 
 - **[DISCARD ALL](discard-all.md)** — Clear sequence observations and restore initial timeout settings outside a transaction.
-- **[BEGIN TRANSACTION](begin-transaction.md)** — Begin a session-scoped snapshot transaction.
+- **[BEGIN TRANSACTION](begin-transaction.md)** — Begin a session transaction with optional isolation modes.
+- **[SET TRANSACTION](set-transaction.md)** — Configure isolation before the first data statement.
 - **[COMMIT TRANSACTION](commit-transaction.md)** — Publish its changes.
 - **[ROLLBACK TRANSACTION](rollback-transaction.md)** — Abort its changes.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 77-of-79 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 82-of-84 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

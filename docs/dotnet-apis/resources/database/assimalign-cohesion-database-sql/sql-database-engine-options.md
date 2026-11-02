@@ -59,7 +59,7 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 StatementMemoryBudget defaults to 67,108,864 bytes (64 MiB) and must be positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value. It limits accounted concurrently live hash-build memory across one statement's nested queries. UPDATE FROM, DELETE USING and MERGE also charge retained target identities, source/intermediate
 buffers, derived copies, associations, selected values, encoded replacements and joined cascade
 state. Exhaustion refuses before any write and releases reservations on every exit. CTAS also
-charges its retained source result and encoded copy buffers. Other output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
+charges its retained source result and encoded copy buffers. Recursive queries also charge retained results and scratch; ordinary nonrecursive output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
 StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
@@ -73,7 +73,18 @@ CS05079 (54000), or CS05067 (53200) when admitting earlier CTE/subquery caches. 
 The default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
 other retained state change these limits.
 
+## Recursive query memory
+
+[WITH RECURSIVE](../../../../database/sql/language/clauses/with.md#on-demand-evaluation-and-memory) reclaims single-pass consumed rows. Rescans and DISTINCT retain
+history or membership; selected results still materialize before delivery. The default 64 MiB grant
+holds roughly 500,000 single-BIGINT UNION ALL counter results by executor accounting; payloads and
+other retained state change this capacity. COUNT(*) over the tested million-row counter instead
+retains less than 32 KiB. Bounded-state infinite consumers require cancellation; retaining consumers
+exhaust the grant with CS05067 (53200). There is no fixed row/depth limit or spill.
+
 ## Sources
+
+- **Recursive accounting and reclamation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveReclamationTests.cs`; row-returning capacity follows `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.RecursiveTables.cs` and `SqlWindowMemory.cs` in the same directory.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseEngineOptions.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseEngine.cs`.

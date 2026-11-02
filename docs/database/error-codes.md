@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/4ef359bad/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/c3dc498bf/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -237,8 +237,9 @@ See [Graph](graph/language/diagnostics.md#application-function-conditions),
 
 [WITH RECURSIVE](sql/language/clauses/with.md) binds all list names in dependency order. The non-recursive
 term fixes output width, types, modifiers, domains and collations; use the cast or COLLATE hint
-to preserve that contract. Recursive definitions and the consuming statement bind, then planning,
-EXPLAIN and execution refuse with CK00001, even for unused recursion. Acyclic lists execute.
+to preserve that contract. Recursive UNION ALL/DISTINCT fixpoints execute on demand through shared
+readers. Single-pass scans reclaim consumed history; retained rows, DISTINCT state and consumer
+scratch share StatementMemoryBudget. All definitions bind, but unused definitions do not execute.
 Mutual recursion, recursive UNION ORDER BY/LIMIT/FETCH/OFFSET, SELECT locking tails and WITH
 RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format changes apply.
 
@@ -255,6 +256,8 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02065 | Anchor, recursive output or declared column-list width mismatch | 42601 |
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
+| CS05067 | Retained recursive tables, buffers, DISTINCT state or consumer scratch exceed statement memory | 53200 |
+| CS05090 | Internal invariant: a CTE opens more readers than its plan counted | XX000 |
 
 ## OQL null placement
 
@@ -446,23 +449,65 @@ can use CS05067 (53200). See the linked memory section for default-grant fixture
 
 ## GQL composite queries
 
-[UNION and UNION ALL](graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
+[UNION, EXCEPT, INTERSECT and OTHERWISE](graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
 columns, type reconciliation and one statement snapshot. UNION keeps the first structural
 occurrence; UNION ALL preserves duplicates. Paging is operand-local and NEXT binds above UNION.
 All operands validate before execution. Other memory/work exhaustion retains CG05020/CG05004.
-EXCEPT, INTERSECT and OTHERWISE remain CK00001 until GQ-Q2. No new SQLSTATE is assigned.
+EXCEPT/INTERSECT default to DISTINCT or accept ALL multiset counts. They retain eligible left
+occurrences and share structural row equality with UNION. OTHERWISE returns the whole left result
+when nonempty, including NULLs/duplicates, or lazily evaluates the right on zero rows. Left errors
+propagate. All four operators have equal precedence and associate left; each binds above NEXT.
+EXCEPT/INTERSECT quantifiers may mix; only UNION/UNION ALL mixing is refused. Each parent hash visit
+or forwarded row consumes shared work, including duplicate visits. Retained EXCEPT/INTERSECT state
+and frames use CG05032; ordinary operand/output/forwarding frames use CG05020. No SQLSTATE is assigned.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CG00015 | Missing composite query operand | — |
+| CG00015 | Missing composite operand, including ALL/DISTINCT after OTHERWISE | — |
 | CG00016 | Mixed UNION distinct and UNION ALL modes within one tree | — |
 | CG01020 | Operand column names, order or count differ | — |
 | CG02017 | Proven or runtime result shapes are incompatible | — |
 | CG05029 | Modifying operand or stage in a composite pipeline | — |
 | CG05030 | UNION duplicate-elimination state exceeds the shared memory grant | — |
 | CG05031 | Internal statement lookup unexpectedly lacks its key; original KeyNotFoundException is retained | — |
+| CG05032 | EXCEPT/INTERSECT retained frames, rows or hash state exceed the shared memory grant | — |
+
+## SQL transaction isolation
+
+[SET TRANSACTION](sql/language/statements/set-transaction.md) changes the current block before its first admitted data statement,
+including plain EXPLAIN and failed data/DDL attempts. Parse/control failures leave configuration
+open. READ UNCOMMITTED maps to ReadCommitted; REPEATABLE READ maps to Snapshot, fixed at the
+original BEGIN even after early SET. This differs from PostgreSQL's first-query snapshot.
+Outside-block SET changes no default, including for SERIALIZABLE. Refusals preserve the block.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed or incomplete transaction isolation mode | 42601 |
+| CS04071 | SET outside a block: warning and successful no-op | 25000 |
+| CS04072 | SET after the first admitted data statement or during an operation | 25001 |
+| CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+
+## OQL key joins and NEST
+
+[Key JOIN and NEST](document/language/clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
+stars. All SELECT sources throughout a joined statement require explicit aliases pending
+[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
+default); eviction drops complete entries and NEST arrays, while retained rows keep their own
+charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
+without lookups. No SQLSTATE is assigned to these conditions.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
+| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
+| CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
+| CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
 
 ## Sources
+
+- **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.
 

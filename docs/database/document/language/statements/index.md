@@ -12,7 +12,7 @@ OQL accepts one SQL++ query, data mutation, collection definition or index state
 - **Update document paths** — [UPDATE](update.md), with SET and/or UNSET and an optional predicate.
 - **Delete documents** — [DELETE](delete.md), with an optional predicate and affected count.
 - **Inspect a plan** — [EXPLAIN](explain.md), without execution.
-- **Query documents** — [SELECT](select.md) projects and filters one collection.
+- **Query documents** — [SELECT](select.md) projects and filters sources with ordered key and array bindings.
 - **Create an index** — [CREATE INDEX](create-index.md) builds scalar/UNIQUE or DISTINCT array indexes.
 - **Remove an index** — [DROP INDEX](drop-index.md) removes a named collection index.
 

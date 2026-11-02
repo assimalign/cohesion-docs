@@ -7,7 +7,10 @@ Starts the session's explicit transaction.
 ## Syntax
 
 ```syntaxsql
-{ BEGIN [ WORK | TRANSACTION ] | START TRANSACTION } [ ; ]
+{ BEGIN [ WORK | TRANSACTION ] | START TRANSACTION }
+    [ ISOLATION LEVEL level [ [ , ] ISOLATION LEVEL level ...n ] ] [ ; ]
+
+<level> ::= READ COMMITTED | READ UNCOMMITTED | REPEATABLE READ | SERIALIZABLE
 ```
 
 ## Arguments
@@ -15,12 +18,29 @@ Starts the session's explicit transaction.
 `WORK` and `TRANSACTION` are optional equivalent suffixes on BEGIN.
 `START TRANSACTION` requires `TRANSACTION`. `START` and `WORK` remain contextual:
 columns named `start` or `work` still bind.
-Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
-Malformed suffixes report `CS00003` before transaction state changes.
+Each repeated mode includes ISOLATION LEVEL; commas between complete modes are optional.
+The last supported level wins. SERIALIZABLE anywhere in a state-valid mode list is refused.
+Isolation words remain contextual identifiers. Transaction names, savepoints and `AND [NO] CHAIN`
+are outside this grammar. READ ONLY, READ WRITE, DEFERRABLE and NOT DEFERRABLE use CK00001.
+Malformed isolation modes use CS00012; other malformed suffixes use CS00003.
 
 ## Remarks
 
-The session uses snapshot isolation for SQL `BEGIN`. Later statements on the same session join
+Optionless BEGIN and automatic transactions use Snapshot. The level mappings are:
+
+| SQL level | Effective level | Visibility |
+| --- | --- | --- |
+| READ COMMITTED | ReadCommitted | Fresh committed snapshot for each statement |
+| READ UNCOMMITTED | ReadCommitted | Same as READ COMMITTED; no dirty reads |
+| REPEATABLE READ | Snapshot | Fixed data and catalog snapshot at BEGIN |
+| SERIALIZABLE | Refused | CS04073 (0A000); no transaction starts |
+
+Unlike PostgreSQL, which acquires its transaction snapshot at the first query, Cohesion fixes
+Snapshot visibility at BEGIN. An early [SET TRANSACTION](set-transaction.md) from READ COMMITTED
+to REPEATABLE READ restores that original BEGIN snapshot, even after a concurrent commit.
+Neither SET nor an explicit level changes the default for future blocks or pooled reuse.
+
+Later statements on the same session join
 that transaction; its own writes are visible to it and remain hidden from other sessions until commit.
 A second `BEGIN` reports `CS04001` and preserves the original active scope.
 
@@ -54,8 +74,8 @@ transaction usability; see [diagnostics](../diagnostics.md#transactions).
 CS04005 is an Error in DatabaseException.Diagnostics; the in-process Message has no leading
 code, and InnerException retains the cause. The wire still prefixes its refusal with CS04005.
 
-The coordinator also has an API for selecting an isolation level; SQL isolation-level syntax,
-nested transactions, and savepoints are outside this language subset.
+The coordinator also has an API for selecting an isolation level. Nested transactions and
+savepoints remain outside this language subset.
 
 [ON CONFLICT](../clauses/on-conflict.md#isolation-locking-and-retries) uses latest-state unique-key
 arbitration. Snapshot aborts retryably on a conflict committed after its snapshot, including
@@ -80,9 +100,31 @@ COMMIT TRANSACTION;
 
 The inserted row becomes visible to an observing session after commit.
 
+For explicit isolation, starting from that same fixture:
+
+```sql
+BEGIN WORK ISOLATION LEVEL READ UNCOMMITTED;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT COUNT(*) FROM t;
+ROLLBACK WORK;
+```
+
+The count is `4` when run after the committed example, with no other writer. The block begins as
+ReadCommitted and switches to its BEGIN snapshot before the SELECT.
+
+## Diagnostics
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00012 | Malformed/incomplete isolation mode, including ISOLATION LEVEL SNAPSHOT | 42601 |
+| CS04001 | BEGIN while a usable transaction is already open; checked before SERIALIZABLE | — |
+| CS04005 | Existing transaction is aborted; roll it back before continuing | — |
+| CS04073 | SERIALIZABLE appears anywhere in a state-valid BEGIN mode list | 0A000 |
+| CK00001 | READ ONLY, READ WRITE, DEFERRABLE or NOT DEFERRABLE | — |
+
 ## See also
 
-[BEGIN](begin-transaction.md) · [COMMIT](commit-transaction.md) · [ROLLBACK](rollback-transaction.md)
+[SET TRANSACTION](set-transaction.md) · [COMMIT](commit-transaction.md) · [ROLLBACK](rollback-transaction.md)
 
 [Statements](index.md) · [Diagnostics](../diagnostics.md)
 
@@ -103,3 +145,4 @@ CS04006 (no SQLSTATE); roll back and retry in a fresh transaction. See
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`
 - **Client lifetime** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/DESIGN.md`
 - **Coordinator** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/OVERVIEW.md`
+- **Isolation and visibility** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIsolationSyntaxTests.cs`, `SqlIsolationReviewTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlIsolationWireTests.cs`.

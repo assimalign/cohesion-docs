@@ -1,10 +1,11 @@
 # Clauses
 
-OQL SELECT clauses bind one source, filter documents, form groups, and order the result.
+OQL SELECT clauses bind sources, filter documents, form groups, and order the result.
 
 ## Clause order
 
 - **Source** — [FROM](from.md) supplies one collection, derived SELECT or expression source.
+- **Key lookups** — [JOIN and NEST](join.md) bind stored documents or arrays by key, interleaved with UNNEST.
 - **Array expansion** — [UNNEST and LEFT UNNEST](unnest.md) bind ordered array elements before WHERE.
 
 - **Document filter** — [WHERE](where.md) retains documents whose predicate is true.

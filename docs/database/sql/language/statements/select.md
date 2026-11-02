@@ -51,7 +51,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | `UNION`, `INTERSECT`, `EXCEPT` [ALL / DISTINCT] | Supported | [Set operations](../clauses/set-operations.md) in every query position; combined ORDER BY uses output names/ordinals |
 | SELECT ALL | Recognized, not supported (`CK00001`) | ALL as a set quantifier executes |
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs accepts per-key NULLS FIRST/LAST |
-| [WITH and WITH RECURSIVE](../clauses/with.md) | Acyclic definitions execute; recursion binds only | Recursive planning, EXPLAIN and execution refuse with CK00001 |
+| [WITH and WITH RECURSIVE](../clauses/with.md) | Acyclic definitions and recursive fixpoints execute | Shared readers pull on demand; retained state uses statement memory |
 | FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | Recognized, not supported (`CK00001`) | SELECT locking tails, including CTEs and subqueries |
 | Windows | Supported subset | [OVER and WINDOW](../clauses/window.md); ranking, distributions, navigation, aggregate and frame value functions |
 

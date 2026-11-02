@@ -128,6 +128,13 @@ and [DocumentProtocol](../../dotnet-apis/resources/database/assimalign-cohesion-
 - **Related language** — [Language (SQL)](../sql/language/index.md).
 - **API reference** — [Database resource packages](../../dotnet-apis/resources/database/index.md).
 
+## Key joins
+
+[JOIN and NEST](language/clauses/join.md) look up stored documents by META(alias).id equality,
+with INNER/LEFT preservation, arrays for NEST and per-source metadata. Joined statements require
+explicit aliases in every SELECT scope. Lookups share the operation snapshot and a bounded
+statement cache. This completes the OQL T2 lane.
+
 ## Array queries
 
 [UNNEST and LEFT UNNEST](language/clauses/unnest.md)

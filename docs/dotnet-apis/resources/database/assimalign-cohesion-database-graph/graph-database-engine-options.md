@@ -36,12 +36,15 @@ await using var engine = await builder.BuildAsync();
 
 [GraphQueryLimits](../assimalign-cohesion-database-graph-protocol/graph-query-limits.md) can lower the ceilings for an embedded request or typed traversal. Remote statements use the server's engine configuration. See [streaming execution](design.md#streaming-execution-budgets).
 
-[UNION/UNION ALL](../../../../database/graph/language/clauses/union.md) shares these ceilings
-across all operands and outputs. Each submitted composite row spends one work unit. UNION
-duplicate-elimination state uses CG05030 on exhaustion; other memory and work use CG05020 and
-CG05004. UNION ALL has no distinct table or per-operand result set; final results still materialize.
+[UNION, EXCEPT, INTERSECT and OTHERWISE](../../../../database/graph/language/clauses/union.md) share
+these ceilings across all operands and outputs. Input hash visits, retained-row output visits and
+forwarding at every parent operator consume work. UNION duplicate-elimination state uses CG05030;
+EXCEPT/INTERSECT retained frames, rows and hash state use CG05032. Other memory and work retain
+CG05020 and CG05004. UNION ALL has no distinct table or per-operand result set; final results still materialize.
 
 ## Sources
+
+- **Composite accounting** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphSetQueryTests.cs`.
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseEngineOptions.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/src/GraphDatabaseSession.cs`.

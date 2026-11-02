@@ -53,6 +53,14 @@ identities deduplicate before fetching, and the complete predicate remains a res
 Array/scalar accesses can participate in IndexIntersection. See
 [array access and fetch bounds](create-index.md#array-access-and-fetch-bounds).
 
+## Key joins
+
+[JOIN and NEST](../clauses/join.md) add KeyJoin, LeftKeyJoin, KeyNest or LeftKeyNest between
+projection and initial access, with collection, alias, snapshot lookup and cache policy. No document
+lookup occurs under EXPLAIN. Joined ordering retains a sort; index candidates report
+key_join_requires_sort. For example, `EXPLAIN SELECT * FROM [1] AS a LEFT NEST items AS b
+ON META(b).id = 'a'` shows LeftKeyNest without reading items.
+
 ## Index ordering eligibility
 
 For ORDER BY, EXPLAIN describes the selected access and adds one IndexOrderCandidate per
