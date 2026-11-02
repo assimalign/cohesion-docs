@@ -8,7 +8,6 @@ The examples below retain real usage from project documentation, templates, fixt
 examples require their original test project’s dependencies and supporting objects.
 
 - **[Database Protocol Exchange Tests](database-protocol-exchange-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Client` through its co-located test source.
-- **[Database Command Client Tests](database-command-client-tests.md)** — This example exercises `Assimalign.Cohesion.Database.Client` through its co-located test source.
 
 [Assembly overview](../index.md) · [Design](../design.md)
 

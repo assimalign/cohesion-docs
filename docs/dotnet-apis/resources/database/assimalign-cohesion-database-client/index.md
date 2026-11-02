@@ -42,7 +42,7 @@ framed exchanges, and pools authenticated connections.
   in the pool. The exchange must use the exact same family instance.
 - **`DatabaseConnectionSettings`** — typed settings with a minimal `key=value;`
   connection-string parser (`Database`, `Principal`, `Endpoint=host[:port]`,
-  `MaxPoolSize`), plus `For(Uri)` for generated or ambient resource
+  `MaxPoolSize`), plus `For(Uri)` for configured Database wire
   endpoints.
 - **`DatabaseClientException`** — the client error root, carrying the wire's
   stable `ProtocolErrorCode`.
@@ -56,9 +56,7 @@ values), and `Connections` (transport factories). No engine or area-root referen
 
 See the [source-backed usage examples](examples/index.md).
 
-Generated and ambient endpoints stay typed:
-
-See the [source-backed usage examples](examples/index.md).
+Read the Database wire address from configuration and pass the typed URI to `For(Uri)`.
 
 `For(Uri)` requires a Cohesion endpoint URI—an absolute, host-bearing value with a valid port and no
 user information, query, or fragment—and maps its `IdnHost` and `Port` directly to the socket
@@ -71,29 +69,6 @@ IsOpen returns false. Repeated disposal or abort joins the original return. Shut
 connectors and fails waiting renters with ObjectDisposedException.
 
 SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
-
-## Retained HTTP command client
-
-`DatabaseCommandClient.Create(Uri controlPlaneAddress, string bearerToken, HttpMessageInvoker transport)`
-accepts a caller-owned transport, including its TLS trust policy. Disposing the returned client does
-not dispose that transport; the caller retains it until requests finish and disposes it afterward.
-The two-argument factory still creates a transport owned and disposed by the client. Both overloads
-perform the same endpoint and credential validation; a null supplied transport throws
-`ArgumentNullException`. The client does not discover application trust.
-
-`DatabaseCommandClient` is a sealed HTTP command helper retained in this package. Its factory
-accepts a caller-supplied HTTP(S) base URI and opaque bearer credential.
-`SendCommandAsync` posts the camel-case id/kind/owner/key/payload envelope to commands; payload is
-base64. `DeleteCommandAsync` sends DELETE to the same route and envelope. Both return package-local
-`ResourceCommandObservation` with Status and Detail, retaining actionable provider refusal text.
-Transport failures propagate; HTTP refusals become Rejected observations. Serialization uses
-explicit Utf8JsonWriter/JsonDocument access. The caller disposes the client; redirect following and
-cookies are disabled. It has no runtime Hosting or ApplicationModel dependency.
-
-This helper does not implement the restarted gateway action protocol. The current Database admin
-implementation refuses non-health `/cohesion/v1` requests with 403, including command requests
-from credentialed loopback callers. Managed instances use the platform client and application-added
-actions described by [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md).
 
 Supply an `IDuplexConnectionFactory` through `DatabaseClientOptions.ConnectionFactory`; the shared pool owns the duplex connections it establishes.
 

@@ -199,27 +199,9 @@ No reflection, code generation, driver discovery, model parser, or model result 
 The streaming path adds no dependencies or shipped-library `InternalsVisibleTo` grants and remains
 compatible with `net10.0` and NativeAOT. TLS remains a connection-factory concern.
 
-## Retained HTTP command client
+## Managed-resource boundary
 
-`DatabaseCommandClient.Create(Uri controlPlaneAddress, string bearerToken, HttpMessageInvoker transport)`
-accepts a caller-owned transport, including its TLS trust policy. Disposing the returned client does
-not dispose that transport; the caller retains it until requests finish and disposes it afterward.
-The two-argument factory still creates a transport owned and disposed by the client. Both overloads
-perform the same endpoint and credential validation; a null supplied transport throws
-`ArgumentNullException`. The client does not discover application trust.
-
-`DatabaseCommandClient` is a sealed HTTP command helper retained in this package. Its factory
-accepts a caller-supplied HTTP(S) base URI and opaque bearer credential.
-`SendCommandAsync` posts the camel-case id/kind/owner/key/payload envelope to commands; payload is
-base64. `DeleteCommandAsync` sends DELETE to the same route and envelope. Both return package-local
-`ResourceCommandObservation` with Status and Detail, retaining actionable provider refusal text.
-Transport failures propagate; HTTP refusals become Rejected observations. Serialization uses
-explicit Utf8JsonWriter/JsonDocument access. The caller disposes the client; redirect following and
-cookies are disabled. It has no runtime Hosting or ApplicationModel dependency.
-
-This helper does not implement the restarted gateway action protocol. The current Database admin
-implementation refuses non-health `/cohesion/v1` requests with 403, including command requests
-from credentialed loopback callers. Managed instances use the platform client and application-added
+This package supplies wire clients. Managed instances use the platform client and application-added
 actions described by [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md).
 
 ## Duplex transport composition
