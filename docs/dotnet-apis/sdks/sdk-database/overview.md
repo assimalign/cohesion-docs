@@ -51,8 +51,9 @@ the gateway builder.
 |---|---|---|---|
 | `FrameworkReference` | `Include=Assimalign.Cohesion.App.Database` | No additional child metadata | `Sdk/Sdk.props`; when `'$(CohesionAutoIncludeAppFramework)' != 'false'` |
 
-Framework references use `Include` before the project body. Compiler inputs are `Compile` and `ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and
-`MSBuildProjectDirectory` are passed to the schema task. `Outputs` are tracked with `FileWrites`.
+Framework references use `Include` before the project body. Compiler inputs are `Compile` and
+`ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and `MSBuildProjectDirectory` are
+passed to the schema task. `Outputs` are tracked with `FileWrites`.
 
 ## Generated artifacts
 

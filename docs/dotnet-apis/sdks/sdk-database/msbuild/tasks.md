@@ -46,6 +46,7 @@ expression failures. KeyValuePair produces `COHDBSDK106` without artifacts.
   `Execute_WithMismatchedReferenceType_ShouldFailPrecisely`;
   declaration validation.
 - **`DatabaseModelTargetsTests`** —
+  `Evaluate_DefaultProps_ShouldLeaveRetiredOrchestrationMetadataUnset`;
   `Evaluate_WithTargetFrameworkIntermediatePath_ShouldUseItForSchemaArtifacts`;
   `Evaluate_WithKnownModel_ShouldImportOnlyItsToolSet`;
   `Evaluate_WithUnknownModel_ShouldExposeNamedError`.

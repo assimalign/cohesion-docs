@@ -54,7 +54,6 @@ for publication, snapshot restore, and gateway action calls.
 |---|---|
 | `Assimalign.Cohesion.Database.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.ApplicationModel.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
 

@@ -54,9 +54,14 @@ is absent at this revision; the separate
 [managed integration tests](../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
 exercise the new gateway path.
 
+The TCP SDK fixture runs unmanaged without `AddResource` and leaves schema compilation off;
+SampleHost retains SQL schema compilation.
+
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/DatabaseApplicationTestFactory.cs`.
 - **Contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Abstractions/IDatabaseApplicationTestFactory.cs`.
 - **Tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/tests/DatabaseApplicationTestFactoryTests.cs`.
 - **Design** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/docs/DESIGN.md`.
+- **TCP SDK fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/fixtures/Assimalign.Cohesion.Database.TcpSdkHost/docs/OVERVIEW.md`.
+- **Schema fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/fixtures/Assimalign.Cohesion.Database.SampleHost/docs/DESIGN.md`.

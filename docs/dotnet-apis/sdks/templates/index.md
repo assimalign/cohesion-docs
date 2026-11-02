@@ -21,8 +21,10 @@ The standalone resource names are `cohesion-web`, `cohesion-spa`, `cohesion-data
 `cohesion-app` is an API, a database and a gateway. `Acme.Api` makes itself a managed resource with
 `builder.Services.AddResource("acme-api", resource => resource.UseInProcess())`; `Acme.Gateway`
 declares the model (`ApplicationGateway.CreateBuilder("acme")`, `AddResource("Web", "acme-api")`)
-and runs it on the in-process platform; `Acme.Database` is a plain Database application, because the
-Database area has no application-model integration yet. The standalone resources are plain
+and runs it on the in-process platform; `Acme.Database` is a plain Database application until its
+`Program.cs` opts into
+[Database.Hosting.ApplicationModel](../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md)
+with `AddResource` and a platform client. The standalone resources are plain
 applications whose READMEs show the one call that makes them managed.
 
 Both gateways reference the in-process platform, the only one that ships from this repository. It
