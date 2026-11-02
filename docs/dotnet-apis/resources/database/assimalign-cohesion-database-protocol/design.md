@@ -350,14 +350,21 @@ span reads and static encoding, with no reflection or runtime discovery.
 ## Transaction status and family reset
 
 SQL, Graph and Documents advertise transaction-status in protocol 2.1. Startup Ready keeps its
-version/capability payload; negotiated statement Ready carries exactly one ASCII byte I, T or E.
+version/capability payload; negotiated statement Ready carries exactly two bytes: ASCII I, T or E,
+then 0/1 for retained session state. ProtocolTransactionStatusMessage.HasRetainedState exposes
+the second byte. A one-byte payload, unknown status, retained byte above 1 or trailing data is
+refused; no compatibility reader is provided.
 It follows SQL/Graph Execute completion or statement Error (also Graph ExecutePaths), and
 Documents Execute/Command Complete or Failure. Ping/Pong and terminal connection errors have no
 postamble. Invalid status is a protocol violation (CK07002).
 
 Reset uses each family's existing payload: SQL/Graph Execute 5 with ROLLBACK and zero parameter
 count, then ResultComplete 8 with one zero Int64; Documents Execute 64 with ROLLBACK and `{}`,
-then Complete 66 with two zero Int64 counts. Both require Ready I. Unnegotiated transaction-capable
+then Complete 66 with two zero Int64 counts. Both require Ready I. SQL declares family ResetStatement
+`DISCARD ALL`; after rollback, the client sends it only if the latest Ready still reports retained
+state. SQL reports sequence observations and timeout settings differing from initial host values;
+Graph/Documents report zero and declare no family reset. Reuse requires Idle with no retained
+state. The reset changes no frame identifiers or protocol version. Unnegotiated transaction-capable
 peers cannot certify reuse and are discarded on return. See
 [pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset).
 

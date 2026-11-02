@@ -78,7 +78,12 @@ No framing or protocol-version change accompanies this diagnostic expansion.
 
 ## Execute transaction status
 
-SQL and Graph negotiate transaction-status. After completed Execute output or statement failure, a one-byte Ready postamble reports Idle, Active or Failed. Clients drain it before completing exchanges and reset open/failed transactions on pool return. See [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
+SQL negotiates transaction-status. After completed Execute output or statement failure, a two-byte
+Ready reports I/T/E and 0/1 retained session state. Clients drain it before completing exchanges.
+Pool return rolls back active/failed work, then uses the family's DISCARD ALL only if the latest
+Ready still reports retained state. Reuse requires Idle and zero retained state. SQL reports retained
+sequence entries and timeout settings differing from initial host values. See
+[status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
 ## Sources
 

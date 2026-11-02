@@ -101,7 +101,7 @@ ExecutePaths. No new wire tag or format is introduced.
 | CG03003 | Provably incompatible argument kind, including non-integral numeric toBoolean; temporal stored property |
 | CG02013 | Dynamic wrong kind, invalid conversion/domain/range, zero divisor, overflow or output bound |
 | CG07016 | Possible composite wire result without negotiated capability |
-| CK00001 | Recognized unsupported calls, including ELEMENTS(), CARDINALITY, temporal constructors, reduce, head/last/tail/reverse/range, LTRIM/RTRIM/BTRIM, LEFT/RIGHT, LOG10 and toXList conversions |
+| CK00001 | Recognized unsupported calls, including ELEMENTS(), CARDINALITY, temporal constructors, head/last/tail/reverse/range, LTRIM/RTRIM/BTRIM, LEFT/RIGHT, LOG10 and toXList conversions |
 
 These codes have no assigned SQLSTATE. EXPLAIN checks signatures without evaluating functions.
 Runtime failures precede ResultHeader and preserve the authenticated wire session.

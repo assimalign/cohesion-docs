@@ -66,14 +66,16 @@ columns, including inside scalar ordering expressions. Qualified references and 
 retain their source scope. Invalid numeric ordinals fail during binding, even for an empty input;
 compound constants such as `1 + 1` remain scalar expressions.
 
-The executor evaluates each projection and its ordering keys in one pass, retaining completed
+The executor ordinarily evaluates each projection and its ordering keys in one pass, retaining completed
 outputs and fixed keys rather than source rows. Independent volatile outputs without output-key
 dependencies retain full sorting followed by projection. Grouped queries use the same binding against completed group
-outputs. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
+outputs. [Sequence outputs](../../../../database/sql/language/functions/sequences.md#evaluation-order)
+needed as sort keys evaluate before sorting; independent sequence outputs evaluate afterward,
+including OFFSET rows, and stop at LIMIT. `SqlExpressionEvaluator` resolves bound AST nodes by identity to these output slots and
 follows each projection's source for collation. It does not reconstruct language AST nodes or
 require cross-assembly internal access. Sorting is stable, with NULL first ascending and last
 descending, followed by DISTINCT and LIMIT/OFFSET. Explicit NULL placement and derived-table
-ordering remain capability errors. The exact syntax contract and execution evidence are in
+ordering execute. The exact syntax contract and execution evidence are in
 DIALECT.md
 (`cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`).
 
@@ -1169,9 +1171,10 @@ For example, `SqlType.CreateDomain("serial", SqlType.Integer)` is refused before
 
 ## Standalone sequence catalog and shared allocation
 
-Batch 9 implements internal sequence catalog objects and allocation. There is no sequence SQL
-syntax, function, session state, public sequence API or new wire message yet. SQL binding arrives
-in batch 10. See [catalog records and namespace](catalog-design.md#standalone-sequences) and
+Standalone sequences now expose [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
+[session functions](../../../../database/sql/language/functions/sequences.md) and
+[NEXT VALUE FOR](../../../../database/sql/language/expressions/next-value-for.md).
+See [catalog records and namespace](catalog-design.md#standalone-sequences) and
 [durable allocation](storage-design.md#identity-and-sequence-reservations).
 
 Sequences, tables and views share a case-insensitive relation namespace, rechecked at publication,
@@ -1192,11 +1195,26 @@ caches. Allocation does not change DdlGeneration and stays independent of data t
 | CS03070 | Occupied table/view/sequence relation name involving a sequence | 42P07 |
 | CS03071 | Sequence namespace does not exist | 3F000 |
 | CS03072 | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in persisted expressions or sequence DDL in provisioning scripts | 0A000 |
+| CS03075 | setval value outside bounds | 22003 |
+| CS03076 | Restricted sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed reference or invalid runtime call argument | 22023 |
 | CS04067 | Allocation/mutation uses a dropped or replaced sequence incarnation | 40001 |
+| CS04068 | currval undefined for the sequence in this session | 55000 |
+| CS04069 | lastval undefined or its selected sequence dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
 | CS06061 | Malformed sequence definition, directory or reservation | XX001 |
 
 CS02002 is the catalog allocator condition. SQL identity generation retains its existing
-CS03025 wrapper; this batch adds no sequence SQL execution path.
+CS03025 wrapper. Sequence SQL DDL self-commits and uses CS04003 (25001) inside explicit transactions.
+Shared object grants protect statement evaluation; ALTER/RESTART/DROP wait for transaction end.
+Literal/parameter names lock their objects; row-varying names lock the captured sequence directory.
+Ordered independent sequence outputs evaluate after sorting, including OFFSET rows, and stop at
+LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting follows the
+ordinary sort's uncharged accounting; grouping-set states retain their existing CS05067 grant.
+RETURNING lists containing calls evaluate before the global apply gate; durable sequence effects
+survive write rollback. Identity integration, SERIAL and OWNED BY remain run-3 work.
 
 ## Declaration validation
 
@@ -1305,8 +1323,13 @@ intent and CS03104 failure, with CS05042 in the underlying cause.
 | `CS05070` | FULL JOIN lacks a safe mandatory hash equality or proven non-throwing complete ON evaluation; before reads | — |
 | `CS05072` | FILTER attached to a scalar/non-aggregate call | 42809 |
 | `CS05073` | Same-scope aggregate inside a FILTER condition | 42803 |
+| `CS00010` | GROUPING SETS inside ROLLUP/CUBE | 42601 |
+| `CS01062` | GROUPING argument does not match its associated query level's grouping expressions | 42803 |
+| `CS01063` | GROUPING requires 1–31 non-star arguments | 54023 |
+| `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| `CS05075` | More than 4096 expanded sets before DISTINCT | 54001 |
 | `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
-| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state or CTAS buffers | 53200 |
+| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state, CTAS buffers or per-set grouping/mask state | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
 | `CS03068` | CTAS output names are missing, blank, duplicate or have the wrong width | 42601 (`syntax_error`) |
@@ -1720,8 +1743,10 @@ inputs and set results. EXPLAIN describes each effective placement. Format 24 in
 modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 28
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
-[RETURNING](../../../../database/sql/language/clauses/returning.md) evaluates per written row inside
-apply after index checks, including immutable calls. Rows buffer until apply/commit completes;
+[RETURNING](../../../../database/sql/language/clauses/returning.md) ordinarily evaluates per written row
+inside apply after index checks, including immutable calls. Lists containing sequence calls evaluate
+before the global apply gate; sequence effects survive a later write rollback. NEXT VALUE FOR in
+RETURNING is refused with CS03076 (0A000). Rows buffer until apply/commit completes;
 projection failure rolls back that whole statement. DatabaseResultSet.AffectedCount counts direct
 writes and remains -1 for SELECT. EXPLAIN describes projection width/names without evaluation.
 
@@ -1763,7 +1788,8 @@ projection evaluation. EXCLUDED supplies coerced/defaulted/generated proposed va
 original target. Proposed NOT NULL/domain/CHECK validation precedes arbitration; foreign keys
 validate only writes. A pending per-index/key map records earlier proposals and source-order rekeys.
 DO NOTHING and false/UNKNOWN filters produce no returned row or affected count. All row/index writes
-and RETURNING evaluations share one ApplyStatementAsync bracket.
+and ordinary RETURNING evaluations share one ApplyStatementAsync bracket. Lists containing sequence
+calls evaluate before the apply gate; their allocation/setval effects are nontransactional.
 
 Without requested side-effecting defaults, every proposal's keys from every unique index acquire
 one sorted batch. Requested identities or recursively non-immutable default calls, conservatively
@@ -1792,7 +1818,8 @@ Rows kept by successful waits remain locked until transaction end even after a c
 or DELETE removes the original conflict. Snapshot still rejects a committed changed row;
 ReadCommitted re-arbitrates against committed state. Earlier grants and upgrades remain held.
 
-No heap/index change, ledger entry or RETURNING projection precedes final apply. Restarting
+No heap/index change or ledger entry precedes final apply. Ordinary RETURNING projects there;
+lists containing sequence calls evaluate before the apply gate. Restarting
 re-enumerates proposals, so identities and non-immutable defaults run again; gaps and repeated
 default side effects are possible. Final effects and RETURNING rows occur once. Every preparation
 exception releases grants since the original statement mark, including retained waited rows,

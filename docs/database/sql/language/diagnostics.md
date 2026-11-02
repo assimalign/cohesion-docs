@@ -20,6 +20,7 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `CS00007` | Parsing thread has insufficient stack; engine text execution translates to CS05004 |
 | `CS00008` | Malformed or overflowing typed temporal, interval or X binary literal; span covers the literal |
 | `CS00009` | Information: optional terminating semicolon omitted; `CS00100` is retired and reserved |
+| `CS00010` | GROUPING SETS inside ROLLUP or CUBE, including through a composite; planning refusal, SQLSTATE 42601 |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports CS00008 before execution.
 Recognized unsupported window functions such as RANK report CK00001, including over an empty
@@ -35,6 +36,10 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS02001` | Division or remainder by zero | 22012 |
+| `CS01062` | GROUPING argument does not match a grouping expression at its associated query level | 42803 |
+| `CS01063` | GROUPING requires 1–31 non-star arguments | 54023 |
+| `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| `CS05075` | More than 4096 expanded grouping sets before DISTINCT | 54001 |
 | `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion (SQL identity generation retains CS03025), non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
 | `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE/FILTER condition or AND/OR/NOT/truth-test operand | 42804 |
 | `CS05004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
@@ -109,7 +114,15 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03070` | Occupied sequence/table/view relation name involving a sequence; existing kind named | 42P07 |
 | `CS03071` | Sequence namespace does not exist | 3F000 |
 | `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
+| `CS03073` | Named sequence or object identity is absent | 42P01 |
+| `CS03074` | Sequence operation/REGCLASS in a persisted expression, or sequence DDL in a declared provisioning script | 0A000 |
+| `CS03075` | setval value is outside the sequence bounds | 22003 |
+| `CS03076` | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| `CS03077` | Malformed sequence reference or invalid runtime call argument | 22023 |
 | `CS04067` | Dropped/replaced sequence incarnation used for allocation or mutation | 40001 |
+| `CS04068` | currval is undefined for this sequence in this session | 55000 |
+| `CS04069` | lastval is undefined or its sequence was dropped | 55000 |
+| `CS04070` | DISCARD ALL inside an explicit transaction | 25001 |
 | `CS06061` | Malformed sequence definition, directory or reservation | XX001 |
 | `CS03065` | Function signature already exists | 42723 (`duplicate_function`) |
 | `CS03066` | Compiled-schema ownership refuses session DDL | 42501 (`insufficient_privilege`) |
@@ -123,7 +136,8 @@ not a separate field on the diagnostic or SQL exception.
 
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE, SIMILAR TO,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and `::` casts use CK00001.
+ISNULL, NOTNULL, IS JSON/OF/NORMALIZED, binary bitwise operators and general `::` casts use CK00001;
+the sequence-specific `name::regclass` form executes.
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
 

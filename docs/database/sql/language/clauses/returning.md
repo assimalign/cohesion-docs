@@ -37,8 +37,11 @@ DO NOTHING and FALSE/UNKNOWN update filters return no row and contribute no affe
 The EXCLUDED pseudo-relation is outside RETURNING scope (CK00001); a real target named or
 aliased excluded can still qualify its own returned columns.
 
-Projection runs per row inside the write after that row's mutation and index checks. Even immutable
-calls execute there. Any constraint or projection error rolls the entire statement back, including
+Ordinary projection runs per row inside the write after that row's mutation and index checks.
+A list containing [sequence function calls](../functions/sequences.md) evaluates before the global
+apply gate so durable allocation/setval commits occur outside it. NEXT VALUE FOR is refused in
+every RETURNING list with CS03076 (0A000), before allocation or row mutation. Sequence effects
+remain nontransactional if the statement later fails. Any constraint or projection error rolls the entire statement back, including
 inside BEGIN; earlier successful statements remain. Results buffer until apply completes and
 auto-commit succeeds. A slow application function in RETURNING holds up other database writers.
 Materialized results remain readable after a later ROLLBACK.
@@ -62,6 +65,7 @@ executing the write or projection.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
+| CS03076 | NEXT VALUE FOR in RETURNING | 0A000 |
 | CK00001 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries or windows | — |
 | CS05017 | Aggregate in RETURNING, rejected during planning even for empty input | — |
 | CS01015 | Unknown/hidden target qualifier or an INSERT source reference | — |

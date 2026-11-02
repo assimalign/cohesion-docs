@@ -47,7 +47,7 @@ If a cancellation callback throws, disposal still joins the exchange and release
 the teardown failure (including AggregateException for callback failures) reaches every disposer
 awaiting that original return.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 Pool shutdown closes idle connectors and connectors returned during shutdown. Waiting renters fail
 with ObjectDisposedException without waiting for outstanding leases to return.

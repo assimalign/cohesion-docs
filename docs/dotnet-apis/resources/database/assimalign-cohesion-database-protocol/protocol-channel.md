@@ -37,7 +37,7 @@ ReadFrameAsync still returns owned memory. See [framing APIs and example](design
 ## Example
 
 ```csharp
-var family = new ProtocolMessageFamily("Example", [ProtocolCapability.Diagnostics], 64);
+var family = new ProtocolMessageFamily("Example", [ProtocolCapability.Diagnostics], null, 64);
 await using var channel = new ProtocolChannel(new MemoryStream(), family);
 var agreement = channel.Negotiate(ProtocolVersion.Current, ["diagnostics"]);
 Console.WriteLine(agreement.Capabilities[0]); // diagnostics

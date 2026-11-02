@@ -16,7 +16,7 @@ FROM INFORMATION_SCHEMA.view_name
 
 ## Arguments
 
-- **`view_name`** — One of the eight relation names below.
+- **`view_name`** — One of the nine relation names below.
 - **`select_list`** — Metadata columns or expressions; `*` uses the listed column order.
 - **Query clauses** — This abbreviated diagram uses the ordinary supported
   [SELECT](../statements/select.md) grammar.
@@ -33,6 +33,7 @@ FROM INFORMATION_SCHEMA.view_name
 | `REFERENTIAL_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `UNIQUE_CONSTRAINT_CATALOG`, `UNIQUE_CONSTRAINT_SCHEMA`, `UNIQUE_CONSTRAINT_NAME`, `MATCH_OPTION`, `UPDATE_RULE`, `DELETE_RULE` | Foreign keys and their referenced key identities |
 | `VIEWS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `VIEW_DEFINITION`, `CHECK_OPTION`, `IS_UPDATABLE` | Canonical persisted view definitions; CHECK_OPTION is NONE and IS_UPDATABLE is NO |
 | `CHECK_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `CHECK_CLAUSE` | Persisted explicit check expressions |
+| `SEQUENCES` | `SEQUENCE_CATALOG`, `SEQUENCE_SCHEMA`, `SEQUENCE_NAME`, `DATA_TYPE`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `START_VALUE`, `MINIMUM_VALUE`, `MAXIMUM_VALUE`, `INCREMENT`, `CYCLE_OPTION` | Standalone sequence definitions; identity-owned generators are not listed |
 
 ## Remarks
 
@@ -94,6 +95,24 @@ keep facets only when all types/domains/modifiers agree; NULLIF keeps its first 
 Metadata enumeration still works when a recoverable body bind failure prevents reading a view.
 
 ## Examples
+
+### Sequences
+
+SEQUENCES reads the immutable catalog image used by other system relations. DATA_TYPE is
+SMALLINT, INTEGER or BIGINT; precision is 16, 32 or 64, radix 2 and scale 0. START_VALUE,
+MINIMUM_VALUE, MAXIMUM_VALUE and INCREMENT are invariant integer text; CYCLE_OPTION is YES/NO.
+It exposes definitions, not session currval or the allocator's live cursor.
+
+After `CREATE SEQUENCE s AS SMALLINT START 3 INCREMENT 2 MINVALUE 1 MAXVALUE 99 CACHE 4 CYCLE;`:
+
+```sql
+SELECT SEQUENCE_SCHEMA,SEQUENCE_NAME,DATA_TYPE,START_VALUE,INCREMENT,CYCLE_OPTION
+FROM INFORMATION_SCHEMA.SEQUENCES WHERE SEQUENCE_NAME='s';
+```
+
+Returns `('dbo','s','SMALLINT','3','2','YES')`. See [CREATE SEQUENCE](../statements/create-sequence.md).
+
+### Tables and columns
 
 This dialect example inspects an existing `orders` table:
 

@@ -27,6 +27,10 @@ including arithmetic, CAST and Immutable, Stable or Volatile calls. Columns, par
 aggregates fail with `CS05013`; subqueries fail with `CK00001`. Result types must satisfy
 INSERT assignment compatibility before publication. SQL has NULL values, with no MISSING scalar.
 
+[Sequence calls](../functions/sequences.md), NEXT VALUE FOR and REGCLASS casts are refused in
+persisted defaults, including typed defaults, with CS03074 (0A000). Standalone sequence SQL
+executes, while identity/default integration remains run-3 work.
+
 The top-level declaration grammar admits comparisons and IS [NOT] DISTINCT FROM, retaining
 following column constraints: `flag BOOLEAN DEFAULT 1 IS DISTINCT FROM 2 NOT NULL`.
 Use parentheses for other predicate forms, such as `flag BOOLEAN DEFAULT (NULL IS UNKNOWN)`;

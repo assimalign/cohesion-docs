@@ -43,6 +43,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md) | Supported | Lazy conditional values; simple CASE accepts ISO when-operand lists |
 | [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |
 | [List comprehensions](expressions/list-comprehensions.md) and [slices](expressions/list-slices.md) | Supported | Scoped filtering/projection and bounded ranges; stored properties remain scalar |
+| [reduce](expressions/reduce.md) and [list predicates](expressions/list-predicates.md) | Supported | Ordered folds and all/any/none/single with lexical bindings and three-valued tests |
 | EXPLAIN | Supported | Chosen data plan without execution |
 | [Path selectors](path-selectors.md) and inline WHERE | Supported | Per-pair execution under work/memory budgets; counted ANY remains refused |
 | [Scalar functions](functions/scalar-functions.md) and [CAST](expressions/cast.md) | Supported | Plan-time signatures, strict NULLs, code-point substring and transaction-start clocks |

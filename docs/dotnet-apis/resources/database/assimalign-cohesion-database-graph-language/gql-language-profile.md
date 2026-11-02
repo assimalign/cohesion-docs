@@ -30,6 +30,10 @@ duplicate map keys. Semantic checks belong to the engine, including CG03003 para
 CG02013 evaluated value bounds and CG07016 for unnegotiated possible composite wire results.
 See [GQL diagnostics](../../../../database/graph/language/diagnostics.md).
 
+GqlClauses.Reduce and ListPredicate are enabled. They admit
+[reduce](gql-reduce-expression.md) and [all/any/none/single](gql-list-predicate-expression.md)
+binding expressions; pattern comprehensions remain CK00001.
+
 ## Example
 
 ```csharp

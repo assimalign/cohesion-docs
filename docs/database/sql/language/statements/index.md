@@ -6,6 +6,9 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Data definition language
 
+- **[CREATE SEQUENCE](create-sequence.md)** — Declare a standalone integer allocator.
+- **[ALTER SEQUENCE](alter-sequence.md)** — Change options or restart allocation.
+- **[DROP SEQUENCE](drop-sequence.md)** — Atomically remove a sequence list.
 - **[CREATE SCHEMA](create-schema.md)** — Persist a SQL namespace independently of tables.
 - **[DROP SCHEMA](drop-schema.md)** — RESTRICT by default or atomically CASCADE dependent objects.
 
@@ -36,13 +39,14 @@ Reference for the supported data definition, data manipulation, and transaction-
 
 ## Transaction control
 
+- **[DISCARD ALL](discard-all.md)** — Clear sequence observations and restore initial timeout settings outside a transaction.
 - **[BEGIN TRANSACTION](begin-transaction.md)** — Begin a session-scoped snapshot transaction.
 - **[COMMIT TRANSACTION](commit-transaction.md)** — Publish its changes.
 - **[ROLLBACK TRANSACTION](rollback-transaction.md)** — Abort its changes.
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 59-of-64 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 67-of-72 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

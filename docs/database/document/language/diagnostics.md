@@ -52,7 +52,7 @@ rather than being rounded by the parser.
 | `CD01030` | Invalid/empty/duplicate grouping alias, collision with FROM/UNNEST, or malformed direct-AST alias list | — |
 | `CD01031` | GROUP AS referenced in an aggregate's row input | — |
 | `CD01032` | Direct ordering AST has an invalid null-placement enum | — |
-| `CD05018` | Accounted SELECT/group staging, wrappers/arrays, aggregates, projection/order storage, DML pending buffers or RETURNING exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes, no partial result | — |
+| `CD05018` | Accounted SELECT/group staging, ordered candidate buckets/keys/identities, wrappers/arrays, aggregates, projection/order storage, DML pending buffers or RETURNING exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes, no partial result | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |

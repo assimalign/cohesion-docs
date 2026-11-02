@@ -15,6 +15,11 @@ multi-word names and engine-resolved domains.
 
 ## Conversion pairs
 
+Sequence references additionally accept `CAST(name AS REGCLASS)` and `name::regclass`, returning
+the sequence's BIGINT object identity (NULL for NULL). REGCLASS resolves only sequences and is
+not a stored column type. Persisted use is CS03074 (0A000); absent names use CS03073 (42P01),
+malformed references CS03077 (22023). See [sequence functions](../functions/sequences.md).
+
 Identity conversions work for all 19 shared non-null SQL types. This table lists additional
 built-in conversions. Character types mean TEXT/VARCHAR and fixed CHAR; numeric types mean
 TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE PRECISION and NUMERIC.

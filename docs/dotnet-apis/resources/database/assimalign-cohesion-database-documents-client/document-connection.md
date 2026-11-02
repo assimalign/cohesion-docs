@@ -48,7 +48,7 @@ rental exactly once; Abort discards it. Repeated disposal cannot return a later 
 
 The wrapper caches Database at rental time, so that name remains readable after disposal; IsOpen
 returns false. Its shared DatabaseConnection lease permanently rejects execution after return.
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 ## Text transactions
 

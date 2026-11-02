@@ -49,8 +49,27 @@ With SELECT DISTINCT, every key must match a projected expression after explicit
 an outside key fails with `CD01014` at that key. Top-level VALUE/RAW normalizes a MISSING projected
 value to NULL before ordering by the matching expression.
 
-[Index ordering eligibility](../statements/explain.md#index-ordering-eligibility) is EXPLAIN-only
-in batch 9. Execution still sorts; index-order consumption arrives in batch 10.
+### Index order and paging
+
+An eligible scalar index supplies this order directly, forward for ASC or reverse for DESC,
+and removes the result sort. ORDER BY must match consecutive index keys after any skipped
+equality-fixed leading keys. Varying keys must share a direction. The index must INCLUDE MISSING
+on its leading key, or a mandatory predicate must reject leading MISSING. Nondefault NULLS
+placement requires proof that both NULL and MISSING cannot qualify.
+
+UNIQUE scalar keys, suitable scalar predicates or a bounded complex-key absence probe establish
+the scalar domain. Array indexes, complex values, unproven scalar domains, computed ordering,
+mixed varying directions, grouping, DISTINCT, UNNEST and identity intersections keep the sort.
+VALUE/RAW ordering by its projected expression also keeps the sort unless MISSING is rejected:
+projection turns MISSING into NULL and changes equal-key ties. See
+[EXPLAIN eligibility and reasons](../statements/explain.md#index-ordering-eligibility).
+
+The engine completes each equal-ORDER-BY-key bucket, including trailing physical index keys,
+then visits its documents in ascending ordinal identity order in either scan direction. The full
+residual predicate filters that ordered stream. With fixed projection types, including SELECT *,
+LIMIT/OFFSET can stop after OFFSET + LIMIT survivors; LIMIT 0 opens no ordered cursor. A boundary
+entry and bounded index read-ahead may still be read. Projections needing result type inference
+read all matches to establish column types, while still eliding the sort.
 
 ## Diagnostics
 
@@ -60,7 +79,8 @@ in batch 9. Execution still sorts; index-order consumption arrives in batch 10.
 | CD01032 | Direct ordering AST has an invalid null-placement enum | — |
 | CK00001 | Extra unsupported token after a complete suffix, such as NULLS FIRST LAST | — |
 
-Existing sort-memory failures retain CD05018.
+CD05018 also covers ordered candidate buckets, their keys and identities under StatementMemoryBudget
+(no assigned SQLSTATE); exhaustion fails before result publication.
 
 ## Examples
 
@@ -80,12 +100,22 @@ SELECT META().id AS id FROM items ORDER BY v DESC NULLS FIRST;
 
 Returns `{"id":"n"}`, `{"id":"m"}`, `{"id":"v"}`, in that order.
 
+With those documents, execute separately:
+
+```sql
+CREATE INDEX ix ON items (v INCLUDE MISSING);
+SELECT META().id AS id FROM items ORDER BY v DESC LIMIT 1 OFFSET 1;
+```
+
+Returns `{"id":"n"}`. The scalar index supplies reverse order; the first survivor is skipped.
+
 ## See also
 
 [Clauses](index.md), [SELECT](../statements/select.md), and [GROUP BY](group-by.md).
 
 ## Sources
 
+- **Ordered consumption and paging** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOrderedConsumptionTests.cs`.
 - **Grammar and default direction** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Select.cs`.
 - **Ordering semantics** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/docs/DESIGN.md`.
 - **Placement and ties** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentOrderingTests.cs`.

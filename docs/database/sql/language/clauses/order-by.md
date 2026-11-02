@@ -21,6 +21,11 @@ ORDER BY <order_by_item> [ , ...n ]
 
 ## Remarks
 
+[Sequence outputs](../functions/sequences.md#evaluation-order) independent of ordering evaluate
+after sorting and before paging. An output used as a sort key evaluates once per candidate before
+sorting. Direct NEXT VALUE FOR ordering expressions are CS03076 (0A000); ordering by their projected
+alias or ordinal is allowed.
+
 After [UNION/INTERSECT/EXCEPT](set-operations.md), ordering accepts first-operand output names or
 positive one-based ordinals only. Expressions and qualified names use CS02018; ambiguous
 output names use CS01019. Parenthesized operands can retain their own ordinary SELECT ordering.

@@ -287,8 +287,12 @@ OQL now admits [INCLUDE MISSING](../../../../database/document/language/statemen
 on the leading scalar key, using the existing v3 catalog flag. Catalog PATH/PATHS[0] render the
 suffix, and INCLUDE_MISSING exposes its Boolean value. [EXPLAIN ordering eligibility](../../../../database/document/language/statements/explain.md#index-ordering-eligibility)
 reports conservative per-index proofs, direction and fallback reasons, including bounded complex-tag
-probes. This is EXPLAIN-only in batch 9: `consumed=False; sort=retained`. Execution still sorts;
-index-order consumption arrives in batch 10.
+probes. Eligible scalar indexes now supply forward/reverse execution order and report
+`consumed=True; sort=elided`. The cursor completes each equal-ORDER-BY-prefix bucket, repairs
+ties into ascending document identity order and applies the full residual predicate. Fixed-type
+projections permit early LIMIT/OFFSET termination; inferred types read all matches. Bucket keys,
+identities and metadata share StatementMemoryBudget (CD05018). Intersections and other rejected
+shapes retain sorting. See [ORDER BY](../../../../database/document/language/clauses/order-by.md#index-order-and-paging).
 
 [DocumentIndexKey](document-index-key.md) adds a typed DISTINCT array projection, optionally
 filtered by a bounded [DocumentIndexPredicate](document-index-predicate.md). One array key may

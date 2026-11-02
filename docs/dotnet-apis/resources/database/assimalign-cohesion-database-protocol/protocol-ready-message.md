@@ -34,7 +34,7 @@ Console.WriteLine(ready.Capabilities.Count); // 0
 
 ## Statement transaction status
 
-[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated one-byte Ready postamble; ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
+[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated two-byte Ready postamble (I/T/E plus retained-state 0/1); ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
 
 ## Sources
 

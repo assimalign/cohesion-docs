@@ -28,6 +28,8 @@ public static class GqlClauses
     public const string Merge = "MERGE";
     public const string ListComprehension = "LIST COMPREHENSION";
     public const string ListSlice = "LIST SLICING";
+    public const string Reduce = "REDUCE";
+    public const string ListPredicate = "LIST PREDICATE";
 }
 ```
 
@@ -70,6 +72,16 @@ Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Merge)); // Tr
 ```
 
 ## Documented behavior
+
+Reduce and ListPredicate are enabled by GqlLanguageProfile.Instance and add no exceptions.
+They parse into [GqlReduceExpression](gql-reduce-expression.md) and
+[GqlListPredicateExpression](gql-list-predicate-expression.md), with
+[GqlListPredicateKind](gql-list-predicate-kind.md) selecting all/any/none/single.
+
+```csharp
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Reduce)); // True
+Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.ListPredicate)); // True
+```
 
 `GqlQueryParser` derives from the shared `QueryParser` and returns `GqlQueryStatement`, whose
 diagnostics describe malformed or unsupported input. `GqlLanguageProfile.Instance` advertises only

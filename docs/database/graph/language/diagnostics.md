@@ -41,10 +41,16 @@ add these conditions; none has an assigned SQLSTATE:
 | CG01017 | Missing/empty iterator declaration in a hand-built AST |
 | CG02014 | Invalid list-operation source or slice-bound kind/range |
 | CG05024 | Aggregate inside a comprehension filter or projection |
+| CG01018 | Missing/empty reduce/list-predicate declaration or identical reduce binding names |
+| CG02015 | Reduce/list-predicate source is neither a list nor NULL; planning rejects known incompatible kinds |
+| CG05025 | Malformed reduce/list-predicate body or quantifier AST, or a body aggregate |
+| CG05026 | Reduce shape/type planning exceeds 65,536 visited nodes or closure steps |
 
 Known non-Boolean filters use CG02013 even for empty/NULL input. Unbound names retain CG05001.
-Scalar property results execute; list-valued properties, reduce and all/any/none/single list
-predicates retain CK00001.
+Scalar property results, [reduce](expressions/reduce.md) and
+[all/any/none/single](expressions/list-predicates.md) execute. List-valued properties and pattern
+comprehensions retain CK00001. Reduction source/predicate kinds validate on empty/NULL input and
+under EXPLAIN; unknown kinds are checked at evaluation. CG05026 is independent of execution budgets.
 
 | Code | Meaning |
 |---|---|

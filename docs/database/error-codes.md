@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/46803a9ba/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/1f654d2d2/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -61,6 +61,7 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CD04104 | Document COMMIT/ROLLBACK without an explicit transaction | — |
 | CD04105 | OQL collection/index DDL inside an explicit transaction | — |
 | CD07002 | Text transaction control without the negotiated transaction-status capability | — |
+| CK07002 | Malformed negotiated statement Ready: exactly I/T/E plus a retained-state 0/1 byte is required | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,
@@ -161,7 +162,8 @@ ALL/DISTINCT on a scalar call or star, and CD01029 for an invalid enum quantifie
 quantifier or quantified star in a directly constructed call AST. Neither has an assigned SQLSTATE.
 Final statistic overflow retains CD02007 (22003). Retained SELECT sources, group staging, native
 accumulators, DISTINCT sets, ARRAY_AGG inputs/results, projection/order storage and RETURNING
-share StatementMemoryBudget with GROUP AS wrappers/arrays and DML pending buffers. CD05018 refuses
+share StatementMemoryBudget with ordered candidate buckets/keys/identities, GROUP AS wrappers/arrays
+and DML pending buffers. CD05018 refuses
 exhaustion before result publication; pending-buffer exhaustion precedes any write (no SQLSTATE).
 
 OQL [GROUP AS and group aliases](document/language/clauses/group-by.md) add CD00012 for GROUP AS
@@ -262,7 +264,7 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CD01032 | Invalid null-placement enum in a direct ordering AST | — |
 
 [Ordering eligibility](document/language/statements/explain.md#index-ordering-eligibility) reports
-plan reasons and retains sorting; it adds no diagnostic or storage format.
+plan reasons, consumption and sort elision/retention; it adds no diagnostic or storage format.
 
 ## GQL list operations
 
@@ -272,9 +274,15 @@ plan reasons and retains sorting; it adds no diagnostic or storage format.
 | CG01017 | Missing/empty iterator declaration in a direct comprehension AST | — |
 | CG02014 | Invalid list source or slice-bound kind/range | — |
 | CG05024 | Aggregate inside a comprehension predicate or projection | — |
+| CG01018 | Missing/empty reduce/list-predicate declaration or identical reduce names | — |
+| CG02015 | Reduce/list-predicate source is neither list nor NULL; known kinds fail planning | — |
+| CG05025 | Malformed reduce/list-predicate body/quantifier AST or body aggregate | — |
+| CG05026 | Reduce shape/type planning exceeds 65,536 node visits or closure steps | — |
 
 See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md) and
-[slices](graph/language/expressions/list-slices.md).
+[slices](graph/language/expressions/list-slices.md), [reduce](graph/language/expressions/reduce.md)
+and [list predicates](graph/language/expressions/list-predicates.md). Known non-Boolean predicates
+use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions retain CK00001.
 
 ## SQL sequence catalog conditions
 
@@ -285,13 +293,35 @@ See [GQL list comprehensions](graph/language/expressions/list-comprehensions.md)
 | CS03070 | Occupied sequence/table/view relation name involving a sequence | 42P07 |
 | CS03071 | Sequence namespace absent | 3F000 |
 | CS03072 | Sequence definition exceeds the catalog record limit | 54000 |
+| CS03073 | Named sequence or object identity is absent | 42P01 |
+| CS03074 | Sequence operation/REGCLASS in a persisted expression or sequence DDL in a provisioning script | 0A000 |
+| CS03075 | setval value outside sequence bounds | 22003 |
+| CS03076 | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
+| CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
 | CS04067 | Dropped/replaced sequence incarnation | 40001 |
+| CS04068 | currval is undefined for this sequence in this session | 55000 |
+| CS04069 | lastval is undefined or its sequence was dropped | 55000 |
+| CS04070 | DISCARD ALL inside an explicit transaction | 25001 |
 | CS06061 | Malformed sequence definition, directory or reservation | XX001 |
 
-These are internal [catalog/allocation conditions](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/catalog-design.md#standalone-sequences);
-sequence SQL syntax is not exposed in batch 9.
+These cover [sequence SQL](sql/language/statements/create-sequence.md),
+[session functions](sql/language/functions/sequences.md) and [DISCARD ALL](sql/language/statements/discard-all.md),
+as well as internal [catalog/allocation conditions](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/catalog-design.md#standalone-sequences).
 
 ## SQL aggregate FILTER
+
+[Grouping sets and masks](sql/language/clauses/group-by.md) add:
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00010 | GROUPING SETS inside ROLLUP/CUBE | 42601 |
+| CS01062 | GROUPING argument does not match its associated level's grouping expressions | 42803 |
+| CS01063 | GROUPING requires 1–31 non-star arguments | 54023 |
+| CS05074 | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
+| CS05075 | More than 4096 sets before DISTINCT | 54001 |
+| CS05067 | Retained per-set aggregate/DISTINCT/order state or mask plan exhausts the statement budget | 53200 |
+
+Aggregate FILTER retains:
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -303,4 +333,5 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 
 ## Sources
 
+- **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.
 - **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.

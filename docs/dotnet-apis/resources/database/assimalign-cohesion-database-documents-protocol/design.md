@@ -46,7 +46,9 @@ and [server options](../assimalign-cohesion-database-documents/document-database
 
 Documents advertises the shared transaction-status capability independently of Diagnostics.
 When agreed, Ready follows Complete or Failure for Execute (64) and Command (69), carrying
-I (Idle), T (Active) or E (Failed). Legacy 2.0 and unnegotiated 2.1 retain terminal framing;
+I (Idle), T (Active) or E (Failed), followed by a zero retained-state byte. The exact payload is
+two bytes; one-byte forms are refused. Documents declares no family reset statement.
+Legacy 2.0 and unnegotiated 2.1 retain terminal framing;
 their text controls receive CD07002. Reset sends ROLLBACK with an empty JSON parameter object
 and requires Complete (66) with two zero Int64 counts, then Ready I. No message identifier or
 protocol version changes. See [DocumentProtocol](document-protocol.md).

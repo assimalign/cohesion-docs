@@ -210,8 +210,9 @@ DROP TABLE or dropping the identity column retires the counter atomically; recre
 
 ## Standalone sequences
 
-Sequence types and catalog entry points are internal in batch 9; no SQL sequence syntax or
-public API is exposed. Immutable definitions store object identity, schema/name and resolved
+Catalog sequence types and entry points remain internal. [SQL sequence DDL](../../../../database/sql/language/statements/create-sequence.md)
+and [session functions](../../../../database/sql/language/functions/sequences.md) now execute.
+Immutable definitions store object identity, schema/name and resolved
 SMALLINT/INTEGER/BIGINT type, START, INCREMENT, MINVALUE, MAXVALUE, CACHE and CYCLE.
 Defaults are BIGINT, increment 1, cache 1 and no cycle. Ascending defaults span 1 through the
 type maximum; descending defaults span the type minimum through -1. START defaults to the
@@ -230,7 +231,8 @@ above; kind 19 stores object id, durable endpoint and a called flag. A false fla
 explicit restart before first use. Definitions exceeding 8,092 bytes use CS03072 (54000) before
 identity reservation/publication. Invalid/truncated definitions, duplicate/orphaned counters,
 namespace/name/id collisions or out-of-range endpoints use CS06061 (XX001) on load.
-Existing SqlCatalogSnapshot does not expose sequences; internal captures use Catalog.Sequences.
+SqlCatalogSnapshot captures the internal sequence directory for INFORMATION_SCHEMA.SEQUENCES;
+it adds no public sequence-list API. The relation uses the ordinary immutable catalog snapshot.
 
 Create/alter/restart/drop atomically commit metadata and cursor changes under the catalog monitor.
 Ordinary alter validates and retains the last fetched value, discards its unused reservation,
@@ -270,8 +272,8 @@ exception type. Direct catalog calls have no statement text. See the [complete c
 
 ## Non-goals
 
-- **Sequence SQL binding/session state and permissions** — sequence catalog objects exist;
-  SQL binding is batch 10 work. Permissions remain the model's future authorization feature, #177.
+- **Sequence identity integration and permissions** — SQL DDL/session functions execute; identity
+  integration, SERIAL and OWNED BY remain run-3 work. Permissions remain future work, #177.
 - **Multi-statement DDL atomicity (see** — self-committing DDL above). The migration
   layer compensates completed reversible statements on failure; an MVCC bracket
   spanning catalog and data DDL requires a future catalog batch-transaction seam.

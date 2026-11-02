@@ -11,6 +11,7 @@ public sealed class ProtocolCapability
     public string Name { get; }
     public IReadOnlyList<byte> MessageTypes { get; }
     public static ProtocolCapability Diagnostics { get; }
+    public static ProtocolCapability TransactionStatus { get; }
 }
 ```
 
@@ -40,7 +41,7 @@ Console.WriteLine(capability.MessageTypes[0]); // 14
 
 ## Statement transaction status
 
-[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated one-byte Ready postamble; ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
+[ProtocolTransactionStatusMessage](protocol-transaction-status-message.md) encodes the negotiated two-byte Ready postamble (I/T/E plus retained-state 0/1); ProtocolCapability.TransactionStatus advertises transaction-status. Startup Ready retains its existing grammar.
 
 ## Sources
 

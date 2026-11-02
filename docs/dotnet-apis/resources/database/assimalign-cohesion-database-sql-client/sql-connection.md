@@ -38,10 +38,16 @@ reach another renter. Database is cached and remains readable; IsOpen returns fa
 The core DatabaseConnection's repeated disposal joins the original return; the typed wrapper's
 repeated disposal is a no-op. AbortAsync on a live wrapper discards its session without cancellation.
 
-SQL, Graph and Documents negotiate server-reported transaction status. Pool return rolls back open or failed transactions before reuse; only an Idle session is pooled. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
+SQL, Graph and Documents negotiate server-reported transaction status and retained session state. Pool return rolls back active/failed work, then runs the family reset only if Ready still reports retained state (SQL uses DISCARD ALL). Reuse requires Idle and no retained state. Missing/invalid status, failed reset or a legacy transaction-capable peer causes connector discard.
 
 SQL uses ordinary BEGIN/COMMIT/ROLLBACK commands on the same connection. If cleanup fails, abort
 the live rental. Abort cannot establish the outcome of an unacknowledged COMMIT or undo published writes.
+
+Ready also reports retained state. After rollback, pool return sends DISCARD ALL only when that
+flag remains set, clearing currval/lastval observations and restoring the timeout values configured
+before the server session's first statement. Clean rentals add no reset exchange. Session state
+does not pass to a later renter. See [sequence functions](../../../../database/sql/language/functions/sequences.md)
+and [pool reset](../assimalign-cohesion-database-client/design.md#transaction-status-and-pool-reset).
 
 An idle open wire transaction retains its table-intent, row and unique-key locks until COMMIT,
 ROLLBACK, disconnect, pool return or server `IdleTimeout` (30 minutes by default), blocking

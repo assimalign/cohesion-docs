@@ -14,6 +14,8 @@ GQL expressions provide scalar computation, Boolean predicates, parameters and b
 - **[NULLIF](nullif.md)** — NULL for TRUE equality, otherwise the first value.
 - **[List values](list-values.md)** — ordered constructors, membership, comparison and value limits.
 - **[List comprehensions](list-comprehensions.md)** — scoped filtering and projection.
+- **[reduce](reduce.md)** — ordered folding with local accumulator and iterator.
+- **[List predicates](list-predicates.md)** — all/any/none/single with three-valued results.
 - **[List slices](list-slices.md)** — inclusive/exclusive bounds and negative offsets.
 - **[Map values](map-values.md)** — ordinal named entries with nested values.
 - **[Subscripts and property access](property-access.md)** — list indexes, map fields and entity properties.
