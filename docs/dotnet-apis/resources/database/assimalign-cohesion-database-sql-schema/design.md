@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 31 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 10.
+Storage format 32 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 11.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -109,9 +109,16 @@ declarations, canonical documents, ownership, validation, and migration planning
 defaults to NoAction and always serializes in v9. All five enum actions are valid for references;
 CHECK requires NoAction. Invalid values fail validation as InvalidDocument at onUpdate. OnDelete
 keeps its Restrict/Cascade restriction. Changing OnUpdate changes identity and plans drop/add.
-The retained References builder supplies NoAction; runtime and SDK share v10 and refuse earlier
-artifacts, applied markers and pending targets before comparison. Catalog format 31 retains the
+The retained References builder supplies NoAction; runtime and SDK share v11 and refuse earlier
+artifacts, applied markers and pending targets before comparison. Catalog format 32 retains the
 action through provisioning, reconciliation and reopen. All five update actions execute.
+
+## Directed index orders
+
+[CompiledSchemaIndex](compiled-schema-index.md).KeyOrders snapshots an effective order per
+column, defaulting to ASC NULLS LAST. Invalid widths/values use InvalidDocument at
+`indexes.<name>.keyOrders`. An order change plans DropIndex/AddIndex. Runtime and SDK use v11
+and refuse v10 and earlier artifacts. The typed Index builder stays ascending and unconditional.
 
 ## Current format boundary
 
@@ -136,16 +143,16 @@ planning conservatively drops all partial indexes on that table before ALTER and
 them afterward. Default/nullability-only changes do not cause that rebuild. Predicate admission
 uses the engine's [partial-index diagnostics](../../../../database/sql/language/diagnostics.md#partial-index-conditions).
 
-`SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v10`, adding optional index
-Predicate metadata and retaining v9's always-serialized OnUpdate metadata. Typed TimeSpan defaults
+`SqlCompiledSchema.CurrentFormat` is `cohesion/database-schema/v11`, adding effective index
+KeyOrders and retaining v10's optional Predicate and v9's always-serialized OnUpdate metadata. Typed TimeSpan defaults
 render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock text and changing
 the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
 Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
 InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
-[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-31-and-schema-v10).
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-32-and-schema-v11).
 
 For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
-against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v10 documents and hashes
+against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v11 documents and hashes
 are equal. TimeSpan.MinValue renders `'-922337203685.4775808 seconds'`; zero renders `'0 seconds'`.
 
 Compiled schemas have no identity representation. Reconciliation of a typed schema-owned table
@@ -155,7 +162,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
-The integration branch uses SQL row-storage format 31 and compiled schema version 10.
+The integration branch uses SQL row-storage format 32 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -169,9 +176,10 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## Sources
 

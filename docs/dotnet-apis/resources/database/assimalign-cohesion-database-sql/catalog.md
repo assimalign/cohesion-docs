@@ -29,7 +29,7 @@ same page/WAL durability as data, plus persistence for the physical index regist
 
 [SqlCatalogConstraint](sql-catalog-constraint.md) persists five delete and update actions. Its
 constructor defaults OnDelete to Restrict and OnUpdate to NoAction; SQL defaults both to NoAction.
-Compiled schema v10 keeps Restrict/Cascade for deletes and supports all five update declarations.
+Compiled schema v11 keeps Restrict/Cascade for deletes and supports all five update declarations.
 
 - **[SqlCatalogView](sql-catalog-view.md)** — Canonical view body, frozen columns and resolved dependencies.
 
@@ -68,7 +68,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 31 and compiled schema version 10.
+The integration branch uses SQL row-storage format 32 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -82,14 +82,15 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## Internal sequences
 
 The catalog contains internal [sequence definitions and reservations](catalog-design.md#standalone-sequences)
-in format 31. Sequences share the table/view relation namespace and the
+in format 32. Sequences share the table/view relation namespace and the
 [identity allocator](storage-design.md#identity-and-sequence-reservations). Catalog sequence types
 remain internal; [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
 [session functions](../../../../database/sql/language/functions/sequences.md) and

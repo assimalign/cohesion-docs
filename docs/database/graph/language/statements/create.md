@@ -34,8 +34,11 @@ Use [INSERT](insert.md) when choosing the profile's standard insertion verb.
 Its RETURN/DISTINCT ordering and pre-write validation apply here too: duplicate names use
 CG01015, and entity columns through wire Execute use CG05001 before mutation.
 
-This syntax does not manage databases, graphs, schemas, labels, or indexes.
-Session-bound schema operations are provided by `GraphSchema.Open`.
+This insertion form is separate from [CREATE INDEX](create-index.md),
+[CREATE CONSTRAINT](create-constraint.md), [CREATE LABEL](create-label.md) and
+[CREATE RELATIONSHIP TYPE](create-relationship-type.md). Those standalone schema commands and
+the typed GraphSchema API use autocommit; they abort an explicit transaction with CG04025.
+Database, graph and closed graph-type creation remain outside the executable profile.
 
 [Parameters](../expressions/parameters.md) bind in node and relationship maps; only runtime scalar values execute.
 

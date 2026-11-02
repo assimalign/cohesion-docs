@@ -6,7 +6,8 @@ GQL provides finite graph matching, scalar filtering, insertion, property/label 
 
 This reference describes the executable Cohesion subset of ISO/IEC 39075:2024.
 `INSERT` is the graph-insertion verb; `CREATE` is a compatibility extension and `SHOW` is a
-Cohesion catalog extension. Every statement evaluates in the session's bound logical database.
+Cohesion catalog extension. [Schema DDL](statements/index.md#schema-statements) adds standalone
+CREATE/DROP commands. Every statement evaluates in the session's bound logical database.
 
 ## Reference
 
@@ -42,7 +43,8 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | `CREATE` | Supported | Insertion compatibility extension |
 | `DELETE` | Supported | Bound variables; connected-node deletion is restricted |
 | `DETACH DELETE` | Supported | Bound variables; incident relationships cascade |
-| `SHOW` | Supported | Five database-scoped metadata subjects |
+| [Schema DDL](statements/create-index.md) | Supported subset | Node-property indexes, node/relationship type and existence constraints, and Cohesion label/type definitions; autocommit only |
+| `SHOW` | Supported | Six database-scoped metadata subjects, including CONSTRAINTS |
 | Parameters | Supported | Scalar/list/map values in expressions; stored pattern properties stay scalar-only |
 | [CASE](expressions/case.md), [COALESCE](expressions/coalesce.md), [NULLIF](expressions/nullif.md) | Supported | Lazy conditional values; simple CASE accepts ISO when-operand lists |
 | [Lists](expressions/list-values.md), [maps](expressions/map-values.md) and [access](expressions/property-access.md) | Supported | Transient nested values, with negotiated graph.composite-values over protocol 2.1 |

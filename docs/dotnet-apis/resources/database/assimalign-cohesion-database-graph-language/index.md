@@ -16,6 +16,8 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
+- **[GqlSchemaCommand](gql-schema-command.md)** — Standalone schema AST, object kinds and scalar types.
+
 - **[GqlPatternComprehensionExpression](gql-pattern-comprehension-expression.md)** — Correlated match collections.
 
 - **[GqlReduceExpression](gql-reduce-expression.md)** — Ordered accumulator and iterator bindings.

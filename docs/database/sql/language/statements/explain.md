@@ -99,6 +99,11 @@ Update and Delete. IndexSeek includes the chosen index and bounds. These are mod
 an execution API. SQL carries the rows through ordinary result frames. A source test guard requires
 every concrete plan record to have a description mapping.
 
+Selected partial-index access adds `partial_predicate` (the canonical stored predicate) and
+`implied_by` (the conjuncts proving it) to detail. Inferred partial unique indexes appear as
+ConflictArbiter children of INSERT ... ON CONFLICT. See
+[partial-index proofs](create-index.md#partial-indexes) and [inference WHERE](../clauses/on-conflict.md).
+
 Update and Delete have a chosen IndexSeek or TableScan child, using the same
 [predicate eligibility as SELECT](select.md#index-access). Leading equality prefixes and supported
 range comparisons/BETWEEN supply bounds; NULL/scalar-subquery comparands and computed key expressions do not.

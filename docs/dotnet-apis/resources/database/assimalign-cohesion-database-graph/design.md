@@ -385,7 +385,17 @@ defines independently droppable type and existence rules. Type rules permit abse
 existence requires a non-NULL value. Creation validates existing owner data. Named and identical
 unnamed declarations remain independent; conflicting type rules are refused. SHOW PROPERTY KEYS
 reports effective rules, while typed property discovery returns declared metadata. SHOW OBJECT
-OWNERSHIP includes CONSTRAINT rows with inherited parent authority. No text DDL is available yet.
+OWNERSHIP includes CONSTRAINT rows with inherited parent authority. SHOW CONSTRAINTS adds
+eight fixed columns, including each rule's type and requiredness.
+
+[Text schema DDL](../../../../database/graph/language/statements/index.md#schema-statements)
+routes standalone commands through GraphSchema's shared index/constraint cores. Typed and
+text schema writes require autocommit; admitted explicit-transaction writes report CG04025
+and abort it, even for conditional no-ops. Argument checks precede admission. Index creation
+discovers missing label/property tokens; text constraints also discover missing owner tokens.
+Failure rolls discovery back with publication. Owner-posting validation and index backfill
+charge statement work/memory (CG05004/CG05020); invalid limits retain CG08021. Typed writes
+use engine ceilings; text requests may lower limits. Catalog v2 and entity/tree format 5 stay unchanged.
 
 Catalog v2 adds kind-5 constraint records and refuses every other catalog record version with
 CG06019 before logical recovery scrub. Physical journal redo can precede that refusal. Recreate
@@ -394,9 +404,11 @@ affected databases; there is no upgrade reader. Entity/tree format remains 5.
 | Code | Named-schema condition (no assigned SQLSTATE) |
 | --- | --- |
 | CG01021 | Named index/constraint requested for DROP is absent |
+| CG01022 | Schema property references a variable other than the FOR declaration |
 | CG03008 | Database-wide schema name is already used |
 | CG03009 | Duplicate constraint kind or incompatible property type rule |
 | CG03010 | Existing data violates a new constraint |
+| CG04025 | Typed/text schema write inside an explicit transaction; aborts it |
 | CG06019 | Catalog record version differs from v2 |
 
 Labels, relationship types and discovered property keys persist even when the last data object is

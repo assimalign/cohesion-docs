@@ -56,7 +56,8 @@ Placement works in SELECT tails, aggregate inputs, set results, derived tables, 
 including aliases, ordinals and merged USING values. Malformed `ORDER BY a NULLS` or
 `ORDER BY a NULLS MIDDLE` reports CS00003. NULLS/FIRST/LAST remain contextual identifiers.
 EXPLAIN records the effective placement per key. Every ORDER BY sorts after its access path;
-indexes do not supply result order.
+indexes do not supply result order. This includes matching and fully reversed directed index
+keys; order matching and sort avoidance are deferred to SQ-K3.
 Ordinals are exclusive to `ORDER BY`; numeric grouping keys do not identify outputs.
 
 With [USING joins](join.md#using-columns), aliases after `*` and numeric ordinals count the

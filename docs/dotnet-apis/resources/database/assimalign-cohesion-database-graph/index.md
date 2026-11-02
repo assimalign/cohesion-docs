@@ -58,7 +58,9 @@ See the [source-backed usage examples](examples/index.md).
 
 `GraphSchema.Open` supplies session-bound label/type discovery, property metadata, ownership
 enforcement, database-wide named indexes and independently droppable type/existence constraints.
-Schema names use ordinal, case-sensitive identity. Text DDL is not available yet.
+Schema names use ordinal, case-sensitive identity. [Text schema DDL](../../../../database/graph/language/statements/index.md#schema-statements)
+also executes. Typed and text schema writes require autocommit; CG04025 aborts an explicit
+transaction, including conditional no-ops.
 `AddGraph(name, graph => ...)` captures
 construction through `IDatabaseApplicationBuilder` and returns that builder. The callback runs at
 `Build` with `GraphDatabaseEngineBuilder`. Its Options.RootPath selects file-backed storage;

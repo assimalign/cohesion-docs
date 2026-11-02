@@ -215,13 +215,13 @@ To reclaim dropped ordinals, use the C# maintenance operation
 [SqlDatabase.RewriteTableAsync](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database.md).
 It copies live rows into a fresh dense layout, rebuilds indexes and publishes atomically. Old
 read-only snapshots retain the original layout until they end; writers bound before publication
-abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 31.
+abort retryably with CS04006. This adds no ALTER syntax and keeps SQL format 32.
 
 Table and dependent-definition changes publish atomically. DML waiting behind a changed definition
 must retry; after a table rename it reports the old table missing. SELECT planning retries binding
-when catalog publication races it. SQL storage format 31 is current: format 17 introduced this
+when catalog publication races it. SQL storage format 32 is current: format 17 introduced this
 insert-default/frozen-missing-value split with table extension 6; format 18 separately changes
-canonical function-name quoting. Compiled schema version is 10. Older SQL formats are refused.
+canonical function-name quoting. Compiled schema version is 11. Older SQL formats are refused.
 
 ### View dependencies
 
@@ -380,9 +380,10 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Current format 31 adds partial-index predicate metadata in index extension 2 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
+direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 10.
+upgrade path. Compiled schema format remains version 11.
 
 ## See also
 

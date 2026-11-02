@@ -8,7 +8,12 @@ Combines scalar values and evaluates SQL search conditions.
 
 ```syntaxsql
 left_expression { + | - | * | / | % | || } right_expression
-{ + | - } expression
+left_expression & right_expression
+left_expression | right_expression
+left_expression # right_expression
+left_expression << right_expression
+left_expression >> right_expression
+{ + | - | ~ } expression
 left_expression { = | <> | < | <= | > | >= } right_expression
 expression IS [ NOT ] NULL
 left_expression IS [ NOT ] DISTINCT FROM right_expression
@@ -31,7 +36,7 @@ left_condition { AND | OR } right_condition
 ## Remarks
 
 Precedence follows PostgreSQL, from low to high: `OR`, `AND`, logical `NOT`, `IS` tests and
-distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE/ILIKE`, `ESCAPE`, concatenation (`||`),
+distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE/ILIKE`, `ESCAPE`, generic operators (`||`, `&`, `|`, `#`, `<<`, `>>` and prefix `~`),
 addition/subtraction, multiplication/division/remainder, `COLLATE`, unary signs, postfix `::`
 casts, then primary expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`, and
 `-a COLLATE binary` groups as `(-a) COLLATE binary`. NOT keeps its ordinary precedence before
@@ -43,8 +48,10 @@ group an intermediate result explicitly. A completed IN/NOT IN list or subquery 
 predicate: `1 IN (1) IN (TRUE)` and `1 IN (SELECT id FROM t WHERE id = 1) IN (TRUE)` test the
 first Boolean result. Completed postfix tests may also continue: `NULL IS NULL = TRUE` is TRUE.
 The lower BETWEEN bound accepts restricted comparison/distinct expressions.
-Prefix/infix `~`, regex operators, binary `&`, `|`, `#`, `^`, `<<` and `>>` report `CK00001`.
-Bitwise operators are deferred to SQ-O2. [Postfix casts](cast.md#postfix-casts) execute.
+Infix `~` and regex forms `~*`, `!~`, `!~*`, `~~`, `~~*`, `!~~` and `!~~*` report
+`CK00001`. Contiguous compound forms are refused in prefix positions too; write `~ ~1` or
+`~(~1)` for repeated bitwise NOT. `^` remains refused exponentiation (`CK00001`);
+XOR is `#`. [Postfix casts](cast.md#postfix-casts) execute.
 
 ```sql
 SELECT 1 = 1 IS TRUE, TRUE = 'abc' LIKE 'a%', 1 IN (1) IN (TRUE), 'x' || 1 + 2
@@ -84,12 +91,67 @@ greater than exact decimal `0.1`. Compatible floating types retain their represe
 All floating-point not-a-number (NaN) values compare equal and below other non-null numerics.
 The order is NaN, negative infinity, finite values, positive infinity. Signed zeros compare equal.
 NaN is not null. Bind these values as parameters; SQL has no NaN/infinity literals. These comparison
-rules do not broaden CAST, arithmetic, aggregate accumulation, or physical index-key semantics.
+rules do not broaden CAST, arithmetic or aggregate accumulation. SQL index keys canonicalize
+signed zeros together and place NaNs consistently with these comparisons; see
+[index key directions](../statements/create-index.md#key-directions-and-null-placement).
 Floating range and signed-zero equality predicates scan or remain residual filters rather than
 supplying unsafe index bounds.
 
 Strings use effective collation; Boolean false sorts before true. Incompatible type families
 raise a query error.
+
+## Precedence
+
+From lowest to highest; parentheses override grouping:
+
+| Level | Operators/forms | Grouping |
+| --- | --- | --- |
+| 1 | OR | Left |
+| 2 | AND | Left |
+| 3 | Logical NOT | Prefix |
+| 4 | IS tests, IS [NOT] DISTINCT FROM | Non-associative |
+| 5 | =, <>, <, <=, >, >= | Non-associative |
+| 6 | [NOT] BETWEEN, IN, LIKE, ILIKE | Predicate rules above |
+| 7 | ESCAPE | Binds the escape operand |
+| 8 | `\|\|`, `&`, `\|`, `#`, `<<`, `>>`, prefix `~` | Binary forms associate left; prefix ~ uses this level |
+| 9 | +, - | Left |
+| 10 | *, /, % | Left |
+| 11 | COLLATE | Postfix |
+| 12 | Unary +, - | Prefix |
+| 13 | :: | Postfix |
+| 14 | Primary expressions | Literals, calls and parenthesized expressions |
+
+## Integer bitwise operators
+
+`&` performs AND, `|` OR, `#` XOR and prefix `~` NOT on SMALLINT, INTEGER and BIGINT.
+AND/OR/XOR promote both operands to the wider width; NOT retains its operand's width.
+`<<` and `>>` return the left operand's type and require an INTEGER count; a SMALLINT
+count widens, while a BIGINT count is refused, including a typed NULL BIGINT count.
+Domains use their base integer widths.
+
+All binary forms share the generic level with concatenation and associate left:
+`1 | 2 & 3` is `(1 | 2) & 3`, returning `3`. Prefix NOT sits at the same level:
+`~1 + 2` is `~(1 + 2)`, returning `-4`.
+
+SMALLINT shifts compute in 32 bits and truncate to 16 bits. Counts are modulo 32 for
+SMALLINT/INTEGER and modulo 64 for BIGINT, including negative counts. Right shifts extend
+the sign bit; left-shift overflow wraps in two's complement. Adjacent angle brackets form
+a shift; spaces or comments between them are syntax errors.
+
+NULL operands propagate NULL. Two untyped NULLs use INTEGER result metadata. Invalid
+operands use `CS02077` (SQLSTATE 42804): TINYINT, NUMERIC, floating, text, Boolean, binary
+and temporal operands, or a non-INTEGER shift count after SMALLINT widening. Binding checks
+every possible CASE/COALESCE result and nested parameter value, including on empty input
+and in unselected alternatives. Canonical stored expressions retain the operators in views,
+column defaults and CHECK constraints across reopen.
+
+```sql
+SELECT 1 | 2 & 3, ~1 + 2, 32767::SMALLINT << 1,
+       (-8)::INTEGER >> 2, 1 << 32, 1::BIGINT << 64, NULL # 1;
+```
+
+The row is `(3, -4, -2, -2, 1, 1, NULL)`. The third result is SMALLINT and the sixth BIGINT.
+`SELECT 1 << 1::BIGINT;` instead fails with CS02077 before reading any rows.
 
 ## IS DISTINCT FROM
 
@@ -195,7 +257,7 @@ The first returns `(TRUE, TRUE)`. The second fails with located `CS05040`; repla
 with NOT LIKE also fails. A subsequent query on that session still executes.
 
 Distinct predicates, truth tests and LIKE ESCAPE persist in CHECK, parenthesized DEFAULT,
-domain checks, SQL function bodies and views. Storage format 31 refuses earlier files without
+domain checks, SQL function bodies and views. Storage format 32 refuses earlier files without
 an upgrade reader. These expression forms add no named clause.
 
 ## ILIKE and NOT ILIKE
@@ -293,6 +355,8 @@ For a row with a = -2, `SELECT a FROM t WHERE a<-1` returns -2. The correspondin
 `WHERE a<--1` form reports CS00003.
 
 ## Sources
+
+- **Bitwise binding, widths and shifts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBitwiseTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/tests/SqlBitwiseParserTests.cs`.
 
 - **ILIKE and postfix casts** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIlikeCastTests.cs` and `SqlOperatorFixTests.cs` in the same directory.
 

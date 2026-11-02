@@ -8,9 +8,11 @@ Creates a table-scoped secondary index over a plain column list, optionally rest
 
 ```syntaxsql
 CREATE [ UNIQUE ] INDEX [ IF NOT EXISTS ] index_name
-ON [ schema_name . ] table_name ( column_name [ , ...n ] )
+ON [ schema_name . ] table_name ( <index_key> [ , ...n ] )
 [ WHERE predicate ]
 [ ; ]
+
+<index_key> ::= column_name [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
 ```
 
 ## Arguments
@@ -24,10 +26,13 @@ ON [ schema_name . ] table_name ( column_name [ , ...n ] )
 
 ## Remarks
 
-Only plain column lists are in this dialect. Per-column `ASC`/`DESC`, expression keys, and
-`INCLUDE` are outside the contract. Index construction and writes use the shared index kernel.
-An applicable unconditional secondary-index prefix can assist the supported inner join.
-SELECT, UPDATE and DELETE also use [eligible unconditional leading key bounds](select.md#index-access);
+Each plain column key accepts ASC/DESC and independent NULL placement, including on partial
+indexes. Defaults follow PostgreSQL: ASC NULLS LAST and DESC NULLS FIRST. Canonical DDL omits
+ASC and each direction's default NULL placement. PRIMARY KEY and UNIQUE constraint lists
+reject these options with `CS00003`; expression keys and INCLUDE remain excluded.
+Index construction and writes use the shared index kernel.
+An applicable secondary-index prefix can assist an inner join; a partial index additionally
+requires a predicate proof. SELECT, UPDATE and DELETE use [eligible leading key bounds](select.md#index-access);
 [EXPLAIN](explain.md) reports the selected seek.
 
 Unconditional unique indexes treat `NULL` as an equal key. String keys use the column's effective collation;
@@ -44,6 +49,27 @@ CS03050 (42710). CREATE INDEX under `invariant` uses CS05013 (no assigned SQLSTA
 index-backed constraint admission instead uses CS05057 (0A000).
 Schema-owned object admission can report CS03066 (42501). Execution/DDL failures retain the
 statement span and expose the code separately from Message.
+
+### Key directions and NULL placement
+
+Equality-prefix seeks and ranges honour each key's direction. Bounds come from =, <, <=, >,
+>= and BETWEEN; descending ranges reverse their physical endpoints. NULL placement is
+independent of value direction. Comparison ranges never visit the NULL block, including
+one-sided ranges; NULL equality prefixes retain the complete matching suffix range.
+LIKE remains a residual after an equality-prefix seek.
+
+Every ORDER BY still sorts, even when it matches or fully reverses the index order. Order
+matching and sort avoidance belong to SQ-K3. See [ORDER BY](../clauses/order-by.md).
+Index direction does not change uniqueness or partial-index NULL rules. Floating index keys
+canonicalize signed zeros together and place all NaNs below negative infinity; stored row
+values keep their IEEE representation. Floating seek eligibility remains conservative.
+
+[INDEXES metadata](../system-views/cohesion-schema.md) exposes nullable DIRECTION and
+NULL_PLACEMENT per key. Catalog format 32 and compiled schema v11 refuse earlier formats;
+follow the [export and rebuild procedure](../../index.md#sql-format-32-and-schema-v11).
+Invalid key-order widths/values or directed primary-key metadata use `CS03085` (42P17).
+Malformed stored vectors use CS06059; unsupported extensions use CS06060; an older SQL
+record-space format uses CS06041.
 
 ### Partial indexes
 
@@ -62,9 +88,10 @@ checks uniqueness only within its TRUE subset; any NULL key component keeps that
 An update that brings a duplicate non-NULL key into the subset fails with `CS03037` (23505).
 
 Untargeted [ON CONFLICT DO NOTHING](../clauses/on-conflict.md) considers each partial unique
-index only when the proposed row belongs to it, following PostgreSQL. Targeted inference still
-refuses partial indexes (`CS03035`, 42P10); writing a predicate in the conflict target is
-unsupported (`CK00001`). Partial unique indexes cannot supply a foreign-key target.
+index only when the proposed row belongs to it, following PostgreSQL.
+Targeted `ON CONFLICT (cols) WHERE predicate` can infer partial unique indexes when its
+predicate proves theirs; a missing or unproven inference predicate uses `CS03035` (42P10).
+ON CONSTRAINT cannot name a partial index. Partial unique indexes cannot supply a foreign-key target.
 
 Dropping a key or predicate column drops its index. Changing a predicate column's type,
 including widening, refuses with `CS03083` (0A000): drop and recreate the index around the
@@ -77,13 +104,35 @@ and DROP INDEX work, but every write to that table fails with `CS01009` (42883),
 empty input. Restoring the required immutable definition or dropping the index restores writes.
 
 Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
-expose canonical predicate text. SQL catalog format 31 and compiled schema v10 persist it and
+expose canonical predicate text. SQL catalog format 32 and compiled schema v11 persist it and
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 
-**The planner does not use partial indexes to answer queries in this run (SQ-P1).** Even an
-identical WHERE scans or uses another eligible index. Query implication and access are deferred
-to SQ-P2, including join probes and cardinality probes.
+The planner may use a partial index when mandatory query conjuncts prove its predicate. It
+matches bound column names and aliases, parentheses, literal signs and standard literal casts:
+
+- Identical immutable row expressions prove themselves, except expressions involving OR or NOT.
+- Comparisons of the same column and constant type, with the same resolved collation, use
+  equality and ordered bounds: `x > 10` implies `x > 5`; `x = 7` implies `x >= 7`;
+  `x >= 7` does not imply `x > 7`.
+- A strict column/constant comparison with a non-NULL constant implies `column IS NOT NULL`.
+- A Boolean column and its `= TRUE` form are interchangeable.
+
+Identical-expression matching preserves constant representations, including decimal scale,
+floating sign bits and timestamp offsets. Comparison bounds compare values. Floating-point
+bound deductions, contradiction reasoning and cross-column/transitive facts supply no proof.
+Parameters supply no proof, including after folding through immutable calls, casts or signs.
+OR, NOT and volatile calls supply no proof.
+
+Proofs come only from the indexed input's own WHERE conjuncts and INNER JOIN ON conjuncts
+referencing that input alone. An ON term must reference at least one of its columns;
+constant-only ON terms, outer-join predicates, nullable outer-join inputs and other scopes
+supply no proof. The complete query predicate remains a residual filter.
+
+A proven index can provide equality seeks, ranges, correlated join probes or an unbounded
+subset scan. This includes UPDATE FROM, DELETE USING and MERGE inputs where row preservation
+permits it. Partial uniqueness never establishes unconditional DISTINCT or join uniqueness.
+[EXPLAIN](explain.md) reports `partial_predicate` and `implied_by` for selected partial indexes.
 
 ### Building over existing data
 
@@ -113,6 +162,32 @@ Because construction precedes duplicate validation, CS05042 can take precedence 
 CS03037 duplicate that occurs earlier in storage order.
 
 ## Examples
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE directed_keys (id INT, k INT, active BOOLEAN);
+INSERT INTO directed_keys VALUES (1,NULL,TRUE),(2,7,TRUE),(3,11,TRUE),(4,12,FALSE);
+CREATE INDEX ix_directed ON directed_keys(k DESC NULLS LAST) WHERE active;
+SELECT id FROM directed_keys WHERE active AND k > 5 ORDER BY k DESC NULLS LAST;
+SELECT DIRECTION, NULL_PLACEMENT FROM COHESION_SCHEMA.INDEXES
+WHERE TABLE_NAME = 'directed_keys' AND INDEX_NAME = 'ix_directed';
+```
+
+The first SELECT returns `3`, `2`; it still sorts. The metadata row is `('DESC', 'LAST')`.
+
+Execute separately in a fresh database:
+
+```sql
+CREATE TABLE filtered_keys (id INT, x INT);
+INSERT INTO filtered_keys VALUES (1,NULL),(2,7),(3,11);
+CREATE INDEX ix_positive ON filtered_keys(x) WHERE x > 5;
+EXPLAIN SELECT id FROM filtered_keys WHERE x > 10;
+SELECT id FROM filtered_keys WHERE x > 10;
+```
+
+The query returns `3`. The eligible partial index's EXPLAIN detail includes `partial_predicate`
+and `implied_by`, identifying the predicate and the query conjunct proving it.
 
 Execute separately in a fresh database:
 
@@ -168,6 +243,10 @@ is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Directions and NULL ranges** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDirectedIndexTests.cs`, `SqlDirectedRangeNullTests.cs` and `Catalog/SqlCatalogKeyOrderCorruptionTests.cs` in the same test tree.
+
+- **Implication and inference** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexImplicationTests.cs` and `SqlPartialIndexReviewFixTests.cs` in the same directory.
 
 - **Partial predicates, maintenance and arbitration** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlPartialIndexTests.cs`, `SqlPartialIndexDurabilityTests.cs` and `SqlPartialIndexSecondPassTests.cs` in the same directory.
 - **Bounded builds, history and failure cleanup** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDdlMemoryTests.cs` and `SqlUniqueIndexBuildTests.cs` in the same directory.
