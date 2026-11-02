@@ -33,7 +33,7 @@ label names, and property keys do not trigger keyword capability checks.
 ## Planning and execution diagnostics
 
 Database-wide schema names and named type/existence constraints are exposed through the typed
-[GraphSchema API](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
+[GraphSchema API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md).
 Text [schema DDL](statements/create-index.md) uses the same named rules and autocommit coordination.
 These conditions have no assigned SQLSTATE:
 
