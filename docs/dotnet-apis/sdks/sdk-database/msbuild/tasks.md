@@ -115,9 +115,9 @@ No additional diagnostics.
   `Execute_WithRequiredColumnAddition_ShouldFailWithoutFiles`.
 
 
-The compiler helpers `CSharpSchemaExtractor`, `the shared SQL expression canonicalizer`,
-`CSharpTypeIdentity`, and `CompiledSchemaSourceWriter` bind and normalize source without loading a
-consumer assembly. They are not separately registered tasks.
+The compiler helpers `CSharpSchemaExtractor`, `CSharpTypeIdentity`, and `CompiledSchemaSourceWriter`
+bind and normalize source without loading a consumer assembly. They are not separately registered
+tasks.
 [Diagnostic meanings](../overview.md#diagnostics) cover the helper-produced codes.
 
 [MSBuild](index.md) · [Targets](targets.md)
@@ -134,8 +134,6 @@ consumer assembly. They are not separately registered tasks.
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/DatabaseTask.cs`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CompiledSchemaSourceWriter.cs`
-- **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/the shared SQL expression canonicalizer.cs`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CSharpSchemaExtractor.cs`
 - **Source** —

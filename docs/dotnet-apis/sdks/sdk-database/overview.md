@@ -39,8 +39,8 @@ Configure wire endpoints in Program.cs and declare resources through the gateway
 | `CohesionControlPlaneEndpoint` | `admin` | Retained admin endpoint metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
 | `CohesionControlPlanePath` | `/cohesion/v1` | Retained admin route metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
 | `CohesionWorkloadKind` | `StatefulSet` | Retained workload metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
-| `CohesionReplicas` | `1` | Replica count written to lifecycle metadata. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
-| `CohesionMaxReplicas` | `1` | Upper bound on replicas; must not be below the replica count. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
+| `CohesionReplicas` | `1` | Retained replica-count metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
+| `CohesionMaxReplicas` | `1` | Retained maximum-replica metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
 | `CohesionDatabaseProject` | `false` | Opt into build-time C# schema compilation. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseProject)' == ''` |
 | `CohesionDatabaseSchemaOutputDirectory` | `$(IntermediateOutputPath)cohesion/database/` | Directory for each database's schema JSON and hash sidecar. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when empty |
 | `CohesionDatabaseName` | Unset | Selects the migration database; optional for a single declaration. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets` |

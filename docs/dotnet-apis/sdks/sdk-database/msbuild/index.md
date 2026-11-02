@@ -46,8 +46,8 @@ compiler inputs and the retained metadata defaults. Metadata does not configure 
 | `CohesionDatabaseProject` | Opt into build-time C# schema compilation. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; `Targets/Sdk.Database.KeyValuePair.targets`; `Targets/Sdk.Database.props`; `Targets/Sdk.Database.Sql.targets` |
 | `CohesionDatabaseSchemaOutputDirectory` | Directory for per-database schema artifacts. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets` |
 | `CohesionDatabaseName` | Database selected for migration generation. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets` |
-| `CohesionMaxReplicas` | Upper bound on replicas; must not be below the replica count. | `Targets/Sdk.Database.props` |
-| `CohesionReplicas` | Replica count written to lifecycle metadata. | `Targets/Sdk.Database.props` |
+| `CohesionMaxReplicas` | Retained maximum-replica metadata default. | `Targets/Sdk.Database.props` |
+| `CohesionReplicas` | Retained replica-count metadata default. | `Targets/Sdk.Database.props` |
 | `CohesionResourceKind` | Retained resource-kind metadata default. | `Targets/Sdk.Database.props` |
 | `CohesionWorkloadKind` | Retained workload metadata default. | `Targets/Sdk.Database.props` |
 | `DefineConstants` | MSBuild input, output, or assignment; see the file contract. | `Targets/Sdk.Database.KeyValuePair.targets`; `Targets/Sdk.Database.Sql.targets` |
@@ -92,4 +92,3 @@ compiler inputs and the retained metadata defaults. Metadata does not configure 
   `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.props`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.StronglyTypedSettings.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Sdk.Image.targets`

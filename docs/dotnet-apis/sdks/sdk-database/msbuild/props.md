@@ -23,8 +23,8 @@ Database listeners, or register a managed instance. Use explicit application com
 | `CohesionControlPlaneEndpoint` | `admin` | Retained admin endpoint metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
 | `CohesionControlPlanePath` | `/cohesion/v1` | Retained admin route metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
 | `CohesionWorkloadKind` | `StatefulSet` | Retained workload metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
-| `CohesionReplicas` | `1` | Replica count written to lifecycle metadata. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
-| `CohesionMaxReplicas` | `1` | Upper bound on replicas; must not be below the replica count. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
+| `CohesionReplicas` | `1` | Retained replica-count metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
+| `CohesionMaxReplicas` | `1` | Retained maximum-replica metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
 | `_CohesionDatabaseTaskAssembly` | `$(MSBuildThisFileDirectory)..\Tasks\Assimalign.Cohesion.Sdk.Database.Tasks.dll` | Assigned during `evaluation`. | `Targets/Sdk.Database.props`; unconditional |
 | `CohesionDatabaseProject` | `false` | Opt into build-time C# schema compilation. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseProject)' == ''` |
 | `CohesionDatabaseModel` | `Sql` | Exact, case-sensitive model selector: Sql or KeyValuePair. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseModel)' == ''` |
