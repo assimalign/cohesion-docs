@@ -28,6 +28,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 | [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Fixed/quantified paths; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
 | [EXISTS and NOT EXISTS](expressions/exists.md) | Supported | Correlated braced pattern blocks; Boolean result and isolated inner variables |
+| [Pattern comprehensions](expressions/pattern-comprehensions.md) | Supported | Correlated ordered lists; duplicates and NULL projections retained |
 | [LET](clauses/let.md), [FILTER](clauses/filter.md) | Supported | Sequential value bindings and TRUE-only stage filtering |
 | [FOR / UNWIND](clauses/for.md) | Supported | Streaming list expansion; NULL gives no rows; proven entity kinds survive |
 | [WITH](clauses/with.md), [RETURN … NEXT](clauses/next.md) | Supported | Intermediate projection, scoped carry-forward and one statement transaction |
@@ -61,6 +62,9 @@ share the SQL/OQL binding contract.
 
 [Functions](functions/index.md) documents aggregates, exact numeric results and NULL behavior.
 [GROUP BY](clauses/group-by.md) covers implicit keys, RETURN aliases and GROUP BY ().
+
+The collection-expression work in #1736 is complete: list comprehensions, slices, reduce,
+list predicates and pattern comprehensions execute. Final entity lists retain the #1662 wire gate.
 
 ## See also
 

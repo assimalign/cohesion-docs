@@ -5,7 +5,7 @@ Selects input rows for one aggregate call.
 ## Syntax
 
 ```syntaxsql
-aggregate_call FILTER ( WHERE search_condition )
+aggregate_call FILTER ( WHERE search_condition ) [ OVER window_specification ]
 LISTAGG ( [ DISTINCT | ALL ] value [ , delimiter ] )
     WITHIN GROUP ( ORDER BY key [ , ...n ] ) FILTER ( WHERE search_condition )
 ```
@@ -29,13 +29,14 @@ The condition binds over source rows and can reference enclosing columns or cont
 subqueries. An aggregate local to a child query in the condition is allowed. An aggregate at the
 same query level inside the condition is refused. Existing outer-only aggregate ownership
 restrictions retain CK00001. A filtered call remains an aggregate: it is excluded from its own
-query level's WHERE, JOIN ON and GROUP BY. Windows in conditions and FILTER on window
-aggregates remain CK00001.
+query level's WHERE, JOIN ON and GROUP BY. FILTER also works on aggregate windows, before OVER;
+windows inside a window aggregate condition use CS05077 (42P20). FILTER on ranking/navigation/value
+functions is an invalid call modifier (CS00011, 42601).
 
 Calls with different filters have independent states. Filtered calls with volatile arguments,
 ordering keys or conditions also retain independent states; child queries conservatively prevent
 sharing. EXPLAIN includes `filtered_aggregates=N` on a grouping node when N is nonzero.
-FILTER adds one named clause; the profile now measures 74 of 76 declared clauses.
+FILTER adds one named clause; the profile now measures 77 of 79 declared clauses.
 
 ## Diagnostics
 
@@ -45,7 +46,9 @@ FILTER adds one named clause; the profile now measures 74 of 76 declared clauses
 | CS05073 | Same-scope aggregate inside the filter condition | 42803 |
 | CS02003 | Non-Boolean condition; untyped NULL is allowed | 42804 |
 | CS00003 | Malformed suffix, including missing WHERE/condition or a repeated FILTER | — |
-| CK00001 | Window call/aggregate or existing unsupported aggregate query-level ownership | — |
+| CS05077 | Window function nested in a window aggregate filter | 42P20 |
+| CS00011 | FILTER on a ranking, navigation or frame value function | 42601 |
+| CK00001 | Existing unsupported aggregate query-level ownership | — |
 
 ## Examples
 
@@ -67,6 +70,15 @@ independent argument subquery is never demanded.
 `SELECT UPPER('a') FILTER (WHERE TRUE);` fails CS05072.
 `SELECT SUM(v) FILTER (WHERE COUNT(*) > 0) FROM filtered;` fails CS05073.
 `SELECT SUM(v) FILTER (WHERE 1) FROM filtered;` fails CS02003.
+
+On the same table, a filtered running window is:
+
+```sql
+SELECT v, SUM(v) FILTER(WHERE flag) OVER(ORDER BY v)
+FROM filtered ORDER BY v;
+```
+
+Returns `(0,NULL)`, `(2,2)`, `(4,6)`, `(4,6)`. The NULL flag contributes no input.
 
 ## See also
 

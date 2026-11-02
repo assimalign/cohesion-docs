@@ -1,6 +1,6 @@
 # SqlWindowSpecification
 
-Partition and ordering keys, optionally copied from a named window.
+Partition/order keys and an optional explicit frame, optionally copied from a named window.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -12,6 +12,7 @@ public sealed class SqlWindowSpecification
     public string? ExistingWindow { get; }
     public IReadOnlyList<SqlExpression> PartitionBy { get; }
     public IReadOnlyList<SqlOrderByColumn> OrderBy { get; }
+    public SqlWindowFrame? Frame { get; }
 }
 ```
 
@@ -21,7 +22,9 @@ Construction is internal. Lists retain the written keys; empty lists omit that c
 ExistingWindow identifies the copied name, or null for a fresh specification. Binding resolves
 inherited keys without changing these syntax lists. A copy cannot specify PARTITION BY and
 can add ORDER BY only if its base has none (CS01066, 42P20). An unknown/forward reference is
-CS01065 (42704). Accessors add no exceptions; engine failures use DatabaseException.Diagnostics.
+CS01065 (42704). Frame is the explicit [SqlWindowFrame](sql-window-frame.md), or null for the
+peer-based SQL default. A named explicit frame supports OVER name but cannot be copied
+(CS01066). Accessors add no exceptions; engine failures use DatabaseException.Diagnostics.
 
 ## Example
 

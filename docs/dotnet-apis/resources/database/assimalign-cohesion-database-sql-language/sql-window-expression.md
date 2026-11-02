@@ -23,7 +23,9 @@ including any copied name. Depth includes call arguments and keys. Accessors add
 
 Inspect parser diagnostics before execution. Invalid call signatures use CS00011 (42601),
 placement/missing OVER uses CS05076 (42P20), and nested windows use CS05077 (42P20).
-Frames, aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE use CK00001. Engine failures
+ROWS, offset-free RANGE, aggregate windows and FIRST_VALUE/LAST_VALUE/NTH_VALUE execute.
+OVER on a scalar function uses CS05083 (42809). Aggregate-window DISTINCT, deferred frame modes
+and value modifiers retain CK00001. Engine failures
 carry DatabaseException.Diagnostics. See [all window codes](../../../../database/sql/language/clauses/window.md#diagnostics).
 
 ## Example

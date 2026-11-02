@@ -65,6 +65,15 @@ equality, list b first: `FROM b, a` or `USING b, a`. In
 t × a product before b's hash. Reversing the source list lets each equality drive its step.
 Both orders are correct; general join-order search is deferred to #1629.
 
+## Window frame work
+
+[Window stages](language/clauses/window.md) retain full partitions under the statement memory
+grant (CS05079), with no spill. EXPLAIN ANALYZE reports frame_visits before FILTER. Native
+fixed-head growing frames reuse accumulator state; equal frames reuse their result. Application
+aggregates and ordered string aggregates recompute changed frames. Native moving frames such
+as ROWS n PRECEDING also recompute once the head moves and can reach the shared 1,000,000-visit
+cap (CS05084, 54000) until a later release. LIMIT cannot shorten this work.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDmlSourceReviewTests.cs`.

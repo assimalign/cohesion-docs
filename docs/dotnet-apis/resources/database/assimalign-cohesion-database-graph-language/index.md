@@ -16,6 +16,8 @@ This package parses the executable Cohesion subset of ISO/IEC 39075 GQL into an 
 
 ## Reference pages
 
+- **[GqlPatternComprehensionExpression](gql-pattern-comprehension-expression.md)** — Correlated match collections.
+
 - **[GqlReduceExpression](gql-reduce-expression.md)** — Ordered accumulator and iterator bindings.
 - **[GqlListPredicateExpression](gql-list-predicate-expression.md)** — Scoped Boolean/NULL tests.
 - **[GqlListPredicateKind](gql-list-predicate-kind.md)** — All, Any, None and Single rules.

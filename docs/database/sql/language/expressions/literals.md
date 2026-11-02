@@ -107,10 +107,10 @@ persisted NO ACTION, SET NULL and SET DEFAULT actions. Format 21 introduced name
 identifiers in persisted SQL. Format 23 introduced persisted views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7. Every earlier format is refused at open
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion. Every earlier format is refused at open
 with no upgrade path; canonical CHECK text is compared ordinally during schema verification.
-Compiled schemas stay version 8.
+Compiled schemas stay version 9.
 
 ## Examples
 

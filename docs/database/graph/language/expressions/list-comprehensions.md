@@ -27,7 +27,7 @@ Names and parameters validate even for NULL/empty input and under EXPLAIN. Known
 filter types fail planning with CG02013; unknown types are checked only when an element is visited.
 An aggregate may supply the source, such as collect(v). Aggregates inside WHERE or projection
 use CG05024. [reduce](reduce.md) and the [all/any/none/single list predicates](list-predicates.md)
-also execute with local bindings. Pattern comprehensions remain CK00001.
+also execute with local bindings. [Pattern comprehensions](pattern-comprehensions.md) collect correlated matches.
 
 ### Properties and MERGE
 
@@ -56,7 +56,7 @@ with CG05001, even for empty input or a FALSE filter.
 | CG02013 | Non-Boolean/non-NULL filter or constructed-value limit | — |
 | CG05024 | Aggregate in the filter or projection | — |
 | CG05001 | Unbound name, including an iterator used outside its scope | — |
-| CK00001 | List-valued property or pattern comprehension | — |
+| CK00001 | List-valued property | — |
 
 ## Examples
 

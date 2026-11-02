@@ -1137,6 +1137,20 @@ Full-query bodies, parenthesized operands, COUNT/COLLECT blocks and bare pattern
 | CG02016 | Runtime correlated entity kind mismatch | — |
 | CG05027 | Malformed/missing subplan or missing argument | — |
 
+## Pattern comprehensions
+
+[Pattern comprehensions](../../../../database/graph/language/expressions/pattern-comprehensions.md) collect every correlated inner match in order.
+The optional path name shadows locally; other existing pattern names correlate. NULL arguments
+produce no matches, duplicates and NULL projections remain, and zero-hop relationship quantifiers
+are accepted. Inner aggregates are refused. EXPLAIN shows CollectApply. Collection shares the
+statement operation, snapshot, update overlay and work/memory budgets (CG05004/CG05020).
+Scalar composite results use graph.composite-values; entity lists remain CG05001 until #1662.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00014 | Pattern comprehension requires a nonempty path and projection | — |
+| CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
+
 ## Sources
 
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.

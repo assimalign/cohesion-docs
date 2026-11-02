@@ -10,7 +10,11 @@ LIMIT caps the returned rows and OFFSET skips rows before that cap is applied.
 ```
 
 Each clause may occur once, alone or in either order, after ORDER BY if present.
-Paging applies after WHERE, grouping/HAVING, projection, DISTINCT and ordering. It also applies
+Except for LIMIT 0, paging applies after WHERE, grouping/HAVING, projection, DISTINCT and ordering.
+After static validation, LIMIT 0 preserves planned column metadata and skips all source, predicate,
+projection and callback evaluation, including blocking stages. This applies to inner derived
+SELECTs too. Simple [derived/expression sources](from.md) page before projection and infer dynamic
+types over the selected page. Paging also applies
 to system collections and the SELECT source of INSERT or UPSERT.
 
 ## Arguments

@@ -36,13 +36,14 @@ CS01028 (3F000), duplicate CREATE CS03029 (42P06), and RESTRICT dependencies CS0
 (2BP01); reads/DML retain CS01014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
-Storage format 29 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
+Storage format 30 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
 format 23 introduced views and format 24 introduced explicit NULL placement.
 Format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions; format 26 introduced the temporal default-text fence.
 Format 27 introduced the per-column TYPE default-assignment flag in table extension 7.
-Format 28 introduced internal sequence definitions and reservations. Format 29 adds owning
+Format 28 introduced internal sequence definitions and reservations. Format 29 added owning
 table/column metadata and identity ownership to kind 18; identity allocation uses kind 19 and
-kind 16 is retired. Format 28 and earlier databases are refused at open without an upgrade reader.
+kind 16 is retired. Format 30 adds ON UPDATE metadata in table extension 8.
+Format 29 and earlier databases are refused at open without an upgrade reader.
 Format 21 introduced namespace records of kind 15; earlier formats have no upgrade path.
 
 [Set operations](../../../../database/sql/language/clauses/set-operations.md) execute in every query
@@ -135,17 +136,17 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
 nested CTEs, recursive execution and explicit LATERAL remain excluded.
 
-Current SQL data-storage format is 29. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 30. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
 `"sign" >= 0`). Defaults and function bodies share the renderer. Older formats are refused without
-an upgrade reader; compiled schemas stay version 8. Evidence: SqlT1StorageFormatTests,
+an upgrade reader; compiled schemas stay version 9. Evidence: SqlT1StorageFormatTests,
 SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
 ## Database creation, open and drop
 
-SQL remains at data-storage format 29. Create commits the optional default collation, dbo and then
+SQL remains at data-storage format 30. Create commits the optional default collation, dbo and then
 the format marker. An interrupted marker-free creation is completed only when its durable creation
 claim and read-only probes prove initial empty data and creation-only catalog metadata. An empty
 data scan alone cannot distinguish creation from a lost catalog after acknowledged empty-table DDL.
@@ -353,7 +354,7 @@ is a deliberate MVP limitation relative to the standard's
 . Foreign keys store referenced columns rather than an index identity. The views resolve those
 columns to the primary key first (including the legacy fallback), then to a matching unique index
 ordered deterministically by name. Foreign keys report `MATCH_OPTION = 'NONE'`,
-`UPDATE_RULE = 'RESTRICT'`, and `DELETE_RULE` equal to `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Constraints are
+UPDATE_RULE and DELETE_RULE each equal to `RESTRICT`, `CASCADE`, `NO ACTION`, `SET NULL` or `SET DEFAULT`. Constraints are
 enforced immediately and are not deferrable.
 
 `Constraint` names remain unique within a table, as the catalog already requires, rather than within
@@ -454,7 +455,7 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 29 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 30 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
   SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer markers are refused before opening data files for write. An unmarked catalog
   containing only creation metadata can complete only under the creation-proof rules above.
@@ -967,7 +968,9 @@ may move with their keys; mutually referenced keys may swap when final keys rema
 tombstones all old row/index versions before inserting replacements in the same rollback bracket,
 so uniqueness also validates the final swap. A removed key cannot authorize a dangling child. These
 rules hold under Snapshot and ReadCommitted. ON CONFLICT shares the final-reference view.
-`ON UPDATE` is unsupported and returns `CK00001`.
+ON UPDATE declarations persist all five actions. Referenced-key changes under CASCADE, SET NULL
+or SET DEFAULT refuse with CK00001 before writes; RESTRICT/NO ACTION keep statement-end checks.
+See [interim enforcement](../../../../database/sql/language/constraints.md#on-update-declarations).
 
 Checks require Boolean predicates made from supported deterministic row expressions. Parameters,
 subqueries, aggregates, unsupported functions and casts are rejected during binding. Multiple
@@ -1119,8 +1122,8 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail CS01015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 29, including the extension-6 missing/default split and T1 identifier
-quoting. Older files are refused without an upgrade reader. Compiled schema version remains 8.
+14; the current SQL format is 30, including the extension-6 missing/default split and T1 identifier
+quoting. Older files are refused without an upgrade reader. Compiled schema version is 9.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
 rows and excessive offsets produce none. System relations join stored/system sources through the
@@ -1158,12 +1161,12 @@ mode/options/restart or removes the identity. TYPE preserves last value and call
 Both identity inserts and backfill update the session's currval/lastval. Rollback and reopen can
 leave gaps; CYCLE/restart can deliberately repeat values. Exhaustion retains CS02002 (22003).
 
-The table extension 7 identity facet links through catalog ownership to a kind-18 sequence;
+The table extension 8 identity facet links through catalog ownership to a kind-18 sequence;
 kind-19 reservations replace retired identity counter kind 16. Names use table_column_seq with
 numeric collision suffixes and survive renames. Ownership/default dependencies validate at load
 and publication. DROP identity/table/column removes owned sequences atomically; external defaults
 must first be removed. TRUNCATE RESTART IDENTITY restarts all owned sequences in its closure.
-Compiled typed schemas remain v8 without identity metadata; SQL scripts retain their definitions.
+Compiled typed schemas use v9 without identity metadata; SQL scripts retain their definitions.
 
 ## Standalone sequence catalog and shared allocation
 
@@ -1479,7 +1482,7 @@ Preparation, publication and cleanup use the existing storage-replacement transa
 kind-14 reclamation intents. Interrupted preparation leaves the original current and is retried
 explicitly. Publication is irrevocable; cleanup proceeds without caller cancellation. Recovery
 exposes a complete old or compact layout/index set at every tested file boundary. Reclamation
-waits for old snapshots. SQL format 29 and compiled schema v8 remain unchanged. See
+waits for old snapshots. SQL format 30 and compiled schema v9 remain unchanged. See
 [maintenance behavior and examples](sql-database.md).
 
 ## TRUNCATE
@@ -1499,7 +1502,7 @@ DML targeting retired tables or joining them as sources retains CS04006 before w
 
 [CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reuses durable
 prepared-owner reclamation to publish a complete inferred table, using one builder commit for row
-visibility. It retains format 29 and uses CS04003 inside explicit transactions.
+visibility. It retains format 30 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
@@ -1633,8 +1636,8 @@ frozen old-row values. Typed, domain and SDK default surfaces remain literal-onl
 and SET DEFAULT through cascade chains. The deletion closure precedes SET updates; deleted
 rows receive no SET assignment. Final child validation and row/index changes share the statement
 rollback bracket. NO ACTION is the omitted SQL action; the catalog constructor's optional
-argument still defaults to Restrict. Compiled schema version 8 continues to model only Restrict
-and Cascade and refuses reconciliation with the newer catalog actions.
+argument still defaults to Restrict. Compiled schema v9 continues to model only Restrict
+and Cascade for deletes; OnUpdate supports all five declarations.
 
 ## ALTER rename, defaults and nullability
 
@@ -1651,7 +1654,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses CS03025. DDL is self-committing and CS04003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 29.
+Format 17 introduced the default/missing split with table extension 6; current format is 30.
 
 ## ALTER COLUMN TYPE
 
@@ -1694,10 +1697,10 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
-in table extension 7.
+Format 29 added owned-sequence metadata. Current format 30 adds ON UPDATE action metadata
+in table extension 8 and retains TYPE default assignment coercion.
 Explicit earlier markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 8.
+upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 9.
 
 ## Aggregate modifiers and text results
 
@@ -1737,7 +1740,7 @@ reads; cancellation, stack exhaustion, memory, storage and I/O failures propagat
 
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
 inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
-modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 29
+modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 30
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) ordinarily evaluates per written row
@@ -1768,7 +1771,7 @@ defines the charging rules. Exhaustion raises located CS05040 (no SQLSTATE), wit
 taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
 retain the last percent continuation; other paths retain visited boundaries, expanding from one
 inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
-search. Storage format 29 admits these persisted
+search. Storage format 30 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution
@@ -1826,7 +1829,7 @@ runs, including on apply failure. Written data keeps transaction-duration locks.
 Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
 still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
 victim; callers roll back/retry the complete transaction. Consistent input order reduces this
-residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. Format 29, catalog
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 30, catalog
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
@@ -2040,14 +2043,32 @@ See [OVER and WINDOW](../../../../database/sql/language/clauses/window.md) for p
 | CS00011 | Window argument count or call modifier | 42601 |
 | CS01064 | Duplicate WINDOW name | 42P20 |
 | CS01065 | Unknown/self/forward window reference | 42704 |
-| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS01066 | Copied PARTITION BY, overridden ORDER BY or copying an explicit frame | 42P20 |
 | CS02068 | Non-integer offset or bucket count | 42804 |
 | CS02069 | Incompatible navigation value/default types | 42804 |
+| CS02070 | Noninteger ROWS frame offset | 42804 |
+| CS02071 | NULL frame offset | 22004 |
+| CS02072 | Negative frame offset | 22013 |
+| CS02073 | Noninteger NTH_VALUE index | 42804 |
 | CS05076 | Window placement or missing OVER | 42P20 |
 | CS05077 | Nested window | 42P20 |
 | CS05078 | Nonpositive NTILE count | 22014 |
 | CS05079 | Window state exceeds statement memory grant | 54000 |
+| CS05080 | Invalid frame boundary categories | 42P20 |
+| CS05081 | Row variable, aggregate or window in frame offset | 42P20 |
+| CS05082 | Nonpositive NTH_VALUE index | 22016 |
+| CS05083 | OVER on a scalar function | 42809 |
+| CS05084 | Recomputed window frames exceed 1,000,000 candidate input visits per statement | 54000 |
 
+## Window frames and aggregate execution
+
+[ROWS and offset-free RANGE](../../../../database/sql/language/clauses/window.md) execute, including aggregate FILTER and frame value
+functions. Application aggregates and ordered string aggregates recompute changed frames;
+native aggregates reuse fixed-head state. **Native moving frames, including n PRECEDING, are
+recomputed once the head moves and can reach CS05084 until a later release.** Recomputed candidate
+visits count before FILTER or input expressions, across functions, partitions and stages of one
+statement, including under LIMIT. Equal cached frames spend no visits. EXPLAIN ANALYZE reports
+frame_visits; CS05079 still covers retained window state and scratch.
 
 ## Sources
 

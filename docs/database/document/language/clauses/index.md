@@ -4,7 +4,7 @@ OQL SELECT clauses bind one source, filter documents, form groups, and order the
 
 ## Clause order
 
-- **Source** — [FROM](from.md) names one collection and an optional iteration variable.
+- **Source** — [FROM](from.md) supplies one collection, derived SELECT or expression source.
 - **Array expansion** — [UNNEST and LEFT UNNEST](unnest.md) bind ordered array elements before WHERE.
 
 - **Document filter** — [WHERE](where.md) retains documents whose predicate is true.

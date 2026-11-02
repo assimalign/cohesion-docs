@@ -15,6 +15,8 @@ public static class OqlClauses
     public const string ArrayComprehension = "ARRAY ... FOR";
     public const string FirstComprehension = "FIRST ... FOR";
     public const string Subquery = "SUBQUERY";
+    public const string DerivedFrom = "DERIVED FROM";
+    public const string ExpressionFrom = "EXPRESSION FROM";
     public const string Exists = "EXISTS";
     // Other query, expression and DDL clause constants are unchanged.
 }
@@ -32,7 +34,10 @@ ArrayComprehension and FirstComprehension are also admitted by the profile. Both
 remain CK00001.
 
 Subquery and Exists are admitted for uncorrelated [expression subqueries](oql-subquery-expression.md)
-and the EXISTS unary operator. Correlated, derived-FROM and DML forms remain CK00001.
+and the EXISTS unary operator. Correlated and DML forms remain CK00001.
+
+DerivedFrom and ExpressionFrom are admitted by the profile and use
+[OqlSelectExpression.Source](oql-select-expression.md). See [FROM](../../../../database/document/language/clauses/from.md).
 
 ## Example
 

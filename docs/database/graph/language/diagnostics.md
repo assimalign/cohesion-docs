@@ -364,7 +364,23 @@ These codes have no assigned SQLSTATE. See [EXISTS](expressions/exists.md).
 | CG02016 | Incompatible runtime correlated entity kind |
 | CG05027 | Malformed/missing correlated subplan or missing argument |
 
+## Pattern comprehensions
+
+[Pattern comprehensions](expressions/pattern-comprehensions.md) collect every correlated inner match in order.
+The optional path name shadows locally; other existing pattern names correlate. NULL arguments
+produce no matches, duplicates and NULL projections remain, and zero-hop relationship quantifiers
+are accepted. Inner aggregates are refused. EXPLAIN shows CollectApply. Collection shares the
+statement operation, snapshot, update overlay and work/memory budgets (CG05004/CG05020).
+Scalar composite results use graph.composite-values; entity lists remain CG05001 until #1662.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00014 | Pattern comprehension requires a nonempty path and projection | — |
+| CG05028 | Malformed pattern comprehension, aggregate projection or missing collection plan | — |
+
 ## Sources
+
+- **Batch 12** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4607aa81f`, checked against code and test cases.
 
 - **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 

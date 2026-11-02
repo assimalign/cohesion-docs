@@ -22,7 +22,7 @@ and its ownership identity. Namespaces survive restart even when empty.
 
 IF NOT EXISTS accepts an existing namespace without publishing a change. Successful schema DDL
 returns affected count zero. DDL is self-committing and is refused in explicit transactions.
-Storage format 29 persists namespace records of kind 15, introduced in format 21. Every earlier format is refused at open;
+Storage format 30 persists namespace records of kind 15, introduced in format 21. Every earlier format is refused at open;
 there is no upgrade path.
 
 ## Diagnostics

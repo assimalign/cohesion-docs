@@ -1,6 +1,6 @@
 # OqlSelectExpression
 
-A query over one collection in the session database, with duplicate removal and bare-value output.
+A query over a collection, derived SELECT or expression, with duplicate removal and bare-value output.
 
 Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 
@@ -15,8 +15,9 @@ public sealed class OqlSelectExpression : OqlExpression
         IReadOnlyList<OqlOrdering> orderBy, bool isDistinct, bool isValue,
         OqlExpression? limit = null, OqlExpression? offset = null, Location? location = null,
         IReadOnlyList<OqlUnnestExpression>? unnest = null,
-        IReadOnlyList<string?>? groupAliases = null, string? groupAs = null);
+        IReadOnlyList<string?>? groupAliases = null, string? groupAs = null, OqlExpression? source = null);
     public string Collection { get; }
+    public OqlExpression? Source { get; }
     public string? Alias { get; }
     public IReadOnlyList<OqlUnnestExpression> Unnest { get; }
     public IReadOnlyList<OqlProjection> Projections { get; }
@@ -41,7 +42,8 @@ becomes NULL before deduplication and counting on every transport. Named project
 DISTINCT uses structural collation equality and retains the first representative; objects containing
 NULL can deduplicate. See [SELECT](../../../../database/document/language/statements/select.md).
 
-Limit and Offset retain literal or parameter operands and their locations. Paging runs last,
+Limit and Offset retain literal or parameter operands and their locations. Except for LIMIT 0
+and nonblocking expression/derived sources, paging runs last,
 after grouping, DISTINCT and ordering. Planning validates counts even for direct AST requests and
 EXPLAIN: invalid kinds, NULL, negative, fractional or out-of-Int64 values raise DatabaseException
 with CD00007 at the operand; unbound parameters use CD01005. No SQLSTATE is assigned.
@@ -69,6 +71,14 @@ Each OrderBy entry is `OqlOrdering(OqlExpression Expression, bool Descending,
 OqlNullPlacement NullPlacement = OqlNullPlacement.Default)`. [OqlNullPlacement](oql-null-placement.md)
 retains the written suffix; invalid enum values fail planning with DatabaseException/CD01032
 (no SQLSTATE). Text malformed suffixes use CD00013. See [ORDER BY](../../../../database/document/language/clauses/order-by.md).
+
+Source is null for a collection source. Supplying the optional source constructor argument
+ignores collection; Collection then returns an empty string. A derived source is an
+[OqlSubqueryExpression](oql-subquery-expression.md); other sources retain their expression node.
+Construction only stores these arguments. Planning raises DatabaseException/CD01033 for a missing
+source alias, CD01034 for an unbound source variable, and CK00001 for correlation. Text without a
+derived alias reports CD00015. None has an assigned SQLSTATE. LIMIT 0 validates statically then
+returns planned metadata without executing. See [FROM](../../../../database/document/language/clauses/from.md).
 
 ## Example
 
@@ -100,6 +110,16 @@ Console.WriteLine(page.Offset is not null);             // True
 ```
 
 With take = 1, paging returns the second row in the baseline document-ID order.
+
+From OqlSourceParserTests:
+
+```csharp
+var derived = (OqlSelectExpression)((OqlQueryStatement)new OqlQueryParser().Parse(
+    "SELECT * FROM (SELECT n FROM items) d")).OqlExpression;
+Console.WriteLine(derived.Collection);                      // empty string
+Console.WriteLine(derived.Source is OqlSubqueryExpression); // True
+Console.WriteLine(derived.Alias);                           // d
+```
 
 ## Related reference
 

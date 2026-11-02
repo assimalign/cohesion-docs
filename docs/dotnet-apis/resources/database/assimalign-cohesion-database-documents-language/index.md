@@ -59,7 +59,8 @@ one collection in the session's database. `CREATE INDEX` and `DROP INDEX` use th
 parse-plan-execute path as `SELECT`; INSERT, UPSERT, UPDATE, DELETE, collection DDL and EXPLAIN also execute. UPSERT replaces whole documents.
 OQL follows the SQL++ MISSING contract. DEFINE/ELEMENT/FLATTEN are ordinary field names;
 their old statement/call positions report CK00001. Uncorrelated expression subqueries and EXISTS
-execute; correlation, derived FROM and DML subqueries remain CK00001.
+execute. [Derived and expression sources](../../../../database/document/language/clauses/from.md)
+also execute through OqlSelectExpression.Source; correlation and DML subqueries remain CK00001.
 
 See [DESIGN.md](design.md) for the supported-clause matrix, statement/expression grammar,
 diagnostics, scope restrictions, and extension rules. Co-located Shouldly tests provide the parser

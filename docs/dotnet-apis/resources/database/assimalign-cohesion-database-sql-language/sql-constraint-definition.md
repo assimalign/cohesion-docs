@@ -1,6 +1,6 @@
 # SqlConstraintDefinition
 
-Retains a parsed table or column constraint and its parent-delete action.
+Retains a parsed table or column constraint and its parent-delete and parent-update actions.
 
 Namespace: `Assimalign.Cohesion.Database.Sql.Language`.
 
@@ -16,6 +16,7 @@ public sealed class SqlConstraintDefinition
     public SqlTableReference? ReferencedTable { get; }
     public IReadOnlyList<string> ReferencedColumns { get; }
     public SqlReferentialAction OnDelete { get; }
+    public SqlReferentialAction OnUpdate { get; }
     public SqlExpression? CheckExpression { get; }
     public string? CheckExpressionText { get; }
 }
@@ -24,18 +25,21 @@ public sealed class SqlConstraintDefinition
 ## Behavior and exceptions
 
 The parser constructs this read-only type. Foreign-key lists retain matching column order;
-OnDelete is NoAction when omitted in SQL. SetNull assigns NULL to referencing columns and
+OnDelete and OnUpdate are independently NoAction when omitted in SQL. SetNull assigns NULL to referencing columns and
 SetDefault requests their defaults. See [constraints](../../../../database/sql/language/constraints.md)
 for cascade chains, final-state checks and atomicity. Property access adds no exceptions.
 Parser.Parse returns diagnostics; execution rejects invalid text with DatabaseParseException.
-ON UPDATE and deferred constraints remain CK00001.
+Deferred constraints remain CK00001. ON UPDATE declarations accept all five actions in either
+order beside ON DELETE. Duplicate/incomplete actions use CS00003. Changing referenced keys
+under Cascade/SetNull/SetDefault retains CK00001 until action execution is implemented.
 
 ## Example
 
 ```csharp
 var parsed = (SqlCreateTableExpression)((SqlQueryStatement)new SqlQueryParser().Parse(
-    "CREATE TABLE c (pid INT, FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL)")).SqlExpression;
+    "CREATE TABLE c (pid INT, FOREIGN KEY (pid) REFERENCES p(id) ON DELETE SET NULL ON UPDATE CASCADE)")).SqlExpression;
 Console.WriteLine(parsed.Constraints[0].OnDelete); // SetNull
+Console.WriteLine(parsed.Constraints[0].OnUpdate); // Cascade
 ```
 
 Omitting ON DELETE produces NoAction. This differs from the optional constructor argument of
