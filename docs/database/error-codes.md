@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/311cdf224/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -66,6 +66,8 @@ SQLSTATE mappings are documented code mappings, not separate wire fields.
 | CK04009 | Partial undo or failed statement memory compensation is running or incomplete, or statement/control/end activity prevents control admission; retry its target or an earlier marker, or roll back the transaction | — |
 | CK04010 | An open write stream prevents undo marker creation, release or rollback-to | — |
 | CK04011 | A transaction has reached the supported limit of 65,535 open write streams | — |
+| CK04012 | Named savepoint control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name is absent from the current transaction | — |
 
 CD04101 retains the aborted-transaction condition and original failure until recovery.
 CK00001 also covers nested GQL path modes/selectors, unselected unbounded WALK even with LIMIT,
@@ -74,6 +76,31 @@ Outer GQL modes and SQL UPDATE ... FROM / DELETE ... USING execute.
 Optional SQL costing falls back on committed definition changes; mutation execution retains
 CS04006 (no SQLSTATE). See [OQL transactions](document/language/statements/transactions.md),
 [GQL modes](graph/language/patterns.md#path-modes) and [SQL performance](sql/performance.md).
+
+Named [SQL](sql/language/statements/savepoint.md), [OQL](document/language/statements/transactions.md#named-savepoints)
+and [GQL](graph/language/statements/transactions.md#named-savepoints) controls permit duplicate
+names and select the newest. After incomplete undo, CK04009 admits only rollback to the same
+or an outer retained scope, or whole ROLLBACK. Wire Ready reports a failed transaction and
+the session stays open. Ordinary Graph/Documents statement failures require whole rollback;
+ordinary SQL statement failures preserve earlier work. Pool return clears every savepoint.
+Database disposal takes precedence over a live CK04009 fence: direct transaction controls,
+refusals and commit throw ObjectDisposedException. SQL returns CS04005 followed by Ready `E`
+on the same open InMemory/TCP session; Graph retains CG09019. SQL named CK04009 refusals carry
+the statement span and translated cause. Named-control I/O, including parameter reads and
+result preparation, uses CS06041 (58030) and aborts the explicit transaction under #1364;
+recoverable incomplete undo retains CK04009.
+
+## SQL JSON access
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01067 | Invalid JSON extraction or IS JSON signature | 42883 |
+| CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
+| CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+
+See [JSON access](sql/language/expressions/json-access.md). Malformed text under IS JSON returns
+FALSE; WITH/WITHOUT UNIQUE KEYS remains CK00001.
 
 ## SQL index conditions
 
@@ -95,6 +122,7 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | --- | --- | --- |
 | CG01021 | Named index or constraint requested for DROP is absent | — |
 | CG01022 | Schema property references a variable other than its FOR declaration | — |
+| CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
 | CG03010 | Existing data violates a newly created named constraint | — |
@@ -529,6 +557,7 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while any named savepoint is active | 25001 |
 
 ## OQL key joins and NEST
 
@@ -550,6 +579,7 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 ## Sources
 
+- **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` at `ff5112515`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

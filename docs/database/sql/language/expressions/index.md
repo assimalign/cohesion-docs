@@ -6,6 +6,7 @@ Reference for scalar values, operators, conditional expressions, conversions, an
 
 ## Expression forms
 
+- **[JSON access and IS JSON](json-access.md)** — Member/array extraction, kind tests and scalar conversions.
 - **[NEXT VALUE FOR](next-value-for.md)** — One sequence value per row, shared by repeated standard occurrences.
 - **[Operators and predicates](operators.md)** — PostgreSQL precedence, NULL-safe distinct tests, Boolean tests, LIKE/ILIKE ESCAPE, arithmetic and integer bitwise operators.
 - **[CASE](case.md)** — Select a scalar branch.
@@ -17,7 +18,7 @@ Reference for scalar values, operators, conditional expressions, conversions, an
 
 ## Scope
 
-The [dialect hub](../index.md) describes the 84-of-86 clause measure. Recognition alone is not
+The [dialect hub](../index.md) describes the 87-of-89 clause measure. Recognition alone is not
 execution support; use [diagnostics](../diagnostics.md) and the
 [unsupported-syntax matrix](../unsupported.md) when a form is rejected.
 

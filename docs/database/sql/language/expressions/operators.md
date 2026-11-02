@@ -15,6 +15,8 @@ left_expression << right_expression
 left_expression >> right_expression
 { + | - | ~ } expression
 left_expression { = | <> | < | <= | > | >= } right_expression
+json_expression { -> | ->> } selector
+expression IS [ NOT ] JSON [ VALUE | SCALAR | ARRAY | OBJECT ]
 expression IS [ NOT ] NULL
 left_expression IS [ NOT ] DISTINCT FROM right_expression
 expression IS [ NOT ] { TRUE | FALSE | UNKNOWN }
@@ -36,7 +38,7 @@ left_condition { AND | OR } right_condition
 ## Remarks
 
 Precedence follows PostgreSQL, from low to high: `OR`, `AND`, logical `NOT`, `IS` tests and
-distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE/ILIKE`, `ESCAPE`, generic operators (`||`, `&`, `|`, `#`, `<<`, `>>` and prefix `~`),
+distinct predicates, comparisons, `[NOT] BETWEEN/IN/LIKE/ILIKE`, `ESCAPE`, generic operators (`||`, `&`, `|`, `#`, `<<`, `>>`, `->`, `->>` and prefix `~`),
 addition/subtraction, multiplication/division/remainder, `COLLATE`, unary signs, postfix `::`
 casts, then primary expressions. Thus `1 = 1 IS TRUE` tests `(1 = 1)`, `'x' || 1 + 2` returns `'x3'`, and
 `-a COLLATE binary` groups as `(-a) COLLATE binary`. NOT keeps its ordinary precedence before
@@ -113,13 +115,19 @@ From lowest to highest; parentheses override grouping:
 | 5 | =, <>, <, <=, >, >= | Non-associative |
 | 6 | [NOT] BETWEEN, IN, LIKE, ILIKE | Predicate rules above |
 | 7 | ESCAPE | Binds the escape operand |
-| 8 | `\|\|`, `&`, `\|`, `#`, `<<`, `>>`, prefix `~` | Binary forms associate left; prefix ~ uses this level |
+| 8 | `\|\|`, `&`, `\|`, `#`, `<<`, `>>`, `->`, `->>`, prefix `~` | Binary forms associate left; prefix ~ uses this level |
 | 9 | +, - | Left |
 | 10 | *, /, % | Left |
 | 11 | COLLATE | Postfix |
 | 12 | Unary +, - | Prefix |
 | 13 | :: | Postfix |
 | 14 | Primary expressions | Literals, calls and parenthesized expressions |
+
+## JSON operators and kind tests
+
+[JSON access](json-access.md) documents `->`, `->>` and `IS [NOT] JSON`, including NULL,
+selector typing and diagnostics. Arrows associate left at the generic operator level; `::`
+binds tighter. JSON scalar casts are described under [CAST](cast.md#json-scalar-casts).
 
 ## Integer bitwise operators
 
@@ -189,7 +197,8 @@ FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'dbo';
 ```
 
 The result is `(FALSE, TRUE, TRUE)`. Postfix ISNULL/NOTNULL, SIMILAR TO/NOT
-SIMILAR TO, and IS JSON/IS OF/IS NORMALIZED report `CK00001`.
+SIMILAR TO, and IS OF/IS NORMALIZED report `CK00001`. IS JSON executes; its UNIQUE KEYS
+variants remain CK00001.
 
 ## LIKE and ESCAPE
 

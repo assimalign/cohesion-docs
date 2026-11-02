@@ -22,7 +22,7 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | Unknown function names | CD00008 | Not in the public executable function table |
 | CREATE/DROP DATABASE, USE, ALTER | CK00001 | Database lifecycle belongs to the API |
 | Text controls without negotiated transaction-status | CD07002 | [BEGIN/START, COMMIT and ROLLBACK](statements/transactions.md) execute in process and through a current Documents client |
-| SAVEPOINT, ROLLBACK TO SAVEPOINT, SET TRANSACTION, EXPLAIN controls | CK00001 | No savepoint or transaction-option mutation |
+| SET TRANSACTION, EXPLAIN controls | CK00001 | [Named savepoints](statements/transactions.md#named-savepoints) execute; isolation mutation remains unsupported |
 | OQL collection/index DDL in an explicit transaction | CD04105 | Faults the transaction; use automatic DDL and ROLLBACK to recover |
 | General database-qualified source | CD00002 | Sources stay in the session database |
 | Multiple statements, invalid subscripts | CD00002 | One statement; array indices are nonnegative Int32 |

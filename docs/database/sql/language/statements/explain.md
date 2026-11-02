@@ -59,6 +59,13 @@ Plain EXPLAIN does not evaluate frame offsets or aggregate inputs.
 
 ### Planning and results
 
+[Ordered index access](../clauses/order-by.md#index-order) reports `OrderedIndexScan` with
+`direction=forward` or `direction=backward` and `sort_removed=true`. The SELECT detail adds
+`order_source=index` and retains its ordering keys. Eligibility alone does not guarantee this
+choice: costing includes filter selectivity, early-stop work and base-row fetches. For example,
+after the [index-order fixture](../clauses/order-by.md#index-order), execute
+`EXPLAIN SELECT k FROM index_order ORDER BY k LIMIT 2;` to inspect the chosen access.
+
 [Grouping sets](../clauses/group-by.md#grouping-sets-rollup-and-cube) add the expanded set count
 and `set_keys` listing to Group detail, including duplicate sets and zero-based grouping-key
 ordinals. `CUBE(a,b)` reports `grouping_sets=4; set_keys=[(),(0),(1),(0,1)]`. Detail also identifies

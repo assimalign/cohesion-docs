@@ -302,8 +302,26 @@ without lookups. No SQLSTATE is assigned to these conditions.
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
 
+## Named savepoints
+
+[Named controls](statements/transactions.md#named-savepoints) keep the target after rollback-to
+and discard descendants. Ordinary failed statements still abort the transaction with CD04101;
+only whole ROLLBACK recovers it. Incomplete undo instead admits rollback to the same or an outer
+retained savepoint, or whole ROLLBACK, with the wire session open and Ready reporting failure.
+Database disposal takes precedence over the live CK04009 fence. Direct transaction controls,
+refusals and commit throw ObjectDisposedException; in-process session execution also observes
+disposal before that fence.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name does not exist in the current transaction | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
+
 ## Sources
 
+- **Disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/SavepointFixTests.cs`.
+- **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against `DocumentCorrelatedSubqueryTests.cs` and `DocumentDmlSubqueryTests.cs`.

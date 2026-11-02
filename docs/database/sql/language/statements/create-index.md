@@ -58,8 +58,11 @@ independent of value direction. Comparison ranges never visit the NULL block, in
 one-sided ranges; NULL equality prefixes retain the complete matching suffix range.
 LIKE remains a residual after an equality-prefix seek.
 
-Every ORDER BY still sorts, even when it matches or fully reverses the index order. Order
-matching and sort avoidance belong to SQ-K3. See [ORDER BY](../clauses/order-by.md).
+Matching ORDER BY keys can use forward index order or reverse every direction and NULL
+placement together for a backward scan. NULL placement is irrelevant for keys proven unable
+to vary between NULL and non-NULL, including NOT NULL columns and equality prefixes.
+See [ORDER BY](../clauses/order-by.md#index-order) for matching rules, costing and the difference
+between query and index defaults.
 Index direction does not change uniqueness or partial-index NULL rules. Floating index keys
 canonicalize signed zeros together and place all NaNs below negative infinity; stored row
 values keep their IEEE representation. Floating seek eligibility remains conservative.
@@ -111,7 +114,9 @@ programmatically supplied primary-key predicate uses `CS03082` (42P16).
 The planner may use a partial index when mandatory query conjuncts prove its predicate. It
 matches bound column names and aliases, parentheses, literal signs and standard literal casts:
 
-- Identical immutable row expressions prove themselves, except expressions involving OR or NOT.
+- Identical immutable row expressions prove themselves, except general expressions involving OR or NOT.
+  [JSON extraction and IS JSON](../expressions/json-access.md#partial-indexes) match exact
+  conjuncts, including the IS JSON kind and negation.
 - Comparisons of the same column and constant type, with the same resolved collation, use
   equality and ordered bounds: `x > 10` implies `x > 5`; `x = 7` implies `x >= 7`;
   `x >= 7` does not imply `x > 7`.
@@ -174,7 +179,7 @@ SELECT DIRECTION, NULL_PLACEMENT FROM COHESION_SCHEMA.INDEXES
 WHERE TABLE_NAME = 'directed_keys' AND INDEX_NAME = 'ix_directed';
 ```
 
-The first SELECT returns `3`, `2`; it still sorts. The metadata row is `('DESC', 'LAST')`.
+The first SELECT returns `3`, `2`; this index can supply its order. The metadata row is `('DESC', 'LAST')`.
 
 Execute separately in a fresh database:
 

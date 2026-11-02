@@ -79,6 +79,15 @@ quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
 See the [format-32/schema-v11 export and rebuild procedure](../../index.md#sql-format-32-and-schema-v11).
 
+## JSON and JSONB
+
+Both types support [member/array extraction and IS JSON](../expressions/json-access.md), and
+[Boolean/numeric scalar casts](../expressions/cast.md#json-scalar-casts). Column assignment
+validates a complete JSON value, strict encoding and nesting depth at most 128 (CS02078 / 22032).
+JSON stores original text; JSONB stores original UTF-8 bytes without normalization. Whitespace,
+member order and duplicate keys remain; JSONB equality is byte equality. Extraction resolves
+repeated keys to their last member. SQL/JSON paths and JSON_VALUE/QUERY/EXISTS remain SQ-N2.
+
 ## Temporal text input
 
 TIME stores a TimeOnly clock, and INTERVAL an exact day-time TimeSpan with 100 ns resolution.

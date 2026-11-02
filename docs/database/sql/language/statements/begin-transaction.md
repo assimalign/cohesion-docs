@@ -20,7 +20,7 @@ Starts the session's explicit transaction.
 columns named `start` or `work` still bind.
 Each repeated mode includes ISOLATION LEVEL; commas between complete modes are optional.
 The last supported level wins. SERIALIZABLE anywhere in a state-valid mode list is refused.
-Isolation words remain contextual identifiers. Transaction names, savepoints and `AND [NO] CHAIN`
+Isolation words remain contextual identifiers. Transaction names and `AND [NO] CHAIN`
 are outside this grammar. READ ONLY, READ WRITE, DEFERRABLE and NOT DEFERRABLE use CK00001.
 Malformed isolation modes use CS00012; other malformed suffixes use CS00003.
 
@@ -74,8 +74,8 @@ transaction usability; see [diagnostics](../diagnostics.md#transactions).
 CS04005 is an Error in DatabaseException.Diagnostics; the in-process Message has no leading
 code, and InnerException retains the cause. The wire still prefixes its refusal with CS04005.
 
-The coordinator also has an API for selecting an isolation level. Nested transactions and
-savepoints remain outside this language subset.
+The coordinator also has an API for selecting an isolation level. Nested transactions remain
+unsupported; [named savepoints](savepoint.md) create undo scopes inside the open transaction.
 
 [ON CONFLICT](../clauses/on-conflict.md#isolation-locking-and-retries) uses latest-state unique-key
 arbitration. Snapshot aborts retryably on a conflict committed after its snapshot, including

@@ -43,7 +43,22 @@ the number of returned rows. ResultComplete carries AffectedCount without a fram
 ```csharp
 var result = await connection.QueryAsync("MATCH (n:Absent) RETURN n.name");
 Console.WriteLine(result.Count); // 0 when the label is absent
-Console.WriteLine(result.Diagnostics[0].Code); // CG01010 with diagnostics negotiated
+Console.WriteLine(result.Diagnostics.Any(d => d.Code == "CG01010")); // True with diagnostics negotiated
+```
+
+If `name` is also unknown database-wide, that read additionally carries CG01023. Property
+warnings use ProtocolDiagnosticSeverity.Warning, once per ordinal name, and preserve the normal
+result. Their first occurrence is located when the AST has a span. See
+[unknown-property rules](../../../../database/graph/language/expressions/property-access.md#unknown-property-warnings).
+
+On a fresh database connection with diagnostics negotiated, following GraphWireDiagnosticTests:
+
+```csharp
+await connection.ExecuteAsync("INSERT (:Keep {name:'k'})");
+var missing = await connection.QueryAsync("MATCH (n:Keep) RETURN n.never_seen");
+Console.WriteLine(missing.Count);                     // 1
+Console.WriteLine(missing[0][0] is null);              // True
+Console.WriteLine(missing.Diagnostics.Single().Code); // CG01023
 ```
 
 ```csharp

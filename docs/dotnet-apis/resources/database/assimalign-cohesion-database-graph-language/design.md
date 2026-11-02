@@ -15,6 +15,16 @@ property is mutually exclusive with ordinary stages, composite queries and catal
 forms; malformed direct combinations retain the existing CG05001 refusal. See
 [language syntax and limits](../../../../database/graph/language/statements/index.md#schema-statements).
 
+## Unknown-property warnings
+
+The engine reports CG01023 with Warning severity for read-only, statically named entity
+properties unknown throughout the statement-visible catalog. Parsed field accesses carry their
+first occurrence's expression span; pattern-map keys and unlocated direct ASTs have no span.
+The parser itself supplies no catalog warning. Map fields, dynamic subscripts and writing
+statements skip this analysis. Typed and wire Diagnostics preserve successful results. See
+[property access](../../../../database/graph/language/expressions/property-access.md#unknown-property-warnings)
+for discovery, rollback, deduplication and Neo4j differences.
+
 ## Standard decision (#193)
 
 The owner selected **ISO/IEC 39075:2024 GQL** on **2026-09-17**, following

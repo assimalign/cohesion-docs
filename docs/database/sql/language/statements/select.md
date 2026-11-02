@@ -69,8 +69,8 @@ is 0. A wildcard without FROM fails planning with CS05013.
 Qualification identifies a schema within the current database, never another database.
 
 `WHERE` filters input before grouping, and `HAVING` filters completed groups. Ordering precedes
-pagination. `NULL` sorts first ascending and last descending. Equal ordering keys retain input
-order; supply a tie-breaking key for deterministic paging across access paths. See the individual clause pages for
+pagination. `NULL` sorts first ascending and last descending. Equal ordering keys have unspecified
+order; supply a unique tie-breaking key for deterministic paging across access paths. See the individual clause pages for
 alias precedence, grouping validity, collation, and subquery cardinality.
 
 [Windows](../clauses/window.md) run after grouping/HAVING and before DISTINCT, final ordering
@@ -90,7 +90,8 @@ set operands still materialize; their final projection can stop at the window. D
 before pagination and does not use this early stop. Planning errors remain errors even when a
 limit would return no rows.
 
-ORDER BY with a non-DISTINCT limit normally examines every qualifying input while retaining only
+An [ordered index scan](../clauses/order-by.md#index-order) can supply single-table ORDER BY
+and stop after OFFSET + LIMIT qualifying rows. Other ORDER BY paths with a non-DISTINCT limit examine every qualifying input while retaining only
 the best OFFSET + LIMIT rows. Deferred collations and independent volatile outputs use a full sort;
 see [ordering evaluation](../clauses/order-by.md#evaluation-order). The selected output rows still
 materialize before delivery; bounded selection does not provide streaming results.
@@ -101,6 +102,10 @@ Qualified `t.*` remains `CK00001`. The [JOIN examples](../clauses/join.md#exampl
 INNER, LEFT, USING, CROSS and comma forms with results.
 
 ## Index access
+
+[ORDER BY](../clauses/order-by.md#index-order) can use leading index keys after equality-bound
+prefixes, including `IS NULL`, in forward or backward order. This is cost-selected and preserves
+the full WHERE filter. Joins, grouping and windows retain their sort.
 
 [Partial indexes](create-index.md#partial-indexes) are eligible when the input's own WHERE or
 input-local INNER JOIN ON conjuncts prove their predicate. A proof can enable seeks, ranges,

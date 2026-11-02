@@ -171,7 +171,7 @@ not a separate field on the diagnostic or SQL exception.
 [Predicate precedence](expressions/operators.md) rejects non-associative chains such as `a < b < c`
 with CS00003 at the second operator. Completed IN lists/subqueries may chain. ILIKE/NOT ILIKE
 and general `expr::type` casts execute with existing LIKE/CAST diagnostics. SIMILAR TO, regex,
-ISNULL, NOTNULL, IS JSON/OF/NORMALIZED and exponentiation ^ use CK00001. Integer bitwise
+ISNULL, NOTNULL, IS OF/NORMALIZED, IS JSON WITH/WITHOUT UNIQUE KEYS and exponentiation ^ use CK00001. Integer bitwise
 operators execute; invalid operand types and BIGINT shift counts use CS02077 (42804).
 Invalid fixed LIKE patterns fail binding even on empty input or with a NULL matched value;
 this eager check intentionally differs from PostgreSQL. Truth tests require BOOLEAN or NULL.
@@ -637,6 +637,18 @@ Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inver
 and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
 can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
 
+## JSON access
+
+[JSON access and IS JSON](expressions/json-access.md) validate signatures before rows. Malformed
+text under IS JSON returns FALSE, while access and assignment reject malformed documents.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01067 | Invalid JSON extraction or IS JSON signature, including a BIGINT selector | 42883 |
+| CS02078 | Malformed access/assignment input, invalid Unicode/UTF-8 or depth over 128 | 22032 |
+| CS02079 | Wrong JSON kind for a Boolean or numeric scalar cast | 22023 |
+| CS02080 | Incompatible declared CASE/COALESCE alternatives in a JSON operand/selector | 42804 |
+
 ## SQL transaction isolation
 
 [SET TRANSACTION](statements/set-transaction.md) changes the current block before its first admitted data statement,
@@ -651,9 +663,30 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 | CS04071 | SET outside a block: warning and successful no-op | 25000 |
 | CS04072 | SET after the first admitted data statement or during an operation | 25001 |
 | CS04073 | SERIALIZABLE in a state-valid BEGIN or active usable block | 0A000 |
+| CS04074 | SET TRANSACTION while a named savepoint is active; before SERIALIZABLE/late checks | 25001 |
+
+## Named savepoints
+
+[SAVEPOINT, RELEASE and ROLLBACK TO](statements/savepoint.md) use the newest matching name.
+Ordinary SQL statement failures preserve earlier work. Incomplete undo leaves the wire session
+open with failed Ready status and admits only rollback to the same or an outer retained scope,
+or whole ROLLBACK. Pool return discards all names.
+
+Named CK04009 refusals retain the complete statement span and translated cause. Closing the
+database with a live fence returns CS04005 ahead of CK04009, with Ready `E` on the same open
+InMemory/TCP session. I/O in named-control parameter reads or result preparation uses CS06041
+(58030) and aborts the explicit transaction under #1364; recoverable partial undo retains CK04009.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CK04012 | Named control requires an explicit transaction with an owned kernel binding | — |
+| CK04013 | Savepoint name does not exist in the current transaction | — |
+| CK04009 | Incomplete undo or statement/control/end activity prevents control admission | — |
 
 ## Sources
 
+- **Savepoint fix pass** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs` at `ff5112515`.
+- **Batch 17 JSON and savepoints** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ad0da989f`, checked against `SqlJsonAccessTests.cs`, `SqlJsonReviewFixTests.cs` and `NamedSavepointTests.cs` in the SQL tests.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.
 
 - **Batch 13** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `4ef359bad`, checked against code and tests.

@@ -1,6 +1,6 @@
 # ROLLBACK TRANSACTION (Cohesion SQL)
 
-Aborts the session's active explicit transaction.
+Aborts the session's active explicit transaction, or undoes work after a named savepoint.
 
 > **Status:** Implemented.
 
@@ -8,12 +8,13 @@ Aborts the session's active explicit transaction.
 
 ```syntaxsql
 ROLLBACK [ WORK | TRANSACTION ] [ ; ]
+ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] name [ ; ]
 ```
 
 ## Arguments
 
 `WORK` and `TRANSACTION` are optional equivalent suffixes on ROLLBACK.
-Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Transaction names, modes and `AND [NO] CHAIN` are outside this grammar.
 Malformed suffixes report `CS00003` before transaction state changes.
 
 ## Remarks
@@ -29,11 +30,17 @@ Like [COMMIT](commit-transaction.md), rollback observes caller cancellation only
 starts. Cancellation observed then leaves the transaction active and usable. A started rollback
 ignores caller cancellation and completes its end.
 
-`ROLLBACK TO` is not implemented. It produces `CS00003` rather than silently rolling back the
-whole transaction. A rejected transaction-control statement leaves the active scope intact.
+`ROLLBACK TO` keeps the [named savepoint](savepoint.md) and the transaction open, removes newer
+savepoints, and can be repeated. Duplicate names select the newest; unknown names use CK04013
+and a missing explicit transaction uses CK04012 (neither has an assigned SQLSTATE).
+After incomplete undo, CK04009 admits only retry to that or an outer retained savepoint, or
+whole ROLLBACK. The wire session stays open with failed Ready status until recovery.
+If the database closes while the fence is live, SQL reports CS04005 ahead of CK04009 and
+retains the wire session with Ready `E`. Named-control I/O failures instead abort the explicit
+transaction under #1364; see [savepoint failure rules](savepoint.md#remarks).
 Completed DDL is self-committing and cannot be undone by a later rollback.
 
-Pool return rolls back a negotiated open or failed transaction before reuse. Failed cleanup or
+Pool return rolls back a negotiated open or failed transaction and discards every savepoint before reuse. Failed cleanup or
 missing transaction-status support discards the connector. Disconnect/session disposal also rolls back.
 
 If client-side rollback cleanup fails, `SqlConnection.AbortAsync` discards the rental instead
@@ -62,6 +69,7 @@ The final query returns the original identifiers `1`, `2`, and `3`.
 
 ## Sources
 
+- **Named-control failures and closure** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SavepointFixTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Transaction behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTransactionControlTests.cs`

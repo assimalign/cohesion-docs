@@ -14,7 +14,8 @@ Commits the session's active explicit transaction.
 
 `WORK` and `TRANSACTION` are optional equivalent suffixes on COMMIT.
 `END` maps to COMMIT and takes no suffix. Without a transaction its `CS04002` message names COMMIT.
-Transaction names, modes, savepoints and `AND [NO] CHAIN` are outside this grammar.
+Transaction names, modes and `AND [NO] CHAIN` are outside this grammar. COMMIT ends all
+[savepoints](savepoint.md); RELEASE alone keeps their effects pending in the transaction.
 Malformed suffixes report `CS00003` before transaction state changes.
 
 ## Remarks
@@ -41,6 +42,10 @@ An already-aborted transaction refuses COMMIT with CS04005 and commits nothing. 
 I/O and index failures abort explicit transactions; roll back before further work. The refusal
 carries the Error code in Diagnostics and the original cause in InnerException, with ordinary
 in-process Message text; the wire adds `CS04005: ` once. See [transaction diagnostics](../diagnostics.md#transactions).
+
+Incomplete savepoint undo refuses COMMIT with CK04009 until recovery. Closing the database
+takes precedence over that fence: SQL returns CS04005 while retaining the wire session with
+failed Ready status (`E`). Direct transaction CommitAsync instead throws ObjectDisposedException.
 
 Pool return rolls back an unfinished negotiated transaction before reuse; a failed or uncertified
 reset discards the connector. This does not establish the outcome of an unacknowledged COMMIT.
@@ -76,6 +81,7 @@ CS04006 (no SQLSTATE); roll back and retry in a fresh transaction. See
 
 ## Sources
 
+- **Fenced lifecycle precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SavepointFailureWireTests.cs`.
 - **Conformance evidence** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCommitCancellationConformanceTests.cs`.
 
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`

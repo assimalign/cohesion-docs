@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 84 of 86 named clauses against the live engine. The 2 excluded names are
+The profile measures 87 of 89 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -82,15 +82,15 @@ Other cells retain their actual diagnostic rather than assigning a capability co
 | UPPER/LOWER/LENGTH on numeric values, or two-argument ROUND on approximate input | `CS01006` (42883) | Signatures reject incompatible inputs during planning |
 | Unsupported temporal arithmetic, such as TIME + INTERVAL or INTERVAL * number | `CS02003` (42804) | Supported day-time arithmetic pairs are listed under [operators](expressions/operators.md#temporal-arithmetic) |
 | Regex operators, including infix `~` and compound regex forms; SIMILAR TO/NOT SIMILAR TO | `CK00001` | [LIKE and ILIKE](expressions/operators.md#ilike-and-not-ilike) execute with ESCAPE |
-| Postfix ISNULL/NOTNULL, IS JSON/OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
+| Postfix ISNULL/NOTNULL, IS OF/NORMALIZED | `CK00001` | Use supported [IS tests](expressions/operators.md) |
 | Exponentiation `^` | `CK00001` | [Integer bitwise operators](expressions/operators.md#integer-bitwise-operators) execute; XOR is `#` |
 | Non-associative comparison/predicate chains, such as `a < b < c` | `CS00003` | Parenthesize an intermediate result; completed IN lists/subqueries may chain |
 | CREATE INDEX expression keys or INCLUDE | No dedicated diagnostic promised by the dialect | Plain column keys accept ASC/DESC and NULLS FIRST/LAST; constraint lists reject options with CS00003 |
 | DROP TABLE CASCADE | `CS00003` for trailing DDL syntax | Foreign-key delete cascade is a separate feature |
-| `ROLLBACK TO [SAVEPOINT]`, malformed transaction suffixes | `CS00003` | No savepoint rollback |
+| Malformed transaction suffixes | `CS00003` | [ROLLBACK TO](statements/savepoint.md) executes for named savepoints |
 | `GRANT` | `CS00002` | Unknown leading command |
 | TRUNCATE inside an explicit transaction | `CS04066` (25001) | Refusal preserves active state and prior work; use an automatic statement |
-| Standalone `TRANSACTION`, `SAVEPOINT`, `RELEASE` | `CS00002` | Not implemented as statements |
+| Standalone `TRANSACTION` | `CS00002` | Use BEGIN or START TRANSACTION; SAVEPOINT and RELEASE execute |
 | READ ONLY/WRITE, [NOT] DEFERRABLE transaction modes | `CK00001` | [Isolation options](statements/begin-transaction.md) and [SET TRANSACTION](statements/set-transaction.md) execute |
 | SERIALIZABLE transaction isolation | `CS04073` (0A000) | State-valid BEGIN/SET refuses it; SET outside a block is a CS04071 warning/no-op |
 | DDL in an explicit transaction | `CS04003` | DDL is self-committing |
@@ -129,6 +129,12 @@ result execution are unavailable.
 ## See also
 
 [Language (SQL)](index.md) · [Diagnostics](diagnostics.md) · [Statements](statements/index.md) · [Builtin functions](functions/builtin-functions.md)
+
+## Deferred SQL/JSON forms
+
+[JSON arrows and IS JSON](expressions/json-access.md) execute. WITH/WITHOUT UNIQUE KEYS uses
+CK00001. JSON_VALUE, JSON_QUERY, JSON_EXISTS and SQL/JSON paths remain SQ-N2; JSON_TABLE,
+question-mark operators and JSONB normalization remain deferred beyond this subset.
 
 ## Sources
 

@@ -27,6 +27,11 @@ connection and throws GraphClientException carrying diagnostics. Transport and m
 failures still discard it. This changes the QueryPathsAsync return type while preserving await
 foreach.
 
+An unknown statically named entity property, including a MATCH property-map key, adds CG01023
+with ProtocolDiagnosticSeverity.Warning, once per ordinal name. It does not turn success into
+failure; final Diagnostics is available at EOF even when no path matches. See
+[property discovery and exclusions](../../../../database/graph/language/expressions/property-access.md#unknown-property-warnings).
+
 Paths arrive in wire order through a one-slot bounded queue, with each Path decoded once.
 The producer waits before reading another frame when that queue is full. A following terminal
 error therefore cannot overtake a queued path. Decoded values own their storage and remain

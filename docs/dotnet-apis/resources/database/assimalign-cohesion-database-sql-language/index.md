@@ -14,6 +14,8 @@ The SQL language package parses query text, declares dialect capabilities, and r
 
 ## Reference pages
 
+- **[SqlIsJsonExpression](sql-is-json-expression.md)** — Nullable JSON kind predicate.
+- **[SqlJsonKind](sql-json-kind.md)** — VALUE, ARRAY, OBJECT and SCALAR selection.
 - **[SqlCreateIndexExpression](sql-create-index-expression.md)** — Per-column direction, NULL placement and partial predicates.
 
 - **[SqlTransactionExpression](sql-transaction-expression.md)** — Control command and ordered isolation modes.
