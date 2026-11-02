@@ -45,7 +45,8 @@ the server. Cross-engine transactions are not provided.
 | `Assimalign.Cohesion.Database.Protocol` | Bounded framing, handshake, lifecycle, errors, version negotiation, fixed model-family binding |
 | `Assimalign.Cohesion.Database.Client` | Shared connection settings, pooling, authentication, framing, and exchange lifetime |
 | `Assimalign.Cohesion.Database.Security` | Authentication and authorization contracts; model-specific enforcement is a separate concern |
-| `Assimalign.Cohesion.Database.Hosting` | Application composition, configuration, services, provisioning, and server lifecycle |
+| `Assimalign.Cohesion.Database.Hosting` | Application composition, configuration, services, and server lifecycle |
+| `Assimalign.Cohesion.Database.Hosting.ApplicationModel` | Managed-instance registration, publication, snapshot restore, and application-added actions |
 | `Assimalign.Cohesion.Database.Embedded` | In-process engine composition, lookup, and reverse-order disposal |
 
 The area root composes child roots; child roots do not depend on it. Each model composes the same
@@ -59,16 +60,28 @@ features have no current runtime API.
 
 `DatabaseApplication.CreateBuilder(args)` collects intent through `AddSql`,
 `AddDocuments`, `AddGraph`, `AddKeyValue`, and `AddBlob`.
-Callbacks run during the one-shot `Build`. Each callback configures an engine builder and may
-register deferred worker/server factories through `AddWorker` and `AddServer`.
+Each verb takes an engine name and a callback that runs during the one-shot `Build`. The callback
+configures the model's engine builder, declares databases with `AddDatabase`, and may register
+deferred worker/server factories through `AddWorker` and `AddServer`.
 There is no application-builder `AddServer` or composition `Use` method.
 
 `Build` creates usable engines and freezes registration, even if construction fails.
 `application.Context.GetEngine(name)` returns a borrowed engine reference. Engines own their
-workers and nested servers. Additional services, including compiled-schema provisioning, start
-before servers; shutdown drains servers first. The application supports one start lifecycle.
-Factory-created engines belong to the application; directly registered instances stay caller-owned.
-Finish caller-owned sessions before disposing the application.
+workers and nested servers. Engine Build opens, recovers, and provisions declared databases before
+the application can start. Deferred migrations may continue on engine workers under their admission
+gates. The application supports one start lifecycle. Factory-created engines belong to the
+application; directly registered instances stay caller-owned. Finish caller-owned sessions before
+disposing the application.
+
+Lifecycle services come from both `builder.AddService(...)` and `IHostService` registrations on
+`builder.Services`. After engines and servers are registered and every `AddService` product exists,
+Build resolves the container's lifecycle services once. Every `StartingAsync` callback finishes
+before any service starts. Start order is `AddService` registrations, container services, the
+optional reopen service, then servers in engine/attachment order. Each service group preserves
+registration order; stop reverses the complete order, draining servers first. `AddService` factory
+products belong to the application; container factory products belong to the provider. Supplied
+instances remain caller-owned. A duplicate lifecycle object fails Build. See
+[hosting ownership](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#nested-servers-and-ownership).
 
 Concrete hosting supplies Cohesion configuration and dependency injection. It loads optional base
 and environment JSON, `COHESION_CONFIG__` variables, captured arguments, and explicit providers,
@@ -77,11 +90,9 @@ The root and model builder interfaces expose no configuration or dependency-inje
 
 ## Getting started
 
-This is a local-path adaptation of the template's `Program.cs`: deferred SQL registration,
-nested Transmission Control Protocol (TCP) server creation, `SqlSchema.Compile`, named provisioning,
-one-shot build, then run.
-The original template receives its path and endpoint through generated
-`Resource.Mounts.Data.Path` and `Resource.Endpoints.Db`.
+This program declares a SQL engine, a schema, and a Transmission Control Protocol (TCP) server.
+Paths and endpoints are explicit application settings. The model's engine build provisions its
+declared database during the application's one-shot Build, before the server starts.
 
 In a Database SDK executable, this host provisions an `audit` database containing a schema-owned
 `t` table. The TCP integration package supplies `Listen`; import Assimalign.Cohesion.Database to use it with any model options.
@@ -89,29 +100,20 @@ In a Database SDK executable, this host provisions an `audit` database containin
 ```csharp
 using System;
 
-using Assimalign.Cohesion.Database.Hosting;
 using Assimalign.Cohesion.Database;
+using Assimalign.Cohesion.Database.Hosting;
 using Assimalign.Cohesion.Database.Sql;
-using Assimalign.Cohesion.Database.Sql.Schema;
 using Assimalign.Cohesion.Hosting;
 
 DatabaseApplicationBuilder builder = DatabaseApplication.CreateBuilder(args);
 
-builder.AddSql((_, engine) =>
+builder.AddSql("audit-sql", sql =>
 {
-    engine.EngineName = "audit-sql";
-    engine.RootPath = "./data/sql";
-    engine.AddServer(value => SqlDatabaseServer.Create(
-        (SqlDatabaseEngine)value,
-        new SqlDatabaseServerOptions().Listen(
-            new Uri("tcp://127.0.0.1:5439"))));
+    sql.Options.RootPath = "./data/sql";
+    sql.AddDatabase("audit", database => database.Schema(schema =>
+        schema.Table<Person>("t", table => table.Key(person => person.Id))));
+    sql.AddServer(server => server.Listen(new Uri("cohesion-db://127.0.0.1:5439")));
 });
-
-SqlCompiledSchema schema = SqlSchema.Compile("audit", database =>
-{
-    database.Table<Person>("t", table => table.Key(person => person.Id));
-});
-builder.AddDatabase("audit-sql", "audit", schema);
 
 await using DatabaseApplication application = builder.Build();
 await application.RunAsync();
@@ -152,6 +154,67 @@ development behavior rather than configuring model authorization.
 
 For SQL row examples, use the [SELECT fixture](sql/language/statements/select.md#examples).
 The repository's Database demo also creates all five engines directly, with no listeners.
+
+## Managed resources
+
+A Database program becomes a managed resource by adding this registration before Build:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Hosting.InProcess;
+using Assimalign.Cohesion.Database.Hosting.ApplicationModel;
+
+builder.Services.AddResource("orders-db", resource => resource.UseInProcess());
+```
+
+`UseInProcess()` opts into the platform's client. When the environment names no gateway platform,
+`AddResource` registers nothing and the program runs as a plain application. A named platform the
+program did not opt into fails registration. Managed registration adds one singleton lifecycle
+service. After Build has opened, recovered, and migrated the engines, that service publishes the
+instance's manifest and restores gateway snapshots in `StartingAsync`, before services or servers
+start. It opens the control plane in `StartAsync`; servers drain before it closes on stop.
+
+Database supplies no actions or instance health contributors of its own yet. The application adds
+actions with `AddAction`, using its source-generated JSON contexts. A gateway write runs on one
+instance and its snapshot is restored on the others. Catalog data and principals remain local to
+each instance, so the retired catalog-mutation commands have no replacement yet. See
+[the integration API](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
+
+The gateway is a separate `Sdk.Gateway` executable. It declares Database generically:
+
+```csharp
+using Assimalign.Cohesion.ApplicationModel.Gateway;
+using Assimalign.Cohesion.ApplicationModel.Gateway.InProcess;
+
+ApplicationGatewayBuilder builder = ApplicationGateway.CreateBuilder("local").UseInProcess();
+builder.AddResource("Database", "orders-db");
+
+await using ApplicationGateway gateway = builder.Build();
+await gateway.RunAsync();
+```
+
+Its project references the Database program and names the resource on that reference. The build
+exposes the program's entry point and registers it with the in-process platform:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\Orders.Database\Orders.Database.csproj" CohesionResource="orders-db" />
+</ItemGroup>
+```
+
+The Database program references `ApplicationModel.Hosting.InProcess` for its platform opt-in;
+`Database.Hosting.ApplicationModel` is already public in `App.Database`.
+
+Three limits apply today:
+
+- **Endpoints** — Database binds code-configured wire endpoints and reads no
+  `COHESION_ENDPOINT_*` variable. The in-process platform reports an HTTP `endpoint` unrelated to
+  the Database wire listener. Dependents pass the wire endpoint as a literal setting.
+- **Readiness** — The gateway treats first publication as ready, before Database servers listen
+  and before its control plane opens. A dependent can deploy before Database accepts connections.
+  The Database admin readiness gate is separate and does not change that gateway behavior.
+- **Startup window** — The gateway's startup window must cover engine open, recovery, and inline
+  schema migration inside Build, because publication follows that work. The Database host's
+  `StartupTimeout` bounds service start only. Deferred migrations can continue on engine workers.
 
 ## Pooled connection leases
 
@@ -437,10 +500,8 @@ SQL [UPDATE ... FROM](sql/language/statements/update.md#from-sources) and
 [DELETE ... USING](sql/language/statements/delete.md#using-sources) execute; UPDATE rejects
 multiple source matches per target with CS05068 before writes, while DELETE deduplicates targets.
 
-The Phase 29 hosting implementation supersedes older eager-builder examples in the program plan.
-It adds no ApplicationModel functionality; that work remains deferred by the hosting design.
-Use current package documentation and measured dialects rather than historical roadmap entries
-to determine available behavior.
+Use the managed-resource integration and current engine-builder APIs alongside the measured
+dialects to determine available behavior. Historical roadmap entries do not define the runtime.
 
 ## See also
 
@@ -477,7 +538,9 @@ nested writers for that page on another thread are refused before exposing mutab
 - **Historical sequencing** — `cohesion/docs/programs/DATABASE_PROGRAM_PLAN.md`
 - **Current hosting contract** — `cohesion/docs/programs/DATABASE_HOSTING_DESIGN.md`
 - **Hosting implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`
-- **Template composition** — `cohesion/tooling/templates/Assimalign.Cohesion.Templates/src/content/cohesion-app/Acme.Database/Program.cs`
+- **Current composition and ordering** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/DatabaseApplicationBuilder.cs`
+- **Managed resources** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting.ApplicationModel/docs/DESIGN.md` and `tests/TestObjects/RunningResource.cs`
+- **Gateway programs and project references** — `cohesion/docs/libraries/ApplicationModel/DESIGN.md`
 - **Embedded ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Embedded/docs/DESIGN.md`
 - **Client API** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/docs/OVERVIEW.md`
 - **Client settings** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Client/src/DatabaseConnectionSettings.cs`

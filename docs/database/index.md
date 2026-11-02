@@ -67,6 +67,8 @@ query language.
 ## API reference
 
 [Database .NET APIs](../dotnet-apis/resources/database/index.md) describes the resource packages.
+[Managed resources](overview.md#managed-resources) explains `AddResource`, gateway declarations,
+in-process project references, and the current endpoint, readiness, and startup-window limits.
 [Documentation home](../index.md) returns to the site navigation.
 
 ## Additional reference pages

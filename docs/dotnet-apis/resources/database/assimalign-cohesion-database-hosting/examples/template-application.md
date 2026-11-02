@@ -2,43 +2,45 @@
 
 The shipped `cohesion-database` template demonstrates the Database executable entry point.
 
-> **Status:** Partial.
+> **Status:** Implemented.
 
-This is the `Program.cs` from `cohesion-database`. The template’s resource-name token is replaced
-with `orders`. `Use` the matching `Assimalign.Cohesion.Sdk.Database` project from that template.
+This is the template's `Program.cs`, with its resource-name token replaced by `orders`.
+Use the matching `Assimalign.Cohesion.Sdk.Database` project. Configuration supplies the
+data path and wire endpoint; the engine builder declares and provisions the schema before accept.
 
 ```csharp
 using System;
 using System.IO;
-using Assimalign.Cohesion.Database.Hosting;
+
 using Assimalign.Cohesion.Database;
+using Assimalign.Cohesion.Database.Hosting;
 using Assimalign.Cohesion.Database.Sql;
-using Assimalign.Cohesion.Database.Sql.Schema;
 using Assimalign.Cohesion.Hosting;
 
 DatabaseApplicationBuilder builder = DatabaseApplication.CreateBuilder(args);
 
-builder.AddSql((_, options) =>
+// The SQL engine, named once. Its callback runs while the application is built, so configuration
+// (appsettings.json, environment variables, --Database:DataPath=... or --Database:Endpoint=...
+// arguments) has its final values here.
+builder.AddSql("orders", sql =>
 {
-    options.EngineName = "orders";
-    options.RootPath = Path.Combine(AppContext.BaseDirectory, "data");
-    options.AddServer(engine => SqlDatabaseServer.Create(
-        (SqlDatabaseEngine)engine, new SqlDatabaseServerOptions().Listen(new Uri("cohesion-db://localhost:5740"))));
-});
+    sql.Options.RootPath = builder.Configuration["Database:DataPath"] ?? Path.Combine(AppContext.BaseDirectory, "data");
+    sql.AddServer(server => server.Listen(new Uri(builder.Configuration["Database:Endpoint"] ?? "cohesion-db://localhost:5740")));
 
-SqlCompiledSchema schema = SqlSchema.Compile("customers", database =>
-{
-    database.Table<Customer>("Customers", table =>
+    // The engine's build creates the database when it does not exist and applies this schema
+    // before the server accepts its first connection. Every member the table stores is declared:
+    // Key, Column, Index and References each add the member they select as a column.
+    sql.AddDatabase("customers", database => database.Schema(schema =>
     {
-        table.Key(customer => customer.Id);
-        table.Index(customer => customer.Email);
-    });
-    database.Principal(
-        "orders-api",
-        principal => principal.Grant(SqlPermission.ReadWrite, "Customers"));
+        schema.Table<Customer>("Customers", table =>
+        {
+            table.Key(customer => customer.Id);
+            table.Column(customer => customer.Name);
+            table.Column(customer => customer.Email);
+            table.Index(customer => customer.Email);
+        });
+    }));
 });
-
-builder.AddDatabase("orders", "customers", schema);
 
 await using DatabaseApplication application = builder.Build();
 await application.RunAsync();
