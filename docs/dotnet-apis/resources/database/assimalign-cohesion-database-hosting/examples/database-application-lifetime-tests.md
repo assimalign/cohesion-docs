@@ -2,20 +2,19 @@
 
 This example exercises `Assimalign.Cohesion.Database.Hosting` through its co-located test source.
 
-> **Status:** Partial.
+> **Status:** Implemented.
 
 The example reproduces
-`cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/DatabaseApplicationLifetimeTests.cs`
-. It retains the test class and assertions so the setup, operation, and expected outcome stay
-together. `Use` it in the source project’s test context, with its test dependencies and supporting
-test objects.
+`cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/DatabaseApplicationLifetimeTests.cs`. It
+retains the test class and assertions so the setup, operation, and expected outcome stay together.
+Use it in the source project's test context, with its test dependencies and supporting test objects.
 
 ## Behavior exercised
 
-- **Case 1** — `Run`: listenerless application waits through IHostRunner.
-- **Case 2** — Lifecycle: nested servers run once and restart is rejected.
-- **Case 3** — Lifecycle: nested startup failure rolls back and prevents retry.
-- **Case 4** — `Dispose`: stop failure still disposes all owned engines.
+- **Case 1** — A listenerless application waits for shutdown.
+- **Case 2** — Nested servers run once and restart is rejected.
+- **Case 3** — Failed server startup rolls back and prevents retry.
+- **Case 4** — Stop failure still disposes all owned engines.
 
 ## Source example
 
@@ -24,8 +23,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Shouldly;
 using Xunit;
+
 using Assimalign.Cohesion.Hosting;
 
 namespace Assimalign.Cohesion.Database.Hosting.Tests;
@@ -33,28 +34,26 @@ namespace Assimalign.Cohesion.Database.Hosting.Tests;
 /// <summary>Verifies nested endpoint lifecycle and complete host-run integration.</summary>
 public sealed class DatabaseApplicationLifetimeTests
 {
-    /// <summary>Verifies a listenerless application waits for shutdown through the host runner seam.</summary>
-    [Fact(DisplayName = "Cohesion Test [Database.Hosting] - Run: listenerless application waits through IHostRunner")]
-    public async Task Run_WithoutServers_ShouldWaitForShutdownThroughRunner()
+    /// <summary>Verifies a listenerless application's run waits for a shutdown request.</summary>
+    [Fact(DisplayName = "Cohesion Test [Database.Hosting] - Run: listenerless application waits for shutdown")]
+    public async Task Run_WithoutServers_ShouldWaitForShutdown()
     {
         var builder = DatabaseApplication.CreateBuilder();
-        builder.AddEngine(_ => new RecordingEngine());
+        builder.AddEngine("recording-engine", _ => new RecordingEngine());
         await using var application = builder.Build();
-        var runner = new RecordingRunner();
-        application.Context.Runner = runner;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         Task running = application.RunAsync(timeout.Token);
-        await runner.StartedSignal.Task.WaitAsync(timeout.Token);
+        while (application.Context.State != HostState.Started)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+        }
 
         running.IsCompleted.ShouldBeFalse();
-        runner.RunCount.ShouldBe(1);
-        runner.Run.ShouldNotBeNull().Host.ShouldBeSameAs(application);
         application.Context.Servers.ShouldBeEmpty();
-        runner.Run.TryShutdown().ShouldBeTrue();
+        application.Context.Shutdown();
         await running;
         application.Context.State.ShouldBe(HostState.Stopped);
-        runner.Events.ShouldBe(["started", "stopping", "stopped"]);
     }
 
     /// <summary>Verifies engines remain usable after stop but endpoints cannot be restarted.</summary>
@@ -65,7 +64,7 @@ public sealed class DatabaseApplicationLifetimeTests
         var engine = new RecordingEngine();
         engine.AddServer(owner => new RecordingServer(log, "nested", owner));
         var builder = DatabaseApplication.CreateBuilder();
-        builder.AddEngine(_ => engine);
+        builder.AddEngine(engine.Name, _ => engine);
         await using var application = builder.Build();
 
         await ((IHost)application).StartAsync(DatabaseHostTestHarness.Timeout());
@@ -88,14 +87,17 @@ public sealed class DatabaseApplicationLifetimeTests
         engine.AddServer(owner => new RecordingServer(log, "failing", owner) { StartException = failure });
         var builder = DatabaseApplication.CreateBuilder();
         builder.AddService(new RecordingService(log, "service"));
-        builder.AddEngine(_ => engine);
+        builder.AddEngine(engine.Name, _ => engine);
         await using var application = builder.Build();
 
         var actual = await Should.ThrowAsync<InvalidOperationException>(async () =>
             await ((IHost)application).StartAsync(DatabaseHostTestHarness.Timeout()));
 
+        // The host rolls back every service it started, the failed server included, but a failed
+        // start is terminal on the server base: the failing server released what its start held,
+        // so its stop reaches no core (concrete-types plan, phase 6).
         actual.ShouldBeSameAs(failure);
-        log.ShouldBe(["service:start", "first:start", "failing:start", "failing:stop", "first:stop", "service:stop"]);
+        log.ShouldBe(["service:start", "first:start", "failing:start", "first:stop", "service:stop"]);
         await Should.ThrowAsync<InvalidOperationException>(async () =>
             await ((IHost)application).StartAsync(DatabaseHostTestHarness.Timeout()));
     }
@@ -112,43 +114,25 @@ public sealed class DatabaseApplicationLifetimeTests
         };
         first.AddServer(_ => server);
         var builder = DatabaseApplication.CreateBuilder();
-        builder.AddEngine(_ => first);
-        builder.AddEngine(_ => second);
+        builder.AddEngine(first.Name, _ => first);
+        builder.AddEngine(second.Name, _ => second);
         var application = builder.Build();
         await ((IHost)application).StartAsync(DatabaseHostTestHarness.Timeout());
 
         await Should.ThrowAsync<AggregateException>(async () => await ((IAsyncDisposable)application).DisposeAsync());
 
+        // The host's stop ran the server's stop core, which failed; the engine's disposal of the
+        // stopped server then finds nothing left to stop.
         first.DisposeCount.ShouldBe(1);
         second.DisposeCount.ShouldBe(1);
-        server.DisposeCount.ShouldBe(1);
-    }
-
-    private sealed class RecordingRunner : IHostRunner, IHostRunObserver
-    {
-        internal TaskCompletionSource<bool> StartedSignal { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal List<string> Events { get; } = [];
-        internal IHostRun? Run { get; private set; }
-        internal int RunCount { get; private set; }
-
-        public Task RunAsync(IHostRun run, CancellationToken cancellationToken = default)
-        {
-            Run = run;
-            RunCount++;
-            return run.RunAsync(this, cancellationToken);
-        }
-
-        public void Started(IHost host) { Events.Add("started"); StartedSignal.TrySetResult(true); }
-        public void Stopping(IHost host) => Events.Add("stopping");
-        public void DrainAborted(IHost host) => Events.Add("drain-aborted");
-        public void Stopped(IHost host) => Events.Add("stopped");
+        server.Stops.ShouldBe(1);
     }
 }
 ```
 
-[All examples](index.md) · [Assembly overview](../index.md)
+[Examples](index.md) · [Assembly overview](../index.md)
 
 ## Sources
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/DatabaseApplicationLifetimeTests.cs`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/Assimalign.Cohesion.Database.Hosting.Tests.csproj`.
+- **Project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/Assimalign.Cohesion.Database.Hosting.Tests.csproj`.

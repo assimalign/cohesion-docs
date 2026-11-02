@@ -29,75 +29,121 @@ flowchart LR
     Model["Database model packages"] --> Root
 ```
 
-`COHRES001`–004 remain enforced. Existing private Web hosting/health references serve the pre-existing
-enabled-resource admin integration. Phase 29 adds no ApplicationModel surface, manifest, resource
-command, resource control plane, or orchestration behavior. The existing `ResourceRuntime.HostBuilt`
-hook remains in place so an installed `HostContext.Runner` still controls complete runs through
-`IHostRunner` / `IHostRun`.
+`COHRES001`–004 remain enforced. Private Web hosting/health references implement admin health.
+[Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md)
+supplies the managed-resource registration on `builder.Services`. Database.Hosting has no
+ApplicationModel reference. Resource publication, restoration, and action dispatch are composed by
+the integration package.
 
 ## `Build` and configuration
 
-`Build` consumes the builder before user code runs, even if construction fails. Registration methods
-and retained configuration/service facades reject late mutation. The facades reject independent
-`Build`/`BuildAsync`; the application is the sole owner of materialization. Legacy `Options` scalar
-settings and borrowed instance lists are copied at `Build` and cannot alter runtime registries later.
-The root builder has no live `Engines` property.
+`Build` consumes the builder before user code runs, even if construction fails. Engine and service
+registration closes, and host policy options are copied. Engines and services are registered through
+`AddEngine` and `AddService`; servers belong to engines. There are no borrowed instance lists on
+`Options` and no live `Engines` property on the root builder.
 
-Construction order is optional `appsettings.json`, optional `appsettings.{Environment}.json`,
-environment variables prefixed `COHESION_CONFIG__`, copied command-line arguments, then explicitly
-registered configuration providers; later values win. Paths resolve against
-`Options.ContentRootPath`, defaulting to `AppContext.BaseDirectory`. Environment uses the existing
-Hosting default; `Local` remains `Local`. JSON reload is disabled. The default physical file system
-is allocated only at `Build` and disposed after configuration.
+`CreateBuilder(args)` loads optional `appsettings.json`, optional
+`appsettings.{Environment}.json`, `COHESION_CONFIG__` environment variables, then arguments when it
+creates the builder. Later providers win. The files resolve under `AppContext.BaseDirectory`.
+`CreateBuilder()` and `new DatabaseApplicationBuilder(options)` start with empty configuration.
+Environment and content root are read when the builder is created; Build takes their values from
+`Environment`. Configuration loads providers as they are added. Changes after Build load but do not
+recompose engines. JSON reload is disabled. The application owns configuration and its default
+physical file system from Build.
+
+The concrete builder exposes `HostEnvironment Environment`, `ConfigurationManager Configuration`,
+`LoggerFactoryBuilder Logging`, and `ServiceProviderBuilder Services`. Build creates one provider
+and logger factory. Building `Services` directly creates a separate provider the caller owns;
+building `Logging` directly consumes that builder and makes the application's Build fail.
 
 One Cohesion service provider is built with `EnableDynamicCode = false`, `ValidateScopes = true`,
 and `ValidateOnBuild = true`. This selects the interpreted resolver on JIT and NativeAOT. Hosting
 permits closed factories and instances only, rejects implementation-type/open-generic activation,
-and reserves `IConfiguration` as a borrowed registration for the application's configuration. Model
-construction uses explicit assignments rather than reflection-based binding. Provider-owned services
-must not be returned from application factories; doing so would create two owners.
+and reserves `IHostEnvironment`, `IConfiguration`, and `ILoggerFactory` for its own borrowed pieces. Model
+construction uses explicit assignments rather than reflection-based binding. Engine factories must
+not return provider-owned services; lifecycle forwarding factories have the disposal caveat below.
 
-`Root` engine factories observe preceding engine registrations. They cannot depend on later
-registrations. This follows the approved context-taking factory correction; names from arbitrary
-factories can only be validated when the factory returns. Concrete named factories reserve names at
-`Add` and must return an exact ordinal name match. Names are nonempty, case-sensitive, and unique
-across models. `Context.GetEngine(name)` returns a borrowed reference.
+Root engine factories observe preceding engine registrations, not later ones. Every factory is
+named: names are reserved at Add and products must match them ordinally. Duplicate names fail before
+factories can open data paths. Names are nonempty, case-sensitive, and unique across models.
+`Context.GetEngine(name)` returns a borrowed reference. The concrete hosting factory receives the
+built environment, configuration, provider, logger factory, and Build cancellation token.
 
 ## Nested servers and ownership
 
 `Application` `Build` flattens each engine's `Servers` snapshot in engine/attachment order. Engines own
 these servers and dispose them before workers and databases. The application drives their Start/Stop
 through `DatabaseServerHostService` but never enrolls them for a second disposal. A server must
-front its owning engine. Legacy `Options.Servers` remains a borrowed input path; its referenced
-engines are implicitly borrowed and included in the runtime registry. Duplicate lifecycle references
-and conflicting engine names fail `Build`.
+front its owning engine, which the engine base enforces. Duplicate lifecycle objects fail Build;
+conflicting engine names fail registration.
 
 | Input | Disposal owner |
 | --- | --- |
-| `AddEngine(instance)` / `Options.Engines` | Caller |
-| `Root` or hosting `AddEngine(factory)` / model `Add` verb | `Application` after `Build`; builder on failed `Build` |
+| `AddEngine(instance)` | Caller |
+| Root or hosting `AddEngine(name, factory)` / model Add verb | Application after Build; builder on failed Build |
 | Model builder worker/server factory | Engine |
-| `Options.Servers` | Caller; application drives start/stop only |
-| `AddService(instance)` / `Options.Services` | Caller |
+| `AddService(instance)` | Caller |
 | `AddService(factory)` | `Application` if disposable |
-| Provider-created service | Provider |
+| Container `IHostService` factory | Application if disposable, before engines |
+| Other provider-created service | Provider |
 | Provider instance registration | Caller |
 | Configuration and default configuration file system | `Application` |
+| Logger factory and service provider | Application |
 
 A factory transfers a fresh product, and cleans up partial allocations if it throws before
 returning. Detectable borrowed/owned aliases are rejected before re-enrollment. Fresh invalid
 products are enrolled before validation so rollback disposes them. `Build` compensation attempts owned
-services, engines (including their servers), provider, configuration, and file system in reverse
+services, engines (including their servers), provider, logger factory, configuration, and file system in reverse
 dependency order. Synchronous `Build` bridges asynchronous cleanup on a worker without capturing the
 caller's synchronization context. Original construction exceptions are preserved; cleanup failures
 produce an aggregate with the original first. Files created by a factory are never silently deleted.
 
 ## Runtime lifetime
 
-Additional services start in registration order, then servers; shutdown drains servers first and
-stops services in reverse. Compiled-schema `Provision` / `AddDatabase` uses the existing provisioner
-and runs before listener accept. Named overloads resolve deferred engines at `Build`. Instance
-overloads require the engine to belong to the composition.
+Lifecycle services come from `AddService` and from `IHostService` registrations on `builder.Services`.
+After freezing the engine/server registry and creating every `AddService` product, Build reads the
+unkeyed `IHostService` descriptors from `Services.Container` in registration order. It borrows
+instance products and invokes each factory once, directly, with the built provider. It never
+resolves `IEnumerable<IHostService>` from the provider. Keyed registrations are not lifecycle
+services and are ignored. Start order is:
+
+1. **AddService registrations**, in registration order.
+2. **Container IHostService registrations**, in registration order.
+3. **The optional reopen service**.
+4. **Servers**, in engine/attachment order.
+
+All lifecycle `StartingAsync` callbacks complete before any service starts. A managed instance
+publishes and restores here, after Build has opened, recovered, and provisioned the engines.
+Its platform client opens during service start, before servers listen. Shutdown reverses the
+complete order: servers drain while the control plane stays open, then reopen/container services
+stop before `AddService` services.
+
+Container lifecycle registrations must be singletons. Scoped and transient registrations fail
+Build with `Lifecycle service registration '{0}' must be a singleton.`, with `{0}` replaced by the
+descriptor. Implementation-type registrations remain refused. A null lifecycle factory product
+fails with `A service factory returned null.`
+
+The application owns container lifecycle factory products alongside `AddService` factory products.
+After stop, it disposes the reopen service, container services in reverse registration order,
+`AddService` services in reverse order, engines, then infrastructure (provider, logger factory,
+configuration, content root). Supplied instances remain borrowed and are never disposed by the
+application. Registering one object through both `AddService` and the container, through multiple
+container registrations, or as a server and a container service fails Build with
+`A lifecycle service was registered more than once.` A throwing factory triggers Build
+compensation; cleanup failures are aggregated with the construction failure first. Provider
+disposal also continues past disposer failures in reverse creation order, propagating one failure
+unchanged or aggregating several. Outer cleanup continues with the remaining infrastructure. See
+[container service tests](examples/database-container-service-tests.md).
+
+A forwarding lifecycle factory (`sp => sp.GetRequiredService<X>()`) hands the application an object
+the provider also owns, so both dispose it. Its `Dispose` must be idempotent. Use
+`AddService(instance)` or an instance registration when ownership must stay with the caller.
+
+Provisioning belongs to each model's engine build. It opens or creates the databases declared on
+its builder and completes inline schema migration before returning. Deferred migrations can
+continue on engine workers with their admission gates. The concrete `Build(CancellationToken)`
+passes cancellation to construction; `StartupTimeout` only bounds service start. A managed
+program's gateway startup window must cover Build's recovery and inline migration.
 
 `DatabaseApplication` remains `Host<DatabaseApplicationContext>` and its context remains
 `HostContext` / `IHealthContributor`. `Run`, `RunAsync`, and `AsService` use the Hosting
@@ -124,45 +170,41 @@ clears that failure. There is no automatic migration retry. An unconfirmed publi
 `CS03403` and follows storage's offline/recovery policy. See
 [typed migration health and recovery](../../../../database/sql/index.md#typed-migration-health-and-recovery).
 
-Existing
-enabled-resource admin endpoints, telemetry order and health aggregation remain compatible; this
-phase does not extend those systems.
-
-The public static `CreateBuilder()` on each model engine provides deferred standalone composition
-and the bridge for hosting-aware engine factories that also need nested servers. It returns the
-model interface; its implementation remains internal. Configuration and service reads still occur in
-the hosting callback, outside the model package.
+The public static `CreateBuilder(name)` on each model engine returns its sealed model builder for
+deferred standalone composition. Its `Options`, `AddDatabase`, `AddServer`, and `AddWorker` compose
+the engine. Configuration and service reads remain in the hosting callback.
 
 ## Standalone admin control plane (#1431)
 
-Without a gateway identity, the admin listener serves `/cohesion/v1` and every path below it only
-for transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
+The internal `DatabaseAdminEndpointService` remains available, but no production path starts it
+today. A managed Database application serves no HTTP health; T3 EN-A1 plans to bind the service on
+the platform's `http` endpoint.
+
+When explicitly started, the listener restricts `/cohesion/v1` and every path below it to
+transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
 remote endpoints receive 403; the status makes the development-only restriction explicit. Forwarded
 headers do not establish locality. The guard precedes Database's own namespaced health mappings,
 which otherwise short-circuit the shared Web.Hosting control-plane middleware.
 
 Bare `/healthz`, `/readyz`, and `/livez` remain open for orchestrators and load balancers. Loopback
-probes keep the Database health report and its server-accepting readiness gate. Gateway-managed
-behavior is unchanged, including its existing unauthenticated namespaced health aliases; other
-managed control-plane routes retain their credential checks.
+probes keep the Database health report and its server-accepting readiness gate. Non-health routes
+under `/cohesion/v1` return 403 even for loopback callers with bearer credentials. There is no
+gateway-identity exception. The internal service accepts plain HTTP only; HTTPS has no certificate
+source following retirement of the resource context and is refused.
 
 This is a behavioral breaking change from 10.0.0-preview.1 (owner decision 46, accepted on
 decision 15's preview terms): a reachable
 standalone admin listener previously accepted remote control-plane requests without credentials.
-Use a loopback connection for standalone development or a gateway identity for remote management.
+The managed instance control plane is separate, reached through its selected platform client.
 
 Model server factories supply `IDuplexConnectionListener` instances to their model options. Each server owns accepted `IDuplexConnection` sessions and closes them during its drain; listener disposal does not transfer connection ownership to the hosting module.
 
-## File-set refusals and command replay
+## File-set refusals
 
 Declared Build uses the engines' open/create rules: SQL completes only a proven empty interrupted
 create, while missing sidecars and ambiguous catalogs remain preserved refusals. Graph, Document and
 Blob never recreate missing journals/backups during provisioning. A data-file-first drop prevents
 reopening an interrupted deletion. See [model lifecycle codes](../../../../database/overview.md#database-file-sets-and-lifecycle).
-
-Database resource command keys and engine lookup compare ordinally ignoring case, matching engine
-and database identity. Engine/database names differing only in case resolve the same command and
-replay ownership. This does not change declaration ownership or permit dropping declared databases.
 
 ## Declared dependencies
 
@@ -176,9 +218,7 @@ replay ownership. This does not change declaration ownership or permit dropping 
 | `Assimalign.Cohesion.Configuration.CommandLine` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Telemetry` | `CohesionProjectReference` |
+| `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |
 
@@ -196,3 +236,5 @@ The admin endpoint constructs the public sealed HealthChecksBuilder in Assimalig
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/Assimalign.Cohesion.Database.Hosting.csproj`.
+- **Ordering and ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/DatabaseApplicationBuilder.cs` and `tests/DatabaseContainerServiceTests.cs`.
+- **Admin behavior** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/Internal/DatabaseAdminEndpointService.cs`.

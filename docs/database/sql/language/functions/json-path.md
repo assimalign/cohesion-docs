@@ -2,7 +2,7 @@
 
 JSON_VALUE extracts a scalar, JSON_QUERY returns JSON items, and JSON_EXISTS tests for a match.
 
-> **Status:** Implemented for the path subset below.
+> **Status:** Implemented. Supports the path subset below.
 
 ## Syntax
 

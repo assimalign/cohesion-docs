@@ -199,23 +199,10 @@ No reflection, code generation, driver discovery, model parser, or model result 
 The streaming path adds no dependencies or shipped-library `InternalsVisibleTo` grants and remains
 compatible with `net10.0` and NativeAOT. TLS remains a connection-factory concern.
 
-## Declarative command delivery
+## Managed-resource boundary
 
-`DatabaseCommandClient.Create(Uri controlPlaneAddress, string bearerToken, HttpMessageInvoker transport)`
-accepts a caller-owned transport, including its TLS trust policy. Disposing the returned client does
-not dispose that transport; the caller retains it until requests finish and disposes it afterward.
-The two-argument factory still creates a transport owned and disposed by the client. Both overloads
-perform the same endpoint and credential validation; a null supplied transport throws
-`ArgumentNullException`. The client does not discover application trust.
-
-`IDatabaseCommandClient` is the separate HTTP admin command contract. `DatabaseCommandClient.Create`
-accepts the full manifest control-plane URI (including its path) and an opaque bootstrap bearer.
-`SendCommandAsync` posts the camel-case id/kind/owner/key/payload envelope to commands; payload is
-base64. `DeleteCommandAsync` sends DELETE to the same route and envelope. Both return package-local
-`ResourceCommandObservation` with Status and Detail, retaining actionable provider refusal text.
-Transport failures propagate; HTTP refusals become Rejected observations. Serialization uses
-explicit Utf8JsonWriter/JsonDocument access. The caller disposes the client; redirect following and
-cookies are disabled. No runtime Hosting or ApplicationModel dependency was added.
+This package supplies wire clients. Managed instances use the platform client and application-added
+actions described by [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md).
 
 ## Duplex transport composition
 

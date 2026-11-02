@@ -2,7 +2,7 @@
 
 Compares one scalar value with the rows of a single-column subquery.
 
-> **Status:** Implemented for scalar subquery operands.
+> **Status:** Implemented. Supports scalar subquery operands.
 
 ## Syntax
 

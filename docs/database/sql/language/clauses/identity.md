@@ -2,7 +2,7 @@
 
 Generates integer column values through an owned sequence.
 
-> **Status:** Implemented, including ALTER identity, overrides and populated-table backfill.
+> **Status:** Implemented. Includes ALTER identity, overrides and populated-table backfill.
 
 ## Syntax
 

@@ -1,168 +1,67 @@
 # Assimalign.Cohesion.Database.Testing design
 
-This page describes the boundaries and implementation shape of `Assimalign.Cohesion.Database.Testing`.
+The test factory preserves a Database program's composition and controls its scoped lifetime.
 
-> **Status:** Partial.
+> **Status:** Implemented.
 
-## Design intent
+[Overview](index.md) · [Examples](examples/index.md)
 
-A database resource's schema and runtime composition live in its ordinary `Program.cs`. Integration
-tests must not reproduce that composition in a callback or a second bootstrap: doing so can pass
-while the deployable executable, generated accessors, or default control plane is broken.
-`DatabaseApplicationTestFactory.FromProgram<TProgram>()` therefore drives the executable entry point
-itself under a test-scoped carrier.
+## Invocation
 
-This is the `Database` equivalent of an application factory, but its boundary differs from the
-socketless Web factory. `Database` wire clients already abstract their transports, while an
-SDK-enabled `Database` resource also has generated inputs, before-accept provisioning, a long-running
-host, and an HTTP admin plane. The factory preserves all of those layers and uses loopback endpoints
-by default.
+`TProgram` is the actual declaring type of `Assembly.EntryPoint`, not a composition interface.
+A top-level executable exposes the compiler-generated marker with
+`public partial class Program { }`. Supported entry points take no arguments or one `string[]`
+and return `void`, `int`, `Task`, or `Task<int>`. A nonzero exit code or thrown exception faults
+the program task; `StopAsync` observes that task.
 
-## Invocation model
+The factory starts a dedicated background thread without the caller's execution context. It enters
+a fresh, empty `AppEnvironmentScope` carrying the factory's shutdown token before invoking the
+entry point. The program's ordinary host responds to that scoped shutdown signal. Factories do
+not mutate process environment variables and can run independently when programs use distinct
+endpoints and data paths.
 
-```text
-DatabaseApplicationTestFactory.FromProgram<Program>()
-  -> resolve Program's statically referenced assembly and compiler entry point
-  -> Hosting.Resources ResourceRuntime.CreateScope(test ResourceContext)
-  -> LongRunning Task (captures the scoped ResourceContext)
-  -> Assembly.EntryPoint.Invoke(args)
-       -> Program.Main
-          -> DatabaseApplication.CreateBuilder(args)
-          -> generated control plane + ambient endpoints/mounts
-          -> Build() / RunAsync()
-  -> poll GET admin /readyz while Program.Main remains live
-```
+## Lifecycle
 
-`TProgram` is an assembly and entry-point marker, not a composition interface. Requiring an
-`IDatabaseApplicationProgram` implementation or a factory delegate would add a test-only API to
-every resource and create a second path around top-level statements. Generated code registers an
-enabled resource's control-plane factory with `ResourceRuntime`; the testing package invokes the
-compiler-rooted entry while that `Hosting.Resources` seam carries the context.
-
-The marker must be the actual declaring type of `Assembly.EntryPoint`. `For` C# top-level statements,
-consumers make the compiler-created type nameable with an empty `public partial class Program { }`
-declaration. The entry point may accept no arguments or one `string[]`, and may return `void`,
-`int`, `Task`, or `Task<int>`.
-
-## Lifecycle contract
-
-| Phase | Behavior |
-| --- | --- |
-| `FromProgram` | Validates the marker and options; creates or adopts a `Hosting.Resources` `ResourceContext`. Nothing runs. |
-| `StartAsync` | Starts one long-running entry invocation inside the scoped context, then polls `GET /readyz` until healthy or the startup budget expires. Repeated calls after readiness are no-ops. |
-| Running | The `Hosting.Resources` `ResourceRuntime` keeps the context isolated in that invocation's async flow. The test reaches SQL through `db` and management through `admin`. |
-| `StopAsync` | Posts `/cohesion/v1/stop`, waits for `Program.Main` to complete, and clears the invocation so a deliberate restart can use a fresh scope. A never-started stop is a no-op. |
-| `DisposeAsync` | Bounds graceful stop with `ShutdownTimeout`, then best-effort removes a factory-owned temporary data mount. Custom mounts remain caller-owned. |
-
-The control plane is the source of truth for readiness and shutdown. The factory neither cancels an
-unrelated task nor disposes engines behind the composition root's back. `Program` scope disposal
-remains responsible for application and engine disposal after graceful stop.
-
-## Isolation and parallelism
-
-Each default factory owns unique loopback ports and a unique data directory. The The
-`Hosting.Resources` `ResourceContext` travels through `ResourceRuntime.CreateScope`, which is
-asynchronous-flow local; the factory never edits `COHESION_*` process variables. Generated
-registrations are assembly keyed and create a new control-plane instance for each builder.
-Consequently, multiple factories can run concurrently when their supplied contexts do not reuse
-ports or mounts.
-
-Port reservation and later binding are distinct operating-system operations, so a hostile external
-process can still claim a released ephemeral port. Tests needing absolute endpoint coordination
-should supply a context with ports reserved by their own harness.
-
-## AOT and trimming posture
-
-Top-level C# entry points have compiler-synthesized method names, so reflection-free method naming
-is not available. The signed runtime design permits exactly one lookup: `Assembly.EntryPoint`, on a
-method the compiler already roots. The enabled resource's generated module initializer applies
-`DynamicDependency` to public and non-public `Program` methods and registers the assembly entry.
-`FromProgram<TProgram>()` applies the matching `DynamicallyAccessedMembers` annotation to its
-statically referenced marker. The small invocation method carries an explicit trimming suppression
-documenting why this one lookup and invoke are safe.
-
-There is no assembly scan, `Assembly.Load*`, string-to-type activation, expression compilation,
-reflection-based serialization, or runtime code generation. The testing package is therefore
-trim/NativeAOT safe within the deliberately documented entry-point exception.
-
-## Hosting-isolation exception
-
-Resource-area libraries normally cannot reference their concrete `*.Hosting` module (`COHRES001`).
-The area's testing package is the single standing exception because its sole purpose is to drive
-that concrete runtime. Its project declares exactly:
-
-```xml
-<CohesionHostingIsolationExemptions>Assimalign.Cohesion.Database.Hosting</CohesionHostingIsolationExemptions>
-```
-
-The exception does not flow to production libraries. `Database.Testing` is framework-neutral test
-infrastructure and the nonpackable SDK sample is consumer/E2E evidence; neither moves or duplicates
-runtime implementation.
-
-## Real-process verification
-
-The package's own tests also build
-`resources/Database/Assimalign.Cohesion.Database.Testing/fixtures/Assimalign.Cohesion.Database.SampleHost`
-through the real `Assimalign.Cohesion.Sdk.Database` with `CohesionApplicationModel=enabled`. The
-test reference uses `ReferenceOutputAssembly=false`, loads `obj/.../cohesion/resource.json`, and
-asks `LocalGateway` to launch the manifest's apphost. The test reads the gateway's stable
-`<state>/<application>/.state/ports.json` carrier to address the realized endpoints; it does not
-depend on an application-export API. Coverage asserts:
-
-- **`Database`** — manifest defaults and generated `Resource`/control-plane source;
-- **real-process readiness, liveness, health,** — endpoint discovery, command discovery, and
-  graceful stop on the `admin` endpoint;
-- **the advertised `database.add-database` and** — `database.add-principal` command kinds; the latter
-  returns a named runtime refusal until a principal mutation seam exists;
-- **typed SQL client round-trips** — on the realized `db` endpoint; and
-- **recovery of committed rows** — after a graceful gateway stop and relaunch over the same
-  materialized volume.
-
-## Non-goals
-
-- **Assertions, fixture base classes,** — and test-framework adapters.
-- **A second builder/composition callback** — or resource-specific bootstrap interface.
-- **Schema compilation or migration** — policy; the resource's normal builder owns declarations
-  and provisioning, and their dedicated work items own compilation.
-- **Replacing real-process gateway tests** — The in-process factory gives fast resource tests;
-the sample E2E independently validates the SDK manifest and process carrier.
-
-The fixture declares and compiles its relational schema with `Database.Sql.Schema` 's
-`SqlSchema.Compile`, then passes the compiled identity to Hosting's `AddDatabase`. The SDK
-analyzes that same declaration at build time. Hosting's before-accept provisioning order and the
-fixture's runtime behavior are unchanged.
-
-## Bootstrap identity (O35)
-
-Default program factories issue an ephemeral ES256 JWT with issuer `tests`, subject `inprocess`,
-and the program assembly name as audience. The ambient context carries the token and its public
-P-256 trust JWK. Internal stop requests send that JWT as Bearer; public clients remain
-uncredentialed. Custom managed contexts must supply a matching JWT and public trust key.
-
-## Phase 29 `Database` composition migration
-
-`Database` programs now capture `AddSql((context, engine) => ...)` intent, register the server through
-that engine builder's deferred `AddServer` factory, and identify deferred provisioning with the
-engine name. One application `Build` constructs and owns the engine and nested server; the program
-disposes the application. The standalone template still uses its ordinary local data path. This
-migration changes composition only; it adds no ApplicationModel declarations, manifests or resource
-control planes. Template acceptance explicitly builds all five emitted `Database` programs because
-resources-only changes do not trigger the Templates workflow.
-
-## Declared dependencies
-
-| Reference | Kind |
+| Operation | Behavior |
 |---|---|
-| `Assimalign.Cohesion.Database.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
+| `FromProgram` | Validates the entry-point marker and options; clones arguments. Nothing runs yet. |
+| `StartAsync` | Launches once and returns without a readiness check. A pre-cancelled token prevents launch. |
+| `StopAsync` | Signals scope shutdown, waits for the entry point, and clears `IsStarted` after a successful return. |
+| `DisposeAsync` | Signals shutdown and waits within the configured disposal budget; repeated disposal returns. |
 
-[Assembly overview](index.md) · [Examples](examples/index.md)
+Tests observe the program's readiness themselves. The
+[factory tests](examples/database-application-test-factory-tests.md) wait for Database.Hosting's
+`ApplicationStarted` event, then verify `ApplicationStopped` after shutdown. No generated manifest,
+resource context, bootstrap credential, or admin shutdown route is required.
+
+## AOT and trimming
+
+The sanctioned reflection operation is `Assembly.EntryPoint` and invocation of that compiler-rooted
+method. The generic marker carries preservation annotations for its public and non-public methods.
+There is no assembly scanning, dynamic loading, reflection-based serialization, or runtime code
+generation. The package's documented trimming suppression covers the entry-point invocation.
+
+## Ownership and boundaries
+
+The program owns and disposes the application it builds. The factory controls the invocation's
+shutdown and waits for the program to return; it does not construct another host or duplicate
+engine composition. The area's hosting-isolation exemption allows this testing package to reference
+Database.Hosting without extending that permission to production features.
+
+The SDK sample uses configuration for its data path and endpoint. Its SQL engine builder declares
+and provisions the schema inside application Build. The old generated-resource gateway E2E fixture
+is absent at this revision; the separate
+[managed integration tests](../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
+exercise the new gateway path.
+
+The TCP SDK fixture runs unmanaged without `AddResource` and leaves schema compilation off;
+SampleHost retains SQL schema compilation.
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/docs/DESIGN.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Assimalign.Cohesion.Database.Testing.csproj`.
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/DatabaseApplicationTestFactory.cs`.
+- **Contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Abstractions/IDatabaseApplicationTestFactory.cs`.
+- **Tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/tests/DatabaseApplicationTestFactoryTests.cs`.
+- **Design** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/docs/DESIGN.md`.
+- **TCP SDK fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/fixtures/Assimalign.Cohesion.Database.TcpSdkHost/docs/OVERVIEW.md`.
+- **Schema fixture** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/fixtures/Assimalign.Cohesion.Database.SampleHost/docs/DESIGN.md`.

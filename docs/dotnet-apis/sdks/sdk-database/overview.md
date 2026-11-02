@@ -1,6 +1,6 @@
 # Overview
 
-The Database SDK separates resource orchestration defaults from optional schema and migration generation.
+The Database SDK supplies framework references and optional schema and migration generation.
 
 > **Status:** Partial. KeyValuePair is a recognized model selector with unsupported compilation and migration artifacts.
 
@@ -8,8 +8,8 @@ The Database SDK separates resource orchestration defaults from optional schema 
 
 The [base overview](../sdk/overview.md) is the inherited property, item, artifact, and diagnostic
 contract.
-The area layer does not replace settings generation, pin validation, resource packaging, or image
-targets.
+The area layer inherits settings generation and pin validation. Managed-resource registration is
+explicit application code; the SDK emits no resource manifest, accessors, or control-plane registration.
 
 | Property | Default | Effect | Defined in |
 |---|---|---|---|
@@ -23,27 +23,21 @@ targets.
 
 | Property | Default | Effect | Defined in |
 |---|---|---|---|
-| `CohesionApplicationModel` | `disabled` | Opt in to manifest generation with enabled. | `base Targets/Sdk.Resource.props` |
-| `CohesionAutoIncludeAppFramework` | `Unset; inclusion enabled` | Set false before the props include to suppress both frameworks. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
+| `CohesionAutoIncludeAppFramework` | `Unset; inclusion enabled` | Set false before the props include to suppress both frameworks. | `Sdk.Database/Sdk/Sdk.props` |
 | `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by the base and area framework packs. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
 | `CohesionSkipSdkPinCheck` | `Unset` | Tooling-only escape for pin validation. | `base Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` |
+
+The Database SDK supplies no orchestration defaults. Configure wire endpoints in `Program.cs`,
+register managed instances with `builder.Services.AddResource(...)`, and declare resources through
+the gateway builder.
 
 ## Database properties
 
 | Name | Default or assignment | Effect | Where defined and condition |
 |---|---|---|---|
-| `CohesionDatabaseSchemaOutputPath` | `$(IntermediateOutputPath)cohesion/database.schema.json` | Canonical SQL schema JSON output. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when `'$(CohesionDatabaseSchemaOutputPath)' == ''` |
-| `CohesionDatabaseSchemaHashOutputPath` | `$(IntermediateOutputPath)cohesion/database.schema.sha256` | Lowercase SHA-256 sidecar output. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when `'$(CohesionDatabaseSchemaHashOutputPath)' == ''` |
-| `CohesionDatabaseSchemaHash` | `@(_CohesionDatabaseSchemaHashLine)` | Resolved hash exposed to later targets. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when `'$(CohesionDatabaseProject)' == 'true'` |
-| `CohesionResourceApplicationModel` | `Assimalign.Cohesion.Database.ApplicationModel` | Application-model assembly/package selected for an enabled resource. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceApplicationModel)' == ''` |
-| `CohesionResourceControlPlaneType` | `Assimalign.Cohesion.Database.ApplicationModel.DatabaseResourceControlPlane` | Fully qualified control-plane type used by generated registration. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceControlPlaneType)' == ''` |
-| `CohesionResourceKind` | `Database` | Resource kind recorded in the manifest. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceKind)' == ''` |
-| `CohesionControlPlaneEndpoint` | `admin` | Endpoint used for the default control plane. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
-| `CohesionControlPlanePath` | `/cohesion/v1` | Absolute control-plane route prefix. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
-| `CohesionWorkloadKind` | `StatefulSet` | Workload lifecycle kind written to the manifest. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
-| `CohesionReplicas` | `1` | Replica count written to lifecycle metadata. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
-| `CohesionMaxReplicas` | `1` | Upper bound on replicas; must not be below the replica count. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
 | `CohesionDatabaseProject` | `false` | Opt into build-time C# schema compilation. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseProject)' == ''` |
+| `CohesionDatabaseSchemaOutputDirectory` | `$(IntermediateOutputPath)cohesion/database/` | Directory for each database's schema JSON and hash sidecar. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when empty |
+| `CohesionDatabaseName` | Unset | Selects the migration database; optional for a single declaration. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets` |
 | `CohesionDatabaseModel` | `Sql` | Exact, case-sensitive model selector: Sql or KeyValuePair. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseModel)' == ''` |
 | `CohesionDatabaseMigrationsRoot` | `Migrations` | Project-relative destination for migration scripts and baselines. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseMigrationsRoot)' == ''` |
 
@@ -56,32 +50,23 @@ targets.
 | Item | Declaration | Metadata | Where defined |
 |---|---|---|---|
 | `FrameworkReference` | `Include=Assimalign.Cohesion.App.Database` | No additional child metadata | `Sdk/Sdk.props`; when `'$(CohesionAutoIncludeAppFramework)' != 'false'` |
-| `CohesionCommand` | `Include=database.add-database;database.add-principal` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionEndpoint` | `Include=db`; `Scheme=cohesion-db`; `ContainerPort=5740`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionEndpoint` | `Include=admin`; `Scheme=http`; `ContainerPort=8081`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionProbe` | `Include=readiness`; `Endpoint=admin`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionProbe` | `Include=liveness`; `Endpoint=admin`; `Http=/livez` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionMount` | `Include=data`; `Kind=Volume`; `ContainerPath=/data`; `Size=10Gi` | No additional child metadata | `Targets/Sdk.Database.props` |
 
-Defaults use `Include` before the project body, so `Update` and `Remove` work by identity. Compiler
-inputs are `Compile` and `ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and
-`MSBuildProjectDirectory` are passed to the schema task. `Outputs` are tracked with `FileWrites`.
+Framework references use `Include` before the project body. Compiler inputs are `Compile` and
+`ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and `MSBuildProjectDirectory` are
+passed to the schema task. `Outputs` are tracked with `FileWrites`.
 
 ## Generated artifacts
 
 | Opt-in or operation | Output | Meaning |
 |---|---|---|
-| `CohesionDatabaseProject=true` | `$(IntermediateOutputPath)cohesion/database.schema.json` | Canonical SQL compiled schema. |
-| `CohesionDatabaseProject=true` | `$(IntermediateOutputPath)cohesion/database.schema.sha256` | Lowercase SHA-256 over exact canonical UTF-8 bytes. |
-| `CohesionDatabaseCreateMigration` | `Migrations/NNNN_name.sql` and `NNNN_name.schema.json` | Ordered migration and matching canonical baseline. |
-| `CohesionApplicationModel=enabled` | Inherited resource outputs | Manifest, accessors, and Database control-plane registration. |
+| `CohesionDatabaseProject=true` | `$(IntermediateOutputPath)cohesion/database/<database>.schema.json` | Canonical SQL compiled schema. |
+| `CohesionDatabaseProject=true` | `$(IntermediateOutputPath)cohesion/database/<database>.schema.sha256` | Lowercase SHA-256 over exact canonical UTF-8 bytes. |
+| `CohesionDatabaseCreateMigration` | `Migrations/<database>/NNNN_name.sql` and `NNNN_name.schema.json` | Ordered migration and matching canonical baseline. |
 
 ## Model and migration limits
 
-SQL compiled artifacts use `cohesion/database-schema/v9`. TimeSpan defaults render exact signed
-seconds with a `seconds` unit; earlier documents and migration baselines are refused with
-COHDBSDK206 at `schema.format`, without changing inputs or writing a migration. Rebuild them;
-older SQL catalogs also need the [format-30 export/recreate procedure](../../../database/sql/index.md#sql-format-30-and-schema-v9).
+SQL compiled artifacts use `cohesion/database-schema/v11`. Earlier artifacts and migration baselines
+are refused before a migration is written; rebuild them from the retained C# declarations.
 
 `Sql` and `KeyValuePair` are the only allowlisted, case-sensitive imports. The latter has a target
 but no model-owned compiled-schema contract, so compilation fails with `COHDBSDK106`. A direct
@@ -107,7 +92,7 @@ including `COHSDK002` pin validation, also apply.
 | `COHDBSDK001` | Unknown or case-mismatched model selector. |
 | `COHDBSDK002` | Loaded model tool set did not register a compile target. |
 | `COHDBSDK100` | Source/reference I/O, invalid language version, or artifact I/O failure. |
-| `COHDBSDK101` | Schema declaration count is not exactly one. |
+| `COHDBSDK101` | No schema declaration, or a schema declaration outside the supported inline form. |
 | `COHDBSDK102` | Schema, table, function, or principal name is not a non-empty compile-time string. |
 | `COHDBSDK103` | Required configuration/body is not an inline lambda. |
 | `COHDBSDK104` | Unsupported schema/table/principal operation or nonconstant configuration. |
@@ -136,13 +121,11 @@ including `COHSDK002` pin validation, also apply.
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/docs/DESIGN.md`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.props`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Sdk/Sdk.targets`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Sdk.Resource.props`
-- **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Sdk.Resource.targets`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.Defaults.props`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk/Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props`
 - **Source** —
-  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/Compilation/CSharpSchemaExtractor.cs`
+  `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Internal/Tasks/Compilation/CSharpSchemaExtractor.cs`
 - **Source** — `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/DatabaseTask.CompileSchema.cs`
 - **Source** —
   `cohesion/sdks/Assimalign.Cohesion.Sdk.Database/Tasks/src/Tasks/DatabaseTask.CreateMigration.cs`

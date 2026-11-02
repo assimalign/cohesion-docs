@@ -1,12 +1,16 @@
 # Assimalign.Cohesion.Sdk.Database
 
-The Database SDK adds its framework, resource defaults, and optional C# schema compilation and SQL migrations.
+The Database SDK adds its frameworks and optional C# schema compilation and SQL migrations.
 
 > **Status:** Partial. SQL schema and migration tooling is implemented; KeyValuePair compilation and migrations fail explicitly.
 
 Choose this SDK for Database applications. It pairs `Assimalign.Cohesion.App.Database` with the
 inherited `Assimalign.Cohesion.App` framework. Schema tooling is an independent opt-in; choosing
-this SDK alone does not compile a schema or enable resource orchestration.
+this SDK alone does not compile a schema. The SDK emits no resource manifest or generated resource
+accessors. The application becomes managed at runtime through
+[Database.Hosting.ApplicationModel](../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md)
+with `builder.Services.AddResource("orders-db", resource => resource.UseInProcess())`.
+The integration is public in `App.Database`; reference each platform hosting package explicitly.
 
 ## Minimal consumer
 
@@ -29,8 +33,9 @@ this SDK alone does not compile a schema or enable resource orchestration.
 ```
 
 Supply a `Program.cs` entry point. To compile a retained C# schema declaration, set
-`CohesionDatabaseProject=true` and `CohesionDatabaseModel=Sql`. The compiler requires exactly one
-`SqlSchema.Compile` or `SqlSchema.Create` declaration.
+`CohesionDatabaseProject=true` and `CohesionDatabaseModel=Sql`. The compiler analyzes retained
+`SqlSchema.Compile`, `SqlSchema.Create`, or inline engine-builder `database.Schema(...)` declarations
+without executing the entry point, and writes one schema artifact pair per database.
 
 - **Overview** — [Properties, artifacts, and diagnostics](overview.md).
 - **MSBuild** — [Imports and inner build machinery](msbuild/index.md).

@@ -7,9 +7,9 @@ Database build artifacts share the SQL runtime schema contract while remaining i
 ## Single schema source
 
 The retained C# `SqlSchema.Compile(name, configure)` or `SqlSchema.Create(name, configure)`
-declaration is the only schema source. Roslyn binds source files against resolved compiler
-references. Exactly one declaration is required because the current artifact represents one logical
-database. Unsupported expressions report source locations.
+declaration or inline engine-builder `database.Schema(...)` is the schema source. Roslyn binds
+source files against resolved compiler references. Each declared database produces an artifact pair;
+unsupported expressions report source locations.
 
 The compiler lowers source into `SqlCompiledSchema` and uses `SqlCompiledSchemaSerializer` for
 canonical JSON and hash parity with runtime compilation. Portable type identities use the consumer
@@ -18,12 +18,8 @@ preserved. Invalid schemas do not replace final artifacts.
 
 ## Migration boundary
 
-Runtime and SDK use `cohesion/database-schema/v9`. Typed TimeSpan defaults render exact signed
-total seconds followed by `seconds`, retaining every 100 ns tick. This changes DefaultLiteral and
-the schema hash for the same declaration. Rebuild earlier artifacts. Migration generation refuses
-older artifacts and baselines with COHDBSDK206 at `schema.format`, naming v9 and the rebuild remedy;
-it preserves every input byte and writes no migration. SQL databases also require catalog format 30;
-see the [export/recreate procedure](../../../../database/sql/index.md#sql-format-30-and-schema-v9).
+Runtime and SDK artifacts use `cohesion/database-schema/v11`. Migration generation refuses earlier
+artifacts and baselines before writing outputs; rebuild them from their declarations.
 
 `SqlSchemaMigrationPlanner` compares the newest four-digit baseline with the desired schema. The
 renderer follows planner order and the guarded `dbo` -qualified dialect. New files are written as a
@@ -37,14 +33,15 @@ rather than the SQL engine, storage, or TCP connection implementation. Those bui
 not become application runtime dependencies through the SDK. Microsoft Build host assemblies are
 excluded from the shipped task dependency closure.
 
-The Database command advertisements remain independent: `database.add-database` and
-`database.add-principal` enter the resource manifest as strings only when the application model is
-enabled. Runtime application-model declarations own payloads and execution.
+The SDK emits no resource manifest. A Database program becomes a managed instance with
+`builder.Services.AddResource(...)` from
+[Database.Hosting.ApplicationModel](../../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md).
+Schema compilation and migrations remain independent of management.
 
 ## Verification
 
 The source tests compare build/runtime canonical documents and hashes, validate type/reference
-semantics, require exactly one declaration, exercise model import selection, and verify SQL
+semantics, exercise model import selection, and verify SQL
 migration numbering and explicit KeyValuePair failures. See [task tests](../msbuild/tasks.md).
 
 [Assembly](index.md) · [SDK home](../index.md)

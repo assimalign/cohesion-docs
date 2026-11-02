@@ -1,6 +1,6 @@
 # Database
 
-Database supplies shared kernels, model engines, hosting, clients, and orchestration contracts.
+Database supplies shared kernels, model engines, hosting, clients, and managed-resource integration.
 
 > **Status:** Partial. Package-level pages distinguish implemented behavior from deferred surfaces.
 
@@ -10,10 +10,10 @@ The multi-model OLTP database engine family for Cohesion: five independent datab
 customer-owned `Sdk.Database` executable whose `Program.cs` composes its engines, code-first schema,
 servers, and provisioning.
 
-An enabled resource's standalone `admin` control plane accepts `/cohesion/v1` only from transport
-peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
-forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
-Bare `/healthz`, `/readyz`, and `/livez` stay open, and gateway-managed behavior is unchanged.
+The [managed-resource integration](assimalign-cohesion-database-hosting-applicationmodel/index.md)
+makes the program a resource through `builder.Services.AddResource(...)`. Gateways declare it by
+provider and name. See its [current limits](assimalign-cohesion-database-hosting-applicationmodel/design.md#current-limits)
+for wire endpoints, readiness, and startup timing.
 
 ## Packages
 
@@ -24,7 +24,6 @@ projects are retired. Public component namespaces remain unchanged. The five Pro
 | Package | Role | Shared-framework delivery |
 |---|---|---|
 | [`Assimalign.Cohesion.Database`](assimalign-cohesion-database/index.md) | `Root` | Public reference and runtime |
-| [`Assimalign.Cohesion.Database.ApplicationModel`](assimalign-cohesion-database-applicationmodel/index.md) | `Application` model | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Blob`](assimalign-cohesion-database-blob/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Blob.Protocol`](assimalign-cohesion-database-blob-protocol/index.md) | Wire contracts | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Blob.Client`](assimalign-cohesion-database-blob-client/index.md) | Client | Public reference and runtime |
@@ -43,6 +42,7 @@ projects are retired. Public component namespaces remain unchanged. The five Pro
 | [`Assimalign.Cohesion.Database.Graph.Client`](assimalign-cohesion-database-graph-client/index.md) | Client | Separate package; not in this framework |
 | [`Assimalign.Cohesion.Database.Graph.Language`](assimalign-cohesion-database-graph-language/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Hosting`](assimalign-cohesion-database-hosting/index.md) | Hosting | Public reference and runtime |
+| [`Assimalign.Cohesion.Database.Hosting.ApplicationModel`](assimalign-cohesion-database-hosting-applicationmodel/index.md) | Managed-resource integration | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.Indexing`](assimalign-cohesion-database-indexing/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.KeyValuePair`](assimalign-cohesion-database-keyvaluepair/index.md) | Feature library | Public reference and runtime |
 | [`Assimalign.Cohesion.Database.KeyValuePair.Protocol`](assimalign-cohesion-database-keyvaluepair-protocol/index.md) | Wire contracts | Public reference and runtime |
@@ -115,6 +115,7 @@ inventory below.
 | `Assimalign.Cohesion.Database.Client` |
 | `Assimalign.Cohesion.Database.Embedded` |
 | `Assimalign.Cohesion.Database.Hosting` |
+| `Assimalign.Cohesion.Database.Hosting.ApplicationModel` |
 | `Assimalign.Cohesion.Database.Sql` |
 | `Assimalign.Cohesion.Database.Sql.Protocol` |
 | `Assimalign.Cohesion.Database.Tcp` |
@@ -154,8 +155,9 @@ inventory below.
 | `Assimalign.Cohesion.IdentityModel.Token` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` |
 
-`Database.ApplicationModel` and the Cache, Documents and Graph client packages are excluded from
-the area shared framework. `Database.Client`, `Database.Blob.Client`,
+The Cache, Documents and Graph client packages are excluded from the area shared framework.
+`Database.Hosting.ApplicationModel` is public; applications reference platform packages explicitly.
+`Database.Client`, `Database.Blob.Client`,
 `Database.KeyValuePair.Client` and `Database.Sql.Client` are public reference and runtime
 assemblies. The package delivery table distinguishes assemblies present in the source tree from
 those included by the current framework inventory.

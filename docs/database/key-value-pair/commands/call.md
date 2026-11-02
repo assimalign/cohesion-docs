@@ -2,7 +2,7 @@
 
 Invokes an application scalar registered on the receiving engine.
 
-> **Status:** Implemented in process and over InMemory/TCP.
+> **Status:** Implemented. Works in process and over InMemory/TCP.
 
 ## Syntax
 

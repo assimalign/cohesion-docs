@@ -63,8 +63,10 @@ No project sets an application-model property or item: the SDKs have none. A res
 managed in its `Program.cs`, and only where that reads as part of the scaffold's story: `Acme.Api`
 calls `builder.Services.AddResource("acme-api", resource => resource.UseInProcess())` and references
 `Assimalign.Cohesion.ApplicationModel.Hosting.InProcess`. The standalone resource templates are
-plain applications; their READMEs show the one call that makes them managed. The Database area has
-no integration yet, so the database programs say so and stay unmanaged.
+plain applications; their READMEs show the one call that makes them managed. Database programs also
+start unmanaged; their READMEs show how to opt into
+[Database.Hosting.ApplicationModel](../../resources/database/assimalign-cohesion-database-hosting-applicationmodel/index.md)
+with `builder.Services.AddResource(...)` and a platform client.
 
 ## Gateway composition and platforms
 

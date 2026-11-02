@@ -1,83 +1,52 @@
 # Assimalign.Cohesion.Database.Testing
 
-`Assimalign.Cohesion.Database.Testing` runs an SDK-enabled Database resource's real entry point in the test process.
+Database testing runs a program's real entry point inside a scope with its own shutdown signal.
 
-> **Status:** Partial.
+> **Status:** Implemented. Starting the program does not wait for listener readiness.
 
 ## Reference pages
 
-- **[Design](design.md)** — Dependency boundaries and implementation decisions.
-- **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
+- **[Design](design.md)** — Entry-point invocation, isolation, and ownership.
+- **[Examples](examples/index.md)** — Source-backed factory and executable examples.
 
-## Purpose
-
-`Assimalign.Cohesion.Database.Testing` runs an SDK-enabled `Database` resource's real entry point in
-the test process. It installs a test-owned `Hosting.Resources` `ResourceContext`, invokes
-`Program.Main`, waits until the `Database` default control plane reports ready, and shuts the
-resource down through its public graceful-stop endpoint. A test therefore exercises the same
-composition in `Program.cs` —engine, schema/provisioning, servers, generated control plane, and host
-lifecycle—that a gateway launches in another process or container.
-
-## Public surface
-
-- **`IDatabaseApplicationTestFactory`** — the interface-first lifecycle and context contract.
-- **`DatabaseApplicationTestFactory`** — the sealed implementation and
-  `FromProgram<TProgram>()` entry point.
-- **`DatabaseApplicationTestFactoryOptions`** — custom context, entry arguments, startup and
-  shutdown budgets, and probe cadence.
-
-The package intentionally carries no xUnit, NUnit, MSTest, or assertion dependency. It hosts the
-resource; callers choose their own fixture and assertion conventions.
-
-## Default context
-
-When no context is supplied, a factory creates:
-
-| Input | Default test value |
-| --- | --- |
-| `Application` | `tests` |
-| Environment | `Testing` |
-| Gateway | `inprocess` |
-| `db` endpoint | Unique loopback port, `cohesion-db` scheme |
-| `admin` endpoint | Unique loopback port, `http` scheme |
-| `data` mount | Unique temporary directory, removed on disposal |
-
-The loopback ports are allocated independently per factory, and the context is carried by the
-`Hosting.Resources` `ResourceRuntime` asynchronous invocation scope rather than process environment
-variables. Tests that need deterministic ports or additional generated inputs can pass a complete
-`ResourceContext` through the options object. A custom context must include the `admin` endpoint
-because readiness and graceful stop are part of the factory contract.
+`DatabaseApplicationTestFactory.FromProgram<TProgram>()` uses the executable's actual entry-point
+marker. For top-level statements, expose it with `public partial class Program { }`. The factory
+runs that entry point on a background thread, entering a fresh `AppEnvironmentScope` without
+inheriting the test's execution context. It does not change process environment variables.
 
 ## Usage
 
-See the [source-backed usage examples](examples/index.md).
+```csharp
+using Assimalign.Cohesion.Database.Testing;
 
-The context exposes endpoints and references as validated `System.Uri` values. Pass those values
-directly to `DatabaseConnectionSettings.For(Uri)` for clients or
-`SqlDatabaseServerOptions.Listen(Uri)` for server binding; neither path requires string
-reconstruction.
+await using DatabaseApplicationTestFactory factory =
+    DatabaseApplicationTestFactory.FromProgram<global::Program>();
 
-The executable project must have `CohesionApplicationModel=enabled` so its SDK-generated module
-initializer registers the `Database` default control plane. A top-level program adds
-`public partial class Program { }` so another assembly can use it as the statically rooted generic
-marker.
+await factory.StartAsync();
+// Wait for the program's own observable readiness before sending requests.
+await factory.StopAsync();
+```
 
-The real-process acceptance harness verifies discovery of the two `Database` command kinds,
-`database.add-database` and `database.add-principal`, alongside the existing readiness and
-graceful-stop routes. `Principal` mutation currently returns an explicit provider refusal.
+Use this in the test project that references the executable's public Program marker.
+`StartAsync` returns after launch; `IsStarted` records launch, without implying server readiness.
+`StopAsync` signals the scope's shutdown and waits for the entry point to return, surfacing program
+failures. Repeated starts are no-ops. Disposal signals shutdown and bounds the wait with
+`ShutdownTimeout`, which defaults to 30 seconds. Options also accept an `Arguments` array, copied
+for the invocation.
 
-## Relationships
+The program composes its engines, schemas, and listeners normally. The factory supplies no gateway
+platform or generated resource accessors. An `AddResource` call with no named platform remains
+unmanaged. Use the
+[managed-resource tests](../assimalign-cohesion-database-hosting-applicationmodel/examples/index.md)
+for publication, snapshot restore, and gateway action calls.
 
-- **`Assimalign.Cohesion.Hosting`** — owns the plain host lifecycle.
-- **`Assimalign.Cohesion.Hosting.Resources`** — owns `ResourceContext`, the scoped runtime carrier,
-  resource entry registration, and the host/control-plane bridge.
-- **`Assimalign.Cohesion.Database.Hosting`** — owns `DatabaseApplication.CreateBuilder(args)` and
-  serves the private admin endpoint the factory probes.
-- **`Assimalign.Cohesion.Database.ApplicationModel`** — is injected into enabled resource
-  executables by `Sdk.Database`; its generated registration supplies the `Database` default
-  control plane. It is not a dependency of this testing library.
+## Public types
 
-See [`DESIGN.md`](design.md) for lifecycle, entry-point, isolation, and AOT details.
+| Type | Role |
+|---|---|
+| `IDatabaseApplicationTestFactory` | Start, stop, launch state, and asynchronous disposal. |
+| `DatabaseApplicationTestFactory` | Sealed factory with `FromProgram<TProgram>()` and its options overload. |
+| `DatabaseApplicationTestFactoryOptions` | Entry arguments and a positive shutdown timeout. |
 
 ## Project references
 
@@ -85,14 +54,17 @@ See [`DESIGN.md`](design.md) for lifecycle, entry-point, isolation, and AOT deta
 |---|---|
 | `Assimalign.Cohesion.Database.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Health` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.Hosting.Resources` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Core` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.IdentityModel.Token.JsonWebToken` | `CohesionProjectReference` |
+
+The package is the area's explicit hosting-isolation exemption holder and has no test-framework
+or assertion dependency.
 
 [Parent: Database](../index.md)
 
 ## Sources
 
-- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/docs/OVERVIEW.md`.
-- **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Assimalign.Cohesion.Database.Testing.csproj`.
+- **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/DatabaseApplicationTestFactory.cs`.
+- **Lifecycle** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Abstractions/IDatabaseApplicationTestFactory.cs`.
+- **Options** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/DatabaseApplicationTestFactoryOptions.cs`.
+- **Project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Testing/src/Assimalign.Cohesion.Database.Testing.csproj`.

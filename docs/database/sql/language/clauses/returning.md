@@ -2,7 +2,7 @@
 
 Returns a projection for each directly inserted, updated or deleted row.
 
-> **Status:** Execution for INSERT, UPDATE, DELETE and MERGE.
+> **Status:** Implemented. Executes for INSERT, UPDATE, DELETE and MERGE.
 
 ## Syntax
 
