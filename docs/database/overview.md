@@ -220,6 +220,14 @@ Three limits apply today:
   schema migration inside Build, because publication follows that work. The Database host's
   `StartupTimeout` bounds service start only. Deferred migrations can continue on engine workers.
 
+The integration design records [seven open questions](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/design.md#current-limits),
+including Database-owned actions, instance health, and the publication-to-open window. No production
+path starts the internal admin service, so a managed Database application serves no HTTP health yet.
+
+Gateway `StopAsync` leaves the Database application running. Disposing the gateway disposes its
+owned platform; the in-process platform then shuts down its Database program. See the
+[in-process example](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting-applicationmodel/examples/database-resource-in-process-tests.md).
+
 ## Pooled connection leases
 
 Each rent creates a new DatabaseConnection over an internal pooled connector. Disposal permanently

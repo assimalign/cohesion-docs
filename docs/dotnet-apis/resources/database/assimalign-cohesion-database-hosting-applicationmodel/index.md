@@ -97,6 +97,19 @@ references each platform it opts into, such as
 The instance contracts are
 [ApplicationModel.Hosting](../../../libraries/application-model/assimalign-cohesion-applicationmodel-hosting/index.md).
 
+## Shutdown and open questions
+
+Gateway `StopAsync` and `Completion` leave the Database application running and accepting
+connections (G37/G40). Gateway disposal stops its run, then disposes its owned platform (G42).
+The owned in-process platform shuts down the Database program; a borrowed platform stays
+caller-owned. The [in-process example](examples/database-resource-in-process-tests.md) uses gateway
+disposal as its shutdown criterion.
+
+The package's [seven open questions](design.md#current-limits) cover endpoints, readiness, the
+startup window, Database-owned actions, instance health, the publication-to-open window, and HTTP
+health. No production path starts the internal admin health service today, so managed Database
+applications serve no HTTP health yet.
+
 [Parent: Database](../index.md)
 
 ## Sources
@@ -106,3 +119,5 @@ The instance contracts are
 - **Actions** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Hosting/src/ApplicationInstanceOptions.cs`.
 - **Project** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting.ApplicationModel/src/Assimalign.Cohesion.Database.Hosting.ApplicationModel.csproj`.
 - **Framework** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Runtime/Directory.Build.props`.
+- **Design and open questions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting.ApplicationModel/docs/DESIGN.md`.
+- **Gateway lifetime** — `cohesion/libraries/ApplicationModel/Assimalign.Cohesion.ApplicationModel.Gateway/src/ApplicationGateway.cs`.
