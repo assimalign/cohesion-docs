@@ -30,8 +30,17 @@ the complete order, draining servers first. The root interfaces expose no config
 Instance engines and services remain caller-owned. Factory products belong to the application;
 engines own their nested servers/workers. `Application` disposal stops the host, disposes its owned
 services and engines, then its provider, logger factory, configuration and configuration file system.
-Container factory products belong to the provider, with no second application ownership; container
-instance registrations remain borrowed. Each application supports one start lifecycle.
+Build invokes each unkeyed container `IHostService` factory once, directly. These registrations
+must be singletons; scoped or transient registrations fail Build with
+`Lifecycle service registration '{0}' must be a singleton.`, naming the descriptor. A null product
+fails with `A service factory returned null.` The application disposes lifecycle factory products
+in reverse registration order before engines; container instance registrations remain borrowed.
+Each application supports one start lifecycle.
+
+A forwarding factory (`sp => sp.GetRequiredService<X>()`) transfers a provider-owned object, so
+both the application and provider dispose it. Its `Dispose` must be idempotent; use
+`AddService(instance)` or an instance registration to retain caller ownership. Keyed registrations
+are not lifecycle services.
 
 Configuration loads optional base/environment JSON, `COHESION_CONFIG__` environment variables,
 captured args and explicit providers. Services use the Cohesion interpreted resolver
@@ -46,7 +55,9 @@ and restores during `StartingAsync`, after Build has opened, recovered, and migr
 before any service or server starts. It opens the platform client in `StartAsync`; servers drain
 before it closes on stop. The gateway's startup window must cover Build's inline work.
 
-When composed, the internal admin health listener accepts namespaced health probes only from transport
+No production path starts the internal admin health listener today; a managed Database application
+serves no HTTP health. T3 EN-A1 plans to bind it on the platform's `http` endpoint.
+When explicitly started, the listener accepts namespaced health probes only from transport
 peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
 forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
 Bare `/healthz`, `/readyz`, and `/livez` stay open. Other `/cohesion/v1` routes return 403 even with
@@ -66,7 +77,6 @@ The model server options take `IDuplexConnectionListener`; client composition su
 | `Assimalign.Cohesion.Configuration.CommandLine` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.ApplicationModel.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |

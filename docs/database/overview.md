@@ -75,12 +75,16 @@ disposing the application.
 
 Lifecycle services come from both `builder.AddService(...)` and `IHostService` registrations on
 `builder.Services`. After engines and servers are registered and every `AddService` product exists,
-Build resolves the container's lifecycle services once. Every `StartingAsync` callback finishes
+Build invokes the container's lifecycle factories once, directly. Every `StartingAsync` callback finishes
 before any service starts. Start order is `AddService` registrations, container services, the
 optional reopen service, then servers in engine/attachment order. Each service group preserves
 registration order; stop reverses the complete order, draining servers first. `AddService` factory
-products belong to the application; container factory products belong to the provider. Supplied
-instances remain caller-owned. A duplicate lifecycle object fails Build. See
+products and container lifecycle factory products belong to the application and are disposed in
+reverse order before engines. Supplied instances remain caller-owned. Container lifecycle
+registrations must be singletons; scoped, transient, null-product, and duplicate lifecycle
+registrations fail Build. A forwarding factory returning a provider-owned service gives both
+owners disposal responsibility, so its `Dispose` must be idempotent. Use `AddService(instance)` or
+an instance registration to retain caller ownership. See
 [hosting ownership](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#nested-servers-and-ownership).
 
 Concrete hosting supplies Cohesion configuration and dependency injection. It loads optional base

@@ -31,9 +31,9 @@ flowchart LR
 
 `COHRES001`–004 remain enforced. Private Web hosting/health references implement admin health.
 [Database.Hosting.ApplicationModel](../assimalign-cohesion-database-hosting-applicationmodel/index.md)
-supplies the managed-resource registration on `builder.Services`; the runtime's project also
-declares `ApplicationModel.Hosting` as a dependency. Resource publication, restoration, and action
-dispatch are composed by the integration package.
+supplies the managed-resource registration on `builder.Services`. Database.Hosting has no
+ApplicationModel reference. Resource publication, restoration, and action dispatch are composed by
+the integration package.
 
 ## `Build` and configuration
 
@@ -60,8 +60,8 @@ One Cohesion service provider is built with `EnableDynamicCode = false`, `Valida
 and `ValidateOnBuild = true`. This selects the interpreted resolver on JIT and NativeAOT. Hosting
 permits closed factories and instances only, rejects implementation-type/open-generic activation,
 and reserves `IHostEnvironment`, `IConfiguration`, and `ILoggerFactory` for its own borrowed pieces. Model
-construction uses explicit assignments rather than reflection-based binding. Provider-owned services
-must not be returned from application factories; doing so would create two owners.
+construction uses explicit assignments rather than reflection-based binding. Engine factories must
+not return provider-owned services; lifecycle forwarding factories have the disposal caveat below.
 
 Root engine factories observe preceding engine registrations, not later ones. Every factory is
 named: names are reserved at Add and products must match them ordinally. Duplicate names fail before
@@ -84,7 +84,8 @@ conflicting engine names fail registration.
 | Model builder worker/server factory | Engine |
 | `AddService(instance)` | Caller |
 | `AddService(factory)` | `Application` if disposable |
-| Provider-created service | Provider |
+| Container `IHostService` factory | Application if disposable, before engines |
+| Other provider-created service | Provider |
 | Provider instance registration | Caller |
 | Configuration and default configuration file system | `Application` |
 | Logger factory and service provider | Application |
@@ -100,8 +101,11 @@ produce an aggregate with the original first. Files created by a factory are nev
 ## Runtime lifetime
 
 Lifecycle services come from `AddService` and from `IHostService` registrations on `builder.Services`.
-After freezing the engine/server registry and creating every `AddService` product, Build resolves
-`IEnumerable<IHostService>` from the provider exactly once. Start order is:
+After freezing the engine/server registry and creating every `AddService` product, Build reads the
+unkeyed `IHostService` descriptors from `Services.Container` in registration order. It borrows
+instance products and invokes each factory once, directly, with the built provider. It never
+resolves `IEnumerable<IHostService>` from the provider. Keyed registrations are not lifecycle
+services and are ignored. Start order is:
 
 1. **AddService registrations**, in registration order.
 2. **Container IHostService registrations**, in registration order.
@@ -114,13 +118,26 @@ Its platform client opens during service start, before servers listen. Shutdown 
 complete order: servers drain while the control plane stays open, then reopen/container services
 stop before `AddService` services.
 
-Container factory products remain owned by the provider; supplied instances remain borrowed.
-Neither is enrolled in the application's owned-service list. Registering one object through both
-`AddService` and the container, through multiple container registrations, or as a server and a
-container service fails Build. A throwing container factory triggers ordinary Build compensation;
-cleanup failures are aggregated with the construction failure first. Provider disposal itself is
-fail-fast, while outer cleanup continues with the remaining infrastructure. See
+Container lifecycle registrations must be singletons. Scoped and transient registrations fail
+Build with `Lifecycle service registration '{0}' must be a singleton.`, with `{0}` replaced by the
+descriptor. Implementation-type registrations remain refused. A null lifecycle factory product
+fails with `A service factory returned null.`
+
+The application owns container lifecycle factory products alongside `AddService` factory products.
+After stop, it disposes the reopen service, container services in reverse registration order,
+`AddService` services in reverse order, engines, then infrastructure (provider, logger factory,
+configuration, content root). Supplied instances remain borrowed and are never disposed by the
+application. Registering one object through both `AddService` and the container, through multiple
+container registrations, or as a server and a container service fails Build with
+`A lifecycle service was registered more than once.` A throwing factory triggers Build
+compensation; cleanup failures are aggregated with the construction failure first. Provider
+disposal also continues past disposer failures in reverse creation order, propagating one failure
+unchanged or aggregating several. Outer cleanup continues with the remaining infrastructure. See
 [container service tests](examples/database-container-service-tests.md).
+
+A forwarding lifecycle factory (`sp => sp.GetRequiredService<X>()`) hands the application an object
+the provider also owns, so both dispose it. Its `Dispose` must be idempotent. Use
+`AddService(instance)` or an instance registration when ownership must stay with the caller.
 
 Provisioning belongs to each model's engine build. It opens or creates the databases declared on
 its builder and completes inline schema migration before returning. Deferred migrations can
@@ -159,8 +176,12 @@ the engine. Configuration and service reads remain in the hosting callback.
 
 ## Standalone admin control plane (#1431)
 
-When composed, the internal admin listener restricts `/cohesion/v1` and every path below it to
-for transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
+The internal `DatabaseAdminEndpointService` remains available, but no production path starts it
+today. A managed Database application serves no HTTP health; T3 EN-A1 plans to bind the service on
+the platform's `http` endpoint.
+
+When explicitly started, the listener restricts `/cohesion/v1` and every path below it to
+transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
 remote endpoints receive 403; the status makes the development-only restriction explicit. Forwarded
 headers do not establish locality. The guard precedes Database's own namespaced health mappings,
 which otherwise short-circuit the shared Web.Hosting control-plane middleware.
@@ -197,7 +218,6 @@ reopening an interrupted deletion. See [model lifecycle codes](../../../../datab
 | `Assimalign.Cohesion.Configuration.CommandLine` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.FileSystem.Physical` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Hosting` | `CohesionProjectReference` |
-| `Assimalign.Cohesion.ApplicationModel.Hosting` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Logging` | `CohesionProjectReference` |
 | `Assimalign.Cohesion.Web.Hosting` | `CohesionPrivateProjectReference` |
 | `Assimalign.Cohesion.Web.Health` | `CohesionPrivateProjectReference` |
