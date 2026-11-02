@@ -133,6 +133,10 @@ in-flight visibility until undo succeeds. Disposal aborts outstanding readers wi
 
 ## Savepoint controls
 
+The completed [execution conformance matrix](design.md#savepoint-execution-conformance) covers
+all five models, exact target/outer/root recovery after partial progress, crash images and draining
+admitted undo during disposal and pool return.
+
 CreateSavepointAsync returns a [TransactionSavepoint](transaction-savepoint.md) for the current
 active lifecycle context. ReleaseSavepointAsync removes it and all newer tokens, preserving
 their effects. RollbackToSavepointAsync undoes later effects, discards newer tokens and retains

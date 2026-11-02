@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 87 of 89 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 91 of 93 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,7 +44,7 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 87-of-89 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 91-of-93 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and executable RECURSIVE and is not a percentage
 of complete SQL. The
 [unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
@@ -67,7 +67,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 32; compiled schemas remain version 11.
+SQL storage format is 33; compiled schemas remain version 11.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -160,7 +160,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 32.
+Drop removes sql.dat before the remaining file set. The current format is 33.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -195,8 +195,9 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
-direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
+direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
+Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 11.
 
@@ -208,17 +209,21 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
-## SQL format 32 and schema v11
+[SQL/JSON path functions](language/functions/json-path.md) and [COPY TO STDOUT](language/statements/copy-to.md)
+execute with bounded path work and negotiated outbound streaming respectively.
 
-SQL opens only data/catalog format **32** and compiled documents in
+## SQL format 33 and schema v11
+
+SQL opens only data/catalog format **33** and compiled documents in
 **cohesion/database-schema/v11**. Format 30 adds ON UPDATE action bytes in table extension 8.
 Format 31 added partial-index predicate text and dependencies in index extension 2.
-Format 32 adds per-column direction and NULL placement in mandatory index extension 3.
+Format 32 added per-column direction and NULL placement in mandatory index extension 3.
+Format 33 fences SQL/JSON contextual names and quoted ordinary function-call rendering.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
-Format 31 and every earlier database format are refused at open before stored expressions bind;
+Format 32 and every earlier database format are refused before data recovery;
 there is no upgrade path or legacy reader. Compiled schema v11 carries effective KeyOrders,
 retaining v10's optional Predicate and v9's always-serialized onUpdate member.
 

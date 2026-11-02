@@ -27,6 +27,11 @@ arguments, ordering keys and the condition. The call's location extends through 
 The parser retains modifiers on ordinary
 calls without deciding whether they are aggregates.
 
+Quoted `"json_value"`, `"json_query"` and `"json_exists"` names remain ordinary calls of this
+type. Canonical rendering quotes ordinary calls with these names to preserve that distinction
+under SQL format 33. Unquoted SQL/JSON syntax produces
+[SqlJsonFunctionExpression](sql-json-function-expression.md).
+
 The engine rejects scalar-call DISTINCT/ALL/ORDER BY, or DISTINCT ordering keys absent from the
 argument list, with DatabaseException/CS05032 (no SQLSTATE). Invalid arity/types use CS01006
 (42883). Quantifiers on star or malformed LISTAGG ordering use CS00003. Inspect parser diagnostics

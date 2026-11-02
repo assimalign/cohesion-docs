@@ -158,8 +158,9 @@ direct affected count. Subqueries in RETURNING remain CK00001.
 The target stays outer in the association join. Safe target-only predicates can seek it;
 mandatory target/source equalities can drive a source index probe or budgeted hash join.
 Equality-driven steps follow written USING order: list the source connected by equality to the
-target first (USING b, a when only b connects to the target). General join-order search is
-later work (#1629). [EXPLAIN](explain.md#source-dml) describes these paths without deleting rows.
+target first (USING b, a when only b connects to the target). Independent source graphs can use
+[exact join-order search](../clauses/join.md#join-order-search); target-referencing WHERE terms
+keep bound order. [EXPLAIN](explain.md#source-dml) describes these paths without deleting rows.
 StatementMemoryBudget covers hash builds and retained targets, source/intermediate buffers,
 derived copies, associations and joined cascade state. CS05067 (53200) refuses exhaustion before
 any write; reservations release on every exit, with no spill. General result materialization and

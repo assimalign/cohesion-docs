@@ -18,6 +18,11 @@ public enum SqlProtocolMessageType : byte
     ResultRow = 7,
     ResultComplete = 8,
     Transaction = 9,
+    CopyTo = 80,
+    CopyStart = 81,
+    CopyData = 82,
+    CopyComplete = 83,
+    CopyAcknowledged = 84,
 }
 ```
 
@@ -26,6 +31,9 @@ public enum SqlProtocolMessageType : byte
 This type now belongs to the model Protocol package. Its namespace and assembly identity changed;
 recompile callers and update imports. Wire and disk formats are unchanged. No compatibility assembly
 or type forwarder is provided.
+
+Reading enum members throws no exceptions. [Outbound-stream framing](sql-protocol.md#outboundstream)
+defines payloads and negotiation for 80–84. Unnegotiated frames or malformed exchanges use CK07005.
 
 ## Related reference
 

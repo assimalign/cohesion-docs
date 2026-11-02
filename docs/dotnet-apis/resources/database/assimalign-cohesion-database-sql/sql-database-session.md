@@ -167,12 +167,47 @@ success on both transports. First-data-statement admission includes failing data
 EXPLAIN; parse/control failures leave configuration open. See
 [SET TRANSACTION](../../../../database/sql/language/statements/set-transaction.md).
 
+## CopyToAsync
+
+```csharp
+public ValueTask<long> CopyToAsync(string statement, Stream destination,
+    CancellationToken cancellationToken = default);
+```
+
+Exports a physical table as [UTF-8 text or CSV](../../../../database/sql/language/statements/copy-to.md).
+Returns the exported data-row count, excluding a header, and leaves the destination open.
+One statement snapshot covers binding, scanning and delivery; concurrent commits stay invisible.
+The iterator takes no writer, row or object locks and uses a 16 KiB output buffer.
+
+Blank text or nonwritable destination throws ArgumentException; null destination throws
+ArgumentNullException. A closed session refuses use. An overlapping statement/export/control
+throws InvalidOperationException. Parsing/binding/execution failures use DatabaseException,
+including CS05095 for non-COPY, CS04075 (25001) inside BEGIN, CS01070 for invalid options and
+CS01071 for duplicate/invalid output selections. Ordinary ExecuteAsync refuses COPY with CS05096.
+Cancellation throws OperationCanceledException. A destination exception is rethrown unchanged
+after cleanup; partial output can remain. The session releases admission, snapshot and buffers
+on every exit. Disposal cancels and waits for the export; destinations must honor cancellation
+and must not reenter the session from write callbacks.
+
+Adapted from engine SqlCopyToTests:
+
+```csharp
+await session.ExecuteAsync("CREATE TABLE export_rows(id INT, label TEXT)");
+await session.ExecuteAsync("INSERT INTO export_rows VALUES(1, 'a,b')");
+using var output = new MemoryStream();
+long rows = await session.CopyToAsync(
+    "COPY export_rows TO STDOUT (FORMAT csv, HEADER)", output, cancellationToken);
+Console.WriteLine(rows); // 1
+Console.Write(Encoding.UTF8.GetString(output.ToArray())); // id,label\n1,"a,b"\n
+```
+
 ## Related reference
 
 [Assembly](index.md) · [Engine options](sql-database-engine-options.md) · [SQL limits](../../../../database/sql/language/diagnostics.md#statement-and-lock-timeouts)
 
 ## Sources
 
+- **COPY** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseSession.Copy.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlCopyToTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/SqlDatabaseSession.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutConformanceTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlTimeoutRegressionTests.cs`.

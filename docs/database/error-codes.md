@@ -53,6 +53,35 @@ The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing
 Hard SQL deadlocks carry `CS04065`, mapped to SQLSTATE `40P01` (`deadlock_detected`). These
 SQLSTATE mappings are documented code mappings, not separate wire fields.
 
+## SQL COPY TO STDOUT
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01070 | Invalid, duplicate or incompatible COPY option | — |
+| CS01071 | Duplicate output/FORCE_QUOTE column or FORCE_QUOTE column outside export | — |
+| CS04075 | COPY inside an explicit transaction | 25001 |
+| CS05095 | CopyToAsync received a non-COPY statement | — |
+| CS05096 | COPY lacks outbound-stream capability or consumer API | — |
+
+Legacy options use CS00003; missing output columns use CS01015 (42703). COPY FROM, files, PROGRAM,
+binary, query export and views use CK00001. Malformed protocol exchanges retain CK07005.
+See [COPY TO STDOUT](sql/language/statements/copy-to.md).
+
+## SQL/JSON path functions
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS01068 | Path is not a string constant or parameter | 42804 |
+| CS01069 | Invalid SQL/JSON context, path, DEFAULT or RETURNING signature | 42804 |
+| CS02081 | Invalid/unsupported path or PASSING, refused before rows | 42601/0A000 |
+| CS02082 | Strict accessor structural error | 2203A |
+| CS02083 | Empty sequence with ERROR ON EMPTY | 2203F |
+| CS02084 | Context number exceeds jsonb exponent, precision or scale bounds | 22003 |
+| CS05093 | Result cardinality or scalar-kind violation | 22034/2203B |
+| CS05094 | Path size, statement work or transient result memory limit exceeded | 54000 |
+
+See [SQL/JSON path functions](sql/language/functions/json-path.md).
+
 ## Transaction and capability conditions
 
 | Code | Meaning and trigger | SQLSTATE |
@@ -190,14 +219,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 32.
+remains nonexecuting; SQL storage stays at format 33.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 32 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 33 is unchanged.
 
 ## SQL table rewrite
 
@@ -205,7 +234,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 32 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 32 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 33 is unchanged.
 
 ## Document array indexes
 

@@ -18,7 +18,7 @@ individually; the [wire protocol](wire-protocol.md) defines their byte layouts.
 | Operation | Request | Successful server response | Client API |
 |---|---|---|---|
 | Read | `Read(container, name)` | `TransferStart`, zero or more `Chunk` frames, `TransferComplete` | `DownloadAsync` |
-| Write | `Write(container, name, overwrite)` followed by the client's content transfer | Chunk acknowledgements, then `TransferComplete` after commit | `UploadAsync` |
+| Write | `Write(container, name, overwrite)` followed by the client's content transfer | Chunk acknowledgements, then `TransferComplete` after operation completion (and commit for an automatic envelope) | `UploadAsync` |
 | Delete | `Delete(container, name)` | `OperationComplete(0)` if absent or `OperationComplete(1)` if deleted | `DeleteAsync` |
 | Get properties | `GetProperties(container, name)` | `OperationComplete(0)` if absent; otherwise `Properties` then `OperationComplete(1)` | `GetPropertiesAsync` |
 | List | `List(container, prefix)` | One `Properties` per match, then `OperationComplete(count)` | `GetBlobsAsync` |
@@ -42,7 +42,7 @@ storage record. No Unicode normalization is applied.
 
 ## Read
 
-The server reads properties and content in one snapshot transaction, so concurrent replacement
+The server reads properties and content from one catalog record and pinned operation snapshot, so concurrent replacement
 cannot pair one version's metadata with another version's bytes. The client must read through a
 validated `TransferComplete`. Premature end of file (EOF), malformed completion, and server
 errors are failures. Already delivered bytes remain provisional until successful EOF.
@@ -56,15 +56,42 @@ The client sends `TransferStart`, zero or more chunks, and `TransferComplete` af
 Each chunk has at most 65,536 bytes. The sender waits for the receiver's cumulative
 `ChunkAcknowledgement` before reading further source data.
 
-The server uses an explicit engine transaction. It validates the declared and actual lengths,
-finishes the destination stream, commits, and only then sends its own `TransferComplete`.
+The server borrows an open host transaction or creates an automatic transaction envelope. It
+validates declared/actual lengths and finishes the destination stream. It commits only an envelope
+it created, then sends its own `TransferComplete`; a borrowed transaction remains open for the host.
 Chunk acknowledgement confirms destination acceptance; it does not confirm publication.
 
-Cancellation, disconnect, malformed completion, or storage failure before commit rolls back.
+Cancellation, disconnect, malformed completion or storage failure aborts the upload operation
+before buffered stream disposal; an automatic envelope rolls back.
 Failed new objects remain absent; failed replacements preserve the previous committed object.
 If the connection fails after commit but before the final acknowledgement arrives, the upload
 outcome is uncertain to the client. Verify properties before retrying when that distinction
 matters. There is no exactly-once retry guarantee.
+
+## Host transactions
+
+Wire uploads/downloads run inside an open host-owned server-session transaction. Blob adds no
+transaction-control frames, and its pump serializes exchanges. Completion of a borrowed upload
+confirms the operation, with publication waiting for host commit. The server never commits or
+disposes a borrowed transaction on success.
+
+Admission checks the captured transaction identity. If host COMMIT/ROLLBACK ends it between
+container lookup and stream admission, CK04005 refuses the upload instead of starting autocommit.
+Every failed upload aborts its own operation before destination disposal, including wrong-length
+completion while the connection is still live. No partial content can commit. A failed operation
+faults the host transaction and preserves its cause; later commit uses CB04001.
+
+A download's metadata and content come from one immutable version, including a borrowed
+READ COMMITTED transaction during replacement. EOF releases the read-operation hold before the
+server sends TransferComplete, allowing immediate host commit. A failed acknowledgment aborts
+the borrowed read operation before disposal. Connection lifetime cancellation and session close
+drain the transfer and its holds.
+
+Host savepoint scopes use [coordinator controls](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/transaction-coordinator.md#savepoint-controls).
+Open write streams refuse controls with CK04010; incomplete undo fences typed reads and commit
+with CK04009 until target/outer retry or whole rollback. The completed
+[conformance matrix](../../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+also covers crash recovery and teardown while undo is admitted.
 
 ## Metadata and listing
 
@@ -85,6 +112,7 @@ false for deletion of a missing object.
 | `CB06006` | Malformed/unsupported catalog metadata; additional model diagnostic for attached-index corruption | — |
 | `CB02007` | Upload has failed or its transaction is no longer active; later writes/publication refused | — |
 | `CB04001` | Explicit transaction is aborted; operations/commit refused until rollback | — |
+| `CK04005` | Captured host transaction ended before upload admission | — |
 | `CK06102` | Additional attached-index corruption diagnostic beside CK06003 and CB06006 | — |
 
 Child-root storage and catalog failures cross the engine boundary as DatabaseException with
@@ -201,6 +229,7 @@ CB01001 identifies a missing container, CB01002 a missing blob, CB03001 an exist
 
 ## Sources
 
+- **Borrowed transfers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob.Client/tests/BorrowedTransferWireTests.cs`, `SavepointAdapterWireTests.cs` and `BlobTransactionFailureWireTests.cs` in the same directory.
 - **Storage integrity** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/StorageCorruptionTests.cs`.
 
 - **File-set refusals and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Blob/tests/BlobDatabaseNameTests.cs`.

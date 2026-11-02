@@ -60,7 +60,7 @@ UTF-8, missing bytes, and trailing bytes are violations. Names must be nonempty.
 | 65 | `Write` | Client to server | `text container`, `text name`, unsigned byte overwrite (`0` or `1`) |
 | 66 | `TransferStart` | Content sender to receiver | Signed 64-bit length (`-1` means unknown), `text contentType` |
 | 67 | `Chunk` | Content sender to receiver | 1–65,536 raw bytes, with no inner prefix |
-| 68 | `TransferComplete` | Sender to receiver; server to client after upload commit | Signed 64-bit actual byte count |
+| 68 | `TransferComplete` | Sender to receiver; server to client after upload completion | Signed 64-bit actual byte count |
 | 69 | `ChunkAcknowledgement` | Content receiver to sender | Signed 64-bit cumulative accepted byte count |
 | 70 | `Delete` | Client to server | `text container`, `text name` |
 | 71 | `GetProperties` | Client to server | `text container`, `text name` |
@@ -92,8 +92,15 @@ excess chunk and checks the final count against both the declared and received l
 unknown-length transfer still requires the final count to match received bytes. Empty objects
 send start and completion without chunks.
 
-The server sends a second `TransferComplete` after an upload has been validated and committed.
-That final server message confirms publication. A chunk acknowledgement never does.
+The server sends a second `TransferComplete` after validating and finishing the upload. It commits
+an automatically created transaction before that message. Under an open host transaction, the
+message confirms operation completion; publication waits for host commit. A chunk acknowledgment
+confirms only destination acceptance. See [host transactions](operations.md#host-transactions).
+
+Uploads and downloads borrow an open host transaction. Upload admission refuses an ended captured
+transaction with CK04005 rather than starting autocommit; failure aborts the operation before stream
+disposal. Downloads pin metadata and content from one version even under READ COMMITTED, and
+release their operation hold before sending TransferComplete. The protocol adds no control frames.
 
 `BlobProtocolTransfer.SendAsync` and `ReceiveAsync` implement the content sequence. They do
 not perform authentication, request dispatch, storage commit, final upload acknowledgement,

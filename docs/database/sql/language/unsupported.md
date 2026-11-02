@@ -4,7 +4,7 @@ Lists recognized but unimplemented SQL forms and commands outside the declared d
 
 > **Status:** Partial. Recognition does not imply execution support.
 
-The profile measures 87 of 89 named clauses against the live engine. The 2 excluded names are
+The profile measures 91 of 93 named clauses against the live engine. The 2 excluded names are
 `NATURAL` and `ALL`. Further subset restrictions do not increase that denominator.
 
 The measure includes executable MERGE with ordered actions and RETURNING, and WITH RECURSIVE
@@ -12,6 +12,10 @@ fixpoints with on-demand execution and shared readers.
 
 [EXPLAIN](statements/explain.md) describes a plan without executing the wrapped statement.
 SELECT-only EXPLAIN ANALYZE executes to report candidate work. Standalone ANALYZE remains unsupported.
+
+[COPY TO STDOUT](statements/copy-to.md) exports physical tables through CopyToAsync. COPY FROM,
+server files, PROGRAM, binary, query-form export and views remain CK00001; legacy unparenthesized
+options use CS00003. Ordinary Execute/Query refuses COPY with CS05096.
 
 ## Exclusion matrix
 
@@ -133,7 +137,7 @@ result execution are unavailable.
 ## Deferred SQL/JSON forms
 
 [JSON arrows and IS JSON](expressions/json-access.md) execute. WITH/WITHOUT UNIQUE KEYS uses
-CK00001. JSON_VALUE, JSON_QUERY, JSON_EXISTS and SQL/JSON paths remain SQ-N2; JSON_TABLE,
+CK00001. [JSON_VALUE, JSON_QUERY, JSON_EXISTS and bounded paths](functions/json-path.md) execute; JSON_TABLE,
 question-mark operators and JSONB normalization remain deferred beyond this subset.
 
 ## Sources

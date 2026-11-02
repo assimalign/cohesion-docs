@@ -37,6 +37,13 @@ by `session.Database`. Successful upload disposal then finishes the statement; c
 transaction publishes the changes. Close every stream before another operation or commit on the
 same session. Session disposal aborts pending work.
 
+Wire uploads and downloads also join an open host-owned server-session transaction; they no
+longer refuse it with CK04004. On success, only an automatically created transfer transaction
+is committed/disposed by the server. A successful upload in a host transaction remains uncommitted until the host commits.
+If that transaction ends before upload admission, the upload refuses with CK04005 rather than
+starting autocommit. Failed uploads never publish partial content. Downloads select metadata and
+content from one version, including READ COMMITTED. See [host transfer transactions](operations.md#host-transactions).
+
 The engine supports snapshot and read-committed isolation. Writers take a database exclusive lock
 for the upload lifetime, while snapshot readers can continue concurrently. Streams are sequential
 and are not thread-safe.

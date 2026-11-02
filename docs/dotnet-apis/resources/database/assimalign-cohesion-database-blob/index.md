@@ -70,8 +70,8 @@ dispatch, authentication, and upload publication when using the helpers directly
 supplies those responsibilities. The separate
 [Blob.Client](../assimalign-cohesion-database-blob-client/index.md) package provides stream
 upload/download and typed delete, property, and prefix-listing operations over the shared
-`Database.Client` connection. An upload is acknowledged only after complete content validation and
-transaction commit. Cancellation, disconnect, malformed completion, or engine failure before commit
+`Database.Client` connection. An upload is acknowledged after content validation and operation completion;
+an automatic envelope commits first, while a borrowed host transaction waits for host commit. Cancellation, disconnect, malformed completion, or engine failure before commit
 rolls back, preserving the previous object. A connection loss after commit but before its
 acknowledgement leaves the caller uncertain whether publication succeeded. `Verify` properties before
 retrying when that distinction matters.
@@ -115,6 +115,8 @@ resolved values and register nested components while keeping the model package d
 ## Catalog diagnostics
 
 [BlobCatalogException](blob-catalog-exception.md) exposes non-null structured Diagnostics.
+
+Wire transfers can join an open host transaction. See [host transfer semantics](../../../../database/blob/operations.md#host-transactions).
 
 ## Sources
 

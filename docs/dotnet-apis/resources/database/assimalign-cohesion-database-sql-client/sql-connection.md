@@ -18,6 +18,8 @@ public sealed class SqlConnection : IAsyncDisposable
     public ValueTask<long> ExecuteAsync(string commandText,
         IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default);
     public ValueTask<T?> ExecuteScalarAsync<T>(SqlCommand command, CancellationToken cancellationToken = default);
+    public ValueTask<long> CopyToAsync(string statement, Stream destination,
+        CancellationToken cancellationToken = default);
     public ValueTask AbortAsync();
     public ValueTask DisposeAsync();
 }
@@ -55,6 +57,43 @@ conflicting writers. New clients discard sessions against pre-#1540 servers with
 transaction-status rather than
 pooling them. The connector consumes Ready status automatically after every Execute; caller
 cancellation after a completed result preserves an acknowledged committed result.
+
+## CopyToAsync
+
+Exports a table in [text or CSV](../../../../database/sql/language/statements/copy-to.md) and returns
+the verified data-row count, excluding a header. The destination remains open on every outcome.
+The peer must negotiate [SqlProtocol.OutboundStream](../assimalign-cohesion-database-sql-protocol/sql-protocol.md#outboundstream).
+Missing capability refuses locally with SqlClientException/CS05096; ordinary Execute/Query also
+refuses COPY with CS05096. A non-COPY statement supplied to this API uses CS05095. An explicit
+transaction refuses COPY with CS04075 (25001).
+
+Blank statement or a nonwritable destination throws ArgumentException; null destination throws
+ArgumentNullException, disposed/aborted connection ObjectDisposedException, overlapping command
+InvalidOperationException, and cancellation OperationCanceledException. Server/protocol failures
+use SqlClientException. A pre-canceled call sends nothing. A coded statement Error before CopyStart
+preserves the connection and transaction. Errors after CopyStart retain diagnostics but set
+[ConnectionUsable](sql-client-exception.md) false and discard the rental. Cancellation during the
+exchange, malformed/incomplete responses, disconnect and destination failures discard it too.
+The destination's original exception is rethrown after cleanup and can leave partial output.
+
+One snapshot spans binding, scanning and delivery, with no writer/row/object locks. Data frames
+are at most 16 KiB, with one outstanding frame acknowledged only after its destination write.
+Destinations must honor cancellation and must not reenter the connection from write callbacks.
+The client drains the negotiated Ready postamble before returning success.
+
+SqlCopyToWireTests checks this against the users fixture over InMemory and TCP:
+
+```csharp
+using var output = new MemoryStream();
+long rows = await connection.CopyToAsync(
+    "COPY users(name,id) TO STDOUT (FORMAT csv, HEADER, FORCE_QUOTE *)", output,
+    cancellationToken);
+Console.WriteLine(rows); // 2
+Console.Write(Encoding.UTF8.GetString(output.ToArray()));
+// name,id\n"ada","1"\n"grace","2"\n
+```
+
+Row order is unspecified; this is the test fixture's observed output.
 
 ## Example
 
@@ -171,6 +210,7 @@ and [terminal delivery/TLS limits](../assimalign-cohesion-database-protocol/desi
 
 ## Sources
 
+- **COPY** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/src/SqlConnection.Copy.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlCopyToWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlDmlSourceWireTests.cs`.
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlMergeWireTests.cs` and `SqlMergeConcurrencyWireTests.cs`.
 

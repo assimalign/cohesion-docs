@@ -85,6 +85,19 @@ Ready still reports retained state. Reuse requires Idle and zero retained state.
 sequence entries and timeout settings differing from initial host values. See
 [status codecs](../assimalign-cohesion-database-protocol/protocol-transaction-status-message.md).
 
+## COPY TO STDOUT
+
+[COPY TO STDOUT](../../../../database/sql/language/statements/copy-to.md) streams physical-table
+text/CSV from one statement snapshot with no writer, row or object locks. The dedicated embedded
+and remote CopyToAsync APIs return data-row counts. Remote delivery requires separately
+negotiated sql.outbound-stream (frames 80–84), sends at most one 16 KiB data frame before its
+acknowledgment, and verifies terminal row/byte counts before Ready. Existing Execute bytes remain
+unchanged for older peers. Early statement errors preserve the connection and transaction;
+started/incomplete transfers discard the rental and may leave partial destination output.
+Destinations must honor cancellation. CS01070/CS01071 identify option/column refusals, CS04075
+(25001) explicit transactions, CS05095 a non-COPY consumer request, CS05096 a missing consumer
+or capability, and CK07005 protocol violations.
+
 ## Sources
 
 - `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/docs/WIRE-PROTOCOL.md`.

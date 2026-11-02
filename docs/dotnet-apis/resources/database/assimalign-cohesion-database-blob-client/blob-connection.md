@@ -39,12 +39,22 @@ OperationCanceledException. BlobClientException carries server or transfer failu
 abandoned transfers discard the lease; subsequent cleanup stays on that original lease.
 Properties returns null and Delete returns false for an absent object; a missing download fails.
 
+## Host transaction transfers
+
+UploadAsync and DownloadAsync join an open host-owned server-session transaction. The client adds
+no transaction controls. A successful borrowed upload returns its verified length and leaves
+publication to host commit; on success the server ends only envelopes it created. A host transaction ending
+before upload admission refuses with CK04005 rather than starting autocommit. Failure never
+commits partial content. Downloads pin metadata and bytes from one version, including READ COMMITTED,
+and release the server operation hold before completion. Every failed exchange still discards
+the connection. See [host transfer semantics](../../../../database/blob/operations.md#host-transactions).
+
 ## Example
 
 With a rented connection, an existing images container and a readable source stream:
 
 ```csharp
-long committed = await connection.UploadAsync("images", "cover", source, contentType: "image/png");
+long uploaded = await connection.UploadAsync("images", "cover", source, contentType: "image/png");
 await using (Stream download = await connection.DownloadAsync("images", "cover"))
 {
     await download.CopyToAsync(destination);
@@ -52,7 +62,7 @@ await using (Stream download = await connection.DownloadAsync("images", "cover")
 Console.WriteLine(await connection.DeleteAsync("images", "cover")); // True
 ```
 
-The copied content is the committed upload. See [streaming usage](../../../../database/blob/streaming-client.md)
+With no host transaction in this example, the copied content is the committed upload. See [streaming usage](../../../../database/blob/streaming-client.md)
 for complete setup, bounded buffering and uncertain acknowledgement outcomes.
 
 ## Related reference

@@ -75,8 +75,9 @@ nonnegative declared length must match exactly. The default content type is
 `application/octet-stream`, and `overwrite` defaults to true. Set `overwrite: false` to reject
 an existing object.
 
-The returned `long` is the committed content length. Success means the server acknowledged
-atomic publication after commit. A failure before commit leaves no partial object. A lost
+The returned `long` is the verified content length. In automatic execution, success acknowledges
+atomic publication after commit; in a borrowed host transaction, it acknowledges operation completion.
+A failure before commit leaves no partial object. A lost
 acknowledgement after commit leaves an uncertain outcome, so an automatic retry is not an
 exactly-once operation.
 
@@ -93,6 +94,13 @@ closes its connection. Errors after startup surface from reads and remain failur
 reads; they cannot turn into successful EOF. Discard any partial content if a later read fails.
 
 ## Connection lifetime and metadata
+
+Uploads/downloads can run in an open host-owned server transaction. Successful UploadAsync then
+finishes the operation; publication waits for host commit. The client has no transaction-control
+API. A stale host transaction refuses upload admission rather than creating autocommit, and a
+failed upload commits no partial content. Downloads pin metadata and content from one version,
+including READ COMMITTED. The server releases the read hold before transfer completion. See
+[host transaction semantics](operations.md#host-transactions).
 
 One `BlobConnection` admits one active exchange. A live download or listing holds that exchange
 until completion or disposal. Dispose returned streams and enumerators before another operation.

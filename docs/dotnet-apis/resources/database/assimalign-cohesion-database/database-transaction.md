@@ -51,6 +51,10 @@ Disposing the database takes precedence over a live undo fence: direct transacti
 refusals and CommitAsync throw ObjectDisposedException. Offline checks run outside the root
 monitor because propagation may wait on storage latches or an in-flight flush.
 
+Root end/disposal drains admitted undo before teardown. Pool cleanup must remove all names and
+uncommitted effects before reuse; failed cleanup discards the connector. These rules are covered
+by the completed [cross-model matrix](../assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance).
+
 ## Example
 
 This derived implementation follows SavepointSeamTests; supply an owned coordinator and context:

@@ -73,11 +73,11 @@ See [Constraints](../constraints.md) and [CAST](../expressions/cast.md).
 See [CAST](../expressions/cast.md) for conversions and [DEFAULT](../clauses/default.md) for typed
 literal defaults. Day-time INTERVAL supports [temporal arithmetic](../expressions/operators.md#temporal-arithmetic)
 and [EXTRACT/DATE_TRUNC](../functions/builtin-functions.md#clock-temporal-and-uuid-functions).
-SQL row-storage is format 32; compiled schema artifacts are version 11. Format 17 introduced the
+SQL row-storage is format 33; compiled schema artifacts are version 11. Format 17 introduced the
 insert-default/frozen-missing-value split (table extension 6); format 18 separately changes canonical
 quoting of newly executable function names. These
 unreleased formats have no compatibility reader for older formats.
-See the [format-32/schema-v11 export and rebuild procedure](../../index.md#sql-format-32-and-schema-v11).
+See the [format-33/schema-v11 export and rebuild procedure](../../index.md#sql-format-33-and-schema-v11).
 
 ## JSON and JSONB
 
@@ -86,7 +86,7 @@ Both types support [member/array extraction and IS JSON](../expressions/json-acc
 validates a complete JSON value, strict encoding and nesting depth at most 128 (CS02078 / 22032).
 JSON stores original text; JSONB stores original UTF-8 bytes without normalization. Whitespace,
 member order and duplicate keys remain; JSONB equality is byte equality. Extraction resolves
-repeated keys to their last member. SQL/JSON paths and JSON_VALUE/QUERY/EXISTS remain SQ-N2.
+repeated keys to their last member. [SQL/JSON path functions](../functions/json-path.md) provide bounded selection and RETURNING conversion.
 
 ## Temporal text input
 
@@ -162,8 +162,9 @@ identifiers in persisted SQL. Format 23 introduced catalog views and format 24 e
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
-Format 31 added partial-index predicates in index extension 2. Current format 32 adds per-column
-direction and NULL placement in mandatory index extension 3 and retains TYPE default assignment coercion.
+Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
+direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
+Current format 33 additionally fences SQL/JSON names and ordinary-call quoting; format 32 and earlier are refused before data recovery.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

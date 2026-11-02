@@ -52,8 +52,8 @@ Console.WriteLine(SqlLanguageProfile.Instance.Functions.Contains("DATE_TRUNC"));
 TRIM/SUBSTRING/POSITION have standard grammar normalized onto calls. Bare CURRENT_*/LOCAL* forms
 read clock values without parentheses. New T1 builtin names are reserved at all arities. Identifier
 quoting includes those names and BOTH/LEADING/TRAILING (format 18), then PERCENT/TIES (format 19).
-Current storage format is 32, with no upgrade path from an earlier format. The executable
-profile now measures 87 of 89 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
+Current storage format is 33, with no upgrade path from an earlier format. The executable
+profile now measures 91 of 93 declared clauses, including aggregate FILTER, CREATE TABLE AS, executable MERGE and
 executable RECURSIVE with demand-driven fixpoints and shared readers.
 merge_action() is contextual
 to its RETURNING clause and is not a standalone executable function-table entry.
@@ -95,6 +95,9 @@ public const string WindowNullTreatment = "window NULL treatment";
 
 They are members of SqlClauses. Reading them throws no exceptions;
 `SqlLanguageProfile.Instance.Supports(SqlClauses.WindowRows)` returns true, as does WindowRange.
+
+SQL enables [SqlClauses.JsonValue, JsonQuery and JsonExists](sql-clauses.md) for the
+[SQL/JSON path functions](../../../../database/sql/language/functions/json-path.md).
 
 ## Sources
 

@@ -417,6 +417,38 @@ The internal TransactionUndoException carries its code separately from its messa
 The real-adapter suites exercise write-after-undo, pinned readers and crash recovery with and
 without root commit. See the [code registry](../../../../database/error-codes.md).
 
+## Savepoint execution conformance
+
+SQL, Documents, Graph, Key-Value Pair and Blob share the completed savepoint conformance matrix.
+SQL/OQL/GQL exercise named controls in process and over InMemory/TCP. Blob and Key-Value Pair
+exercise host-owned coordinator scopes while real wire operations run; their protocols add no
+transaction-control messages.
+
+| Condition | Contract |
+| --- | --- |
+| Unknown RELEASE/ROLLBACK TO name | CK04013; SQL keeps the transaction active. OQL/Graph fault it under their ordinary statement-failure policy; whole rollback is required |
+| Recoverable incomplete undo | CK04009; the root reports Faulted while the kernel remains Active. Reads, writes, COMMIT and other controls refuse; retry the same target, an outer retained scope, or whole rollback |
+| Successful recovery | Target/outer rollback restores usability and permits more work and exact subsequent commit; whole rollback ends the original transaction |
+| Corruption during undo | Aborts the transaction instead of retaining a retryable partial-undo fence |
+| Cancellation | A control canceled before admission changes no scopes. Once admitted, undo completes despite later caller cancellation |
+| Root end, session/database disposal or pool return during admitted undo | Drains admitted undo before teardown; pool cleanup removes all names and uncommitted effects before reuse. Failed reset discards the connector |
+| Crash during undo or after rollback-to without root commit | Recovery scrubs the uncommitted root writer, including images with an already committed physical undo bracket |
+| Crash after root commit | Recovers committed state after undo, including subsequent committed writes; savepoints are memory-only |
+| Concurrent readers and lock waiters | Pinned Snapshot and fresh READ COMMITTED readers can progress during undo after page latches release; completed undo releases scoped lock grants |
+| Open Documents/Blob write streams | CK04010 prevents marker controls; the 65,536th registration refuses with CK04011. Completion, failure and cancellation drain registration exactly once |
+
+The eleven-stage failure schedule covers index erase/clear, memory restoration before/after mutation,
+three physical undo brackets, and four late adapter failures after real undo brackets have committed.
+Recovery is checked at target, outer and root scope in all five models, including live crash images
+captured before source cleanup. SQL/OQL/GQL verify exact Ready I/T/E states and same-session pool
+reset. Documents/Blob stream saturation is a kernel check: one serialized wire stream cannot saturate
+that counter. These controls add no persisted marker, storage-format change or new diagnostic code.
+
+See [SQL](../../../../database/sql/language/statements/savepoint.md),
+[OQL](../../../../database/document/language/statements/transactions.md#named-savepoints),
+[GQL](../../../../database/graph/language/statements/transactions.md) and
+[Blob transfers](../../../../database/blob/operations.md#host-transactions).
+
 ## Non-goals
 
 - **No distributed transactions / two-phase commit** — single-node ACID first.
@@ -462,6 +494,7 @@ not suppress genuine held-lock deadlocks or change victim selection.
 ## Sources
 
 - **Undo and model adapters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`, `tests/TransactionUndoLockTests.cs` and `tests/TransactionUndoMarkerFixTests.cs` beneath the same project; each model's `tests/SavepointAdapterTests.cs`.
+- **Conformance matrix** — the same Transactions design's Cross-model conformance (#1726, XT-5), each model's `tests/SavepointMatrixTests.cs`, SQL/OQL/GQL `SavepointFailureWireTests.cs`, and Blob/key/value `SavepointAdapterWireTests.cs`.
 
 - **Isolation events** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/tests/TransactionEventSourceTests.cs`.
 

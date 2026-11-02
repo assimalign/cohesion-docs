@@ -182,13 +182,13 @@ primary data file before sidecars. Preserve ambiguous file sets and follow the c
 
 These codes have no assigned SQLSTATE. Recovery tolerates uncommitted torn tails; that does not
 permit replacing missing journals. Transient open/inspection I/O failures can be retried after
-resolution and do not advise restore or drop. SQL remains at format 32.
+resolution and do not advise restore or drop. SQL remains at format 33.
 
 Key-Value Pair refuses an entirely missing catalog before opening either storage. File-backed
 data of at most one page also receives CV06106 and a drop/recreate remedy; longer data with no
 catalog requires restoring the complete backup. These refusals leave all surviving files unchanged.
 
-The shared storage format is **4**, independent of SQL's data/catalog format 32 and Graph's record
+The shared storage format is **4**, independent of SQL's data/catalog format 33 and Graph's record
 format 5. Storage formats 3 and older have no upgrade reader. A Free page must be entirely zero;
 reclaimed pages have a separate type and checksum. Every nonzero pooled page requires checksum
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
@@ -317,6 +317,15 @@ offline diagnostic reaches the caller. Reopen scrubs the uncommitted writer. A f
 has been buffered instead has a committed-unconfirmed outcome. The model transaction-failure tests
 cover this boundary for all five engines.
 
+## Savepoints and transfer transactions
+
+Named [SQL](sql/language/statements/savepoint.md), [OQL](document/language/statements/transactions.md#named-savepoints)
+and [GQL](graph/language/statements/transactions.md) controls retain their model failure rules.
+The completed [conformance matrix](../dotnet-apis/resources/database/assimalign-cohesion-database-transactions/design.md#savepoint-execution-conformance)
+covers all five engines, incomplete-undo recovery, crash recovery and teardown during admitted
+undo. [Blob wire transfers](blob/operations.md#host-transactions) can borrow an open host transaction;
+completed uploads then await host commit and downloads pin one metadata/content version.
+
 ## Checkpoint triggering
 
 Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
@@ -397,12 +406,12 @@ describes warning counters, final cleanup joining and the remaining TLS delivery
 
 ## MVP boundaries
 
-SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 32;
+SQL [schema DDL](sql/language/statements/create-schema.md) persists namespaces in current storage format 33;
 dbo remains protected and code-first provisioning stays there. [Set operations](sql/language/clauses/set-operations.md)
 execute in every query position. Document adds [34 SQL++ scalars](document/language/functions/scalar-functions.md),
 and Graph supports [streaming stage composition](graph/language/clauses/next.md), including Cypher WITH/UNWIND.
 
-The current SQL contract measures 87 of 89 declared clauses, including executable MERGE with
+The current SQL contract measures 91 of 93 declared clauses, including executable MERGE with
 ordered actions and RETURNING, and executable [WITH RECURSIVE](sql/language/clauses/with.md).
 Aggregate [FILTER](sql/language/clauses/filter.md) and
 [Boolean/statistical aggregates](sql/language/functions/aggregate-functions.md#boolean-and-statistical-aggregates) execute.

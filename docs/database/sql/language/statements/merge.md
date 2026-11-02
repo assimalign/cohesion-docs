@@ -113,6 +113,9 @@ FULL requires a safe mandatory hash equality and a complete non-throwing ON proo
 FULL JOIN does. Otherwise CS05070 refuses planning, including EXPLAIN, before reading inputs.
 LEFT and RIGHT associations accept hashless ON predicates.
 
+Eligible two-through-eight source relations use [exact join-order search](../clauses/join.md#join-order-search).
+The target remains fixed outside that search; outer/derived sources and unsafe predicates retain bound order.
+
 EXPLAIN shows a Merge node with the association kind and `actions=written_order`.
 Its children describe the full association tree and ordered MergeAction
 nodes. Action details include order, match kind, operation, condition presence, assignment count
@@ -192,7 +195,7 @@ failure publishes no partial rows and restores the statement's original rows, pr
 explicit-transaction writes. SqlClientException.ConnectionUsable remains true for these refusals.
 Wire BEGIN uses Snapshot; a concurrent UPDATE/DELETE commit produces CS04064 and requires
 ROLLBACK before reuse. ReadCommitted is selected through the engine transaction API.
-SQL storage format 32 and wire frames are unchanged.
+SQL storage format 33 and wire frames are unchanged.
 
 [ON UPDATE actions](../constraints.md#on-update-declarations) execute CASCADE, SET NULL and
 SET DEFAULT for referenced-key changes. RESTRICT is immediate; NO ACTION checks the final state.
