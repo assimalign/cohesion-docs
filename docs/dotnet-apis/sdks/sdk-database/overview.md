@@ -27,20 +27,14 @@ explicit application code; the SDK emits no resource manifest, accessors, or con
 | `CohesionAppFrameworkVersion` | `$(CohesionVersion)` | Version used by the base and area framework packs. | `base Targets/Assimalign.Cohesion.Sdk.FrameworkReference.props` |
 | `CohesionSkipSdkPinCheck` | `Unset` | Tooling-only escape for pin validation. | `base Targets/Assimalign.Cohesion.Sdk.PinValidation.targets` |
 
-The endpoint, probe, mount, and workload values retained in Database props are metadata defaults.
-They do not bind listeners, generate a resource manifest, or configure the restarted gateway.
-Configure wire endpoints in Program.cs and declare resources through the gateway builder.
+The Database SDK supplies no orchestration defaults. Configure wire endpoints in `Program.cs`,
+register managed instances with `builder.Services.AddResource(...)`, and declare resources through
+the gateway builder.
 
 ## Database properties
 
 | Name | Default or assignment | Effect | Where defined and condition |
 |---|---|---|---|
-| `CohesionResourceKind` | `Database` | Retained resource-kind metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionResourceKind)' == ''` |
-| `CohesionControlPlaneEndpoint` | `admin` | Retained admin endpoint metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlaneEndpoint)' == ''` |
-| `CohesionControlPlanePath` | `/cohesion/v1` | Retained admin route metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionControlPlanePath)' == ''` |
-| `CohesionWorkloadKind` | `StatefulSet` | Retained workload metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionWorkloadKind)' == ''` |
-| `CohesionReplicas` | `1` | Retained replica-count metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionReplicas)' == ''` |
-| `CohesionMaxReplicas` | `1` | Retained maximum-replica metadata default. | `Targets/Sdk.Database.props`; when `'$(CohesionMaxReplicas)' == ''` |
 | `CohesionDatabaseProject` | `false` | Opt into build-time C# schema compilation. | `Targets/Sdk.Database.props`; when `'$(CohesionDatabaseProject)' == ''` |
 | `CohesionDatabaseSchemaOutputDirectory` | `$(IntermediateOutputPath)cohesion/database/` | Directory for each database's schema JSON and hash sidecar. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets`; when empty |
 | `CohesionDatabaseName` | Unset | Selects the migration database; optional for a single declaration. | `Targets/Assimalign.Cohesion.Sdk.Database.Migration.targets` |
@@ -56,14 +50,8 @@ Configure wire endpoints in Program.cs and declare resources through the gateway
 | Item | Declaration | Metadata | Where defined |
 |---|---|---|---|
 | `FrameworkReference` | `Include=Assimalign.Cohesion.App.Database` | No additional child metadata | `Sdk/Sdk.props`; when `'$(CohesionAutoIncludeAppFramework)' != 'false'` |
-| `CohesionEndpoint` | `Include=db`; `Scheme=cohesion-db`; `ContainerPort=5740`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionEndpoint` | `Include=admin`; `Scheme=http`; `ContainerPort=8081`; `Public=false` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionProbe` | `Include=readiness`; `Endpoint=admin`; `Http=/readyz` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionProbe` | `Include=liveness`; `Endpoint=admin`; `Http=/livez` | No additional child metadata | `Targets/Sdk.Database.props` |
-| `CohesionMount` | `Include=data`; `Kind=Volume`; `ContainerPath=/data`; `Size=10Gi` | No additional child metadata | `Targets/Sdk.Database.props` |
 
-Defaults use `Include` before the project body, so `Update` and `Remove` work by identity. Compiler
-inputs are `Compile` and `ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and
+Framework references use `Include` before the project body. Compiler inputs are `Compile` and `ReferencePath`; `DefineConstants`, `LangVersion`, `AssemblyName`, and
 `MSBuildProjectDirectory` are passed to the schema task. `Outputs` are tracked with `FileWrites`.
 
 ## Generated artifacts
