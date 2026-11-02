@@ -17,6 +17,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 - **[Patterns](patterns.md)** — nodes, relationships, maps, directions, and execution bounds.
 - **[Path selectors](path-selectors.md)** — ANY/ALL/SHORTEST execution, modes, prefilters and budgets.
 - **[Expressions](expressions/index.md)** — operators, CASE/COALESCE/NULLIF, lists, maps and property access.
+- **[EXISTS and NOT EXISTS](expressions/exists.md)** — correlated braced patterns with local inner bindings.
 - **[Diagnostics](diagnostics.md)** — syntax, capability, planning, and execution errors.
 - **[Unsupported features](unsupported.md)** — recognized constructs outside the profile.
 
@@ -26,6 +27,7 @@ Cohesion catalog extension. Every statement evaluates in the session's bound log
 |---|---|---|
 | [`MATCH`, `OPTIONAL MATCH`](statements/match.md) | Supported | Fixed/quantified paths; repeated clauses join shared variables and optional clauses NULL-extend unmatched rows |
 | `WHERE` | Supported | Boolean/arithmetic expressions, NULL/truth tests, IN and string predicates |
+| [EXISTS and NOT EXISTS](expressions/exists.md) | Supported | Correlated braced pattern blocks; Boolean result and isolated inner variables |
 | [LET](clauses/let.md), [FILTER](clauses/filter.md) | Supported | Sequential value bindings and TRUE-only stage filtering |
 | [FOR / UNWIND](clauses/for.md) | Supported | Streaming list expansion; NULL gives no rows; proven entity kinds survive |
 | [WITH](clauses/with.md), [RETURN … NEXT](clauses/next.md) | Supported | Intermediate projection, scoped carry-forward and one statement transaction |

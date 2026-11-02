@@ -33,7 +33,7 @@ FROM INFORMATION_SCHEMA.view_name
 | `REFERENTIAL_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `UNIQUE_CONSTRAINT_CATALOG`, `UNIQUE_CONSTRAINT_SCHEMA`, `UNIQUE_CONSTRAINT_NAME`, `MATCH_OPTION`, `UPDATE_RULE`, `DELETE_RULE` | Foreign keys and their referenced key identities |
 | `VIEWS` | `TABLE_CATALOG`, `TABLE_SCHEMA`, `TABLE_NAME`, `VIEW_DEFINITION`, `CHECK_OPTION`, `IS_UPDATABLE` | Canonical persisted view definitions; CHECK_OPTION is NONE and IS_UPDATABLE is NO |
 | `CHECK_CONSTRAINTS` | `CONSTRAINT_CATALOG`, `CONSTRAINT_SCHEMA`, `CONSTRAINT_NAME`, `CHECK_CLAUSE` | Persisted explicit check expressions |
-| `SEQUENCES` | `SEQUENCE_CATALOG`, `SEQUENCE_SCHEMA`, `SEQUENCE_NAME`, `DATA_TYPE`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `START_VALUE`, `MINIMUM_VALUE`, `MAXIMUM_VALUE`, `INCREMENT`, `CYCLE_OPTION` | Standalone sequence definitions; identity-owned generators are not listed |
+| `SEQUENCES` | `SEQUENCE_CATALOG`, `SEQUENCE_SCHEMA`, `SEQUENCE_NAME`, `DATA_TYPE`, `NUMERIC_PRECISION`, `NUMERIC_PRECISION_RADIX`, `NUMERIC_SCALE`, `START_VALUE`, `MINIMUM_VALUE`, `MAXIMUM_VALUE`, `INCREMENT`, `CYCLE_OPTION` | Standalone and identity-owned sequence definitions |
 
 ## Remarks
 
@@ -63,9 +63,9 @@ no character-set byte bound.
 
 The seven [identity](../clauses/identity.md) fields are appended after DATETIME_PRECISION,
 preserving existing ordinals. IS_IDENTITY is `YES`/`NO`; IDENTITY_GENERATION is `ALWAYS` or
-`BY DEFAULT`; IDENTITY_CYCLE is `NO`. Identity option fields are nullable String values, including
-invariant integer text for START/INCREMENT/MAXIMUM/MINIMUM. Bounds follow generation direction,
-not custom options. Nonidentity columns have NULL option fields; identity COLUMN_DEFAULT is NULL
+`BY DEFAULT`; IDENTITY_CYCLE is `YES` or `NO` from the owned sequence. Identity option fields are nullable String values, including
+invariant integer text for START/INCREMENT/MAXIMUM/MINIMUM. Bounds and options reflect the effective owned sequence,
+including custom options. Nonidentity columns have NULL option fields; identity COLUMN_DEFAULT is NULL
 and IS_NULLABLE is `NO`.
 
 Canonical `DATA_TYPE` values are `BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`,
@@ -112,6 +112,10 @@ FROM INFORMATION_SCHEMA.SEQUENCES WHERE SEQUENCE_NAME='s';
 
 Returns `('dbo','s','SMALLINT','3','2','YES')`. See [CREATE SEQUENCE](../statements/create-sequence.md).
 
+Identity-owned generators are listed deliberately, unlike PostgreSQL. Their generated names
+(`table_column_seq`, with collision suffixes) support currval lookup. Prepared and abandoned
+sequences remain hidden. TINYINT identity sequences have numeric precision 8, radix 2 and scale 0.
+
 ### Tables and columns
 
 This dialect example inspects an existing `orders` table:
@@ -133,7 +137,7 @@ SELECT IS_IDENTITY, IDENTITY_GENERATION, IDENTITY_START, IDENTITY_INCREMENT,
 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'descending_ids' AND COLUMN_NAME = 'id';
 ```
 
-The [identity fixture](../clauses/identity.md#examples) returns
+After creating descending_ids with that declaration, the query returns
 `(YES, ALWAYS, -1, -1, -1, -32768, NO)`, all as text.
 
 ## See also

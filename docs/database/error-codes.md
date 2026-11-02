@@ -119,14 +119,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 28.
+remains nonexecuting; SQL storage stays at format 29.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 28 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 29 is unchanged.
 
 ## SQL table rewrite
 
@@ -134,7 +134,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 28 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 28 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 29 is unchanged.
 
 ## Document array indexes
 
@@ -294,7 +294,7 @@ use CG02013, including empty/NULL inputs and EXPLAIN. Pattern comprehensions ret
 | CS03071 | Sequence namespace absent | 3F000 |
 | CS03072 | Sequence definition exceeds the catalog record limit | 54000 |
 | CS03073 | Named sequence or object identity is absent | 42P01 |
-| CS03074 | Sequence operation/REGCLASS in a persisted expression or sequence DDL in a provisioning script | 0A000 |
+| CS03074 | Unsupported persisted sequence expression or sequence DDL in a provisioning script; constant column allocation defaults execute | 0A000 |
 | CS03075 | setval value outside sequence bounds | 22003 |
 | CS03076 | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
 | CS03077 | Malformed sequence reference or invalid runtime call argument | 22023 |
@@ -331,7 +331,61 @@ Aggregate FILTER retains:
 
 See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 
+## OQL expression subqueries
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00014 | Direct IN subquery requires SELECT RAW or SELECT VALUE | — |
+
+[Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
+and CD05015 projection-depth guard. Correlation, derived FROM and DML subqueries use CK00001.
+
+## Correlated GQL EXISTS
+
+These codes have no assigned SQLSTATE. See [EXISTS](graph/language/expressions/exists.md).
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CG00013 | EXISTS lacks a nonempty braced pattern |
+| CG01019 | Proven incompatible correlated pattern kind |
+| CG02016 | Incompatible runtime correlated entity kind |
+| CG05027 | Malformed/missing correlated subplan or missing argument |
+
+## SQL window functions
+
+See [OVER and WINDOW](sql/language/clauses/window.md) for placement, inheritance and memory rules.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00011 | Window argument count or call modifier | 42601 |
+| CS01064 | Duplicate WINDOW name | 42P20 |
+| CS01065 | Unknown/self/forward window reference | 42704 |
+| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS02068 | Non-integer offset or bucket count | 42804 |
+| CS02069 | Incompatible navigation value/default types | 42804 |
+| CS05076 | Window placement or missing OVER | 42P20 |
+| CS05077 | Nested window | 42P20 |
+| CS05078 | Nonpositive NTILE count | 22014 |
+| CS05079 | Window state exceeds statement memory grant | 54000 |
+
+## Identity integration
+
+[Identity columns](sql/language/clauses/identity.md) use owned sequences and early-bound column defaults.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Column has no identity for the ALTER operation | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnation or an unplanned
+live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
+Backfill memory exhaustion uses CS05067 (53200) before publication.
+
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Batch 10** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `1f654d2d2`; sequence sorting accounting follows executor code and `SqlSequenceFifthPassTests.Accounting.cs`.
 - **Batch 9** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `46803a9ba`.

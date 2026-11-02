@@ -12,17 +12,24 @@ public sealed class SqlSequenceOption
     public string Name { get; }
     public long? Value { get; }
     public string? TypeName { get; }
+    public SqlTableReference? OwnerTable { get; }
+    public string? OwnerColumn { get; }
 }
 ```
 
 ## Behavior and exceptions
 
 The parser owns construction. Name is normalized to AS, START, INCREMENT, MINVALUE, MAXVALUE,
-CACHE, CYCLE or RESTART. Value holds the integer; CYCLE/NO CYCLE use 1/0. Null Value denotes
+CACHE, CYCLE, RESTART or OWNED. Value holds the integer; CYCLE/NO CYCLE use 1/0. Null Value denotes
 NO MINVALUE, NO MAXVALUE or bare RESTART. TypeName holds the AS spelling when present.
 Omitted options have no entry; execution supplies defaults. Accessors add no exceptions.
 Invalid resolved options use DatabaseException/CS03069 (22023); malformed or duplicate syntax
 produces parser diagnostics. See [sequence options](../../../../database/sql/language/statements/create-sequence.md).
+
+The type also carries identity declaration and ALTER options. OWNED BY has Name `OWNED`;
+OwnerTable and OwnerColumn identify its target, or both are null for NONE. Identity ALTER
+stores generation mode separately in [SqlAlterIdentityAction.IsAlways](sql-alter-identity-action.md).
+Invalid ownership reports CS03081 (55000).
 
 ## Example
 

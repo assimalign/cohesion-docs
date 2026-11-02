@@ -19,7 +19,7 @@ TRUNCATE [ TABLE ] [ ONLY ] [ schema_name . ] table_name
 - **`ONLY`** — Retained per target in parsing/rendering. There is no table inheritance.
 - **`CONTINUE IDENTITY`** — The default. Preserves each identity allocator's exact in-process next
   value and unused reservation block. Reopen still skips reserved values under the identity contract.
-- **`RESTART IDENTITY`** — Resets identities throughout the resulting table set to their declared
+- **`RESTART IDENTITY`** — Resets every sequence owned by tables in the resulting set to its configured
   START, retaining INCREMENT, including descending definitions.
 - **`RESTRICT`** — The default. Requires every referencing table to be explicitly listed.
 - **`CASCADE`** — Recursively includes tables referencing any table already in the set.
@@ -33,6 +33,9 @@ can be truncated because this changes their data, preserving ownership and defin
 
 Columns, defaults, CHECKs, foreign keys, collation and indexes remain defined. TRUNCATE replaces
 storage rather than scanning/deleting rows; it does not run row-level ON DELETE actions.
+
+RESTART IDENTITY includes identity-owned and ordinary OWNED BY sequences. Restart endpoints and
+replacement ownership publish atomically; CONTINUE preserves the existing sequence cursor.
 
 ### Foreign-key closure
 
@@ -65,7 +68,7 @@ transaction and retry against a fresh snapshot. Read-only statements retain the 
 [CREATE TABLE AS](create-table.md#create-table-as) uses the same durable prepared-owner
 reclamation machinery to publish a populated new table atomically. CTAS uses a single builder
 commit for row visibility; TRUNCATE preserves the old table storage for older snapshots. Both
-reuse SQL format 28. CTAS inside an explicit transaction uses CS04003 (25001); TRUNCATE retains
+reuse SQL format 29. CTAS inside an explicit transaction uses CS04003 (25001); TRUNCATE retains
 CS04066 (25001).
 
 ## Diagnostics

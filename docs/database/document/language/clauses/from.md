@@ -53,6 +53,9 @@ before WHERE; a missing alias defaults to the final named path step. Bindings mu
 including the reserved unaliased collection name (CD00010 in text, CD01023 in a direct AST).
 The unaliased collection name does not become an implicit path variable.
 
+Derived `FROM (SELECT ...) AS alias` remains CK00001. Use an
+[expression subquery](../expressions/subqueries.md) in a SELECT expression instead.
+
 ## Examples
 
 The parser corpus supplies the ordinary collection query; the engine design supplies introspection:

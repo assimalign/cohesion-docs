@@ -26,7 +26,7 @@ Execution empties the complete table set with affected count 0. RESTRICT's missi
 table uses CS03067 (0A000); explicit-transaction admission uses CS04066 (25001), keeping prior
 work and active state; concurrent closure change uses retryable CS04064 (40001). Malformed syntax
 uses CS00003. [CTAS](sql-create-table-as-expression.md) shares prepared-owner reclamation for atomic
-publication in SQL format 28. See [TRUNCATE](../../../../database/sql/language/statements/truncate.md)
+publication in SQL format 29. See [TRUNCATE](../../../../database/sql/language/statements/truncate.md)
 for identity policies, table-level FK closure, snapshot retention and failure semantics.
 
 ## Example

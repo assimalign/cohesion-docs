@@ -35,7 +35,7 @@ aggregates remain CK00001.
 Calls with different filters have independent states. Filtered calls with volatile arguments,
 ordering keys or conditions also retain independent states; child queries conservatively prevent
 sharing. EXPLAIN includes `filtered_aggregates=N` on a grouping node when N is nonzero.
-FILTER adds one named clause; the profile now measures 67 of 72 declared clauses.
+FILTER adds one named clause; the profile now measures 74 of 76 declared clauses.
 
 ## Diagnostics
 

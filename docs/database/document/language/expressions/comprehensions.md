@@ -51,7 +51,7 @@ memory budget. Evaluation checks cancellation per element. This adds no wire or 
 | CD01027 | Empty variable name in a directly constructed comprehension AST | — |
 | CD01005 | Missing parameter in any child, including with empty input | — |
 | CD05001 | Aggregate inside a comprehension, invalid grouped reference or META on an inner binding | — |
-| CK00001 | Retired ARRAY()/FIRST() calls, WITHIN, position variables, multiple bindings, OBJECT transformation or nested SELECT | — |
+| CK00001 | Retired ARRAY()/FIRST() calls, WITHIN, position variables, multiple bindings, OBJECT transformation or correlated SELECT | — |
 | CD05015 | Constructed result exceeds the 256-level result depth, including a named wrapper | — |
 | CD05018 | Retained RETURNING result exceeds StatementMemoryBudget; writes roll back | — |
 

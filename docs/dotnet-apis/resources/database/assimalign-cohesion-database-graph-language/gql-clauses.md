@@ -30,6 +30,7 @@ public static class GqlClauses
     public const string ListSlice = "LIST SLICING";
     public const string Reduce = "REDUCE";
     public const string ListPredicate = "LIST PREDICATE";
+    public const string Exists = "EXISTS";
 }
 ```
 
@@ -70,6 +71,9 @@ diagnostics are described by [MERGE](../../../../database/graph/language/stateme
 ```csharp
 Console.WriteLine(GqlLanguageProfile.Instance.Supports(GqlClauses.Merge)); // True
 ```
+
+Exists is enabled for braced pattern blocks, represented by
+[GqlExistsExpression](gql-exists-expression.md). Full-query bodies remain CK00001.
 
 ## Documented behavior
 

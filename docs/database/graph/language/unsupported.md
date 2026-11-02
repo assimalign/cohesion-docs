@@ -28,6 +28,7 @@ The examples below are rejected forms, not executable syntax diagrams.
 | Counted ANY | Recognized, not supported (`CK00001`) | [ANY/ALL/SHORTEST selectors and inline WHERE](path-selectors.md) execute |
 | Questioned paths, nested quantifiers and subpath assignments | Recognized, not supported (`CK00001`) | [Quantified edges/subpaths](patterns.md#quantified-paths) execute; inline WHERE executes |
 | Stored composite property values | Recognized, not supported (`CK00001`) for syntax; `CG03003` for parameters | MATCH/INSERT/CREATE/SET stored properties stay scalar-only |
+| Full-query EXISTS bodies, parenthesized EXISTS operands, COUNT/COLLECT blocks and bare pattern predicates | Recognized, not supported (`CK00001`) | [Braced pattern EXISTS](expressions/exists.md) and NOT EXISTS execute |
 | Pattern comprehensions | Recognized, not supported (`CK00001`) | Planned for run 3; list [comprehensions](expressions/list-comprehensions.md), [slices](expressions/list-slices.md), [reduce](expressions/reduce.md) and [list predicates](expressions/list-predicates.md) execute |
 | Projection after deletion | Recognized, not supported (`CK00001`) | `DELETE a RETURN a` |
 | Procedure calls | Recognized, not supported (`CK00001`) | `CALL` |
@@ -62,7 +63,7 @@ planning; a mandatory clause must bind or constrain it. Execute accepts scalar a
 the ExecutePaths direction before reads, writer locks or mutations, including empty matches.
 EXPLAIN descriptions remain scalar even for entity returns. GraphClient provides pooled connections,
 materialized scalar/list/map results and single-use path streams. RETURN arithmetic/parameters, DISTINCT,
-star and standalone evaluation execute. [Core scalar calls](functions/scalar-functions.md) and [CAST](expressions/cast.md) execute. LIKE, BETWEEN, EXISTS and quantified
+star and standalone evaluation execute. [Core scalar calls](functions/scalar-functions.md) and [CAST](expressions/cast.md) execute. LIKE, BETWEEN and quantified comparison
 predicates remain excluded; [value expressions](expressions/operators.md) run in WHERE and RETURN.
 
 Graph-specific security policies, replication, compiled-schema provisioning, configurable graph

@@ -1,6 +1,6 @@
 # DROP SEQUENCE (Cohesion SQL)
 
-Removes one or more standalone sequences and their allocation state atomically.
+Removes one or more nonidentity sequences and their allocation state atomically.
 
 ## Syntax
 
@@ -11,9 +11,10 @@ DROP SEQUENCE [ IF EXISTS ] [ schema_name . ] sequence_name [ , ...n ]
 
 ## Remarks
 
-RESTRICT is the default. Sequence operations cannot occur in persisted expressions in this run,
-so CASCADE and RESTRICT have the same effect. The full name list validates before one catalog
-commit. Without IF EXISTS, any missing sequence reports CS03073 (42P01) and none are dropped.
+RESTRICT is the default. A sequence used by a [column default](../clauses/default.md#sequence-defaults)
+refuses with CS03080 (2BP01), naming the dependent default. CASCADE atomically clears dependent
+defaults and drops the sequence. An identity-owned sequence refuses even with CASCADE; remove the
+identity instead. The full name list validates before one catalog commit. Without IF EXISTS, any missing sequence reports CS03073 (42P01) and none are dropped.
 The guard skips absent names, including a disappearance during the Exclusive wait; a replacement
 identity reports CS04067 (40001).
 

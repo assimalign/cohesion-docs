@@ -16,6 +16,7 @@ public sealed class SqlMergeWhenClause
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<SqlExpression>? Values { get; }
     public bool IsDefaultValues { get; }
+    public SqlIdentityOverride Overriding { get; }
     public bool IsByTargetExplicit { get; }
     public Location Location { get; }
 }
@@ -27,6 +28,10 @@ public enum SqlMergeAction { Update, Delete, Insert, DoNothing }
 Location is `Assimalign.Cohesion.Database.Language.Location`.
 
 ## Behavior and exceptions
+
+Overriding retains the INSERT action's [SqlIdentityOverride](sql-identity-override.md), defaulting
+to None. It controls supplied identity values; UPDATE actions retain ordinary identity assignment
+rules, including DEFAULT for ALWAYS identities.
 
 Construction is internal. Condition is null without AND; Assignments is empty for non-UPDATE
 operations. Columns is null when INSERT uses table column order; Values is null for non-value-row

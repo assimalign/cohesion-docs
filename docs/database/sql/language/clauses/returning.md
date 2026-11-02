@@ -66,7 +66,8 @@ executing the write or projection.
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS03076 | NEXT VALUE FOR in RETURNING | 0A000 |
-| CK00001 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries or windows | — |
+| CK00001 | OUTPUT, RETURNING INTO, OLD/NEW pseudo-relations, RETURNING WITH (...), subqueries | — |
+| CS05076 | Window in RETURNING; windows belong in SELECT output or ORDER BY | 42P20 |
 | CS05017 | Aggregate in RETURNING, rejected during planning even for empty input | — |
 | CS01015 | Unknown/hidden target qualifier or an INSERT source reference | — |
 | CS00003 | Empty RETURNING list or SELECT ... RETURNING | — |

@@ -95,6 +95,14 @@ With [UNNEST](../clauses/unnest.md), star returns a synthetic object keyed by th
 binding names, omitting MISSING bindings and keeping NULL elements. WHERE/grouping/aggregates and
 paging consume expanded rows. Ordinary star without UNNEST still preserves the stored bytes.
 
+## Expression subqueries
+
+Uncorrelated [(SELECT ...)](../expressions/subqueries.md) returns an array wherever a SELECT
+expression is allowed. [EXISTS](../expressions/exists.md) tests for a nonempty array. Nested
+queries share this statement's snapshot and memory budget. Correlation, derived FROM and
+subqueries in DML remain CK00001. Nested star results wrap nonobject roots under `document`;
+top-level lone-star results keep the stored-value rule above.
+
 ## JSON bytes
 
 Generated document JSON uses one RFC 8259 encoder for INSERT/UPSERT storage, constructors,

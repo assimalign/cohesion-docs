@@ -35,9 +35,9 @@ including DEFAULT, reports `CS01019` during planning even if WHERE matches no ro
 
 `c = DEFAULT` uses the same [default](../clauses/default.md) as an omitted INSERT column.
 No default means NULL where allowed, otherwise `CS03024` (SQLSTATE 23502).
-For [BY DEFAULT identity](../clauses/identity.md), SET id = DEFAULT allocates a new value.
-ALWAYS rejects every assignment to its identity column, including DEFAULT (`CS03025`);
-updates to other columns still execute.
+For either [identity mode](../clauses/identity.md), SET id = DEFAULT allocates a new value.
+ALWAYS rejects other explicit identity assignments with CS03025 (428C9); BY DEFAULT accepts them.
+Generated values update the session's currval/lastval. Updates to other columns still execute.
 
 Without FROM, omitting `WHERE` targets every row. The result reports an affected-row count. Values pass through
 destination coercion and constraint enforcement. A `CAST` runs before destination storage coercion.

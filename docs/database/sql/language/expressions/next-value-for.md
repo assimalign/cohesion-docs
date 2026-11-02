@@ -27,7 +27,9 @@ The expression is refused with CS03076 (0A000), before allocation, in:
 - Every RETURNING list, including joined writes, ON CONFLICT and MERGE.
 - Detached evaluation without a statement execution scope.
 
-Persisted DEFAULT, CHECK, domain, view and SQL function expressions use CS03074 (0A000).
+A [column DEFAULT](../clauses/default.md#sequence-defaults) may use NEXT VALUE FOR a published
+named sequence. Other persisted contexts, including compound defaults, CHECK, domain, view and
+SQL-function expressions use CS03074 (0A000). Window arguments and keys use CS03076 (0A000).
 An absent sequence uses CS03073 (42P01); range exhaustion uses CS02002 (22003).
 Allocation is nontransactional and follows the
 [sequence evaluation and locking rules](../functions/sequences.md#evaluation-order).

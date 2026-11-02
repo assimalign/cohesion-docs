@@ -24,6 +24,9 @@ comparisons, null/truth tests, bracketed IN and string predicates. A bare Boolea
 accepted. [Operators](../expressions/operators.md) defines precedence, NULL propagation and value
 errors. Only TRUE retains a binding; evaluated non-Boolean conditions raise `CG02013`.
 
+[EXISTS and NOT EXISTS](../expressions/exists.md) test a braced pattern, correlating outer
+variables and keeping new inner variables local. NULL outer pattern bindings match nothing.
+
 Operands can be literals, bound variables, one-level properties or [parameters](../expressions/parameters.md).
 Numeric equality, inequality, ordering and IN compare exact represented values across numeric
 types, agreeing with RETURN DISTINCT. Decimal `0.1m` and Double `0.1d` compare unequal;

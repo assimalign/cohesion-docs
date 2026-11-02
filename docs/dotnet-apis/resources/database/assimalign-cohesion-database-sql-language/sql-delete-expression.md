@@ -45,7 +45,7 @@ With stored t containing IDs 1, 2 and 3, execution affects three rows and leaves
 Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
 without source clauses binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
 DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
-use CS05017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use CK00001.
+use CS05017; windows use CS05076 (42P20); subqueries and OUTPUT/OLD/NEW/INTO forms use CK00001.
 See [RETURNING](../../../../database/sql/language/clauses/returning.md).
 
 ```csharp

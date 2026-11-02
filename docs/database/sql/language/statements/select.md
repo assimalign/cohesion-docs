@@ -13,6 +13,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 [ WHERE search_condition ]
 [ GROUP BY expression [ , ...n ] ]
 [ HAVING search_condition ]
+[ WINDOW window_name AS ( window_specification ) [ , ...n ] ]
 [ ORDER BY <order_by_item> [ , ...n ] ]
 [ LIMIT count_expression ] [ OFFSET count_expression [ ROW | ROWS ] ]
 -- Or OFFSET then LIMIT; or FETCH FIRST/NEXT [count] ROW/ROWS ONLY with OFFSET in either order.
@@ -52,7 +53,7 @@ SELECT [ DISTINCT ] [ TOP ( count_expression ) ] <select_list>
 | Derived tables | Supported (measured) | FROM, JOIN and comma inputs with required alias; outer ordering over derived outputs accepts per-key NULLS FIRST/LAST |
 | [WITH and WITH RECURSIVE](../clauses/with.md) | Acyclic definitions execute; recursion binds only | Recursive planning, EXPLAIN and execution refuse with CK00001 |
 | FOR UPDATE / FOR NO KEY UPDATE / FOR SHARE / FOR KEY SHARE | Recognized, not supported (`CK00001`) | SELECT locking tails, including CTEs and subqueries |
-| Windows | Recognized, not supported (`CK00001`) | No window clauses |
+| Windows | Supported subset | [OVER and WINDOW](../clauses/window.md); ranking, distributions and navigation |
 
 ## Remarks
 
@@ -71,6 +72,10 @@ Qualification identifies a schema within the current database, never another dat
 pagination. `NULL` sorts first ascending and last descending. Equal ordering keys retain input
 order; supply a tie-breaking key for deterministic paging across access paths. See the individual clause pages for
 alias precedence, grouping validity, collation, and subquery cardinality.
+
+[Windows](../clauses/window.md) run after grouping/HAVING and before DISTINCT, final ordering
+and paging. Full window partitions are evaluated even with LIMIT; window functions are legal
+only in SELECT output and ORDER BY at each query level.
 
 ### Bounded result selection
 

@@ -14,7 +14,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 - **Conventions** — [Syntax conventions](syntax-conventions.md).
 - **Statements** — [SELECT, INSERT, UPSERT, UPDATE, DELETE, EXPLAIN and collection/index DDL](statements/index.md).
 - **Clauses** — [FROM, WHERE, GROUP BY, HAVING, ORDER BY and LIMIT/OFFSET](clauses/index.md).
-- **Expressions** — [Paths, predicates, CASE, MISSING, objects and parameters](expressions/index.md).
+- **Expressions** — [Paths, predicates, CASE, MISSING, constructors, subqueries and EXISTS](expressions/index.md).
 - **Functions** — [34 SQL++ scalars](functions/scalar-functions.md), [aggregates](functions/aggregate-functions.md) and [META](functions/meta.md).
 - **Diagnostics** — [Parser, planner and execution codes](diagnostics.md).
 - **Boundaries** — [Unsupported forms](unsupported.md).
@@ -29,6 +29,7 @@ share SQL and GQL's case-sensitive bare-name contract.
 | [LIMIT/OFFSET](clauses/limit-offset.md) | Supported | Final paging by literal or parameter count; NULL is invalid |
 | MISSING and presence tests | Supported | Absent values distinct from explicit NULL |
 | IN/BETWEEN/LIKE ESCAPE/CASE | Supported | SQL++ unknown rules and structural equality |
+| [Expression subqueries](expressions/subqueries.md), [EXISTS](expressions/exists.md) | Supported subset | Uncorrelated SELECT arrays, including RAW/VALUE and direct IN; derived FROM and DML subqueries remain deferred |
 | CREATE/DROP COLLECTION | Supported | Conditional DDL in an automatic statement transaction |
 | INSERT VALUES/INSERT SELECT | Supported | Explicit keys, insert-only and atomic |
 | [RETURNING](clauses/returning.md) | Supported | INSERT/UPSERT/UPDATE post-images, DELETE pre-images; named, RAW/VALUE or lone star projection with affected count |

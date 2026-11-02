@@ -413,6 +413,20 @@ validate even when input is empty or NULL. Reduce visits in order; list predicat
 decisive results. Shape analysis considers both seed and repeated body kinds under the separate
 65,536-node/closure-step planning cap. GqlLanguageProfile enables GqlClauses.Reduce and ListPredicate.
 
+## Correlated EXISTS
+
+[Braced EXISTS](../../../../database/graph/language/expressions/exists.md) returns Boolean,
+correlates lexical outer bindings and keeps inner declarations local. NULL pattern arguments
+match nothing. It reuses the statement operation/snapshot/budget and closes at the first match.
+Full-query bodies, parenthesized operands, COUNT/COLLECT blocks and bare patterns remain CK00001.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00013 | Missing nonempty braced pattern | — |
+| CG01019 | Proven incompatible correlated kind | — |
+| CG02016 | Runtime correlated entity kind mismatch | — |
+| CG05027 | Malformed/missing subplan or missing argument | — |
+
 ## Sources
 
 - **Label postings and anchor selection** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphLabelIndexAnchorTests.cs`.

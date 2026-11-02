@@ -57,18 +57,19 @@ public sealed partial class SqlCatalog
 The supplied table must be the currently published description and contain an identity column.
 Under the catalog lock, allocation commits a reservation of up to 32 values before returning any.
 It preserves the table object and DdlGeneration and does not publish script receipts. Allocation
-uses Int128 intermediate arithmetic and the integer type's direction-dependent bounds.
+uses Int128 intermediate arithmetic and the owned sequence's resolved bounds and cycle policy.
 
 Data rollback, failed constraints and restart do not reclaim allocations. Reopening starts after
 the last reserved value, including after clean shutdown, so unused values become gaps. Generated
-allocations for that table identity never repeat and are not ordered by data commit. DROP TABLE or
+allocations are not ordered by data commit; deliberate CYCLE/restart can repeat them. DROP TABLE or
 dropping its identity column atomically retires the counter; recreation uses a new ObjectId and START.
 
 Null table throws ArgumentNullException. A stale description, missing identity or exhausted counter
 throws SqlCatalogException. Reservation persistence can throw StorageException. An unconfirmed
 reservation commit fences the catalog through StorageOfflineException until recovery/reopen;
-no caller receives a value before the reservation commit succeeds. SQL translates identity contract
-failures to `CS03025`.
+no caller receives a value before the reservation commit succeeds. SQL identity declaration and
+assignment failures retain CS03025; allocator exhaustion retains CS02002 (22003). Identity removal
+during statement planning uses retryable CS04067 (40001).
 
 ## Example
 

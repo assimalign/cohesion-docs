@@ -2,7 +2,7 @@
 
 The relational Database engine parses, plans, and executes a measured SQL subset over the shared durable kernel.
 
-> **Status:** Partial. The profile measures 67 of 72 declared language clauses against the live engine.
+> **Status:** Partial. The profile measures 74 of 76 declared language clauses against the live engine.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients
@@ -44,17 +44,17 @@ rows and counts. Snapshot conflicts abort retryably; ReadCommitted skips or upda
 committed row. Multi-row UPDATE checks foreign keys against its
 [final replacements](language/constraints.md#update-final-row-examples), permitting consistent self-reference moves.
 
-The 67-of-72 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
+The 74-of-76 measure includes aggregate [FILTER](language/clauses/filter.md), executable MERGE
 and binding-only RECURSIVE and is not a percentage
 of complete SQL. The
-[unsupported matrix](language/unsupported.md) lists the 5 excluded named clauses and the further
+[unsupported matrix](language/unsupported.md) lists the 2 excluded named clauses and the further
 boundaries inside supported clauses. [Operators and predicates](language/expressions/operators.md)
 describes PostgreSQL precedence, NULL-safe distinct predicates, Boolean truth tests and LIKE ESCAPE.
 
 [Standalone sequences](language/statements/create-sequence.md) provide SQL DDL, session functions,
 NEXT VALUE FOR and INFORMATION_SCHEMA.SEQUENCES. [Grouping sets](language/clauses/group-by.md)
-provide ROLLUP/CUBE, empty sets and GROUPING masks. Identity integration, SERIAL and OWNED BY
-remain sequence run-3 work.
+provide ROLLUP/CUBE, empty sets and GROUPING masks. [Identity integration](language/clauses/identity.md), SERIAL aliases, OWNED BY, ALTER identity,
+OVERRIDING and populated-table identity backfill execute through owned sequences.
 
 [EXPLAIN](language/statements/explain.md) returns chosen plans without execution.
 [MERGE](language/statements/merge.md) executes ordered actions with RETURNING, ReadCommitted
@@ -67,7 +67,12 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 28; compiled schemas remain version 8.
+SQL storage format is 29; compiled schemas remain version 8.
+
+[OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
+[ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
+after HAVING and before DISTINCT, final ordering and paging; explicit frames, aggregate windows
+and FIRST_VALUE/LAST_VALUE/NTH_VALUE remain CK00001.
 
 [Persisted views](language/statements/create-view.md) are read-only catalog relations, removable
 with [DROP VIEW](language/statements/drop-view.md). [RETURNING](language/clauses/returning.md)
@@ -148,7 +153,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 28.
+Drop removes sql.dat before the remaining file set. The current format is 29.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -182,7 +187,8 @@ SET DEFAULT and NO ACTION delete actions. Format 21 introduced namespace records
 identifiers in persisted SQL. Format 23 introduced catalog views and format 24 explicit NULL
 placement. Format 25 added distinct predicates, Boolean tests and LIKE ESCAPE.
 Format 26 fenced temporal DEFAULT and frozen missing-value text.
-Current format 28 records TYPE default assignment coercion in table extension 7.
+Current format 29 adds owned-sequence metadata and retains TYPE default assignment coercion
+in table extension 7.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 8.
 
@@ -194,12 +200,14 @@ atomic publication. Old read-only snapshots retain the original layout; affected
 with CS04006. The operation takes the exclusive source-table lock before queueing; nonzero engine
 LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL syntax or format bump.
 
-## SQL format 28 and schema v8
+## SQL format 29 and schema v8
 
-SQL opens only data/catalog format **28** and compiled documents in
-**cohesion/database-schema/v8**. Format 28 adds internal sequence definition/reservation records
-and retains format 27's per-column TYPE default-assignment flag in table extension 7.
-Format 27 and every earlier database format are refused at open before stored expressions bind;
+SQL opens only data/catalog format **29** and compiled documents in
+**cohesion/database-schema/v8**. Format 29 extends kind-18 sequence definitions with owning
+table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
+kind 16 is retired and never decoded. It retains format 27's TYPE default-assignment flag in
+table extension 7 and format 28's standalone-sequence records.
+Format 28 and every earlier database format are refused at open before stored expressions bind;
 there is no upgrade path or legacy reader. Compiled schema v8 is unchanged by this batch.
 
 Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL

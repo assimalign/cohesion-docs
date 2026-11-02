@@ -1123,6 +1123,20 @@ overlay indexes current values, maintained through creation, replacement, relabe
 a dropped persisted index falls back to scanning. Retained changes and probes use the existing
 statement memory/work budgets. EXPLAIN shows the probe and both branches without executing them.
 
+## Correlated EXISTS
+
+[Braced EXISTS](../../../../database/graph/language/expressions/exists.md) returns Boolean,
+correlates lexical outer bindings and keeps inner declarations local. NULL pattern arguments
+match nothing. It reuses the statement operation/snapshot/budget and closes at the first match.
+Full-query bodies, parenthesized operands, COUNT/COLLECT blocks and bare patterns remain CK00001.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CG00013 | Missing nonempty braced pattern | — |
+| CG01019 | Proven incompatible correlated kind | — |
+| CG02016 | Runtime correlated entity kind mismatch | — |
+| CG05027 | Malformed/missing subplan or missing argument | — |
+
 ## Sources
 
 - **Whole-pattern MERGE** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Graph/tests/GraphMergeExecutionTests.cs`, `GraphMergeFixTests.cs` and `GraphMergeExecutionConcurrencyTests.cs`.

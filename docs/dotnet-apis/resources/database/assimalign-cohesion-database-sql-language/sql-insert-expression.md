@@ -11,6 +11,7 @@ public sealed class SqlInsertExpression : SqlQueryExpression
     public SqlTableReference Table { get; }
     public IReadOnlyList<SqlSelectColumn>? Returning { get; }
     public SqlOnConflictClause? OnConflict { get; }
+    public SqlIdentityOverride Overriding { get; }
     public IReadOnlyList<string>? Columns { get; }
     public IReadOnlyList<IReadOnlyList<SqlExpression>>? Values { get; }
     public SqlQueryBodyExpression? SelectSource { get; }
@@ -19,6 +20,10 @@ public sealed class SqlInsertExpression : SqlQueryExpression
 ```
 
 ## Behavior and exceptions
+
+Overriding is None by default, System for OVERRIDING SYSTEM VALUE, or User for OVERRIDING
+USER VALUE. It applies before conflict arbitration for all source forms. See
+[SqlIdentityOverride](sql-identity-override.md) for assignment validation and exceptions.
 
 SelectSource accepts a SELECT or [set-operation body](sql-query-body-expression.md), with the same
 atomic INSERT/default/constraint rules. For example, parsing `INSERT INTO t SELECT id FROM a UNION ALL SELECT id FROM b;`
@@ -55,7 +60,7 @@ Console.WriteLine(node.IsDefaultValues); // True
 Returning is null when absent, otherwise the parser-owned SELECT projection list. Execution
 binds only the target row and expands star in table order. INSERT/UPDATE project stored new values;
 DELETE projects directly targeted old values. Projection errors roll the statement back. Aggregates
-use CS05017; subqueries/windows and OUTPUT/OLD/NEW/INTO forms use CK00001.
+use CS05017; windows use CS05076 (42P20); subqueries and OUTPUT/OLD/NEW/INTO forms use CK00001.
 See [RETURNING](../../../../database/sql/language/clauses/returning.md).
 
 ```csharp

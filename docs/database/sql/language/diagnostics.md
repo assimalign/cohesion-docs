@@ -23,8 +23,9 @@ SQL reports coded parser, binding, planning and execution diagnostics.
 | `CS00010` | GROUPING SETS inside ROLLUP or CUBE, including through a composite; planning refusal, SQLSTATE 42601 |
 
 For example, `SELECT DATE '2024-02-30' FROM t;` reports CS00008 before execution.
-Recognized unsupported window functions such as RANK report CK00001, including over an empty
-table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
+[Ranking and navigation windows](functions/window-functions.md) execute with OVER. A missing
+OVER uses CS05076 (42P20); aggregate windows, explicit frames and deferred value functions
+retain CK00001, including over an empty table. The [42 T1 scalars](functions/builtin-functions.md) execute; incompatible signatures use
 CS01006 before reading rows.
 Only executable functions appear in the language profile's function table.
 
@@ -40,7 +41,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS01063` | GROUPING requires 1–31 non-star arguments | 54023 |
 | `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
 | `CS05075` | More than 4096 expanded grouping sets before DISTINCT | 54001 |
-| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion (SQL identity generation retains CS03025), non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
+| `CS02002` | Numeric domain/range/overflow, catalog identity or noncycling sequence exhaustion, non-finite float to integer or scalar result, temporal arithmetic overflow, negative SUBSTRING length or string result/work-buffer cap | 22003 |
 | `CS02003` | Invalid operand type, including set-operation type mismatch (names output position/types), unsupported temporal arithmetic pairs, nonnumeric arithmetic, non-Boolean WHERE/HAVING/ON/CHECK/domain CHECK/CASE WHEN/ON CONFLICT WHERE/FILTER condition or AND/OR/NOT/truth-test operand | 42804 |
 | `CS05004` | Statement needs more stack during parsing/planning/evaluation | 54001 |
 | `CS01005` | Column reference where no columns are in scope: VALUES or LIMIT/OFFSET/FETCH/TOP | Class 42 |
@@ -63,7 +64,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS02022` | Invalid non-temporal CAST or stored-column assignment text | 22P02 |
 | `CS01023` | Parameter keys collide after stripping one sigil, including unused keys | — |
 | `CS03024` | NOT NULL column receives NULL or DEFAULT without a usable default | 23502 |
-| `CS03025` | Identity definition, assignment, ALTER, backfill or allocation violates its generation contract, including range exhaustion | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
+| `CS03025` | Identity definition, assignment or ALTER violates its generation contract; allocator exhaustion retains CS02002 | 428C9 (`generated_always`) for explicit ALWAYS assignments; other identity failures share the local code |
 | `CS01026` | Duplicate CTE name or unresolved reference to a later sibling; binding fails before reads/writes | 42712 / 42P01 |
 | `CS03027` | ADD COLUMN has a volatile DEFAULT and live rows; a physical rewrite would be required | — |
 | `CS01028` | Missing namespace in schema/table/index DDL; DROP TABLE IF EXISTS remains a no-op | 3F000 |
@@ -115,7 +116,7 @@ the structured diagnostic carries Code, Message, Severity and location fields.
 | `CS03071` | Sequence namespace does not exist | 3F000 |
 | `CS03072` | Encoded sequence definition exceeds 8,092 bytes | 54000 |
 | `CS03073` | Named sequence or object identity is absent | 42P01 |
-| `CS03074` | Sequence operation/REGCLASS in a persisted expression, or sequence DDL in a declared provisioning script | 0A000 |
+| `CS03074` | Unsupported persisted sequence operation/REGCLASS (constant column allocation defaults execute), or sequence DDL in a declared provisioning script | 0A000 |
 | `CS03075` | setval value is outside the sequence bounds | 22003 |
 | `CS03076` | Unsupported sequence evaluation context, including NEXT VALUE FOR in RETURNING, or detached evaluation | 0A000 |
 | `CS03077` | Malformed sequence reference or invalid runtime call argument | 22023 |
@@ -527,7 +528,41 @@ RECURSIVE ... MERGE remain CK00001. Plain WITH ... MERGE executes. No format cha
 | CS02066 | UNION changes the anchor type, domain or modifiers; cast hint | 42804 |
 | CS02067 | UNION changes or conflicts with anchor collation; COLLATE hint | 42P21 |
 
+## SQL window functions
+
+See [OVER and WINDOW](clauses/window.md) for placement, inheritance and memory rules.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS00011 | Window argument count or call modifier | 42601 |
+| CS01064 | Duplicate WINDOW name | 42P20 |
+| CS01065 | Unknown/self/forward window reference | 42704 |
+| CS01066 | Copied PARTITION BY or overridden ORDER BY | 42P20 |
+| CS02068 | Non-integer offset or bucket count | 42804 |
+| CS02069 | Incompatible navigation value/default types | 42804 |
+| CS05076 | Window placement or missing OVER | 42P20 |
+| CS05077 | Nested window | 42P20 |
+| CS05078 | Nonpositive NTILE count | 22014 |
+| CS05079 | Window state exceeds statement memory grant | 54000 |
+
+## Identity integration
+
+[Identity columns](clauses/identity.md) use owned sequences and early-bound column defaults.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CS03078 | ADD GENERATED requires NOT NULL | 55000 |
+| CS03079 | Column has no identity for the ALTER operation | 55000 |
+| CS03080 | Sequence required by identity or column default | 2BP01 |
+| CS03081 | Invalid OWNED BY target or identity ownership change | 55000 |
+
+Allocator exhaustion retains CS02002 (22003). A disappearing identity incarnation or an unplanned
+live referential sequence-default dependency uses retryable CS04067 (40001); retry to replan.
+Backfill memory exhaustion uses CS05067 (53200) before publication.
+
 ## Sources
+
+- **Batch 11** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `ae48b04cb`, checked against the executable tests.
 
 - **Execution/DDL corpus and span provenance** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlExecutionDiagnosticConformanceTests.cs`, `SqlExecutionDiagnosticTests.cs` and `SqlExecutionDiagnosticInterleavingTests.cs` in the same directory.
 - **Both wire transports** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Client/tests/SqlExecutionDiagnosticWireTests.cs`.

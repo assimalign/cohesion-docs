@@ -231,6 +231,22 @@ use automatic statement transactions; typed C# collection operations retain thei
 contract. SAVEPOINT and SET TRANSACTION remain CK00001. These conditions have no SQLSTATE.
 See [syntax and examples](../../../../database/document/language/statements/transactions.md).
 
+## Expression subqueries and EXISTS
+
+[Expression subqueries](../../../../database/document/language/expressions/subqueries.md) return
+owned arrays on the statement's snapshot and budget. Lazy deterministic results cache per statement;
+callbacks and NOW functions disable caching. Unreached branches perform no nested execution.
+Correlation, derived FROM and DML subqueries remain CK00001. IS now binds above EXISTS and the
+comparison/IN/BETWEEN/LIKE tier; the [full precedence table](../../../../database/document/language/expressions/operators.md#precedence)
+also includes string concatenation and IS [NOT] DISTINCT FROM.
+
+| Code | Meaning and trigger | SQLSTATE |
+| --- | --- | --- |
+| CD00014 | Direct IN subquery requires RAW/VALUE | — |
+
+CD05015 now guards complete SELECT projection depth, including named row wrappers. CD05018
+covers nested sources, scratch and results; materialized arrays remain charged until statement exit.
+
 ## Sources
 
 - **Ordering syntax and tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlOrderingParserTests.cs`.

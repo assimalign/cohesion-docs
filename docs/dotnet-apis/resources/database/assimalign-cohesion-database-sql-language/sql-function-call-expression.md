@@ -37,6 +37,9 @@ aggregates inside its condition with CS05073 (42803), and non-Boolean conditions
 (42804). Child queries bind their aggregates independently. FALSE/NULL conditions skip arguments,
 coercion, ordering and DISTINCT state. See [FILTER](../../../../database/sql/language/clauses/filter.md).
 
+A call followed by OVER is wrapped in [SqlWindowExpression](sql-window-expression.md).
+Supported window functions use CS00011 (42601) for invalid arity or modifiers.
+
 ## Example
 
 Adapted from SqlAggregateFilterParserTests:

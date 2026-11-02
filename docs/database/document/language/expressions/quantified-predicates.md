@@ -46,7 +46,7 @@ invalid. See the [nesting examples](../functions/aggregate-functions.md#examples
 | Code | Meaning and trigger |
 | --- | --- |
 | CD05001 | META(variable) on a quantified variable, including one shadowing the FROM alias; aggregate in a forbidden enclosing context or nested inside another aggregate |
-| CK00001 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS or nested SELECT |
+| CK00001 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS |
 | CD00010 | Duplicate names within one parsed binding list |
 
 No SQLSTATE is assigned to these codes. A nested quantifier may reuse an outer name.
