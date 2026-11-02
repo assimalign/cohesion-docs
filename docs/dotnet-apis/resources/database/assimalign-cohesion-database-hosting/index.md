@@ -27,8 +27,8 @@ registrations on `builder.Services`. Start order is `AddService` registrations, 
 the optional reopen service, then servers. Each group preserves registration order; stop reverses
 the complete order, draining servers first. The root interfaces expose no configuration or DI types.
 
-Instance engines and services remain caller-owned. Factory products belong to the application;
-engines own their nested servers/workers. `Application` disposal stops the host, disposes its owned
+Instance engines and services remain caller-owned. `AddEngine` and `AddService` factory products
+belong to the application; engines own their nested servers/workers. Disposal stops the host and disposes its owned
 services and engines, then its provider, logger factory, configuration and configuration file system.
 Build invokes each unkeyed container `IHostService` factory once, directly. These registrations
 must be singletons; scoped or transient registrations fail Build with
