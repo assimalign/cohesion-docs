@@ -27,7 +27,7 @@ ON [ schema_name . ] table_name ( <index_key> [ , ...n ] )
 ## Remarks
 
 Each plain column key accepts ASC/DESC and independent NULL placement, including on partial
-indexes. Defaults follow PostgreSQL: ASC NULLS LAST and DESC NULLS FIRST. Canonical DDL omits
+indexes. Defaults match ORDER BY: ASC NULLS FIRST and DESC NULLS LAST. Canonical DDL omits
 ASC and each direction's default NULL placement. PRIMARY KEY and UNIQUE constraint lists
 reject these options with `CS00003`; expression keys and INCLUDE remain excluded.
 Index construction and writes use the shared index kernel.
@@ -62,14 +62,14 @@ Matching ORDER BY keys can use forward index order or reverse every direction an
 placement together for a backward scan. NULL placement is irrelevant for keys proven unable
 to vary between NULL and non-NULL, including NOT NULL columns and equality prefixes.
 See [ORDER BY](../clauses/order-by.md#index-order) for matching rules, costing and the difference
-between query and index defaults.
+between compatible and incompatible placements.
 Index direction does not change uniqueness or partial-index NULL rules. Floating index keys
 canonicalize signed zeros together and place all NaNs below negative infinity; stored row
 values keep their IEEE representation. Floating seek eligibility remains conservative.
 
 [INDEXES metadata](../system-views/cohesion-schema.md) exposes nullable DIRECTION and
-NULL_PLACEMENT per key. Catalog format 35 and compiled schema v11 refuse earlier formats;
-follow the [export and rebuild procedure](../../index.md#sql-format-35-and-schema-v11).
+NULL_PLACEMENT per key. Catalog format 36 and compiled schema v12 refuse earlier formats;
+follow the [export and rebuild procedure](../../index.md#sql-format-36-and-schema-v12).
 Invalid key-order widths/values or directed primary-key metadata use `CS03085` (42P17).
 Malformed stored vectors use CS06059; unsupported extensions use CS06060; an older SQL
 record-space format uses CS06041.
@@ -107,7 +107,7 @@ and DROP INDEX work, but every write to that table fails with `CS01009` (42883),
 empty input. Restoring the required immutable definition or dropping the index restores writes.
 
 Catalog metadata and [INFORMATION_SCHEMA.INDEXES](../system-views/information-schema.md)
-expose canonical predicate text. SQL catalog format 35 and compiled schema v11 persist it and
+expose canonical predicate text. SQL catalog format 36 and compiled schema v12 persist it and
 refuse earlier formats. Invalid predicate/dependency metadata uses `CS03084` (42P17); a
 programmatically supplied primary-key predicate uses `CS03082` (42P16).
 
@@ -179,7 +179,7 @@ SELECT DIRECTION, NULL_PLACEMENT FROM COHESION_SCHEMA.INDEXES
 WHERE TABLE_NAME = 'directed_keys' AND INDEX_NAME = 'ix_directed';
 ```
 
-The first SELECT returns `3`, `2`; this index can supply its order. The metadata row is `('DESC', 'LAST')`.
+The first SELECT returns `3`, `2`; this index can supply its order. The metadata row is `('DESC', NULL)`.
 
 Execute separately in a fresh database:
 
@@ -248,6 +248,9 @@ is published; SELECT returns (1, NULL), (1, NULL), (2, NULL). SQL has no MISSING
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Defaults, ties and metadata** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlIndexDefaultOrderTests.cs`.
+- **Unchanged files on refusal** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/FormatProbeSecondPassTests.cs`.
 
 - **Directions and NULL ranges** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDirectedIndexTests.cs`, `SqlDirectedRangeNullTests.cs` and `Catalog/SqlCatalogKeyOrderCorruptionTests.cs` in the same test tree.
 

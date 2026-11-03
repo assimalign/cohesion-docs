@@ -364,7 +364,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 35;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 36;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 
@@ -507,7 +507,8 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement memory for hash builds, retained joined-DML state or CTAS source/copy buffers
+CS05067 reports exhausted statement memory for retained SELECT buffers (joins, sorts, grouping,
+DISTINCT, set operations, caches and materialized output), joined-DML state or CTAS source/copy buffers
 (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
 SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
 [hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).

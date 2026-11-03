@@ -233,14 +233,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 35.
+remains nonexecuting; SQL storage stays at format 36.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 35 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is unchanged.
 
 ## SQL table rewrite
 
@@ -248,7 +248,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 35 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 35 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 36 is unchanged.
 
 ## Document array indexes
 
@@ -621,6 +621,14 @@ without lookups. No SQLSTATE is assigned to these conditions.
 | CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
+
+## SELECT statement memory
+
+CS05067 (53200) covers every retained SELECT buffer, including joins, sorts/top-N, grouping,
+DISTINCT, set operations, WITH/derived and subquery caches, and materialized output construction.
+CREATE TABLE AS charges the rows it keeps and copy buffers. The positive StatementMemoryBudget
+defaults to 64 MiB; large sorts and results refuse when it is exhausted. No spill is implemented.
+See [statement memory](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#statement-memory).
 
 ## Sources
 

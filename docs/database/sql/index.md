@@ -67,7 +67,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 35; compiled schemas remain version 11.
+SQL storage format is 36; compiled schemas remain version 12.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -197,7 +197,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 35.
+Drop removes sql.dat before the remaining file set. The current format is 36.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -235,11 +235,11 @@ Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metada
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
-migration intent semantics. Current format 35 fences separate physical owners for kept-table
-index trees and durable per-table migration classification; format 34 and earlier are refused
-before recovery writes.
+migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
+classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY; format 35 and earlier are refused before recovery writes.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 11.
+upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 12.
 
 ## Table maintenance
 
@@ -252,26 +252,29 @@ LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL s
 [SQL/JSON path functions](language/functions/json-path.md) and [COPY TO STDOUT](language/statements/copy-to.md)
 execute with bounded path work and negotiated outbound streaming respectively.
 
-## SQL format 35 and schema v11
+## SQL format 36 and schema v12
 
-SQL opens only data/catalog format **35** and compiled documents in
-**cohesion/database-schema/v11**. Format 30 adds ON UPDATE action bytes in table extension 8.
+SQL opens only data/catalog format **36** and compiled documents in
+**cohesion/database-schema/v12**. Format 30 adds ON UPDATE action bytes in table extension 8.
 Format 31 added partial-index predicate text and dependencies in index extension 2.
 Format 32 added per-column direction and NULL placement in mandatory index extension 3.
 Format 33 fences SQL/JSON contextual names and quoted ordinary function-call rendering.
 Format 34 introduced the kind-9 pending-intent meaning to support joint typed TYPE migrations with one-commit
-publication. Format 35 fences separate physical owners for new kept-table index trees and
-per-table KeepOwner/RewriteOwner classifications. Format 34 is refused; record encodings and
-compiled schema v11 remain unchanged.
+publication. Format 35 introduced separate physical owners for new kept-table index trees and
+per-table KeepOwner/RewriteOwner classifications. Format 36 changes effective index-order values
+and defaults to ASC NULLS FIRST, matching ORDER BY. Compiled schema v12 makes the same change;
+omitted and zero-filled KeyOrders vectors are equivalent. Primary-key and UNIQUE indexes use
+that default too.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
-Format 34 and every earlier database format are refused before data recovery;
+Format 35 and every earlier database format are refused before data recovery;
 there is no upgrade path or legacy reader. Clean and crashed format refusals preserve every file
 byte for byte; recovered read-only probes perform no lifecycle telemetry or recovery writes.
-Accepted databases retain normal recovery. Compiled schema v11 carries effective KeyOrders,
-retaining v10's optional Predicate and v9's always-serialized onUpdate member.
+Accepted databases retain normal recovery. Compiled schema v12 retains v11's effective KeyOrders,
+v10's optional Predicate and v9's always-serialized onUpdate member. V11 and earlier artifacts
+are refused. SDK validation finishes before creating a migration file or its directory.
 
 Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL
 `'12'` meant days, while current input means seconds. Typed TimeSpan defaults render exact signed
