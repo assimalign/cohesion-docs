@@ -154,9 +154,11 @@ Unresolved predicate registrations use existing CS01009 (42883) for table writes
 | CG01023 | Warning: read-only statement names an entity property unknown throughout its visible catalog; once per ordinal name | — |
 | CG03008 | Database-wide ordinal, case-sensitive index/constraint name is already used | — |
 | CG03009 | Duplicate constraint kind or incompatible property type rule | — |
-| CG03010 | Existing data violates a newly created named constraint | — |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type | — |
+| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap | — |
+| CG03012 | Node write omits an implied label required by its node type | — |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction | — |
-| CG06019 | Catalog record version differs from v2; recreate the database, no legacy reader | — |
+| CG06019 | Catalog record version differs from v3; recreate the database, no legacy reader | — |
 
 See [GraphSchema](../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md)
 for the typed surface and [schema DDL](graph/language/statements/create-index.md) for text commands.

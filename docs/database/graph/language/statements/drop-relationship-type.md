@@ -15,6 +15,9 @@ DROP RELATIONSHIP TYPE type_name [ IF EXISTS ]
 The name uses ordinal, case-sensitive identity. A real drop affects 1; IF EXISTS suppresses
 an absent type and affects 0. Existing relationships of that type prevent the drop (CG03003).
 An absent unguarded type uses CG01002. Schema-owned definitions are protected.
+A relationship type declared by the current
+[graph type](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md#graph-type-operations)
+also refuses DROP with CG03003, even without relationships.
 
 The [autocommit policy and DDL limits](create-index.md#transactions-and-limits) apply,
 including owner-posting validation. CG04025 aborts explicit transactions, even for conditional
