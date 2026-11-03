@@ -29,7 +29,7 @@ same page/WAL durability as data, plus persistence for the physical index regist
 
 [SqlCatalogConstraint](sql-catalog-constraint.md) persists five delete and update actions. Its
 constructor defaults OnDelete to Restrict and OnUpdate to NoAction; SQL defaults both to NoAction.
-Compiled schema v11 keeps Restrict/Cascade for deletes and supports all five update declarations.
+Compiled schema v12 keeps Restrict/Cascade for deletes and supports all five update declarations.
 
 - **[SqlCatalogView](sql-catalog-view.md)** — Canonical view body, frozen columns and resolved dependencies.
 
@@ -68,7 +68,7 @@ The catalog supports [atomic table/column rename](sql-catalog.md#rename-members)
 
 ## Current format boundary
 
-The integration branch uses SQL row-storage format 35 and compiled schema version 11.
+The integration branch uses SQL row-storage format 36 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -85,16 +85,16 @@ Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metada
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
-migration intent semantics. Current format 35 fences separate physical owners for kept-table
-index trees and durable per-table migration classification; format 34 and earlier are refused
-before recovery writes.
+migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
+classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY; format 35 and earlier are refused before recovery writes.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 11.
+upgrade path. Compiled schema format remains version 12.
 
 ## Internal sequences
 
 The catalog contains internal [sequence definitions and reservations](catalog-design.md#standalone-sequences)
-in format 35. Sequences share the table/view relation namespace and the
+in format 36. Sequences share the table/view relation namespace and the
 [identity allocator](storage-design.md#identity-and-sequence-reservations). Catalog sequence types
 remain internal; [SQL DDL](../../../../database/sql/language/statements/create-sequence.md),
 [session functions](../../../../database/sql/language/functions/sequences.md) and

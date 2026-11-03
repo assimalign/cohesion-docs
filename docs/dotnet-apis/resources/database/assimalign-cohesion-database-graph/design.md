@@ -4,6 +4,30 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Open graph types
+
+[GraphType](graph-type.md), [GraphNodeType](graph-node-type.md), [GraphEdgeType](graph-edge-type.md)
+and [GraphPropertyType](graph-property-type.md) are sealed immutable API declarations with copied,
+ordinally ordered collections. Internal catalog declarations own persistence and enforcement.
+[GraphSchema](graph-schema.md#graph-type-operations) publishes complete or fragment changes under
+autocommit, validates new/tightened node members through label postings and preserves the prior
+type on failure. Only affected rules check schema ownership and compatibility; independent agreeing
+rules remain valid. Identifying/implied label overlap and dangling edge references use CG03011.
+
+Node membership derives from identifying labels. Writes enforce implied labels and scalar
+types/NOT NULL, including MERGE final state; extra labels and properties remain writable. Edge
+declarations are persisted without property/endpoint enforcement. Graph-type text ALTER/SHOW and
+closed semantics are deferred. CG03010 rejects invalid existing members, CG03012 missing implied
+labels and CG03003 property violations or declared-token drops. CG03009 refuses conflicting
+independent property types in either publication order. All schema mutations refuse explicit
+transactions with CG04025, including no-ops.
+
+Catalog v3 adds kinds 6/7/8 for the current-type marker, node and edge declarations. A set empty
+type differs from absence. Publication writes only changed records in one logical transaction,
+discovering tokens atomically; drop retains tokens and independent constraints. Recovery preserves
+the complete committed type or prior state. V2, including journal-only images, refuses with CG06019
+before writes, preserving every file. Entity/tree format remains 5. See [catalog format](catalog-design.md#on-disk-format).
+
 ## Model component boundaries
 
 Catalog, Storage and the empty Security satellite are now part of `Assimalign.Cohesion.Database.Graph`.
@@ -395,9 +419,9 @@ and abort it, even for conditional no-ops. Argument checks precede admission. In
 discovers missing label/property tokens; text constraints also discover missing owner tokens.
 Failure rolls discovery back with publication. Owner-posting validation and index backfill
 charge statement work/memory (CG05004/CG05020); invalid limits retain CG08021. Typed writes
-use engine ceilings; text requests may lower limits. Catalog v2 and entity/tree format 5 stay unchanged.
+use engine ceilings; text requests may lower limits. Catalog is v3; entity/tree format remains 5.
 
-Catalog v2 adds kind-5 constraint records and refuses every other catalog record version with
+Catalog v2 introduced kind-5 constraint records; current v3 also stores graph types and refuses other versions with
 CG06019 before recovery writes. Clean and crashed refusals preserve every file byte for byte. Recreate
 affected databases; there is no upgrade reader. Entity/tree format remains 5.
 
@@ -409,7 +433,7 @@ affected databases; there is no upgrade reader. Entity/tree format remains 5.
 | CG03009 | Duplicate constraint kind or incompatible property type rule |
 | CG03010 | Existing data violates a new constraint |
 | CG04025 | Typed/text schema write inside an explicit transaction; aborts it |
-| CG06019 | Catalog record version differs from v2 |
+| CG06019 | Catalog record version differs from v3 |
 
 Labels, relationship types and discovered property keys persist even when the last data object is
 deleted. Discovery sees the session snapshot. `New` data introduces ad-hoc definitions. A supplied

@@ -11,12 +11,12 @@ public sealed class OqlUpsertExpression : OqlExpression
 {
     public OqlUpsertExpression(string collection, string? alias,
         IReadOnlyList<(OqlExpression Key, OqlExpression Value)> values,
-        OqlSelectExpression? select, string? keyName, string? valueName,
+        OqlQueryExpression? select, string? keyName, string? valueName,
         Location? location = null, OqlReturningExpression? returning = null);
     public string Collection { get; }
     public string? Alias { get; }
     public IReadOnlyList<(OqlExpression Key, OqlExpression Value)> Values { get; }
-    public OqlSelectExpression? Select { get; }
+    public OqlQueryExpression? Select { get; }
     public string? KeyName { get; }
     public string? ValueName { get; }
     public OqlReturningExpression? Returning { get; }
@@ -24,6 +24,9 @@ public sealed class OqlUpsertExpression : OqlExpression
 ```
 
 ## Behavior and exceptions
+
+Select uses [OqlQueryExpression](oql-query-expression.md). A lone parenthesized SELECT is a valid
+source; compound write sources remain refused with CK00001.
 
 The constructor retains arguments and child references without executing or validating a query.
 Parser lists are read-only snapshots. VALUES has ordered key/value pairs; SELECT has output names

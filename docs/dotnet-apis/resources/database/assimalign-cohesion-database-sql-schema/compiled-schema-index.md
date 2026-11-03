@@ -13,22 +13,22 @@ public sealed record CompiledSchemaIndex(
 
 public enum CompiledSchemaIndexKeyOrder
 {
-    AscendingNullsLast = 0,
-    AscendingNullsFirst = 1,
-    DescendingNullsLast = 2,
-    DescendingNullsFirst = 3
+    AscendingNullsFirst = 0,
+    AscendingNullsLast = 1,
+    DescendingNullsFirst = 2,
+    DescendingNullsLast = 3
 }
 ```
 
 ## Behavior and exceptions
 
 Columns and the effective KeyOrders property are copied into immutable collections. Omitting
-KeyOrders supplies AscendingNullsLast for every key. Predicate is SQL retained as authored;
+KeyOrders supplies AscendingNullsFirst for every key. Predicate is SQL retained as authored;
 the engine parses and validates it before application. Owner is DatabaseObjectOwner.Schema.
 The typed single-member Index builder remains unconditional and ascending; construct this
 metadata to declare composite, partial or directed indexes.
 
-Schema v11 serializes KeyOrders into canonical JSON, affecting the hash and migration equality.
+Schema v12 serializes KeyOrders into canonical JSON, affecting the hash and migration equality.
 An order change plans DropIndex/AddIndex, including for partial indexes. Invalid vector widths
 or enum values fail schema validation with SqlSchemaValidationException, InvalidDocument at
 `indexes.<name>.keyOrders`. Earlier artifacts, applied markers and pending targets are refused
@@ -47,7 +47,7 @@ Console.WriteLine(index.KeyOrders[0]); // DescendingNullsLast
 
 ## Related reference
 
-[Assembly](index.md) · [Design](design.md) · [Format and rebuild](../../../../database/sql/index.md#sql-format-35-and-schema-v11)
+[Assembly](index.md) · [Design](design.md) · [Format and rebuild](../../../../database/sql/index.md#sql-format-36-and-schema-v12)
 
 ## Sources
 

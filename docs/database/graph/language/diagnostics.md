@@ -43,12 +43,15 @@ These conditions have no assigned SQLSTATE:
 | CG01022 | Schema property references a variable other than the FOR declaration |
 | CG03008 | Database-wide index/constraint name is already occupied; names are ordinal and case-sensitive |
 | CG03009 | Duplicate constraint kind or incompatible property type rules |
-| CG03010 | Existing data violates the newly created named constraint; creation rolls back |
+| CG03010 | Existing data violates a newly created named constraint or proposed graph type; publication rolls back |
+| CG03011 | Invalid graph-type mutation name/reference or identifying/implied label overlap |
+| CG03012 | Node write omits an implied label required by its node type |
 | CG04025 | Schema write inside an explicit transaction, including typed writes and conditional no-ops; aborts the transaction |
-| CG06019 | Catalog record version is not v2; recreate the database, with no legacy reader |
+| CG06019 | Catalog record version is not v3; recreate the database, with no legacy reader |
 
-CG06019 refuses before logical recovery scrub. Physical journal redo may already have run;
-this is distinct from graph entity/tree format 5 and its CG06017/CG06018 checks. An empty catalog
+CG06019 refuses before any write, including for v2 journal-only images. Recovered read-only
+preflight preserves every file byte for byte. This is distinct from graph entity/tree format 5
+and its CG06017/CG06018 checks. An empty catalog
 has no versioned records to refuse. SHOW CONSTRAINTS returns independently named rules.
 DDL validates GraphQueryLimits inside the admitted operation (CG08021). Owner scans and
 backfill consume work (CG05004); cursor buffers and retained backfill entries consume memory

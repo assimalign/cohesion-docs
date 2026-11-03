@@ -42,10 +42,10 @@ NULL otherwise. DIRECTION and NULL_PLACEMENT are nullable String columns, omitti
 
 | Effective key order | DIRECTION | NULL_PLACEMENT |
 | --- | --- | --- |
-| ASC NULLS LAST | NULL | NULL |
-| ASC NULLS FIRST | NULL | FIRST |
-| DESC NULLS FIRST | DESC | NULL |
-| DESC NULLS LAST | DESC | LAST |
+| ASC NULLS FIRST | NULL | NULL |
+| ASC NULLS LAST | NULL | LAST |
+| DESC NULLS LAST | DESC | NULL |
+| DESC NULLS FIRST | DESC | FIRST |
 
 INFORMATION_SCHEMA.INDEXES is a nonstandard alias with the same columns.
 

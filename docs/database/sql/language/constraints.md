@@ -160,7 +160,7 @@ UNKNOWN. CS03038 (23514) instead means a valid Boolean check evaluated to FALSE.
 ## ON UPDATE declarations
 
 CREATE TABLE column REFERENCES/table constraints and ALTER TABLE ADD CONSTRAINT/ADD COLUMN
-accept all five update actions. Catalog format 35 and compiled schema v11 persist the action;
+accept all five update actions. Catalog format 36 and compiled schema v12 persist the action;
 [REFERENTIAL_CONSTRAINTS.UPDATE_RULE](system-views/information-schema.md) reports it, including
 through persisted views. The [compiled constraint API](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql-schema/compiled-schema-constraint.md)
 exposes OnUpdate. Typed References declarations default it to NoAction.

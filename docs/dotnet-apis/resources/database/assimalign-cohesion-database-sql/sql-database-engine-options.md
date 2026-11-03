@@ -61,10 +61,21 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 
 ## Hash-build memory
 
-StatementMemoryBudget defaults to 67,108,864 bytes (64 MiB) and must be positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value. It limits accounted concurrently live hash-build memory across one statement's nested queries. UPDATE FROM, DELETE USING and MERGE also charge retained target identities, source/intermediate
-buffers, derived copies, associations, selected values, encoded replacements and joined cascade
-state. Exhaustion refuses before any write and releases reservations on every exit. CTAS also
-charges its retained source result and encoded copy buffers. Recursive queries also charge retained results and scratch; ordinary nonrecursive output materialization and planning remain outside this accounting. Exhaustion reports CS05067 / SQLSTATE 53200. There is no spill. See [query performance](../../../../database/sql/performance.md).
+StatementMemoryBudget limits accounted bytes retained by hash builds, joined DML and CREATE TABLE
+AS copying in one statement. It defaults to 67,108,864 bytes (64 MiB) and must be positive; engine
+creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value.
+
+Concurrently live hash builds share the limit across nested queries. UPDATE FROM, DELETE USING
+and MERGE also charge retained target identities, source/intermediate buffers, derived copies,
+associations, selected values, encoded replacements and joined cascade state. CTAS charges retained
+query output and batch buffers. Recursive queries also charge retained results and scratch;
+ordinary nonrecursive output materialization and planning remain outside this accounting.
+Exhaustion reports CS05067 / SQLSTATE 53200 before writes or publication and releases reservations
+on every exit. Hash joins never spill. See [query performance](../../../../database/sql/performance.md).
+
+Grouping sets charge group and aggregate state. Ordered sequence deferral uses ordinary uncharged
+sorting, including LIMIT and OFFSET, and adds no charge on plain, correlated, grouped or
+grouping-set paths. Unordered sequence projection streams without retaining inputs.
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
 StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to

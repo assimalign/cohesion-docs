@@ -14,6 +14,11 @@ public static partial class DatabaseServerOptionsExtensions
 
 Listen configures a TcpConnectionListener and returns the same concrete options instance for all five model leaves. The server snapshots options and takes ownership of its listener through stop/disposal. Reference Database.Tcp and import Assimalign.Cohesion.Database.
 
+This explicit listener takes precedence over a managed model endpoint. When Listener is absent
+and COHESION_GATEWAY is nonempty, [server options](../assimalign-cohesion-database/database-server-options.md)
+resolve the model's named assignment through the same plain-TCP address binder. URI schemes do
+not enable TLS. Two servers of one model need distinct listeners.
+
 Endpoint URIs must be absolute with a host and explicit positive port, and have no user information, query or fragment. Uri.IdnHost supplies the socket-facing host. IP literals, localhost (IPv4 loopback) and wildcard/any addresses are supported; DNS names are synchronously refused with CK07101 in the legacy message. Port zero is invalid for this resolved-URI helper; transport-level ephemeral listeners can still be assigned through Listener. Null options/endpoint throw ArgumentNullException, invalid URIs ArgumentException and unsupported hosts InvalidOperationException.
 
 [Assembly](index.md) · [Example](examples/configure-listener.md)

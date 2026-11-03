@@ -7,7 +7,8 @@ OQL rejects recognized forms beyond its executable SQL++ subset with coded diagn
 | Construct | Diagnostic | Boundary |
 | --- | --- | --- |
 | General/comma joins, reversed equality, ON KEYS, derived/expression right-hand sources | CK00001 | [Key JOIN and NEST](clauses/join.md) execute with META(b).id = key; top-level qualified stars execute in ungrouped joined SELECTs |
-| WITH, set operations | CK00001 | Correlated and DML subqueries and derived/expression sources execute |
+| WITH; INTERSECT/EXCEPT [ALL]; explicit set-operator DISTINCT | CK00001 | Top-level [UNION/UNION ALL](statements/select.md#set-operations) execute |
+| Compounds in expression subqueries, derived FROM or INSERT/UPSERT sources; subqueries in compound ORDER BY | CK00001 | Single-block subqueries and parenthesized SELECT write sources execute |
 | LIMIT m, n and FETCH FIRST | CK00001 | Use [LIMIT n OFFSET m](clauses/limit-offset.md); SELECT paging executes |
 | Multi-binding quantifiers, ANY AND EVERY, ODMG FOR ALL/EXISTS | CK00001 | [ANY/SOME/EVERY](expressions/quantified-predicates.md) with one binding and [array IN](expressions/operators.md#in-and-between) execute |
 | UNNEST/JOIN/NEST in UPDATE/DELETE, WITHIN, FLATTEN calls | CK00001 | SELECT [UNNEST/LEFT UNNEST](clauses/unnest.md) executes |

@@ -34,14 +34,15 @@ storage strategies call.
 
 ## Format boundary
 
-The engine opens SQL data/catalog format 35 only, including table extension 8's ON UPDATE metadata,
+The engine opens SQL data/catalog format 36 only, including table extension 8's ON UPDATE metadata,
 retained TYPE default-assignment flag and sequence definitions/reservations (kinds 18/19). Kind 18 includes owned-sequence
 table/column linkage and identity ownership; kind 16 is retired. Format 34 introduced joint
-kind-9 pending-intent semantics. Format 35 also fences per-table KeepOwner/RewriteOwner choices
-and separate physical owners for new kept-table index trees.
-Format 34 and every earlier format are refused before data recovery;
-compiled schema documents use v11. Shared physical storage format 4 and
-B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-35-and-schema-v11);
+kind-9 pending-intent semantics. Format 35 introduced per-table KeepOwner/RewriteOwner choices
+and separate physical owners for new kept-table index trees. Format 36 changes effective index
+orders and defaults to ASC NULLS FIRST, matching ORDER BY.
+Format 35 and every earlier format are refused before data recovery;
+compiled schema documents use v12. Shared physical storage format 4 and
+B-tree page format 2 are independent. Follow the [export/recreate and rebuild procedure](../../../../database/sql/index.md#sql-format-36-and-schema-v12);
 there is no upgrade reader.
 
 Identity and standalone sequences share [durable reservations](storage-design.md#identity-and-sequence-reservations)

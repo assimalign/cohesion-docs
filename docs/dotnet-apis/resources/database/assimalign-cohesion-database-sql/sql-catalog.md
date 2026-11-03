@@ -46,7 +46,7 @@ SQL database creation does. See [SqlCatalogNamespace](sql-catalog-namespace.md).
 ## Index key orders
 
 [SqlCatalogIndex](sql-catalog-index.md) adds an optional keyOrders constructor argument and a
-read-only effective KeyOrders vector. Null supplies ASC NULLS LAST per key; invalid vectors
+read-only effective KeyOrders vector. Null supplies ASC NULLS FIRST per key; invalid vectors
 or directed primary-key metadata throw SqlCatalogException/CS03085 (42P17).
 
 ## Index predicate metadata

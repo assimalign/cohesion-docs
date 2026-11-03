@@ -84,23 +84,21 @@ a key's relative order:
 - A column rejected when NULL by the proven partial-index predicate. The query must also
   prove that index's membership predicate.
 
-ORDER BY defaults to **ASC NULLS FIRST** and **DESC NULLS LAST**. Index DDL instead defaults
-to **ASC NULLS LAST** and **DESC NULLS FIRST**. For a nullable key without a NULL-rejecting
-predicate, a default index therefore cannot serve a default ORDER BY. Either give the query
-an explicit matching placement, or declare the index with NULLS FIRST:
+ORDER BY and index DDL both default to **ASC NULLS FIRST** and **DESC NULLS LAST**.
+A default index is eligible for default ascending order and fully reversed descending order:
 
 ```sql
 CREATE TABLE index_order (k INT);
 INSERT INTO index_order VALUES (NULL),(2),(1);
 CREATE INDEX ix_k ON index_order(k);
-SELECT k FROM index_order ORDER BY k NULLS LAST LIMIT 2;
-DROP INDEX ix_k ON index_order;
-CREATE INDEX ix_k ON index_order(k NULLS FIRST);
 SELECT k FROM index_order ORDER BY k LIMIT 2;
+SELECT k FROM index_order ORDER BY k DESC LIMIT 2;
 ```
 
-Execute separately. The queries return `1, 2` and `NULL, 1`, respectively. Each index is eligible
-for its query. A fully reversed scan of the second index serves `ORDER BY k DESC NULLS LAST`.
+Execute separately. The queries return `NULL, 1` and `2, 1`, respectively. The index is eligible
+for both. Changing only NULL placement, such as `ORDER BY k DESC NULLS FIRST`, retains sorting
+unless NULL cannot affect relative order. Results agree with sorting up to the unspecified order
+of tied rows; add a unique ordering key when a page can split a tie group.
 
 Costing weighs the avoided sort and early stop against base-row fetches and filter selectivity;
 an eligible ordered index need not win. Non-DISTINCT LIMIT/OFFSET stops after enough qualifying

@@ -2,6 +2,21 @@
 
 OQL parses the Documents engine's executable SQL++ subset into typed statements and expressions.
 
+## Query expressions and set operations
+
+[OqlQueryExpression](oql-query-expression.md) closes the query family with a private protected
+constructor and sealed SELECT/set-operation leaves. Ordering, IsValue and paging live on that
+base. Subqueries and INSERT/UPSERT sources retain it; statement roots keep OqlExpression for
+writes, DDL and transaction controls. [OqlSetOperationExpression](oql-set-operation-expression.md)
+retains two operands, an operator and ALL, with equal left-associative precedence.
+
+Top-level UNION/UNION ALL execute with compound ordering and paging. INTERSECT/EXCEPT, nested
+compounds and compound-order subqueries remain refused. Parentheses permit local operand tails
+and a single-block write source. Redundant single-query IN wrappers retain one array-valued list
+item; a parenthesis-led compound is query membership. Subscripts still require a named path.
+See [SELECT](../../../../database/document/language/statements/select.md#set-operations) for the
+result shapes, equality and CD01037/CD01038 ordering boundary.
+
 ## Parser and AST
 
 The shared lexer/parser infrastructure owns tokenization, diagnostics and source locations. OQL
@@ -174,7 +189,7 @@ NOW_STR/NOW_MILLIS share the transaction-start UTC instant; output strings end i
 IsUnique/IfNotExists; Path is its leading member. [OqlDropIndexExpression](oql-drop-index-expression.md)
 adds IfExists while preserving its preceding constructor. The parser caps keys at 32 with CD00009
 at the 33rd path; direct AST planning uses CD03022. Duplicate paths are CD00002 in text.
-The catalog stores all index definitions and registrations as v2 and refuses v1 before recovery
+The catalog stores all index definitions and registrations as v3 and refuses v1/v2 before recovery
 writes, with a recreate remedy and no upgrade. UNIQUE failures are CD03020 (23505) or
 CD02021 (non-scalar component), carried by the catalog-owned constraint exception.
 Unconditional duplicate CREATE uses CD03024, absent unconditional DROP uses CD01025,

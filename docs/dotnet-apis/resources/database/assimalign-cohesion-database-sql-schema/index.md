@@ -6,7 +6,7 @@ SQL's thin schema package provides one-step `SqlSchema.Compile`, lower-level `Sq
 
 ## Reference pages
 
-- **[CompiledSchemaIndex](compiled-schema-index.md)** — Immutable key orders, predicates and v11 identity.
+- **[CompiledSchemaIndex](compiled-schema-index.md)** — Immutable key orders, predicates and v12 identity.
 
 - **[CompiledSchemaConstraint](compiled-schema-constraint.md)** — OnUpdate metadata, defaults and migration identity.
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
@@ -37,14 +37,15 @@ uses the engine's [joint migration executor](../assimalign-cohesion-database-sql
 
 ## Current format boundary
 
-v11 adds CompiledSchemaIndex.KeyOrders, retaining v10's optional Predicate and v9's
+v12 makes ASC NULLS FIRST the zero/default key order in CompiledSchemaIndex.KeyOrders,
+retaining v11's vector, v10's optional Predicate and v9's
 always-serialized OnUpdate metadata. The earlier v8 changed typed TimeSpan defaults to exact signed seconds;
-v11 retains that rendering.
+v12 retains that rendering.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-35/v11 upgrade note](../../../../database/sql/index.md#sql-format-35-and-schema-v11).
+[format-36/v12 upgrade note](../../../../database/sql/index.md#sql-format-36-and-schema-v12).
 
-The integration branch uses SQL row-storage format 35 and compiled schema version 11.
+The integration branch uses SQL row-storage format 36 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -61,11 +62,11 @@ Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metada
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
-migration intent semantics. Current format 35 fences separate physical owners for kept-table
-index trees and durable per-table migration classification; format 34 and earlier are refused
-before recovery writes.
+migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
+classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY; format 35 and earlier are refused before recovery writes.
 Every earlier format is refused at open; there is no
-upgrade path. Compiled schema format remains version 11.
+upgrade path. Compiled schema format remains version 12.
 
 ## Sources
 

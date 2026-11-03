@@ -15,6 +15,9 @@ DROP LABEL label_name [ IF EXISTS ]
 The name uses ordinal, case-sensitive identity. A real drop affects 1; IF EXISTS suppresses
 an absent label and affects 0. Existing nodes with the label prevent the drop (CG03003).
 An absent unguarded label uses CG01002. Schema-owned definitions are protected.
+A label declared as an identifying or implied label of the current
+[graph type](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-graph/graph-schema.md#graph-type-operations)
+also refuses DROP with CG03003, even without member nodes.
 
 The [autocommit policy and DDL limits](create-index.md#transactions-and-limits) apply,
 including owner-posting validation. CG04025 aborts explicit transactions, even for conditional

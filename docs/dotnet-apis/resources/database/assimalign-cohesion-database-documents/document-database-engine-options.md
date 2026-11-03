@@ -14,7 +14,8 @@ This positive byte budget estimates retained statement memory. SELECT source row
 identifiers, raw star bytes and expanded bindings), catalog/sort staging, group keys/membership,
 native accumulator state, DISTINCT sets, ARRAY_AGG inputs/results and projection/order storage
 share it with GROUP AS wrappers/arrays, DML pending buffers and RETURNING. INSERT/UPSERT SELECT
-sources and RETURNING use the same operation counter.
+sources and RETURNING use the same operation counter. Compound distinct keys, sort buffers and
+retained output share this grant (CD05018).
 RETURNING covers metadata, row/value arrays (including normalization/result copies), scalars,
 strings, JSON clones and preserved whole-document
 bytes. A clone costs 128 bytes plus its UTF-8 length plus 12 bytes per token, including property names
@@ -37,8 +38,11 @@ and 256-level result depth (CD05019) inside the transaction. These codes have no
 public long StatementWorkBudget { get; set; } = 10_000_000;
 ```
 
-The positive count bounds reached expression evaluations in statements containing subqueries or
-expression sources. All depths and cache hits share it; unreached branches spend no work. Engine
+The positive count bounds work across all query depths. Query blocks with subqueries, expression
+sources or key joins charge reached expression evaluations, including cache hits; unreached
+branches spend no work. Plain collection scans keep the same rule inside top-level compounds;
+a charged sibling does not enable expression charges for a plain-scan operand. Compounds also
+charge row processing, equality comparisons and sorting. Engine
 creation throws ArgumentOutOfRangeException with ParamName StatementWorkBudget for a nonpositive value.
 The engine copies the option at construction. Exhaustion raises DatabaseException with CD05020
 (no assigned SQLSTATE), before the next evaluation, and rolls back statement writes.

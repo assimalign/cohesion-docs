@@ -10,8 +10,8 @@ JSON_VALUE, JSON_QUERY and JSON_EXISTS execute constant/parameter paths with RET
 and empty/error policies. See the [language reference](../../../../database/sql/language/functions/json-path.md)
 for grammar, NULL rules, error boundaries and diagnostics. Path execution and window-frame
 recomputation share a 1,000,000-visit statement cap; transient JSON state shares StatementMemoryBudget.
-SQL format 35 refuses format 34 and earlier before data recovery and has no in-place upgrade.
-Compiled schema v11 and JSONB storage bytes are unchanged. Ordinary calls with these names
+SQL format 36 refuses format 35 and earlier before data recovery and has no in-place upgrade.
+Compiled schema is v12; JSONB storage bytes are unchanged. Ordinary calls with these names
 render quoted; quoted names remain ordinary function calls.
 
 ## ILIKE and postfix casts
@@ -52,7 +52,8 @@ without normalization. See the language page for depth, Unicode and SQL/JSON pat
 
 [CREATE INDEX](../../../../database/sql/language/statements/create-index.md#key-directions-and-null-placement)
 accepts per-column ASC/DESC and independent NULL placement. Catalog KeyOrders snapshots the
-effective order; compiled schema v11 carries the same vector. SQL format 35 uses mandatory
+effective order; omitted and zero-filled vectors mean ASC NULLS FIRST, matching ORDER BY.
+DESC defaults to NULLS LAST. Compiled schema v12 carries the same vector. SQL format 36 uses mandatory
 index extension 3. Runtime maintenance, builds, rewrites, conflict checks and undo share the
 direction-aware transform; comparison ranges exclude the NULL block. Direction preserves
 uniqueness. Matching single-table ORDER BY can use forward or backward index order without
@@ -72,7 +73,7 @@ partial seeks, ranges, correlated join probes and unbounded subset scans, with t
 predicate retained as a residual. Proofs use only input-local WHERE and INNER JOIN ON conjuncts;
 see the language page for exact rules and exclusions.
 
-Catalog format 35 and compiled schema v11 refuse earlier files/artifacts. A changed required
+Catalog format 36 and compiled schema v12 refuse earlier files/artifacts. A changed required
 registration can leave a predicate unresolved: open, reads and DROP INDEX work, while table
 writes refuse CS01009 (42883). Predicate-column TYPE, including widening, requires dropping
 and recreating the index; dropping a key/predicate column removes it, and renames rewrite text.
@@ -119,7 +120,7 @@ CS01028 (3F000), duplicate CREATE CS03029 (42P06), and RESTRICT dependencies CS0
 (2BP01); reads/DML retain CS01014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
-Storage format 35 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
+Storage format 36 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
 format 23 introduced views and format 24 introduced explicit NULL placement.
 Format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions; format 26 introduced the temporal default-text fence.
 Format 27 introduced the per-column TYPE default-assignment flag in table extension 7.
@@ -219,17 +220,17 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
 nested CTEs and explicit LATERAL remain excluded. Recursive fixpoints execute on demand.
 
-Current SQL data-storage format is 35. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 36. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
 `"sign" >= 0`). Defaults and function bodies share the renderer. Older formats are refused without
-an upgrade reader; compiled schemas stay version 11. Evidence: SqlT1StorageFormatTests,
+an upgrade reader; compiled schemas stay version 12. Evidence: SqlT1StorageFormatTests,
 SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
 ## Database creation, open and drop
 
-SQL remains at data-storage format 35. Create commits the optional default collation, dbo and then
+SQL remains at data-storage format 36. Create commits the optional default collation, dbo and then
 the format marker. An interrupted marker-free creation is completed only when its durable creation
 claim and read-only probes prove initial empty data and creation-only catalog metadata. An empty
 data scan alone cannot distinguish creation from a lost catalog after acknowledged empty-table DDL.
@@ -372,6 +373,10 @@ bounds; nullability may change. Defaults, primary keys and physical column chang
 Dropping or replacing a pre-existing index whose pages belong to the heap also forces a rewrite.
 A separately owned tree can be dropped or replaced while keeping the heap; its old owner is reclaimed.
 
+Index comparison includes every effective key order: a direction-only or NULL-placement-only
+change replaces the independently owned tree while retaining its heap. Joint TYPE rewrites
+preserve the same compiled-to-catalog key-order mapping.
+
 Kept tables retain dropped physical ordinals, frozen missing values, identity metadata and default
 assignment flags. New trees build unpublished in 64-version brackets against the original row
 locations and MVCC stamps. New CHECK and NOT NULL constraints validate existing rows under the
@@ -381,9 +386,12 @@ All drops, new trees and rewritten tables publish in the same single catalog com
 
 Space admission charges only new trees for a kept table, with no heap copy or retained-tree charge.
 Failed preparation reclaims only unpublished tree owners and preserves the heap and published
-indexes. Old snapshots keep their prior table descriptions. Durable kind-9 Joint/KeepOwner and
-Joint/RewriteOwner classification and separate tree ownership require SQL format 35; format 34
-is refused without an upgrade reader. Compiled schema v11 and wire messages remain unchanged.
+indexes. Old snapshots keep their prior table descriptions. Layout refusals distinguish a joint
+kept table from a generic ALTER replacement; both retain CS05060 and preserve the published layout.
+Durable kind-9 Joint/KeepOwner and Joint/RewriteOwner classification and separate tree ownership
+were introduced in SQL format 35, without changing compiled schema v11 or wire messages.
+Current SQL format 36 and compiled schema v12 change effective key-order defaults; earlier
+files and artifacts are refused without an upgrade reader.
 
 ### `Object` ownership and the schema package
 
@@ -610,7 +618,7 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 35 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 36 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
   SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer markers are refused before opening data files for write. An unmarked catalog
   containing only creation metadata can complete only under the creation-proof rules above.
@@ -1278,8 +1286,8 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail CS01015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 35, including the extension-6 missing/default split and T1 identifier
-quoting. Older files are refused without an upgrade reader. Compiled schema version is 11.
+14; the current SQL format is 36, including the extension-6 missing/default split and T1 identifier
+quoting. Older files are refused without an upgrade reader. Compiled schema version is 12.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
 rows and excessive offsets produce none. System relations join stored/system sources through the
@@ -1322,7 +1330,7 @@ kind-19 reservations replace retired identity counter kind 16. Names use table_c
 numeric collision suffixes and survive renames. Ownership/default dependencies validate at load
 and publication. DROP identity/table/column removes owned sequences atomically; external defaults
 must first be removed. TRUNCATE RESTART IDENTITY restarts all owned sequences in its closure.
-Compiled typed schemas use v11 without identity metadata; SQL scripts retain their definitions.
+Compiled typed schemas use v12 without identity metadata; SQL scripts retain their definitions.
 
 ## Standalone sequence catalog and shared allocation
 
@@ -1644,7 +1652,7 @@ Preparation, publication and cleanup use the existing storage-replacement transa
 kind-14 reclamation intents. Interrupted preparation leaves the original current and is retried
 explicitly. Publication is irrevocable; cleanup proceeds without caller cancellation. Recovery
 exposes a complete old or compact layout/index set at every tested file boundary. Reclamation
-waits for old snapshots. SQL format 35 and compiled schema v11 remain unchanged. See
+waits for old snapshots. SQL format 36 and compiled schema v12 remain unchanged. See
 [maintenance behavior and examples](sql-database.md).
 
 ## TRUNCATE
@@ -1664,7 +1672,7 @@ DML targeting retired tables or joining them as sources retains CS04006 before w
 
 [CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reuses durable
 prepared-owner reclamation to publish a complete inferred table, using one builder commit for row
-visibility. It retains format 35 and uses CS04003 inside explicit transactions.
+visibility. It retains format 36 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
@@ -1798,7 +1806,7 @@ frozen old-row values. Typed, domain and SDK default surfaces remain literal-onl
 and SET DEFAULT through cascade chains. The deletion closure precedes SET updates; deleted
 rows receive no SET assignment. Final child validation and row/index changes share the statement
 rollback bracket. NO ACTION is the omitted SQL action; the catalog constructor's optional
-argument still defaults to Restrict. Compiled schema v11 continues to model only Restrict
+argument still defaults to Restrict. Compiled schema v12 continues to model only Restrict
 and Cascade for deletes; OnUpdate supports all five declarations.
 
 ## ALTER rename, defaults and nullability
@@ -1816,7 +1824,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses CS03025. DDL is self-committing and CS04003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 35.
+Format 17 introduced the default/missing split with table extension 6; current format is 36.
 
 ## ALTER COLUMN TYPE
 
@@ -1864,11 +1872,11 @@ Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metada
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
-migration intent semantics. Current format 35 fences separate physical owners for kept-table
-index trees and durable per-table migration classification; format 34 and earlier are refused
-before recovery writes.
+migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
+classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY; format 35 and earlier are refused before recovery writes.
 Explicit earlier markers and unmarked user catalogs are refused at open; there is no
-upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 11.
+upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 12.
 
 ## Aggregate modifiers and text results
 
@@ -1908,7 +1916,7 @@ reads; cancellation, stack exhaustion, memory, storage and I/O failures propagat
 
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
 inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
-modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 35
+modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 36
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) ordinarily evaluates per written row
@@ -1939,7 +1947,7 @@ defines the charging rules. Exhaustion raises located CS05040 (no SQLSTATE), wit
 taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
 retain the last percent continuation; other paths retain visited boundaries, expanding from one
 inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
-search. Storage format 35 admits these persisted
+search. Storage format 36 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution
@@ -1997,7 +2005,7 @@ runs, including on apply failure. Written data keeps transaction-duration locks.
 Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
 still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
 victim; callers roll back/retry the complete transaction. Consistent input order reduces this
-residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 35, catalog
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 36, catalog
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
