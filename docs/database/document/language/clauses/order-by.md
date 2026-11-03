@@ -30,6 +30,11 @@ ordering follows the same group-key restrictions as grouped projections. Later O
 break ties before the final ordinal document-identity tie break, independent of direction.
 Strings use case-sensitive ordinal order.
 
+After [UNION/UNION ALL](../statements/select.md#set-operations), ORDER BY binds to result members
+declared by any operand, with absent members MISSING; ties retain concatenation order. Source
+aliases are unavailable. All-RAW/VALUE compounds report CD01037; unbound members, META and star
+report CD01038. Compound-order subqueries remain CK00001.
+
 [Subqueries](../expressions/subqueries.md#correlation-and-scope) in ORDER BY can capture explicit
 outer projection aliases. Inner declarations shadow those aliases by name.
 

@@ -9,8 +9,8 @@ Namespace: `Assimalign.Cohesion.Database.Documents.Language`.
 ```csharp
 public sealed class OqlSubqueryExpression : OqlExpression
 {
-    public OqlSubqueryExpression(OqlSelectExpression query, Location? location = null);
-    public OqlSelectExpression Query { get; }
+    public OqlSubqueryExpression(OqlQueryExpression query, Location? location = null);
+    public OqlQueryExpression Query { get; }
 }
 ```
 
@@ -22,6 +22,10 @@ yield objects; IsValue represents RAW/VALUE. Execution returns an owned JSON arr
 an empty array for zero rows, and shares the outer statement's snapshot and budget.
 When used as [OqlSelectExpression.Source](oql-select-expression.md), it supplies derived rows
 directly rather than an expression-subquery array.
+
+Query uses the [closed query family](oql-query-expression.md). Compound subqueries are represented
+but remain refused with CK00001. In `x IN ((SELECT ...))`, the subquery array is one value-list
+item. A parenthesis-led compound is query membership and retains the nested-compound refusal.
 
 Direct IN subqueries require RAW/VALUE (CD00014). Correlation and DML subqueries
 execute. Captures obey lexical shadowing and every enclosing GROUP BY; ORDER BY subqueries
@@ -39,7 +43,7 @@ var statement = (OqlQueryStatement)new OqlQueryParser().Parse(
 var select = (OqlSelectExpression)statement.OqlExpression;
 var nested = (OqlSubqueryExpression)select.Projections[0].Expression;
 Console.WriteLine(nested.Query.IsValue);    // True
-Console.WriteLine(nested.Query.Collection); // d
+Console.WriteLine(((OqlSelectExpression)nested.Query).Collection); // d
 ```
 
 Check statement.Diagnostics before planning. An IN subquery occupies OqlInExpression.Array,

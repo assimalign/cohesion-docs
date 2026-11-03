@@ -106,6 +106,63 @@ ungrouped joined projections. Collections supply implicit aliases when omitted, 
 UNNEST names are valid too. META(alias) retains each stored source's own identity. See the linked page for unmatched
 MISSING values, NEST arrays, paging and the bounded lookup cache.
 
+## Set operations
+
+```syntaxsql
+query_term { UNION [ ALL ] query_term } ...
+[ ORDER BY expression [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ]
+[ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
+
+query_term ::= SELECT ... | ( query )
+```
+
+Top-level UNION and UNION ALL execute. UNION removes structural duplicates, retaining the first
+representative; UNION ALL preserves every occurrence. Operands need not have equal arity. Operators
+have equal, left-associative precedence. INTERSECT and EXCEPT, with or without ALL, parse but remain
+refused with CK00001. Explicit UNION DISTINCT also reports CK00001.
+
+The final ORDER BY/LIMIT/OFFSET belongs to the compound. An operand's own ordering or paging
+requires parentheses; an unparenthesized local tail followed by another operator is CD00002.
+Query parentheses and operator paths each have a 128-level bound (CD00005). An extra outer tail
+on a lone parenthesized query that already has its own tail remains CK00001.
+
+UNION uses SELECT DISTINCT equality: numbers compare by value, object member order does not
+matter and array order does. Named MISSING members are omitted; RAW/VALUE MISSING becomes NULL.
+Without ordering, left rows precede right rows; UNION keeps only previously unseen values.
+
+| Operand projections | Planned result header |
+| --- | --- |
+| Every leaf RAW/VALUE | One `value` column |
+| Same ordered named projections in every leaf | Columns with those names; compatible Int64/Decimal types widen to Decimal |
+| Different names/order/arity, mixed RAW/named or wildcard documents | One `document` Json column in whole-document mode |
+
+The shape is fixed before execution, including empty pages. Heterogeneous typed columns use the
+Null descriptor. Dynamic named/value columns inspect the pre-page stream to determine types;
+LIMIT 0 uses static descriptors without opening sources or invoking callbacks.
+
+Compound ORDER BY sees result members declared by any operand; absent members evaluate to MISSING.
+Collection aliases are out of scope; wildcard documents leave member names open. Scalar expressions
+and ordinary NULL placement work; ties retain concatenation order. All-RAW/VALUE ordering reports
+CD01037. Unbound members, META and star report CD01038. Subqueries in compound ordering remain
+CK00001.
+
+UNION ALL streams operand rows, while each operand retains its own blocking stages. Distinct keys,
+compound sorting and kept output share StatementMemoryBudget (CD05018); row processing, equality
+and sorting share StatementWorkBudget (CD05020). Fixed-type unordered pages stop when complete.
+EXPLAIN describes Union/UnionAll and both operands without executing them. Nested compounds in
+expression subqueries, derived FROM and INSERT/UPSERT sources remain CK00001.
+
+Execute this standalone expression-source query:
+
+```sql
+(SELECT x AS n FROM [3,1,2] AS x ORDER BY x LIMIT 2)
+UNION ALL
+(SELECT y AS n FROM [5,4] AS y ORDER BY y DESC LIMIT 1)
+ORDER BY n DESC OFFSET 1 LIMIT 2;
+```
+
+It returns named rows with n = 2, then n = 1.
+
 ## Derived and expression sources
 
 [FROM](../clauses/from.md) accepts an aliased SELECT or expression. Arrays expand in
@@ -183,6 +240,9 @@ Bounded snapshot-visible index probes choose among eligible accesses; equal cost
 EXPLAIN can read index metadata for costing but executes no document statement. IndexSeek estimates identify exact visible index-entry counts or lower bounds; IndexIntersection reports the minimum input count as an upper bound. actual_rows stays NULL. See [access design](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-documents/design.md#bounded-access-probes-and-intersection).
 
 ## Sources
+
+- **Compounds, headers and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSetOperationTests.cs` and `DocumentCompoundIntegrationTests.cs` in the same directory.
+- **Compound grammar and IN wrappers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlSetOperationParserTests.cs`.
 
 - **Projection and transport results** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentQueryTests.Projections.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentProjectionWireTests.cs`.
 - **Grammar** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/src/OqlQueryParser.Select.cs`.

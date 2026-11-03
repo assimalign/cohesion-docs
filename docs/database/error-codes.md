@@ -622,6 +622,13 @@ without lookups. No SQLSTATE is assigned to these conditions.
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
 
+## OQL compound queries
+
+OQL compound ordering reports CD01037 for an all-RAW/VALUE result with no named members, or
+CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. UNION distinct,
+sort and output state uses CD05018; compound row/equality/sort work uses CD05020. INTERSECT/EXCEPT
+and nested compounds retain CK00001. See [set operations](document/language/statements/select.md#set-operations).
+
 ## SELECT statement memory
 
 CS05067 (53200) covers every retained SELECT buffer, including joins, sorts/top-N, grouping,

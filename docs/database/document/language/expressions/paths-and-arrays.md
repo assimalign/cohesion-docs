@@ -27,6 +27,9 @@ position evaluates to [MISSING](missing.md), distinct from reading an explicit N
 Bracket strings access properties and integer subscripts access array elements. Neither form
 expands an array into rows. FLATTEN is usable as a field name; a FLATTEN call remains unsupported.
 
+Subscripts require a named path. Applying brackets directly to a parenthesized expression or
+subquery is not supported; bind the value to a name before subscripting it (#1817).
+
 [UPDATE targets](../statements/update.md#set-and-unset-paths) use this grammar with stricter
 shape rules: missing arrays, out-of-range indices and incompatible traversal fail instead of
 returning MISSING. SET can create missing objects; UNSET cannot end in an index.
