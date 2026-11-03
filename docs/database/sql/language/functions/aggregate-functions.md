@@ -67,6 +67,10 @@ numeric equality. Numeric 1 and 1.0 share a class; NaNs share a class. Strict ag
 NULL arguments before deduplication. ALL is the default and retains duplicates. DISTINCT state
 grows with the number of distinct values in each group. Neither quantifier accepts star (CS00003).
 
+Aggregation streams scan/join input into group state. Group keys, aggregate state, DISTINCT
+membership, retained arguments and aggregate ordering share StatementMemoryBudget (64 MiB default).
+Exhaustion reports CS05067 (53200); [query performance](../../performance.md) describes the grant.
+
 Every aggregate, including application aggregates, accepts input ORDER BY. Order-insensitive
 aggregates ignore the order. Keys bind to source rows, may contain supported subqueries, and
 use stable sorting with NULL first in ASC and last in DESC by default. Each key accepts

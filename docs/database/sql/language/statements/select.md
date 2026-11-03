@@ -85,16 +85,21 @@ these paths. Rows skipped by OFFSET still evaluate their projections. Unvisited 
 projection calls and raise no projection errors, including volatile function calls.
 
 Grouped queries still consume aggregate input, but stop group projection and HAVING evaluation
-once the window is filled. Correlated queries stop evaluating outer rows. Join inputs/results and
-set operands still materialize; their final projection can stop at the window. DISTINCT completes
-before pagination and does not use this early stop. Planning errors remain errors even when a
-limit would return no rows.
+once the window is filled. Correlated queries stop evaluating outer rows. Eligible joins stream
+matches into projection and stop at LIMIT; required inner/build buffers remain. Set operands retain
+their materialization. Unordered DISTINCT with fixed collations streams projected values and can
+stop after OFFSET + LIMIT distinct rows; ordered or row-dependent-collation DISTINCT retains its
+blocking stages. Planning errors remain errors even when a limit would return no rows.
 
 An [ordered index scan](../clauses/order-by.md#index-order) can supply single-table ORDER BY
 and stop after OFFSET + LIMIT qualifying rows. Other ORDER BY paths with a non-DISTINCT limit examine every qualifying input while retaining only
 the best OFFSET + LIMIT rows. Deferred collations and independent volatile outputs use a full sort;
 see [ordering evaluation](../clauses/order-by.md#evaluation-order). The selected output rows still
 materialize before delivery; bounded selection does not provide streaming results.
+
+Every retained SELECT buffer, including joins, sorts, grouping, DISTINCT, set operations, caches
+and materialized output construction, charges StatementMemoryBudget (64 MiB default). Large sorts
+and results refuse with CS05067 (53200) on exhaustion. See [statement memory](../../performance.md).
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.
@@ -238,6 +243,8 @@ The client materializes the complete result. One connection executes one command
 [Statements](index.md) · [Language (SQL)](../index.md)
 
 ## Sources
+
+- **Retained buffers and early stop** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectBufferBudgetTests.cs`, `SqlSelectLifetimeRegressionTests.cs` and `SqlSelectSecondFixTests.cs` in the same directory.
 
 - **Bounded selection and evaluation order** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlBoundedExecutionTests.cs`, `SqlBoundedSelectionRegressionTests.cs` and `SqlLanguageConformanceTests.cs` in the same directory.
 - **Implicit row and composition** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlConstantSelectTests.cs`.

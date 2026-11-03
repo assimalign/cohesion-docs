@@ -49,6 +49,12 @@ outer statement's multi-version concurrency control (MVCC) snapshot and transact
 System-relation children use the same statement catalog snapshot. Type and collation survive
 materialization, including empty and null scalar results.
 
+EXISTS bodies receive effective LIMIT 1 and scalar bodies LIMIT 2, preserving OFFSET and tighter
+explicit limits. They stop once existence or scalar cardinality is known; a second scalar row
+still reports CS02046. Retained invocation/value caches and child buffers share
+[StatementMemoryBudget](../../performance.md), with CS05067 (53200) on exhaustion. Completed
+invocation scratch releases after copying the cached values.
+
 These forms compose with supported SELECT projections, predicates, joins, grouping, ordering,
 ordinary numeric pagination and UPDATE/DELETE WHERE. At most 32 query levels, including derived
 bodies, are allowed beneath the

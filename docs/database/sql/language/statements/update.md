@@ -185,7 +185,8 @@ probe or hash join. [EXPLAIN](explain.md#source-dml) shows the access paths and 
 StatementMemoryBudget covers hash builds and retained target identities, source/intermediate
 buffers, derived copies, associations, selected values, encoded replacements and joined cascade
 state. Exhaustion raises CS05067 (53200) before any write, without spilling; reservations release
-on every exit. General result materialization and transient expression values remain outside it.
+on every exit. SELECT result construction also shares the grant; transient expression values
+remain outside it.
 
 Equality-driven steps follow written FROM order. With t joined to b by equality and b joined
 to a, write `FROM b, a`, rather than `FROM a, b`: the latter first visits the t × a product.

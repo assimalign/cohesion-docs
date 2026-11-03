@@ -44,15 +44,18 @@ rows. OFFSET rows still evaluate projections; rows beyond the window do not. Sto
 system-view scans stop reading, and LIMIT 0 reads no input on those paths. Later projection errors
 and volatile calls are skipped, as with PostgreSQL's Limit execution. Grouped queries consume
 aggregate input but stop group projection and HAVING; correlated queries stop outer-row evaluation.
-Join inputs/results and set operands still materialize before bounded final projection.
+Eligible joins stream matches into projection and stop at LIMIT, while required inner/build
+buffers remain. Set operands retain their materialization. Unordered DISTINCT with fixed
+collations streams input and can stop at OFFSET + LIMIT distinct rows.
 
 With a selected [ordered index scan](order-by.md#index-order) and no DISTINCT, execution stops
 after OFFSET + LIMIT qualifying rows without sorting. Otherwise, with ORDER BY, a positive limit
 and no DISTINCT, fixed ordering collations allow retention of at most
 OFFSET + LIMIT candidates, with input order preserved for ties. Ordering still examines all
 qualifying inputs. Deferred collations and independent volatile outputs keep full sorting;
-[ORDER BY](order-by.md#evaluation-order) describes their evaluation rules. DISTINCT completes
-before pagination. These rules also apply to FETCH and TOP. Results still materialize before
+[ORDER BY](order-by.md#evaluation-order) describes their evaluation rules. Ordered or
+row-dependent-collation DISTINCT retains blocking stages before pagination. These rules also apply
+to FETCH and TOP. Results still materialize before
 delivery. Requested counts never determine an initial allocation size; a sum beyond Int64.MaxValue
 saturates without wrapping.
 

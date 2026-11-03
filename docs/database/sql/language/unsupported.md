@@ -126,8 +126,9 @@ evaluate. Ordinary nonvolatile projections evaluate before each row's ordering k
 volatile outputs instead evaluate in sorted order before pagination, preserving their full call
 count. [ORDER BY](clauses/order-by.md#evaluation-order) explains alias dependencies and collation
 fallbacks. Fixed-collation ORDER BY with a non-DISTINCT limit retains only OFFSET + LIMIT candidates.
-DISTINCT, aggregate input, join inputs/results and set operands retain their materialization rules.
-Selected rows still materialize before delivery; ordered index output, spillable sorts and streaming
+Aggregation streams input into state; eligible joins stop with LIMIT and unordered fixed-collation
+DISTINCT can stop at OFFSET + LIMIT distinct values. Set operands retain materialization.
+Selected index order avoids sorting. Selected rows still materialize before delivery; spillable sorts and streaming
 result execution are unavailable.
 
 ## See also
