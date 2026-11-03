@@ -67,7 +67,7 @@ share the same behavior in process and through the supported wire codecs.
 [ALTER TABLE](language/statements/alter-table.md) executes column TYPE with old-row USING,
 table/column renames and column SET/DROP DEFAULT and SET/DROP NOT NULL. [Scalar functions](language/functions/builtin-functions.md)
 execute 42 T1 names, including transaction-start clocks and day-time temporal operations.
-SQL storage format is 34; compiled schemas remain version 11.
+SQL storage format is 35; compiled schemas remain version 11.
 
 [OVER and WINDOW](language/clauses/window.md) provide ordered partitions, named inheritance,
 [ranking/distribution functions and LAG/LEAD](language/functions/window-functions.md). They run
@@ -155,7 +155,14 @@ and [shared engine health](../overview.md#engine-health-and-version-purge).
 ### Typed migration health and recovery
 
 A [typed migration containing a TYPE rewrite](language/statements/alter-table.md#code-first-type-changes)
-prepares the whole target unpublished and publishes it in one catalog commit. Hosting health is
+prepares the whole target unpublished and publishes it in one catalog commit. Classification is
+per table: index additions and CHECK, NOT NULL, UNIQUE and foreign-key changes can keep an
+unchanged table's physical storage and retained indexes. Only new index trees are built for
+such tables. A dropped or replaced pre-existing index whose pages belong to the table forces
+that table to rewrite. Separately owned trees can be dropped or replaced while keeping the table.
+TYPE, default, column-order and primary-key changes still rewrite. See
+[kept-table preparation](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
+Hosting health is
 Degraded while it is queued/running. Every touched table, including affected foreign-key neighbors,
 is unavailable to reads and writes until completion; untouched tables stay usable, subject to
 ordinary checkpoint stalls. Definition DDL is refused database-wide throughout queueing and work.
@@ -190,7 +197,7 @@ Pre-header files with no conflicting persisted state require CreateDatabaseAsync
 plain open reports CS03401. Missing journals/backups and ambiguous lost catalogs are refused
 without writing or recreating files. Follow the coded refusal's remedy and preserve ambiguous data.
 Transient inspection failures are retryable after the condition is resolved, without restore advice.
-Drop removes sql.dat before the remaining file set. The current format is 34.
+Drop removes sql.dat before the remaining file set. The current format is 35.
 
 See [lifecycle APIs and examples](../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop)
 and [creation diagnostics](language/diagnostics.md#database-creation-and-open).
@@ -227,8 +234,10 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
-migration intent semantics; format 33 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
+migration intent semantics. Current format 35 fences separate physical owners for kept-table
+index trees and durable per-table migration classification; format 34 and earlier are refused
+before recovery writes.
 Explicit earlier format markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation follows the completion rules above. Compiled schema format remains version 11.
 
@@ -243,20 +252,22 @@ LockTimeout bounds the wait with CS04044 (55P03). This maintenance adds no SQL s
 [SQL/JSON path functions](language/functions/json-path.md) and [COPY TO STDOUT](language/statements/copy-to.md)
 execute with bounded path work and negotiated outbound streaming respectively.
 
-## SQL format 34 and schema v11
+## SQL format 35 and schema v11
 
-SQL opens only data/catalog format **34** and compiled documents in
+SQL opens only data/catalog format **35** and compiled documents in
 **cohesion/database-schema/v11**. Format 30 adds ON UPDATE action bytes in table extension 8.
 Format 31 added partial-index predicate text and dependencies in index extension 2.
 Format 32 added per-column direction and NULL placement in mandatory index extension 3.
 Format 33 fences SQL/JSON contextual names and quoted ordinary function-call rendering.
-Format 34 changes kind-9 pending intents to support joint typed TYPE migrations with one-commit
-publication; existing record encodings and compiled schema v11 remain unchanged.
+Format 34 introduced the kind-9 pending-intent meaning to support joint typed TYPE migrations with one-commit
+publication. Format 35 fences separate physical owners for new kept-table index trees and
+per-table KeepOwner/RewriteOwner classifications. Format 34 is refused; record encodings and
+compiled schema v11 remain unchanged.
 Format 29 extended kind-18 sequence definitions with owning
 table id, column name and identity ownership. Identity allocation uses kind-19 reservations;
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
-Format 33 and every earlier database format are refused before data recovery;
+Format 34 and every earlier database format are refused before data recovery;
 there is no upgrade path or legacy reader. Compiled schema v11 carries effective KeyOrders,
 retaining v10's optional Predicate and v9's always-serialized onUpdate member.
 
