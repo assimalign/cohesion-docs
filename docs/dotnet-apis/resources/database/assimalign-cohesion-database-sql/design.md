@@ -248,9 +248,12 @@ stale claim before it is removed and the completed database is published.
 
 A retried create uses its requested collation, including after dbo was committed. An undeclared
 plain open retains a committed collation, otherwise uses Binary. Declared completion applies the
-declaration's collation (or Binary when absent). A format refusal probes every catalog size through
-read-only handles and private recovery overlays before either real
-file set opens for writing. Refusals leave the original files byte-identical. Transient probe I/O
+declaration's collation (or Binary when absent). Format gates use the shared Storage recovered
+read-only preflight when replay is needed, covering catalog metadata, record-space and recorded
+schema formats, and every registered data index root before recovery writes. Clean or crashed
+refusals leave every original file byte-identical. Acceptance performs normal recovery. See
+[read-only format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
+Transient probe I/O
 failures ask callers to retry OpenDatabaseAsync once resolved, without restore or drop advice.
 
 Drop deletes sql.dat first, then other data files, then the remaining directory. A partial drop

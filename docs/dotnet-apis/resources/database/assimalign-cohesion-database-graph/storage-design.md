@@ -116,10 +116,10 @@ CK06003 and CG06018 in
 No SQLSTATE is assigned.
 
 Format 4 added the catalog GUID after each label and the label-postings tree. Format 5 requires
-a persisted relationship-type postings tree; format-4 databases must also be recreated. A cleanly closed
-older file set is refused without changing any file. Physical WAL recovery precedes this fence
-on a crashed file set; the fence runs before logical scrub or the recovery checkpoint. There is
-no backfill or format upgrade.
+a persisted relationship-type postings tree; format-4 databases must also be recreated. Both clean
+and crashed older file sets are refused without changing any file. The recovered read-only gate
+precedes all physical/logical recovery writes and the recovery checkpoint. There is no backfill
+or format upgrade. See [format preflight](../assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
 
 Owner-one physical registration records are exactly 34 bytes: a zero stamp prefix, kind `4`,
 version `5`, UInt64 object ID, and Int64 root page ID. Every tree is named `graph`; its object ID

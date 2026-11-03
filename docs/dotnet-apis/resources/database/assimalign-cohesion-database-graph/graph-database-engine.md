@@ -43,7 +43,8 @@ CG06017 in Diagnostics before logical recovery scrub. The public exception is
 [DatabaseCorruptionException](../assimalign-cohesion-database/database-corruption-exception.md)
 with CK06003, CG06018 and CG06017; its inner StorageCorruptionException retains the
 coded message. Recreate the database; no upgrade path or SQLSTATE is assigned.
-GraphEngineTests checks that a cleanly closed refused file set stays unchanged.
+RefusedOpenTests checks that a crashed older-format file set stays byte-identical through engine
+disposal; cleanly closed refused sets also remain unchanged. Accepted databases retain normal recovery.
 
 ## Related reference
 

@@ -268,7 +268,9 @@ table id, column name and identity ownership. Identity allocation uses kind-19 r
 kind 16 is retired and never decoded. Format 30 retains the TYPE default-assignment flag introduced
 in format 27/table extension 7 and format 28's standalone-sequence records.
 Format 34 and every earlier database format are refused before data recovery;
-there is no upgrade path or legacy reader. Compiled schema v11 carries effective KeyOrders,
+there is no upgrade path or legacy reader. Clean and crashed format refusals preserve every file
+byte for byte; recovered read-only probes perform no lifecycle telemetry or recovery writes.
+Accepted databases retain normal recovery. Compiled schema v11 carries effective KeyOrders,
 retaining v10's optional Predicate and v9's always-serialized onUpdate member.
 
 Format 26 introduced the temporal DEFAULT and frozen missing-value fence: an older INTERVAL

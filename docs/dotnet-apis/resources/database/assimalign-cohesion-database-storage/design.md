@@ -439,6 +439,38 @@ record per page in one streaming pass. Recovery consumes that cached analysis, t
 ordered replay through a bounded page cache. The immediate replay can reuse the verified prefix;
 ordinary subsequent reads do not. See [streaming recovery](#empty-pages-and-streaming-journal-recovery).
 
+### Read-only recovered format preflight
+
+Opening a model storage over a data stream whose CanWrite is false produces a recovered read-only
+view. SQL, Documents, Graph, Key-Value Pair and Blob use this view when format gates need journal
+replay. Gates finish before any recovery writes, including for an older format after a crash.
+Refusal, cancellation and probe disposal leave every original data, journal, backup, catalog and
+sidecar byte unchanged. A mutation through a probe throws NotSupportedException.
+
+The shared journal analysis and replay rules reconstruct only requested pages into bounded scratch
+and buffer-pool storage. The probe retains frame locations rather than page-image payloads; it
+creates no temporary files or sidecars. A torn current-format page covered by the journal is
+reconstructed before the gate reads it. SQL and Key-Value Pair gate catalog and data sets together,
+with catalog refusals taking precedence. When journal analysis proves there are no applicable page
+records, engines may skip the full probe: writable physical recovery then has no writes, and gates
+still precede logical scrub and checkpoint. Acceptance discards probes and performs the existing
+physical replay, data flush, logical scrub and recovery checkpoint on the original files.
+
+| Model | Model-specific gates |
+| --- | --- |
+| SQL | Catalog/record-space and recorded schema formats; every registered data index root |
+| Documents | Metadata and physical-registration versions; every registered index root |
+| Graph | Entity and registration versions, index roots and every catalog record version |
+| Key-Value Pair | Catalog record-space format and registered data index roots |
+| Blob | Owner-zero catalog record versions |
+
+Shared file-header/checkpoint-chain and journal-frame gates also apply to each storage set.
+Recovered probes emit no HeaderReadFallback, RecoveryStart, RecoveryStop, JournalTailLost or
+open/close lifecycle signals, page-read counts or current-storages gauge transitions. Only the
+real writable open reports recovery. A corrupt page read by a probe still emits PageChecksumFailed
+(Error); refusal prevents a second writable-open count. Format and corruption diagnostics retain
+their existing identities, with no new format version from this preflight.
+
 ### Checkpoints
 
 Recovery protects both complete, verified checkpoint anchor chains from allocation and replay.
@@ -714,6 +746,8 @@ for the fitting target. No eager full-page scan, persisted map or page/file form
 StorageCompactionTests, StorageRecordFreeBytesTests and model decode-location tests exercise compaction, rollback/recovery, stale selections and confirmed malformed records.
 
 ## Sources
+
+- **Recovered format gates** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/Internal/Recovery/StorageRecoveredStream.cs`, `tests/StorageRecoveredViewTests.cs` and the model projects' `tests/RefusedOpenTests.cs`.
 
 - **Review regressions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/tests/StorageReviewTests.cs` and `StorageBufferPoolIoTests.Review.cs` in the same directory.
 - **Mutable handle ownership** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Storage/src/StoragePageHandle.cs`.

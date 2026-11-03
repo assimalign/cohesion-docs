@@ -269,6 +269,15 @@ reclaimed pages have a separate type and checksum. Every nonzero pooled page req
 verification, with a raw CRC of zero escaped as `0xFFFFFFFF`. Page 0 has its own identity and
 header-slot checksums. See [page integrity](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#storage-format-4).
 
+A format refusal leaves every file byte-for-byte unchanged, whether the database was cleanly
+closed or crashed on an older format. This includes data, journals, backups, catalog sets and
+sidecars. When replay is needed to inspect a gate, the engine uses a recovered read-only view,
+disposes it, then opens the accepted database for normal physical and logical recovery. Probing
+performs no checkpoint, truncation or file creation. Accepted-database recovery is unchanged.
+Recovered probes emit no Storage lifecycle events, page-read counts or storage-gauge changes;
+a corrupt page they read still emits PageChecksumFailed (Error). See
+[read-only format preflight](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#read-only-recovered-format-preflight).
+
 Detected storage damage raises
 [DatabaseCorruptionException](../dotnet-apis/resources/database/assimalign-cohesion-database/database-corruption-exception.md)
 with CK06003, the database, optional page and original cause. Refused opens retain existing
@@ -286,7 +295,7 @@ still require full verification. Newly initialized anchors have journal repair i
 ### Header read fallback
 
 Storage reads page 0 in independent 4 KiB halves. After a read error it accepts the other valid
-slot only when the retained journal proves coverage, before replay writes. Every accepted fallback
+slot only when the retained journal proves coverage, before replay writes. Every accepted writable-open fallback
 emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
 survivor with no valid slot is CK06003 corruption; two wholly unreadable halves retain I/O.
 See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
