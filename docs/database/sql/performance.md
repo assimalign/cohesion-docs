@@ -51,24 +51,8 @@ var options = new SqlDatabaseEngineOptions { StatementMemoryBudget = 32L * 1024 
 await using var engine = SqlDatabaseEngine.Create("orders", options);
 ```
 
-The positive byte budget defaults to 64 MiB and covers every buffer SELECT retains: joins,
-sorts/top-N heaps, grouping and aggregate state, DISTINCT, set operations, WITH/derived and subquery
-caches, and materialized result construction. Shared payloads are charged once for their retained
-lifetime. Planning and transient scalar evaluation are excluded. [CTAS](language/statements/create-table.md#create-table-as)
-charges the rows it keeps and encoded copy buffers; discarded OFFSET rows add no CTAS source
-charge. INSERT SELECT keeps its source, copied values and encoded writes admitted through insertion.
-[Joined mutations](#joined-mutations) and recursive queries share the grant for their retained state.
-
-Aggregation streams scan/join input into state. Eligible joins stop at LIMIT; unordered DISTINCT
-with fixed collations streams and can stop at OFFSET + LIMIT distinct rows. EXISTS needs only one
-qualifying row and scalar subqueries at most two, preserving OFFSET and tighter limits; a second
-scalar row raises the cardinality error. Single-source non-volatile pass-through views and derived
-tables can stream; complex relations and CTEs still materialize.
-
-Large sorts and results refuse with CS05067 (53200) when retained storage exceeds the grant.
-Reservations release on success, failure, cancellation and early stop. No spill is implemented.
-An ORDER BY satisfied by a forward or backward index scan retains no sort buffer; kept materialized
-output still charges the grant. An incompatible NULL placement retains a sort and its charges.
+The positive byte budget accounts for concurrently live hash builds, including nested queries and growth overlap. Exhaustion reports CS05067 (53200); there is no spill. [CTAS](language/statements/create-table.md#create-table-as) also charges retained source results and copy buffers. [Joined mutations](#joined-mutations) also charge retained targets, sources, associations and
+selected writes. Recursive queries also charge their retained results and scratch; ordinary nonrecursive result materialization and transient planning remain outside this accounting.
 
 [SQL/JSON paths](language/functions/json-path.md#limits) charge transient DOM, result references
 and selected-result serialization to the same statement memory grant (CS05094 / 54000).
@@ -122,8 +106,8 @@ index probe or hash build on that source. EXPLAIN shows the access paths, join a
 CS05067 (53200) before writes. UPDATE FROM, DELETE USING and MERGE also charge retained
 target identities, non-hash input buffers, derived copies, intermediate frames, associations,
 selected values, encoded replacements and joined cascade state. Exhaustion refuses before any
-write and releases reservations on every exit. Shared objects are charged once; SELECT result
-construction also shares the grant. Transient expression values remain outside it.
+write and releases reservations on every exit. Shared objects are charged once; general result
+materialization and transient expression values remain outside the grant.
 
 Equality-driven steps follow written source order. If only b is connected to the target by
 equality, list b first: `FROM b, a` or `USING b, a`. In

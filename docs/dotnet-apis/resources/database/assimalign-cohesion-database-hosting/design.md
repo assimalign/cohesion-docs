@@ -177,8 +177,9 @@ the engine. Configuration and service reads remain in the hosting callback.
 ## Platform endpoints and HTTP health
 
 When COHESION_GATEWAY is nonempty, a model server without a listener consumes its named endpoint:
-sql, documents, graph, kv or blob. Explicit listeners win. Each model validates timers and session
-limits before the root resolves fallback on its options snapshot. The default is plain TCP;
+sql, documents, graph, kv or blob. Explicit listeners win. The root resolves fallback on the options
+snapshot inside model server validation, after timer and session-limit checks and before the
+missing-listener refusal. Invalid snapshots therefore allocate no platform listener. The default is plain TCP;
 schemes do not select TLS. Missing/malformed values retain CK08001; DNS bind hosts retain CK07101.
 See [server options](../assimalign-cohesion-database/database-server-options.md). Two servers of one
 model need distinct listeners; an address collision fails Start and rolls back prior listeners.

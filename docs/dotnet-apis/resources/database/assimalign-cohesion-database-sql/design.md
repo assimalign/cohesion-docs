@@ -62,31 +62,6 @@ directions must agree; NULL placement must agree only where NULL can vary. Costi
 residual selectivity and base-row fetches. See [ordered access](../../../../database/sql/language/clauses/order-by.md#index-order).
 Invalid key-order width/value or directed primary-key metadata uses CS03085 (42P17).
 
-## SELECT statement memory
-
-Every buffer SELECT retains shares the positive StatementMemoryBudget grant, default 64 MiB:
-join builds and inner/match lists, grouping and aggregate DISTINCT/order state, full sorts and
-top-N heaps, DISTINCT sets, set-operation operands and membership/count state, WITH/derived
-relation caches, subquery caches and materialized output construction. Planning and transient
-scalar evaluation are excluded. Shared immutable payloads are charged once for their live scope;
-completed children are admitted for the consuming scope. All exits release reservations.
-
-Aggregation streams scan/join input into state; eligible joins stop at LIMIT. Unordered DISTINCT
-with fixed collations streams and stops at OFFSET + LIMIT distinct rows. EXISTS uses effective
-LIMIT 1 and scalar subqueries LIMIT 2, preserving OFFSET and tighter explicit limits; the second
-scalar row reports the existing cardinality error. Single-source non-volatile pass-through views
-and derived tables can stream; complex relations and CTEs still materialize.
-
-Index-satisfied forward/backward ordering retains no sort buffer; kept output still charges the
-grant. Incompatible NULL placement retains sorting. CTAS charges kept query rows and live encoded
-copy batches, excluding discarded OFFSET capacity. INSERT SELECT keeps source rows, copied values
-and encoded writes admitted through insertion. Ordered sequence deferral shares ordinary charged
-sorting; unordered sequence projection retains no deferred input.
-
-Large sorts and results refuse with CS05067 (53200) before writes or publication. No spill is
-implemented. See [engine options](sql-database-engine-options.md#statement-memory) and
-[query performance](../../../../database/sql/performance.md).
-
 ## Partial indexes
 
 [CREATE INDEX ... WHERE](../../../../database/sql/language/statements/create-index.md#partial-indexes)
@@ -398,6 +373,10 @@ bounds; nullability may change. Defaults, primary keys and physical column chang
 Dropping or replacing a pre-existing index whose pages belong to the heap also forces a rewrite.
 A separately owned tree can be dropped or replaced while keeping the heap; its old owner is reclaimed.
 
+Index comparison includes every effective key order: a direction-only or NULL-placement-only
+change replaces the independently owned tree while retaining its heap. Joint TYPE rewrites
+preserve the same compiled-to-catalog key-order mapping.
+
 Kept tables retain dropped physical ordinals, frozen missing values, identity metadata and default
 assignment flags. New trees build unpublished in 64-version brackets against the original row
 locations and MVCC stamps. New CHECK and NOT NULL constraints validate existing rows under the
@@ -407,9 +386,12 @@ All drops, new trees and rewritten tables publish in the same single catalog com
 
 Space admission charges only new trees for a kept table, with no heap copy or retained-tree charge.
 Failed preparation reclaims only unpublished tree owners and preserves the heap and published
-indexes. Old snapshots keep their prior table descriptions. Durable kind-9 Joint/KeepOwner and
-Joint/RewriteOwner classification and separate tree ownership require SQL format 36; format 34
-is refused without an upgrade reader. Compiled schema v12 and wire messages remain unchanged.
+indexes. Old snapshots keep their prior table descriptions. Layout refusals distinguish a joint
+kept table from a generic ALTER replacement; both retain CS05060 and preserve the published layout.
+Durable kind-9 Joint/KeepOwner and Joint/RewriteOwner classification and separate tree ownership
+were introduced in SQL format 35, without changing compiled schema v11 or wire messages.
+Current SQL format 36 and compiled schema v12 change effective key-order defaults; earlier
+files and artifacts are refused without an upgrade reader.
 
 ### `Object` ownership and the schema package
 
@@ -1393,7 +1375,7 @@ Shared object grants protect statement evaluation; ALTER/RESTART/DROP wait for t
 Literal/parameter names lock their objects; row-varying names lock the captured sequence directory.
 Ordered independent sequence outputs evaluate after sorting, including OFFSET rows, and stop at
 LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting follows the
-ordinary sort's charged accounting; kept outputs and grouping-set states share the CS05067 grant.
+ordinary sort's uncharged accounting; grouping-set states retain their existing CS05067 grant.
 RETURNING lists containing calls evaluate before the global apply gate; durable sequence effects
 survive write rollback. Identity, SERIAL and OWNED BY share the allocator; constant column sequence defaults track dependencies.
 

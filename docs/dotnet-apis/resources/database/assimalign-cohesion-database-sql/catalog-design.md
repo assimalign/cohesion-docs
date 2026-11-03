@@ -187,10 +187,11 @@ Typed migrations containing a TYPE rewrite prepare their complete target unpubli
 it in one catalog commit. That commit writes table/index/constraint descriptions, registrations,
 dependent view identities, retirement records and the applied kind-6 marker, removes prepared
 kind-14 records and deletes the pending kind-9 intent. Directory allocations precede the commit.
-Format 34 introduced the changed kind-9 meaning (`Joint/` step kinds). Current format **36** also
-fences per-table Joint/KeepOwner and Joint/RewriteOwner choices and separately owned trees; every earlier format,
-including 35, is refused before recovery writes. Kind-6/kind-14 encodings and compiled schema v12
-are unchanged. Index additions and constraint-only changes can preserve a table's heap and retained
+Format 34 introduced the changed kind-9 meaning (`Joint/` step kinds). Format 35 added per-table
+Joint/KeepOwner and Joint/RewriteOwner choices and separately owned trees, without changing
+kind-6/kind-14 encodings or compiled schema v11. Current format **36** and compiled schema v12
+change effective key-order defaults; earlier formats and artifacts are refused before recovery
+writes. Index additions and constraint-only changes can preserve a table's heap and retained
 trees. New trees have separate physical owners recorded in root headers; logical registrations
 still name the heap. Publication commits their descriptions and registrations with every rewritten
 table in the joint target. See [kept-table preparation](design.md#joint-tables-that-keep-storage)

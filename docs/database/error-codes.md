@@ -639,14 +639,6 @@ CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. U
 sort and output state uses CD05018; compound row/equality/sort work uses CD05020. INTERSECT/EXCEPT
 and nested compounds retain CK00001. See [set operations](document/language/statements/select.md#set-operations).
 
-## SELECT statement memory
-
-CS05067 (53200) covers every retained SELECT buffer, including joins, sorts/top-N, grouping,
-DISTINCT, set operations, WITH/derived and subquery caches, and materialized output construction.
-CREATE TABLE AS charges the rows it keeps and copy buffers. The positive StatementMemoryBudget
-defaults to 64 MiB; large sorts and results refuse when it is exhausted. No spill is implemented.
-See [statement memory](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#statement-memory).
-
 ## Sources
 
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.

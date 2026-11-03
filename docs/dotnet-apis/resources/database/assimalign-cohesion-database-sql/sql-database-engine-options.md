@@ -59,32 +59,23 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 
 [Assembly](index.md) · [Session](sql-database-session.md) · [Timeout exception](sql-timeout-exception.md)
 
-## Statement memory
+## Hash-build memory
 
-StatementMemoryBudget is the maximum accounted bytes retained by query buffers, write sets and
-CREATE TABLE AS copying in one statement. It defaults to 67,108,864 bytes (64 MiB) and must be
-positive; engine creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine
-snapshots the value.
+StatementMemoryBudget limits accounted bytes retained by hash builds, joined DML and CREATE TABLE
+AS copying in one statement. It defaults to 67,108,864 bytes (64 MiB) and must be positive; engine
+creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value.
 
-SELECT charges retained nested-loop inners, joined matches, GROUP BY and aggregate DISTINCT state,
-sorts and bounded top-N heaps, DISTINCT sets, materialized output construction, WITH and derived
-relation caches, subquery value caches and set-operation state. Aggregate transitions consume
-scan/join input as a stream; eligible joins stop with LIMIT. Unordered DISTINCT with fixed collations
-streams input and can stop after OFFSET + LIMIT distinct rows. EXISTS stops after one qualifying
-row and scalar subqueries after two, preserving OFFSET and tighter explicit limits; a second
-scalar row retains the cardinality error.
+Concurrently live hash builds share the limit across nested queries. UPDATE FROM, DELETE USING
+and MERGE also charge retained target identities, source/intermediate buffers, derived copies,
+associations, selected values, encoded replacements and joined cascade state. CTAS charges retained
+query output and batch buffers. Recursive queries also charge retained results and scratch;
+ordinary nonrecursive output materialization and planning remain outside this accounting.
+Exhaustion reports CS05067 / SQLSTATE 53200 before writes or publication and releases reservations
+on every exit. Hash joins never spill. See [query performance](../../../../database/sql/performance.md).
 
-Joined DML charges retained inputs, associations and selected writes. INSERT SELECT readmits its
-kept source and charges copied values and encoded writes through insertion. CREATE TABLE AS
-charges retained query output and batch buffers; discarded OFFSET outputs add no CTAS source
-charge. Ordered sequence deferral shares ordinary sorting charges; unordered sequence projection
-streams without retaining inputs. Recursive queries also charge retained results and scratch.
-Planning and transient scalar evaluation are excluded. Accounted bytes describe retained storage,
-not total GC allocations. Aliased payloads share a charge for their required lifetime.
-
-Exceeding the budget reports CS05067 / SQLSTATE 53200 before writes or publication. Reservations
-release on success, failure, cancellation and early LIMIT. Large sorts and results can therefore
-refuse even without a hash join. No spill is implemented. See [query performance](../../../../database/sql/performance.md).
+Grouping sets charge group and aggregate state. Ordered sequence deferral uses ordinary uncharged
+sorting, including LIMIT and OFFSET, and adds no charge on plain, correlated, grouped or
+grouping-set paths. Unordered sequence projection streams without retaining inputs.
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
 StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
@@ -115,8 +106,6 @@ retains less than 32 KiB. Bounded-state infinite consumers require cancellation;
 exhaust the grant with CS05067 (53200). There is no fixed row/depth limit or spill.
 
 ## Sources
-
-- **SELECT retention and early stop** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlSelectBufferBudgetTests.cs`, `SqlSelectLifetimeRegressionTests.cs` and `SqlSelectSecondFixTests.cs` in the same test directory.
 
 - **Recursive accounting and reclamation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlRecursiveReclamationTests.cs`; row-returning capacity follows `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.RecursiveTables.cs` and `SqlWindowMemory.cs` in the same directory.
 

@@ -507,8 +507,7 @@ The shared StatementFailed event takes its payload code from non-null Diagnostic
 
 ## Hash-build refusal
 
-CS05067 reports exhausted statement memory for retained SELECT buffers (joins, sorts, grouping,
-DISTINCT, set operations, caches and materialized output), joined-DML state or CTAS source/copy buffers
+CS05067 reports exhausted statement memory for hash builds, retained joined-DML state or CTAS source/copy buffers
 (SQLSTATE 53200, out_of_memory). Its diagnostic message is unprefixed. Configure
 SqlDatabaseEngineOptions.StatementMemoryBudget; there is no spill. See
 [hash joins](clauses/join.md#hash-joins-and-memory) and [CTAS](statements/create-table.md#create-table-as).
