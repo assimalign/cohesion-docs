@@ -672,17 +672,14 @@ unsupported-clause diagnostics.
 - **Bounded SELECT selection.** Unordered non-DISTINCT LIMIT stops after OFFSET + LIMIT
   qualifying outputs; table/system scans also stop reading. OFFSET rows evaluate projections;
   unvisited rows skip projection/HAVING errors and volatile calls. Grouped input still accumulates,
-  while correlated outer rows and eligible streaming joins stop with LIMIT. Required inner/build
-  buffers and set operands remain retained. Fixed-collation ORDER BY
+  while correlated outer rows and final join/set projection can stop. Fixed-collation ORDER BY
   with a non-DISTINCT positive limit examines all inputs but retains at most OFFSET + LIMIT outputs
   and key tuples in a max-heap, using input ordinals for stable ties. The bound saturates at
   Int64.MaxValue and storage grows from actual retained rows. Deferred collations use full sorting,
   retaining the last qualifying row's resolved collations. Independent volatile ordinary outputs
   keep full sorting then sorted-order projection before pagination; other projections evaluate
-  before each input's keys. Unordered fixed-collation DISTINCT streams and can stop at the distinct
-  output window; ordered or row-dependent-collation DISTINCT retains blocking stages. Aggregation
-  streams input into retained state. All retained buffers share the statement grant.
-  `SqlMaterializedResultSet` holds completed output before
+  before each input's keys. DISTINCT finishes before pagination. Aggregate state, join inputs/results
+  and set operands still materialize. `SqlMaterializedResultSet` holds completed output before
   delivery; snapshot/lock/reader-epoch ownership remains statement-scoped. There is no public option
   or new wire frame. See [SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection).
 - **Transactions (MVCC session binding, `3.8).** Every statement — explicit

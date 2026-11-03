@@ -52,11 +52,9 @@ values before being discarded; independent outputs beyond OFFSET + LIMIT are not
 If a sequence output itself supplies an ordering key (directly, by alias or ordinal), it evaluates
 before sorting, once per candidate. WHERE/HAVING-rejected rows consume no projection values.
 Grouping sets apply these rules to every completed group, including empty groups and subtotals.
-Unordered grouped/correlated inputs project qualifying rows immediately and stop at LIMIT.
-Eligible joins stream matches into projection and stop too; required buffered inner/build work
-can still run beyond the final page. Ordered deferral shares ordinary charged sorting; kept outputs
-charge StatementMemoryBudget, while discarded OFFSET outputs add no CTAS source charge.
-LIMIT/OFFSET sequence calls evaluate once at execution
+Unordered grouped/correlated inputs project qualifying rows immediately and stop at LIMIT; joins
+filter all candidate pairs before limited projection, so sequence calls in their predicates can
+run for more rows than the final page. LIMIT/OFFSET sequence calls evaluate once at execution
 before input rows. Plain EXPLAIN has no effects; EXPLAIN ANALYZE SELECT executes them.
 
 Function calls execute in RETURNING for INSERT, UPDATE, DELETE, joined writes, ON CONFLICT and
