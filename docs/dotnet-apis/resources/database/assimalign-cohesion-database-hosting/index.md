@@ -6,6 +6,8 @@
 
 ## Reference pages
 
+- **[DatabaseApplicationBuilder](database-application-builder.md)** — AddHealthEndpoint and managed health precedence.
+
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[Examples](examples/index.md)** — Source-backed usage and expected behavior.
 
@@ -55,9 +57,12 @@ and restores during `StartingAsync`, after Build has opened, recovered, and migr
 before any service or server starts. It opens the platform client in `StartAsync`; servers drain
 before it closes on stop. The gateway's startup window must cover Build's inline work.
 
-No production path starts the internal admin health listener today; a managed Database application
-serves no HTTP health. T3 EN-A1 plans to bind it on the platform's `http` endpoint.
-When explicitly started, the listener accepts namespaced health probes only from transport
+Managed health binds the platform's `http` assignment when its scheme is plain HTTP and its host
+is a literal IP address or localhost. It overrides an explicit health URI; unsuitable assignments
+are reported and skipped. Unmanaged applications opt in with
+[AddHealthEndpoint(Uri)](database-application-builder.md#addhealthendpoint); without it they create
+no health listener. The listener starts before model servers and stops after they drain.
+It accepts namespaced health probes only from transport
 peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`; other peers receive 403 regardless of
 forwarded headers. This restricts remote standalone access supported by 10.0.0-preview.1 (#1431).
 Bare `/healthz`, `/readyz`, and `/livez` stay open. Other `/cohesion/v1` routes return 403 even with

@@ -4,6 +4,19 @@ This page describes the boundaries and implementation shape of `Assimalign.Cohes
 
 > **Status:** Partial.
 
+## Named platform endpoints
+
+Server creation snapshots options and validates timers/session limits before resolving a missing
+listener. When COHESION_GATEWAY is nonempty, the root reads the current AppEnvironment flow for
+`sql`, `documents`, `graph`, `kv` or `blob`. Explicit listeners win. Missing/malformed assignments
+retain CK08001; DNS hosts retain CK07101. The fallback uses plain TCP, with schemes as metadata,
+and never mutates caller options. The root and Database.Tcp compile the shared stateless address
+binder; model packages keep the generic Connections API. Listeners bind only at server Start.
+Two servers of one model need distinct listeners; a collision fails Start and host rollback
+releases earlier listeners. The in-process platform currently allocates only `http`.
+See [server options](database-server-options.md) and
+[Hosting health](../assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
+
 The area root (architecture: resources/`Database`/DESIGN.md
 (`cohesion/docs/resources/Database/DESIGN.md`)). The lifecycle and composition bases serve all five data models. Execution capability
 bases serve four typed models and three language models. Model requests, parsers and

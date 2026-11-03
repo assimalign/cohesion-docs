@@ -105,10 +105,11 @@ The owned in-process platform shuts down the Database program; a borrowed platfo
 caller-owned. The [in-process example](examples/database-resource-in-process-tests.md) uses gateway
 disposal as its shutdown criterion.
 
-The package's [seven open questions](design.md#current-limits) cover endpoints, readiness, the
-startup window, Database-owned actions, instance health, the publication-to-open window, and HTTP
-health. No production path starts the internal admin health service today, so managed Database
-applications serve no HTTP health yet.
+The package's [seven open questions](design.md#current-limits) cover named endpoint allocation,
+readiness, the startup window, Database-owned actions, instance health and the publication-to-open
+window. Hosting now serves HTTP health on a usable plain-HTTP `http` platform assignment. Model
+servers default to their named assignments only without an explicit listener; the in-process
+platform still allocates only `http`. See [health composition](../assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
 
 [Parent: Database](../index.md)
 

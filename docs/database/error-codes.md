@@ -624,6 +624,14 @@ without lookups. No SQLSTATE is assigned to these conditions.
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
 
+## HTTP health binding
+
+CK07102 reports an HTTP health listener socket bind failure in DatabaseException.Diagnostics.
+The original Web startup failure and socket cause are retained; host startup rolls back prior
+services. Unsupported managed health assignments are skipped with informational Hosting event 18,
+while event 19 reports replacement of a different explicit health URI. Neither event changes
+gateway readiness. See [health composition](../dotnet-apis/resources/database/assimalign-cohesion-database-hosting/design.md#platform-endpoints-and-http-health).
+
 ## OQL compound queries
 
 OQL compound ordering reports CD01037 for an all-RAW/VALUE result with no named members, or

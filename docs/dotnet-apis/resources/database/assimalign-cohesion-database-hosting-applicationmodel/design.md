@@ -35,8 +35,10 @@ engines. Its factory is invoked directly, so the provider does not capture it fo
 3. **Services start** — `AddService` registrations start first, then container `IHostService`
    registrations, then the optional reopen service, each group in registration order. The resource
    service opens the selected platform client here, after restoration.
-4. **Servers accept** — Servers start in engine/attachment order. These are the wire listeners
-   the application's code configured; `AddResource` creates no listener or data endpoint.
+4. **Health and servers accept** — Hosting starts health on a usable managed `http` assignment,
+   after container resource services and before model servers. Servers then start in engine/attachment
+   order, using explicit listeners or their named model assignments. `AddResource` adds no wire server.
+   The in-process platform currently allocates only `http`, so wire listeners stay explicit there.
 5. **Stop reverses the order** — Servers drain while the control plane remains open. The reopen
    service stops, then container services in reverse order, then `AddService` services in reverse
    order. The resource service closes its client and stops renewing its lease during this sequence.
@@ -67,10 +69,10 @@ the end-to-end test's shutdown criterion. A borrowed platform remains its caller
 
 The package design records seven open questions:
 
-1. **Endpoints — owners: in-process platform and Database.** Database binds code-configured wire
-   endpoints and reads no `COHESION_ENDPOINT_*` variable. The platform allocates one `http` endpoint
-   and reports an HTTP loopback `endpoint` output unrelated to Database's wire listener. Dependents
-   pass the wire endpoint as a literal setting today.
+1. **Named endpoint allocation — owner: ApplicationModel.** Database consumes `sql`, `documents`,
+   `graph`, `kv` and `blob` assignments when managed and no explicit listener is configured. The
+   in-process platform still assigns only `http` and one HTTP loopback output, now serving Database
+   health. Dependents pass wire addresses as literal settings until named allocation and outputs exist.
 2. **Readiness — owner: ApplicationModel.Gateway (G18).** The gateway counts first publication as
    ready, in `StartingAsync` before servers listen or the client opens. A dependent can deploy
    before Database accepts connections. Admin readiness does not change gateway readiness.
@@ -85,10 +87,9 @@ The package design records seven open questions:
    services start after publication and restore, before the control plane opens. A slow service
    widens Hosting open question 7's window. Database users cannot reorder these services as Web
    and EmailHub users can.
-7. **HTTP health — owner: Database, T3 EN-A1.** The internal `DatabaseAdminEndpointService` exists,
-   but no production path starts it. A managed Database application serves no HTTP health today;
-   EN-A1 plans to bind it on the platform's `http` endpoint. Health and Database-owned actions are
-   T3 EN-A1–A3 work.
+7. **Instance health and actions — owner: Database.** Hosting now binds usable plain-HTTP `http`
+   assignments, with the existing readiness gate and loopback-only namespaced probes. Mapping
+   observations to instance health contributors and adding Database actions remain later work.
 
 The [in-process test](examples/database-resource-in-process-tests.md) waits for the Database host
 to reach `Started` before invoking an action and surfaces a failed startup rather than polling a

@@ -16,7 +16,7 @@ public sealed class SqlDatabaseServerOptions : DatabaseServerOptions
 
 ## Behavior and exceptions
 
-Listener is required; the server owns its bind-through-disposal lifecycle. A null Authenticator uses
+Listener may default from the managed model assignment; otherwise it is required. The server owns its bind-through-disposal lifecycle. A null Authenticator uses
 DatabaseAuthenticator.AllowAll. MaxSessions includes handshaking peers. Creation snapshots all
 settings, preserving listener/authenticator references; later setter changes do not reconfigure it.
 
@@ -53,6 +53,10 @@ The server finishes pending work or aborts it after the drain budget, then joins
 [Assembly](index.md) · [Server design](design.md#terminal-errors-and-drain) · [Shared protocol](../assimalign-cohesion-database-protocol/design.md#terminal-delivery-and-frame-writes)
 
 ## Shared TCP composition
+
+When COHESION_GATEWAY is nonempty, a missing listener uses this model's named platform endpoint.
+An explicit listener wins. Two servers of one model need distinct listeners; see the common options
+reference below for assignment names and refusals.
 
 Common members come from [DatabaseServerOptions](../assimalign-cohesion-database/database-server-options.md). [Database.Tcp](../assimalign-cohesion-database-tcp/index.md) supplies Listen(Uri) for this leaf; add `using Assimalign.Cohesion.Database;`. The extension returns the same concrete options type and the server owns the transferred listener.
 

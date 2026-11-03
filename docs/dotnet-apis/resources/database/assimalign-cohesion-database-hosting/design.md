@@ -174,13 +174,44 @@ The public static `CreateBuilder(name)` on each model engine returns its sealed 
 deferred standalone composition. Its `Options`, `AddDatabase`, `AddServer`, and `AddWorker` compose
 the engine. Configuration and service reads remain in the hosting callback.
 
+## Platform endpoints and HTTP health
+
+When COHESION_GATEWAY is nonempty, a model server without a listener consumes its named endpoint:
+sql, documents, graph, kv or blob. Explicit listeners win. Each model validates timers and session
+limits before the root resolves fallback on its options snapshot. The default is plain TCP;
+schemes do not select TLS. Missing/malformed values retain CK08001; DNS bind hosts retain CK07101.
+See [server options](../assimalign-cohesion-database/database-server-options.md). Two servers of one
+model need distinct listeners; an address collision fails Start and rolls back prior listeners.
+
+[AddHealthEndpoint(Uri)](database-application-builder.md#addhealthendpoint) configures one plain-HTTP
+health listener; the last call wins. At Build, managed `http` assignments with plain HTTP and a
+literal IP or localhost override an explicit health URI. Unsupported schemes or DNS hosts emit
+event 18 and are skipped, keeping explicit health or composing no listener. Missing/malformed
+assignments are unset. An unmanaged host creates no listener without AddHealthEndpoint.
+
+The health singleton is last among container lifecycle services, before reopen and model servers.
+Start awaits its bind; socket bind failure reports DatabaseException.Diagnostics code CK07102,
+preserving the Web HostStartupException and SocketException cause. Startup rolls back prior
+services. Event 15 reports the original failure once. Shutdown drains servers before health stops;
+async disposal owns the private Web host. Readiness stays unavailable until the outer host reaches
+Started after every model server accepts; liveness omits that readiness-only gate.
+
+The internal source `Assimalign.Cohesion.Database.Hosting` adds:
+
+| ID | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 18 | HealthEndpointAssignmentSkipped | Informational | assignment (`http`), endpoint (scheme and authority), scheme |
+| 19 | HealthEndpointOverridden | Informational | explicitEndpoint, platformEndpoint (scheme and authority) |
+
+Event 19 occurs only when a usable platform assignment replaces a different explicit URI. Missing
+or malformed assignments emit neither event. Existing event identities and health routes remain.
+
 ## Standalone admin control plane (#1431)
 
-The internal `DatabaseAdminEndpointService` remains available, but no production path starts it
-today. A managed Database application serves no HTTP health; T3 EN-A1 plans to bind the service on
-the platform's `http` endpoint.
+The internal `DatabaseAdminEndpointService` serves managed platform health or an explicitly
+configured unmanaged endpoint through the builder composition above.
 
-When explicitly started, the listener restricts `/cohesion/v1` and every path below it to
+The listener restricts `/cohesion/v1` and every path below it to
 transport peers at `127.0.0.1`, `::1`, or IPv4-mapped `127.0.0.1`. Other, absent, and non-IP
 remote endpoints receive 403; the status makes the development-only restriction explicit. Forwarded
 headers do not establish locality. The guard precedes Database's own namespaced health mappings,
@@ -233,6 +264,8 @@ Database SDK hosts receive the public Database.Tcp package through App.Database;
 The admin endpoint constructs the public sealed HealthChecksBuilder in Assimalign.Cohesion.Web.Health. The standalone HealthChecks.CreateBuilder factory is removed; IHealthChecksBuilder extensions and immutable service snapshots remain. See [builder API](health-checks-builder.md).
 
 ## Sources
+
+- **Endpoint binding and health** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/tests/DatabaseHealthEndpointTests.cs`, `DatabasePlatformCollisionTests.cs` and `DatabaseHostingEventSourceTests.PlatformEndpoints.cs` in the same test directory.
 
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Hosting/src/Assimalign.Cohesion.Database.Hosting.csproj`.
