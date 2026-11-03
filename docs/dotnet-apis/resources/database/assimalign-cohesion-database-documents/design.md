@@ -518,7 +518,7 @@ star constructs owned objects keyed by binding names. Quantifiers use inner lexi
 true/not-true element results; collection MISSING propagates and NULL/non-array gives NULL.
 Array IN retains the separate NULL-left rule, including NULL IN [] = NULL.
 
-FROM/UNNEST names are unique, reserving the unaliased source name (CD00010 in text, CD01023
+FROM/JOIN/NEST/UNNEST names are unique, including the implicit source name (CD00010 in text, CD01023
 for direct SELECT AST duplicates/empty names). Quantifiers may shadow outer names. META on
 an array/quantifier variable is CD05001. EXPLAIN adds Unnest/LeftUnnest and SystemCollectionScan
 without changing the shared eight columns. Catalog, storage and wire layouts are unchanged;
@@ -806,7 +806,23 @@ arrays release with their consumer expression/row. Retained output and keys own 
 StatementWorkBudget defaults to 10,000,000 reached expression evaluations, shared across all depths
 and cache hits. DML nested reads see statement-start content; RETURNING captures its normal
 post-image (DELETE pre-image) and actual metadata. See the linked subquery reference for examples
-and the open unaliased-path inconsistency, cohesion#1767.
+and the explicit/implicit correlation rules.
+
+## Source aliases
+
+An unaliased collection supplies its binding name everywhere: paths, META, DML, grouping,
+DISTINCT, ordering, index analysis and EXPLAIN. System sources use their final segment as written;
+quoted stored collection names remain opaque, including dots. In FROM items, items.g reads g
+and items is the complete value; use items.items.g or an explicit alias to reach a self-named field.
+CREATE INDEX keys remain document-relative and do not use the collection name as an alias.
+An inner bare FROM name correlates only to an explicit outer alias; implicit collection,
+JOIN/NEST, UNNEST and expression-source names leave it naming a collection. Explicit paths
+can capture either kind of binding.
+
+VALUES has no destination row. A VALUES subquery that references an otherwise unbound destination
+binding fails planning with CD01036, including through META or nested captures. A bare FROM
+may read the destination collection; a bare FROM naming an explicit destination alias fails too.
+Local declarations may shadow that name. Direct VALUES paths retain CD05001.
 
 ## Derived and expression FROM sources
 
@@ -823,8 +839,8 @@ within correlated queries and INSERT/UPSERT SELECT sources.
 ## OQL key joins and NEST
 
 [Key JOIN and NEST](../../../../database/document/language/clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
-stars. All SELECT sources throughout a joined statement require explicit aliases pending
-[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+stars. Collection names and inferred UNNEST names are valid implicit aliases; explicit and
+implicit names share duplicate detection (CD00010 in text, CD01023 in direct ASTs). Lookups share the
 operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
 default); eviction drops complete entries and NEST arrays, while retained rows keep their own
 charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
@@ -832,8 +848,8 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
-| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD00016 | Retired and reserved: former joined-statement explicit-alias requirement | — |
+| CD01035 | Unbound/self/forward key source or ambiguous/invalid joined META | — |
 | CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
@@ -850,6 +866,8 @@ Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactio
 Cross-model conformance (#1726, XT-5) section.
 
 ## Sources
+
+- **Implicit aliases and refusals** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentImplicitAliasTests.cs`, `DocumentImplicitAliasBindingTests.cs` and `DocumentImplicitAliasFixTests.cs` in the same directory.
 
 - **Key joins and cache** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentKeyJoinTests.cs`, `DocumentKeyJoinCacheTests.cs` and `DocumentKeyJoinSnapshotTests.cs` in the same directory.
 

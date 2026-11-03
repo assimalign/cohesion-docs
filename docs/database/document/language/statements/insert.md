@@ -13,6 +13,13 @@ INSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) sele
 
 ## Remarks
 
+The collection name supplies the implicit destination binding when no alias is declared.
+It names the image in RETURNING. VALUES has no destination row: a subquery that references
+that binding without a local declaration fails planning with CD01036 (no SQLSTATE).
+A bare FROM may read the destination collection; a bare FROM naming an explicit destination
+alias fails too unless a local binding shadows it. Direct VALUES paths retain CD05001.
+See [mutation subqueries](../expressions/subqueries.md#mutation-subqueries).
+
 KEY must evaluate to a nonblank string. VALUE can be any valid JSON value, including NULL,
 object, array or scalar, but cannot be MISSING. VALUES expressions are column-free and cannot
 use aggregates or source metadata. [Object constructors](../expressions/object-constructors.md)

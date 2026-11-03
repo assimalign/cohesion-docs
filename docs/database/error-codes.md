@@ -259,7 +259,8 @@ tree creation). Neither has an assigned SQLSTATE. Unsupported typed WHEN constan
 retain ArgumentException. Index v3 is required; v1/v2 open refusals retain CD06105 (no SQLSTATE).
 
 OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
-(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression) and
+(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression, including an element path starting with a
+subscript) and
 CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an assigned SQLSTATE.
 See [CREATE INDEX](document/language/statements/create-index.md).
 
@@ -456,6 +457,7 @@ See [FILTER evaluation and placement](sql/language/clauses/filter.md).
 | CD00015 | Derived FROM SELECT has no alias | — |
 | CD01033 | FROM expression has no explicit alias or implicit field name | — |
 | CD01034 | Unbound source variable without an input-row scope | — |
+| CD01036 | VALUES subquery references its destination binding without a local declaration | — |
 
 [Subqueries](document/language/expressions/subqueries.md) share the existing CD05018 memory budget
 and CD05015 projection-depth guard. Correlation and DML subqueries execute.
@@ -605,8 +607,8 @@ Outside-block SET changes no default, including for SERIALIZABLE. Refusals prese
 ## OQL key joins and NEST
 
 [Key JOIN and NEST](document/language/clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
-stars. All SELECT sources throughout a joined statement require explicit aliases pending
-[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+stars. Collection names and inferred UNNEST names are valid implicit aliases; explicit and
+implicit names share duplicate detection (CD00010 in text, CD01023 in direct ASTs). Lookups share the
 operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
 default); eviction drops complete entries and NEST arrays, while retained rows keep their own
 charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
@@ -614,8 +616,8 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
-| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD00016 | Retired and reserved: former joined-statement explicit-alias requirement | — |
+| CD01035 | Unbound/self/forward key source or ambiguous/invalid joined META | — |
 | CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |
