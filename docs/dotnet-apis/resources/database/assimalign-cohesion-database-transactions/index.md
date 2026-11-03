@@ -10,6 +10,7 @@ The shared ACID substrate for every Cohesion database engine: MVCC visibility sn
 - **[TransactionLockTimeoutException](transaction-lock-timeout-exception.md)** — One queued wait expired; existing grants remain.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
+- **[TransactionCheckpointInterlock](transaction-checkpoint-interlock.md)** — Per-storage engine write admission and thread-affine Lease.
 - **[TransactionCoordinator](transaction-coordinator.md)** — Lazy writer enrollment, snapshot pins and begin/commit/rollback lifecycle.
 - **[LockManager](lock-manager.md)** — Writer locks, MarkStatement and ReleaseSince for unwritten arbitration.
 - **[LockStatementMark](lock-statement-mark.md)** — Opaque grant boundary with value equality.

@@ -2347,6 +2347,16 @@ the retained prefix and subsequent committed writes. No persistent marker or new
 Evidence: the model project's `tests/SavepointMatrixTests.cs` and the Transactions design's
 Cross-model conformance (#1726, XT-5) section.
 
+## Catalog and reclamation checkpoint admission
+
+SQL catalog writes enter the catalog file set's checkpoint interlock under the metadata monitor.
+Data and catalog gates are independent. Catalog lease disposal can run a deferred checkpoint while
+readers wait on that monitor. Table reclamation enters the data interlock for each physical bracket,
+then releases it before catalog retirement and durability waits. Holder release services size-due
+work before the next admission; reclamation yields to due or pending checkpoints. See
+[shared admission and attribution](../assimalign-cohesion-database-transactions/design.md#transaction-eventsource)
+and [checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+
 ## Sources
 
 - **Kept-table migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JointMigration.cs` and `tests/SqlJointTypeMigrationTests.KeepOwners.cs`.

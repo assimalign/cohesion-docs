@@ -299,7 +299,8 @@ slot only when the retained journal proves coverage, before replay writes. Every
 emits HeaderReadFallback (Warning 18); missing coverage refuses open as I/O. A readable damaged
 survivor with no valid slot is CK06003 corruption; two wholly unreadable halves retain I/O.
 See [storage recovery](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#page-0-and-alternating-headers).
-The journal-size checkpoint setting remains a soft trigger; the hard bound is deferred.
+The journal-size checkpoint setting is a soft trigger; holder-release progress is described under
+[checkpoint triggering](#checkpoint-triggering).
 
 ## Engine failure diagnostics
 
@@ -412,10 +413,13 @@ completed uploads then await host commit and downloads pin one metadata/content 
 
 ## Checkpoint triggering
 
-Checkpoint size and interval are soft triggers. After collecting a deferred lane, the shared worker
-rechecks due work in the same pass and attempts at most one new checkpoint. Failures keep their
-retry delay; busy storage waits for the next pass. This closes a consumed-wake gap without bounding
-journal size; #1283 remains open. See [storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
+Catalog writes and table reclamation share the checkpoint interlock with statement apply, undo
+and pruning. A holder releasing admission checks size-due work and runs the checkpoint before
+another writer enters, bounding journal growth under sustained writes even if the worker has not
+run. Lanes recheck due state after dispatch. Refusals name the gate holder and physical blockers
+through checkpoint events. One atomic bracket can still overshoot the size trigger; there is no
+fixed byte cap. See
+[storage design](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ## Read-only transactions and durability
 

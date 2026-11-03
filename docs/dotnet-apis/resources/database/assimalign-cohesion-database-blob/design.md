@@ -106,10 +106,12 @@ and `tests/Catalog/BlobCatalogTests.MaintenanceFailures.cs` in the same project.
 
 ## Checkpoint triggering
 
-The shared worker rechecks due work after collecting a deferred lane and attempts at most one new
-checkpoint in that pass. Failures retain their retry delay and busy storage waits for the next pass.
-This closes a consumed-wake gap without imposing a journal bound. Size/interval triggers remain
-soft, and #1283 remains open.
+The shared checkpoint interlock services size-due work when a holder releases, before another
+admission, including after undo and pruning. This bounds growth under sustained writes at bracket
+boundaries. Lanes recheck due state after dispatch; a foreground checkpoint does not cause a
+redundant sharp checkpoint. One bracket may overshoot the size trigger; there is no fixed journal
+cap. See
+[shared checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ## Chunk chain and disk compatibility
 
