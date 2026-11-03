@@ -63,7 +63,7 @@ rather than being rounded by the parser.
 | `CD02019` | Scalar argument outside its domain: negative SQRT, invalid POWER domain, or fractional ROUND/TRUNC scale | — |
 | `CD03020` | Duplicate valued scalar UNIQUE key during a write/build | 23505 |
 | `CD02021` | Array/object UNIQUE key component | — |
-| `CD01023` | Direct SELECT AST repeats a FROM/UNNEST binding name or supplies an empty UNNEST name | — |
+| `CD01023` | Direct SELECT AST repeats a FROM/JOIN/NEST/UNNEST name, or SELECT/DML supplies an empty binding name | — |
 | `CD03022` | Index path count outside 1..32 in a direct AST/catalog call | — |
 | `CD03024` | CREATE INDEX finds an existing name without IF NOT EXISTS | — |
 | `CD03025` | Index has multiple array keys, is a UNIQUE array index, or includes MISSING with a leading array key | — |
@@ -118,7 +118,8 @@ OQL DISTINCT ARRAY DDL executes; ALL ARRAY remains CK00001. V3 index records are
 refused before recovery writes with CD06105 and a recreate remedy. No SQLSTATE is assigned.
 
 OQL array DDL adds located CD01028 (projection/WHEN path outside its variable), CD02027
-(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression) and
+(unsupported WHEN scalar constant), CD03027 (excluded source/projection/WHEN expression, including an element path starting with a
+subscript) and
 CD03028 (WHEN above 32 levels/128 nodes), before catalog writes. None has an assigned SQLSTATE.
 See [CREATE INDEX](statements/create-index.md).
 
@@ -276,6 +277,7 @@ standalone parsers retain unknown-name parse diagnostics. See [functions](functi
 | CD00015 | Derived FROM SELECT has no alias | — |
 | CD01033 | FROM expression has no explicit alias or implicit field name | — |
 | CD01034 | Unbound source variable without an input-row scope | — |
+| CD01036 | VALUES subquery references its destination binding without a local declaration | — |
 
 [Derived and expression sources](clauses/from.md), correlation and DML subqueries execute.
 Generated star wrappers count toward CD05015's projection depth.
@@ -287,8 +289,8 @@ Generated star wrappers count toward CD05015's projection depth.
 ## OQL key joins and NEST
 
 [Key JOIN and NEST](clauses/join.md) execute left to right with UNNEST, per-source META and synthetic
-stars. All SELECT sources throughout a joined statement require explicit aliases pending
-[assimalign/cohesion#1767](https://github.com/assimalign/cohesion/issues/1767). Lookups share the
+stars. Collection names and inferred UNNEST names are valid implicit aliases; explicit and
+implicit names share duplicate detection (CD00010 in text, CD01023 in direct ASTs). Lookups share the
 operation snapshot. The hit/miss cache uses at most one eighth of StatementMemoryBudget (8 MiB
 default); eviction drops complete entries and NEST arrays, while retained rows keep their own
 charges. Oversized entries bypass caching. EXPLAIN shows KeyJoin/LeftKeyJoin/KeyNest/LeftKeyNest
@@ -296,8 +298,8 @@ without lookups. No SQLSTATE is assigned to these conditions.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
-| CD00016 | Unaliased SELECT source in a statement containing JOIN/NEST | — |
-| CD01035 | Unbound/self/forward key source, missing direct-AST alias or ambiguous/invalid joined META | — |
+| CD00016 | Retired and reserved: former joined-statement explicit-alias requirement | — |
+| CD01035 | Unbound/self/forward key source or ambiguous/invalid joined META | — |
 | CD02028 | JOIN/NEST key is neither string, NULL nor MISSING; arrays unsupported | — |
 | CD05018 | Shared retained statement memory exhausted, including lookup cache and retained rows | — |
 | CD05020 | Shared expression/lookup work exhausted, including cache hits | — |

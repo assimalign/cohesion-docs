@@ -384,8 +384,13 @@ serialization live in `Database.Sql.Schema`.
 
 After collecting a deferred checkpoint lane, the shared worker rechecks whether work is due in
 that pass and attempts at most one new checkpoint. Failures retain their retry delay; busy storage
-waits for the next pass. Unfinished work is reported once per database per pass. Size and interval
-remain soft triggers, so this does not impose a journal bound or close #1283.
+retains pending work for a safe release or later worker attempt. Unfinished work is reported once
+per database per pass. Catalog writes and reclamation share the per-storage checkpoint interlock;
+every holder release pulls size-due work and runs its checkpoint before the next admission.
+This bounds growth under sustained writes at bracket boundaries. A lane rechecks due state after
+dispatch so it does not repeat a foreground checkpoint. One atomic bracket can still overshoot
+the size trigger; there is no fixed journal byte cap.
+See [checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
 ForeignStorage refusals are operational failures and reach normal failure reporting immediately.
 Only ordinary storage-bracket contention is retried as busy. A statement that runs a deferred

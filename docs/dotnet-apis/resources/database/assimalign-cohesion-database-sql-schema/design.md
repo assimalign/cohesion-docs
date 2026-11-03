@@ -10,7 +10,7 @@ Code-first table/constraint/index/domain provisioning remains pinned to dbo. The
 target-namespace setting. SQL database creation seeds dbo and DROP SCHEMA dbo is CS03031.
 [CREATE SCHEMA](../../../../database/sql/language/statements/create-schema.md) creates a SQL
 namespace independently of a compiled schema's ownership identity; it does not redirect provisioning.
-Storage format 34 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 11.
+Storage format 35 retains namespaces as record kind 15, introduced in format 21; compiled schema artifacts remain version 11.
 
 Declared scripts cannot DROP SCHEMA CASCADE over typed objects: admission reports CS03205
 (no assigned SQLSTATE) before opening/writing. Declare those changes in the typed schema.
@@ -62,6 +62,10 @@ changes compare effective storage facets on every referring column. Every VARCHA
 and CHAR width change requires a TYPE rewrite; precision-only and other length changes keep
 the validation path unless another operation requires TYPE. A plan containing any TYPE rewrite
 uses the engine's [joint migration executor](../assimalign-cohesion-database-sql/design.md#joint-type-migrations).
+The engine classifies each table: index additions and constraint-only changes can keep unchanged
+physical storage, building only new index trees. Dropping/replacing a heap-owned pre-existing
+index forces that table to rewrite; separately owned trees can be replaced while keeping it.
+Every table still publishes in one commit. See [kept-table preparation](../assimalign-cohesion-database-sql/design.md#joint-tables-that-keep-storage).
 
 The planner's exact whitelist allows integer widening, TINYINT/SMALLINT to REAL/DOUBLE, INT to
 DOUBLE, REAL to DOUBLE, and same-type facets preserving the full source range. Decimal targets
@@ -133,7 +137,7 @@ defaults to NoAction and always serializes in v9. All five enum actions are vali
 CHECK requires NoAction. Invalid values fail validation as InvalidDocument at onUpdate. OnDelete
 keeps its Restrict/Cascade restriction. Changing OnUpdate changes identity and plans drop/add.
 The retained References builder supplies NoAction; runtime and SDK share v11 and refuse earlier
-artifacts, applied markers and pending targets before comparison. Catalog format 34 retains the
+artifacts, applied markers and pending targets before comparison. Catalog format 35 retains the
 action through provisioning, reconciliation and reopen. All five update actions execute.
 
 ## Directed index orders
@@ -172,7 +176,7 @@ render exact signed total seconds plus `seconds`, replacing CLR day-dot-clock te
 the canonical document and hash. The renderer preserves every tick, including TimeSpan.MinValue.
 Earlier artifacts, applied markers and pending targets fail with SqlSchemaValidationException,
 InvalidDocument at `schema.format`, before hash comparison. Rebuild them and follow the
-[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-34-and-schema-v11).
+[catalog export/recreate procedure](../../../../database/sql/index.md#sql-format-35-and-schema-v11).
 
 For example, the typed-default tests check `table.Default(row => row.Value, TimeSpan.FromTicks(1))`
 against `table.DefaultSql(row => row.Value, "'0.0000001 seconds'")`: their v11 documents and hashes
@@ -185,7 +189,7 @@ Compiled domain declarations named serial, bigserial or smallserial fail validat
 SqlSchemaValidationErrorCode.UnsupportedType and an IDENTITY suggestion. Native SqlType.CreateDomain
 throws ArgumentException; SQL CREATE DOMAIN reports CK00001, including quoted names.
 
-The integration branch uses SQL row-storage format 34 and compiled schema version 11.
+The integration branch uses SQL row-storage format 35 and compiled schema version 11.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -201,8 +205,10 @@ Format 26 fenced temporal DEFAULT and frozen missing-value text.
 Format 29 added owned-sequence metadata. Format 30 added ON UPDATE action metadata in table extension 8.
 Format 31 added partial-index predicates in index extension 2. Format 32 added per-column
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
-Format 33 fenced SQL/JSON names and ordinary-call quoting. Current format 34 adds joint typed
-migration intent semantics; format 33 and earlier are refused before data recovery.
+Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
+migration intent semantics. Current format 35 fences separate physical owners for kept-table
+index trees and durable per-table migration classification; format 34 and earlier are refused
+before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 11.
 

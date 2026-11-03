@@ -319,7 +319,19 @@ retains this error for the next worker checkpoint call, preserving the statement
 outcome. Only ordinary storage-bracket contention is retried as busy. Model purge workers report
 persistent ordinary refusals observationally; see [worker reporting](../assimalign-cohesion-database/design.md#worker-failure-reporting).
 
-Statement apply, logical undo, and pruning share one semaphore. Engine conflict locks are acquired
+Statement apply, logical undo and pruning share the per-storage
+[TransactionCheckpointInterlock](transaction-checkpoint-interlock.md) with synchronous catalog and
+reclamation scopes. Data storage binds the coordinator's logical-writer-anchor checkpoint; catalog
+file sets have independent gates and plain storage checkpoints. Every release checks size-due work
+and runs a due or deferred checkpoint before the next admission, after physical brackets and page
+latches end. This provides checkpoint progress under sustained writes.
+
+Model grants precede the data gate. Catalog publication takes its metadata monitor, its independent
+catalog interlock, then storage/page latches; its deferred checkpoint may flush and fsync while the
+metadata monitor remains held, so catalog readers wait. Catalog checkpoints never acquire the data
+gate. Reclamation takes its run monitor, data interlock, accounting monitor, then storage/page
+latches, and releases admission before catalog retirement. No raw body waits for model locks inside
+the gate. Engine conflict locks are acquired
 before statement apply, keeping genuine lock waits outside that semaphore and visible to deadlock
 detection. Statement brackets commit non-durably unless the caller selects the existing durable
 DDL/bootstrap path; the logical commit makes earlier statement records durable by journal ordering.
@@ -377,6 +389,18 @@ Effective isolation changes emit event 20, TransactionIsolationChanged, at Verbo
 Transactions keyword. Payload: database, transactionSequence, isolationLevel. The level is the
 effective kernel level (Snapshot or ReadCommitted). Idempotent early SET emits no change event;
 configuration changes no gauge or lifecycle rate.
+
+Checkpoint deferrals emit event 15 and event 21, CheckpointBlocked, with the actual holder class
+and optional owner. During a semaphore handoff, attribution waits for the next admitted holder.
+Storage event 19 independently names physical brackets refusing truncation.
+
+| Id | Event | Level | Keyword | Payload |
+| --- | --- | --- | --- | --- |
+| 21 | CheckpointBlocked | Verbose | Checkpoints | database, bracketClass, owner |
+| 22 | CheckpointLeaseThreadMismatch | Error | Checkpoints | database, enteringThread, disposingThread |
+
+Event 22 reports refused cross-thread disposal of a synchronous checkpoint lease, leaving admission
+held. These events add no Database diagnostic, format or wire change.
 
 ## In-memory undo markers and model adapters
 
@@ -492,6 +516,8 @@ outside the lock-table monitor. Queues without a detected cycle retain normal FI
 not suppress genuine held-lock deadlocks or change victim selection.
 
 ## Sources
+
+- **Checkpoint scopes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/src/TransactionCheckpointInterlock.cs` and `tests/TransactionCoordinatorRecoveryTests.cs`.
 
 - **Undo and model adapters** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Transactions/docs/DESIGN.md`, `tests/TransactionUndoLockTests.cs` and `tests/TransactionUndoMarkerFixTests.cs` beneath the same project; each model's `tests/SavepointAdapterTests.cs`.
 - **Conformance matrix** — the same Transactions design's Cross-model conformance (#1726, XT-5), each model's `tests/SavepointMatrixTests.cs`, SQL/OQL/GQL `SavepointFailureWireTests.cs`, and Blob/key/value `SavepointAdapterWireTests.cs`.

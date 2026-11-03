@@ -177,8 +177,8 @@ CG06017 is an open-time format refusal before logical recovery scrub. Graph.Stor
 StorageCorruptionException with the code in its message; the engine retains CG06017 and
 CG06018 alongside CK06003 in DatabaseCorruptionException.Diagnostics. Recreate a database
 whose graph record format is unsupported; there is no upgrade reader.
-The engine requires format 5. A cleanly closed older file set stays byte-identical on refusal;
-physical WAL recovery can precede the fence for a crashed file set.
+The engine requires format 5. Clean and crashed older file sets stay byte-identical on refusal;
+format gates read the recovered read-only view before any recovery writes.
 
 A graph record shorter than its 18-byte format header is located truncation corruption,
 not an unsupported format. It reports `CK06003` with page/slot context and an

@@ -20,6 +20,13 @@ UPSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) sele
 
 ## Remarks
 
+The collection name supplies the implicit destination binding when no alias is declared.
+It names the image in RETURNING. VALUES has no destination row: a subquery that references
+that binding without a local declaration fails planning with CD01036 (no SQLSTATE).
+A bare FROM may read the destination collection; a bare FROM naming an explicit destination
+alias fails too unless a local binding shadows it. Direct VALUES paths retain CD05001.
+See [mutation subqueries](../expressions/subqueries.md#mutation-subqueries).
+
 UPSERT replaces the entire JSON value. Members absent from the replacement disappear. Every input
 pair counts once and receives a fresh version, including an unchanged value. Content, versions and
 secondary indexes change in the same transaction; replaced index entries disappear and new entries

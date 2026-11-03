@@ -41,9 +41,14 @@ at the 33rd key and CD00002 for duplicates. Neither count code has an assigned S
 
 Engine binding validates the restricted source/projection/WHEN grammar before catalog writes:
 CD01028 for a wrong element variable, CD02027 for an unsupported constant (including direct AST
-Single/Double), CD03027 for an excluded expression, CD03028 for a predicate above 32 levels/128
+Single/Double), CD03027 for an excluded expression or an element path starting with a subscript
+(such as v[0], in projection or WHEN), CD03028 for a predicate above 32 levels/128
 nodes, and CD03025 for multiple/UNIQUE arrays. All are DatabaseException diagnostics with source
 locations when available and no assigned SQLSTATE.
+
+Scalar keys and DISTINCT ARRAY source paths are document-relative: the collection name is
+not an alias. ON items(items.g) indexes field items.g; a query reaches it as items.items.g
+in FROM items. Projection and WHEN paths remain relative to the element variable.
 
 IfNotExists preserves any existing same-named definition. Build/write UNIQUE failures use
 [DocumentConstraintViolationException](../assimalign-cohesion-database-documents/document-constraint-violation-exception.md),

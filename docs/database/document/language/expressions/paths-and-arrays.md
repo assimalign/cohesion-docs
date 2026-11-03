@@ -36,8 +36,11 @@ The parser retains each property or index as an `OqlPathSegment` in an `OqlPathE
 
 [UNNEST](../clauses/unnest.md) expands arrays into rows; [quantifiers](quantified-predicates.md)
 bind individual elements for SATISFIES. A path headed by a variable resolves the nearest binding
-before document fields. Without an explicit FROM alias, the collection name remains a document
-field name in paths.
+before document fields. Without an explicit FROM alias, the collection name is the implicit
+binding: `items.g` in `FROM items` reads `g`. Use `items.items.g`, or `d.items.g` with
+`FROM items AS d`, to reach a field named after its collection. This applies with or without
+subqueries, including grouping, ordering and mutation paths. CREATE INDEX keys remain
+document-relative: `ON items(items.g)` indexes field `items.g`, reached by `items.items.g` in a query.
 
 ## Examples
 

@@ -44,7 +44,10 @@ instead of the required object or array fails the statement.
 | UNSET a named member | Removes it; an absent member is a no-op |
 | UNSET ending in an array index | Invalid; removal must end in a property name |
 
-Root replacement is invalid. With an alias, `SET d[0].name = 'new'` can update an array-root
+The collection name is the implicit alias when none is declared: `UPDATE items SET items.g = 1`
+writes `g`; `SET items = 1` attempts root replacement and fails with CD02016. Predicates, values,
+UNSET and RETURNING use the same binding. To reach a self-named field use `items.items.g` or an
+explicit alias. Root replacement is invalid. With an alias, `SET d[0].name = 'new'` can update an array-root
 document. Duplicate paths, parent/child overlaps and SET/UNSET overlaps are rejected after alias
 normalization, before reading documents.
 

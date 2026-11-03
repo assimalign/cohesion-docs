@@ -29,7 +29,7 @@ calls without deciding whether they are aggregates.
 
 Quoted `"json_value"`, `"json_query"` and `"json_exists"` names remain ordinary calls of this
 type. Canonical rendering quotes ordinary calls with these names to preserve that distinction
-under SQL format 34. Unquoted SQL/JSON syntax produces
+under SQL format 35. Unquoted SQL/JSON syntax produces
 [SqlJsonFunctionExpression](sql-json-function-expression.md).
 
 The engine rejects scalar-call DISTINCT/ALL/ORDER BY, or DISTINCT ordering keys absent from the

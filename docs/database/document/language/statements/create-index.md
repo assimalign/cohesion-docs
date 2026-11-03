@@ -25,6 +25,12 @@ index_key ::= document_path [ INCLUDE MISSING ]
 
 ## Remarks
 
+Keys remain document-relative, as in Couchbase: the collection name is not an alias here.
+`ON items(items.g)` indexes the document field `items.g`, reached by `WHERE items.items.g = 9`.
+`WHERE items.g = 9` instead reads `g` and can use an index on `(g)`. DISTINCT ARRAY source paths
+follow the same rule; projection and WHEN paths remain relative to the element variable.
+Catalog PATH/PATHS and typed catalog path APIs preserve that document-relative meaning.
+
 Creation populates existing documents in the statement transaction. INSERT, UPSERT, UPDATE, DELETE
 and collection CRUD maintain every index atomically. The database writer lock serializes writes;
 schema-owned collections reject index creation and system collections are read-only. Successful
@@ -65,7 +71,9 @@ supply forward/reverse order, elide sorting and permit early paging with fixed p
 
 One key may be `DISTINCT ARRAY v.p FOR v IN arr [WHEN condition] END`; scalar keys may
 precede or follow it. The source is a document path. The projection is an element-relative
-path rooted in the FOR variable, or the variable itself. Computed sources/projections are refused.
+path rooted in the FOR variable, or the variable itself. An element-relative path must start
+with a property: `v[0]` is refused with located CD03027 in projection or WHEN before catalog
+writes. A property followed by a subscript remains supported. Computed sources/projections are refused.
 
 WHEN accepts `=`, `!=`, `<>`, `<`, `<=`, `>` and `>=` between an element path and a NULL,
 Boolean, Decimal or String literal, plus IS [NOT] NULL, IS [NOT] MISSING, AND, OR and NOT.
@@ -130,7 +138,7 @@ Recreate the database with this engine; there is no upgrade path or legacy reade
 | `CD01028` | Projection or WHEN path is not rooted in its element variable | — |
 | `CD02027` | WHEN constant is not a supported scalar literal, including a parameter or invalid Decimal | — |
 | `CD03025` | Multiple array keys or a UNIQUE array index; typed IncludeMissing with a leading array key | — |
-| `CD03027` | Source, projection or WHEN uses an excluded expression | — |
+| `CD03027` | Excluded source/projection/WHEN expression, including an element path starting with a subscript | — |
 | `CD03028` | WHEN exceeds 32 levels or 128 predicate nodes | — |
 | `CK00001` | ALL ARRAY, WITHIN or multiple comprehension bindings; UNIQUE in other reserved constructs | — |
 
