@@ -38,7 +38,7 @@ LockTimeout also bounds the source-table exclusive lock for
 unlimited unless canceled; the database-level maintenance call uses the engine setting, rather
 than a session override. Expiration throws SqlTimeoutException with CS04044 / 55P03.
 
-For a [joint typed TYPE migration](design.md#joint-type-migrations), nonzero engine LockTimeout
+For a [joint migration](design.md#joint-migrations), including every deferred migration, nonzero engine LockTimeout
 also bounds the touched-table reservation before queueing. A reservation timeout reports
 `CS03402` in both the thrown diagnostic and Provisioning, preserving the lock-manager cause.
 Untouched tables remain usable; definition DDL is refused database-wide while queued/running.

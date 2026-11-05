@@ -127,9 +127,9 @@ retain their existing codes. Clause syntax errors use CS00003.
 
 ## Compatibility
 
-SQL catalog/record-space format **36** refuses format 35 and earlier before data recovery. There
+SQL catalog/record-space format **37** refuses format 36 and earlier before data recovery. There
 is no in-place upgrade; compiled schema is v12; JSONB storage bytes are unchanged. See the
-[export and rebuild procedure](../../index.md#sql-format-36-and-schema-v12).
+[export and rebuild procedure](../../index.md#sql-format-37-and-schema-v12).
 Ordinary function calls named json_value, json_query or json_exists now render with quoted names.
 A quoted `"json_value"(...)` remains an ordinary function call.
 

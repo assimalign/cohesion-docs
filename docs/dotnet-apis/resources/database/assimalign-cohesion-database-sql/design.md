@@ -10,7 +10,7 @@ JSON_VALUE, JSON_QUERY and JSON_EXISTS execute constant/parameter paths with RET
 and empty/error policies. See the [language reference](../../../../database/sql/language/functions/json-path.md)
 for grammar, NULL rules, error boundaries and diagnostics. Path execution and window-frame
 recomputation share a 1,000,000-visit statement cap; transient JSON state shares StatementMemoryBudget.
-SQL format 36 refuses format 35 and earlier before data recovery and has no in-place upgrade.
+SQL format 37 refuses format 36 and earlier before data recovery and has no in-place upgrade.
 Compiled schema is v12; JSONB storage bytes are unchanged. Ordinary calls with these names
 render quoted; quoted names remain ordinary function calls.
 
@@ -53,7 +53,7 @@ without normalization. See the language page for depth, Unicode and SQL/JSON pat
 [CREATE INDEX](../../../../database/sql/language/statements/create-index.md#key-directions-and-null-placement)
 accepts per-column ASC/DESC and independent NULL placement. Catalog KeyOrders snapshots the
 effective order; omitted and zero-filled vectors mean ASC NULLS FIRST, matching ORDER BY.
-DESC defaults to NULLS LAST. Compiled schema v12 carries the same vector. SQL format 36 uses mandatory
+DESC defaults to NULLS LAST. Compiled schema v12 carries the same vector. SQL format 37 uses mandatory
 index extension 3. Runtime maintenance, builds, rewrites, conflict checks and undo share the
 direction-aware transform; comparison ranges exclude the NULL block. Direction preserves
 uniqueness. Matching single-table ORDER BY can use forward or backward index order without
@@ -73,7 +73,7 @@ partial seeks, ranges, correlated join probes and unbounded subset scans, with t
 predicate retained as a residual. Proofs use only input-local WHERE and INNER JOIN ON conjuncts;
 see the language page for exact rules and exclusions.
 
-Catalog format 36 and compiled schema v12 refuse earlier files/artifacts. A changed required
+Catalog format 37 and compiled schema v12 refuse earlier files/artifacts. A changed required
 registration can leave a predicate unresolved: open, reads and DROP INDEX work, while table
 writes refuse CS01009 (42883). Predicate-column TYPE, including widening, requires dropping
 and recreating the index; dropping a key/predicate column removes it, and renames rewrite text.
@@ -120,7 +120,7 @@ CS01028 (3F000), duplicate CREATE CS03029 (42P06), and RESTRICT dependencies CS0
 (2BP01); reads/DML retain CS01014 (42P01). CASCADE publishes contained-table/index removal
 and incoming-FK removal atomically, retaining outside tables. Ownership checks cover affected
 objects. SCHEMATA reads the statement's captured namespaces, including empty ones.
-Storage format 36 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
+Storage format 37 is current. Format 22 introduced STRING_AGG/LISTAGG identifier quoting;
 format 23 introduced views and format 24 introduced explicit NULL placement.
 Format 25 introduced distinct predicates, Boolean tests and LIKE ESCAPE in persisted definitions; format 26 introduced the temporal default-text fence.
 Format 27 introduced the per-column TYPE default-assignment flag in table extension 7.
@@ -220,7 +220,7 @@ CorrelatedSubqueries retains complete child plans in EXPLAIN. Nesting remains li
 levels. SET, VALUES, RETURNING, CHECK/DEFAULT and pagination-expression subqueries,
 nested CTEs and explicit LATERAL remain excluded. Recursive fixpoints execute on demand.
 
-Current SQL data-storage format is 36. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
+Current SQL data-storage format is 37. Format 16 introduced SEARCH/MATERIALIZED identifier quoting;
 format 17 added the insert-default/frozen-missing-value split in table extension 6; format 18 separately
 quotes newly executable function names and BOTH/LEADING/TRAILING as identifiers in persisted SQL.
 Ordinal CHECK-text comparison would otherwise report schema drift (`sign >= 0` becomes
@@ -230,7 +230,7 @@ SqlAlterTableExecutionTests and SqlCteStorageFormatTests.
 
 ## Database creation, open and drop
 
-SQL remains at data-storage format 36. Create commits the optional default collation, dbo and then
+SQL remains at data-storage format 37. Create commits the optional default collation, dbo and then
 the format marker. An interrupted marker-free creation is completed only when its durable creation
 claim and read-only probes prove initial empty data and creation-only catalog metadata. An empty
 data scan alone cannot distinguish creation from a lost catalog after acknowledged empty-table DDL.
@@ -309,27 +309,32 @@ double quotes and null characters fail before deployment because the current lex
 those identifier forms. The mapper uses the same retained names, so its quoted DML binds the objects
 deployed by this renderer without another naming convention.
 
-Migrations without a TYPE rewrite retain the per-step executor. Populated-table validation and
-index work can be deferred to the provisioning worker; `RunMigrationsInline`, any declared script,
-and explicit `ApplySchemaAsync` run inline. Each DDL request self-commits. Inline failure compensates
-completed reversible steps; irreversible data loss cannot be compensated. Deferred step failure
-retains the pending intent and takes that database offline with `CS03104` for recovery on reopen.
+Every deferred migration publishes jointly, whether it contains TYPE or not. Populated-table
+validation and index work can be deferred to the provisioning worker. Non-TYPE empty-table Build,
+`RunMigrationsInline`, any declared script and explicit `ApplySchemaAsync` retain per-step inline
+application: each DDL request self-commits, and failure compensates completed reversible steps
+with the existing `CS03104` wrapper. Irreversible data loss cannot be compensated.
 A default change without a TYPE rewrite remains a `CS03105` refusal before intent save or changes.
 
-### Joint TYPE migrations
+### Joint migrations
 
-A compiled-schema apply containing any TYPE rewrite uses one joint executor for its entire target.
+A compiled-schema apply containing any TYPE rewrite, and every deferred migration, uses one
+joint executor for its entire target. Cheap additions and drops publish in that same catalog
+commit rather than committing before deferred preparation.
 Storage-type, scale or domain identity changes, every VARCHAR narrowing and every CHAR width change
 require TYPE. This includes unbounded-to-bounded VARCHAR and narrowing whose existing values fit.
 Precision-only and other length-facet changes keep the existing validation path unless another
 operation requires TYPE. Same-name domain changes compare their effective storage facets.
 
 Build binds metadata and checks whether touched owners have stored pages, without decoding rows.
-Populated work is queued; empty-table work runs synchronously. `RunMigrationsInline`, any declared
-script, and explicit `ApplySchemaAsync` use this same joint executor inline. Before queueing, one
+Populated work is queued; empty-table work runs synchronously. For TYPE-rewrite plans,
+`RunMigrationsInline`, any declared script and explicit `ApplySchemaAsync` use this same joint
+executor inline; non-TYPE inline paths retain per-step application. Before queueing, one
 transaction reserves owned sequences and every touched old table in identity order. Nonzero engine
 LockTimeout bounds reservation. Reads and writes on those tables wait through the lock manager;
-the closure includes both sides of old and final foreign keys, even a removed or repointed parent.
+the closure includes affected old and final foreign-key neighbors when the FK changes, either
+end rewrites or matching parent unique trees change. Stable neighbors remain available; their
+FK probes wait if they need a reserved table. All plan targets stay reserved through publication.
 Untouched tables stay readable and writable, subject to checkpoint stalls during copying.
 
 A metadata lease excludes definition DDL database-wide from Build through queue time and worker
@@ -355,8 +360,11 @@ marker remains trusted. Provisioning and DeferredStepFailed report `CS03402`; he
 Degraded with the old schema online unless an independent storage latch fires. There is no automatic
 retry. A rolled-back application's Build opens normally; an explicit apply or later Build declaring
 the new target can try again. After a crash, only a Build declaring the same pending target replans
-preparation. Plain open or an old/different/no-target Build discards the attempt and opens the old
-schema. A successful apply or Build, including an already-applied skip, clears an earlier failure.
+preparation. A different-target Build discards the attempt with CS03402 and replans from the stored
+schema. An in-process reopen also discards a matching intent with CS03402 because it cannot
+schedule a job; with no intent it reports CS03402 if the declared and stored applied hashes differ.
+A no-target open discards without a provisioning observation or trace. A successful apply, Verify
+or already-applied skip clears an earlier observation.
 
 An unconfirmed publication reports `CS03403` in both Provisioning and the thrown diagnostic. Its
 old/new outcome is unknown: new trees and directory records stay in place for recovery to decide.
@@ -366,15 +374,27 @@ See [space admission and offline exceptions](storage-design.md#joint-migration-s
 
 ### Joint tables that keep storage
 
-A joint TYPE migration classifies each existing table separately. Additive indexes and CHECK,
+A joint migration classifies each existing table separately. Additive indexes and CHECK,
 NOT NULL, UNIQUE and foreign-key changes can keep its heap owner and existing index trees.
 Columns must retain their names, order and exact storage types/facets, including native-domain
 bounds; nullability may change. Defaults, primary keys and physical column changes rewrite.
+A table that already has a primary key can keep its heap when adding an index. Planning identifies
+the key by its primary-key marker and columns and preserves its generated name across both keep
+and rewrite, including TABLE_CONSTRAINTS, violation messages and ON CONFLICT ON CONSTRAINT.
+New joint tables use the per-step naming rule as well.
+
+Script-declared indexes on typed tables survive joint publication, including unique enforcement,
+alongside ad-hoc indexes. A declaration with the same name wins over a script receipt, including
+a stale receipt; an explicit planned drop removes that index. Dropping a preserved dependency
+column refuses CS03105 before intent save, with CS03056 identifying the blocking index. Duplicate
+publication index names refuse CS05060 before the catalog transaction. Retained index registration
+order survives publication/reopen; newly added indexes follow plan order.
+
 Dropping or replacing a pre-existing index whose pages belong to the heap also forces a rewrite.
 A separately owned tree can be dropped or replaced while keeping the heap; its old owner is reclaimed.
 
 Index comparison includes every effective key order: a direction-only or NULL-placement-only
-change replaces the independently owned tree while retaining its heap. Joint TYPE rewrites
+change replaces the independently owned tree while retaining its heap. Joint rewrites
 preserve the same compiled-to-catalog key-order mapping.
 
 Kept tables retain dropped physical ordinals, frozen missing values, identity metadata and default
@@ -390,8 +410,9 @@ indexes. Old snapshots keep their prior table descriptions. Layout refusals dist
 kept table from a generic ALTER replacement; both retain CS05060 and preserve the published layout.
 Durable kind-9 Joint/KeepOwner and Joint/RewriteOwner classification and separate tree ownership
 were introduced in SQL format 35, without changing compiled schema v11 or wire messages.
-Current SQL format 36 and compiled schema v12 change effective key-order defaults; earlier
-files and artifacts are refused without an upgrade reader.
+Format 36 and compiled schema v12 changed effective key-order defaults. Current SQL format 37
+requires joint publication for every deferred job; earlier files and artifacts are refused without
+an upgrade reader.
 
 ### `Object` ownership and the schema package
 
@@ -409,7 +430,8 @@ internal session may execute `DROP TABLE`, `ALTER TABLE ADD COLUMN`, `ALTER TABL
 or `DROP INDEX` against its schema's objects. Normal sessions receive
 `DatabaseObjectLockedException` with the object, compiled schema exposed as `OwningSchema`, and
 refused operation; row DML remains available. Compensation uses the same private session and
-preserves the existing reversible-step policy on non-TYPE migrations.
+preserves the existing reversible-step policy on non-TYPE inline application. Deferred jobs
+publish jointly and discard unpublished work on preparation failure.
 
 DDL re-reads catalog ownership after acquiring the exclusive object lock. If a table was dropped and
 its name reused while the statement waited, the acquired lock covers the old object id: the
@@ -618,7 +640,7 @@ unsupported-clause diagnostics.
   them correct for free), and aborted stamps revert physically with the page
   images. Deletes tombstone (older snapshots keep the row until the purge
   worker reclaims below every live horizon). DROP COLUMN preserves all stored versions and records dropped physical ordinals in metadata.
-- **Format rule (record-space format version, catalog-persisted).** Only format 36 opens.
+- **Format rule (record-space format version, catalog-persisted).** Only format 37 opens.
   Format 19 introduced canonical PERCENT/TIES identifier quoting; format 20 persists SET NULL,
   SET DEFAULT and NO ACTION actions. Format 21 adds namespace records of kind 15. Older and newer markers are refused before opening data files for write. An unmarked catalog
   containing only creation metadata can complete only under the creation-proof rules above.
@@ -1289,7 +1311,7 @@ identical domains and clearing modifiers when types/modifiers differ; qualified 
 their original types. Incompatible pairs fail CS01015 before reads. ORDER BY aliases after `*`
 and ordinals count visible output columns. [JOIN](../../../../database/sql/language/clauses/join.md)
 documents results and NULL behavior. The canonical FROM shape originated in format
-14; the current SQL format is 36, including the extension-6 missing/default split and T1 identifier
+14; the current SQL format is 37, including the extension-6 missing/default split and T1 identifier
 quoting. Older files are refused without an upgrade reader. Compiled schema version is 12.
 
 LIMIT/OFFSET retain nonnegative Int64 counts through every plan; excessive limits keep remaining
@@ -1455,10 +1477,9 @@ Upsert arbitration builds unchecked lookup/lock keys and encodes only writes; di
 proposals do not fail. Old-value locks and tombstones are unchecked, so existing rows remain
 deletable or updatable to fitting replacements. Referential SET actions encode final rows after
 collecting all assignments. Index builds, including schema-provisioned indexes, use the same
-checked key builder and do not publish a failed tree. Deferred provisioning retains its pending
-intent and CS03104 failure on non-TYPE migrations, with CS05042 in the underlying cause.
-Joint TYPE preparation instead discards its intent and reports CS03402 online, subject to
-independent storage latches.
+checked key builder and do not publish a failed tree. Every deferred migration discards unpublished
+work and reports CS03402 online, with CS05042 in the underlying cause, subject to independent
+storage latches. Inline per-step application retains compensation and CS03104.
 
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
@@ -1656,7 +1677,7 @@ Preparation, publication and cleanup use the existing storage-replacement transa
 kind-14 reclamation intents. Interrupted preparation leaves the original current and is retried
 explicitly. Publication is irrevocable; cleanup proceeds without caller cancellation. Recovery
 exposes a complete old or compact layout/index set at every tested file boundary. Reclamation
-waits for old snapshots. SQL format 36 and compiled schema v12 remain unchanged. See
+waits for old snapshots. SQL format 37 and compiled schema v12 remain unchanged. See
 [maintenance behavior and examples](sql-database.md).
 
 ## TRUNCATE
@@ -1676,7 +1697,7 @@ DML targeting retired tables or joining them as sources retains CS04006 before w
 
 [CTAS](../../../../database/sql/language/statements/create-table.md#create-table-as) reuses durable
 prepared-owner reclamation to publish a complete inferred table, using one builder commit for row
-visibility. It retains format 36 and uses CS04003 inside explicit transactions.
+visibility. It retains format 37 and uses CS04003 inside explicit transactions.
 
 ## Non-goals (current cut)
 
@@ -1828,7 +1849,7 @@ independent and survive later default changes. Narrowing checks them even withou
 SET NOT NULL validates current live/synthesized values; DROP NOT NULL refuses primary keys.
 Identity SET/DROP DEFAULT or DROP NOT NULL uses CS03025. DDL is self-committing and CS04003
 inside explicit transactions, leaving them usable. Planning retries a catalog race before execution.
-Format 17 introduced the default/missing split with table extension 6; current format is 36.
+Format 17 introduced the default/missing split with table extension 6; current format is 37.
 
 ## ALTER COLUMN TYPE
 
@@ -1847,7 +1868,7 @@ Same-storage/scale/domain/collation widenings without USING retain heap/index tr
 width changes. Integer identity conversion preserves cursor/start/increment and validates range
 (CS03025). Full-definition changes retain CS05013 for changed defaults or implicit collation
 changes and still refuse identity-type changes. Typed declarations use
-[joint preparation and publication](#joint-type-migrations), deferred on populated tables.
+[joint preparation and publication](#joint-migrations), deferred on populated tables.
 
 ## Declared dependencies
 
@@ -1877,8 +1898,9 @@ Format 31 added partial-index predicates in index extension 2. Format 32 added p
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
-classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY; format 35 and earlier are refused before recovery writes.
+classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
+per-step intents; format 36 and earlier are refused before recovery writes.
 Explicit earlier markers and unmarked user catalogs are refused at open; there is no
 upgrade path. Proven interrupted creation may be completed as described above. Compiled schema format remains version 12.
 
@@ -1920,7 +1942,7 @@ reads; cancellation, stack exhaustion, memory, storage and I/O failures propagat
 
 Ordering accepts derived outputs and per-key NULLS FIRST/LAST everywhere, including aggregate
 inputs and set results. EXPLAIN describes each effective placement. Format 24 introduced persisted
-modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 36
+modifiers after format 23's catalog views. Format 25 introduced the predicate forms below. Current format 37
 refuses explicit earlier markers and unmarked user catalogs; proven interrupted creation may complete.
 
 [RETURNING](../../../../database/sql/language/clauses/returning.md) ordinarily evaluates per written row
@@ -1951,7 +1973,7 @@ defines the charging rules. Exhaustion raises located CS05040 (no SQLSTATE), wit
 taking precedence. Binary, case-insensitive and independent invariant literals without ignorables
 retain the last percent continuation; other paths retain visited boundaries, expanding from one
 inline boundary per token to bits as more starts arrive. Other collations retain O(input × pattern)
-search. Storage format 36 admits these persisted
+search. Storage format 37 admits these persisted
 forms and the corrected precedence; there is no upgrade reader.
 
 ## ON CONFLICT execution
@@ -2009,7 +2031,7 @@ runs, including on apply failure. Written data keeps transaction-duration locks.
 Opposite multi-row key orders (especially source-ordered defaults) and retained row orders can
 still deadlock, as can locks from earlier transaction work. The lock manager chooses a retryable
 victim; callers roll back/retry the complete transaction. Consistent input order reduces this
-residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 36, catalog
+residual exposure, as in PostgreSQL. No lock wait runs inside the apply gate. SQL format 37, catalog
 layout and wire framing remain unchanged. SqlUpsertArbitrationConformanceTests covers retained
 grants, progress, preparation cleanup, replay, RETURNING and both isolation levels.
 
@@ -2051,6 +2073,43 @@ session deadline that wins the abort transition, even with events disabled or wa
 Normal peer-close linger expiry and a server hard abort do not emit this event. Capacity refusals
 have no session and do not increment this session counter. This warning adds no diagnostic code
 or SQLSTATE.
+
+## Provisioning and deferred job events
+
+Provider `Assimalign.Cohesion.Database.Sql` uses no keyword for these events. Schema, table and
+object names are bounded to 256 characters plus an ellipsis; failures include code and exception
+type, without SQL, values or exception text.
+
+| Id | Event | Level | Payload |
+| --- | --- | --- | --- |
+| 13 | ProvisioningStart | Informational | engineName, database, schema, schemaHash, mode, stepCount (-1 before planning) |
+| 14 | ProvisioningStop | Informational | engineName, database, schema, schemaHash, stepCount, outcome, durationMilliseconds |
+| 15 | ProvisioningFailed | Error | engineName, database, schema, position, kind, code, exceptionType |
+| 18 | DeferredStepBound | Informational | engineName, database, table, objectName, kind, position, stepCount, rowsProcessed, totalRows |
+| 19 | DeferredStepProgress | Verbose | Same fields as 18 |
+| 20 | DeferredStepCompleted | Informational | Same fields as 18, outcome (Applied, Error, Unconfirmed), durationMilliseconds |
+| 21 | DeferredStepFailed | Error | Same fields as 18, code (CS03402 before publication or CS03403 for an unconfirmed commit), exceptionType |
+
+Each admitted Apply/Verify emits its Start/Stop pair, including an already-applied Skipped result.
+A handoff stops Deferred before worker scheduling. A different-target Build discards an interrupted
+intent at open: Start Resume, failure CS03402, Stop Restarted, Start Replan, Stop Discarded, then
+Build's own provisioning trace. In-process reopen discards a matching intent the same way and
+retains CS03402. A classification mismatch during planning stops Restarted and continues under
+Replan. A no-target open emits no provisioning trace or observation. Successful Verify clears a
+declared discard observation. Stop outcomes also include Applied, Verified, Error and Cancelled.
+
+Deferred events describe the complete joint job using Joint/ kinds. Kind, Table and Position
+retain the first executable operation through preparation; they do not identify later table work.
+Row counts restart at each table and phase; unknown totals are -1. Constraint-only validation
+reports unknown total while scanning and the exact count at completion, without a counting scan.
+Ownership records do not count as executable steps. Progress writes the first callback and then
+at most once per second; completion includes the latest exact progress. Events run while reserved
+table locks are owned, so synchronous listeners must not wait on those reservations.
+
+Cancellation discards unpublished work and reports Error/CS03402. A job canceled before it starts
+has no Bound/Completed lifetime and emits only ID 21 among deferred job events. An entered job
+completes once, including on failure. Unconfirmed publication uses Unconfirmed/CS03403 and leaves
+the outcome to recovery. ID 17 remains retired.
 
 ## Structured execution diagnostics
 
@@ -2394,6 +2453,7 @@ and [checkpoint triggering](../assimalign-cohesion-database-storage/design.md#ch
 
 ## Sources
 
+- **Joint deferred jobs, key names and script indexes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDeferredProvisioningTests.cs`, `SqlJointTypeMigrationTests.PrimaryKeyFix.cs`, `SqlJointTypeMigrationTests.ScriptIndexFix.cs` and `SqlJointTypeMigrationTests.ScriptPromotionFix.cs` in the same directory; events follow `src/Internal/EventSource/SqlDatabaseEventSource.cs` and `src/Internal/Provisioning/SqlSchemaProvisioner.JointMigration.cs` in that project.
 - **Kept-table migrations** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JointMigration.cs` and `tests/SqlJointTypeMigrationTests.KeepOwners.cs`.
 
 - **Large-join search and work bounds** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlGreedyJoinSearch.cs`, `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Execution/SqlPlanExecutor.JoinSearch.Greedy.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlGreedyJoinSearchTests.cs`.

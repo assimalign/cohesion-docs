@@ -36,7 +36,7 @@ each [SqlFromItem](sql-from-item.md), then its [Joins](sql-join-clause.md). JOIN
 than comma. Every Table member is a [SqlRelationReference](sql-relation-reference.md), either
 SqlTableReference, [SqlDerivedTableReference](sql-derived-table-reference.md), or
 [SqlJoinedTableReference](sql-joined-table-reference.md) for an unaliased parenthesized join. Renderer and
-persisted expressions use this same shape. Current SQL storage format 36 includes canonical
+persisted expressions use this same shape. Current SQL storage format 37 includes canonical
 quoting of newly executable function names and BOTH/LEADING/TRAILING, following format 17 for the
 default/missing-value split and format 16 for SEARCH/MATERIALIZED quoting. Older formats are
 refused without an upgrade reader. Compiled schema artifacts remain version 12.
@@ -96,8 +96,9 @@ Format 31 added partial-index predicates in index extension 2. Format 32 added p
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
-classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY; format 35 and earlier are refused before recovery writes.
+classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
+per-step intents; format 36 and earlier are refused before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

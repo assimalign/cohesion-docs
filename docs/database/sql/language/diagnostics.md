@@ -339,7 +339,7 @@ columns use CS03025. Stable/Volatile defaults execute per assignment; subqueries
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | `CS03105` | Permanent policy/metadata planning refusal before steps or intent save: includes conversions outside the lossless whitelist without destructive opt-in, namespace/dependency refusals and default changes without any TYPE rewrite | — |
-| `CS03402` | Joint migration preparation, reservation or space admission failed; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
+| `CS03402` | Joint migration preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema stays online unless an independent storage latch fires; space refusals include needed/available bytes | — |
 | `CS03403` | Joint catalog publication commit is unconfirmed; old/new outcome is unknown and reopen/recovery decides the schema | — |
 | `CS03404` | CREATE TABLE, CTAS, CREATE VIEW, CREATE SEQUENCE or table rename targets a name reserved by a queued/running joint plan | — |
 
@@ -347,7 +347,8 @@ Joint preparation has no automatic retry. A later explicit apply or Build declar
 can retry; a Build declaring the old schema opens normally. After successful publication, returning
 to an earlier declaration is a reverse migration with the same destructive-change gate.
 Provisioning health retains the failure code until a successful apply/Build, including an
-already-applied skip. Non-TYPE deferred failure retains `CS03104` and its offline/reopen contract.
+already-applied skip or successful Verify. Every deferred migration uses joint publication and
+`CS03402` before publication; non-TYPE inline per-step application keeps compensation and `CS03104`.
 See [code-first type changes](statements/alter-table.md#code-first-type-changes) and
 [health and recovery](../index.md#typed-migration-health-and-recovery).
 
@@ -364,7 +365,7 @@ CS03401 is an Error in DatabaseException.Diagnostics. A safely restartable pre-h
 DatabaseNotFoundException with that diagnostic preserved. Follow the message: ambiguous lost
 catalogs/missing sidecars require preservation and complete-backup recovery; short files beside
 other state cannot safely be restarted. No SQLSTATE is assigned. Transient inspection I/O asks for
-an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 36;
+an OpenDatabaseAsync retry after resolution, without restore/drop advice. Current SQL format is 37;
 this completion path does not upgrade old databases. See
 [lifecycle APIs](../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/design.md#database-creation-open-and-drop).
 

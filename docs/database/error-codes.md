@@ -234,14 +234,16 @@ see [SQL diagnostics](sql/language/diagnostics.md#alter-column-type-conditions).
 | Code | Meaning and trigger | SQLSTATE |
 | --- | --- | --- |
 | CS03105 | Typed migration policy/metadata planning refused before steps or intent save, including conversions not proven lossless without destructive opt-in, namespace/dependency refusals and default changes without a TYPE rewrite | — |
-| CS03402 | Joint preparation, reservation or space admission failed; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
+| CS03402 | Joint preparation, reservation or space admission failed, or an unpublished target/route was discarded; old schema retained online unless an independent storage latch fires; space refusals report needed/available bytes | — |
 | CS03403 | Joint publication commit unconfirmed; recovery decides whether the old or new schema is current | — |
 | CS03404 | Session relation creation or table rename names a relation reserved by a pending joint plan | — |
 
 See [typed migration diagnostics](sql/language/diagnostics.md#typed-schema-migrations),
 [conversion safety](sql/language/statements/alter-table.md#conversion-safety-and-application-rollback)
 and [health/recovery](sql/index.md#typed-migration-health-and-recovery). Failed joint preparation
-does not retry automatically; non-TYPE deferred failures keep their CS03104 offline contract.
+does not retry automatically. Every deferred migration uses joint publication; non-TYPE inline
+per-step application retains compensation and CS03104. Formats 36 and 35 are refused with CS06041
+before writes; SQL record-space format 37 is current.
 
 ## SQL MERGE
 
@@ -254,14 +256,14 @@ Direct/referential overlaps compose without CS05036. CS04064 (40001) covers targ
 modified-row version conflicts, including stale Snapshot targets; shared cascade/parent checks and
 host-ended transactions retain their ordinary uncoded aborts. Direct uniqueness (CS03037, 23505)
 precedes final FK (CS03039, 23503) and referential SET-action constraint failures. Plain EXPLAIN
-remains nonexecuting; SQL storage stays at format 36.
+remains nonexecuting; SQL storage stays at format 37.
 
 ## SQL CREATE TABLE AS
 
 [CTAS](sql/language/statements/create-table.md#create-table-as) adds CS03068 for missing, blank,
 duplicate or wrong-width output names (42601, syntax_error). Existing CS03049 covers a destination
 collision (42P07); IF NOT EXISTS instead skips. Explicit transactions use CS04003 (25001), and
-retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is unchanged.
+retained source/copy memory exhaustion uses CS05067 (53200). SQL format 37 is unchanged.
 
 ## SQL table rewrite
 
@@ -269,7 +271,7 @@ retained source/copy memory exhaustion uses CS05067 (53200). SQL format 36 is un
 reuses CS04006 (no SQLSTATE) for DML needing a retired layout, including stale foreign-key probes;
 retry the whole transaction. Its exclusive source-table lock is acquired before queueing and uses
 engine LockTimeout: expiry retains CS04044 / 55P03. Missing tables retain CS01051 / 42P01 and
-changed descriptions CS04064 / 40001. SQL format 36 is unchanged.
+changed descriptions CS04064 / 40001. SQL format 37 is unchanged.
 
 ## Document array indexes
 
