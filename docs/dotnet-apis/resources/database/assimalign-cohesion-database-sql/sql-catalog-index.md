@@ -35,7 +35,7 @@ Blank predicate text or dependencies without text use CS03084 (42P17).
 
 A null column list throws ArgumentNullException; a blank name throws ArgumentException;
 an empty key list uses CS03059 (42P17). Constructing a description does not build or publish
-an index. The catalog persists effective orders in format 36's mandatory index extension 3;
+an index. The catalog persists effective orders in format 37's mandatory index extension 3;
 malformed loaded vectors use CS06059 and unsupported extensions CS06060.
 
 ## Example

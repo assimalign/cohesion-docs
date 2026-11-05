@@ -10,6 +10,9 @@ catalog metadata, adjacency indexes, node-property indexes, and a bounded Graph 
 [UNION, EXCEPT, INTERSECT and OTHERWISE](language/clauses/union.md) combine read-only results,
 including NEXT pipelines, with shared snapshot and work/memory budgets. EXCEPT/INTERSECT provide
 DISTINCT or ALL multiset semantics; OTHERWISE lazily falls back when the whole left result is empty.
+[Inline CALL](language/clauses/next.md#inline-call-subqueries) executes read-only returning bodies
+per input row, including OPTIONAL CALL and variable scope clauses. Writing/unit bodies, FOREACH
+and named procedures remain refused on this branch.
 
 Model Catalog and Storage components ship inside their model assembly. Wire messages, codecs and
 transferred values ship in the model Protocol package, shared by engine and client. Remote clients

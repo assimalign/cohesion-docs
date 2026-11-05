@@ -109,26 +109,35 @@ MISSING values, NEST arrays, paging and the bounded lookup cache.
 ## Set operations
 
 ```syntaxsql
-query_term { UNION [ ALL ] query_term } ...
+query_term { { UNION | INTERSECT | EXCEPT } [ ALL ] query_term } ...
 [ ORDER BY expression [ ASC | DESC ] [ NULLS FIRST | NULLS LAST ] [ , ...n ] ]
 [ LIMIT count [ OFFSET count ] | OFFSET count [ LIMIT count ] ]
 
 query_term ::= SELECT ... | ( query )
 ```
 
-Top-level UNION and UNION ALL execute. UNION removes structural duplicates, retaining the first
+UNION, INTERSECT and EXCEPT execute in every query position, with and without ALL.
+UNION removes structural duplicates, retaining the first
 representative; UNION ALL preserves every occurrence. Operands need not have equal arity. Operators
-have equal, left-associative precedence. INTERSECT and EXCEPT, with or without ALL, parse but remain
-refused with CK00001. Explicit UNION DISTINCT also reports CK00001.
+have equal, left-associative precedence, following Couchbase rather than ISO SQL. Use parentheses
+to change grouping. Explicit DISTINCT after any set operator reports CK00001.
 
 The final ORDER BY/LIMIT/OFFSET belongs to the compound. An operand's own ordering or paging
 requires parentheses; an unparenthesized local tail followed by another operator is CD00002.
-Query parentheses and operator paths each have a 128-level bound (CD00005). An extra outer tail
+Query parentheses and operator paths each have a 128-level bound (CD00005), including compounds
+inside SELECT subqueries: a leaf contributes its deepest nested compound's depth. An extra outer tail
 on a lone parenthesized query that already has its own tail remains CK00001.
 
 UNION uses SELECT DISTINCT equality: numbers compare by value, object member order does not
 matter and array order does. Named MISSING members are omitted; RAW/VALUE MISSING becomes NULL.
 Without ordering, left rows precede right rows; UNION keeps only previously unseen values.
+
+For a value occurring m times on the left and n times on the right, INTERSECT ALL retains
+min(m,n) occurrences and EXCEPT ALL retains max(m-n,0). The distinct forms keep the first
+qualifying left representative in left order. EXCEPT ALL consumes right counts against successive
+left occurrences and retains later unmatched occurrences in left order. INTERSECT/EXCEPT read
+the right operand first, retaining equality keys and counts rather than every right row. Empty
+inputs do not skip the other operand's evaluation, except with compound LIMIT 0.
 
 | Operand projections | Planned result header |
 | --- | --- |
@@ -141,16 +150,23 @@ Null descriptor. Dynamic named/value columns inspect the pre-page stream to dete
 LIMIT 0 uses static descriptors without opening sources or invoking callbacks.
 
 Compound ORDER BY sees result members declared by any operand; absent members evaluate to MISSING.
+An enclosing alias cannot shadow a result member or fill in an absent member.
 Collection aliases are out of scope; wildcard documents leave member names open. Scalar expressions
 and ordinary NULL placement work; ties retain concatenation order. All-RAW/VALUE ordering reports
 CD01037. Unbound members, META and star report CD01038. Subqueries in compound ordering remain
 CK00001.
 
 UNION ALL streams operand rows, while each operand retains its own blocking stages. Distinct keys,
-compound sorting and kept output share StatementMemoryBudget (CD05018); row processing, equality
+right-side multiset keys/counters, compound sorting and kept output share StatementMemoryBudget (CD05018); row processing, equality
 and sorting share StatementWorkBudget (CD05020). Fixed-type unordered pages stop when complete.
-EXPLAIN describes Union/UnionAll and both operands without executing them. Nested compounds in
-expression subqueries, derived FROM and INSERT/UPSERT sources remain CK00001.
+EXPLAIN describes Union/UnionAll, Intersect/IntersectAll or Except/ExceptAll and both operands
+without executing them. Compounds execute in expression subqueries as arrays, derived FROM,
+INSERT/UPSERT SELECT and correlated operands, including a parenthesized first term. Each operand
+has its own lexical scope; caching requires every operand to be uncorrelated and cacheable.
+Whole-document cells become array elements or derived rows directly, without another wrapper.
+Write sources bind KEY/VALUE against static columns or declared result members; heterogeneous
+rows resolve members per row, and omitted VALUE keeps the complete compound row value. All source
+rows are staged and validated before mutation. See [IN grammar](../expressions/subqueries.md).
 
 Execute this standalone expression-source query:
 
@@ -162,6 +178,13 @@ ORDER BY n DESC OFFSET 1 LIMIT 2;
 ```
 
 It returns named rows with n = 2, then n = 1.
+
+The first standalone query returns bare rows 1 and 2; the second returns one bare row, 1:
+
+```sql
+SELECT RAW x FROM [1,1,2,3] AS x INTERSECT ALL SELECT RAW y FROM [1,2,2] AS y;
+SELECT RAW x FROM [1,1,2,3] AS x EXCEPT ALL SELECT RAW y FROM [1,2,3] AS y;
+```
 
 ## Derived and expression sources
 
@@ -241,6 +264,7 @@ EXPLAIN can read index metadata for costing but executes no document statement. 
 
 ## Sources
 
+- **Compound multiset/query positions** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSetOperationTests.cs`, `DocumentCompoundRegressionTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/docs/DIALECT.md`.
 - **Compounds, headers and limits** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentSetOperationTests.cs` and `DocumentCompoundIntegrationTests.cs` in the same directory.
 - **Compound grammar and IN wrappers** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Language/tests/OqlSetOperationParserTests.cs`.
 

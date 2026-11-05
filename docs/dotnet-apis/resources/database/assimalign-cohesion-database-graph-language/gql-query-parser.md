@@ -11,14 +11,15 @@ public sealed partial class GqlQueryParser : QueryParser
 {
     public GqlQueryParser(QueryParserOptions? options = null);
     public GqlQueryParser(bool allowCustomFunctions, QueryParserOptions? options = null);
-    public override QueryStatement Parse(ReadOnlySpan<char> query);
 }
+// Inherited: public QueryStatement Parse(ReadOnlySpan<char> query);
 ```
 
 ## Behavior and exceptions
 
 Parse returns a GqlQueryStatement with diagnostics for malformed/unsupported text; concurrent
-calls on the parser are serialized. The original constructor keeps standalone unknown-name
+calls on the parser are serialized through analyzer completion by the base entry point. The
+protected ParseCore retains statement text before analysis. The original constructor keeps standalone unknown-name
 diagnostics (CG00010). allowCustomFunctions: true admits ordinary named calls for later engine
 binding; it neither registers nor invokes a function. Reserved unsupported calls remain CK00001.
 GraphQueryRequest.FromGql enables custom call admission automatically.

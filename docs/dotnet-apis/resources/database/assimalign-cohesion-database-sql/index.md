@@ -48,9 +48,10 @@ sessions execute real SQL through the planner (`Internal/SqlPlanner`) and plan e
 - **Compiled-schema provisioning** — `ISqlDatabase` diffs a validated
   `CompiledSchema`, renders deterministic table/column/index DDL into parsed
   `SqlQueryRequest`s and records the canonical document/hash after convergence. Plans containing
-  TYPE rewrites prepare the complete target unpublished and publish in one catalog commit;
-  preparation failure leaves the old schema online. Other migrations retain per-step execution
-  and inline compensation. See [joint migrations](design.md#joint-type-migrations).
+  TYPE rewrites, and every deferred migration, prepare the complete target unpublished and publish
+  in one catalog commit; preparation failure leaves the old schema online (CS03402). Non-TYPE
+  inline application retains per-step execution and compensation (CS03104). An unconfirmed joint
+  commit uses CS03403. See [joint migrations](design.md#joint-migrations).
 - **SQL execution** — the declared dialect (`Database.Sql.Language/docs/DIALECT.md`)
   planned rule-based and executed through scans or eligible index seeks: `SELECT` with `WHERE`,
   projection, N-way INNER/LEFT/RIGHT/FULL/CROSS/comma joins with ON/USING, grouping and aggregates,

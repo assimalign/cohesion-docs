@@ -52,7 +52,10 @@ A derived SELECT can compute windows for an outer filter or DML source.
 
 ROWS, RANGE with offsets, GROUPS, all four exclusions and IGNORE/RESPECT NULLS execute.
 Aggregate-window DISTINCT and FROM FIRST/LAST remain named CK00001 refusals.
-NEXT VALUE FOR in window inputs remains CS03076 (0A000); nextval() keeps per-call evaluation.
+NEXT VALUE FOR in window inputs remains CS03076 (0A000). Equal window specifications or compatible
+sort prefixes evaluate scalar keys once; equal scalar keys in unrelated windows, or in one
+window's PARTITION BY and ORDER BY, evaluate separately. Aggregate results in whole matching keys
+follow the [aggregate reuse rule](../functions/aggregate-functions.md#repeated-aggregate-calls).
 
 ## Frame boundaries and defaults
 
@@ -144,8 +147,11 @@ output cells remain charged until the stage ends. Buffer capacity and growth ove
 Application accumulator internals remain application-owned; their handles and engine-owned inputs
 and sort buffers are charged. This is a conservative retained-memory estimate, not a GC heap limit.
 
-CS05079 refuses an excess before publication. Pre-existing subquery vectors and CTE/relation rows
-are admitted to the same owner; failed admission can use CS05067 (53200). There is no spill;
+CS05079 refuses an excess before publication when no plain SELECT bytes are live. If plain bytes
+fill the grant first, refusal uses CS05067 (53200). Plain SELECT caches retain their own statement
+reservations, including independent caches first created in a window. In DML and recursion,
+pre-existing subquery vectors and CTE/relation rows are admitted to the window owner; failed
+admission can use CS05067. Window buffers outside its ledger also charge. There is no spill;
 success, failure and cancellation release reservations.
 
 The source's full-output fixture admits 138,961 rows for ROW_NUMBER plus RANK over the three-INT

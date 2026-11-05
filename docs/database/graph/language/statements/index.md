@@ -9,6 +9,7 @@ Graph statements match data, mutate bound graphs, or inspect the session databas
 - **[MATCH and OPTIONAL MATCH](match.md)** — bind nodes and relationships before projection or mutation.
 - **[RETURN](return.md)** — query composition and result projection.
 - **[Linear composition](../clauses/next.md)** — LET, FILTER, FOR/UNWIND, RETURN … NEXT and Cypher WITH.
+- **[Inline CALL](../clauses/next.md#inline-call-subqueries)** — read-only returning subqueries and OPTIONAL CALL; writing/unit bodies remain deferred.
 - **[INSERT](insert.md)** — insert nodes and relationships.
 - **[MERGE](merge.md)** — match a whole path or create every unbound part, with ON CREATE/ON MATCH SET.
 - **[CREATE](create.md)** — compatibility spelling for insertion.

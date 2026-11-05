@@ -21,7 +21,11 @@ UPSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) sele
 ## Remarks
 
 A lone parenthesized SELECT is a valid source, for example
-`UPSERT INTO c (KEY k) (SELECT k FROM d)`. Compound UNION sources remain refused with CK00001.
+`UPSERT INTO c (KEY k) (SELECT k FROM d)`. UNION, INTERSECT and EXCEPT sources, including ALL,
+execute here, including a parenthesized first operand. KEY/VALUE bind static columns or declared
+result members; heterogeneous rows resolve members per row. Omitted VALUE keeps the complete
+compound row value, and every source row is staged and validated before mutation. See
+[INSERT source shapes](insert.md#remarks) for the single-block RAW/compound difference.
 
 The collection name supplies the implicit destination binding when no alias is declared.
 It names the image in RETURNING. VALUES has no destination row: a subquery that references

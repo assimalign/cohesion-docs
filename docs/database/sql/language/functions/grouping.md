@@ -23,6 +23,9 @@ aggregate DISTINCT/ALL/input ORDER BY modifiers are not accepted on these specia
 COHESION_SCHEMA.FUNCTIONS lists both names as SPECIAL FORM, without catalog overloads or a
 separately invocable scalar callback.
 
+Grouped window PARTITION BY and ORDER BY keys can also read GROUPING masks, including inline
+window specifications. The same grouping-expression and query-level rules apply.
+
 Arguments determine the owning query level. A call inside a subquery referring only to an outer
 level's keys reads the outer mask, whether or not the inner query has GROUP BY. Mixing local and
 outer arguments cannot match one associated grouping level and reports CS01062.

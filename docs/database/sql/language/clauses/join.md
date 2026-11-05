@@ -337,8 +337,10 @@ EXPLAIN reports FullHashJoin and `unmatched=both` in JoinStep detail; ANALYZE co
 pairs, excluding separately emitted unmatched rows.
 
 SqlDatabaseEngineOptions.StatementMemoryBudget is a positive byte budget for concurrently retained hash builds in one statement, including nested queries. Reservations account for retained rows, table/array storage and overlapping arrays during growth; all exits release them. Exhaustion reports CS05067 (SQLSTATE 53200) with an unprefixed diagnostic message. There is no partitioning or spill. [CTAS](../statements/create-table.md#create-table-as) also charges retained source results and copy buffers; joined UPDATE FROM, DELETE USING and MERGE also charge retained targets, sources, associations,
-selected writes and cascade state, refusing CS05067 before any write. Other result materialization
-and transient planning remain outside this accounting. See [performance and configuration](../../performance.md).
+selected writes and cascade state, refusing CS05067 before any write. Plain SELECT also charges
+loop inners, normalized children, staged matches and its materialized result. Hash builds still
+charge each wide-cell reference; other SELECT buffers deduplicate wide payloads per owner.
+Transient planning remains outside the grant. See [performance and configuration](../../performance.md#statement-memory).
 
 ## Sources
 

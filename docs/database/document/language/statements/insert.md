@@ -14,7 +14,12 @@ INSERT INTO collection [ AS alias ] (KEY output_name [, VALUE output_name]) sele
 ## Remarks
 
 A lone parenthesized SELECT is a valid source, for example
-`INSERT INTO c (KEY k) (SELECT k FROM d)`. Compound UNION sources remain refused with CK00001.
+`INSERT INTO c (KEY k) (SELECT k FROM d)`. UNION, INTERSECT and EXCEPT sources, including ALL,
+execute in this position, including a parenthesized first operand. KEY/VALUE names bind static
+columns or declared result members; heterogeneous rows resolve those members per row. Omitted
+VALUE keeps the complete compound row value. A single-block `SELECT RAW 'a'` with omitted VALUE
+stores `{"value":"a"}`; adding a compound operand stores scalar RAW values directly. Every source
+row is staged and validated before mutation. See [set operations](select.md#set-operations).
 
 The collection name supplies the implicit destination binding when no alias is declared.
 It names the image in RETURNING. VALUES has no destination row: a subquery that references

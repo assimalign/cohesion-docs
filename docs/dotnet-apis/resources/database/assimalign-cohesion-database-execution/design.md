@@ -73,6 +73,11 @@ KeyValuePair's command parser is an internal wire entry, not a public language c
 
 ## Plan descriptions and MISSING
 
+DatabaseRow's non-virtual ordinal accessors validate bounds before calling protected abstract
+cores; invalid ordinals throw ArgumentOutOfRangeException. IsMissing checks its optional
+capability first, then validates and calls protected virtual IsMissingCore. FieldCount remains
+abstract. Model conversions and valid-ordinal failures remain in the cores.
+
 [DatabasePlanDescription](database-plan-description.md) materializes model plan nodes in the shared
 eight-column shape without defining a shared operator algebra. Nodes retain model vocabulary;
 estimated/actual rows remain NULL. EXPLAIN performs normal binding/admission without data execution.

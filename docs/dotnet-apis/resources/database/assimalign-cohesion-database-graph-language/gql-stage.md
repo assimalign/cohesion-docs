@@ -25,6 +25,7 @@ operands use CG05001. Read stages stream in source order; mutation targets mater
 | [GqlLetStage](gql-let-stage.md) | Sequential value assignments |
 | [GqlFilterStage](gql-filter-stage.md) | Retain only TRUE predicates |
 | [GqlForStage](gql-for-stage.md) | FOR/UNWIND list expansion |
+| [GqlCallStage](gql-call-stage.md) | Read-only inline CALL/OPTIONAL CALL per input row |
 | [GqlInsertStage](gql-insert-stage.md) | INSERT/CREATE per input row |
 | [GqlMergeStage](gql-merge-stage.md) | Whole-pattern MERGE with ON CREATE/ON MATCH SET |
 | [GqlSetStage](gql-set-stage.md) | Property/map/label assignments |

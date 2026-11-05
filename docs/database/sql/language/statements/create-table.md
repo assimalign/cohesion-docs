@@ -126,13 +126,17 @@ table atomically. Once it is published, a snapshot taken before the builder tran
 sees the new table empty; a snapshot taken after that commit sees every row. No snapshot sees a
 partial build. Source reads use one statement snapshot.
 
-The statement memory budget covers retained source results and copy buffers as well as live hash
-builds. Exhaustion reports CS05067 (53200) before publication; there is no spill. A running CTAS
+CTAS sources charge like any SELECT, including joins, sorts, grouping state, caches and retained
+results. Copy buffers and output kept after pagination also charge StatementMemoryBudget;
+collection capacity does not. Exhaustion reports CS05067 (53200) before publication; there is no
+query spill. A declared-script CTAS refusal keeps the database online, preserves completed script
+statements and publishes no destination. A later Build with a larger budget resumes at that CTAS.
+A running CTAS
 holds the same metadata lease as CREATE INDEX: other sessions' definition DDL for views, functions,
 domains and schemas fails immediately while it runs. Unrelated table DDL can proceed.
 
 CTAS reuses TRUNCATE's durable prepared-owner reclamation machinery. Abandoned build storage is
-reclaimed after statement/snapshot pins clear. SQL storage remains **format 36**.
+reclaimed after statement/snapshot pins clear. SQL storage remains **format 37**.
 
 ### CTAS diagnostics
 
@@ -190,6 +194,7 @@ row. `CREATE TABLE bad (n) AS SELECT 1,2;` instead reports CS03068 and creates n
 
 ## Sources
 
+- **Declared CTAS refusal and resume** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlJointTypeMigrationTests.BatchIntegration.cs`.
 - **CTAS implementation and tests** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/src/Internal/Planning/SqlPlanner.TableAs.cs`, `src/Internal/Execution/SqlPlanExecutor.TableAs.cs` and `tests/SqlCreateTableAsTests*.cs` in the same project.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`

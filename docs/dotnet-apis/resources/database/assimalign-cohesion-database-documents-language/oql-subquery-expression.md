@@ -23,9 +23,11 @@ an empty array for zero rows, and shares the outer statement's snapshot and budg
 When used as [OqlSelectExpression.Source](oql-select-expression.md), it supplies derived rows
 directly rather than an expression-subquery array.
 
-Query uses the [closed query family](oql-query-expression.md). Compound subqueries are represented
-but remain refused with CK00001. In `x IN ((SELECT ...))`, the subquery array is one value-list
-item. A parenthesis-led compound is query membership and retains the nested-compound refusal.
+Query uses the [closed query family](oql-query-expression.md). Compounds execute here and preserve
+their static value/named/document header shape; whole-document cells need no additional wrapper.
+In `x IN ((SELECT ...))`, or redundant wrappers around a complete compound, the subquery array
+is one value-list item. A set operator or query tail after a parenthesized first operand instead
+selects query membership, with the RAW/VALUE requirement. See the [IN rule](oql-in-expression.md).
 
 Direct IN subqueries require RAW/VALUE (CD00014). Correlation and DML subqueries
 execute. Captures obey lexical shadowing and every enclosing GROUP BY; ORDER BY subqueries

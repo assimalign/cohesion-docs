@@ -24,13 +24,14 @@ public enum OqlSetOperation { Union, Intersect, Except }
 ## Behavior and exceptions
 
 Left and Right retain query operands, including parenthesized local ordering/paging. All operators
-have equal, left-associative precedence. IsAll preserves duplicate occurrences; otherwise UNION
-eliminates duplicates. Inherited OrderBy, Limit and Offset apply to the compound. Inherited IsValue
+have equal, left-associative precedence. IsAll selects multiset behavior: UNION concatenates,
+INTERSECT keeps min(left count, right count), and EXCEPT keeps max(left count - right count, 0).
+Without ALL each result value appears once. Inherited OrderBy, Limit and Offset apply to the compound. Inherited IsValue
 is true only when both operands are value queries. A null ordering list means no ordering.
 
 Null operands throw ArgumentNullException; an undefined operation throws ArgumentOutOfRangeException.
-Construction does not execute. Union and Union ALL execute at top level. Intersect and Except are
-represented but refused with CK00001, as are nested compounds. All-RAW/VALUE compound ordering uses
+Construction does not execute. All three operators execute in every query position, including
+expression subqueries, derived FROM, correlated operands and INSERT/UPSERT SELECT. All-RAW/VALUE compound ordering uses
 CD01037; unbound members, META or star use CD01038. See [set-operation behavior](../../../../database/document/language/statements/select.md#set-operations).
 
 ## Example

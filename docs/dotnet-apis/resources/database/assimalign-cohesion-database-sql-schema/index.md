@@ -23,8 +23,8 @@ and the engine protects those objects from session DDL.
 See [DESIGN.md](design.md) for boundaries, canonicalization, and AOT decisions.
 
 Typed column type changes use the planner's [conversion safety gate](design.md#type-migration-safety).
-Only proven exact conversions bypass destructive-change opt-in. A plan containing a TYPE rewrite
-uses the engine's [joint migration executor](../assimalign-cohesion-database-sql/design.md#joint-type-migrations).
+Only proven exact conversions bypass destructive-change opt-in. Every deferred migration, and a plan containing a TYPE rewrite,
+uses the engine's [joint migration executor](../assimalign-cohesion-database-sql/design.md#joint-migrations).
 
 ## Project references
 
@@ -43,9 +43,9 @@ always-serialized OnUpdate metadata. The earlier v8 changed typed TimeSpan defau
 v12 retains that rendering.
 Older artifacts and recorded applied/pending documents are refused at `schema.format` before
 hash comparison. See [default rendering](design.md#current-format-boundary) and the
-[format-36/v12 upgrade note](../../../../database/sql/index.md#sql-format-36-and-schema-v12).
+[format-37/v12 upgrade note](../../../../database/sql/index.md#sql-format-37-and-schema-v12).
 
-The integration branch uses SQL row-storage format 36 and compiled schema version 12.
+The integration branch uses SQL row-storage format 37 and compiled schema version 12.
 Format 17 introduced the insert-default/frozen-missing-value split (table extension 6); format 18
 separately changes quoting for newly executable function names in persisted canonical SQL.
 The formats preserve resolved shared type identity/modifiers across contextual multi-word and
@@ -63,8 +63,9 @@ Format 31 added partial-index predicates in index extension 2. Format 32 added p
 direction and NULL placement in mandatory index extension 3 and retained TYPE default assignment coercion.
 Format 33 fenced SQL/JSON names and ordinary-call quoting. Format 34 introduced joint typed
 migration intent semantics. Format 35 introduced separate physical owners for kept-table index trees and durable per-table
-classification. Current format 36 changes effective index orders and defaults to ASC NULLS FIRST,
-matching ORDER BY; format 35 and earlier are refused before recovery writes.
+classification. Format 36 changed effective index orders and defaults to ASC NULLS FIRST,
+matching ORDER BY. Current format 37 requires joint publication for every deferred job and fences
+per-step intents; format 36 and earlier are refused before recovery writes.
 Every earlier format is refused at open; there is no
 upgrade path. Compiled schema format remains version 12.
 

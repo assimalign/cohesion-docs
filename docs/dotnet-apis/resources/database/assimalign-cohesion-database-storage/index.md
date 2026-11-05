@@ -10,6 +10,14 @@ The physical storage kernel of the Cohesion Data Platform: fixed-size pages, a b
 - **[Page](page.md)** — Bounded caller-memory spans and reserved overflow geometry.
 - **[StorageTransactionException](storage-transaction-exception.md)** — Machine-readable foreign-storage refusal.
 - **[StorageTransactionErrorCode](storage-transaction-error-code.md)** — Unspecified and ForeignStorage reasons.
+- **[StorageTempSpace](storage-temp-space.md)** — Dedicated temporary directory and engine quota.
+- **[StorageTempStatement](storage-temp-statement.md)** — Statement quota and run lifetime.
+- **[StorageTempRun](storage-temp-run.md)** — Append-only checked record files.
+- **[StorageTempRunReader](storage-temp-run-reader.md)** — Caller-owned record destinations.
+- **[StorageTempSorter](storage-temp-sorter.md)** — Stable sorting over encoded keys.
+- **[StorageTempSortReader](storage-temp-sort-reader.md)** — Streaming final merge and borrowed values.
+- **[StorageTempPartitions](storage-temp-partitions.md)** — Bounded hash partition files.
+- **[StorageTempException](storage-temp-exception.md)** — CK05001–CK05006 temporary refusals.
 
 - **[Design](design.md)** — Dependency boundaries and implementation decisions.
 - **[StorageJournal](storage-journal.md)** — Concurrent appends, durability prefixes and owned sequential payloads.
@@ -25,6 +33,8 @@ components of their engine assemblies, with their existing namespaces.
 
 ## Scope
 
+- **Disposable query storage** — Quotas, free-space admission, checked runs, sorting and hash
+  partitions. No query operator uses this substrate yet; temporary failures keep durable databases online.
 - **Pages** — 8 KiB `Page` unit with a 96-byte header (id, LSN, CRC-32C checksum, type,
   flags, slot bookkeeping), `SlottedPage` variable-length record layout, `PageSlot`
   directory entries.

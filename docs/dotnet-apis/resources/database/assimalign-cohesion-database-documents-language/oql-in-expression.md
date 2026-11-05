@@ -35,8 +35,11 @@ in Array. VALUE is a RAW synonym; a direct SELECT without RAW/VALUE reports CD00
 (no assigned SQLSTATE).
 
 `x IN ((SELECT ...))` stores one subquery-array item in Values, with Array null and no RAW/VALUE
-requirement. A compound starting with a parenthesized operand instead occupies Array and retains
-the current CK00001 nested-compound refusal. A following scalar operator or comma keeps value-list
+requirement. Redundant wrappers around a complete compound, such as `x IN ((S UNION T))`, also
+keep one subquery-array item. A compound with an operator or query tail after its leading
+parenthesized operand instead occupies Array and requires RAW/VALUE, for example
+`x IN (((S) UNION T))`. S and T stand for complete SELECT blocks. Compounds execute in both
+positions. A following scalar operator or comma keeps value-list
 grammar; a query tail after the wrapper selects query grammar.
 
 ## Example

@@ -22,8 +22,8 @@ distinct from NULL, under SQL++ semantics.
 
 [SELECT](language/statements/select.md) supports ALL/DISTINCT and VALUE/RAW with object and array
 constructors. A bare top-level MISSING becomes NULL before deduplication and counting on every
-transport; named members preserve absence. Top-level [UNION/UNION ALL](language/statements/select.md#set-operations)
-combine query values with compound ordering and paging; INTERSECT/EXCEPT and nested compounds
+transport; named members preserve absence. [UNION, INTERSECT and EXCEPT](language/statements/select.md#set-operations),
+including ALL, combine query values in every query position with compound ordering and paging. Subqueries in compound ORDER BY
 remain refused. SELECT constructors allow 256 result levels, while
 stored/INSERT JSON retains its 128-level limit.
 
