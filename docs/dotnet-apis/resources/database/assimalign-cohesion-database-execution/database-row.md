@@ -11,11 +11,31 @@ protected DatabaseRow(bool supportsMissing = false);
 public bool SupportsMissing { get; }
 public bool IsMissing(int ordinal);
 protected virtual bool IsMissingCore(int ordinal);
-public abstract bool IsNull(int ordinal);
-public abstract object? GetValue(int ordinal);
+public abstract int FieldCount { get; }
+public bool IsNull(int ordinal);
+public ReadOnlyMemory<byte> GetBytes(int ordinal);
+public string? GetString(int ordinal);
+public int GetInt32(int ordinal);
+public long GetInt64(int ordinal);
+public bool GetBoolean(int ordinal);
+public double GetDouble(int ordinal);
+public object? GetValue(int ordinal);
+protected abstract bool IsNullCore(int ordinal);
+protected abstract ReadOnlyMemory<byte> GetBytesCore(int ordinal);
+protected abstract string? GetStringCore(int ordinal);
+protected abstract int GetInt32Core(int ordinal);
+protected abstract long GetInt64Core(int ordinal);
+protected abstract bool GetBooleanCore(int ordinal);
+protected abstract double GetDoubleCore(int ordinal);
+protected abstract object? GetValueCore(int ordinal);
 ```
 
 ## Behavior and exceptions
+
+Public ordinal accessors are non-virtual. They validate `0 <= ordinal < FieldCount` and throw
+ArgumentOutOfRangeException before dispatching to the protected core. FieldCount remains abstract.
+For valid ordinals, model conversions, NULL/MISSING behavior and conversion failures are unchanged;
+typed access does not introduce a new box.
 
 Documents document-projection rows and Documents.Client.DocumentRow support MISSING. Shared
 plan-description rows retain the default capability. SQL, Graph and Key-Value rows do not. IsMissing
