@@ -10,6 +10,7 @@ GQL clauses filter matched bindings and project graph bindings or scalar express
 - **[WITH](with.md)** — intermediate projection with scoped aliases and filtering after paging.
 - **[UNION, EXCEPT, INTERSECT and OTHERWISE](union.md)** — combine read-only results with set/multiset rules or lazy fallback.
 - **[NEXT](next.md)** — compose source-ordered segments in one statement.
+- **[Inline CALL](next.md#inline-call-subqueries)** — read-only subqueries per input row, with optional imports and NULL extension.
 
 - **[WHERE](where.md)** — Boolean expressions, arithmetic and exact numeric comparisons.
 - **[RETURN](return.md)** — expressions, aliases, DISTINCT and named-binding star.

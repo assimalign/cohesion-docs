@@ -664,6 +664,13 @@ CD05021 means planning, EXPLAIN or evaluation exhausted the executing thread's a
 the statement fails and the session stays open, including over TCP. It has no assigned SQLSTATE.
 See [set operations](document/language/statements/select.md#set-operations).
 
+## GQL inline CALL
+
+CG01024 rejects a returned CALL name that shadows an outer binding, including imports and
+RETURN * expansion. It has no assigned SQLSTATE. Read-only returning bodies execute with
+omitted or explicit variable scopes; writing/unit bodies, named procedures, FOREACH and
+CALL IN TRANSACTIONS retain CK00001. See [CALL scope and diagnostics](graph/language/clauses/next.md#inline-call-subqueries).
+
 ## Sources
 
 - **Batch 19, SQ-A3** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` and `Assimalign.Cohesion.Database.Sql/src/Internal/Provisioning/SqlProvisioningCodes.cs` at `0b00f181e`, checked against code and tests.

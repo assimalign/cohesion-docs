@@ -68,6 +68,10 @@ come from a final GqlReturnStage. Supply per-stage tails on GqlReturnStage for e
 The original constructors expose a single-segment stage facade without changing call sites.
 Segments splits at NEXT and excludes the boundaries. See [GqlStage](gql-stage.md) for all leaves.
 
+[GqlCallStage](gql-call-stage.md) embeds a read-only returning query per incoming row. Imports
+retain their binding kinds across inner WITH/NEXT/composites; returned names join the outer row
+and may not shadow any outer binding (CG01024). Writing/unit bodies remain CK00001.
+
 The composite constructor throws ArgumentNullException for null and retains the binary
 [GqlCompositeQuery](gql-composite-query.md). A standalone composite exposes an empty Stages list;
 Composite is null for a linear pipeline. A composite/NEXT pipeline uses
