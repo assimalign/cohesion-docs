@@ -24,13 +24,16 @@ public sealed class OqlInsertExpression : OqlExpression
 ## Behavior and exceptions
 
 Select uses [OqlQueryExpression](oql-query-expression.md). A lone parenthesized SELECT is a valid
-source; compound write sources remain refused with CK00001.
+source; UNION, INTERSECT and EXCEPT sources, including ALL and parenthesized first operands,
+execute. KEY/VALUE bind static columns or declared result members; omitted VALUE keeps the
+complete compound row value. Every source row is staged and validated before mutation.
 
 Returning optionally retains an [affected-image projection](oql-returning-expression.md).
 INSERT projects stored post-images with new metadata; null retains count-only execution.
 
 Retains Collection, optional Alias, ordered Values pairs, or Select plus KeyName/ValueName. Names
-bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object.
+bind to SELECT outputs case-sensitively; null ValueName stores the entire projection object for
+a SELECT block, or the complete row value for a compound.
 Planning rejects invalid contexts with CD05001. Execution requires nonblank string keys and JSON
 values (CD02008), exact numbers (CD02007/22003), and no visible duplicate key
 (DocumentDuplicateKeyException/CD03012).

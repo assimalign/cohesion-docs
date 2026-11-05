@@ -656,9 +656,13 @@ gateway readiness. See [health composition](../dotnet-apis/resources/database/as
 ## OQL compound queries
 
 OQL compound ordering reports CD01037 for an all-RAW/VALUE result with no named members, or
-CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. UNION distinct,
-sort and output state uses CD05018; compound row/equality/sort work uses CD05020. INTERSECT/EXCEPT
-and nested compounds retain CK00001. See [set operations](document/language/statements/select.md#set-operations).
+CD01038 for an unbound member, META or star. Neither has an assigned SQLSTATE. Distinct keys,
+right-side multiset keys/counters, sort and output state use CD05018; compound row/equality/sort
+work uses CD05020. UNION, INTERSECT and EXCEPT, including ALL, execute in every query position.
+Explicit DISTINCT modifiers and subqueries in compound ORDER BY remain CK00001.
+CD05021 means planning, EXPLAIN or evaluation exhausted the executing thread's available stack;
+the statement fails and the session stays open, including over TCP. It has no assigned SQLSTATE.
+See [set operations](document/language/statements/select.md#set-operations).
 
 ## Sources
 

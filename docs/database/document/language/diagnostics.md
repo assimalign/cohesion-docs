@@ -22,7 +22,7 @@ OQL reports coded parser, planner and execution failures with available source l
 | `CD00011` | ALL/DISTINCT on a scalar call or star, including COUNT(ALL *) and COUNT(DISTINCT *) |
 | `CD00012` | GROUP AS without preceding GROUP BY terms; at GROUP; no assigned SQLSTATE |
 | `CD00013` | NULLS without FIRST or LAST; at the invalid option or end of input; no assigned SQLSTATE |
-| `CD00014` | Direct IN subquery without SELECT RAW/VALUE; at SELECT; no assigned SQLSTATE |
+| `CD00014` | IN query without SELECT RAW/VALUE, including a compound with a parenthesized first operand; no assigned SQLSTATE |
 
 See [subqueries](expressions/subqueries.md) for evaluation, CD05015 depth, CD05018 memory and CD05020 work limits.
 
@@ -59,6 +59,7 @@ rather than being rounded by the parser.
 | `CD01038` | Compound ORDER BY uses an unbound result member, META or star | — |
 | `CD05018` | Accounted SELECT/group staging, ordered candidate buckets/keys/identities, wrappers/arrays, aggregates, projection/order storage, DML pending buffers or RETURNING exceeds StatementMemoryBudget; pending-buffer exhaustion precedes writes, no partial result | — |
 | `CD05019` | Serialized RETURNING value exceeds 256 levels, including a named wrapper; inside the transaction | — |
+| `CD05021` | Planning, EXPLAIN or evaluation needs more execution stack than the thread has left; statement fails and the session stays open, including over TCP | — |
 | `CD02016` | Invalid UPDATE target, root replacement, UNSET ending in an index, incompatible traversal, missing array or out-of-range index | — |
 | `CD01017` | Duplicate or prefix-overlapping UPDATE targets after alias normalization, including SET/UNSET overlap | — |
 | `CD02018` | Patched UPDATE JSON is invalid or exceeds storage depth 128 | — |
@@ -324,6 +325,7 @@ disposal before that fence.
 
 ## Sources
 
+- **Stack refusal and session recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCompoundRegressionTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentSetOperationWireTests.cs`.
 - **Disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/SavepointFixTests.cs`.
 - **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

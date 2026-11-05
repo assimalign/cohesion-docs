@@ -23,6 +23,8 @@ public static class OqlClauses
     public const string Nest = "NEST";
     public const string LeftNest = "LEFT NEST";
     public const string Union = "UNION";
+    public const string Intersect = "INTERSECT";
+    public const string Except = "EXCEPT";
     // Other query, expression and DDL clause constants are unchanged.
 }
 ```
@@ -47,8 +49,8 @@ DerivedFrom and ExpressionFrom are admitted by the profile and use
 Join, LeftJoin, Nest and LeftNest are admitted for [key JOIN/NEST](../../../../database/document/language/clauses/join.md).
 They produce OqlJoinExpression bindings; general predicates remain CK00001.
 
-Union is admitted for top-level UNION and UNION ALL and produces
-[OqlSetOperationExpression](oql-set-operation-expression.md). INTERSECT/EXCEPT remain refused.
+Union, Intersect and Except are admitted in every query position, including their ALL forms,
+and produce [OqlSetOperationExpression](oql-set-operation-expression.md).
 
 ## Example
 

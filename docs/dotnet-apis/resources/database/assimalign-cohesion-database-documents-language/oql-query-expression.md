@@ -25,8 +25,8 @@ one RAW or VALUE expression.
 
 OqlQueryStatement.OqlExpression retains the broader OqlExpression type because writes, DDL and
 transaction statements have their own roots. OqlSubqueryExpression.Query and INSERT/UPSERT Select
-now use OqlQueryExpression. AST representation does not imply execution support: nested compounds
-and INTERSECT/EXCEPT remain refused. Inspect statement diagnostics before planning.
+use OqlQueryExpression. UNION, INTERSECT and EXCEPT, with and without ALL, execute in every query
+position. Inspect statement diagnostics before planning; compound-order subqueries remain CK00001.
 
 ## Example
 
