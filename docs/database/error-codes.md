@@ -6,13 +6,13 @@ Identities are append-only; retired identities remain reserved and `00000` is un
 
 | Prefix | Owner | Authoritative per-model registry |
 | --- | --- | --- |
-| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
-| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/0b00f181e/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
-| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
-| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
-| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
-| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
-| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
+| CK | Shared kernel and infrastructure | [Kernel](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#kernel-migration) |
+| CS | SQL | [SQL](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#sql-migration) |
+| CD | Documents | [Documents](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#documents-migration) |
+| CB | Blob | [Blob](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#blob-migration) |
+| CG | Graph | [Graph](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#graph-migration) |
+| CV | KeyValuePair | [KeyValuePair](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#keyvaluepair-migration) |
+| CC | Cache (reserved) | [Registry](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md) |
 
 The suffix allocates two category digits and three condition digits within these ranges.
 Categories help organize the registry; callers still match the complete identity.
@@ -46,7 +46,7 @@ are independent analyzer identities and remain unchanged.
 Use the model references for current conditions: [SQL](sql/language/diagnostics.md),
 [Documents](document/language/diagnostics.md), [Graph](graph/language/diagnostics.md),
 [Key-Value Pair](key-value-pair/diagnostics.md), [Blob](blob/operations.md) and [Cache](cache/index.md).
-The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/ad0da989f/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
+The source registry also lists [newly coded conditions](https://github.com/assimalign/cohesion/blob/51f90e28b/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md#rules-audit-condition-additions).
 
 The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing or execution.
 `CS00100` is retired and remains reserved. Recognized unsupported clauses use `CK00001`.
@@ -71,6 +71,17 @@ No query operator uses the temporary-space substrate yet.
 Failed-reader retries emit no further damage event/counter. See
 [temporary storage](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
 and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+
+## SQL statement memory
+
+CS05067 (53200) covers every retained plain SELECT buffer and materialized result, including
+joins, sorts, grouping, set operations and caches. The default StatementMemoryBudget is 64 MiB;
+large sorts and results refuse until the budget is raised. No query operator spills yet.
+When plain bytes fill the grant first, window/JSON memory refusals also use CS05067. With no
+plain bytes live, their grants retain CS05079 and CS05094. A declared-script CTAS refusal stays
+online, publishes no table and resumes at that statement on a later Build with a larger budget.
+INSERT SELECT and DML subquery sources keep their existing policy. See
+[statement memory](sql/performance.md#statement-memory).
 
 ## SQL COPY TO STDOUT
 
@@ -583,14 +594,15 @@ Application/order-sensitive aggregates retain CS05084; volatile or subquery argu
 use restart semantics and that fallback can also reach CS05084 for native aggregates. Visits
 count before FILTER/arguments across functions, partitions and stages, including under LIMIT.
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
-and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
-can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
+when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
+the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
 
 ## GQL composite queries
 
 [UNION, EXCEPT, INTERSECT and OTHERWISE](graph/language/clauses/union.md) execute with isolated operand scopes, matching case-sensitive
 columns, type reconciliation and one statement snapshot. UNION keeps the first structural
-occurrence; UNION ALL preserves duplicates. Paging is operand-local and NEXT binds above UNION.
+occurrence; UNION ALL preserves duplicates. Paging is operand-local and UNION binds above NEXT.
 All operands validate before execution. Other memory/work exhaustion retains CG05020/CG05004.
 EXCEPT/INTERSECT default to DISTINCT or accept ALL multiset counts. They retain eligible left
 occurrences and share structural row equality with UNION. OTHERWISE returns the whole left result

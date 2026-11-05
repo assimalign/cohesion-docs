@@ -69,7 +69,7 @@ Parse and AnalyzeAsync are non-virtual entry points. Parse owns lexer constructi
 orchestration; subclasses implement ParseCore with the configured lexer and borrowed source span.
 SQL, OQL and GQL retain their statement text before analysis, including empty and diagnostic-only
 statements. SQL analyzers can now read that text. Null parser options throw ArgumentNullException.
-SQL and application parsers default to concurrent calls; OQL and GQL select serialization through
+SQL and application parsers do not request serialization by default; OQL and GQL serialize through
 analyzer completion in the base constructor.
 
 AnalyzeAsync rejects a null context before checking cancellation, then returns the protected
@@ -129,6 +129,7 @@ diagnostic creation require no reflection, dynamic code generation, or dependenc
 
 ## Sources
 
+- **Public entry points and protected cores** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/tests/QueryNviTests.cs`.
 - **Analyzer completion, timeout and null validation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/tests/QueryAnalyzerTests.cs` and `QueryAnalyzerTimeoutTests.cs` in the same directory.
 - **Primary source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/docs/DESIGN.md`.
 - **Source** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Language/src/Assimalign.Cohesion.Database.Language.csproj`.

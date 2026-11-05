@@ -325,7 +325,7 @@ disposal before that fence.
 
 ## Sources
 
-- **Stack refusal and session recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCompoundRegressionTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentSetOperationWireTests.cs`.
+- **Stack refusal and session recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/DocumentCompoundRegressionTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/DocumentStackWireTests.cs`.
 - **Disposal precedence** — `cohesion/resources/Database/Assimalign.Cohesion.Database/tests/SavepointSeamTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/SavepointFixTests.cs`.
 - **Named controls and recovery** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents/tests/NamedSavepointTests.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Documents.Client/tests/SavepointFailureWireTests.cs`.
 - **Batch 14** — `cohesion/resources/Database/Assimalign.Cohesion.Database/docs/ERROR-CODES.md` at `c3dc498bf`, checked against the batch-14 code and tests.

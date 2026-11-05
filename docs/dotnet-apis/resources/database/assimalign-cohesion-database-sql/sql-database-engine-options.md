@@ -22,8 +22,9 @@ public sealed class SqlDatabaseEngineOptions
 
 ## Behavior and exceptions
 
-Both default to TimeSpan.Zero, disabling the timer. StatementTimeout bounds cooperative execution
-after parsing; LockTimeout bounds each contended lock wait separately, including unique-index waits.
+StatementTimeout and LockTimeout default to TimeSpan.Zero, disabling their timers. StatementTimeout
+bounds cooperative execution after parsing; LockTimeout bounds each contended lock wait separately,
+including unique-index waits.
 SqlDatabaseEngine.Create snapshots options and throws ArgumentOutOfRangeException for either value
 below zero or above TimeSpan.FromMilliseconds(int.MaxValue). Setters store the values; later changes
 to the caller's options do not change the engine snapshot.

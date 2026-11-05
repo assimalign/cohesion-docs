@@ -687,8 +687,9 @@ Application/order-sensitive aggregates retain CS05084; volatile or subquery argu
 use restart semantics and that fallback can also reach CS05084 for native aggregates. Visits
 count before FILTER/arguments across functions, partitions and stages, including under LIMIT.
 Equal cached frames spend none. ANALYZE reports frame_visits, transitions, inverse_transitions
-and boundary_visits. CS05079 covers retained window state; admitting earlier CTE/subquery caches
-can use CS05067 (53200). See the linked memory section for default-grant fixture limits.
+and boundary_visits. CS05079 covers window grant exhaustion with no plain SELECT bytes live;
+when plain bytes fill the grant first it uses CS05067 (53200). DML/recursive cache admission to
+the window owner can also use CS05067. See the linked memory section for default-grant fixture limits.
 
 ## JSON access
 
