@@ -2099,6 +2099,14 @@ policy or replace an unresolved operational fault. Event 36 repeats once per sec
 running lane while disposal waits, measuring elapsed disposal time. Storage stays open until I/O
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
+## Temporary space
+
+The engine owns an internal StorageTempSpace when a file root or explicit TempDirectory is
+configured. TempDirectory, TempSpaceQuota and StatementTempSpaceQuota are copied from options;
+see [defaults, admission floor and permissions](sql-database-engine-options.md#temporary-space).
+One directory belongs to one spilling engine. Temporary setup/I/O failures use CK05005 without
+taking durable databases offline. This is the substrate only; no query operator uses it yet.
+
 ## Probe costing and hash builds
 
 Every retained plain SELECT buffer shares StatementMemoryBudget (default 64 MiB): hash/loop and

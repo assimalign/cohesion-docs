@@ -36,7 +36,7 @@ the server. Cross-engine transactions are not provided.
 | Component | Responsibility and status |
 | --- | --- |
 | `Assimalign.Cohesion.Database` | Area root: engine/database/session/transaction contracts, object ownership, compiled-schema identity, provisioning seam |
-| `Assimalign.Cohesion.Database.Storage` | Durable pages, buffer management, write-ahead log (WAL), recovery, and record storage |
+| `Assimalign.Cohesion.Database.Storage` | Durable pages, buffer management, write-ahead log (WAL), recovery, record storage and disposable query-file substrate |
 | `Assimalign.Cohesion.Database.Indexing` | Shared key/index structures, including B+Tree indexes |
 | `Assimalign.Cohesion.Database.Transactions` | Multi-version concurrency control (MVCC), snapshots, locks, transaction state, and durability binding |
 | `Assimalign.Cohesion.Database.Types` | Shared scalar identities, collation, binary encoding, and boxed-value codec |
@@ -55,6 +55,10 @@ catalog, language, client, security, and replication concerns stay with the mode
 
 The former replication and governance placeholder projects and contracts are absent. These
 features have no current runtime API.
+
+The [temporary-space substrate](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
+provides quotas, checked runs, sorting and hash partitions. SQL owns its configuration; no query
+operator uses it yet, so large queries still refuse on their memory grant.
 
 ## Host composition
 

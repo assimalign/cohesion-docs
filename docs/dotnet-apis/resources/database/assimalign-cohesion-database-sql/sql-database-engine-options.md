@@ -14,6 +14,9 @@ public sealed class SqlDatabaseEngineOptions
     public TimeSpan StatementTimeout { get; set; }
     public TimeSpan LockTimeout { get; set; }
     public long StatementMemoryBudget { get; set; }
+    public FileSystemPath? TempDirectory { get; set; }
+    public long? TempSpaceQuota { get; set; }
+    public long? StatementTempSpaceQuota { get; set; }
 }
 ```
 
@@ -112,6 +115,42 @@ charge transient DOM, result references and selected-result serialization to Sta
 Exhaustion reports CS05094 (54000), outside ON ERROR handling, or CS05067 when plain SELECT
 bytes fill the grant first. Their 1,000,000-visit work cap is
 shared with window-frame recomputation and is independent of the configured byte grant.
+
+## Temporary space
+
+These three options configure the disposable-storage substrate. They exist only on the SQL
+engine options on this branch. No query operator uses the substrate yet; SQL retains memory
+refusals and raising StatementMemoryBudget remains necessary for large sorts/results.
+
+| Member | Default and validation |
+| --- | --- |
+| TempDirectory | Null: file engines use RootPath/.cohesion-temp; in-memory engines have no temp space unless set. An override for a file engine must be a descendant of RootPath with no link components and a first segment no database could take; a leading dot is safe. Empty/default paths are refused. |
+| TempSpaceQuota | Null: min(10 GiB, floor(available volume bytes / 4)), fixed after startup sweeping. An unavailable probe uses zero until the first run retries successfully. Explicit values must be nonnegative; zero refuses growth. |
+| StatementTempSpaceQuota | Null: four times StatementMemoryBudget, saturating at Int64.MaxValue (256 MiB at defaults). Explicit values must be nonnegative; zero refuses growth. |
+
+Options are snapshotted with the engine. Invalid paths or negative quotas throw
+ArgumentOutOfRangeException naming the engine and option. A first path segment that is itself
+a valid database name, including a run-shaped name, refuses configuration before directory
+creation. Creating database `.cohesion-temp` instead fails the database-name guard with
+ArgumentException. An empty RootPath still selects in-memory storage; a default FileSystemPath
+value is refused.
+
+One directory belongs to one spilling engine. Choose a different TempDirectory for each engine.
+A lease/setup failure warns and keeps databases available; a later run retries and uses CK05005
+if still unavailable. Quotas count physical 8 KiB pages, including framing, unwritten tails and
+simultaneous merge input/output files. Disposal releases reservations.
+
+The free-space floor always applies. For N = max(1, open databases), let C = 1 MiB +
+N × (BufferPoolCapacity + 128 × 8192 + 2 × (JournalSizeLimit + reclamation bracket bytes for
+32 rows)). The floor is C + max(1 MiB, ceil(C / 4)), saturating on overflow; default file options
+reserve about 2.54 GiB per open database. An in-memory engine reserves only 1 MiB on this volume.
+This is admission headroom, not an OS disk reservation.
+
+Unix creates directories 0700 and run/lease files 0600, and refuses group/other-writable
+directories. Windows explicit directories keep inherited ACLs. Temp data is unencrypted;
+Unix kills and power loss on any OS can leave runs until a later sweep. Windows process exit
+deletes its runs. OS backups of RootPath can capture live temp files. See
+[temporary storage](../assimalign-cohesion-database-storage/design.md#disposable-query-storage).
 
 ## Recursive query memory
 

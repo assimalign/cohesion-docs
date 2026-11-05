@@ -53,6 +53,25 @@ The omitted SQL semicolon is informational `CS00009`; it does not refuse parsing
 Hard SQL deadlocks carry `CS04065`, mapped to SQLSTATE `40P01` (`deadlock_detected`). These
 SQLSTATE mappings are documented code mappings, not separate wire fields.
 
+## Temporary storage
+
+StorageTempException exposes Code separately from its unprefixed message. These conditions
+refuse disposable work without taking durable databases offline; they have no assigned SQLSTATE.
+No query operator uses the temporary-space substrate yet.
+
+| Code | Meaning and trigger |
+| --- | --- |
+| CK05001 | Engine physical temporary-byte quota exceeded |
+| CK05002 | Statement physical temporary-byte quota exceeded |
+| CK05003 | New temporary page would cross the engine free-space floor |
+| CK05004 | Temporary page/record integrity failure or retry of a previously failed reader |
+| CK05005 | Temporary space unavailable: probe, lease, sweep, create, read, write or close I/O failure |
+| CK05006 | Encoded sort record exceeds its declared maximum |
+
+Failed-reader retries emit no further damage event/counter. See
+[temporary storage](../dotnet-apis/resources/database/assimalign-cohesion-database-storage/design.md#disposable-query-storage)
+and [SQL configuration](../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+
 ## SQL COPY TO STDOUT
 
 | Code | Meaning and trigger | SQLSTATE |

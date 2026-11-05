@@ -15,7 +15,51 @@ One model-agnostic physical substrate: fixed-size pages, a pin-counted buffer po
 record layout, and a write-ahead journal. Model engines bring *layouts* (what bytes mean inside a
 page body) but never their own paging, caching, or logging. The guardrails that keep this layer
 trustworthy are structural: every page load is checksum-verified, every write-back is
-checksum-stamped, and durability flows through the journal only — there are no side files.
+checksum-stamped, and durable data changes flow through the journal. Disposable query files
+use a separate substrate without WAL, MVCC or the shared buffer pool.
+
+## Disposable query storage
+
+[StorageTempSpace](storage-temp-space.md) owns one engine's dedicated directory and physical-byte
+accounting. [StorageTempStatement](storage-temp-statement.md) owns each statement's runs and quota.
+[Runs](storage-temp-run.md) hold opaque records in checked 8 KiB pages; the
+[sorter](storage-temp-sorter.md) provides stable external sorting and a streaming final merge,
+and [partitions](storage-temp-partitions.md) route records by caller-supplied hashes.
+This is the substrate only: no query operator uses it on this branch. SQL owns its space
+internally and retains its memory refusals. See [SQL options](../assimalign-cohesion-database-sql/sql-database-engine-options.md#temporary-space).
+
+Every new physical page checks the statement quota, engine quota and model-supplied free-space
+floor. The engine quota is explicit or min(10 GiB, floor(available bytes / 4)), fixed after
+sweeping. Probe/lease/sweep failures warn without preventing engine startup; the first run retries.
+An unavailable probe leaves quota zero until retry succeeds. Temporary I/O failures, including
+ENOSPC, refuse with CK05005 and preserve their cause; they do not take durable storage offline.
+
+One directory belongs to one spilling engine. Startup releases its sweep lease; the first run
+reacquires it until space disposal. A second engine can start and open different databases over
+the same root but cannot spill into an actively leased directory (CK05005). Choose another
+TempDirectory. Sweeping removes only `cohesion-<32 hex GUID>.ctmp`, preserving other entries.
+Files are lazy and delete on close. Unix uses owner-only directories (0700) and run/lease files
+(0600), rejecting group/other-writable directories; Windows explicit directories inherit ACLs.
+Directory and lease link checks protect setup. Data is unencrypted and can remain after a Unix
+kill or any OS's power loss until the next sweep; backups can capture live runs.
+
+The space measures free bytes on the actual directory volume. Ordinary refresh runs after
+128 reserved pages (1 MiB) or a sample older than one second, outside the accounting monitor.
+A contended probe can leave an older sample with no age bound; before CK05003 it re-measures
+once. Reservations since the sample and pending unwritten pages reduce the estimate, while
+releases credit it. Other processes can consume space meanwhile, and a close sampled before
+release accounting can temporarily be credited twice. The floor is headroom, not reserved disk.
+Callers must not hold storage page latches across temporary-space calls.
+
+Private run format 2 has length-prefixed records and page headers with version, page ordinal,
+run identity, payload length and CRC-32C. It is independent of durable storage format 4.
+Reader failures after argument validation permanently fail that reader, including cancellation;
+retry raises CK05004 without I/O or another damage event/counter. Dispose statements on every
+exit; they close all owned runs, continuing cleanup after close failures.
+
+[StorageTempException](storage-temp-exception.md) exposes CK05001–CK05006 separately from its
+unprefixed message. [Storage events](#storage-eventsource) report reservations and refusals
+without paths, keys or rows.
 
 ## The page model
 
@@ -678,11 +722,21 @@ Provider `Assimalign.Cohesion.Database.Storage` reports recovery and checkpoint 
 | 18 | HeaderReadFallback | Warning | database, slot, generation, lsnFloor, exceptionType, exceptionMessage | Writable open accepts a covered header fallback before replay |
 | 19 | CheckpointBusy | Verbose | database, bracketClass, owner, transactionSequence, refusal | Each physical bracket blocking a refused checkpoint |
 | 20 | CheckpointJournalPeak | Verbose | database, peakLength | Exact journal high-water mark since open, before an admitted checkpoint |
+| 21 | TempSpaceBytes | Verbose | deltaBytes, currentBytes | Physical temp-page reservation or release |
+| 22 | TempSpaceRefused | Verbose | code | Quota, floor, unavailable I/O or oversized-record refusal |
+| 23 | TempSpaceUnavailable | Warning | code, exceptionType | First temporary unavailability at startup or first failed use |
+| 24 | TempSpaceDamaged | Error | code | Temporary validation failure; failed-reader retries emit none |
 
 Events 19 and 20 use the Checkpoints keyword (0x1). A refusal identifier groups event 19's
 blockers for one attempt. Peak length is measured under the journal append lock and survives
 truncation; it is a since-open high-water mark, not a sum of appended bytes. Physical brackets
 carry the class and owner supplied to [Storage.BeginTransaction](storage.md#begintransaction).
+
+Events 21–24 use TempSpace (0x10), and callbacks run outside the accounting monitor. Exact
+process counters are maintained without listeners: current-temp-bytes (gauge, including unwritten
+tails), temp-pages-written-per-second, temp-refusals-per-second (including CK05005/CK05006) and
+temp-damage-per-second (rates). Failed-reader retries increment no damage counter. Temporary
+pages do not change durable page-read/write counters.
 
 Writable opens report every accepted fallback without throttling, including consecutive opens. Missing coverage
 emits no success warning and refuses open before replay writes. The existing PageChecksumFailed
