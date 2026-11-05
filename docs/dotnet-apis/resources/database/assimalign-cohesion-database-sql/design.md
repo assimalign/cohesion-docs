@@ -654,14 +654,17 @@ unsupported-clause diagnostics.
 - **Bounded SELECT selection.** Unordered non-DISTINCT LIMIT stops after OFFSET + LIMIT
   qualifying outputs; table/system scans also stop reading. OFFSET rows evaluate projections;
   unvisited rows skip projection/HAVING errors and volatile calls. Grouped input still accumulates,
-  while correlated outer rows and final join/set projection can stop. Fixed-collation ORDER BY
+  while correlated outer rows and join projection can stop. Join ON/WHERE still drain every
+  candidate, including at LIMIT 0. Fixed-collation ORDER BY
   with a non-DISTINCT positive limit examines all inputs but retains at most OFFSET + LIMIT outputs
   and key tuples in a max-heap, using input ordinals for stable ties. The bound saturates at
   Int64.MaxValue and storage grows from actual retained rows. Deferred collations use full sorting,
   retaining the last qualifying row's resolved collations. Independent volatile ordinary outputs
   keep full sorting then sorted-order projection before pagination; other projections evaluate
-  before each input's keys. DISTINCT finishes before pagination. Aggregate state, join inputs/results
-  and set operands still materialize. `SqlMaterializedResultSet` holds completed output before
+  before each input's keys. DISTINCT finishes before pagination. Eligible grouping and DISTINCT
+  stream input while retaining state; joins stream matches unless staged evaluation is required.
+  Eligible EXISTS/scalar bodies retain at most two result rows without skipping the ordinary body's
+  projection work. Set operands retain their existing evaluation. `SqlMaterializedResultSet` holds completed output before
   delivery; snapshot/lock/reader-epoch ownership remains statement-scoped. There is no public option
   or new wire frame. See [SELECT](../../../../database/sql/language/statements/select.md#bounded-result-selection).
 - **Transactions (MVCC session binding, `3.8).** Every statement — explicit
@@ -1374,8 +1377,9 @@ CS03025 wrapper. Sequence SQL DDL self-commits and uses CS04003 (25001) inside e
 Shared object grants protect statement evaluation; ALTER/RESTART/DROP wait for transaction end.
 Literal/parameter names lock their objects; row-varying names lock the captured sequence directory.
 Ordered independent sequence outputs evaluate after sorting, including OFFSET rows, and stop at
-LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting follows the
-ordinary sort's uncharged accounting; grouping-set states retain their existing CS05067 grant.
+LIMIT. Outputs needed as sort keys evaluate before sorting. Deferred sequence sorting retains
+its source buffers and charges like ordinary sorting; kept outputs and grouping state also
+charge the CS05067 statement grant.
 RETURNING lists containing calls evaluate before the global apply gate; durable sequence effects
 survive write rollback. Identity, SERIAL and OWNED BY share the allocator; constant column sequence defaults track dependencies.
 
@@ -1498,7 +1502,7 @@ independent storage latches.
 | `CS05074` | GROUPING outside grouped output or in grouping/aggregate inputs | 42803 |
 | `CS05075` | More than 4096 expanded sets before DISTINCT | 54001 |
 | `CS05036` | Repeated ON CONFLICT/MERGE target modification, including MERGE rechecks | 21000 |
-| `CS05067` | Statement memory grant exhausted by hash builds, retained joined-DML state, CTAS buffers or per-set grouping/mask state | 53200 |
+| `CS05067` | Statement memory grant exhausted by retained SELECT buffers/results, joined-DML state, CTAS buffers or grouping/mask state | 53200 |
 | `CS01053` | merge_action() outside MERGE RETURNING | — |
 | `CS05071` | MERGE WHEN follows an unconditional clause of the same match kind | — |
 | `CS03068` | CTAS output names are missing, blank, duplicate or have the wrong width | 42601 (`syntax_error`) |
@@ -2096,6 +2100,21 @@ running lane while disposal waits, measuring elapsed disposal time. Storage stay
 returns. These events add no diagnostic code or SQLSTATE. See [lane limits and worker health](../assimalign-cohesion-database/design.md#maintenance-lane-isolation).
 
 ## Probe costing and hash builds
+
+Every retained plain SELECT buffer shares StatementMemoryBudget (default 64 MiB): hash/loop and
+normalized join buffers, staged matches, grouping and aggregate state, sorts/top-N, outputs and
+DISTINCT membership, relation/subquery caches, and set operands/state. Buffers reserve before
+retention and release on consumption or scope exit. Consumers re-admit results after child
+execution releases its charge. Costs follow retained rows, not collection capacity.
+
+Cells of at least 256 bytes pay payload once per buffer owner by reference identity plus 64 bytes
+per distinct cell; further references pay slots. Smaller cells and hash-build references still
+pay per reference. Separate equal objects each pay. Outputs and keys share a collector map;
+two live buffers each pay for a shared value. Large sorts and results refuse CS05067 until the
+budget is raised; query operators do not spill yet. Plain bytes that fill the grant first also
+cause window/JSON memory refusals to use CS05067. Without plain bytes live, those retain CS05079
+and CS05094. INSERT SELECT and DML subquery sources keep their existing policy.
+See [statement memory](../../../../database/sql/performance.md#statement-memory).
 
 Binding proves eligible paths and preserves complete residuals. Statement-local bounded B-tree probes rank access costs without persisted statistics or ANALYZE maintenance. Eligible equijoins compare hash-build/probe work with nested loops; safe smaller first INNER inputs can become the driver, while LEFT preserves its written outer side. Hash memory is reserved against StatementMemoryBudget before retained allocation and released on every exit. CS05067 / 53200 refuses exhausted builds; no spill exists.
 

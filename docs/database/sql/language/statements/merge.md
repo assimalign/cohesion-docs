@@ -144,8 +144,9 @@ serialization refusals abort the transaction and require a full transaction retr
 StatementMemoryBudget covers hash builds and retained target identities, source buffers,
 derived copies, intermediate frames, associations, selected values and encoded replacements,
 including joined-statement cascade state. Exhaustion reports CS05067 (53200) before any write;
-there is no spill. General result materialization and transient expression values are outside
-this grant. Reservations release on every exit. See [memory options](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#hash-build-memory).
+there is no spill. INSERT SELECT and DML subquery sources retain their existing policy; transient
+expression values remain outside the grant. Plain SELECT materialized results now charge it.
+Reservations release on every exit. See [memory options](../../../../dotnet-apis/resources/database/assimalign-cohesion-database-sql/sql-database-engine-options.md#statement-memory).
 
 ### Concurrent target changes
 

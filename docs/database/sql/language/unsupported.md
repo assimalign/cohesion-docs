@@ -126,7 +126,10 @@ evaluate. Ordinary nonvolatile projections evaluate before each row's ordering k
 volatile outputs instead evaluate in sorted order before pagination, preserving their full call
 count. [ORDER BY](clauses/order-by.md#evaluation-order) explains alias dependencies and collation
 fallbacks. Fixed-collation ORDER BY with a non-DISTINCT limit retains only OFFSET + LIMIT candidates.
-DISTINCT, aggregate input, join inputs/results and set operands retain their materialization rules.
+Eligible aggregation and DISTINCT stream input; joins can stream matches but still drain ON/WHERE
+after limited projection stops. Eligible EXISTS/scalar bodies retain at most two result rows,
+without skipping ordinary projection work. Volatile evaluation and deferred collations can require staging.
+All retained SELECT buffers and results charge StatementMemoryBudget; CS05067 refuses exhaustion.
 Selected index order avoids sorting. Selected rows still materialize before delivery; spillable
 sorts and streaming result execution are unavailable.
 

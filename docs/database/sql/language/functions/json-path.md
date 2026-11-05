@@ -93,7 +93,9 @@ recursive `.**` and malformed accessors.
 A path may contain at most 65,536 UTF-16 code units and 256 accessors. Path execution shares a
 1,000,000-visit work cap per statement with window-frame recomputation. Transient DOM, result
 references and selected-result serialization share StatementMemoryBudget. CS05094 reports these
-path limits; cancellation remains cancellation.
+path limits; cancellation remains cancellation. If concurrently retained plain SELECT bytes fill
+the memory grant first, memory refusal instead reports CS05067. With no plain bytes live, the
+JSON grant retains CS05094. Neither memory refusal is handled by ON ERROR.
 
 ## Examples
 

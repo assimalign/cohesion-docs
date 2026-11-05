@@ -49,6 +49,14 @@ outer statement's multi-version concurrency control (MVCC) snapshot and transact
 System-relation children use the same statement catalog snapshot. Type and collation survive
 materialization, including empty and null scalar results.
 
+Eligible unordered, non-DISTINCT SELECT or join bodies retain at most two result rows for EXISTS
+and scalar queries, while evaluating every projection the ordinary body would reach. EXISTS
+stops reading the completed result after its first row; a scalar query reports cardinality on
+its second row. This is a retention bound, not early input termination. Blocking stages and paths
+that preserve staged volatile evaluation keep their existing evaluation. Independent cached
+values and correlated vectors in plain SELECT charge the statement memory budget; INSERT SELECT
+and DML subquery sources keep their existing policy.
+
 These forms compose with supported SELECT projections, predicates, joins, grouping, ordering,
 ordinary numeric pagination and UPDATE/DELETE WHERE. At most 32 query levels, including derived
 bodies, are allowed beneath the

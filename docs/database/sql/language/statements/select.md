@@ -85,8 +85,11 @@ these paths. Rows skipped by OFFSET still evaluate their projections. Unvisited 
 projection calls and raise no projection errors, including volatile function calls.
 
 Grouped queries still consume aggregate input, but stop group projection and HAVING evaluation
-once the window is filled. Correlated queries stop evaluating outer rows. Join inputs/results and
-set operands still materialize; their final projection can stop at the window. DISTINCT completes
+once the window is filled. Correlated queries stop evaluating outer rows. Eligible joins stream
+matches into projection; only projection stops at the window. ON/WHERE still drain every
+candidate, including at LIMIT 0. Hash-build and loop-inner buffers still retain their inputs.
+Volatile outputs, subquery staging and deferred collations can keep the materialized fallback.
+Set operands retain their existing evaluation. DISTINCT completes
 before pagination and does not use this early stop. Planning errors remain errors even when a
 limit would return no rows.
 
@@ -95,6 +98,12 @@ and stop after OFFSET + LIMIT qualifying rows. Other ORDER BY paths with a non-D
 the best OFFSET + LIMIT rows. Deferred collations and independent volatile outputs use a full sort;
 see [ordering evaluation](../clauses/order-by.md#evaluation-order). The selected output rows still
 materialize before delivery; bounded selection does not provide streaming results.
+
+Every retained SELECT buffer shares StatementMemoryBudget (64 MiB by default), including joins,
+sorts, group state, set operations, caches and the materialized result. Eligible grouping and
+DISTINCT stream their input while retaining their state. Exhaustion refuses with CS05067;
+large sorts and results need a larger budget. Query operators do not spill yet. See
+[statement memory](../../performance.md#statement-memory) for ownership and window/JSON diagnostics.
 
 [USING](../clauses/join.md#using-columns) merges names and chooses a common type. Unqualified `*`
 expands visible columns after merging; aliases and ordinals in ORDER BY count those columns.

@@ -44,7 +44,11 @@ rows. OFFSET rows still evaluate projections; rows beyond the window do not. Sto
 system-view scans stop reading, and LIMIT 0 reads no input on those paths. Later projection errors
 and volatile calls are skipped, as with PostgreSQL's Limit execution. Grouped queries consume
 aggregate input but stop group projection and HAVING; correlated queries stop outer-row evaluation.
-Join inputs/results and set operands still materialize before bounded final projection.
+Eligible joins stream matches into projection, which stops at the window. ON/WHERE still drain
+every candidate, even at LIMIT 0, and build/inner buffers remain necessary.
+Volatile outputs, subquery staging and deferred collations can retain the materialized fallback.
+Set operands keep their existing evaluation. Sorting, group state and kept results still charge
+[StatementMemoryBudget](../../performance.md#statement-memory); pagination does not reserve capacity.
 
 With a selected [ordered index scan](order-by.md#index-order) and no DISTINCT, execution stops
 after OFFSET + LIMIT qualifying rows without sorting. Otherwise, with ORDER BY, a positive limit

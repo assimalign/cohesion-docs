@@ -56,6 +56,35 @@ Extrema use the shared value comparator and effective string collation. Grouped 
 `CASE`/`COALESCE` alternatives use a common numeric type; incompatible nonnumeric alternatives
 are planning errors. Ordering can use aggregates, output aliases, or ordinals.
 
+## Repeated aggregate calls
+
+In plain GROUP BY and grouping sets, duplicate calls with a volatile argument, FILTER condition
+or aggregate-local ORDER BY key (including WITHIN GROUP) evaluate separately. SELECT duplicates,
+every HAVING occurrence and aggregates inside a larger unmatched key keep independent states.
+Stable and Immutable inputs still share. A cast itself declares no volatility.
+
+A complete query ORDER BY key or window PARTITION BY / ORDER BY key, inline or named, reuses a
+select-list expression's aggregate results, or an earlier whole key's results, when the complete
+expressions match structurally (`SameGroupExpression`), even with volatile inputs. Aliases and
+ordinals in query ORDER BY read completed outputs. A name inside a key that refers to an output
+alias does not structurally match the underlying expression.
+
+Separate child-query occurrences do not share aggregate states. Equal complete child queries can
+still match as part of a whole key. Child-query bodies and window expressions compare by spelling:
+`t.id` and `id` remain distinct. A matched key's independent child query still runs once during
+eager statement preparation, even though its value is unread; it can advance a sequence.
+
+Window calls keep separate aggregates even when they share a sort. Equal whole window keys can
+reuse aggregate slots and permit sort-prefix sharing. This rule covers aggregates: a window
+function's own volatile argument in a whole query ORDER BY window expression still evaluates per
+window call. See [windows](../clauses/window.md) and [GROUPING](grouping.md).
+
+Aggregation streams eligible input into group/aggregate state; it need not retain all input rows.
+DISTINCT can likewise retain membership and representatives while consuming input. Group keys,
+aggregate state, DISTINCT tuples and ordered aggregate inputs charge the
+[statement memory budget](../../performance.md#statement-memory). Volatile evaluation and deferred
+collations can require staged input; aggregate-local ordering still retains its ordered inputs.
+
 ## Aggregate modifiers
 
 [FILTER](../clauses/filter.md) accepts only TRUE rows before arguments, coercion, input ordering,
@@ -241,6 +270,7 @@ for filtering before a division or argument subquery.
 
 ## Sources
 
+- **Volatile occurrences and whole keys** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAggregateExecutionTests.Sharing.cs` and `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`.
 - **Dialect contract** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql.Language/docs/DIALECT.md`
 - **Execution cases** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlLanguageConformanceTests.cs`
 - **Implementation** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlAggregateExecutionTests.cs`

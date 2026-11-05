@@ -36,6 +36,11 @@ aggregate has one implicit group. Grouping composes with supported joins and sys
 [FILTER](filter.md) selects input separately for each aggregate before argument evaluation.
 Rejecting every row of an aggregate does not remove its group; its empty-input rule applies.
 
+Duplicate aggregates containing volatile inputs keep separate states in plain grouping as well
+as grouping sets. Complete matching ORDER BY and window keys can reuse an output's aggregate
+results; see [repeated aggregate calls](../functions/aggregate-functions.md#repeated-aggregate-calls).
+Eligible aggregation streams input and charges retained keys and state to the statement grant.
+
 Projection aliases are outside grouping's alias-binding scope. Standalone numeric keys
 (`GROUP BY 1`) report `CK00001`; `GROUP BY 1 + 1` is an ordinary constant expression.
 

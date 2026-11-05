@@ -59,23 +59,38 @@ session.LockTimeout = null;          // inherit the engine's 80 ms again
 
 [Assembly](index.md) · [Session](sql-database-session.md) · [Timeout exception](sql-timeout-exception.md)
 
-## Hash-build memory
+## Statement memory
 
-StatementMemoryBudget limits accounted bytes retained by hash builds, joined DML and CREATE TABLE
-AS copying in one statement. It defaults to 67,108,864 bytes (64 MiB) and must be positive; engine
-creation rejects a nonpositive value with ArgumentOutOfRangeException. The engine snapshots the value.
+StatementMemoryBudget limits accounted bytes retained by query buffers and writes in one
+statement. It defaults to 67,108,864 bytes (64 MiB), must be positive and is copied into the
+engine snapshot. Engine creation rejects nonpositive values with ArgumentOutOfRangeException.
 
-Concurrently live hash builds share the limit across nested queries. UPDATE FROM, DELETE USING
-and MERGE also charge retained target identities, source/intermediate buffers, derived copies,
-associations, selected values, encoded replacements and joined cascade state. CTAS charges retained
-query output and batch buffers. Recursive queries also charge retained results and scratch;
-ordinary nonrecursive output materialization and planning remain outside this accounting.
-Exhaustion reports CS05067 / SQLSTATE 53200 before writes or publication and releases reservations
-on every exit. Hash joins never spill. See [query performance](../../../../database/sql/performance.md).
+Plain SELECT charges nested-loop and normalized join buffers, staged matches, group keys and
+aggregate state, sorting and top-N entries, output rows, DISTINCT state, relation and subquery
+caches, and set operands and state. Every buffer reserves before retaining a row and releases on
+consumption or scope exit. Consumers re-admit materialized results after child execution releases
+its charge. Costs follow retained rows, never collection capacity.
 
-Grouping sets charge group and aggregate state. Ordered sequence deferral uses ordinary uncharged
-sorting, including LIMIT and OFFSET, and adds no charge on plain, correlated, grouped or
-grouping-set paths. Unordered sequence projection streams without retaining inputs.
+A cell of at least 256 bytes charges its payload once per buffer owner by reference identity,
+plus a fixed 64-byte entry per distinct cell. Further references pay only array slots; smaller
+cells pay per reference. Two live buffers each charge their wide identities. Hash builds still
+charge each reference. Ordered sequence deferral retains its source buffers; unordered sequence
+projection streams without retaining inputs. Kept outputs and group state still charge.
+
+Joined DML charges retained inputs, associations and selected writes. Grouping sets charge group
+and aggregate state. CTAS sources charge like any SELECT; CTAS itself admits only output rows
+kept after pagination and its batch buffers. CTAS publishes only after all copying succeeds.
+INSERT SELECT and DML subquery sources keep their existing policy.
+
+Window buffers outside the window ledger also charge; ledger-owned rows and subquery vectors
+keep that owner. Independent caches created in a window remain charged for the statement. When
+plain bytes fill the grant first, refusal reports CS05067, including where the window or JSON
+ledger would later refuse with CS05079 or CS05094. With no plain bytes live, those grants retain
+their specific diagnostic. Reservations unwind on success, error and cancellation.
+
+Budget exhaustion refuses the statement. Large sorts and materialized results can report CS05067
+(53200); raising StatementMemoryBudget is the way to admit them. Query buffers do not spill yet.
+See [query performance](../../../../database/sql/performance.md#statement-memory).
 
 Every [referential closure](../../../../database/sql/language/constraints.md#referential-closure-memory), including plain ON DELETE CASCADE, charges
 StatementMemoryBudget. About 840 bytes per two-column row limits a default 64 MiB closure to
@@ -85,7 +100,8 @@ CS05067 (53200) refuses exhaustion before writes; cleanup releases abandoned att
 [Windows](../../../../database/sql/language/clauses/window.md#memory) share the grant for retained
 rows, keys, sort/peer indexes, argument caches, transition state, outputs and ownership bookkeeping.
 Aliased payloads are charged once; partition scratch releases at its boundary. Exhaustion uses
-CS05079 (54000), or CS05067 (53200) when admitting earlier CTE/subquery caches. There is no spill.
+CS05079 (54000) with no plain SELECT bytes live; when plain bytes fill the grant first it uses
+CS05067 (53200). There is no spill.
 The default-grant fixture admits 138,961 two-window rows or 162,448 moving-AVG rows; widths and
 other retained state change these limits.
 
@@ -93,7 +109,8 @@ other retained state change these limits.
 
 [SQL/JSON path functions](../../../../database/sql/language/functions/json-path.md#limits) also
 charge transient DOM, result references and selected-result serialization to StatementMemoryBudget.
-Exhaustion reports CS05094 (54000), outside ON ERROR handling. Their 1,000,000-visit work cap is
+Exhaustion reports CS05094 (54000), outside ON ERROR handling, or CS05067 when plain SELECT
+bytes fill the grant first. Their 1,000,000-visit work cap is
 shared with window-frame recomputation and is independent of the configured byte grant.
 
 ## Recursive query memory
