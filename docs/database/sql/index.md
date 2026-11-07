@@ -298,7 +298,9 @@ applied markers and pending targets fail with SqlSchemaValidationException, Inva
 a migration or changing inputs. Rebuild schema artifacts; export old data with the engine that
 wrote it, recreate the database and reapply the rebuilt declaration before reloading. There is
 no upgrade path or legacy reader (#1152). Shared physical storage remains format 4 and B-tree
-pages remain format 2; these have separate version gates.
+pages require format 3; format-2 trees refuse CK06101 before any write. These have separate
+version gates. If both the SQL marker and B-tree stamp are old, the marker refusal CS06041
+comes first; see [combined format refusals](../error-codes.md#combined-format-refusals).
 
 ## See also
 

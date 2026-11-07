@@ -246,6 +246,23 @@ CS05097 (54011, too_many_columns) refuses a SELECT or RETURNING target list abov
 syntactic or expanded entries, including nested bodies and view expansion. The diagnostic names
 the limit and attempted count. See [target list limits](sql/language/clauses/join.md#qualified-wildcards).
 
+## Combined format refusals
+
+Current B-tree page format is 3; format-2 trees refuse CK06101 before any write in SQL, Documents,
+Graph and KeyValuePair. Model markers remain separate. If an image is older than both gates,
+clean and abruptly stopped images receive one stable refusal per model on repeated open:
+
+| Model | First refusal | Gate order |
+| --- | --- | --- |
+| SQL | CS06041 | Catalog/data-storage marker, then B-tree roots |
+| KeyValuePair | CV06107 | Entry-space marker, then B-tree roots |
+| Documents | CD06105 | Catalog kind/version headers, then B-tree roots |
+| Graph | CK06101, in its existing message-only carrier | Entity/registration and B-tree roots, then catalog v4 |
+
+Every file, journal, backup and sidecar remains unchanged through refusal and disposal. Blob
+uses no B-tree. Recreate using exported data from the engine that wrote the old image; there
+is no upgrade reader. See [B-tree format](../dotnet-apis/resources/database/assimalign-cohesion-database-indexing/design.md#page-format-3).
+
 ## Journal admission
 
 | Code | Meaning and trigger | SQLSTATE |

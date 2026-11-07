@@ -2468,6 +2468,13 @@ work before the next admission; reclamation yields to due or pending checkpoints
 [shared admission and attribution](../assimalign-cohesion-database-transactions/design.md#transaction-eventsource)
 and [checkpoint triggering](../assimalign-cohesion-database-storage/design.md#checkpoint-triggering).
 
+## B-tree compatibility
+
+Current B-tree pages use format 3. Format-2 trees refuse CK06101 through recovered read-only
+preflight before recovery or any other write. Clean and crashed file sets remain unchanged.
+When both model metadata and B-tree stamps are old, the catalog/data-storage marker precedes B-tree roots, so the
+single refusal is CS06041. See [combined refusal order](../../../../database/error-codes.md#combined-format-refusals).
+
 ## Sources
 
 - **Joint deferred jobs, key names and script indexes** — `cohesion/resources/Database/Assimalign.Cohesion.Database.Sql/tests/SqlDeferredProvisioningTests.cs`, `SqlJointTypeMigrationTests.PrimaryKeyFix.cs`, `SqlJointTypeMigrationTests.ScriptIndexFix.cs` and `SqlJointTypeMigrationTests.ScriptPromotionFix.cs` in the same directory; events follow `src/Internal/EventSource/SqlDatabaseEventSource.cs` and `src/Internal/Provisioning/SqlSchemaProvisioner.JointMigration.cs` in that project.
